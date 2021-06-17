@@ -42,7 +42,8 @@ TEST(SerializationTest, GraphSerUnser)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto pair_sz      = serializer_t::get_device_graph_sz_bytes(graph);
   auto total_ser_sz = pair_sz.first + pair_sz.second;
@@ -82,7 +83,8 @@ TEST(SerializationTest, GraphDecoupledSerUnser)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto pair_sz      = serializer_t::get_device_graph_sz_bytes(graph);
   auto total_ser_sz = pair_sz.first + pair_sz.second;
@@ -134,12 +136,11 @@ TEST(SerializationTest, UnweightedGraphDecoupledSerUnser)
 
   std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
-  std::vector<weight_t> v_w{};
 
-  auto graph = cugraph::test::make_graph(
-    handle, v_src, v_dst, v_w, num_vertices, num_edges, /*weighted=*/false);
+  auto graph = cugraph::test::make_graph<vertex_t, edge_t, weight_t>(
+    handle, v_src, v_dst, std::nullopt, num_vertices, num_edges);
 
-  ASSERT_TRUE(graph.view().get_matrix_partition_device_view().get_weights() == nullptr);
+  ASSERT_TRUE(graph.view().get_matrix_partition_view().get_weights().has_value() == false);
 
   auto pair_sz      = serializer_t::get_device_graph_sz_bytes(graph);
   auto total_ser_sz = pair_sz.first + pair_sz.second;
@@ -168,7 +169,7 @@ TEST(SerializationTest, UnweightedGraphDecoupledSerUnser)
 
     auto graph_copy = ser.unserialize<decltype(graph)>(pair_sz.first, pair_sz.second);
 
-    ASSERT_TRUE(graph_copy.view().get_matrix_partition_device_view().get_weights() == nullptr);
+    ASSERT_TRUE(graph_copy.view().get_matrix_partition_view().get_weights().has_value() == false);
 
     auto pair = cugraph::test::compare_graphs(handle, graph, graph_copy);
     if (pair.first == false) std::cerr << "Test failed with " << pair.second << ".\n";

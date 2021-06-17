@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/graph.hpp>
 
 #include <thrust/iterator/zip_iterator.h>
@@ -24,6 +25,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <numeric>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -114,7 +116,7 @@ static const std::string& get_rapids_dataset_root_dir()
 template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<weight_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
            vertex_t,
            bool>
 read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
@@ -128,7 +130,7 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           rmm::device_uvector<vertex_t>>
+           std::optional<rmm::device_uvector<vertex_t>>>
 read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    std::string const& graph_file_full_path,
                                    bool test_weighted,
@@ -140,7 +142,7 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           rmm::device_uvector<vertex_t>>
+           std::optional<rmm::device_uvector<vertex_t>>>
 generate_graph_from_rmat_params(raft::handle_t const& handle,
                                 size_t scale,
                                 size_t edge_factor,
@@ -164,36 +166,33 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 decltype(auto) make_graph(raft::handle_t const& handle,
                           std::vector<vertex_t> const& v_src,
                           std::vector<vertex_t> const& v_dst,
-                          std::vector<weight_t> const& v_w,
+                          std::optional<std::vector<weight_t>> const& v_w,
                           vertex_t num_vertices,
-                          edge_t num_edges,
-                          bool is_weighted)
+                          edge_t num_edges)
 {
   using namespace cugraph::experimental;
 
   vector_test_t<vertex_t> d_src(num_edges, handle.get_stream());
   vector_test_t<vertex_t> d_dst(num_edges, handle.get_stream());
-  vector_test_t<weight_t> d_weights(num_edges, handle.get_stream());
+  auto d_w = v_w ? std::make_optional<vector_test_t<weight_t>>(num_edges, handle.get_stream())
+                 : std::nullopt;
 
   raft::update_device(d_src.data(), v_src.data(), d_src.size(), handle.get_stream());
   raft::update_device(d_dst.data(), v_dst.data(), d_dst.size(), handle.get_stream());
-
-  weight_t* ptr_d_weights{nullptr};
-  if (is_weighted) {
-    raft::update_device(d_weights.data(), v_w.data(), d_weights.size(), handle.get_stream());
-
-    ptr_d_weights = d_weights.data();
+  if (d_w) {
+    raft::update_device((*d_w).data(), (*v_w).data(), (*d_w).size(), handle.get_stream());
   }
 
-  edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-    d_src.data(), d_dst.data(), ptr_d_weights, num_edges};
-
-  graph_t<vertex_t, edge_t, weight_t, false, false> graph(
-    handle,
-    edgelist,
-    num_vertices,
-    graph_properties_t{false, false, is_weighted},
-    std::vector<vertex_t>{});
+  cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+  std::tie(graph, std::ignore) =
+    cugraph::experimental::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+      handle,
+      std::nullopt,
+      std::move(d_src),
+      std::move(d_dst),
+      std::move(d_w),
+      cugraph::experimental::graph_properties_t{false, false},
+      false);
 
   return graph;
 }
@@ -251,11 +250,11 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<vertex_t> lv_ci(num_edges);
 
     raft::update_host(lv_ro.data(),
-                      lgraph_view.get_matrix_partition_device_view().get_offsets(),
+                      lgraph_view.get_matrix_partition_view().get_offsets(),
                       num_vertices + 1,
                       handle.get_stream());
     raft::update_host(lv_ci.data(),
-                      lgraph_view.get_matrix_partition_device_view().get_indices(),
+                      lgraph_view.get_matrix_partition_view().get_indices(),
                       num_edges,
                       handle.get_stream());
 
@@ -263,11 +262,11 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<vertex_t> rv_ci(num_edges);
 
     raft::update_host(rv_ro.data(),
-                      rgraph_view.get_matrix_partition_device_view().get_offsets(),
+                      rgraph_view.get_matrix_partition_view().get_offsets(),
                       num_vertices + 1,
                       handle.get_stream());
     raft::update_host(rv_ci.data(),
-                      rgraph_view.get_matrix_partition_device_view().get_indices(),
+                      rgraph_view.get_matrix_partition_view().get_indices(),
                       num_edges,
                       handle.get_stream());
 
@@ -278,13 +277,13 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     if (is_weighted) {
       std::vector<weight_t> lv_vs(num_edges);
       raft::update_host(lv_vs.data(),
-                        lgraph_view.get_matrix_partition_device_view().get_weights(),
+                        *(lgraph_view.get_matrix_partition_view().get_weights()),
                         num_edges,
                         handle.get_stream());
 
       std::vector<weight_t> rv_vs(num_edges);
       raft::update_host(rv_vs.data(),
-                        rgraph_view.get_matrix_partition_device_view().get_weights(),
+                        *(rgraph_view.get_matrix_partition_view().get_weights()),
                         num_edges,
                         handle.get_stream());
 

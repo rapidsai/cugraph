@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <cugraph/matrix_partition_device_view.cuh>
+#include <cugraph/matrix_partition_view.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/vertex_partition_device_view.cuh>
+#include <cugraph/vertex_partition_view.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
@@ -214,7 +214,6 @@ class partition_t {
 struct graph_properties_t {
   bool is_symmetric{false};
   bool is_multigraph{false};
-  bool is_weighted{false};
 };
 
 namespace detail {
@@ -259,7 +258,6 @@ class graph_base_t {
 
   bool is_symmetric() const { return properties_.is_symmetric; }
   bool is_multigraph() const { return properties_.is_multigraph; }
-  bool is_weighted() const { return properties_.is_weighted; }
 
  protected:
   friend class cugraph::serializer::serializer_t;
@@ -307,18 +305,21 @@ class graph_view_t<vertex_t,
   static constexpr bool is_adj_matrix_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
 
-  graph_view_t(raft::handle_t const& handle,
-               std::vector<edge_t const*> const& adj_matrix_partition_offsets,
-               std::vector<vertex_t const*> const& adj_matrix_partition_indices,
-               std::vector<weight_t const*> const& adj_matrix_partition_weights,
-               std::vector<vertex_t const*> const& adj_matrix_partition_dcs_nzd_vertices,
-               std::vector<vertex_t> const& adj_matrix_partition_dcs_nzd_vertex_counts,
-               partition_t<vertex_t> const& partition,
-               vertex_t number_of_vertices,
-               edge_t number_of_edges,
-               graph_properties_t properties,
-               std::vector<vertex_t> const& adj_matrix_partition_segment_offsets,
-               bool do_expensive_check = false);
+  graph_view_t(
+    raft::handle_t const& handle,
+    std::vector<edge_t const*> const& adj_matrix_partition_offsets,
+    std::vector<vertex_t const*> const& adj_matrix_partition_indices,
+    std::optional<std::vector<weight_t const*>> const& adj_matrix_partition_weights,
+    std::optional<std::vector<vertex_t const*>> const& adj_matrix_partition_dcs_nzd_vertices,
+    std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
+    partition_t<vertex_t> const& partition,
+    vertex_t number_of_vertices,
+    edge_t number_of_edges,
+    graph_properties_t properties,
+    std::optional<std::vector<vertex_t>> const& adj_matrix_partition_segment_offsets,
+    bool do_expensive_check = false);
+
+  bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
 
   vertex_t get_number_of_local_vertices() const
   {
@@ -480,32 +481,42 @@ class graph_view_t<vertex_t,
 
   std::vector<vertex_t> get_local_adj_matrix_partition_segment_offsets(size_t partition_idx) const
   {
-    auto size_per_partition =
-      adj_matrix_partition_segment_offsets_.size() / partition_.get_col_size();
-    return adj_matrix_partition_segment_offsets_.size() > 0
-             ? std::vector<vertex_t>(
-                 adj_matrix_partition_segment_offsets_.begin() + partition_idx * size_per_partition,
-                 adj_matrix_partition_segment_offsets_.begin() +
-                   (partition_idx + 1) * size_per_partition)
-             : std::vector<vertex_t>{};
+    if (adj_matrix_partition_segment_offsets_) {
+      auto size_per_partition =
+        (*adj_matrix_partition_segment_offsets_).size() / partition_.get_col_size();
+      return std::vector<vertex_t>(
+        (*adj_matrix_partition_segment_offsets_).begin() + partition_idx * size_per_partition,
+        (*adj_matrix_partition_segment_offsets_).begin() +
+          (partition_idx + 1) * size_per_partition);
+    } else {
+      return std::vector<vertex_t>{};
+    }
   }
 
-  vertex_partition_device_view_t<vertex_t, true> get_vertex_partition_device_view() const
+  vertex_partition_view_t<vertex_t, true> get_vertex_partition_view() const
   {
-    return vertex_partition_device_view_t<vertex_t, true>(this->get_number_of_vertices(),
-                                                          this->get_local_vertex_first(),
-                                                          this->get_local_vertex_last());
+    return vertex_partition_view_t<vertex_t, true>(this->get_number_of_vertices(),
+                                                   this->get_local_vertex_first(),
+                                                   this->get_local_vertex_last());
   }
 
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, true> get_matrix_partition_device_view(
+  matrix_partition_view_t<vertex_t, edge_t, weight_t, true> get_matrix_partition_view(
     size_t adj_matrix_partition_idx) const
   {
-    return matrix_partition_device_view_t<vertex_t, edge_t, weight_t, true>(
+    return matrix_partition_view_t<vertex_t, edge_t, weight_t, true>(
       adj_matrix_partition_offsets_[adj_matrix_partition_idx],
       adj_matrix_partition_indices_[adj_matrix_partition_idx],
-      adj_matrix_partition_weights_.size() > 0
-        ? adj_matrix_partition_weights_[adj_matrix_partition_idx]
-        : static_cast<weight_t const*>(nullptr),
+      adj_matrix_partition_weights_
+        ? std::optional<weight_t const*>{(*adj_matrix_partition_weights_)[adj_matrix_partition_idx]}
+        : std::nullopt,
+      adj_matrix_partition_dcs_nzd_vertices_
+        ? std::optional<vertex_t const*>{(
+            *adj_matrix_partition_dcs_nzd_vertices_)[adj_matrix_partition_idx]}
+        : std::nullopt,
+      adj_matrix_partition_dcs_nzd_vertex_counts_
+        ? std::optional<vertex_t>{(
+            *adj_matrix_partition_dcs_nzd_vertex_counts_)[adj_matrix_partition_idx]}
+        : std::nullopt,
       this->get_number_of_local_adj_matrix_partition_edges(adj_matrix_partition_idx),
       store_transposed ? this->get_local_adj_matrix_partition_col_first(adj_matrix_partition_idx)
                        : this->get_local_adj_matrix_partition_row_first(adj_matrix_partition_idx),
@@ -535,19 +546,18 @@ class graph_view_t<vertex_t,
  private:
   std::vector<edge_t const*> adj_matrix_partition_offsets_{};
   std::vector<vertex_t const*> adj_matrix_partition_indices_{};
-  std::vector<weight_t const*> adj_matrix_partition_weights_{};
+  std::optional<std::vector<weight_t const*>> adj_matrix_partition_weights_{};
 
-  // relevant only if sorted_by_global_degree_within_vertex_partition is true
-  std::vector<vertex_t const*> adj_matrix_partition_dcs_nzd_vertices_{};
-  std::vector<vertex_t> adj_matrix_partition_dcs_nzd_vertex_counts_{};
+  // relevant only if we use the CSR + DCSR (or CSC + DCSC) hybrid format
+  std::optional<std::vector<vertex_t const*>> adj_matrix_partition_dcs_nzd_vertices_{};
+  std::optional<std::vector<vertex_t>> adj_matrix_partition_dcs_nzd_vertex_counts_{};
 
   std::vector<edge_t> adj_matrix_partition_number_of_edges_{};
 
   partition_t<vertex_t> partition_{};
 
-  // segment offsets within the vertex partition based on vertex degree, relevant only if
-  // sorted_by_global_degree_within_vertex_partition is true
-  std::vector<vertex_t> adj_matrix_partition_segment_offsets_{};
+  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
+  std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets_{};
 };
 
 // single-GPU version
@@ -573,12 +583,14 @@ class graph_view_t<vertex_t,
   graph_view_t(raft::handle_t const& handle,
                edge_t const* offsets,
                vertex_t const* indices,
-               weight_t const* weights,
+               std::optional<weight_t const*> weights,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
                graph_properties_t properties,
-               std::vector<vertex_t> const& segment_offsets,
+               std::optional<std::vector<vertex_t>> const& segment_offsets,
                bool do_expensive_check = false);
+
+  bool is_weighted() const { return weights_.has_value(); }
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
 
@@ -697,19 +709,19 @@ class graph_view_t<vertex_t,
     size_t adj_matrix_partition_idx) const
   {
     assert(adj_matrix_partition_idx == 0);
-    return segment_offsets_.size() > 0 ? segment_offsets_ : std::vector<vertex_t>{};
+    return segment_offsets_ ? *segment_offsets_ : std::vector<vertex_t>{};
   }
 
-  vertex_partition_device_view_t<vertex_t, false> get_vertex_partition_device_view() const
+  vertex_partition_view_t<vertex_t, false> get_vertex_partition_view() const
   {
-    return vertex_partition_device_view_t<vertex_t, false>(this->get_number_of_vertices());
+    return vertex_partition_view_t<vertex_t, false>(this->get_number_of_vertices());
   }
 
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>
-  get_matrix_partition_device_view(size_t adj_matrix_partition_idx = 0) const
+  matrix_partition_view_t<vertex_t, edge_t, weight_t, false> get_matrix_partition_view(
+    size_t adj_matrix_partition_idx = 0) const
   {
     assert(adj_matrix_partition_idx == 0);  // there is only one matrix partition in single-GPU
-    return matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+    return matrix_partition_view_t<vertex_t, edge_t, weight_t, false>(
       offsets_, indices_, weights_, this->get_number_of_vertices(), this->get_number_of_edges());
   }
 
@@ -728,10 +740,10 @@ class graph_view_t<vertex_t,
  private:
   edge_t const* offsets_{nullptr};
   vertex_t const* indices_{nullptr};
-  weight_t const* weights_{nullptr};
+  std::optional<weight_t const*> weights_{std::nullopt};
 
-  // segment offsets based on vertex degree, relevant only if sorted_by_global_degree is true
-  std::vector<vertex_t> segment_offsets_{};
+  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
+  std::optional<std::vector<vertex_t>> segment_offsets_{std::nullopt};
 };
 
 }  // namespace experimental

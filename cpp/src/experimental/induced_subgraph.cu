@@ -16,7 +16,9 @@
 
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
@@ -42,7 +44,7 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<weight_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract_induced_subgraphs(
   raft::handle_t const &handle,
@@ -79,7 +81,8 @@ extract_induced_subgraphs(
                                       subgraph_offsets,
                                       subgraph_offsets + (num_subgraphs + 1)),
                     "Invalid input argument: subgraph_offsets is not sorted.");
-    auto vertex_partition = graph_view.get_vertex_partition_device_view();
+    auto vertex_partition =
+      vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.get_vertex_partition_view());
     CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
                                      subgraph_vertices,
                                      subgraph_vertices + num_aggregate_subgraph_vertices,
@@ -131,7 +134,8 @@ extract_induced_subgraphs(
       num_aggregate_subgraph_vertices + 1,
       handle.get_stream_view());  // for each element of subgraph_vertices
 
-    auto matrix_partition = graph_view.get_matrix_partition_device_view();
+    auto matrix_partition = matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+      graph_view.get_matrix_partition_view());
     // count the numbers of the induced subgraph edges for each vertex in the aggregate subgraph
     // vertex list.
     thrust::transform(
@@ -144,7 +148,7 @@ extract_induced_subgraphs(
           subgraph_offsets + 1,
           thrust::upper_bound(thrust::seq, subgraph_offsets, subgraph_offsets + num_subgraphs, i));
         vertex_t const *indices{nullptr};
-        weight_t const *weights{nullptr};
+        thrust::optional<weight_t const *> weights{thrust::nullopt};
         edge_t local_degree{};
         auto major_offset =
           matrix_partition.get_major_offset_from_major_nocheck(subgraph_vertices[i]);
@@ -177,8 +181,10 @@ extract_induced_subgraphs(
 
     rmm::device_uvector<vertex_t> edge_majors(num_aggregate_edges, handle.get_stream_view());
     rmm::device_uvector<vertex_t> edge_minors(num_aggregate_edges, handle.get_stream_view());
-    rmm::device_uvector<weight_t> edge_weights(
-      graph_view.is_weighted() ? num_aggregate_edges : size_t{0}, handle.get_stream_view());
+    auto edge_weights = graph_view.is_weighted()
+                          ? std::make_optional<rmm::device_uvector<weight_t>>(
+                              num_aggregate_edges, handle.get_stream_view())
+                          : std::nullopt;
 
     // fill the edge list buffer (to be returned) for each vetex in the aggregate subgraph vertex
     // list (use the offsets computed in the Phase 1)
@@ -193,27 +199,28 @@ extract_induced_subgraphs(
        subgraph_vertex_output_offsets = subgraph_vertex_output_offsets.data(),
        edge_majors                    = edge_majors.data(),
        edge_minors                    = edge_minors.data(),
-       edge_weights                   = edge_weights.data()] __device__(auto i) {
+       edge_weights = edge_weights ? thrust::optional<weight_t *>{(*edge_weights).data()}
+                                   : thrust::nullopt] __device__(auto i) {
         auto subgraph_idx = thrust::distance(
           subgraph_offsets + 1,
           thrust::upper_bound(
             thrust::seq, subgraph_offsets, subgraph_offsets + num_subgraphs, size_t{i}));
         vertex_t const *indices{nullptr};
-        weight_t const *weights{nullptr};
+        thrust::optional<weight_t const *> weights{thrust::nullopt};
         edge_t local_degree{};
         auto major_offset =
           matrix_partition.get_major_offset_from_major_nocheck(subgraph_vertices[i]);
         thrust::tie(indices, weights, local_degree) =
           matrix_partition.get_local_edges(major_offset);
-        if (weights != nullptr) {
+        if (weights) {
           auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
-            thrust::make_constant_iterator(subgraph_vertices[i]), indices, weights));
+            thrust::make_constant_iterator(subgraph_vertices[i]), indices, *weights));
           // FIXME: this is inefficient for high local degree vertices
           thrust::copy_if(
             thrust::seq,
             triplet_first,
             triplet_first + local_degree,
-            thrust::make_zip_iterator(thrust::make_tuple(edge_majors, edge_minors, edge_weights)) +
+            thrust::make_zip_iterator(thrust::make_tuple(edge_majors, edge_minors, *edge_weights)) +
               subgraph_vertex_output_offsets[i],
             [vertex_first = subgraph_vertices + subgraph_offsets[subgraph_idx],
              vertex_last =
@@ -260,7 +267,7 @@ extract_induced_subgraphs(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<float>,
+                    std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const &handle,
                           graph_view_t<int32_t, int32_t, float, true, false> const &graph_view,
@@ -271,7 +278,7 @@ extract_induced_subgraphs(raft::handle_t const &handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<float>,
+                    std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const &handle,
                           graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
@@ -282,7 +289,7 @@ extract_induced_subgraphs(raft::handle_t const &handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<double>,
+                    std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const &handle,
                           graph_view_t<int32_t, int32_t, double, true, false> const &graph_view,
@@ -293,7 +300,7 @@ extract_induced_subgraphs(raft::handle_t const &handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<double>,
+                    std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const &handle,
                           graph_view_t<int32_t, int32_t, double, false, false> const &graph_view,
@@ -304,7 +311,7 @@ extract_induced_subgraphs(raft::handle_t const &handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<float>,
+                    std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const &handle,
                           graph_view_t<int32_t, int64_t, float, true, false> const &graph_view,
@@ -315,7 +322,7 @@ extract_induced_subgraphs(raft::handle_t const &handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<float>,
+                    std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const &handle,
                           graph_view_t<int32_t, int64_t, float, false, false> const &graph_view,
@@ -326,7 +333,7 @@ extract_induced_subgraphs(raft::handle_t const &handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<double>,
+                    std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const &handle,
                           graph_view_t<int32_t, int64_t, double, true, false> const &graph_view,
@@ -337,7 +344,7 @@ extract_induced_subgraphs(raft::handle_t const &handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<double>,
+                    std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const &handle,
                           graph_view_t<int32_t, int64_t, double, false, false> const &graph_view,
@@ -348,7 +355,7 @@ extract_induced_subgraphs(raft::handle_t const &handle,
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<float>,
+                    std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const &handle,
                           graph_view_t<int64_t, int64_t, float, true, false> const &graph_view,
@@ -359,7 +366,7 @@ extract_induced_subgraphs(raft::handle_t const &handle,
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<float>,
+                    std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const &handle,
                           graph_view_t<int64_t, int64_t, float, false, false> const &graph_view,
@@ -370,7 +377,7 @@ extract_induced_subgraphs(raft::handle_t const &handle,
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<double>,
+                    std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const &handle,
                           graph_view_t<int64_t, int64_t, double, true, false> const &graph_view,
@@ -381,7 +388,7 @@ extract_induced_subgraphs(raft::handle_t const &handle,
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<double>,
+                    std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const &handle,
                           graph_view_t<int64_t, int64_t, double, false, false> const &graph_view,

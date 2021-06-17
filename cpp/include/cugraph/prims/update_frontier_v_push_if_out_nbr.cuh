@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/edge_op_utils.cuh>
 #include <cugraph/prims/reduce_op.cuh>
@@ -26,6 +27,7 @@
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.cuh>
+#include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/cudart_utils.h>
 #include <rmm/thrust_rmm_allocator.h>
@@ -284,7 +286,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
     }
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
-    weight_t const* weights{nullptr};
+    thrust::optional<weight_t const*> weights{nullptr};
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = 0; i < local_out_degree; ++i) {
@@ -292,7 +294,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
                                             key,
                                             row_offset,
                                             indices[i],
-                                            weights != nullptr ? weights[i] : weight_t{1.0},
+                                            weights ? (*weights)[i] : weight_t{1.0},
                                             adj_matrix_row_value_input_first,
                                             adj_matrix_col_value_input_first,
                                             buffer_key_output_first,
@@ -352,7 +354,7 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
     }
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
-    weight_t const* weights{nullptr};
+    thrust::optional<weight_t const*> weights{nullptr};
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = lane_id; i < local_out_degree; i += raft::warp_size()) {
@@ -360,7 +362,7 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
                                             key,
                                             row_offset,
                                             indices[i],
-                                            weights != nullptr ? weights[i] : weight_t{1.0},
+                                            weights ? (*weights)[i] : weight_t{1.0},
                                             adj_matrix_row_value_input_first,
                                             adj_matrix_col_value_input_first,
                                             buffer_key_output_first,
@@ -418,7 +420,7 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
     }
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
-    weight_t const* weights{nullptr};
+    thrust::optional<weight_t const*> weights{nullptr};
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = threadIdx.x; i < local_out_degree; i += blockDim.x) {
@@ -426,7 +428,7 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
                                             key,
                                             row_offset,
                                             indices[i],
-                                            weights != nullptr ? weights[i] : weight_t{1.0},
+                                            weights ? (*weights)[i] : weight_t{1.0},
                                             adj_matrix_row_value_input_first,
                                             adj_matrix_col_value_input_first,
                                             buffer_key_output_first,
@@ -528,6 +530,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = typename GraphViewType::weight_type;
   using key_t    = typename VertexFrontierType::key_type;
 
   edge_t ret{0};
@@ -566,7 +569,9 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
     local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(cur_frontier_bucket.size())};
   }
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    auto matrix_partition = graph_view.get_matrix_partition_device_view(i);
+    auto matrix_partition =
+      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+        graph_view.get_matrix_partition_view(i));
 
     if (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
@@ -766,7 +771,9 @@ void update_frontier_v_push_if_out_nbr(
       static_cast<vertex_t>(thrust::distance(frontier_key_first, frontier_key_last)))};
   }
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    auto matrix_partition = graph_view.get_matrix_partition_device_view(i);
+    auto matrix_partition =
+      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+        graph_view.get_matrix_partition_view(i));
 
     auto matrix_partition_frontier_key_buffer =
       allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
@@ -1064,7 +1071,8 @@ void update_frontier_v_push_if_out_nbr(
     static_assert(VertexFrontierType::kNumBuckets <= std::numeric_limits<uint8_t>::max());
     rmm::device_uvector<uint8_t> bucket_indices(num_buffer_elements, handle.get_stream());
 
-    auto vertex_partition = graph_view.get_vertex_partition_device_view();
+    auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+      graph_view.get_vertex_partition_view());
 
     if constexpr (!std::is_same_v<payload_t, void>) {
       auto key_payload_pair_first = thrust::make_zip_iterator(

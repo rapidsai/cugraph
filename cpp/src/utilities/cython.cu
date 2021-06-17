@@ -146,9 +146,10 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     edgelists[i] = cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>{
       reinterpret_cast<vertex_t*>(graph_container.src_vertices) + displacements[i],
       reinterpret_cast<vertex_t*>(graph_container.dst_vertices) + displacements[i],
-      graph_container.graph_props.is_weighted
-        ? reinterpret_cast<weight_t*>(graph_container.weights) + displacements[i]
-        : static_cast<weight_t*>(nullptr),
+      graph_container.is_weighted
+        ? std::optional<weight_t const*>(
+            {static_cast<weight_t const*>(graph_container.weights) + displacements[i]})
+        : std::nullopt,
       edge_counts[i]};
   }
 
@@ -183,7 +184,9 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
   experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
     reinterpret_cast<vertex_t*>(graph_container.src_vertices),
     reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
-    reinterpret_cast<weight_t*>(graph_container.weights),
+    graph_container.is_weighted
+      ? std::optional<weight_t const*>{reinterpret_cast<weight_t*>(graph_container.weights)}
+      : std::nullopt,
     static_cast<edge_t>(graph_container.num_local_edges)};
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
@@ -241,6 +244,7 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.src_vertices             = src_vertices;
   graph_container.dst_vertices             = dst_vertices;
   graph_container.weights                  = weights;
+  graph_container.is_weighted              = is_weighted;
   graph_container.vertex_partition_offsets = vertex_partition_offsets;
   graph_container.segment_offsets          = segment_offsets;
   graph_container.num_segments             = num_segments;
@@ -254,8 +258,8 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.is_multi_gpu             = multi_gpu;
   graph_container.do_expensive_check       = do_expensive_check;
 
-  experimental::graph_properties_t graph_props{
-    .is_symmetric = is_symmetric, .is_multigraph = false, .is_weighted = is_weighted};
+  experimental::graph_properties_t graph_props{.is_symmetric  = is_symmetric,
+                                               .is_multigraph = false};
   graph_container.graph_props = graph_props;
 
   graph_container.graph_type = graphTypeEnum::graph_t;
@@ -775,7 +779,9 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
       static_cast<size_t>(n_subgraphs),
       std::make_unique<rmm::device_buffer>(std::get<0>(g).release()),
       std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
-      std::make_unique<rmm::device_buffer>(std::get<2>(g).release()),
+      std::make_unique<rmm::device_buffer>(
+        std::get<2>(g) ? (*std::get<2>(g)).release()
+                       : rmm::device_buffer(size_t{0}, handle.get_stream_view())),
       std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
     return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
   } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
@@ -792,7 +798,9 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
       static_cast<size_t>(n_subgraphs),
       std::make_unique<rmm::device_buffer>(std::get<0>(g).release()),
       std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
-      std::make_unique<rmm::device_buffer>(std::get<2>(g).release()),
+      std::make_unique<rmm::device_buffer>(
+        std::get<2>(g) ? (*std::get<2>(g)).release()
+                       : rmm::device_buffer(size_t{0}, handle.get_stream_view())),
       std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
     return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
   } else {

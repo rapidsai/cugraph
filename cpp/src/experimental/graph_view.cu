@@ -54,17 +54,23 @@ struct out_of_range_t {
 template <typename vertex_t, typename edge_t>
 std::vector<edge_t> update_adj_matrix_partition_edge_counts(
   std::vector<edge_t const*> const& adj_matrix_partition_offsets,
+  std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
   partition_t<vertex_t> const& partition,
+  std::optional<std::vector<vertex_t>> const& adj_matrix_partition_segment_offsets,
   cudaStream_t stream)
 {
   std::vector<edge_t> adj_matrix_partition_edge_counts(partition.get_number_of_matrix_partitions(),
                                                        0);
+  auto use_dcs = adj_matrix_partition_dcs_nzd_vertex_counts.has_value();
   for (size_t i = 0; i < adj_matrix_partition_offsets.size(); ++i) {
-    vertex_t major_first{};
-    vertex_t major_last{};
-    std::tie(major_first, major_last) = partition.get_matrix_partition_major_range(i);
+    auto [major_first, major_last] = partition.get_matrix_partition_major_range(i);
     raft::update_host(&(adj_matrix_partition_edge_counts[i]),
-                      adj_matrix_partition_offsets[i] + (major_last - major_first),
+                      adj_matrix_partition_offsets[i] +
+                        (use_dcs ? ((*adj_matrix_partition_segment_offsets)
+                                      [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
+                                       detail::num_sparse_segments_per_vertex_partition] -
+                                    major_first + (*adj_matrix_partition_dcs_nzd_vertex_counts)[i])
+                                 : (major_last - major_first)),
                       1,
                       stream);
   }
@@ -157,18 +163,19 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  graph_view_t(raft::handle_t const& handle,
-               std::vector<edge_t const*> const& adj_matrix_partition_offsets,
-               std::vector<vertex_t const*> const& adj_matrix_partition_indices,
-               std::vector<weight_t const*> const& adj_matrix_partition_weights,
-               std::vector<vertex_t const*> const& adj_matrix_partition_dcs_nzd_vertices,
-               std::vector<vertex_t> const& adj_matrix_partition_dcs_nzd_vertex_counts,
-               partition_t<vertex_t> const& partition,
-               vertex_t number_of_vertices,
-               edge_t number_of_edges,
-               graph_properties_t properties,
-               std::vector<vertex_t> const& adj_matrix_partition_segment_offsets,
-               bool do_expensive_check)
+  graph_view_t(
+    raft::handle_t const& handle,
+    std::vector<edge_t const*> const& adj_matrix_partition_offsets,
+    std::vector<vertex_t const*> const& adj_matrix_partition_indices,
+    std::optional<std::vector<weight_t const*>> const& adj_matrix_partition_weights,
+    std::optional<std::vector<vertex_t const*>> const& adj_matrix_partition_dcs_nzd_vertices,
+    std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
+    partition_t<vertex_t> const& partition,
+    vertex_t number_of_vertices,
+    edge_t number_of_edges,
+    graph_properties_t properties,
+    std::optional<std::vector<vertex_t>> const& adj_matrix_partition_segment_offsets,
+    bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, number_of_vertices, number_of_edges, properties),
     adj_matrix_partition_offsets_(adj_matrix_partition_offsets),
@@ -176,8 +183,12 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
     adj_matrix_partition_weights_(adj_matrix_partition_weights),
     adj_matrix_partition_dcs_nzd_vertices_(adj_matrix_partition_dcs_nzd_vertices),
     adj_matrix_partition_dcs_nzd_vertex_counts_(adj_matrix_partition_dcs_nzd_vertex_counts),
-    adj_matrix_partition_number_of_edges_(update_adj_matrix_partition_edge_counts(
-      adj_matrix_partition_offsets, partition, handle.get_stream())),
+    adj_matrix_partition_number_of_edges_(
+      update_adj_matrix_partition_edge_counts(adj_matrix_partition_offsets,
+                                              adj_matrix_partition_dcs_nzd_vertex_counts,
+                                              partition,
+                                              adj_matrix_partition_segment_offsets,
+                                              handle.get_stream())),
     partition_(partition),
     adj_matrix_partition_segment_offsets_(adj_matrix_partition_segment_offsets)
 {
@@ -191,34 +202,35 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                                ->get_subcomm(cugraph::partition_2d::key_naming_t().col_name())
                                .get_size();
 
-  auto use_dcs = adj_matrix_partition_dcs_nzd_vertices.size() > 0;
+  auto is_weighted = adj_matrix_partition_weights.has_value();
+  auto use_dcs     = adj_matrix_partition_dcs_nzd_vertices.has_value();
 
   CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == adj_matrix_partition_indices.size(),
                   "Internal Error: adj_matrix_partition_offsets.size() and "
                   "adj_matrix_partition_indices.size() should coincide.");
-  CUGRAPH_EXPECTS((properties.is_weighted &&
-                   (adj_matrix_partition_weights.size() == adj_matrix_partition_offsets.size())) ||
-                    (!properties.is_weighted && (adj_matrix_partition_weights.size() == 0)),
-                  "Internal Error: adj_matrix_partition_weights.size() should coincide with "
-                  "adj_matrix_partition_offsets.size() (if weighted) or 0 (if unweighted).");
-  CUGRAPH_EXPECTS(adj_matrix_partition_dcs_nzd_vertices.size() ==
-                    adj_matrix_partition_dcs_nzd_vertex_counts.size(),
+  CUGRAPH_EXPECTS(
+    is_weighted && ((*adj_matrix_partition_weights).size() == adj_matrix_partition_offsets.size()),
+    "Internal Error: adj_matrix_partition_weights.size() should coincide with "
+    "adj_matrix_partition_offsets.size() (if weighted).");
+  CUGRAPH_EXPECTS(adj_matrix_partition_dcs_nzd_vertex_counts.has_value() == use_dcs,
+                  "adj_matrix_partition_dcs_nzd_vertices.has_value() and "
+                  "adj_matrix_partition_dcs_nzd_vertex_counts.has_value() should coincide");
+  CUGRAPH_EXPECTS(!use_dcs || ((*adj_matrix_partition_dcs_nzd_vertices).size() ==
+                               (*adj_matrix_partition_dcs_nzd_vertex_counts).size()),
                   "Internal Error: adj_matrix_partition_dcs_nzd_vertices.size() and "
-                  "adj_matrix_partition_dcs_nzd_vertex_counts.size() should coincide.");
-  CUGRAPH_EXPECTS((use_dcs && (adj_matrix_partition_dcs_nzd_vertices.size() ==
-                               adj_matrix_partition_offsets.size())) ||
-                    (!use_dcs && (adj_matrix_partition_dcs_nzd_vertices.size() == 0)),
+                  "adj_matrix_partition_dcs_nzd_vertex_counts.size() should coincide (if used).");
+  CUGRAPH_EXPECTS(!use_dcs || ((*adj_matrix_partition_dcs_nzd_vertices).size() ==
+                               adj_matrix_partition_offsets.size()),
                   "Internal Error: adj_matrix_partition_dcs_nzd_vertices.size() should coincide "
-                  "with adj_matrix_partition_offsets.size() (if there are hypersparse segments) or "
-                  "0 (if there is no hypersparse segments).");
+                  "with adj_matrix_partition_offsets.size() (if used).");
 
   CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == static_cast<size_t>(col_comm_size),
                   "Internal Error: erroneous adj_matrix_partition_offsets.size().");
 
   CUGRAPH_EXPECTS(
-    (adj_matrix_partition_segment_offsets.size() ==
-     col_comm_size * (detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 2 : 1))) ||
-      (adj_matrix_partition_segment_offsets.size() == 0),
+    !adj_matrix_partition_segment_offsets.has_value() ||
+      ((*adj_matrix_partition_segment_offsets).size() ==
+       col_comm_size * (detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 2 : 1))),
     "Internal Error: invalid adj_matrix_partition_segment_offsets.size().");
 
   // optional expensive checks
@@ -239,11 +251,11 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
       auto [minor_first, minor_last] = partition.get_matrix_partition_minor_range();
       auto offset_array_size         = major_last - major_first + 1;
       if (use_dcs) {
-        auto major_hypersparse_first = adj_matrix_partition_segment_offsets
+        auto major_hypersparse_first = (*adj_matrix_partition_segment_offsets)
           [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
            detail::num_sparse_segments_per_vertex_partition];
-        offset_array_size =
-          major_hypersparse_first - major_first + adj_matrix_partition_dcs_nzd_vertex_counts[i] + 1;
+        offset_array_size = major_hypersparse_first - major_first +
+                            (*adj_matrix_partition_dcs_nzd_vertex_counts)[i] + 1;
       }
       CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream_view),
                                         adj_matrix_partition_offsets[i],
@@ -271,7 +283,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                     "Internal Error: the sum of local edges counts does not match with "
                     "number_of_local_edges.");
 
-    if (adj_matrix_partition_segment_offsets.size() > 0) {
+    if (adj_matrix_partition_segment_offsets) {
       auto degrees = detail::compute_major_degrees(handle, adj_matrix_partition_offsets, partition);
       CUGRAPH_EXPECTS(
         thrust::is_sorted(rmm::exec_policy(default_stream_view),
@@ -284,18 +296,18 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
       auto num_segments_per_vertex_partition =
         detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 1 : 0);
       for (int i = 0; i < col_comm_size; ++i) {
-        CUGRAPH_EXPECTS(std::is_sorted(adj_matrix_partition_segment_offsets.begin() +
+        CUGRAPH_EXPECTS(std::is_sorted((*adj_matrix_partition_segment_offsets).begin() +
                                          (num_segments_per_vertex_partition + 1) * i,
-                                       adj_matrix_partition_segment_offsets.begin() +
+                                       (*adj_matrix_partition_segment_offsets).begin() +
                                          (num_segments_per_vertex_partition + 1) * (i + 1)),
                         "Internal Error: erroneous adj_matrix_partition_segment_offsets.");
         CUGRAPH_EXPECTS(
-          adj_matrix_partition_segment_offsets[(num_segments_per_vertex_partition + 1) * i] == 0,
+          (*adj_matrix_partition_segment_offsets)[(num_segments_per_vertex_partition + 1) * i] == 0,
           "Internal Error: erroneous adj_matrix_partition_segment_offsets.");
         auto vertex_partition_idx = row_comm_size * i + row_comm_rank;
         CUGRAPH_EXPECTS(
-          adj_matrix_partition_segment_offsets[(num_segments_per_vertex_partition + 1) * i +
-                                               num_segments_per_vertex_partition] ==
+          (*adj_matrix_partition_segment_offsets)[(num_segments_per_vertex_partition + 1) * i +
+                                                  num_segments_per_vertex_partition] ==
             partition.get_vertex_partition_size(vertex_partition_idx),
           "Internal Error: erroneous adj_matrix_partition_segment_offsets.");
       }
@@ -325,11 +337,11 @@ graph_view_t<vertex_t,
              std::enable_if_t<!multi_gpu>>::graph_view_t(raft::handle_t const& handle,
                                                          edge_t const* offsets,
                                                          vertex_t const* indices,
-                                                         weight_t const* weights,
+                                                         std::optional<weight_t const*> weights,
                                                          vertex_t number_of_vertices,
                                                          edge_t number_of_edges,
                                                          graph_properties_t properties,
-                                                         std::vector<vertex_t> const&
+                                                         std::optional<std::vector<vertex_t>> const&
                                                            segment_offsets,
                                                          bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
@@ -342,9 +354,9 @@ graph_view_t<vertex_t,
   // cheap error checks
 
   CUGRAPH_EXPECTS(
-    (segment_offsets.size() == (detail::num_sparse_segments_per_vertex_partition + 1)) ||
-      (segment_offsets.size() == 0),
-    "Internal Error: segment_offsets.size() does not match with sorted_by_degree.");
+    !segment_offsets.has_value() ||
+      ((*segment_offsets).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
+    "Internal Error: segment_offsets.size() returns an invalid value.");
 
   // optional expensive checks
 
@@ -364,7 +376,7 @@ graph_view_t<vertex_t,
                        out_of_range_t<vertex_t>{0, this->get_number_of_vertices()}) == 0,
       "Internal Error: adj_matrix_partition_indices[] have out-of-range vertex IDs.");
 
-    if (segment_offsets.size() > 0) {
+    if (segment_offsets) {
       auto degree_first =
         thrust::make_transform_iterator(thrust::make_counting_iterator(vertex_t{0}),
                                         detail::degree_from_offsets_t<vertex_t, edge_t>{offsets});
@@ -373,12 +385,12 @@ graph_view_t<vertex_t,
                           degree_first,
                           degree_first + this->get_number_of_vertices(),
                           thrust::greater<edge_t>{}),
-        "Internal Error: segment_offsets are provided, but degrees are not in ascending order.");
+        "Internal Error: segment_offsets are provided, but degrees are not in descending order.");
 
-      CUGRAPH_EXPECTS(std::is_sorted(segment_offsets.begin(), segment_offsets.end()),
+      CUGRAPH_EXPECTS(std::is_sorted((*segment_offsets).begin(), (*segment_offsets).end()),
                       "Internal Error: erroneous segment_offsets.");
-      CUGRAPH_EXPECTS(segment_offsets[0] == 0, "Invalid input argument segment_offsets.");
-      CUGRAPH_EXPECTS(segment_offsets.back() == this->get_number_of_vertices(),
+      CUGRAPH_EXPECTS((*segment_offsets)[0] == 0, "Invalid input argument segment_offsets.");
+      CUGRAPH_EXPECTS((*segment_offsets).back() == this->get_number_of_vertices(),
                       "Invalid input argument: segment_offsets.");
     }
 

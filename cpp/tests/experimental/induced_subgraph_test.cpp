@@ -37,10 +37,13 @@
 #include <vector>
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::vector<weight_t>, std::vector<size_t>>
+std::tuple<std::vector<vertex_t>,
+           std::vector<vertex_t>,
+           std::optional<std::vector<weight_t>>,
+           std::vector<size_t>>
 extract_induced_subgraph_reference(edge_t const* offsets,
                                    vertex_t const* indices,
-                                   weight_t const* weights,
+                                   std::optional<weight_t const*> weights,
                                    size_t const* subgraph_offsets,
                                    vertex_t const* subgraph_vertices,
                                    vertex_t num_vertices,
@@ -48,7 +51,7 @@ extract_induced_subgraph_reference(edge_t const* offsets,
 {
   std::vector<vertex_t> edgelist_majors{};
   std::vector<vertex_t> edgelist_minors{};
-  std::vector<weight_t> edgelist_weights{};
+  std::optional<std::vector<weight_t>> edgelist_weights{};
   std::vector<size_t> subgraph_edge_offsets{0};
 
   for (size_t i = 0; i < num_subgraphs; ++i) {
@@ -71,7 +74,7 @@ extract_induced_subgraph_reference(edge_t const* offsets,
                                              indices[j])) {
                         edgelist_majors.push_back(v);
                         edgelist_minors.push_back(indices[j]);
-                        if (weights != nullptr) { edgelist_weights.push_back(weights[j]); }
+                        if (weights) { (*edgelist_weights).push_back((*weights)[j]); }
                       }
                     }
                   });
@@ -122,19 +125,20 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
 
     std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
     std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
-    std::vector<weight_t> h_weights{};
+    auto h_weights = graph_view.is_weighted() ? std::make_optional<std::vector<weight_t>>(
+                                                  graph_view.get_number_of_edges(), weight_t{0.0})
+                                              : std::nullopt;
     raft::update_host(h_offsets.data(),
-                      graph_view.get_matrix_partition_device_view().get_offsets(),
+                      graph_view.get_matrix_partition_view().get_offsets(),
                       graph_view.get_number_of_vertices() + 1,
                       handle.get_stream());
     raft::update_host(h_indices.data(),
-                      graph_view.get_matrix_partition_device_view().get_indices(),
+                      graph_view.get_matrix_partition_view().get_indices(),
                       graph_view.get_number_of_edges(),
                       handle.get_stream());
-    if (graph_view.is_weighted()) {
-      h_weights.assign(graph_view.get_number_of_edges(), weight_t{0.0});
-      raft::update_host(h_weights.data(),
-                        graph_view.get_matrix_partition_device_view().get_weights(),
+    if (h_weights) {
+      raft::update_host((*h_weights).data(),
+                        *(graph_view.get_matrix_partition_view().get_weights()),
                         graph_view.get_number_of_edges(),
                         handle.get_stream());
     }
@@ -177,35 +181,26 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
                         h_subgraph_vertices.size(),
                         handle.get_stream());
 
-    std::vector<vertex_t> h_reference_subgraph_edgelist_majors{};
-    std::vector<vertex_t> h_reference_subgraph_edgelist_minors{};
-    std::vector<weight_t> h_reference_subgraph_edgelist_weights{};
-    std::vector<size_t> h_reference_subgraph_edge_offsets{};
-    std::tie(h_reference_subgraph_edgelist_majors,
-             h_reference_subgraph_edgelist_minors,
-             h_reference_subgraph_edgelist_weights,
-             h_reference_subgraph_edge_offsets) =
+    auto [h_reference_subgraph_edgelist_majors,
+          h_reference_subgraph_edgelist_minors,
+          h_reference_subgraph_edgelist_weights,
+          h_reference_subgraph_edge_offsets] =
       extract_induced_subgraph_reference(
         h_offsets.data(),
         h_indices.data(),
-        h_weights.size() > 0 ? h_weights.data() : static_cast<weight_t*>(nullptr),
+        h_weights ? std::optional<weight_t const*>{(*h_weights).data()} : std::nullopt,
         h_subgraph_offsets.data(),
         h_subgraph_vertices.data(),
         graph_view.get_number_of_vertices(),
         configuration.subgraph_sizes.size());
 
-    rmm::device_uvector<vertex_t> d_subgraph_edgelist_majors(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> d_subgraph_edgelist_minors(0, handle.get_stream());
-    rmm::device_uvector<weight_t> d_subgraph_edgelist_weights(0, handle.get_stream());
-    rmm::device_uvector<size_t> d_subgraph_edge_offsets(0, handle.get_stream());
-
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     // FIXME: turn-off do_expensive_check once verified.
-    std::tie(d_subgraph_edgelist_majors,
-             d_subgraph_edgelist_minors,
-             d_subgraph_edgelist_weights,
-             d_subgraph_edge_offsets) =
+    auto [d_subgraph_edgelist_majors,
+          d_subgraph_edgelist_minors,
+          d_subgraph_edgelist_weights,
+          d_subgraph_edge_offsets] =
       cugraph::experimental::extract_induced_subgraphs(handle,
                                                        graph_view,
                                                        d_subgraph_offsets.data(),
@@ -217,7 +212,10 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
 
     std::vector<vertex_t> h_cugraph_subgraph_edgelist_majors(d_subgraph_edgelist_majors.size());
     std::vector<vertex_t> h_cugraph_subgraph_edgelist_minors(d_subgraph_edgelist_minors.size());
-    std::vector<weight_t> h_cugraph_subgraph_edgelist_weights(d_subgraph_edgelist_weights.size());
+    auto h_cugraph_subgraph_edgelist_weights =
+      configuration.test_weighted
+        ? std::make_optional<std::vector<weight_t>>((*d_subgraph_edgelist_weights).size())
+        : std::nullopt;
     std::vector<size_t> h_cugraph_subgraph_edge_offsets(d_subgraph_edge_offsets.size());
 
     raft::update_host(h_cugraph_subgraph_edgelist_majors.data(),
@@ -229,9 +227,9 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
                       d_subgraph_edgelist_minors.size(),
                       handle.get_stream());
     if (configuration.test_weighted) {
-      raft::update_host(h_cugraph_subgraph_edgelist_weights.data(),
-                        d_subgraph_edgelist_weights.data(),
-                        d_subgraph_edgelist_weights.size(),
+      raft::update_host((*h_cugraph_subgraph_edgelist_weights).data(),
+                        (*d_subgraph_edgelist_weights).data(),
+                        (*d_subgraph_edgelist_weights).size(),
                         handle.get_stream());
     }
     raft::update_host(h_cugraph_subgraph_edge_offsets.data(),
@@ -254,12 +252,13 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
         std::vector<std::tuple<vertex_t, vertex_t, weight_t>> reference_tuples(last - start);
         std::vector<std::tuple<vertex_t, vertex_t, weight_t>> cugraph_tuples(last - start);
         for (auto j = start; j < last; ++j) {
-          reference_tuples[j - start] = std::make_tuple(h_reference_subgraph_edgelist_majors[j],
-                                                        h_reference_subgraph_edgelist_minors[j],
-                                                        h_reference_subgraph_edgelist_weights[j]);
-          cugraph_tuples[j - start]   = std::make_tuple(h_cugraph_subgraph_edgelist_majors[j],
+          reference_tuples[j - start] =
+            std::make_tuple(h_reference_subgraph_edgelist_majors[j],
+                            h_reference_subgraph_edgelist_minors[j],
+                            (*h_reference_subgraph_edgelist_weights)[j]);
+          cugraph_tuples[j - start] = std::make_tuple(h_cugraph_subgraph_edgelist_majors[j],
                                                       h_cugraph_subgraph_edgelist_minors[j],
-                                                      h_cugraph_subgraph_edgelist_weights[j]);
+                                                      (*h_cugraph_subgraph_edgelist_weights)[j]);
         }
         ASSERT_TRUE(
           std::equal(reference_tuples.begin(), reference_tuples.end(), cugraph_tuples.begin()))

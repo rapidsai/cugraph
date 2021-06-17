@@ -93,11 +93,11 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
     std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
     std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
     raft::update_host(h_offsets.data(),
-                      graph_view.get_matrix_partition_device_view().get_offsets(),
+                      graph_view.get_matrix_partition_view().get_offsets(),
                       graph_view.get_number_of_vertices() + 1,
                       handle.get_stream());
     raft::update_host(h_indices.data(),
-                      graph_view.get_matrix_partition_device_view().get_indices(),
+                      graph_view.get_matrix_partition_view().get_indices(),
                       graph_view.get_number_of_edges(),
                       handle.get_stream());
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));

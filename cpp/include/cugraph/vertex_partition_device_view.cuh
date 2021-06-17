@@ -22,6 +22,8 @@
 namespace cugraph {
 namespace experimental {
 
+namespace detail {
+
 template <typename vertex_t>
 class vertex_partition_device_view_base_t {
  public:
@@ -49,47 +51,47 @@ class vertex_partition_device_view_base_t {
   vertex_t number_of_vertices_{0};
 };
 
+}  // namespace detail
+
 template <typename GraphViewType, bool multi_gpu, typename Enable = void>
 class vertex_partition_device_view_t;
 
 // multi-GPU version
 template <typename vertex_t, bool multi_gpu>
 class vertex_partition_device_view_t<vertex_t, multi_gpu, std::enable_if_t<multi_gpu>>
-  : public vertex_partition_device_view_base_t<vertex_t> {
+  : public detail::vertex_partition_device_view_base_t<vertex_t> {
  public:
-  vertex_partition_device_view_t(vertex_t number_of_vertices,
-                                 vertex_t local_vertex_first,
-                                 vertex_t local_vertex_last)
-    : vertex_partition_device_view_base_t<vertex_t>(number_of_vertices),
-      first_(local_vertex_first),
-      last_(local_vertex_last)
+  vertex_partition_device_view_t(vertex_partition_view_t<vertex_t, multi_gpu> view)
+    : detail::vertex_partition_device_view_base_t<vertex_t>(view.get_number_of_vertices()),
+      local_vertex_first_(view.get_local_vertex_first()),
+      local_vertex_last_(view.get_local_vertex_last())
   {
   }
 
   __host__ __device__ bool is_local_vertex_nocheck(vertex_t v) const noexcept
   {
-    return (v >= first_) && (v < last_);
+    return (v >= local_vertex_first_) && (v < local_vertex_last_);
   }
 
   __host__ __device__ vertex_t get_local_vertex_offset_from_vertex_nocheck(vertex_t v) const
     noexcept
   {
-    return v - first_;
+    return v - local_vertex_first_;
   }
 
  private:
   // should be trivially copyable to device
-  vertex_t first_{0};
-  vertex_t last_{0};
+  vertex_t local_vertex_first_{0};
+  vertex_t local_vertex_last_{0};
 };
 
 // single-GPU version
 template <typename vertex_t, bool multi_gpu>
 class vertex_partition_device_view_t<vertex_t, multi_gpu, std::enable_if_t<!multi_gpu>>
-  : public vertex_partition_device_view_base_t<vertex_t> {
+  : public detail::vertex_partition_device_view_base_t<vertex_t> {
  public:
-  vertex_partition_device_view_t(vertex_t number_of_vertices)
-    : vertex_partition_device_view_base_t<vertex_t>(number_of_vertices)
+  vertex_partition_device_view_t(vertex_partition_view_t<vertex_t, multi_gpu> view)
+    : detail::vertex_partition_device_view_base_t<vertex_t>(view.get_number_of_vertices())
   {
   }
 

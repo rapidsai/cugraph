@@ -47,7 +47,7 @@ static int PERF = 0;
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void pagerank_reference(edge_t const* offsets,
                         vertex_t const* indices,
-                        weight_t const* weights,
+                        std::optional<weight_t const*> weights,
                         vertex_t const* personalization_vertices,
                         result_t const* personalization_values,
                         result_t* pageranks,
@@ -88,7 +88,7 @@ void pagerank_reference(edge_t const* offsets,
   for (vertex_t i = 0; i < num_vertices; ++i) {
     for (auto j = *(offsets + i); j < *(offsets + i + 1); ++j) {
       auto nbr = indices[j];
-      auto w   = weights != nullptr ? weights[j] : 1.0;
+      auto w   = weights ? (*weights)[j] : weight_t{1.0};
       out_weight_sums[nbr] += w;
     }
   }
@@ -105,7 +105,7 @@ void pagerank_reference(edge_t const* offsets,
       pageranks[i] = result_t{0.0};
       for (auto j = *(offsets + i); j < *(offsets + i + 1); ++j) {
         auto nbr = indices[j];
-        auto w   = weights != nullptr ? weights[j] : result_t{1.0};
+        auto w   = weights ? (*weights)[j] : result_t{1.0};
         pageranks[i] += alpha * old_pageranks[nbr] * (w / out_weight_sums[nbr]);
       }
       if (personalization_vertices == nullptr) {
@@ -162,17 +162,18 @@ class Tests_PageRank
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> graph(handle);
-    rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
-    std::tie(graph, d_renumber_map_labels) =
+
+    auto [graph, d_renumber_map_labels] =
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
         handle, true, renumber);
+
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
+
     auto graph_view = graph.view();
 
     std::vector<vertex_t> h_personalization_vertices{};
@@ -263,19 +264,21 @@ class Tests_PageRank
 
       std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
       std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
-      std::vector<weight_t> h_weights{};
+      auto h_weights = unrenumbered_graph_view.is_weighted()
+                         ? std::make_optional<std::vector<weight_t>>(
+                             unrenumbered_graph_view.get_number_of_edges(), weight_t{0.0})
+                         : std::nullopt;
       raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.get_matrix_partition_device_view().get_offsets(),
+                        unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
                         unrenumbered_graph_view.get_number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.get_matrix_partition_device_view().get_indices(),
+                        unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
                         unrenumbered_graph_view.get_number_of_edges(),
                         handle.get_stream());
-      if (unrenumbered_graph_view.is_weighted()) {
-        h_weights.assign(unrenumbered_graph_view.get_number_of_edges(), weight_t{0.0});
-        raft::update_host(h_weights.data(),
-                          unrenumbered_graph_view.get_matrix_partition_device_view().get_weights(),
+      if (h_weights) {
+        raft::update_host((*h_weights).data(),
+                          *(unrenumbered_graph_view.get_matrix_partition_view().get_weights()),
                           unrenumbered_graph_view.get_number_of_edges(),
                           handle.get_stream());
       }
@@ -301,7 +304,7 @@ class Tests_PageRank
           handle,
           d_unrenumbered_personalization_vertices.data(),
           d_unrenumbered_personalization_vertices.size(),
-          d_renumber_map_labels.data(),
+          (*d_renumber_map_labels).data(),
           vertex_t{0},
           graph_view.get_number_of_vertices());
         std::tie(d_unrenumbered_personalization_vertices, d_unrenumbered_personalization_values) =
@@ -333,24 +336,28 @@ class Tests_PageRank
 
       std::vector<result_t> h_reference_pageranks(unrenumbered_graph_view.get_number_of_vertices());
 
-      pagerank_reference(h_offsets.data(),
-                         h_indices.data(),
-                         h_weights.size() > 0 ? h_weights.data() : static_cast<weight_t*>(nullptr),
-                         h_unrenumbered_personalization_vertices.data(),
-                         h_unrenumbered_personalization_values.data(),
-                         h_reference_pageranks.data(),
-                         unrenumbered_graph_view.get_number_of_vertices(),
-                         static_cast<vertex_t>(h_personalization_vertices.size()),
-                         alpha,
-                         epsilon,
-                         std::numeric_limits<size_t>::max(),
-                         false);
+      pagerank_reference(
+        h_offsets.data(),
+        h_indices.data(),
+        h_weights ? std::optional<weight_t const*>{(*h_weights).data()} : std::nullopt,
+        h_unrenumbered_personalization_vertices.data(),
+        h_unrenumbered_personalization_values.data(),
+        h_reference_pageranks.data(),
+        unrenumbered_graph_view.get_number_of_vertices(),
+        static_cast<vertex_t>(h_personalization_vertices.size()),
+        alpha,
+        epsilon,
+        std::numeric_limits<size_t>::max(),
+        false);
 
       std::vector<result_t> h_cugraph_pageranks(graph_view.get_number_of_vertices());
       if (renumber) {
         rmm::device_uvector<result_t> d_unrenumbered_pageranks(size_t{0}, handle.get_stream());
-        std::tie(std::ignore, d_unrenumbered_pageranks) = cugraph::test::sort_by_key(
-          handle, d_renumber_map_labels.data(), d_pageranks.data(), d_renumber_map_labels.size());
+        std::tie(std::ignore, d_unrenumbered_pageranks) =
+          cugraph::test::sort_by_key(handle,
+                                     (*d_renumber_map_labels).data(),
+                                     d_pageranks.data(),
+                                     (*d_renumber_map_labels).size());
         raft::update_host(h_cugraph_pageranks.data(),
                           d_unrenumbered_pageranks.data(),
                           d_unrenumbered_pageranks.size(),

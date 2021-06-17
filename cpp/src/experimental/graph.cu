@@ -63,20 +63,21 @@ struct out_of_range_t {
 template <bool store_transposed, typename vertex_t, typename edge_t, typename weight_t>
 std::tuple<rmm::device_uvector<edge_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<weight_t>,
-           rmm::device_uvector<vertex_t>>
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
 compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
                   vertex_t major_first,
                   vertex_t major_hypersparse_first,
                   vertex_t major_last,
                   vertex_t minor_first,
                   vertex_t minor_last,
-                  bool is_weighted,
                   rmm::cuda_stream_view stream_view)
 {
   rmm::device_uvector<edge_t> offsets((major_last - major_first) + 1, stream_view);
   rmm::device_uvector<vertex_t> indices(edgelist.number_of_edges, stream_view);
-  rmm::device_uvector<weight_t> weights(is_weighted ? edgelist.number_of_edges : 0, stream_view);
+  auto weights = edgelist.p_edge_weights ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                             edgelist.number_of_edges, stream_view)
+                                         : std::nullopt;
   thrust::fill(rmm::exec_policy(stream_view), offsets.begin(), offsets.end(), edge_t{0});
   thrust::fill(rmm::exec_policy(stream_view), indices.begin(), indices.end(), vertex_t{0});
 
@@ -92,11 +93,11 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
     rmm::exec_policy(stream_view), offsets.begin(), offsets.end(), offsets.begin());
 
   auto p_indices = indices.data();
-  if (is_weighted) {
-    auto p_weights = weights.data();
+  if (edgelist.p_edge_weights) {
+    auto p_weights = (*weights).data();
 
     auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-      edgelist.p_src_vertices, edgelist.p_dst_vertices, edgelist.p_edge_weights));
+      edgelist.p_src_vertices, edgelist.p_dst_vertices, *(edgelist.p_edge_weights)));
     thrust::for_each(rmm::exec_policy(stream_view),
                      edge_first,
                      edge_first + edgelist.number_of_edges,
@@ -140,39 +141,42 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
                      });
   }
 
-  rmm::device_uvector<vertex_t> dcs_nzd_vertices(major_last - major_hypersparse_first, stream_view);
-  if (major_hypersparse_first < major_last) {
+  auto dcs_nzd_vertices = (major_hypersparse_first < major_last)
+                            ? std::make_optional<rmm::device_uvector<vertex_t>>(
+                                major_last - major_hypersparse_first, stream_view)
+                            : std::nullopt;
+  if (dcs_nzd_vertices) {
     auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 
     thrust::transform(
       rmm::exec_policy(stream_view),
       thrust::make_counting_iterator(major_hypersparse_first),
       thrust::make_counting_iterator(major_last),
-      dcs_nzd_vertices.begin(),
+      (*dcs_nzd_vertices).begin(),
       [major_first, offsets = offsets.data()] __device__(auto major) {
         auto major_offset = major - major_first;
         return offsets[major_offset + 1] - offsets[major_offset] > 0 ? major : invalid_vertex;
       });
 
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      dcs_nzd_vertices.begin(), offsets.begin() + (major_hypersparse_first - major_first)));
-    dcs_nzd_vertices.resize(thrust::distance(pair_first,
-                                             thrust::remove_if(rmm::exec_policy(stream_view),
-                                                               pair_first,
-                                                               pair_first + dcs_nzd_vertices.size(),
-                                                               [] __device__(auto pair) {
-                                                                 return thrust::get<0>(pair) ==
-                                                                        invalid_vertex;
-                                                               })),
-                            stream_view);
-    dcs_nzd_vertices.shrink_to_fit(stream_view);
-    if (static_cast<vertex_t>(dcs_nzd_vertices.size()) < major_last - major_hypersparse_first) {
+      (*dcs_nzd_vertices).begin(), offsets.begin() + (major_hypersparse_first - major_first)));
+    (*dcs_nzd_vertices)
+      .resize(thrust::distance(pair_first,
+                               thrust::remove_if(rmm::exec_policy(stream_view),
+                                                 pair_first,
+                                                 pair_first + (*dcs_nzd_vertices).size(),
+                                                 [] __device__(auto pair) {
+                                                   return thrust::get<0>(pair) == invalid_vertex;
+                                                 })),
+              stream_view);
+    (*dcs_nzd_vertices).shrink_to_fit(stream_view);
+    if (static_cast<vertex_t>((*dcs_nzd_vertices).size()) < major_last - major_hypersparse_first) {
       thrust::copy(
         rmm::exec_policy(stream_view),
         offsets.begin() + (major_last - major_first),
         offsets.end(),
-        offsets.begin() + (major_hypersparse_first - major_first) + dcs_nzd_vertices.size());
-      offsets.resize((major_hypersparse_first - major_first) + dcs_nzd_vertices.size() + 1,
+        offsets.begin() + (major_hypersparse_first - major_first) + (*dcs_nzd_vertices).size());
+      offsets.resize((major_hypersparse_first - major_first) + (*dcs_nzd_vertices).size() + 1,
                      stream_view);
       offsets.shrink_to_fit(stream_view);
     }
@@ -198,7 +202,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           vertex_t number_of_vertices,
           edge_t number_of_edges,
           graph_properties_t properties,
-          std::vector<vertex_t> const &segment_offsets,
+          std::optional<std::vector<vertex_t>> const &segment_offsets,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, number_of_vertices, number_of_edges, properties),
@@ -218,38 +222,36 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto const col_comm_size = col_comm.get_size();
   auto default_stream_view = this->get_handle_ptr()->get_stream_view();
 
-  CUGRAPH_EXPECTS(edgelists.size() > 0,
-                  "Invalid input argument: edgelists.size() should be non-zero.");
+  CUGRAPH_EXPECTS(edgelists.size() == static_cast<size_t>(col_comm_size),
+                  "Invalid input argument: errneous edgelists.size().");
+
+  auto is_weighted = edgelists[0].p_edge_weights.has_value();
+  auto use_dcs =
+    segment_offsets
+      ? ((*segment_offsets).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
+      : false;
 
   CUGRAPH_EXPECTS(
-    std::any_of(edgelists.begin() + 1,
+    std::any_of(edgelists.begin(),
                 edgelists.end(),
-                [is_weighted = properties.is_weighted](auto edgelist) {
+                [is_weighted](auto edgelist) {
                   return ((edgelist.number_of_edges > 0) && (edgelist.p_src_vertices == nullptr)) ||
                          ((edgelist.number_of_edges > 0) && (edgelist.p_dst_vertices == nullptr)) ||
                          (is_weighted && (edgelist.number_of_edges > 0) &&
-                          (edgelist.p_edge_weights == nullptr)) ||
-                         (!is_weighted && (edgelist.p_edge_weights != nullptr));
+                          ((edgelist.p_edge_weights.has_value() == false) ||
+                           (*(edgelist.p_edge_weights) == nullptr)));
                 }) == false,
     "Invalid input argument: edgelists[].p_src_vertices and edgelists[].p_dst_vertices should not "
     "be nullptr if edgelists[].number_of_edges > 0 and edgelists[].p_edge_weights should be "
-    "nullptr if unweighted or should not be nullptr if weighted and edgelists[].number_of_edges > "
-    "0.");
-
-  CUGRAPH_EXPECTS(edgelists.size() == static_cast<size_t>(col_comm_size),
-                  "Invalid input argument: errneous edgelists.size().");
+    "neither std::nullopt nor nullptr if weighted and edgelists[].number_of_edges >  0.");
 
   // optional expensive checks (part 1/2)
 
   if (do_expensive_check) {
     edge_t number_of_local_edges_sum{};
     for (size_t i = 0; i < edgelists.size(); ++i) {
-      vertex_t major_first{};
-      vertex_t major_last{};
-      vertex_t minor_first{};
-      vertex_t minor_last{};
-      std::tie(major_first, major_last) = partition.get_matrix_partition_major_range(i);
-      std::tie(minor_first, minor_last) = partition.get_matrix_partition_minor_range();
+      auto [major_first, major_last] = partition.get_matrix_partition_major_range(i);
+      auto [minor_first, minor_last] = partition.get_matrix_partition_minor_range();
 
       number_of_local_edges_sum += edgelists[i].number_of_edges;
 
@@ -277,12 +279,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // aggregate segment_offsets
 
-  if (segment_offsets.size() > 0) {
+  if (segment_offsets) {
     // FIXME: we need to add host_allgather
-    rmm::device_uvector<vertex_t> d_segment_offsets(segment_offsets.size(), default_stream_view);
+    rmm::device_uvector<vertex_t> d_segment_offsets((*segment_offsets).size(), default_stream_view);
     raft::update_device(d_segment_offsets.data(),
-                        segment_offsets.data(),
-                        segment_offsets.size(),
+                        (*segment_offsets).data(),
+                        (*segment_offsets).size(),
                         default_stream_view.value());
     rmm::device_uvector<vertex_t> d_aggregate_segment_offsets(
       col_comm_size * d_segment_offsets.size(), default_stream_view);
@@ -291,8 +293,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                        d_segment_offsets.size(),
                        default_stream_view.value());
 
-    adj_matrix_partition_segment_offsets_.resize(d_aggregate_segment_offsets.size());
-    raft::update_host(adj_matrix_partition_segment_offsets_.data(),
+    (*adj_matrix_partition_segment_offsets_).resize(d_aggregate_segment_offsets.size());
+    raft::update_host((*adj_matrix_partition_segment_offsets_).data(),
                       d_aggregate_segment_offsets.data(),
                       d_aggregate_segment_offsets.size(),
                       default_stream_view.value());
@@ -306,18 +308,26 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   adj_matrix_partition_offsets_.reserve(edgelists.size());
   adj_matrix_partition_indices_.reserve(edgelists.size());
-  adj_matrix_partition_weights_.reserve(properties.is_weighted ? edgelists.size() : 0);
-  auto use_dcs = segment_offsets.size() > (detail::num_sparse_segments_per_vertex_partition + 1);
-  adj_matrix_partition_dcs_nzd_vertices_.reserve(use_dcs ? edgelists.size() : size_t{0});
-  adj_matrix_partition_dcs_nzd_vertex_counts_.reserve(use_dcs ? edgelists.size() : size_t{0});
+  if (is_weighted) {
+    (*adj_matrix_partition_weights_).reserve(edgelists.size());
+  } else {
+    adj_matrix_partition_weights_ = std::nullopt;
+  }
+  if (use_dcs) {
+    (*adj_matrix_partition_dcs_nzd_vertices_).reserve(edgelists.size());
+    (*adj_matrix_partition_dcs_nzd_vertex_counts_).reserve(edgelists.size());
+  } else {
+    adj_matrix_partition_dcs_nzd_vertices_      = std::nullopt;
+    adj_matrix_partition_dcs_nzd_vertex_counts_ = std::nullopt;
+  }
   for (size_t i = 0; i < edgelists.size(); ++i) {
     auto [major_first, major_last] = partition.get_matrix_partition_major_range(i);
     auto [minor_first, minor_last] = partition.get_matrix_partition_minor_range();
     auto major_hypersparse_first =
       use_dcs
         ? major_first +
-            adj_matrix_partition_segment_offsets_[segment_offsets.size() * i +
-                                                  detail::num_sparse_segments_per_vertex_partition]
+            (*adj_matrix_partition_segment_offsets_)
+              [(*segment_offsets).size() * i + detail::num_sparse_segments_per_vertex_partition]
         : major_last;
     auto [offsets, indices, weights, dcs_nzd_vertices] =
       compress_edgelist<store_transposed>(edgelists[i],
@@ -326,17 +336,16 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                           major_last,
                                           minor_first,
                                           minor_last,
-                                          properties.is_weighted,
-                                          this->get_handle_ptr()->get_stream());
+                                          default_stream_view);
 
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
+    if (is_weighted) { (*adj_matrix_partition_weights_).push_back(std::move(*weights)); }
     if (use_dcs) {
-      auto dcs_nzd_vertex_count = static_cast<vertex_t>(dcs_nzd_vertices.size());
-      adj_matrix_partition_dcs_nzd_vertices_.push_back(std::move(dcs_nzd_vertices));
-      adj_matrix_partition_dcs_nzd_vertex_counts_.push_back(dcs_nzd_vertex_count);
+      auto dcs_nzd_vertex_count = static_cast<vertex_t>((*dcs_nzd_vertices).size());
+      (*adj_matrix_partition_dcs_nzd_vertices_).push_back(std::move(*dcs_nzd_vertices));
+      (*adj_matrix_partition_dcs_nzd_vertex_counts_).push_back(dcs_nzd_vertex_count);
     }
-    if (properties.is_weighted) { adj_matrix_partition_weights_.push_back(std::move(weights)); }
   }
 
   // optional expensive checks (part 2/2)
@@ -360,28 +369,28 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
           vertex_t number_of_vertices,
           graph_properties_t properties,
-          std::vector<vertex_t> const &segment_offsets,
+          std::optional<std::vector<vertex_t>> const &segment_offsets,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, number_of_vertices, edgelist.number_of_edges, properties),
     offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream_view())),
     indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream_view())),
-    weights_(rmm::device_uvector<weight_t>(0, handle.get_stream_view())),
     segment_offsets_(segment_offsets)
 {
   // cheap error checks
 
   auto default_stream_view = this->get_handle_ptr()->get_stream_view();
 
+  auto is_weighted = edgelist.p_edge_weights.has_value();
+
   CUGRAPH_EXPECTS(
     ((edgelist.number_of_edges == 0) || (edgelist.p_src_vertices != nullptr)) &&
       ((edgelist.number_of_edges == 0) || (edgelist.p_dst_vertices != nullptr)) &&
-      ((properties.is_weighted &&
-        ((edgelist.number_of_edges == 0) || (edgelist.p_edge_weights != nullptr))) ||
-       (!properties.is_weighted && (edgelist.p_edge_weights == nullptr))),
-    "Invalid input argument: edgelist.p_src_vertices and edgelist.p_dst_vertices should "
-    "not be nullptr if edgelist.number_of_edges > 0 and edgelist.p_edge_weights should be nullptr "
-    "if unweighted or should not be nullptr if weighted and edgelist.number_of_edges > 0.");
+      ((!is_weighted || (edgelist.number_of_edges == 0)) ||
+       (edgelist.p_edge_weights.has_value() && (*(edgelist.p_edge_weights) != nullptr))),
+    "Invalid input argument: edgelist.p_src_vertices and edgelist.p_dst_vertices should not be "
+    "nullptr if edgelist.number_of_edges > 0 and edgelist.p_edge_weights should be neither "
+    "std::nullopt nor nullptr if weighted and edgelist.number_of_edges > 0.");
 
   // optional expensive checks (part 1/2)
 
@@ -414,7 +423,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                         this->get_number_of_vertices(),
                                         vertex_t{0},
                                         this->get_number_of_vertices(),
-                                        properties.is_weighted,
                                         default_stream_view);
 
   // optional expensive checks (part 3/3)

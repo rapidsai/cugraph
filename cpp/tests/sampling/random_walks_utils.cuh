@@ -97,9 +97,9 @@ bool host_check_rw_paths(
   edge_t num_edges      = graph_view.get_number_of_edges();
   vertex_t num_vertices = graph_view.get_number_of_vertices();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
+  auto offsets = graph_view.get_matrix_partition_view().get_offsets();
+  auto indices = graph_view.get_matrix_partition_view().get_indices();
+  auto values  = graph_view.get_matrix_partition_view().get_weights();
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);
@@ -109,9 +109,7 @@ bool host_check_rw_paths(
   raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
   raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
 
-  if (graph_view.is_weighted()) {
-    raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
-  }
+  if (values) { raft::update_host(v_vals.data(), *values, v_vals.size(), handle.get_stream()); }
 
   std::vector<vertex_t> v_coalesced(d_coalesced_v.size());
   std::vector<weight_t> w_coalesced(d_coalesced_w.size());

@@ -67,7 +67,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    weight_t const* weights{nullptr};
+    thrust::optional<weight_t const*> weights{nullptr};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     auto sum                                    = thrust::transform_reduce(
@@ -82,7 +82,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
        indices,
        weights] __device__(auto i) {
         auto minor        = indices[i];
-        auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
+        auto weight       = weights ? (*weights)[i] : weight_t{1.0};
         auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
         auto row          = GraphViewType::is_adj_matrix_transposed
                      ? minor
@@ -153,12 +153,12 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    weight_t const* weights{nullptr};
+    thrust::optional<weight_t const*> weights{nullptr};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
       auto minor        = indices[i];
-      auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
+      auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
                    ? minor
@@ -223,12 +223,12 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    weight_t const* weights{nullptr};
+    thrust::optional<weight_t const*> weights{nullptr};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
       auto minor        = indices[i];
-      auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
+      auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
       auto row          = GraphViewType::is_adj_matrix_transposed
                    ? minor
@@ -311,6 +311,8 @@ T transform_reduce_e(raft::handle_t const& handle,
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
   using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = typename GraphViewType::weight_type;
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
   thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -319,7 +321,9 @@ T transform_reduce_e(raft::handle_t const& handle,
                T{});
 
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    auto matrix_partition = graph_view.get_matrix_partition_device_view(i);
+    auto matrix_partition =
+      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+        graph_view.get_matrix_partition_view(i));
 
     auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
                                     ? vertex_t{0}

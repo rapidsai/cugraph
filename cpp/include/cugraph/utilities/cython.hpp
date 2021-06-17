@@ -94,6 +94,7 @@ struct graph_container_t {
   void* src_vertices;
   void* dst_vertices;
   void* weights;
+  bool is_weighted;
   void* vertex_partition_offsets;
   void* segment_offsets;
   size_t num_segments;
@@ -106,7 +107,6 @@ struct graph_container_t {
   numberTypeEnum weightType;
   bool transposed;
   bool is_multi_gpu;
-  bool sorted_by_degree;
   bool do_expensive_check;
   int row_comm_size;
   int col_comm_size;

@@ -268,7 +268,8 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
   std::vector<vertex_t> level_local_vertex_first_vectors{};
   while (true) {
     auto level_graph_view = num_levels == 0 ? push_graph_view : level_graph.view();
-    auto vertex_partition = level_graph_view.get_vertex_partition_device_view();
+    auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+      level_graph_view.get_vertex_partition_view());
     level_component_vectors.push_back(rmm::device_uvector<vertex_t>(
       num_levels == 0 ? vertex_t{0} : level_graph_view.get_number_of_local_vertices(),
       handle.get_stream_view()));
@@ -711,7 +712,8 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
                                                                           handle.get_stream());
       }
 
-      std::tie(level_graph, level_renumber_map) =
+      std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
+      std::tie(level_graph, tmp_renumber_map) =
         create_graph_from_edgelist<vertex_t,
                                    edge_t,
                                    weight_t,
@@ -721,9 +723,10 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
           std::nullopt,
           std::move(std::get<0>(edge_buffer)),
           std::move(std::get<1>(edge_buffer)),
-          rmm::device_uvector<weight_t>(size_t{0}, handle.get_stream_view()),
-          graph_properties_t{true, false, false},
+          std::make_optional<rmm::device_uvector<weight_t>>(size_t{0}, handle.get_stream_view()),
+          graph_properties_t{true, false},
           true);
+      level_renumber_map = std::move(*tmp_renumber_map);
     } else {
       break;
     }

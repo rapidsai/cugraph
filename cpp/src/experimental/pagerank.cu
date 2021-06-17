@@ -117,7 +117,8 @@ void pagerank(raft::handle_t const& handle,
     }
 
     if (aggregate_personalization_vector_size > 0) {
-      auto vertex_partition = pull_graph_view.get_vertex_partition_device_view();
+      auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+        pull_graph_view.get_vertex_partition_view());
       auto num_invalid_vertices =
         count_if_v(handle,
                    pull_graph_view,
@@ -239,7 +240,8 @@ void pagerank(raft::handle_t const& handle,
       pageranks);
 
     if (aggregate_personalization_vector_size > 0) {
-      auto vertex_partition = pull_graph_view.get_vertex_partition_device_view();
+      auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+        pull_graph_view.get_vertex_partition_view());
       auto val_first = thrust::make_zip_iterator(
         thrust::make_tuple(personalization_vertices, personalization_values));
       thrust::for_each(

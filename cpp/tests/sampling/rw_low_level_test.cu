@@ -94,13 +94,14 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRWStart)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
+  edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+  weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);
@@ -174,13 +175,14 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceExperiments)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
+  edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+  weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
 
   index_t num_paths = 4;
   index_t max_depth = 3;
@@ -250,13 +252,14 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
+  edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+  weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
 
   index_t num_paths = 4;
   index_t max_depth = 3;
@@ -346,13 +349,14 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
+  edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+  weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
 
   index_t num_paths = 4;
   index_t max_depth = 3;
@@ -424,13 +428,14 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
+  edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+  weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
 
   index_t num_paths = 4;
   index_t max_depth = 3;
@@ -496,13 +501,14 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
+  edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+  weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
 
   index_t num_paths = 4;
   index_t max_depth = 3;
@@ -641,13 +647,14 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceDefragment)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
+  edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+  weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
 
   index_t num_paths = 4;
   index_t max_depth = 3;
@@ -716,13 +723,14 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
+  edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+  weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);
@@ -773,13 +781,14 @@ TEST(RandomWalksQuery, GraphRWQueryOffsets)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
+  edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+  weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);
@@ -834,13 +843,14 @@ TEST(RandomWalksSpecialCase, SingleRandomWalk)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
+  edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+  weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);
@@ -889,18 +899,15 @@ TEST(RandomWalksSpecialCase, UnweightedGraph)
 
   std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
-  std::vector<weight_t> v_w;
 
-  auto graph = cugraph::test::make_graph(
-    handle, v_src, v_dst, v_w, num_vertices, num_edges, false);  // un-weighted
+  auto graph = cugraph::test::make_graph<vertex_t, edge_t, weight_t>(
+    handle, v_src, v_dst, std::nullopt, num_vertices, num_edges);  // un-weighted
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
-
-  ASSERT_TRUE(values == nullptr);
+  edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+  ASSERT_TRUE(graph_view.get_matrix_partition_view().get_weights().has_value() == false);
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);
@@ -949,13 +956,14 @@ TEST(RandomWalksPadded, SimpleGraph)
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
   std::vector<weight_t> v_w{0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1};
 
-  auto graph = cugraph::test::make_graph(handle, v_src, v_dst, v_w, num_vertices, num_edges, true);
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.get_matrix_partition_device_view().get_offsets();
-  vertex_t const* indices = graph_view.get_matrix_partition_device_view().get_indices();
-  weight_t const* values  = graph_view.get_matrix_partition_device_view().get_weights();
+  edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+  weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);

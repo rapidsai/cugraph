@@ -85,9 +85,8 @@ class Tests_MGPageRank
       handle.get_comms().barrier();
       hr_clock.start();
     }
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, true> mg_graph(handle);
-    rmm::device_uvector<vertex_t> d_mg_renumber_map_labels(0, handle.get_stream());
-    std::tie(mg_graph, d_mg_renumber_map_labels) =
+
+    auto [mg_graph, d_mg_renumber_map_labels] =
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, true>(handle, true);
 
     if (PERF) {
@@ -180,7 +179,7 @@ class Tests_MGPageRank
       // 5-1. aggregate MG results
 
       auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        handle, d_mg_renumber_map_labels.data(), d_mg_renumber_map_labels.size());
+        handle, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
       auto d_mg_aggregate_personalization_vertices = cugraph::test::device_gatherv(
         handle, d_mg_personalization_vertices.data(), d_mg_personalization_vertices.size());
       auto d_mg_aggregate_personalization_values = cugraph::test::device_gatherv(

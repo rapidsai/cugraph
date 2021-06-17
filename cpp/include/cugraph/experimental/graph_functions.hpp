@@ -319,7 +319,7 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<weight_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract_induced_subgraphs(
   raft::handle_t const& handle,
@@ -353,8 +353,8 @@ extract_induced_subgraphs(
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not.
  * @return std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed,
- * multi_gpu>, rmm::device_uvector<vertex_t>> Pair of the generated graph and the renumber map. The
- * szie of the renumber map is 0 if @p renumber is false.
+ * multi_gpu>, rmm::device_uvector<vertex_t>> Pair of the generated graph and the renumber map (if
+ * @p renumber is true) or std::nullopt (if @p renumber is false).
  */
 template <typename vertex_t,
           typename edge_t,
@@ -362,13 +362,13 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           rmm::device_uvector<vertex_t>>
+           std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(
   raft::handle_t const& handle,
   std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
   rmm::device_uvector<vertex_t>&& edgelist_rows,
   rmm::device_uvector<vertex_t>&& edgelist_cols,
-  rmm::device_uvector<weight_t>&& edgelist_weights,
+  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
   graph_properties_t graph_properties,
   bool renumber);
 

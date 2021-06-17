@@ -39,6 +39,7 @@
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/logical.h>
+#include <thrust/optional.h>
 #include <thrust/remove.h>
 #include <thrust/scan.h>
 #include <thrust/transform.h>
@@ -47,6 +48,7 @@
 
 #include <cassert>
 #include <ctime>
+#include <optional>
 #include <tuple>
 #include <type_traits>
 
@@ -230,9 +232,9 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
                      index_t num_paths,
                      index_t max_depth)
     : handle_(handle),
-      col_indices_(graph.get_matrix_partition_device_view().get_indices()),
-      row_offsets_(graph.get_matrix_partition_device_view().get_offsets()),
-      values_(graph.get_matrix_partition_device_view().get_weights()),
+      col_indices_(graph.get_matrix_partition_view().get_indices()),
+      row_offsets_(graph.get_matrix_partition_view().get_offsets()),
+      values_(graph.get_matrix_partition_view().get_weights()),
       out_degs_(p_d_crt_out_degs),
       sizes_(p_d_sizes),
       num_paths_(num_paths),
@@ -276,14 +278,14 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
        ptr_d_coalesced_v = raw_const_ptr(d_coalesced_src_v),
        row_offsets       = row_offsets_,
        col_indices       = col_indices_,
-       values            = values_] __device__(auto indx, auto col_indx) {
+       values            = values_ ? thrust::optional<weight_t const*>{*values_}
+                        : thrust::nullopt] __device__(auto indx, auto col_indx) {
         auto delta     = ptr_d_sizes[indx] - 1;
         auto v_indx    = ptr_d_coalesced_v[indx * max_depth + delta];
         auto start_row = row_offsets[v_indx];
 
-        auto weight_value =
-          (values == nullptr ? weight_t{1}
-                             : values[start_row + col_indx]);  // account for un-weighted graphs
+        auto weight_value = (values ? (*values)[start_row + col_indx]
+                                    : weight_t{1});  // account for un-weighted graphs
         return thrust::make_tuple(col_indices[start_row + col_indx], weight_value);
       },
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
@@ -293,7 +295,7 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
   raft::handle_t const& handle_;
   vertex_t const* col_indices_;
   edge_t const* row_offsets_;
-  weight_t const* values_;
+  std::optional<weight_t const*> values_;
 
   edge_t const* out_degs_;
   index_t const* sizes_;
