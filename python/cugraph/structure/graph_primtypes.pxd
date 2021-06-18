@@ -128,16 +128,6 @@ cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
     cdef unique_ptr[GraphCOO[VT, ET, WT]] get_two_hop_neighbors[VT,ET,WT](
         const GraphCSRView[VT, ET, WT] &graph) except +
 
-cdef extern from "cugraph/functions.hpp" namespace "cugraph":
-
-    cdef unique_ptr[device_buffer] renumber_vertices[VT_IN,VT_OUT,ET](
-        ET number_of_edges,
-        const VT_IN *src,
-        const VT_IN *dst,
-        VT_OUT *src_renumbered,
-        VT_OUT *dst_renumbered,
-        ET *map_size) except +
-
 
 cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[GraphCOO[int,int,float]] move(unique_ptr[GraphCOO[int,int,float]])
