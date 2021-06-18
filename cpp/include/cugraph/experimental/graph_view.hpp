@@ -479,7 +479,7 @@ class graph_view_t<vertex_t,
              : vertex_t{0};
   }
 
-  std::vector<vertex_t> get_local_adj_matrix_partition_segment_offsets(size_t partition_idx) const
+  std::optional<std::vector<vertex_t>> get_local_adj_matrix_partition_segment_offsets(size_t partition_idx) const
   {
     if (adj_matrix_partition_segment_offsets_) {
       auto size_per_partition =
@@ -489,7 +489,7 @@ class graph_view_t<vertex_t,
         (*adj_matrix_partition_segment_offsets_).begin() +
           (partition_idx + 1) * size_per_partition);
     } else {
-      return std::vector<vertex_t>{};
+      return std::nullopt;
     }
   }
 
@@ -705,11 +705,11 @@ class graph_view_t<vertex_t,
     return vertex_t{0};
   }
 
-  std::vector<vertex_t> get_local_adj_matrix_partition_segment_offsets(
+  std::optional<std::vector<vertex_t>> get_local_adj_matrix_partition_segment_offsets(
     size_t adj_matrix_partition_idx) const
   {
     assert(adj_matrix_partition_idx == 0);
-    return segment_offsets_ ? *segment_offsets_ : std::vector<vertex_t>{};
+    return segment_offsets_;
   }
 
   vertex_partition_view_t<vertex_t, false> get_vertex_partition_view() const

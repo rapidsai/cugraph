@@ -859,11 +859,11 @@ void update_frontier_v_push_if_out_nbr(
                                     ? vertex_t{0}
                                     : matrix_partition.get_major_value_start_offset();
     auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
-    if (segment_offsets.size() > 0) {
+    if (segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
       std::vector<vertex_t> h_thresholds(detail::num_sparse_segments_per_vertex_partition - 1);
-      h_thresholds[0] = matrix_partition.get_major_first() + segment_offsets[1];
-      h_thresholds[1] = matrix_partition.get_major_first() + segment_offsets[2];
+      h_thresholds[0] = matrix_partition.get_major_first() + (*segment_offsets)[1];
+      h_thresholds[1] = matrix_partition.get_major_first() + (*segment_offsets)[2];
       rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), handle.get_stream());
       raft::update_device(
         d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());

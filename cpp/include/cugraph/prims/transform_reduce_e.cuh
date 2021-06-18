@@ -332,13 +332,13 @@ T transform_reduce_e(raft::handle_t const& handle,
                                     ? matrix_partition.get_major_value_start_offset()
                                     : vertex_t{0};
     auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
-    if (segment_offsets.size() > 0) {
+    if (segment_offsets) {
       // FIXME: we may further improve performance by 1) concurrently running kernels on different
       // segments; 2) individually tuning block sizes for different segments; and 3) adding one more
       // segment for very high degree vertices and running segmented reduction
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
-      if (segment_offsets[1] > 0) {
-        raft::grid_1d_block_t update_grid(segment_offsets[1],
+      if ((*segment_offsets)[1] > 0) {
+        raft::grid_1d_block_t update_grid((*segment_offsets)[1],
                                           detail::transform_reduce_e_for_all_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
 
@@ -346,37 +346,37 @@ T transform_reduce_e(raft::handle_t const& handle,
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
             matrix_partition.get_major_first(),
-            matrix_partition.get_major_first() + segment_offsets[1],
+            matrix_partition.get_major_first() + (*segment_offsets)[1],
             adj_matrix_row_value_input_first + row_value_input_offset,
             adj_matrix_col_value_input_first + col_value_input_offset,
             get_dataframe_buffer_begin<T>(result_buffer),
             e_op);
       }
-      if (segment_offsets[2] - segment_offsets[1] > 0) {
-        raft::grid_1d_warp_t update_grid(segment_offsets[2] - segment_offsets[1],
+      if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
+        raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
                                          detail::transform_reduce_e_for_all_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
 
         detail::for_all_major_for_all_nbr_mid_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
-            matrix_partition.get_major_first() + segment_offsets[1],
-            matrix_partition.get_major_first() + segment_offsets[2],
+            matrix_partition.get_major_first() + (*segment_offsets)[1],
+            matrix_partition.get_major_first() + (*segment_offsets)[2],
             adj_matrix_row_value_input_first + row_value_input_offset,
             adj_matrix_col_value_input_first + col_value_input_offset,
             get_dataframe_buffer_begin<T>(result_buffer),
             e_op);
       }
-      if (segment_offsets[3] - segment_offsets[2] > 0) {
-        raft::grid_1d_thread_t update_grid(segment_offsets[3] - segment_offsets[2],
+      if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
+        raft::grid_1d_thread_t update_grid((*segment_offsets)[3] - (*segment_offsets)[2],
                                            detail::transform_reduce_e_for_all_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
 
         detail::for_all_major_for_all_nbr_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
-            matrix_partition.get_major_first() + segment_offsets[2],
-            matrix_partition.get_major_first() + segment_offsets[3],
+            matrix_partition.get_major_first() + (*segment_offsets)[2],
+            matrix_partition.get_major_first() + (*segment_offsets)[3],
             adj_matrix_row_value_input_first + row_value_input_offset,
             adj_matrix_col_value_input_first + col_value_input_offset,
             get_dataframe_buffer_begin<T>(result_buffer),
