@@ -595,7 +595,7 @@ void bfs(raft::handle_t const &handle,
  * @param[in]  graph                 cuGRAPH COO graph
  * @param[in]  num_workers           number of vertices in the worker set
  * @param[in]  workers               device pointer to an array of worker vertex ids
- * @param[out] assignment            device pointer to an array to which the assignment will be
+ * @param[out] assignments           device pointer to an array to which the assignment will be
  * written. The array should be num_workers long, and will identify which vertex id (job) is
  * assigned to that worker
  */
@@ -604,7 +604,7 @@ weight_t hungarian(raft::handle_t const &handle,
                    GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
                    vertex_t num_workers,
                    vertex_t const *workers,
-                   vertex_t *assignment);
+                   vertex_t *assignments);
 
 /**
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
@@ -626,10 +626,10 @@ weight_t hungarian(raft::handle_t const &handle,
  * @param[in]  graph                 cuGRAPH COO graph
  * @param[in]  num_workers           number of vertices in the worker set
  * @param[in]  workers               device pointer to an array of worker vertex ids
- * @param[out] assignment            device pointer to an array to which the assignment will be
+ * @param[out] assignments           device pointer to an array to which the assignment will be
  * written. The array should be num_workers long, and will identify which vertex id (job) is
  * assigned to that worker
- * @param[in]  precision             parameter to define precision of comparisons
+ * @param[in]  epsilon               parameter to define precision of comparisons
  *                                   in reducing weights to zero.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -637,8 +637,8 @@ weight_t hungarian(raft::handle_t const &handle,
                    GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
                    vertex_t num_workers,
                    vertex_t const *workers,
-                   vertex_t *assignment,
-                   weight_t precision);
+                   vertex_t *assignments,
+                   weight_t epsilon);
 
 /**
  * @brief      Louvain implementation
@@ -1075,7 +1075,7 @@ namespace dense {
  * @param[in]  costs                 pointer to array of costs, stored in row major order
  * @param[in]  num_rows              number of rows in dense matrix
  * @param[in]  num_cols              number of cols in dense matrix
- * @param[out] assignment            device pointer to an array to which the assignment will be
+ * @param[out] assignments           device pointer to an array to which the assignment will be
  *                                   written. The array should be num_cols long, and will identify
  *                                   which vertex id (job) is assigned to that worker
  */
@@ -1084,7 +1084,7 @@ weight_t hungarian(raft::handle_t const &handle,
                    weight_t const *costs,
                    vertex_t num_rows,
                    vertex_t num_columns,
-                   vertex_t *assignment);
+                   vertex_t *assignments);
 
 /**
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
@@ -1104,10 +1104,10 @@ weight_t hungarian(raft::handle_t const &handle,
  * @param[in]  costs                 pointer to array of costs, stored in row major order
  * @param[in]  num_rows              number of rows in dense matrix
  * @param[in]  num_cols              number of cols in dense matrix
- * @param[out] assignment            device pointer to an array to which the assignment will be
+ * @param[out] assignments           device pointer to an array to which the assignment will be
  *                                   written. The array should be num_cols long, and will identify
  *                                   which vertex id (job) is assigned to that worker
- * @param[in]  precision             parameter to define precision of comparisons
+ * @param[in]  epsilon               parameter to define precision of comparisons
  *                                   in reducing weights to zero.
  */
 template <typename vertex_t, typename weight_t>
@@ -1115,8 +1115,8 @@ weight_t hungarian(raft::handle_t const &handle,
                    weight_t const *costs,
                    vertex_t num_rows,
                    vertex_t num_columns,
-                   vertex_t *assignment,
-                   weight_t precision);
+                   vertex_t *assignments,
+                   weight_t epsilon);
 
 }  // namespace dense
 
