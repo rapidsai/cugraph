@@ -85,7 +85,7 @@ class Tests_MGKatzCentrality
 
     auto [mg_graph, d_mg_renumber_map_labels] =
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, true>(
-        handle, true, true);
+        handle, katz_usecase.test_weighted, true);
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -158,7 +158,7 @@ class Tests_MGKatzCentrality
         cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(handle);
         std::tie(sg_graph, std::ignore) =
           input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            handle, true, false);
+            handle, katz_usecase.test_weighted, false);
 
         auto sg_graph_view = sg_graph.view();
 

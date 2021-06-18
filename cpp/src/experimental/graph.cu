@@ -293,7 +293,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                        d_segment_offsets.size(),
                        default_stream_view.value());
 
-    (*adj_matrix_partition_segment_offsets_).resize(d_aggregate_segment_offsets.size());
+    adj_matrix_partition_segment_offsets_ =
+      std::vector<vertex_t>(d_aggregate_segment_offsets.size(), vertex_t{0});
     raft::update_host((*adj_matrix_partition_segment_offsets_).data(),
                       d_aggregate_segment_offsets.data(),
                       d_aggregate_segment_offsets.size(),
@@ -309,16 +310,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   adj_matrix_partition_offsets_.reserve(edgelists.size());
   adj_matrix_partition_indices_.reserve(edgelists.size());
   if (is_weighted) {
+    adj_matrix_partition_weights_ = std::vector<rmm::device_uvector<weight_t>>{};
     (*adj_matrix_partition_weights_).reserve(edgelists.size());
-  } else {
-    adj_matrix_partition_weights_ = std::nullopt;
   }
   if (use_dcs) {
+    adj_matrix_partition_dcs_nzd_vertices_      = std::vector<rmm::device_uvector<vertex_t>>{};
+    adj_matrix_partition_dcs_nzd_vertex_counts_ = std::vector<vertex_t>{};
     (*adj_matrix_partition_dcs_nzd_vertices_).reserve(edgelists.size());
     (*adj_matrix_partition_dcs_nzd_vertex_counts_).reserve(edgelists.size());
-  } else {
-    adj_matrix_partition_dcs_nzd_vertices_      = std::nullopt;
-    adj_matrix_partition_dcs_nzd_vertex_counts_ = std::nullopt;
   }
   for (size_t i = 0; i < edgelists.size(); ++i) {
     auto [major_first, major_last] = partition.get_matrix_partition_major_range(i);

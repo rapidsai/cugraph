@@ -182,7 +182,7 @@ class Tests_KatzCentrality
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
           input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            handle, true, false);
+            handle, katz_usecase.test_weighted, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 

@@ -376,7 +376,7 @@ T transform_reduce_e(raft::handle_t const& handle,
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
             matrix_partition.get_major_first() + segment_offsets[2],
-            matrix_partition.get_major_last(),
+            matrix_partition.get_major_first() + segment_offsets[3],
             adj_matrix_row_value_input_first + row_value_input_offset,
             adj_matrix_col_value_input_first + col_value_input_offset,
             get_dataframe_buffer_begin<T>(result_buffer),

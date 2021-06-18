@@ -209,7 +209,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                   "Internal Error: adj_matrix_partition_offsets.size() and "
                   "adj_matrix_partition_indices.size() should coincide.");
   CUGRAPH_EXPECTS(
-    is_weighted && ((*adj_matrix_partition_weights).size() == adj_matrix_partition_offsets.size()),
+    !is_weighted || ((*adj_matrix_partition_weights).size() == adj_matrix_partition_offsets.size()),
     "Internal Error: adj_matrix_partition_weights.size() should coincide with "
     "adj_matrix_partition_offsets.size() (if weighted).");
   CUGRAPH_EXPECTS(adj_matrix_partition_dcs_nzd_vertex_counts.has_value() == use_dcs,
