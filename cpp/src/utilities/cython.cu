@@ -24,6 +24,7 @@
 #include <cugraph/utilities/cython.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_traits.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/path_retrieval.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -573,68 +574,95 @@ void call_pagerank(raft::handle_t const& handle,
                    bool has_guess)
 {
   if (graph_container.is_multi_gpu) {
+    auto& comm                                 = handle.get_comms();
+    auto aggregate_personalization_subset_size = cugraph::experimental::host_scalar_allreduce(
+      comm, personalization_subset_size, handle.get_stream());
+
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
-      cugraph::experimental::pagerank(handle,
-                                      graph->view(),
-                                      static_cast<weight_t*>(nullptr),
-                                      reinterpret_cast<int32_t*>(personalization_subset),
-                                      reinterpret_cast<weight_t*>(personalization_values),
-                                      static_cast<int32_t>(personalization_subset_size),
-                                      reinterpret_cast<weight_t*>(p_pagerank),
-                                      static_cast<weight_t>(alpha),
-                                      static_cast<weight_t>(tolerance),
-                                      max_iter,
-                                      has_guess,
-                                      true);
+      cugraph::experimental::pagerank<int32_t, int32_t, weight_t>(
+        handle,
+        graph->view(),
+        std::nullopt,
+        aggregate_personalization_subset_size > 0
+          ? std::optional<int32_t const*>{reinterpret_cast<int32_t const*>(personalization_subset)}
+          : std::nullopt,
+        aggregate_personalization_subset_size > 0
+          ? std::optional<weight_t const*>{personalization_values}
+          : std::nullopt,
+        aggregate_personalization_subset_size > 0
+          ? std::optional<int32_t>{static_cast<int32_t>(personalization_subset_size)}
+          : std::nullopt,
+        reinterpret_cast<weight_t*>(p_pagerank),
+        static_cast<weight_t>(alpha),
+        static_cast<weight_t>(tolerance),
+        max_iter,
+        has_guess,
+        true);
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, true, true>(handle, graph_container);
-      cugraph::experimental::pagerank(handle,
-                                      graph->view(),
-                                      static_cast<weight_t*>(nullptr),
-                                      reinterpret_cast<vertex_t*>(personalization_subset),
-                                      reinterpret_cast<weight_t*>(personalization_values),
-                                      static_cast<vertex_t>(personalization_subset_size),
-                                      reinterpret_cast<weight_t*>(p_pagerank),
-                                      static_cast<weight_t>(alpha),
-                                      static_cast<weight_t>(tolerance),
-                                      max_iter,
-                                      has_guess,
-                                      true);
+      cugraph::experimental::pagerank<vertex_t, int64_t, weight_t>(
+        handle,
+        graph->view(),
+        std::nullopt,
+        aggregate_personalization_subset_size > 0
+          ? std::optional<vertex_t const*>{personalization_subset}
+          : std::nullopt,
+        aggregate_personalization_subset_size > 0
+          ? std::optional<weight_t const*>{personalization_values}
+          : std::nullopt,
+        aggregate_personalization_subset_size > 0
+          ? std::optional<vertex_t>{personalization_subset_size}
+          : std::nullopt,
+        reinterpret_cast<weight_t*>(p_pagerank),
+        static_cast<weight_t>(alpha),
+        static_cast<weight_t>(tolerance),
+        max_iter,
+        has_guess,
+        true);
     }
   } else {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, true, false>(handle, graph_container);
-      cugraph::experimental::pagerank(handle,
-                                      graph->view(),
-                                      static_cast<weight_t*>(nullptr),
-                                      reinterpret_cast<int32_t*>(personalization_subset),
-                                      reinterpret_cast<weight_t*>(personalization_values),
-                                      static_cast<int32_t>(personalization_subset_size),
-                                      reinterpret_cast<weight_t*>(p_pagerank),
-                                      static_cast<weight_t>(alpha),
-                                      static_cast<weight_t>(tolerance),
-                                      max_iter,
-                                      has_guess,
-                                      true);
+      cugraph::experimental::pagerank<int32_t, int32_t, weight_t>(
+        handle,
+        graph->view(),
+        std::nullopt,
+        personalization_subset_size > 0
+          ? std::optional<int32_t const*>{reinterpret_cast<int32_t const*>(personalization_subset)}
+          : std::nullopt,
+        personalization_subset_size > 0 ? std::optional<weight_t const*>{personalization_values}
+                                        : std::nullopt,
+        personalization_subset_size > 0 ? std::optional<int32_t>{personalization_subset_size}
+                                        : std::nullopt,
+        reinterpret_cast<weight_t*>(p_pagerank),
+        static_cast<weight_t>(alpha),
+        static_cast<weight_t>(tolerance),
+        max_iter,
+        has_guess,
+        true);
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, true, false>(handle, graph_container);
-      cugraph::experimental::pagerank(handle,
-                                      graph->view(),
-                                      static_cast<weight_t*>(nullptr),
-                                      reinterpret_cast<vertex_t*>(personalization_subset),
-                                      reinterpret_cast<weight_t*>(personalization_values),
-                                      static_cast<vertex_t>(personalization_subset_size),
-                                      reinterpret_cast<weight_t*>(p_pagerank),
-                                      static_cast<weight_t>(alpha),
-                                      static_cast<weight_t>(tolerance),
-                                      max_iter,
-                                      has_guess,
-                                      true);
+      cugraph::experimental::pagerank<vertex_t, int64_t, weight_t>(
+        handle,
+        graph->view(),
+        std::nullopt,
+        personalization_subset_size > 0 ? std::optional<vertex_t const*>{personalization_subset}
+                                        : std::nullopt,
+        personalization_subset_size > 0 ? std::optional<weight_t const*>{personalization_values}
+                                        : std::nullopt,
+        personalization_subset_size > 0 ? std::optional<vertex_t>{personalization_subset_size}
+                                        : std::nullopt,
+        reinterpret_cast<weight_t*>(p_pagerank),
+        static_cast<weight_t>(alpha),
+        static_cast<weight_t>(tolerance),
+        max_iter,
+        has_guess,
+        true);
     }
   }
 }

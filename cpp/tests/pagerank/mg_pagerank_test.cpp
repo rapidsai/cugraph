@@ -101,41 +101,48 @@ class Tests_MGPageRank
 
     // 3. generate personalization vertex/value pairs
 
-    std::vector<vertex_t> h_mg_personalization_vertices{};
-    std::vector<result_t> h_mg_personalization_values{};
+    std::optional<std::vector<vertex_t>> h_mg_personalization_vertices{std::nullopt};
+    std::optional<std::vector<result_t>> h_mg_personalization_values{std::nullopt};
     if (pagerank_usecase.personalization_ratio > 0.0) {
       std::default_random_engine generator{
         static_cast<long unsigned int>(comm.get_rank()) /* seed */};
       std::uniform_real_distribution<double> distribution{0.0, 1.0};
-      h_mg_personalization_vertices.resize(mg_graph_view.get_number_of_local_vertices());
-      std::iota(h_mg_personalization_vertices.begin(),
-                h_mg_personalization_vertices.end(),
+      h_mg_personalization_vertices =
+        std::vector<vertex_t>(mg_graph_view.get_number_of_local_vertices());
+      std::iota((*h_mg_personalization_vertices).begin(),
+                (*h_mg_personalization_vertices).end(),
                 mg_graph_view.get_local_vertex_first());
-      h_mg_personalization_vertices.erase(
-        std::remove_if(h_mg_personalization_vertices.begin(),
-                       h_mg_personalization_vertices.end(),
-                       [&generator, &distribution, pagerank_usecase](auto v) {
-                         return distribution(generator) >= pagerank_usecase.personalization_ratio;
-                       }),
-        h_mg_personalization_vertices.end());
-      h_mg_personalization_values.resize(h_mg_personalization_vertices.size());
-      std::for_each(h_mg_personalization_values.begin(),
-                    h_mg_personalization_values.end(),
+      (*h_mg_personalization_vertices)
+        .erase(std::remove_if((*h_mg_personalization_vertices).begin(),
+                              (*h_mg_personalization_vertices).end(),
+                              [&generator, &distribution, pagerank_usecase](auto v) {
+                                return distribution(generator) >=
+                                       pagerank_usecase.personalization_ratio;
+                              }),
+               (*h_mg_personalization_vertices).end());
+      h_mg_personalization_values = std::vector<result_t>((*h_mg_personalization_vertices).size());
+      std::for_each((*h_mg_personalization_values).begin(),
+                    (*h_mg_personalization_values).end(),
                     [&distribution, &generator](auto& val) { val = distribution(generator); });
     }
 
-    rmm::device_uvector<vertex_t> d_mg_personalization_vertices(
-      h_mg_personalization_vertices.size(), handle.get_stream());
-    rmm::device_uvector<result_t> d_mg_personalization_values(d_mg_personalization_vertices.size(),
-                                                              handle.get_stream());
-    if (d_mg_personalization_vertices.size() > 0) {
-      raft::update_device(d_mg_personalization_vertices.data(),
-                          h_mg_personalization_vertices.data(),
-                          h_mg_personalization_vertices.size(),
+    auto d_mg_personalization_vertices =
+      h_mg_personalization_vertices
+        ? std::make_optional<rmm::device_uvector<vertex_t>>((*h_mg_personalization_vertices).size(),
+                                                            handle.get_stream())
+        : std::nullopt;
+    auto d_mg_personalization_values =
+      h_mg_personalization_values ? std::make_optional<rmm::device_uvector<result_t>>(
+                                      (*d_mg_personalization_vertices).size(), handle.get_stream())
+                                  : std::nullopt;
+    if (d_mg_personalization_vertices) {
+      raft::update_device((*d_mg_personalization_vertices).data(),
+                          (*h_mg_personalization_vertices).data(),
+                          (*h_mg_personalization_vertices).size(),
                           handle.get_stream());
-      raft::update_device(d_mg_personalization_values.data(),
-                          h_mg_personalization_values.data(),
-                          h_mg_personalization_values.size(),
+      raft::update_device((*d_mg_personalization_values).data(),
+                          (*h_mg_personalization_values).data(),
+                          (*h_mg_personalization_values).size(),
                           handle.get_stream());
     }
 
@@ -153,17 +160,24 @@ class Tests_MGPageRank
       hr_clock.start();
     }
 
-    cugraph::experimental::pagerank(handle,
-                                    mg_graph_view,
-                                    static_cast<weight_t*>(nullptr),
-                                    d_mg_personalization_vertices.data(),
-                                    d_mg_personalization_values.data(),
-                                    static_cast<vertex_t>(d_mg_personalization_vertices.size()),
-                                    d_mg_pageranks.data(),
-                                    alpha,
-                                    epsilon,
-                                    std::numeric_limits<size_t>::max(),
-                                    false);
+    cugraph::experimental::pagerank<vertex_t, edge_t, weight_t>(
+      handle,
+      mg_graph_view,
+      std::nullopt,
+      d_mg_personalization_vertices
+        ? std::optional<vertex_t const*>{(*d_mg_personalization_vertices).data()}
+        : std::nullopt,
+      d_mg_personalization_values
+        ? std::optional<result_t const*>{(*d_mg_personalization_values).data()}
+        : std::nullopt,
+      d_mg_personalization_vertices
+        ? std::optional{static_cast<vertex_t>((*d_mg_personalization_vertices).size())}
+        : std::nullopt,
+      d_mg_pageranks.data(),
+      alpha,
+      epsilon,
+      std::numeric_limits<size_t>::max(),
+      false);
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -180,29 +194,39 @@ class Tests_MGPageRank
 
       auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
         handle, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
-      auto d_mg_aggregate_personalization_vertices = cugraph::test::device_gatherv(
-        handle, d_mg_personalization_vertices.data(), d_mg_personalization_vertices.size());
-      auto d_mg_aggregate_personalization_values = cugraph::test::device_gatherv(
-        handle, d_mg_personalization_values.data(), d_mg_personalization_values.size());
+      auto d_mg_aggregate_personalization_vertices =
+        d_mg_personalization_vertices
+          ? std::optional<rmm::device_uvector<vertex_t>>{cugraph::test::device_gatherv(
+              handle,
+              (*d_mg_personalization_vertices).data(),
+              (*d_mg_personalization_vertices).size())}
+          : std::nullopt;
+      auto d_mg_aggregate_personalization_values =
+        d_mg_personalization_values
+          ? std::optional<rmm::device_uvector<result_t>>{cugraph::test::device_gatherv(
+              handle, (*d_mg_personalization_values).data(), (*d_mg_personalization_values).size())}
+          : std::nullopt;
       auto d_mg_aggregate_pageranks =
         cugraph::test::device_gatherv(handle, d_mg_pageranks.data(), d_mg_pageranks.size());
 
       if (handle.get_comms().get_rank() == int{0}) {
         // 5-2. unrenumbr MG results
 
-        cugraph::experimental::unrenumber_int_vertices<vertex_t, false>(
-          handle,
-          d_mg_aggregate_personalization_vertices.data(),
-          d_mg_aggregate_personalization_vertices.size(),
-          d_mg_aggregate_renumber_map_labels.data(),
-          vertex_t{0},
-          mg_graph_view.get_number_of_vertices(),
-          std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
-        std::tie(d_mg_aggregate_personalization_vertices, d_mg_aggregate_personalization_values) =
-          cugraph::test::sort_by_key(handle,
-                                     d_mg_aggregate_personalization_vertices.data(),
-                                     d_mg_aggregate_personalization_values.data(),
-                                     d_mg_aggregate_personalization_vertices.size());
+        if (d_mg_aggregate_personalization_vertices) {
+          cugraph::experimental::unrenumber_int_vertices<vertex_t, false>(
+            handle,
+            (*d_mg_aggregate_personalization_vertices).data(),
+            (*d_mg_aggregate_personalization_vertices).size(),
+            d_mg_aggregate_renumber_map_labels.data(),
+            vertex_t{0},
+            mg_graph_view.get_number_of_vertices(),
+            std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
+          std::tie(d_mg_aggregate_personalization_vertices, d_mg_aggregate_personalization_values) =
+            cugraph::test::sort_by_key(handle,
+                                       (*d_mg_aggregate_personalization_vertices).data(),
+                                       (*d_mg_aggregate_personalization_values).data(),
+                                       (*d_mg_aggregate_personalization_vertices).size());
+        }
         std::tie(std::ignore, d_mg_aggregate_pageranks) =
           cugraph::test::sort_by_key(handle,
                                      d_mg_aggregate_renumber_map_labels.data(),
@@ -225,13 +249,20 @@ class Tests_MGPageRank
         rmm::device_uvector<result_t> d_sg_pageranks(sg_graph_view.get_number_of_vertices(),
                                                      handle.get_stream());
 
-        cugraph::experimental::pagerank(
+        cugraph::experimental::pagerank<vertex_t, edge_t, weight_t>(
           handle,
           sg_graph_view,
-          static_cast<weight_t*>(nullptr),
-          d_mg_aggregate_personalization_vertices.data(),
-          d_mg_aggregate_personalization_values.data(),
-          static_cast<vertex_t>(d_mg_aggregate_personalization_vertices.size()),
+          std::nullopt,
+          d_mg_aggregate_personalization_vertices
+            ? std::optional<vertex_t const*>{(*d_mg_aggregate_personalization_vertices).data()}
+            : std::nullopt,
+          d_mg_aggregate_personalization_values
+            ? std::optional<result_t const*>{(*d_mg_aggregate_personalization_values).data()}
+            : std::nullopt,
+          d_mg_aggregate_personalization_vertices
+            ? std::optional<vertex_t>{static_cast<vertex_t>(
+                (*d_mg_aggregate_personalization_vertices).size())}
+            : std::nullopt,
           d_sg_pageranks.data(),
           alpha,
           epsilon,

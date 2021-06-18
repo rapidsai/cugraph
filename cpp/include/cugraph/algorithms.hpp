@@ -1214,17 +1214,17 @@ void sssp(raft::handle_t const &handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param adj_matrix_row_out_weight_sums Pointer to an array storing sums of out-going edge weights
- * for the vertices in the rows of the graph adjacency matrix (for re-use) or `nullptr`. If
- * `nullptr`, these values are freshly computed. Computing these values outsid this function reduces
- * the number of memoray allocations/deallocations and computing if a user repeatedly computes
- * PageRank scores using the same graph with different personalization vectors.
+ * @param precomputed_vertex_out_weight_sums Pointer to an array storing sums of out-going edge
+ * weights for the vertices (for re-use) or `std::nullopt`. If `std::nullopt`, these values are
+ * freshly computed. Computing these values outside this function reduces the number of memoray
+ * allocations/deallocations and computing if a user repeatedly computes PageRank scores using the
+ * same graph with different personalization vectors.
  * @param personalization_vertices Pointer to an array storing personalization vertex identifiers
- * (compute personalized PageRank) or `nullptr` (compute general PageRank).
+ * (compute personalized PageRank) or `std::nullopt` (compute general PageRank).
  * @param personalization_values Pointer to an array storing personalization values for the vertices
- * in the personalization set. Relevant only if @p personalization_vertices is not `nullptr`.
+ * in the personalization set. Relevant only if @p personalization_vertices is not `std::nullopt`.
  * @param personalization_vector_size Size of the personalization set. If @personalization_vertices
- * is not `nullptr`, the sizes of the arrays pointed by @p personalization_vertices and @p
+ * is not `std::nullopt`, the sizes of the arrays pointed by @p personalization_vertices and @p
  * personalization_values should be @p personalization_vector_size.
  * @param pageranks Pointer to the output PageRank score array.
  * @param alpha PageRank damping factor.
@@ -1240,10 +1240,10 @@ void sssp(raft::handle_t const &handle,
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void pagerank(raft::handle_t const &handle,
               graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
-              weight_t const *adj_matrix_row_out_weight_sums,
-              vertex_t const *personalization_vertices,
-              result_t const *personalization_values,
-              vertex_t personalization_vector_size,
+              std::optional<weight_t const *> precomputed_vertex_out_weight_sums,
+              std::optional<vertex_t const *> personalization_vertices,
+              std::optional<result_t const *> personalization_values,
+              std::optional<vertex_t> personalization_vector_size,
               result_t *pageranks,
               result_t alpha,
               result_t epsilon,
