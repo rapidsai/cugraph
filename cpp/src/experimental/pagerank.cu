@@ -145,11 +145,12 @@ void pagerank(
   // 2. compute the sums of the out-going edge weights (if not provided)
 
   auto tmp_vertex_out_weight_sums = precomputed_vertex_out_weight_sums
-                                      ? rmm::device_uvector<weight_t>(0, handle.get_stream())
-                                      : pull_graph_view.compute_out_weight_sums(handle);
+                                      ? std::nullopt
+                                      : std::optional<rmm::device_uvector<weight_t>>{
+                                          pull_graph_view.compute_out_weight_sums(handle)};
   auto vertex_out_weight_sums = precomputed_vertex_out_weight_sums
                                   ? *precomputed_vertex_out_weight_sums
-                                  : tmp_vertex_out_weight_sums.data();
+                                  : (*tmp_vertex_out_weight_sums).data();
 
   // 3. initialize pagerank values
 

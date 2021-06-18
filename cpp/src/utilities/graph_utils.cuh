@@ -99,7 +99,7 @@ void axpy(size_t n, T a, T *x, T *y)
                     thrust::device_pointer_cast(y),
                     thrust::device_pointer_cast(y),
                     axpy_functor<T>(a));
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 }
 
 // norm
@@ -119,7 +119,7 @@ T nrm2(size_t n, T *x)
                                                 square<T>(),
                                                 init,
                                                 thrust::plus<T>()));
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
   return result;
 }
 
@@ -130,7 +130,7 @@ T nrm1(size_t n, T *x)
   T result = thrust::reduce(rmm::exec_policy(stream_view),
                             thrust::device_pointer_cast(x),
                             thrust::device_pointer_cast(x + n));
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
   return result;
 }
 
@@ -144,7 +144,7 @@ void scal(size_t n, T val, T *x)
                     thrust::make_constant_iterator(val),
                     thrust::device_pointer_cast(x),
                     thrust::multiplies<T>());
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
@@ -157,7 +157,7 @@ void addv(size_t n, T val, T *x)
                     thrust::make_constant_iterator(val),
                     thrust::device_pointer_cast(x),
                     thrust::plus<T>());
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
@@ -180,7 +180,7 @@ void scatter(size_t n, T *src, T *dst, M *map)
                   thrust::device_pointer_cast(src + n),
                   thrust::device_pointer_cast(map),
                   thrust::device_pointer_cast(dst));
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
@@ -205,7 +205,7 @@ void copy(size_t n, T *x, T *res)
   thrust::device_ptr<T> res_ptr(res);
   rmm::cuda_stream_view stream_view;
   thrust::copy_n(rmm::exec_policy(stream_view), dev_ptr, n, res_ptr);
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
@@ -230,7 +230,7 @@ void update_dangling_nodes(size_t n, T *dangling_nodes, T damping_factor)
                        thrust::device_pointer_cast(dangling_nodes),
                        dangling_functor<T>(1.0 - damping_factor),
                        is_zero<T>());
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 }
 
 // google matrix kernels
@@ -342,11 +342,11 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.z  = min((n + nthreads.z - 1) / nthreads.z, CUDA_MAX_BLOCKS);  // 1;
   equi_prob3<IndexType, ValueType>
     <<<nblocks, nthreads, 0, stream_view.value()>>>(n, e, csrPtr, csrInd, val, degree.data());
-  CHECK_CUDA(stream.value());
+  CHECK_CUDA(stream_view.value());
 
   ValueType a = 0.0;
   fill(n, bookmark, a);
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 
   nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
   nthreads.y = 1;

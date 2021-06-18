@@ -150,7 +150,7 @@ serializer_t::graph_meta_t<graph_t> serializer_t::unserialize(
     size_t seg_off_sz_bytes = graph_meta_sz_bytes - 2 * sizeof(size_t) - 3 * sizeof(bool_t);
 
     if (seg_off_sz_bytes > 0) {
-      (*segment_offsets).resize(seg_off_sz_bytes / sizeof(vertex_t));
+      segment_offsets = std::vector<vertex_t>(seg_off_sz_bytes / sizeof(vertex_t), vertex_t{0});
       raft::update_host((*segment_offsets).data(),
                         reinterpret_cast<vertex_t const*>(cbegin_),
                         seg_off_sz_bytes,
