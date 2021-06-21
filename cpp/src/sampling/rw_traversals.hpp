@@ -372,7 +372,7 @@ struct vertical_pipelined_t {
   size_t get_random_buff_sz(void) const { return 2 * num_paths_; }
   size_t get_tmp_buff_sz(void) const { return num_paths_; }
 
-  template <typename random_walker_t, typename real_t, typename index_t, typename seed_t>
+  template <typename index_t, typename random_walker_t, typename real_t, typename seed_t>
   size_t fill_rnd(random_walker_t const& rand_walker, real_t* ptr_d_rnd, seed_t seed) const
   {
     auto const& handle = rand_walker.get_handle();
@@ -384,13 +384,13 @@ struct vertical_pipelined_t {
     return num_paths_;
   }
 
-  template <typename random_walker_t, typename index_t, typename real_t, typename seed_t>
+  template <typename index_t, typename random_walker_t, typename real_t, typename seed_t>
   decltype(auto) generate_async_rnd(random_walker_t const& rand_walker,
                                     real_t* p_d_rnd,
                                     seed_t seed) const
   {
     std::future<size_t> result(
-      std::async(std::launch::async, [this, rand_walker, p_d_rnd, seed](void) {
+      std::async(std::launch::async, [this, &rand_walker, p_d_rnd, seed](void) {
         return fill_rnd<index_t>(rand_walker, p_d_rnd, seed);
       }));
 

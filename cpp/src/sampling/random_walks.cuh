@@ -46,6 +46,7 @@
 #include <thrust/tuple.h>
 
 #include <cassert>
+#include <cstdlib>  // FIXME: requirement for temporary std::getenv()
 #include <ctime>
 #include <tuple>
 #include <type_traits>
@@ -1097,13 +1098,43 @@ random_walks(raft::handle_t const& handle,
   //
   detail::device_const_vector_view<vertex_t, index_t> d_v_start{ptr_d_start, num_paths};
 
-  auto quad_tuple = detail::random_walks_impl(handle, graph, d_v_start, max_depth, use_padding);
-  // ignore last element of the quad, seed,
-  // since it's meant for testing / debugging, only:
+  // FIXME: temporary usage of envar to select traversal policy:
+  // (to be replaced by adding a flag argument to the API)
   //
-  return std::make_tuple(std::move(std::get<0>(quad_tuple)),
-                         std::move(std::get<1>(quad_tuple)),
-                         std::move(std::get<2>(quad_tuple)));
+  char const* chrp_traversal = std::getenv("CUGRAPH_RW_TRAVERSAL_STRATEGY");
+  std::string str_traversal(chrp_traversal);
+
+  std::cout << "Traversal strategy: " << str_traversal << '\n';
+
+  if (str_traversal.empty() || str_traversal == std::string("HORIZONTAL")) {
+    auto quad_tuple = detail::random_walks_impl(handle, graph, d_v_start, max_depth, use_padding);
+    // ignore last element of the quad, seed,
+    // since it's meant for testing / debugging, only:
+    //
+    return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                           std::move(std::get<1>(quad_tuple)),
+                           std::move(std::get<2>(quad_tuple)));
+  } else if (str_traversal == std::string("VERTICAL")) {
+    auto quad_tuple = detail::random_walks_impl<graph_t, detail::vertical_traversal_t>(
+      handle, graph, d_v_start, max_depth, use_padding);
+    // ignore last element of the quad, seed,
+    // since it's meant for testing / debugging, only:
+    //
+    return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                           std::move(std::get<1>(quad_tuple)),
+                           std::move(std::get<2>(quad_tuple)));
+  } else if (str_traversal == std::string("V_PIPELINED")) {
+    auto quad_tuple = detail::random_walks_impl<graph_t, detail::vertical_pipelined_t>(
+      handle, graph, d_v_start, max_depth, use_padding);
+    // ignore last element of the quad, seed,
+    // since it's meant for testing / debugging, only:
+    //
+    return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                           std::move(std::get<1>(quad_tuple)),
+                           std::move(std::get<2>(quad_tuple)));
+  } else {
+    CUGRAPH_FAIL("Unknown traversal policy.");
+  }
 }
 
 /**
