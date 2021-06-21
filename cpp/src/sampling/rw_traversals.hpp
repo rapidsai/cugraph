@@ -343,7 +343,6 @@ struct vertical_pipelined_t {
       //
       auto&& future_res = generate_async_rnd<index_t>(rand_walker, p_d_rnd_next, seed);
 
-      device_const_vector_view<real_t, size_t> d_rnd_cview(p_d_rnd_work, num_paths_);
       // take one-step in-sync for each path in parallel:
       //
       rand_walker.step_only(graph,
@@ -351,7 +350,7 @@ struct vertical_pipelined_t {
                             d_coalesced_w,
                             d_paths_sz,
                             d_crt_out_degs,
-                            d_rnd_cview,
+                            p_d_rnd_work,
                             d_col_indx,
                             d_next_v,
                             d_next_w);

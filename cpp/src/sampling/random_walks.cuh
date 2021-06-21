@@ -97,6 +97,22 @@ struct rrandom_gen_t {
       d_ptr_random_, num_paths, real_t{0.0}, real_t{1.0}, handle.get_stream());
   }
 
+  // cnstr. version for the case when the
+  // random vector is provided by the caller:
+  //
+  rrandom_gen_t(raft::handle_t const& handle,
+                index_t num_paths,
+                real_t* ptr_d_rnd,                          // supplied
+                device_vec_t<edge_t> const& d_crt_out_deg,  // non-coalesced
+                seed_t seed = seed_t{})
+    : handle_(handle),
+      seed_(seed),
+      num_paths_(num_paths),
+      d_ptr_out_degs_(raw_const_ptr(d_crt_out_deg)),
+      d_ptr_random_(ptr_d_rnd)
+  {
+  }
+
   // in place:
   // for each v in [0, num_paths) {
   // if out_deg(v) > 0
@@ -385,6 +401,71 @@ struct random_walker_t {
     // generate random destination indices:
     //
     random_engine_t rgen(handle_, num_paths_, d_random, d_crt_out_degs, seed);
+
+    rgen.generate_col_indices(d_col_indx);
+
+    // dst extraction from dst indices:
+    //
+    col_indx_extract_t<graph_t> col_extractor(handle_,
+                                              graph,
+                                              raw_const_ptr(d_crt_out_degs),
+                                              raw_const_ptr(d_paths_sz),
+                                              num_paths_,
+                                              max_depth_);
+
+    // The following steps update the next entry in each path,
+    // except the paths that reached sinks;
+    //
+    // for each indx in [0..num_paths) {
+    //   v_indx = d_v_rnd_n_indx[indx];
+    //
+    //   -- get the `v_indx`-th out-vertex of d_v_paths_v_set[indx] vertex:
+    //   -- also, note the size deltas increased by 1 in dst (d_sizes[]):
+    //
+    //   d_coalesced_v[indx*num_paths + d_sizes[indx]] =
+    //       get_out_vertex(graph, d_coalesced_v[indx*num_paths + d_sizes[indx] -1)], v_indx);
+    //   d_coalesced_w[indx*(num_paths-1) + d_sizes[indx] - 1] =
+    //       get_out_edge_weight(graph, d_coalesced_v[indx*num_paths + d_sizes[indx]-2], v_indx);
+    //
+    // (1) generate actual vertex destinations:
+    //
+    col_extractor(d_coalesced_v, d_col_indx, d_next_v, d_next_w);
+
+    // (2) update path sizes:
+    //
+    update_path_sizes(d_crt_out_degs, d_paths_sz);
+
+    // (3) actual coalesced updates:
+    //
+    scatter_vertices(d_next_v, d_coalesced_v, d_crt_out_degs, d_paths_sz);
+    scatter_weights(d_next_w, d_coalesced_w, d_crt_out_degs, d_paths_sz);
+  }
+
+  // step() version that doesn't update the random vector:
+  // (the caller supplies it)
+  //
+  void step_only(
+    graph_t const& graph,
+    device_vec_t<vertex_t>& d_coalesced_v,  // crt coalesced vertex set
+    device_vec_t<weight_t>& d_coalesced_w,  // crt coalesced weight set
+    device_vec_t<index_t>& d_paths_sz,      // crt paths sizes
+    device_vec_t<edge_t>& d_crt_out_degs,   // crt out-degs for current set of vertices
+    real_t* ptr_d_random,                   // crt set of random real values (supplied)
+    device_vec_t<vertex_t>& d_col_indx,  // crt col col indices to be used for retrieving next step
+    device_vec_t<vertex_t>& d_next_v,    // crt set of destination vertices, for next step
+    device_vec_t<weight_t>& d_next_w)
+    const  // set of weights between src and destination vertices, for next step
+  {
+    // update crt snapshot of out-degs,
+    // from cached out degs, using
+    // latest vertex in each path as source:
+    //
+    gather_from_coalesced(
+      d_coalesced_v, d_cached_out_degs_, d_paths_sz, d_crt_out_degs, max_depth_, num_paths_);
+
+    // generate random destination indices:
+    //
+    random_engine_t rgen(handle_, num_paths_, ptr_d_random, d_crt_out_degs);
 
     rgen.generate_col_indices(d_col_indx);
 
