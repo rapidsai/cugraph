@@ -51,7 +51,7 @@ extract_induced_subgraph_reference(edge_t const* offsets,
 {
   std::vector<vertex_t> edgelist_majors{};
   std::vector<vertex_t> edgelist_minors{};
-  std::optional<std::vector<weight_t>> edgelist_weights{};
+  auto edgelist_weights = weights ? std::make_optional<std::vector<weight_t>>(0) : std::nullopt;
   std::vector<size_t> subgraph_edge_offsets{0};
 
   for (size_t i = 0; i < num_subgraphs; ++i) {
@@ -213,7 +213,7 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
     std::vector<vertex_t> h_cugraph_subgraph_edgelist_majors(d_subgraph_edgelist_majors.size());
     std::vector<vertex_t> h_cugraph_subgraph_edgelist_minors(d_subgraph_edgelist_minors.size());
     auto h_cugraph_subgraph_edgelist_weights =
-      configuration.test_weighted
+      d_subgraph_edgelist_weights
         ? std::make_optional<std::vector<weight_t>>((*d_subgraph_edgelist_weights).size())
         : std::nullopt;
     std::vector<size_t> h_cugraph_subgraph_edge_offsets(d_subgraph_edge_offsets.size());
@@ -226,7 +226,7 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
                       d_subgraph_edgelist_minors.data(),
                       d_subgraph_edgelist_minors.size(),
                       handle.get_stream());
-    if (configuration.test_weighted) {
+    if (d_subgraph_edgelist_weights) {
       raft::update_host((*h_cugraph_subgraph_edgelist_weights).data(),
                         (*d_subgraph_edgelist_weights).data(),
                         (*d_subgraph_edgelist_weights).size(),
@@ -244,6 +244,9 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
                            h_reference_subgraph_edge_offsets.end(),
                            h_cugraph_subgraph_edge_offsets.begin()))
       << "Returned subgraph edge offset values do not match with the reference values.";
+    ASSERT_TRUE(h_reference_subgraph_edgelist_weights.has_value() == configuration.test_weighted);
+    ASSERT_TRUE(h_cugraph_subgraph_edgelist_weights.has_value() ==
+                h_reference_subgraph_edgelist_weights.has_value());
 
     for (size_t i = 0; i < configuration.subgraph_sizes.size(); ++i) {
       auto start = h_reference_subgraph_edge_offsets[i];

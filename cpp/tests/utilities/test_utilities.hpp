@@ -270,24 +270,50 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
                       num_edges,
                       handle.get_stream());
 
-    if (lv_ro != rv_ro) return std::make_pair(false, std::string("offsets"));
-
-    if (lv_ci != rv_ci) return std::make_pair(false, std::string("indices"));
-
+    auto lv_vs = is_weighted ? std::make_optional<std::vector<weight_t>>(num_edges) : std::nullopt;
+    auto rv_vs = is_weighted ? std::make_optional<std::vector<weight_t>>(num_edges) : std::nullopt;
     if (is_weighted) {
-      std::vector<weight_t> lv_vs(num_edges);
-      raft::update_host(lv_vs.data(),
+      raft::update_host((*lv_vs).data(),
                         *(lgraph_view.get_matrix_partition_view().get_weights()),
                         num_edges,
                         handle.get_stream());
 
-      std::vector<weight_t> rv_vs(num_edges);
-      raft::update_host(rv_vs.data(),
+      raft::update_host((*rv_vs).data(),
                         *(rgraph_view.get_matrix_partition_view().get_weights()),
                         num_edges,
                         handle.get_stream());
+    }
 
-      if (lv_vs != rv_vs) return std::make_pair(false, std::string("values"));
+    handle.get_stream_view().synchronize();
+
+    if (lv_ro != rv_ro) return std::make_pair(false, std::string("offsets"));
+
+    for (size_t i = 0; i < num_vertices; ++i) {
+      auto first = lv_ro[i];
+      auto last  = lv_ro[i + 1];
+      if (is_weighted) {
+        std::vector<std::tuple<vertex_t, weight_t>> lv_pairs(last - first);
+        std::vector<std::tuple<vertex_t, weight_t>> rv_pairs(last - first);
+        for (edge_t j = first; j < last; ++j) {
+          lv_pairs[j - first] = std::make_tuple(lv_ci[j], (*lv_vs)[j]);
+          rv_pairs[j - first] = std::make_tuple(rv_ci[j], (*rv_vs)[j]);
+        }
+        std::sort(lv_pairs.begin(), lv_pairs.end());
+        std::sort(rv_pairs.begin(), rv_pairs.end());
+        if (!std::equal(lv_pairs.begin(), lv_pairs.end(), rv_pairs.begin(), [](auto lhs, auto rhs) {
+              return std::get<0>(lhs) == std::get<0>(rhs);
+            }))
+          return std::make_pair(false, std::string("indices"));
+        if (!std::equal(lv_pairs.begin(), lv_pairs.end(), rv_pairs.begin(), [](auto lhs, auto rhs) {
+              return std::get<1>(lhs) == std::get<1>(rhs);
+            }))
+          return std::make_pair(false, std::string("values"));
+      } else {
+        std::sort(lv_ci.begin() + first, lv_ci.begin() + last);
+        std::sort(rv_ci.begin() + first, rv_ci.begin() + last);
+        if (!std::equal(lv_ci.begin() + first, lv_ci.begin() + last, rv_ci.begin() + first))
+          return std::make_pair(false, std::string("indices"));
+      }
     }
 
     if (lgraph_view.get_local_adj_matrix_partition_segment_offsets(0) !=

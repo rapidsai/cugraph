@@ -40,6 +40,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <numeric>
 #include <random>
 #include <type_traits>
 #include <vector>
@@ -718,14 +719,13 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
                                    edge_t,
                                    weight_t,
                                    GraphViewType::is_adj_matrix_transposed,
-                                   GraphViewType::is_multi_gpu>(
-          handle,
-          std::nullopt,
-          std::move(std::get<0>(edge_buffer)),
-          std::move(std::get<1>(edge_buffer)),
-          std::make_optional<rmm::device_uvector<weight_t>>(size_t{0}, handle.get_stream_view()),
-          graph_properties_t{true, false},
-          true);
+                                   GraphViewType::is_multi_gpu>(handle,
+                                                                std::nullopt,
+                                                                std::move(std::get<0>(edge_buffer)),
+                                                                std::move(std::get<1>(edge_buffer)),
+                                                                std::nullopt,
+                                                                graph_properties_t{true, false},
+                                                                true);
       level_renumber_map = std::move(*tmp_renumber_map);
     } else {
       break;

@@ -135,7 +135,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
         edgelist,
         number_of_vertices,
         cugraph::experimental::graph_properties_t{is_symmetric, false},
-        std::vector<vertex_t>{},
+        std::nullopt,
         true);
 
     auto graph_view = graph.view();

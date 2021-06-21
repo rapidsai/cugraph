@@ -241,15 +241,16 @@ graph_t serializer_t::unserialize(size_t device_sz_bytes, size_t host_sz_bytes)
     auto d_offsets = unserialize<edge_t>(num_vertices + 1);
     auto d_indices = unserialize<vertex_t>(num_edges);
 
-    return graph_t(handle_,
-                   num_vertices,
-                   num_edges,
-                   g_props,
-                   std::move(d_offsets),
-                   std::move(d_indices),
-                   is_weighted ? unserialize<weight_t>(num_edges)
-                               : rmm::device_uvector<weight_t>(0, handle_.get_stream()),
-                   std::move(seg_offsets));  // RVO-ed
+    return graph_t(
+      handle_,
+      num_vertices,
+      num_edges,
+      g_props,
+      std::move(d_offsets),
+      std::move(d_indices),
+      is_weighted ? std::optional<rmm::device_uvector<weight_t>>{unserialize<weight_t>(num_edges)}
+                  : std::nullopt,
+      std::move(seg_offsets));  // RVO-ed
   } else {
     CUGRAPH_FAIL("Unsupported graph type for unserialization.");
 

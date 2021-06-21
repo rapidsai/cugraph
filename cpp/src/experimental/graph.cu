@@ -224,6 +224,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   CUGRAPH_EXPECTS(edgelists.size() == static_cast<size_t>(col_comm_size),
                   "Invalid input argument: errneous edgelists.size().");
+  CUGRAPH_EXPECTS(
+    !segment_offsets.has_value() ||
+      ((*segment_offsets).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
+    "Invalid input argument: segment_offsets.size() returns an invalid value.");
 
   auto is_weighted = edgelists[0].p_edge_weights.has_value();
   auto use_dcs =
@@ -385,11 +389,16 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   CUGRAPH_EXPECTS(
     ((edgelist.number_of_edges == 0) || (edgelist.p_src_vertices != nullptr)) &&
       ((edgelist.number_of_edges == 0) || (edgelist.p_dst_vertices != nullptr)) &&
-      ((!is_weighted || (edgelist.number_of_edges == 0)) ||
-       (edgelist.p_edge_weights.has_value() && (*(edgelist.p_edge_weights) != nullptr))),
+      (!is_weighted || (is_weighted && ((edgelist.number_of_edges == 0) ||
+                                        (*(edgelist.p_edge_weights) != nullptr)))),
     "Invalid input argument: edgelist.p_src_vertices and edgelist.p_dst_vertices should not be "
     "nullptr if edgelist.number_of_edges > 0 and edgelist.p_edge_weights should be neither "
     "std::nullopt nor nullptr if weighted and edgelist.number_of_edges > 0.");
+
+  CUGRAPH_EXPECTS(
+    !segment_offsets.has_value() ||
+      ((*segment_offsets).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
+    "Invalid input argument: segment_offsets.size() returns an invalid value.");
 
   // optional expensive checks (part 1/2)
 

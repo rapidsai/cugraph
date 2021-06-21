@@ -190,7 +190,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           graph_properties_t properties,
           rmm::device_uvector<edge_t> &&offsets,
           rmm::device_uvector<vertex_t> &&indices,
-          rmm::device_uvector<weight_t> &&weights,
+          std::optional<rmm::device_uvector<weight_t>> &&weights,
           std::optional<std::vector<vertex_t>> &&segment_offsets)
     : detail::graph_base_t<vertex_t, edge_t, weight_t>(
         handle, number_of_vertices, number_of_edges, properties),
