@@ -11,7 +11,7 @@
 #include <gtest/gtest.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <thrust/extrema.h>
 
@@ -59,7 +59,7 @@ TEST(leiden_karate, success)
   raft::update_device(indices_v.data(), ind_h.data(), ind_h.size(), stream);
   raft::update_device(weights_v.data(), w_h.data(), w_h.size(), stream);
 
-  cugraph::GraphCSRView<int, int, float> G(
+  cugraph::legacy::GraphCSRView<int, int, float> G(
     offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
 
   float modularity{0.0};

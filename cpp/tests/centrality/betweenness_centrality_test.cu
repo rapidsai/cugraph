@@ -19,7 +19,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <raft/error.hpp>
 #include <raft/handle.hpp>
@@ -195,7 +195,7 @@ void reference_rescale(result_t *result,
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void reference_betweenness_centrality(
-  cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   result_t *result,
   bool normalize,
   bool endpoints,  // This is not yet implemented
@@ -228,14 +228,14 @@ void reference_betweenness_centrality(
 // Explicit instantiation
 /*    FIXME!!!
 template void reference_betweenness_centrality<int, int, float, float>(
-  cugraph::GraphCSRView<int, int, float> const &,
+  cugraph::legacy::GraphCSRView<int, int, float> const &,
   float *,
   bool,
   bool,
   const int,
   int const *);
 template void reference_betweenness_centrality<int, int, double, double>(
-  cugraph::GraphCSRView<int, int, double> const &,
+  cugraph::legacy::GraphCSRView<int, int, double> const &,
   double *,
   bool,
   bool,
@@ -308,8 +308,8 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     auto csr         = cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, weight_t>(
       is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::GraphCSRView<vertex_t, edge_t, weight_t> G = csr->view();
-    G.prop.directed                                     = is_directed;
+    cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> G = csr->view();
+    G.prop.directed                                             = is_directed;
     CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_vertices, 0);
     std::vector<result_t> expected(G.number_of_vertices, 0);

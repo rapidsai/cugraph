@@ -12,7 +12,7 @@
 #include <utilities/high_res_timer.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <raft/handle.hpp>
 
@@ -86,7 +86,7 @@ TEST_F(HungarianTest, Bipartite4x4)
   raft::update_device(cost_v.begin(), cost, length, handle.get_stream());
   raft::update_device(workers_v.begin(), workers, length_workers, handle.get_stream());
 
-  cugraph::GraphCOOView<int32_t, int32_t, float> g(
+  cugraph::legacy::GraphCOOView<int32_t, int32_t, float> g(
     src_v.data(), dst_v.data(), cost_v.data(), num_vertices, length);
 
   float r = cugraph::hungarian(handle, g, length_workers, workers_v.data(), assignment_v.data());
@@ -128,7 +128,7 @@ TEST_F(HungarianTest, Bipartite5x5)
   raft::update_device(cost_v.begin(), cost, length, handle.get_stream());
   raft::update_device(workers_v.begin(), workers, length_workers, handle.get_stream());
 
-  cugraph::GraphCOOView<int32_t, int32_t, float> g(
+  cugraph::legacy::GraphCOOView<int32_t, int32_t, float> g(
     src_v.data(), dst_v.data(), cost_v.data(), num_vertices, length);
 
   float r = cugraph::hungarian(handle, g, length_workers, workers_v.data(), assignment_v.data());
@@ -174,7 +174,7 @@ TEST_F(HungarianTest, Bipartite4x4_multiple_answers)
   raft::update_device(cost_v.begin(), cost, length, handle.get_stream());
   raft::update_device(workers_v.begin(), workers, length_workers, handle.get_stream());
 
-  cugraph::GraphCOOView<int32_t, int32_t, float> g(
+  cugraph::legacy::GraphCOOView<int32_t, int32_t, float> g(
     src_v.data(), dst_v.data(), cost_v.data(), num_vertices, length);
 
   float r = cugraph::hungarian(handle, g, length_workers, workers_v.data(), assignment_v.data());

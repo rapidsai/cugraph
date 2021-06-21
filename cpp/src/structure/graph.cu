@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>
 
@@ -58,6 +58,7 @@ void degree_from_vertex_ids(const raft::handle_t *handle,
 }  // namespace
 
 namespace cugraph {
+namespace legacy {
 
 template <typename VT, typename ET, typename WT>
 void GraphViewBase<VT, ET, WT>::get_vertex_identifiers(VT *identifiers) const
@@ -149,6 +150,7 @@ template class GraphCOOView<int32_t, int32_t, float>;
 template class GraphCOOView<int32_t, int32_t, double>;
 template class GraphCompressedSparseBaseView<int32_t, int32_t, float>;
 template class GraphCompressedSparseBaseView<int32_t, int32_t, double>;
+}  // namespace legacy
 }  // namespace cugraph
 
 #include <utilities/eidir_graph_utils.hpp>

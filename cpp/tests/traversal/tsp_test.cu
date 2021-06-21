@@ -31,7 +31,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <cuda_profiler_api.h>
 

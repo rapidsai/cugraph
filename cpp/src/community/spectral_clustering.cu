@@ -26,7 +26,7 @@
 #include <thrust/transform.h>
 #include <ctime>
 
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/spectral/modularity_maximization.hpp>
@@ -39,7 +39,7 @@ namespace ext_raft {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void balancedCutClustering_impl(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void balancedCutClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                 vertex_t n_clusters,
                                 vertex_t n_eig_vects,
                                 weight_t evs_tolerance,
@@ -109,16 +109,17 @@ void balancedCutClustering_impl(GraphCSRView<vertex_t, edge_t, weight_t> const &
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void spectralModularityMaximization_impl(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                         vertex_t n_clusters,
-                                         vertex_t n_eig_vects,
-                                         weight_t evs_tolerance,
-                                         int evs_max_iter,
-                                         weight_t kmean_tolerance,
-                                         int kmean_max_iter,
-                                         vertex_t *clustering,
-                                         weight_t *eig_vals,
-                                         weight_t *eig_vects)
+void spectralModularityMaximization_impl(
+  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  vertex_t n_clusters,
+  vertex_t n_eig_vects,
+  weight_t evs_tolerance,
+  int evs_max_iter,
+  weight_t kmean_tolerance,
+  int kmean_max_iter,
+  vertex_t *clustering,
+  weight_t *eig_vals,
+  weight_t *eig_vects)
 {
   RAFT_EXPECTS(graph.edge_data != nullptr, "API error, graph must have weights");
   RAFT_EXPECTS(evs_tolerance >= weight_t{0.0},
@@ -186,7 +187,7 @@ void spectralModularityMaximization_impl(GraphCSRView<vertex_t, edge_t, weight_t
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void analyzeModularityClustering_impl(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void analyzeModularityClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                       int n_clusters,
                                       vertex_t const *clustering,
                                       weight_t *modularity)
@@ -207,7 +208,7 @@ void analyzeModularityClustering_impl(GraphCSRView<vertex_t, edge_t, weight_t> c
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void analyzeBalancedCut_impl(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void analyzeBalancedCut_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                              vertex_t n_clusters,
                              vertex_t const *clustering,
                              weight_t *edgeCut,
@@ -240,7 +241,7 @@ void analyzeBalancedCut_impl(GraphCSRView<vertex_t, edge_t, weight_t> const &gra
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void balancedCutClustering(GraphCSRView<VT, ET, WT> const &graph,
+void balancedCutClustering(legacy::GraphCSRView<VT, ET, WT> const &graph,
                            VT num_clusters,
                            VT num_eigen_vects,
                            WT evs_tolerance,
@@ -265,7 +266,7 @@ void balancedCutClustering(GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template <typename VT, typename ET, typename WT>
-void spectralModularityMaximization(GraphCSRView<VT, ET, WT> const &graph,
+void spectralModularityMaximization(legacy::GraphCSRView<VT, ET, WT> const &graph,
                                     VT n_clusters,
                                     VT n_eigen_vects,
                                     WT evs_tolerance,
@@ -290,7 +291,7 @@ void spectralModularityMaximization(GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_modularity(GraphCSRView<VT, ET, WT> const &graph,
+void analyzeClustering_modularity(legacy::GraphCSRView<VT, ET, WT> const &graph,
                                   int n_clusters,
                                   VT const *clustering,
                                   WT *score)
@@ -299,7 +300,7 @@ void analyzeClustering_modularity(GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_edge_cut(GraphCSRView<VT, ET, WT> const &graph,
+void analyzeClustering_edge_cut(legacy::GraphCSRView<VT, ET, WT> const &graph,
                                 int n_clusters,
                                 VT const *clustering,
                                 WT *score)
@@ -309,7 +310,7 @@ void analyzeClustering_edge_cut(GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_ratio_cut(GraphCSRView<VT, ET, WT> const &graph,
+void analyzeClustering_ratio_cut(legacy::GraphCSRView<VT, ET, WT> const &graph,
                                  int n_clusters,
                                  VT const *clustering,
                                  WT *score)
@@ -319,37 +320,25 @@ void analyzeClustering_ratio_cut(GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template void balancedCutClustering<int, int, float>(
-  GraphCSRView<int, int, float> const &, int, int, float, int, float, int, int *);
+  legacy::GraphCSRView<int, int, float> const &, int, int, float, int, float, int, int *);
 template void balancedCutClustering<int, int, double>(
-  GraphCSRView<int, int, double> const &, int, int, double, int, double, int, int *);
+  legacy::GraphCSRView<int, int, double> const &, int, int, double, int, double, int, int *);
 template void spectralModularityMaximization<int, int, float>(
-  GraphCSRView<int, int, float> const &, int, int, float, int, float, int, int *);
+  legacy::GraphCSRView<int, int, float> const &, int, int, float, int, float, int, int *);
 template void spectralModularityMaximization<int, int, double>(
-  GraphCSRView<int, int, double> const &, int, int, double, int, double, int, int *);
-template void analyzeClustering_modularity<int, int, float>(GraphCSRView<int, int, float> const &,
-                                                            int,
-                                                            int const *,
-                                                            float *);
-template void analyzeClustering_modularity<int, int, double>(GraphCSRView<int, int, double> const &,
-                                                             int,
-                                                             int const *,
-                                                             double *);
-template void analyzeClustering_edge_cut<int, int, float>(GraphCSRView<int, int, float> const &,
-                                                          int,
-                                                          int const *,
-                                                          float *);
-template void analyzeClustering_edge_cut<int, int, double>(GraphCSRView<int, int, double> const &,
-                                                           int,
-                                                           int const *,
-                                                           double *);
-template void analyzeClustering_ratio_cut<int, int, float>(GraphCSRView<int, int, float> const &,
-                                                           int,
-                                                           int const *,
-                                                           float *);
-template void analyzeClustering_ratio_cut<int, int, double>(GraphCSRView<int, int, double> const &,
-                                                            int,
-                                                            int const *,
-                                                            double *);
+  legacy::GraphCSRView<int, int, double> const &, int, int, double, int, double, int, int *);
+template void analyzeClustering_modularity<int, int, float>(
+  legacy::GraphCSRView<int, int, float> const &, int, int const *, float *);
+template void analyzeClustering_modularity<int, int, double>(
+  legacy::GraphCSRView<int, int, double> const &, int, int const *, double *);
+template void analyzeClustering_edge_cut<int, int, float>(
+  legacy::GraphCSRView<int, int, float> const &, int, int const *, float *);
+template void analyzeClustering_edge_cut<int, int, double>(
+  legacy::GraphCSRView<int, int, double> const &, int, int const *, double *);
+template void analyzeClustering_ratio_cut<int, int, float>(
+  legacy::GraphCSRView<int, int, float> const &, int, int const *, float *);
+template void analyzeClustering_ratio_cut<int, int, double>(
+  legacy::GraphCSRView<int, int, double> const &, int, int const *, double *);
 
 }  // namespace ext_raft
 }  // namespace cugraph
