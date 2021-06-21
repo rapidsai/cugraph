@@ -167,9 +167,12 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     static_cast<vertex_t>(graph_container.num_global_vertices),
     static_cast<edge_t>(graph_container.num_global_edges),
     graph_container.graph_props,
-    std::vector<vertex_t>(static_cast<vertex_t const*>(graph_container.segment_offsets),
-                          static_cast<vertex_t const*>(graph_container.segment_offsets) +
-                            graph_container.num_segments + 1),
+    graph_container.segment_offsets != nullptr
+      ? std::make_optional<std::vector<vertex_t>>(
+          static_cast<vertex_t const*>(graph_container.segment_offsets),
+          static_cast<vertex_t const*>(graph_container.segment_offsets) +
+            graph_container.num_segments + 1)
+      : std::nullopt,
     graph_container.do_expensive_check);
 }
 
@@ -194,9 +197,12 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     edgelist,
     static_cast<vertex_t>(graph_container.num_global_vertices),
     graph_container.graph_props,
-    std::vector<vertex_t>(static_cast<vertex_t const*>(graph_container.segment_offsets),
-                          static_cast<vertex_t const*>(graph_container.segment_offsets) +
-                            graph_container.num_segments + 1),
+    graph_container.segment_offsets != nullptr
+      ? std::make_optional<std::vector<vertex_t>>(
+          static_cast<vertex_t const*>(graph_container.segment_offsets),
+          static_cast<vertex_t const*>(graph_container.segment_offsets) +
+            graph_container.num_segments + 1)
+      : std::nullopt,
     graph_container.do_expensive_check);
 }
 
