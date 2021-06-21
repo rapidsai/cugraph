@@ -1104,8 +1104,6 @@ random_walks(raft::handle_t const& handle,
   char const* chrp_traversal = std::getenv("CUGRAPH_RW_TRAVERSAL_STRATEGY");
   std::string str_traversal(chrp_traversal);
 
-  std::cout << "Traversal strategy: " << str_traversal << '\n';
-
   if (str_traversal.empty() || str_traversal == std::string("HORIZONTAL")) {
     auto quad_tuple = detail::random_walks_impl(handle, graph, d_v_start, max_depth, use_padding);
     // ignore last element of the quad, seed,
