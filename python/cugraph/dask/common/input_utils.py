@@ -221,15 +221,11 @@ def get_distributed_data(input_ddf):
 
 def get_vertex_partition_offsets(input_graph):
     import cudf
-    def _get_vertex_count(df):
-        return df['global_id'].iloc[0]
-
     renumber_vertex_count = input_graph.renumber_map.implementation.ddf.\
-        map_partitions(_get_vertex_count).compute()
-    num_verts = len(input_graph.renumber_map.implementation.ddf)
-    renumber_vertex_cumsum = renumber_vertex_count.sort_values()
+        map_partitions(len).compute()
+    renumber_vertex_cumsum = renumber_vertex_count.cumsum()
     vertex_dtype = input_graph.edgelist.edgelist_df['src'].dtype
-    vertex_partition_offsets = cudf.Series(renumber_vertex_cumsum, dtype=vertex_dtype)
+    vertex_partition_offsets = cudf.Series([0], dtype=vertex_dtype)
     vertex_partition_offsets = vertex_partition_offsets.append(cudf.Series(
-        [num_verts], dtype=vertex_dtype))
+        renumber_vertex_cumsum, dtype=vertex_dtype))
     return vertex_partition_offsets
