@@ -32,6 +32,8 @@
 #include <thrust/for_each.h>
 
 #include <algorithm>
+#include <future>
+#include <thread>
 
 namespace cugraph {
 namespace experimental {
@@ -331,39 +333,70 @@ struct vertical_pipelined_t {
     real_t* p_d_rnd_work = d_random.begin();
     real_t* p_d_rnd_next = p_d_rnd_work + num_paths_;
 
+    fill_rnd<index_t>(rand_walker, p_d_rnd_work, seed0);
     // start from 1, as 0-th has already been initialized:
     //
     for (decltype(max_depth_) step_indx = 1; step_indx < max_depth_; ++step_indx) {
-      generate_async_rnd(p_d_rnd_next);
+      auto seed = seed0 + static_cast<seed_t>(step_indx);
 
+      // async generation of next random vector:
+      //
+      auto&& future_res = generate_async_rnd<index_t>(rand_walker, p_d_rnd_next, seed);
+
+      device_const_vector_view<real_t, size_t> d_rnd_cview(p_d_rnd_work, num_paths_);
       // take one-step in-sync for each path in parallel:
       //
       rand_walker.step_only(graph,
-                            seed0 + static_cast<seed_t>(step_indx),
                             d_coalesced_v,
                             d_coalesced_w,
                             d_paths_sz,
                             d_crt_out_degs,
-                            p_d_rnd_work,
+                            d_rnd_cview,
                             d_col_indx,
                             d_next_v,
                             d_next_w);
 
+      // block to get the next random vector:
+      //
+      auto res = future_res.get();
+
+      // swap rnd vectors:
+      //
+      std::swap(p_d_rnd_work, p_d_rnd_next);
+
       // early exit: all paths have reached sinks:
       //
       if (rand_walker.all_paths_stopped(d_crt_out_degs)) break;
-
-      // FIXME: needs async() wait():
-      //
-      std::swap(p_d_rnd_work, p_d_rnd_next);
     }
   }
 
   size_t get_random_buff_sz(void) const { return 2 * num_paths_; }
   size_t get_tmp_buff_sz(void) const { return num_paths_; }
 
-  template <typename real_t>
-  void generate_async_rnd(real_t* p_d_rnd_next) const;
+  template <typename random_walker_t, typename real_t, typename index_t, typename seed_t>
+  size_t fill_rnd(random_walker_t const& rand_walker, real_t* ptr_d_rnd, seed_t seed) const
+  {
+    auto const& handle = rand_walker.get_handle();
+
+    raft::random::Rng rng(seed);
+    rng.uniform<real_t, index_t>(
+      ptr_d_rnd, num_paths_, real_t{0.0}, real_t{1.0}, handle.get_stream());
+
+    return num_paths_;
+  }
+
+  template <typename random_walker_t, typename index_t, typename real_t, typename seed_t>
+  decltype(auto) generate_async_rnd(random_walker_t const& rand_walker,
+                                    real_t* p_d_rnd,
+                                    seed_t seed) const
+  {
+    std::future<size_t> result(
+      std::async(std::launch::async, [this, rand_walker, p_d_rnd, seed](void) {
+        return fill_rnd<index_t>(rand_walker, p_d_rnd, seed);
+      }));
+
+    return result;
+  }
 
  private:
   size_t num_paths_;
