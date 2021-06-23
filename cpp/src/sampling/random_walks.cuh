@@ -721,7 +721,12 @@ struct random_walker_t {
  * length. Single-GPU specialization.
  *
  * @tparam graph_t Type of graph (view).
+ * @tparam traversal_t Traversal policy. Either horizontal (faster but requires more memory) or
+ * vertical. Defaults to horizontal.
  * @tparam random_engine_t Type of random engine used to generate RW.
+ * @tparam seeding_policy_t Random engine seeding policy: variable or fixed (for reproducibility).
+ * Defaults to variable, clock dependent.
+ * @tparam index_t Indexing type. Defaults to edge_type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph object to generate RW on.
@@ -862,7 +867,12 @@ random_walks_impl(raft::handle_t const& handle,
  * length. Multi-GPU specialization.
  *
  * @tparam graph_t Type of graph (view).
+ * @tparam traversal_t Traversal policy. Either horizontal (faster but requires more memory) or
+ * vertical. Defaults to horizontal.
  * @tparam random_engine_t Type of random engine used to generate RW.
+ * @tparam seeding_policy_t Random engine seeding policy: variable or fixed (for reproducibility).
+ * Defaults to variable, clock dependent.
+ * @tparam index_t Indexing type. Defaults to edge_type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph object to generate RW on.
