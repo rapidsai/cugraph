@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/utilities/error.hpp>
 #include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <thrust/optional.h>
 #include <thrust/tuple.h>
