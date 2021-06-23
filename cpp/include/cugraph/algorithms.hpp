@@ -1216,7 +1216,7 @@ void sssp(raft::handle_t const &handle,
  * @param graph_view Graph view object.
  * @param precomputed_vertex_out_weight_sums Pointer to an array storing sums of out-going edge
  * weights for the vertices (for re-use) or `std::nullopt`. If `std::nullopt`, these values are
- * freshly computed. Computing these values outside this function reduces the number of memoray
+ * freshly computed. Computing these values outside this function reduces the number of memory
  * allocations/deallocations and computing if a user repeatedly computes PageRank scores using the
  * same graph with different personalization vectors.
  * @param personalization_vertices Pointer to an array storing personalization vertex identifiers
