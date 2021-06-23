@@ -1092,27 +1092,43 @@ random_walks(raft::handle_t const& handle,
              index_t max_depth,
              bool use_padding)
 {
-  using vertex_t = typename graph_t::vertex_type;
+  using vertex_t     = typename graph_t::vertex_type;
+  using edge_t       = typename graph_t::edge_type;
+  using weight_t     = typename graph_t::weight_type;
+  using rnd_engine_t = float;
 
   // 0-copy const device view:
   //
   detail::device_const_vector_view<vertex_t, index_t> d_v_start{ptr_d_start, num_paths};
 
-  // FIXME: temporary usage of envar to select traversal policy:
-  // (to be replaced by adding a flag argument to the API)
+  // GPU memory availability:
   //
-  char const* chrp_traversal = std::getenv("CUGRAPH_RW_TRAVERSAL_STRATEGY");
-  std::string str_traversal(chrp_traversal);
+  size_t free_mem_sp_bytes{0};
+  size_t total_mem_sp_bytes{0};
+  cudaMemGetInfo(&free_mem_sp_bytes, &total_mem_sp_bytes);
 
-  if (str_traversal.empty() || str_traversal == std::string("HORIZONTAL")) {
-    auto quad_tuple = detail::random_walks_impl(handle, graph, d_v_start, max_depth, use_padding);
-    // ignore last element of the quad, seed,
-    // since it's meant for testing / debugging, only:
-    //
-    return std::make_tuple(std::move(std::get<0>(quad_tuple)),
-                           std::move(std::get<1>(quad_tuple)),
-                           std::move(std::get<2>(quad_tuple)));
-  } else if (str_traversal == std::string("VERTICAL")) {
+  // GPU memory requirements:
+  //
+  size_t coalesced_v_count = num_paths * max_depth;
+  auto coalesced_e_count   = coalesced_v_count - num_paths;
+  size_t req_mem_common    = sizeof(vertex_t) * coalesced_v_count +
+                          sizeof(weight_t) * coalesced_e_count +  // coalesced_v + coalesced_w
+                          (sizeof(vertex_t) + sizeof(index_t)) * num_paths;  // start_v + sizes
+
+  size_t req_mem_horizontal =
+    req_mem_common + sizeof(rnd_engine_t) * coalesced_e_count;  // + rnd_buff
+  size_t req_mem_vertical = req_mem_common + (sizeof(edge_t) + 2 * sizeof(vertex_t) +
+                                              sizeof(weight_t) + sizeof(rnd_engine_t)) *
+                                               num_paths;  // + smaller_rnd_buff + tmp_buffs
+
+  bool use_vertical_strategy{false};
+  if (req_mem_horizontal > req_mem_vertical && req_mem_horizontal > free_mem_sp_bytes) {
+    use_vertical_strategy = true;
+    std::cerr
+      << "WARNING: Due to GPU memory availability, slower vertical traversal will be used.\n";
+  }
+
+  if (use_vertical_strategy) {
     auto quad_tuple = detail::random_walks_impl<graph_t, detail::vertical_traversal_t>(
       handle, graph, d_v_start, max_depth, use_padding);
     // ignore last element of the quad, seed,
@@ -1121,17 +1137,14 @@ random_walks(raft::handle_t const& handle,
     return std::make_tuple(std::move(std::get<0>(quad_tuple)),
                            std::move(std::get<1>(quad_tuple)),
                            std::move(std::get<2>(quad_tuple)));
-  } else if (str_traversal == std::string("V_PIPELINED")) {
-    auto quad_tuple = detail::random_walks_impl<graph_t, detail::vertical_pipelined_t>(
-      handle, graph, d_v_start, max_depth, use_padding);
+  } else {
+    auto quad_tuple = detail::random_walks_impl(handle, graph, d_v_start, max_depth, use_padding);
     // ignore last element of the quad, seed,
     // since it's meant for testing / debugging, only:
     //
     return std::make_tuple(std::move(std::get<0>(quad_tuple)),
                            std::move(std::get<1>(quad_tuple)),
                            std::move(std::get<2>(quad_tuple)));
-  } else {
-    CUGRAPH_FAIL("Unknown traversal policy.");
   }
 }
 
