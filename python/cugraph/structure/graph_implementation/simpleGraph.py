@@ -138,7 +138,7 @@ class simpleGraphImpl:
             # FIXME: Should SG do lazy evaluation like MG?
             elist, renumber_map = NumberMap.renumber(
                 elist, source, destination, store_transposed=False
-            )
+            )[0:2]
             source = "src"
             destination = "dst"
             self.properties.renumbered = True

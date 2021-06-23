@@ -265,6 +265,10 @@ struct renum_tuple_t {
 
   std::vector<vertex_t>& get_segment_offsets(void) { return segment_offsets_; }
 
+  std::unique_ptr<std::vector<vertex_t>> get_segment_offsets_wrap() {  // const
+    return std::make_unique<std::vector<vertex_t>>(segment_offsets_);
+  }
+
   // `partition_t` pass-through getters
   //
   int get_part_row_size() const { return part_.get_row_size(); }
@@ -275,7 +279,7 @@ struct renum_tuple_t {
 
   // FIXME: part_.get_vertex_partition_offsets() returns a std::vector
   //
-  std::unique_ptr<std::vector<vertex_t>> get_partition_offsets(void)  // const
+  std::unique_ptr<std::vector<vertex_t>> get_partition_offsets_wrap(void)  // const
   {
     return std::make_unique<std::vector<vertex_t>>(part_.get_vertex_partition_offsets());
   }

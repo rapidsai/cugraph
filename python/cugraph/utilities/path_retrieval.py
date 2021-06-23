@@ -86,7 +86,7 @@ def get_traversed_cost(df, source, source_col, dest_col, value_col):
     renumbered_gdf, renumber_map = NumberMap.renumber(input_df,
                                                       ["vertex"],
                                                       ["predecessor"],
-                                                      preserve_order=True)
+                                                      preserve_order=True)[0:2]
     renumbered_gdf = renumbered_gdf.rename(columns={'src': 'vertex',
                                                     'dst': 'predecessor'})
     stop_vertex = renumber_map.to_internal_vertex_id(cudf.Series(-1)).values[0]

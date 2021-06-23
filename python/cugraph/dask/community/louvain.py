@@ -29,20 +29,20 @@ def call_louvain(sID,
                  num_verts,
                  num_edges,
                  vertex_partition_offsets,
-                 sorted_by_degree,
+                 aggregate_segment_offsets,
                  max_level,
                  resolution):
-
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
-
+    local_size = len(aggregate_segment_offsets) // Comms.get_n_workers(sID)
+    segment_offsets = aggregate_segment_offsets[local_size * wid : local_size * (wid + 1)]
     return c_mg_louvain.louvain(data[0],
                                 num_verts,
                                 num_edges,
                                 vertex_partition_offsets,
                                 wid,
                                 handle,
-                                sorted_by_degree,
+                                segment_offsets,
                                 max_level,
                                 resolution)
 
@@ -84,7 +84,6 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
     client = default_client()
     # Calling renumbering results in data that is sorted by degree
     input_graph.compute_renumber_edge_list(transposed=False)
-    sorted_by_degree = True
 
     ddf = input_graph.edgelist.edgelist_df
     vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
@@ -98,7 +97,7 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
                              num_verts,
                              num_edges,
                              vertex_partition_offsets,
-                             sorted_by_degree,
+                             input_graph.aggregate_segment_offsets,
                              max_iter,
                              resolution,
                              workers=[wf[0]])

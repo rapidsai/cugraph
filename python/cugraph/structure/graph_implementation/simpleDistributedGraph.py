@@ -47,6 +47,7 @@ class simpleDistributedGraphImpl:
         # Structure
         self.edgelist = None
         self.renumber_map = None
+        self.aggregate_segment_offsets = None
         self.properties = simpleDistributedGraphImpl.Properties(properties)
         self.source_columns = None
         self.destination_columns = None
@@ -463,7 +464,7 @@ class simpleDistributedGraphImpl:
 
                 del self.edgelist
 
-            renumbered_ddf, number_map = NumberMap.renumber(
+            renumbered_ddf, number_map, aggregate_segment_offsets = NumberMap.renumber(
                 self.input_df,
                 self.source_columns,
                 self.destination_columns,
@@ -471,6 +472,7 @@ class simpleDistributedGraphImpl:
             )
             self.edgelist = self.EdgeList(renumbered_ddf)
             self.renumber_map = number_map
+            self.aggregate_segment_offsets = aggregate_segment_offsets
             self.properties.store_transposed = transposed
 
     def vertex_column_size(self):

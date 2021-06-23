@@ -27,15 +27,19 @@ def call_sssp(sID,
               num_verts,
               num_edges,
               vertex_partition_offsets,
+              aggregate_segment_offsets,
               start):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
+    local_size = len(aggregate_segment_offsets) // Comms.get_n_workers(sID)
+    segment_offsets = aggregate_segment_offsets[local_size * wid : local_size * (wid + 1)]
     return mg_sssp.mg_sssp(data[0],
                            num_verts,
                            num_edges,
                            vertex_partition_offsets,
                            wid,
                            handle,
+                           segment_offsets,
                            start)
 
 
@@ -109,6 +113,7 @@ def sssp(graph,
               num_verts,
               num_edges,
               vertex_partition_offsets,
+              graph.aggregate_segment_offsets,
               source,
               workers=[wf[0]])
               for idx, wf in enumerate(data.worker_to_parts.items())]
