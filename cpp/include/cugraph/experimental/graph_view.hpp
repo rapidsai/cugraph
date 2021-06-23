@@ -479,7 +479,8 @@ class graph_view_t<vertex_t,
              : vertex_t{0};
   }
 
-  std::optional<std::vector<vertex_t>> get_local_adj_matrix_partition_segment_offsets(size_t partition_idx) const
+  std::optional<std::vector<vertex_t>> get_local_adj_matrix_partition_segment_offsets(
+    size_t partition_idx) const
   {
     if (adj_matrix_partition_segment_offsets_) {
       auto size_per_partition =

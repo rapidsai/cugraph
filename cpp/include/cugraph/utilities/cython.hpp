@@ -265,7 +265,8 @@ struct renum_tuple_t {
 
   std::vector<vertex_t>& get_segment_offsets(void) { return segment_offsets_; }
 
-  std::unique_ptr<std::vector<vertex_t>> get_segment_offsets_wrap() {  // const
+  std::unique_ptr<std::vector<vertex_t>> get_segment_offsets_wrap()
+  {  // const
     return std::make_unique<std::vector<vertex_t>>(segment_offsets_);
   }
 
