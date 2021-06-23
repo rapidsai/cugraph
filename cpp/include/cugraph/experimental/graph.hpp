@@ -30,8 +30,6 @@
 namespace cugraph {
 namespace experimental {
 
-// FIXME: consider using std::optional for optional parameters (i.e. weights & segment_offsets)
-
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct edgelist_t {
   vertex_t const *p_src_vertices{nullptr};
