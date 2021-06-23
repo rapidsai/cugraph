@@ -21,7 +21,7 @@
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include "two_hop_neighbors.cuh"
 
@@ -32,7 +32,8 @@
 namespace cugraph {
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(GraphCSRView<VT, ET, WT> const &graph)
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
+  legacy::GraphCSRView<VT, ET, WT> const &graph)
 {
   cudaStream_t stream{nullptr};
 
@@ -108,7 +109,8 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(GraphCSRView<VT, ET,
   // Get things ready to return
   ET outputSize = tuple_end - tuple_start;
 
-  auto result = std::make_unique<GraphCOO<VT, ET, WT>>(graph.number_of_vertices, outputSize, false);
+  auto result =
+    std::make_unique<legacy::GraphCOO<VT, ET, WT>>(graph.number_of_vertices, outputSize, false);
 
   cudaMemcpy(result->src_indices(), d_first_pair, sizeof(VT) * outputSize, cudaMemcpyDefault);
   cudaMemcpy(result->dst_indices(), d_second_pair, sizeof(VT) * outputSize, cudaMemcpyDefault);
@@ -116,10 +118,10 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(GraphCSRView<VT, ET,
   return result;
 }
 
-template std::unique_ptr<GraphCOO<int, int, float>> get_two_hop_neighbors(
-  GraphCSRView<int, int, float> const &);
+template std::unique_ptr<legacy::GraphCOO<int, int, float>> get_two_hop_neighbors(
+  legacy::GraphCSRView<int, int, float> const &);
 
-template std::unique_ptr<GraphCOO<int, int, double>> get_two_hop_neighbors(
-  GraphCSRView<int, int, double> const &);
+template std::unique_ptr<legacy::GraphCOO<int, int, double>> get_two_hop_neighbors(
+  legacy::GraphCSRView<int, int, double> const &);
 
 }  // namespace cugraph

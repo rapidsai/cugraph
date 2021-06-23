@@ -19,8 +19,8 @@
 #include <cugraph/experimental/graph.hpp>
 #include <cugraph/experimental/graph_view.hpp>
 
-#include <cugraph/graph.hpp>
 #include <cugraph/internals.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <raft/handle.hpp>
 
@@ -45,7 +45,7 @@ namespace cugraph {
  * caller
  */
 template <typename VT, typename ET, typename WT>
-void jaccard(GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result);
+void jaccard(legacy::GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result);
 
 /**
  * @brief     Compute jaccard similarity coefficient for selected vertex pairs
@@ -69,7 +69,7 @@ void jaccard(GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *resul
  * caller
  */
 template <typename VT, typename ET, typename WT>
-void jaccard_list(GraphCSRView<VT, ET, WT> const &graph,
+void jaccard_list(legacy::GraphCSRView<VT, ET, WT> const &graph,
                   WT const *weights,
                   ET num_pairs,
                   VT const *first,
@@ -95,7 +95,7 @@ void jaccard_list(GraphCSRView<VT, ET, WT> const &graph,
  * caller
  */
 template <typename VT, typename ET, typename WT>
-void overlap(GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result);
+void overlap(legacy::GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result);
 
 /**
  * @brief     Compute overlap coefficient for select pairs of vertices
@@ -119,7 +119,7 @@ void overlap(GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *resul
  * caller
  */
 template <typename VT, typename ET, typename WT>
-void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
+void overlap_list(legacy::GraphCSRView<VT, ET, WT> const &graph,
                   WT const *weights,
                   ET num_pairs,
                   VT const *first,
@@ -181,7 +181,7 @@ void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void force_atlas2(raft::handle_t const &handle,
-                  GraphCOOView<vertex_t, edge_t, weight_t> &graph,
+                  legacy::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                   float *pos,
                   const int max_iter                            = 500,
                   float *x_start                                = nullptr,
@@ -276,7 +276,7 @@ float traveling_salesperson(raft::handle_t const &handle,
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void betweenness_centrality(const raft::handle_t &handle,
-                            GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                            legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                             result_t *result,
                             bool normalized          = true,
                             bool endpoints           = false,
@@ -320,7 +320,7 @@ void betweenness_centrality(const raft::handle_t &handle,
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void edge_betweenness_centrality(const raft::handle_t &handle,
-                                 GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                 legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                  result_t *result,
                                  bool normalized          = true,
                                  weight_t const *weight   = nullptr,
@@ -363,7 +363,7 @@ enum class cugraph_cc_t {
  * associated with vertex id i.
  */
 template <typename VT, typename ET, typename WT>
-void connected_components(GraphCSRView<VT, ET, WT> const &graph,
+void connected_components(legacy::GraphCSRView<VT, ET, WT> const &graph,
                           cugraph_cc_t connectivity_type,
                           VT *labels);
 
@@ -392,8 +392,8 @@ void connected_components(GraphCSRView<VT, ET, WT> const &graph,
  *
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> k_truss_subgraph(
-  GraphCOOView<VT, ET, WT> const &graph,
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_truss_subgraph(
+  legacy::GraphCOOView<VT, ET, WT> const &graph,
   int k,
   rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
 
@@ -430,7 +430,7 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> k_truss_subgraph(
  * @param[in] normalized             If True normalize the resulting katz centrality values
  */
 template <typename VT, typename ET, typename WT, typename result_t>
-void katz_centrality(GraphCSRView<VT, ET, WT> const &graph,
+void katz_centrality(legacy::GraphCSRView<VT, ET, WT> const &graph,
                      result_t *result,
                      double alpha,
                      int max_iter,
@@ -448,7 +448,7 @@ void katz_centrality(GraphCSRView<VT, ET, WT> const &graph,
  */
 /* ----------------------------------------------------------------------------*/
 template <typename VT, typename ET, typename WT>
-void core_number(GraphCSRView<VT, ET, WT> const &graph, VT *core_number);
+void core_number(legacy::GraphCSRView<VT, ET, WT> const &graph, VT *core_number);
 
 /**
  * @brief   Compute K Core of the graph G
@@ -472,8 +472,8 @@ void core_number(GraphCSRView<VT, ET, WT> const &graph, VT *core_number);
  * @param[out] out_graph             Unique pointer to K Core subgraph in COO format
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> k_core(
-  GraphCOOView<VT, ET, WT> const &graph,
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_core(
+  legacy::GraphCOOView<VT, ET, WT> const &graph,
   int k,
   VT const *vertex_id,
   VT const *core_number,
@@ -498,7 +498,8 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> k_core(
  * @return                  Graph in COO format
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(GraphCSRView<VT, ET, WT> const &graph);
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
+  legacy::GraphCSRView<VT, ET, WT> const &graph);
 
 /**
  * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
@@ -525,13 +526,13 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(GraphCSRView<VT, ET,
  *
  */
 template <typename VT, typename ET, typename WT>
-void sssp(GraphCSRView<VT, ET, WT> const &graph,
+void sssp(legacy::GraphCSRView<VT, ET, WT> const &graph,
           WT *distances,
           VT *predecessors,
           const VT source_vertex);
 
 // FIXME: Internally distances is of int (signed 32-bit) data type, but current
-// template uses data from VT, ET, WT from he GraphCSR View even if weights
+// template uses data from VT, ET, WT from the legacy::GraphCSR View even if weights
 // are not considered
 /**
  * @Synopsis   Performs a breadth first search traversal of a graph starting from a vertex.
@@ -567,7 +568,7 @@ void sssp(GraphCSRView<VT, ET, WT> const &graph,
  */
 template <typename VT, typename ET, typename WT>
 void bfs(raft::handle_t const &handle,
-         GraphCSRView<VT, ET, WT> const &graph,
+         legacy::GraphCSRView<VT, ET, WT> const &graph,
          VT *distances,
          VT *predecessors,
          double *sp_counters,
@@ -595,16 +596,16 @@ void bfs(raft::handle_t const &handle,
  * @param[in]  graph                 cuGRAPH COO graph
  * @param[in]  num_workers           number of vertices in the worker set
  * @param[in]  workers               device pointer to an array of worker vertex ids
- * @param[out] assignment            device pointer to an array to which the assignment will be
+ * @param[out] assignments           device pointer to an array to which the assignment will be
  * written. The array should be num_workers long, and will identify which vertex id (job) is
  * assigned to that worker
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 weight_t hungarian(raft::handle_t const &handle,
-                   GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+                   legacy::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
                    vertex_t num_workers,
                    vertex_t const *workers,
-                   vertex_t *assignment);
+                   vertex_t *assignments);
 
 /**
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
@@ -626,19 +627,19 @@ weight_t hungarian(raft::handle_t const &handle,
  * @param[in]  graph                 cuGRAPH COO graph
  * @param[in]  num_workers           number of vertices in the worker set
  * @param[in]  workers               device pointer to an array of worker vertex ids
- * @param[out] assignment            device pointer to an array to which the assignment will be
+ * @param[out] assignments           device pointer to an array to which the assignment will be
  * written. The array should be num_workers long, and will identify which vertex id (job) is
  * assigned to that worker
- * @param[in]  precision             parameter to define precision of comparisons
+ * @param[in]  epsilon               parameter to define precision of comparisons
  *                                   in reducing weights to zero.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 weight_t hungarian(raft::handle_t const &handle,
-                   GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+                   legacy::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
                    vertex_t num_workers,
                    vertex_t const *workers,
-                   vertex_t *assignment,
-                   weight_t precision);
+                   vertex_t *assignments,
+                   weight_t epsilon);
 
 /**
  * @brief      Louvain implementation
@@ -775,7 +776,7 @@ void flatten_dendrogram(raft::handle_t const &handle,
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
-                                   GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                    vertex_t *clustering,
                                    size_t max_iter     = 100,
                                    weight_t resolution = weight_t{1});
@@ -807,7 +808,7 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void ecg(raft::handle_t const &handle,
-         GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+         legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
          weight_t min_weight,
          vertex_t ensemble_size,
          vertex_t *clustering);
@@ -833,9 +834,9 @@ void ecg(raft::handle_t const &handle,
  * @return out_graph             Unique pointer to MSF subgraph in COO format
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
+std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
   raft::handle_t const &handle,
-  GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
 
 namespace triangle {
@@ -855,7 +856,7 @@ namespace triangle {
  * @return                           The number of triangles
  */
 template <typename VT, typename ET, typename WT>
-uint64_t triangle_count(GraphCSRView<VT, ET, WT> const &graph);
+uint64_t triangle_count(legacy::GraphCSRView<VT, ET, WT> const &graph);
 }  // namespace triangle
 
 namespace subgraph {
@@ -880,9 +881,8 @@ namespace subgraph {
  * @param[out] result                a graph in COO format containing the edges in the subgraph
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, ET, WT> const &graph,
-                                                              VT const *vertices,
-                                                              VT num_vertices);
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
+  legacy::GraphCOOView<VT, ET, WT> const &graph, VT const *vertices, VT num_vertices);
 }  // namespace subgraph
 
 /**
@@ -909,7 +909,7 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, E
 
 namespace ext_raft {
 template <typename VT, typename ET, typename WT>
-void balancedCutClustering(GraphCSRView<VT, ET, WT> const &graph,
+void balancedCutClustering(legacy::GraphCSRView<VT, ET, WT> const &graph,
                            VT num_clusters,
                            VT num_eigen_vects,
                            WT evs_tolerance,
@@ -940,7 +940,7 @@ void balancedCutClustering(GraphCSRView<VT, ET, WT> const &graph,
  * be stored
  */
 template <typename VT, typename ET, typename WT>
-void spectralModularityMaximization(GraphCSRView<VT, ET, WT> const &graph,
+void spectralModularityMaximization(legacy::GraphCSRView<VT, ET, WT> const &graph,
                                     VT n_clusters,
                                     VT n_eig_vects,
                                     WT evs_tolerance,
@@ -966,7 +966,7 @@ void spectralModularityMaximization(GraphCSRView<VT, ET, WT> const &graph,
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_modularity(GraphCSRView<VT, ET, WT> const &graph,
+void analyzeClustering_modularity(legacy::GraphCSRView<VT, ET, WT> const &graph,
                                   int n_clusters,
                                   VT const *clustering,
                                   WT *score);
@@ -988,7 +988,7 @@ void analyzeClustering_modularity(GraphCSRView<VT, ET, WT> const &graph,
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_edge_cut(GraphCSRView<VT, ET, WT> const &graph,
+void analyzeClustering_edge_cut(legacy::GraphCSRView<VT, ET, WT> const &graph,
                                 int n_clusters,
                                 VT const *clustering,
                                 WT *score);
@@ -1010,7 +1010,7 @@ void analyzeClustering_edge_cut(GraphCSRView<VT, ET, WT> const &graph,
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_ratio_cut(GraphCSRView<VT, ET, WT> const &graph,
+void analyzeClustering_ratio_cut(legacy::GraphCSRView<VT, ET, WT> const &graph,
                                  int n_clusters,
                                  VT const *clustering,
                                  WT *score);
@@ -1046,7 +1046,7 @@ namespace gunrock {
  *
  */
 template <typename VT, typename ET, typename WT>
-void hits(GraphCSRView<VT, ET, WT> const &graph,
+void hits(legacy::GraphCSRView<VT, ET, WT> const &graph,
           int max_iter,
           WT tolerance,
           WT const *starting_value,
@@ -1075,7 +1075,7 @@ namespace dense {
  * @param[in]  costs                 pointer to array of costs, stored in row major order
  * @param[in]  num_rows              number of rows in dense matrix
  * @param[in]  num_cols              number of cols in dense matrix
- * @param[out] assignment            device pointer to an array to which the assignment will be
+ * @param[out] assignments           device pointer to an array to which the assignment will be
  *                                   written. The array should be num_cols long, and will identify
  *                                   which vertex id (job) is assigned to that worker
  */
@@ -1084,7 +1084,7 @@ weight_t hungarian(raft::handle_t const &handle,
                    weight_t const *costs,
                    vertex_t num_rows,
                    vertex_t num_columns,
-                   vertex_t *assignment);
+                   vertex_t *assignments);
 
 /**
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
@@ -1104,10 +1104,10 @@ weight_t hungarian(raft::handle_t const &handle,
  * @param[in]  costs                 pointer to array of costs, stored in row major order
  * @param[in]  num_rows              number of rows in dense matrix
  * @param[in]  num_cols              number of cols in dense matrix
- * @param[out] assignment            device pointer to an array to which the assignment will be
+ * @param[out] assignments           device pointer to an array to which the assignment will be
  *                                   written. The array should be num_cols long, and will identify
  *                                   which vertex id (job) is assigned to that worker
- * @param[in]  precision             parameter to define precision of comparisons
+ * @param[in]  epsilon               parameter to define precision of comparisons
  *                                   in reducing weights to zero.
  */
 template <typename vertex_t, typename weight_t>
@@ -1115,8 +1115,8 @@ weight_t hungarian(raft::handle_t const &handle,
                    weight_t const *costs,
                    vertex_t num_rows,
                    vertex_t num_columns,
-                   vertex_t *assignment,
-                   weight_t precision);
+                   vertex_t *assignments,
+                   weight_t epsilon);
 
 }  // namespace dense
 

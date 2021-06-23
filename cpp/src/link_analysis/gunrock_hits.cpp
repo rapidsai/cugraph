@@ -20,7 +20,7 @@
  * --------------------------------------------------------------------------*/
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <cugraph/utilities/error.hpp>
 
@@ -34,7 +34,7 @@ const int HOST{1};    // gunrock should expose the device constant at the API le
 const int DEVICE{2};  // gunrock should expose the device constant at the API level.
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void hits(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void hits(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
           int max_iter,
           weight_t tolerance,
           weight_t const *starting_value,
@@ -61,7 +61,7 @@ void hits(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
          DEVICE);
 }
 
-template void hits(cugraph::GraphCSRView<int32_t, int32_t, float> const &,
+template void hits(cugraph::legacy::GraphCSRView<int32_t, int32_t, float> const &,
                    int,
                    float,
                    float const *,

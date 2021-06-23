@@ -23,6 +23,7 @@
 #include <rmm/device_buffer.hpp>
 
 namespace cugraph {
+namespace legacy {
 
 enum class PropType { PROP_UNDEF, PROP_FALSE, PROP_TRUE };
 
@@ -672,6 +673,8 @@ struct invalid_vertex_id : invalid_idx<vertex_t> {
 template <typename edge_t>
 struct invalid_edge_id : invalid_idx<edge_t> {
 };
+
+}  // namespace legacy
 }  // namespace cugraph
 
 #include "eidecl_graph.hpp"

@@ -17,7 +17,7 @@
 
 #include <cugraph/experimental/graph.hpp>
 #include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
@@ -91,7 +91,7 @@ int mm_to_coo(FILE* f,
  * @tparam
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<cugraph::GraphCSR<vertex_t, edge_t, weight_t>> generate_graph_csr_from_mm(
+std::unique_ptr<cugraph::legacy::GraphCSR<vertex_t, edge_t, weight_t>> generate_graph_csr_from_mm(
   bool& directed, std::string mm_file);
 
 // Define RAPIDS_DATASET_ROOT_DIR using a preprocessor variable to

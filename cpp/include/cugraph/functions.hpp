@@ -18,7 +18,7 @@
 #include <raft/handle.hpp>
 #include <rmm/device_buffer.hpp>
 
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 namespace cugraph {
 
@@ -40,8 +40,8 @@ namespace cugraph {
  *
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(
-  GraphCOOView<VT, ET, WT> const &graph,
+std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
+  legacy::GraphCOOView<VT, ET, WT> const &graph,
   rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
 
 /**

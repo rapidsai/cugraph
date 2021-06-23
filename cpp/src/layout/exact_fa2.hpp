@@ -21,8 +21,8 @@
 
 #include <converters/COOtoCSR.cuh>
 
-#include <cugraph/graph.hpp>
 #include <cugraph/internals.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <raft/random/rng.cuh>
 
@@ -35,7 +35,7 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void exact_fa2(raft::handle_t const &handle,
-               GraphCOOView<vertex_t, edge_t, weight_t> &graph,
+               legacy::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                float *pos,
                const int max_iter                            = 500,
                float *x_start                                = nullptr,
@@ -92,7 +92,7 @@ void exact_fa2(raft::handle_t const &handle,
   sort(graph, stream_view.value());
   CHECK_CUDA(stream_view.value());
 
-  graph.degree(d_mass, cugraph::DegreeDirection::OUT);
+  graph.degree(d_mass, cugraph::legacy::DegreeDirection::OUT);
   CHECK_CUDA(stream_view.value());
 
   const vertex_t *row = graph.src_indices;

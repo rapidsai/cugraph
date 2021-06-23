@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include "vertex_binning.cuh"
 
 namespace cugraph {
@@ -171,7 +171,7 @@ __global__ void kernel_per_vertex(edge_t const *offsets,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename operator_t>
-void large_vertex_lb(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void large_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                      DegreeBucket<vertex_t, edge_t> &bucket,
                      operator_t op,
                      vertex_t vertex_begin,
@@ -196,7 +196,7 @@ void large_vertex_lb(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &gr
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename operator_t>
-void medium_vertex_lb(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void medium_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                       DegreeBucket<vertex_t, edge_t> &bucket,
                       operator_t op,
                       vertex_t vertex_begin,
@@ -223,7 +223,7 @@ void medium_vertex_lb(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &g
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename operator_t>
-void small_vertex_lb(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void small_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                      DegreeBucket<vertex_t, edge_t> &bucket,
                      operator_t op,
                      vertex_t vertex_begin,

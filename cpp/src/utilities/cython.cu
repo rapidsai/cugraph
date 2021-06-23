@@ -18,8 +18,8 @@
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/graph.hpp>
 #include <cugraph/graph_generators.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/cython.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -298,11 +298,11 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
     switch (legacyType) {
       case graphTypeEnum::LegacyCSR: {
         graph_container.graph_ptr_union.GraphCSRViewFloatPtr =
-          std::make_unique<GraphCSRView<int, int, float>>(reinterpret_cast<int*>(offsets),
-                                                          reinterpret_cast<int*>(indices),
-                                                          reinterpret_cast<float*>(weights),
-                                                          num_global_vertices,
-                                                          num_global_edges);
+          std::make_unique<legacy::GraphCSRView<int, int, float>>(reinterpret_cast<int*>(offsets),
+                                                                  reinterpret_cast<int*>(indices),
+                                                                  reinterpret_cast<float*>(weights),
+                                                                  num_global_vertices,
+                                                                  num_global_edges);
         graph_container.graph_type = graphTypeEnum::GraphCSRViewFloat;
         (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -311,11 +311,11 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
       } break;
       case graphTypeEnum::LegacyCSC: {
         graph_container.graph_ptr_union.GraphCSCViewFloatPtr =
-          std::make_unique<GraphCSCView<int, int, float>>(reinterpret_cast<int*>(offsets),
-                                                          reinterpret_cast<int*>(indices),
-                                                          reinterpret_cast<float*>(weights),
-                                                          num_global_vertices,
-                                                          num_global_edges);
+          std::make_unique<legacy::GraphCSCView<int, int, float>>(reinterpret_cast<int*>(offsets),
+                                                                  reinterpret_cast<int*>(indices),
+                                                                  reinterpret_cast<float*>(weights),
+                                                                  num_global_vertices,
+                                                                  num_global_edges);
         graph_container.graph_type = graphTypeEnum::GraphCSCViewFloat;
         (graph_container.graph_ptr_union.GraphCSCViewFloatPtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -324,11 +324,11 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
       } break;
       case graphTypeEnum::LegacyCOO: {
         graph_container.graph_ptr_union.GraphCOOViewFloatPtr =
-          std::make_unique<GraphCOOView<int, int, float>>(reinterpret_cast<int*>(offsets),
-                                                          reinterpret_cast<int*>(indices),
-                                                          reinterpret_cast<float*>(weights),
-                                                          num_global_vertices,
-                                                          num_global_edges);
+          std::make_unique<legacy::GraphCOOView<int, int, float>>(reinterpret_cast<int*>(offsets),
+                                                                  reinterpret_cast<int*>(indices),
+                                                                  reinterpret_cast<float*>(weights),
+                                                                  num_global_vertices,
+                                                                  num_global_edges);
         graph_container.graph_type = graphTypeEnum::GraphCOOViewFloat;
         (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -342,11 +342,12 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
     switch (legacyType) {
       case graphTypeEnum::LegacyCSR: {
         graph_container.graph_ptr_union.GraphCSRViewDoublePtr =
-          std::make_unique<GraphCSRView<int, int, double>>(reinterpret_cast<int*>(offsets),
-                                                           reinterpret_cast<int*>(indices),
-                                                           reinterpret_cast<double*>(weights),
-                                                           num_global_vertices,
-                                                           num_global_edges);
+          std::make_unique<legacy::GraphCSRView<int, int, double>>(
+            reinterpret_cast<int*>(offsets),
+            reinterpret_cast<int*>(indices),
+            reinterpret_cast<double*>(weights),
+            num_global_vertices,
+            num_global_edges);
         graph_container.graph_type = graphTypeEnum::GraphCSRViewDouble;
         (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -355,11 +356,12 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
       } break;
       case graphTypeEnum::LegacyCSC: {
         graph_container.graph_ptr_union.GraphCSCViewDoublePtr =
-          std::make_unique<GraphCSCView<int, int, double>>(reinterpret_cast<int*>(offsets),
-                                                           reinterpret_cast<int*>(indices),
-                                                           reinterpret_cast<double*>(weights),
-                                                           num_global_vertices,
-                                                           num_global_edges);
+          std::make_unique<legacy::GraphCSCView<int, int, double>>(
+            reinterpret_cast<int*>(offsets),
+            reinterpret_cast<int*>(indices),
+            reinterpret_cast<double*>(weights),
+            num_global_vertices,
+            num_global_edges);
         graph_container.graph_type = graphTypeEnum::GraphCSCViewDouble;
         (graph_container.graph_ptr_union.GraphCSCViewDoublePtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -368,11 +370,12 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
       } break;
       case graphTypeEnum::LegacyCOO: {
         graph_container.graph_ptr_union.GraphCOOViewDoublePtr =
-          std::make_unique<GraphCOOView<int, int, double>>(reinterpret_cast<int*>(offsets),
-                                                           reinterpret_cast<int*>(indices),
-                                                           reinterpret_cast<double*>(weights),
-                                                           num_global_vertices,
-                                                           num_global_edges);
+          std::make_unique<legacy::GraphCOOView<int, int, double>>(
+            reinterpret_cast<int*>(offsets),
+            reinterpret_cast<int*>(indices),
+            reinterpret_cast<double*>(weights),
+            num_global_vertices,
+            num_global_edges);
         graph_container.graph_type = graphTypeEnum::GraphCOOViewDouble;
         (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);

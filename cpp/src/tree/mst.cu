@@ -28,7 +28,7 @@
 #include <thrust/transform.h>
 #include <ctime>
 
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/sparse/mst/mst.cuh>
@@ -38,9 +38,9 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
+std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
   raft::handle_t const &handle,
-  GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   rmm::mr::device_memory_resource *mr)
 
 {
@@ -55,33 +55,33 @@ std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
                                                               colors.data(),
                                                               stream);
 
-  GraphCOOContents<vertex_t, edge_t, weight_t> coo_contents{
+  legacy::GraphCOOContents<vertex_t, edge_t, weight_t> coo_contents{
     graph.number_of_vertices,
     mst_edges.n_edges,
     std::make_unique<rmm::device_buffer>(mst_edges.src.release()),
     std::make_unique<rmm::device_buffer>(mst_edges.dst.release()),
     std::make_unique<rmm::device_buffer>(mst_edges.weights.release())};
 
-  return std::make_unique<GraphCOO<vertex_t, edge_t, weight_t>>(std::move(coo_contents));
+  return std::make_unique<legacy::GraphCOO<vertex_t, edge_t, weight_t>>(std::move(coo_contents));
 }
 
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
+std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
   raft::handle_t const &handle,
-  GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   rmm::mr::device_memory_resource *mr)
 {
   return detail::mst_impl(handle, graph, mr);
 }
 
-template std::unique_ptr<GraphCOO<int, int, float>> minimum_spanning_tree<int, int, float>(
+template std::unique_ptr<legacy::GraphCOO<int, int, float>> minimum_spanning_tree<int, int, float>(
   raft::handle_t const &handle,
-  GraphCSRView<int, int, float> const &graph,
+  legacy::GraphCSRView<int, int, float> const &graph,
   rmm::mr::device_memory_resource *mr);
-template std::unique_ptr<GraphCOO<int, int, double>> minimum_spanning_tree<int, int, double>(
-  raft::handle_t const &handle,
-  GraphCSRView<int, int, double> const &graph,
-  rmm::mr::device_memory_resource *mr);
+template std::unique_ptr<legacy::GraphCOO<int, int, double>>
+minimum_spanning_tree<int, int, double>(raft::handle_t const &handle,
+                                        legacy::GraphCSRView<int, int, double> const &graph,
+                                        rmm::mr::device_memory_resource *mr);
 }  // namespace cugraph

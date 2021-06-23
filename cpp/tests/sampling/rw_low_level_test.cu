@@ -24,7 +24,6 @@
 #include <thrust/random.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
 #include <sampling/random_walks.cuh>
 
 #include <raft/handle.hpp>
