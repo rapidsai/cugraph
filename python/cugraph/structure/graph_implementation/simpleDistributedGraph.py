@@ -464,12 +464,11 @@ class simpleDistributedGraphImpl:
 
                 del self.edgelist
 
-            renumbered_ddf, number_map, aggregate_segment_offsets = NumberMap.renumber(
-                self.input_df,
-                self.source_columns,
-                self.destination_columns,
-                store_transposed=transposed,
-            )
+            renumbered_ddf, number_map, aggregate_segment_offsets = \
+                NumberMap.renumber(self.input_df,
+                                   self.source_columns,
+                                   self.destination_columns,
+                                   store_transposed=transposed)
             self.edgelist = self.EdgeList(renumbered_ddf)
             self.renumber_map = number_map
             self.aggregate_segment_offsets = aggregate_segment_offsets

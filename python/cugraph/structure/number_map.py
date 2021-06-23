@@ -557,7 +557,7 @@ class NumberMap:
                                               for (data, wf) in result])
             aggregate_segment_offsets = []
             for segment_offsets in list_of_segment_offsets:
-              aggregate_segment_offsets.extend(segment_offsets)
+                aggregate_segment_offsets.extend(segment_offsets)
 
             renumbered_df = dask_cudf.from_delayed(
                                [client.submit(get_renumbered_df,
@@ -584,13 +584,13 @@ class NumberMap:
                 renumber_map.implementation.numbered = True
                 return renumbered_df, renumber_map
 
-            renumbering_map, segment_offsets, renumbered_df = c_renumber.renumber(
-                                             df,
-                                             num_edges,
-                                             0,
-                                             Comms.get_default_handle(),
-                                             is_mnmg,
-                                             store_transposed)
+            renumbering_map, segment_offsets, renumbered_df = \
+                c_renumber.renumber(df,
+                                    num_edges,
+                                    0,
+                                    Comms.get_default_handle(),
+                                    is_mnmg,
+                                    store_transposed)
             if renumber_type == 'legacy':
                 renumber_map.implementation.df = indirection_map.\
                     merge(renumbering_map,

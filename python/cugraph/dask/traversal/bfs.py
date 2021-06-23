@@ -34,7 +34,8 @@ def call_bfs(sID,
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     local_size = len(aggregate_segment_offsets) // Comms.get_n_workers(sID)
-    segment_offsets = aggregate_segment_offsets[local_size * wid : local_size * (wid + 1)]
+    segment_offsets = \
+        aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
     return mg_bfs.mg_bfs(data[0],
                          num_verts,
                          num_edges,
