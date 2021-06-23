@@ -241,7 +241,8 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                                h_mg_aggregate_distances.end(),
                                h_sg_distances.begin()));
         for (size_t i = 0; i < h_mg_aggregate_predecessors.size(); ++i) {
-          if (h_mg_aggregate_predecessors[i] == cugraph::invalid_vertex_id<vertex_t>::value) {
+          if (h_mg_aggregate_predecessors[i] ==
+              cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
             ASSERT_TRUE(h_sg_predecessors[i] == h_mg_aggregate_predecessors[i])
               << "vertex reachability does not match with the SG result.";
           } else {
