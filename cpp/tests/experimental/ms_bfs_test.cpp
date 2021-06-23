@@ -21,7 +21,6 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/experimental/graph.hpp>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/graph.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>

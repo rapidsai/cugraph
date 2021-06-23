@@ -54,7 +54,9 @@ void bfs_reference(edge_t const* offsets,
   vertex_t depth{0};
 
   std::fill(distances, distances + num_vertices, std::numeric_limits<vertex_t>::max());
-  std::fill(predecessors, predecessors + num_vertices, cugraph::invalid_vertex_id<vertex_t>::value);
+  std::fill(predecessors,
+            predecessors + num_vertices,
+            cugraph::experimental::invalid_vertex_id<vertex_t>::value);
 
   *(distances + source) = depth;
   std::vector<vertex_t> cur_frontier_rows{source};
@@ -249,7 +251,7 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
 
       for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
         auto i = std::distance(h_cugraph_predecessors.begin(), it);
-        if (*it == cugraph::invalid_vertex_id<vertex_t>::value) {
+        if (*it == cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
           ASSERT_TRUE(h_reference_predecessors[i] == *it)
             << "vertex reachability does not match with the reference.";
         } else {

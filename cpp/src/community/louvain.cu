@@ -31,14 +31,14 @@ namespace detail {
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const &handle,
-  GraphCSRView<vertex_t, edge_t, weight_t> const &graph_view,
+  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph_view,
   size_t max_level,
   weight_t resolution)
 {
   CUGRAPH_EXPECTS(graph_view.edge_data != nullptr,
                   "Invalid input argument: louvain expects a weighted graph");
 
-  Louvain<GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph_view);
+  Louvain<legacy::GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph_view);
   weight_t wt = runner(max_level, resolution);
 
   return std::make_pair(runner.move_dendrogram(), wt);
@@ -61,7 +61,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void flatten_dendrogram(raft::handle_t const &handle,
-                        GraphCSRView<vertex_t, edge_t, weight_t> const &graph_view,
+                        legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph_view,
                         Dendrogram<vertex_t> const &dendrogram,
                         vertex_t *clustering)
 {
@@ -202,10 +202,13 @@ template std::pair<std::unique_ptr<Dendrogram<int64_t>>, double> louvain(
   size_t,
   double);
 
-template std::pair<size_t, float> louvain(
-  raft::handle_t const &, GraphCSRView<int32_t, int32_t, float> const &, int32_t *, size_t, float);
+template std::pair<size_t, float> louvain(raft::handle_t const &,
+                                          legacy::GraphCSRView<int32_t, int32_t, float> const &,
+                                          int32_t *,
+                                          size_t,
+                                          float);
 template std::pair<size_t, double> louvain(raft::handle_t const &,
-                                           GraphCSRView<int32_t, int32_t, double> const &,
+                                           legacy::GraphCSRView<int32_t, int32_t, double> const &,
                                            int32_t *,
                                            size_t,
                                            double);
@@ -287,4 +290,4 @@ template std::pair<size_t, double> louvain(
 
 }  // namespace cugraph
 
-#include <cugraph/eidir_graph.hpp>
+#include <cugraph/legacy/eidir_graph.hpp>

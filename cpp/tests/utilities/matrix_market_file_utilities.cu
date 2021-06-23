@@ -219,7 +219,7 @@ int mm_to_coo(FILE* f,
  * @tparam
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<cugraph::GraphCSR<vertex_t, edge_t, weight_t>> generate_graph_csr_from_mm(
+std::unique_ptr<cugraph::legacy::GraphCSR<vertex_t, edge_t, weight_t>> generate_graph_csr_from_mm(
   bool& directed, std::string mm_file)
 {
   vertex_t number_of_vertices;
@@ -253,7 +253,7 @@ std::unique_ptr<cugraph::GraphCSR<vertex_t, edge_t, weight_t>> generate_graph_cs
     "file read failure.");
   CUGRAPH_EXPECTS(fclose(fpin) == 0, "fclose failure.");
 
-  cugraph::GraphCOOView<vertex_t, edge_t, weight_t> cooview(
+  cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> cooview(
     &coo_row_ind[0], &coo_col_ind[0], &coo_val[0], number_of_vertices, number_of_edges);
 
   return cugraph::coo_to_csr(cooview);
@@ -448,17 +448,17 @@ template int32_t mm_to_coo(FILE* f,
                            float* cooRVal,
                            float* cooIVal);
 
-template std::unique_ptr<cugraph::GraphCSR<int32_t, int32_t, float>> generate_graph_csr_from_mm(
-  bool& directed, std::string mm_file);
+template std::unique_ptr<cugraph::legacy::GraphCSR<int32_t, int32_t, float>>
+generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
-template std::unique_ptr<cugraph::GraphCSR<uint32_t, uint32_t, float>> generate_graph_csr_from_mm(
-  bool& directed, std::string mm_file);
+template std::unique_ptr<cugraph::legacy::GraphCSR<uint32_t, uint32_t, float>>
+generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
-template std::unique_ptr<cugraph::GraphCSR<int32_t, int32_t, double>> generate_graph_csr_from_mm(
-  bool& directed, std::string mm_file);
+template std::unique_ptr<cugraph::legacy::GraphCSR<int32_t, int32_t, double>>
+generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
-template std::unique_ptr<cugraph::GraphCSR<int64_t, int64_t, float>> generate_graph_csr_from_mm(
-  bool& directed, std::string mm_file);
+template std::unique_ptr<cugraph::legacy::GraphCSR<int64_t, int64_t, float>>
+generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, false, false>,
                     rmm::device_uvector<int32_t>>

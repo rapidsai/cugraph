@@ -11,7 +11,7 @@
 #include <utilities/base_fixture.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 
@@ -49,7 +49,7 @@ TEST(triangle, dolphin)
   rmm::device_vector<int> indices_v(ind_h);
   rmm::device_vector<float> weights_v(w_h);
 
-  cugraph::GraphCSRView<int, int, float> graph_csr(
+  cugraph::legacy::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   uint64_t count{0};
@@ -92,7 +92,7 @@ TEST(triangle, karate)
   rmm::device_vector<vertex_t> indices_v(ind_h);
   rmm::device_vector<weight_t> weights_v(w_h);
 
-  cugraph::GraphCSRView<vertex_t, vertex_t, weight_t> graph_csr(
+  cugraph::legacy::GraphCSRView<vertex_t, vertex_t, weight_t> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   uint64_t count{0};
