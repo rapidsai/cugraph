@@ -14,6 +14,7 @@
 from cugraph.structure import graph_classes as csg
 import cudf
 import dask_cudf
+from cugraph.comms import comms as Comms
 
 
 def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
@@ -138,9 +139,11 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
         ddf2.columns = [src_name, dst_name]
 
     ddf = df.append(ddf2).reset_index(drop=True)
+    worker_list = Comms.get_workers()
+    num_workers = len(worker_list)
     result = (
         ddf.groupby(by=[src_name, dst_name], as_index=False)
-        .min()
+        .min(split_out=num_workers)
         .reset_index()
     )
 
