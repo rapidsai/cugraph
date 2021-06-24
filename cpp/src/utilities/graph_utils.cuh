@@ -180,7 +180,7 @@ void scatter(size_t n, T *src, T *dst, M *map)
                   thrust::device_pointer_cast(src + n),
                   thrust::device_pointer_cast(map),
                   thrust::device_pointer_cast(dst));
-  CHECK_CUDA(stream.value());
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
@@ -205,7 +205,7 @@ void copy(size_t n, T *x, T *res)
   thrust::device_ptr<T> res_ptr(res);
   rmm::cuda_stream_view stream_view;
   thrust::copy_n(rmm::exec_policy(stream_view), dev_ptr, n, res_ptr);
-  CHECK_CUDA(stream.value());
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
@@ -230,7 +230,7 @@ void update_dangling_nodes(size_t n, T *dangling_nodes, T damping_factor)
                        thrust::device_pointer_cast(dangling_nodes),
                        dangling_functor<T>(1.0 - damping_factor),
                        is_zero<T>());
-  CHECK_CUDA(stream.value());
+  CHECK_CUDA(stream_view.value());
 }
 
 // google matrix kernels
@@ -342,11 +342,11 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.z  = min((n + nthreads.z - 1) / nthreads.z, CUDA_MAX_BLOCKS);  // 1;
   equi_prob3<IndexType, ValueType>
     <<<nblocks, nthreads, 0, stream_view.value()>>>(n, e, csrPtr, csrInd, val, degree.data());
-  CHECK_CUDA(stream.value());
+  CHECK_CUDA(stream_view.value());
 
   ValueType a = 0.0;
   fill(n, bookmark, a);
-  CHECK_CUDA(stream.value());
+  CHECK_CUDA(stream_view.value());
 
   nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
   nthreads.y = 1;
@@ -383,7 +383,7 @@ void offsets_to_indices(const offsets_t *offsets, index_t v, index_t *indices)
   index_t nthreads = min(v, (index_t)CUDA_MAX_KERNEL_THREADS);
   index_t nblocks  = min((v + nthreads - 1) / nthreads, (index_t)CUDA_MAX_BLOCKS);
   offsets_to_indices_kernel<<<nblocks, nthreads, 0, stream>>>(offsets, v, indices);
-  CHECK_CUDA(stream.value());
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename IndexType>
