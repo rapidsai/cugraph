@@ -383,7 +383,7 @@ void offsets_to_indices(const offsets_t *offsets, index_t v, index_t *indices)
   index_t nthreads = min(v, (index_t)CUDA_MAX_KERNEL_THREADS);
   index_t nblocks  = min((v + nthreads - 1) / nthreads, (index_t)CUDA_MAX_BLOCKS);
   offsets_to_indices_kernel<<<nblocks, nthreads, 0, stream>>>(offsets, v, indices);
-  CHECK_CUDA(stream_view.value());
+  CHECK_CUDA(stream);
 }
 
 template <typename IndexType>
