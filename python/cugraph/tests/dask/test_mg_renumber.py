@@ -65,7 +65,7 @@ def test_mg_renumber(graph_file, client_connection):
     renumbered_df, renumber_map = NumberMap.renumber(ddf,
                                                      ["src", "src_old"],
                                                      ["dst", "dst_old"],
-                                                     preserve_order=False)[0:2]
+                                                     preserve_order=False)
     unrenumbered_df = renumber_map.unrenumber(renumbered_df, "src",
                                               preserve_order=False)
     unrenumbered_df = renumber_map.unrenumber(unrenumbered_df, "dst",
@@ -111,7 +111,7 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, client_connection):
 
     ren2, num2 = NumberMap.renumber(
         ddf, ["src", "src_old"], ["dst", "dst_old"]
-    )[0:2]
+    )
 
     test_df = gdf[["src", "src_old"]].head()
 

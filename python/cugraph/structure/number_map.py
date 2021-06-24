@@ -468,8 +468,10 @@ class NumberMap:
 
         return output_df
 
-    def renumber(df, src_col_names, dst_col_names, preserve_order=False,
-                 store_transposed=False):
+    def renumber_and_segment(
+        df, src_col_names, dst_col_names, preserve_order=False,
+        store_transposed=False
+    ):
         if isinstance(src_col_names, list):
             renumber_type = 'legacy'
         elif not (df[src_col_names].dtype == np.int32 or
@@ -594,6 +596,12 @@ class NumberMap:
 
             renumber_map.implementation.numbered = True
             return renumbered_df, renumber_map, segment_offsets
+
+    def renumber(df, src_col_names, dst_col_names, preserve_order=False,
+                 store_transposed=False):
+        return NumberMap.renumber_and_segment(
+            df, src_col_names, dst_col_names,
+            preserve_order, store_transposed)[0:2]
 
     def unrenumber(self, df, column_name, preserve_order=False,
                    get_column_names=False):
