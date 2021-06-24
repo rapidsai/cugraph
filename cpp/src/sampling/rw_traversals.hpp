@@ -203,15 +203,15 @@ struct horizontal_traversal_t {
                  // (coalesced set updated directly, instead)
     const
   {
-    using vertex_t = typename graph_t::vertex_type;
-    using edge_t   = typename graph_t::edge_type;
-    using weight_t = typename graph_t::weight_type;
+    using vertex_t        = typename graph_t::vertex_type;
+    using edge_t          = typename graph_t::edge_type;
+    using weight_t        = typename graph_t::weight_type;
+    using random_engine_t = typename random_walker_t::rnd_engine_t;
 
     auto const& handle = rand_walker.get_handle();
     auto* ptr_d_random = raw_ptr(d_random);
-    raft::random::Rng rng(seed0);
-    rng.uniform<real_t, index_t>(
-      ptr_d_random, d_random.size(), real_t{0.0}, real_t{1.0}, handle.get_stream());
+
+    random_engine_t::generate_random(handle, ptr_d_random, d_random.size(), seed0);
 
     auto const* col_indices       = graph.indices();
     auto const* row_offsets       = graph.offsets();

@@ -73,6 +73,9 @@ struct rrandom_gen_t {
   using seed_type = seed_t;
   using real_type = real_t;
 
+  // cnstr. version that provides step-wise in-place
+  // rnd generation:
+  //
   rrandom_gen_t(raft::handle_t const& handle,
                 index_t num_paths,
                 device_vec_t<real_t>& d_random,             // scratch-pad, non-coalesced
@@ -93,9 +96,7 @@ struct rrandom_gen_t {
     // this must be done at each step,
     // but this object is constructed at each step;
     //
-    raft::random::Rng rng(seed_);
-    rng.uniform<real_t, index_t>(
-      d_ptr_random_, num_paths, real_t{0.0}, real_t{1.0}, handle.get_stream());
+    generate_random(handle, d_ptr_random_, num_paths, seed_);
   }
 
   // cnstr. version for the case when the
@@ -135,6 +136,14 @@ struct rrandom_gen_t {
         return (v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx);
       },
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
+  }
+
+  // abstracts away the random values generation:
+  //
+  static void generate_random(raft::handle_t const& handle, real_t* p_d_rnd, size_t sz, seed_t seed)
+  {
+    raft::random::Rng rng(seed);
+    rng.uniform<real_t, index_t>(p_d_rnd, sz, real_t{0.0}, real_t{1.0}, handle.get_stream());
   }
 
  private:
@@ -307,11 +316,12 @@ template <typename graph_t,
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
           typename index_t = typename graph_t::edge_type>
 struct random_walker_t {
-  using vertex_t = typename graph_t::vertex_type;
-  using edge_t   = typename graph_t::edge_type;
-  using weight_t = typename graph_t::weight_type;
-  using seed_t   = typename random_engine_t::seed_type;
-  using real_t   = typename random_engine_t::real_type;
+  using vertex_t     = typename graph_t::vertex_type;
+  using edge_t       = typename graph_t::edge_type;
+  using weight_t     = typename graph_t::weight_type;
+  using seed_t       = typename random_engine_t::seed_type;
+  using real_t       = typename random_engine_t::real_type;
+  using rnd_engine_t = random_engine_t;
 
   random_walker_t(raft::handle_t const& handle,
                   graph_t const& graph,
