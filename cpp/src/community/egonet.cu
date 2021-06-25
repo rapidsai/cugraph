@@ -60,9 +60,9 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<weight_t>,
            rmm::device_uvector<size_t>>
 extract(
-  raft::handle_t const &handle,
-  cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, false, false> const &csr_view,
-  vertex_t *source_vertex,
+  raft::handle_t const& handle,
+  cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& csr_view,
+  vertex_t* source_vertex,
   vertex_t n_subgraphs,
   vertex_t radius)
 {
@@ -184,9 +184,9 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            rmm::device_uvector<weight_t>,
            rmm::device_uvector<size_t>>
-extract_ego(raft::handle_t const &handle,
-            graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
-            vertex_t *source_vertex,
+extract_ego(raft::handle_t const& handle,
+            graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+            vertex_t* source_vertex,
             vertex_t n_subgraphs,
             vertex_t radius)
 {
@@ -213,27 +213,27 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     rmm::device_uvector<float>,
                     rmm::device_uvector<size_t>>
-extract_ego(raft::handle_t const &,
-            graph_view_t<int32_t, int32_t, float, false, false> const &,
-            int32_t *,
+extract_ego(raft::handle_t const&,
+            graph_view_t<int32_t, int32_t, float, false, false> const&,
+            int32_t*,
             int32_t,
             int32_t);
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     rmm::device_uvector<float>,
                     rmm::device_uvector<size_t>>
-extract_ego(raft::handle_t const &,
-            graph_view_t<int32_t, int64_t, float, false, false> const &,
-            int32_t *,
+extract_ego(raft::handle_t const&,
+            graph_view_t<int32_t, int64_t, float, false, false> const&,
+            int32_t*,
             int32_t,
             int32_t);
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     rmm::device_uvector<float>,
                     rmm::device_uvector<size_t>>
-extract_ego(raft::handle_t const &,
-            graph_view_t<int64_t, int64_t, float, false, false> const &,
-            int64_t *,
+extract_ego(raft::handle_t const&,
+            graph_view_t<int64_t, int64_t, float, false, false> const&,
+            int64_t*,
             int64_t,
             int64_t);
 
@@ -242,27 +242,27 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     rmm::device_uvector<double>,
                     rmm::device_uvector<size_t>>
-extract_ego(raft::handle_t const &,
-            graph_view_t<int32_t, int32_t, double, false, false> const &,
-            int32_t *,
+extract_ego(raft::handle_t const&,
+            graph_view_t<int32_t, int32_t, double, false, false> const&,
+            int32_t*,
             int32_t,
             int32_t);
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     rmm::device_uvector<double>,
                     rmm::device_uvector<size_t>>
-extract_ego(raft::handle_t const &,
-            graph_view_t<int32_t, int64_t, double, false, false> const &,
-            int32_t *,
+extract_ego(raft::handle_t const&,
+            graph_view_t<int32_t, int64_t, double, false, false> const&,
+            int32_t*,
             int32_t,
             int32_t);
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     rmm::device_uvector<double>,
                     rmm::device_uvector<size_t>>
-extract_ego(raft::handle_t const &,
-            graph_view_t<int64_t, int64_t, double, false, false> const &,
-            int64_t *,
+extract_ego(raft::handle_t const&,
+            graph_view_t<int64_t, int64_t, double, false, false> const&,
+            int64_t*,
             int64_t,
             int64_t);
 }  // namespace experimental

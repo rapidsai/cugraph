@@ -32,12 +32,12 @@ namespace cugraph {
 namespace detail {
 
 //#define DEBUG 1
-#define CUDA_MAX_BLOCKS 65535
+#define CUDA_MAX_BLOCKS         65535
 #define CUDA_MAX_KERNEL_THREADS 256  // kernel will launch at most 256 threads per block
 #define US
 
 template <typename count_t, typename index_t, typename value_t>
-__inline__ __device__ value_t parallel_prefix_sum(count_t n, index_t const *ind, value_t const *w)
+__inline__ __device__ value_t parallel_prefix_sum(count_t n, index_t const* ind, value_t const* w)
 {
   count_t i, j, mn;
   value_t v, last;
@@ -86,11 +86,11 @@ template <typename T>
 struct axpy_functor : public thrust::binary_function<T, T, T> {
   const T a;
   axpy_functor(T _a) : a(_a) {}
-  __host__ __device__ T operator()(const T &x, const T &y) const { return a * x + y; }
+  __host__ __device__ T operator()(const T& x, const T& y) const { return a * x + y; }
 };
 
 template <typename T>
-void axpy(size_t n, T a, T *x, T *y)
+void axpy(size_t n, T a, T* x, T* y)
 {
   rmm::cuda_stream_view stream_view;
   thrust::transform(rmm::exec_policy(stream_view),
@@ -105,11 +105,11 @@ void axpy(size_t n, T a, T *x, T *y)
 // norm
 template <typename T>
 struct square {
-  __host__ __device__ T operator()(const T &x) const { return x * x; }
+  __host__ __device__ T operator()(const T& x) const { return x * x; }
 };
 
 template <typename T>
-T nrm2(size_t n, T *x)
+T nrm2(size_t n, T* x)
 {
   rmm::cuda_stream_view stream_view;
   T init   = 0;
@@ -124,7 +124,7 @@ T nrm2(size_t n, T *x)
 }
 
 template <typename T>
-T nrm1(size_t n, T *x)
+T nrm1(size_t n, T* x)
 {
   rmm::cuda_stream_view stream_view;
   T result = thrust::reduce(rmm::exec_policy(stream_view),
@@ -135,7 +135,7 @@ T nrm1(size_t n, T *x)
 }
 
 template <typename T>
-void scal(size_t n, T val, T *x)
+void scal(size_t n, T val, T* x)
 {
   rmm::cuda_stream_view stream_view;
   thrust::transform(rmm::exec_policy(stream_view),
@@ -148,7 +148,7 @@ void scal(size_t n, T val, T *x)
 }
 
 template <typename T>
-void addv(size_t n, T val, T *x)
+void addv(size_t n, T val, T* x)
 {
   rmm::cuda_stream_view stream_view;
   thrust::transform(rmm::exec_policy(stream_view),
@@ -161,7 +161,7 @@ void addv(size_t n, T val, T *x)
 }
 
 template <typename T>
-void fill(size_t n, T *x, T value)
+void fill(size_t n, T* x, T value)
 {
   rmm::cuda_stream_view stream_view;
   thrust::fill(rmm::exec_policy(stream_view),
@@ -172,7 +172,7 @@ void fill(size_t n, T *x, T value)
 }
 
 template <typename T, typename M>
-void scatter(size_t n, T *src, T *dst, M *map)
+void scatter(size_t n, T* src, T* dst, M* map)
 {
   rmm::cuda_stream_view stream_view;
   thrust::scatter(rmm::exec_policy(stream_view),
@@ -184,7 +184,7 @@ void scatter(size_t n, T *src, T *dst, M *map)
 }
 
 template <typename T>
-void printv(size_t n, T *vec, int offset)
+void printv(size_t n, T* vec, int offset)
 {
   thrust::device_ptr<T> dev_ptr(vec);
   std::cout.precision(15);
@@ -199,7 +199,7 @@ void printv(size_t n, T *vec, int offset)
 }
 
 template <typename T>
-void copy(size_t n, T *x, T *res)
+void copy(size_t n, T* x, T* res)
 {
   thrust::device_ptr<T> dev_ptr(x);
   thrust::device_ptr<T> res_ptr(res);
@@ -217,11 +217,11 @@ template <typename T>
 struct dangling_functor : public thrust::unary_function<T, T> {
   const T val;
   dangling_functor(T _val) : val(_val) {}
-  __host__ __device__ T operator()(const T &x) const { return val + x; }
+  __host__ __device__ T operator()(const T& x) const { return val + x; }
 };
 
 template <typename T>
-void update_dangling_nodes(size_t n, T *dangling_nodes, T damping_factor)
+void update_dangling_nodes(size_t n, T* dangling_nodes, T damping_factor)
 {
   rmm::cuda_stream_view stream_view;
   thrust::transform_if(rmm::exec_policy(stream_view),
@@ -237,15 +237,15 @@ void update_dangling_nodes(size_t n, T *dangling_nodes, T damping_factor)
 template <typename IndexType, typename ValueType>
 __global__ void degree_coo(const IndexType n,
                            const IndexType e,
-                           const IndexType *ind,
-                           ValueType *degree)
+                           const IndexType* ind,
+                           ValueType* degree)
 {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
     atomicAdd(&degree[ind[i]], (ValueType)1.0);
 }
 
 template <typename IndexType, typename ValueType>
-__global__ void flag_leafs_kernel(const size_t n, const IndexType *degree, ValueType *bookmark)
+__global__ void flag_leafs_kernel(const size_t n, const IndexType* degree, ValueType* bookmark)
 {
   for (auto i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
     if (degree[i] == 0) bookmark[i] = 1.0;
@@ -254,19 +254,19 @@ __global__ void flag_leafs_kernel(const size_t n, const IndexType *degree, Value
 template <typename IndexType, typename ValueType>
 __global__ void degree_offsets(const IndexType n,
                                const IndexType e,
-                               const IndexType *ind,
-                               ValueType *degree)
+                               const IndexType* ind,
+                               ValueType* degree)
 {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x)
     degree[i] += ind[i + 1] - ind[i];
 }
 
 template <typename FromType, typename ToType>
-__global__ void type_convert(FromType *array, int n)
+__global__ void type_convert(FromType* array, int n)
 {
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
     ToType val   = array[i];
-    ToType *vals = (ToType *)array;
+    ToType* vals = (ToType*)array;
     vals[i]      = val;
   }
 }
@@ -274,10 +274,10 @@ __global__ void type_convert(FromType *array, int n)
 template <typename IndexType, typename ValueType>
 __global__ void equi_prob3(const IndexType n,
                            const IndexType e,
-                           const IndexType *csrPtr,
-                           const IndexType *csrInd,
-                           ValueType *val,
-                           IndexType *degree)
+                           const IndexType* csrPtr,
+                           const IndexType* csrInd,
+                           ValueType* val,
+                           IndexType* degree)
 {
   int j, row, col;
   for (row = threadIdx.z + blockIdx.z * blockDim.z; row < n; row += gridDim.z * blockDim.z) {
@@ -293,10 +293,10 @@ __global__ void equi_prob3(const IndexType n,
 template <typename IndexType, typename ValueType>
 __global__ void equi_prob2(const IndexType n,
                            const IndexType e,
-                           const IndexType *csrPtr,
-                           const IndexType *csrInd,
-                           ValueType *val,
-                           IndexType *degree)
+                           const IndexType* csrPtr,
+                           const IndexType* csrInd,
+                           ValueType* val,
+                           IndexType* degree)
 {
   int row = blockIdx.x * blockDim.x + threadIdx.x;
   if (row < n) {
@@ -314,10 +314,10 @@ __global__ void equi_prob2(const IndexType n,
 template <typename IndexType, typename ValueType>
 void HT_matrix_csc_coo(const IndexType n,
                        const IndexType e,
-                       const IndexType *csrPtr,
-                       const IndexType *csrInd,
-                       ValueType *val,
-                       ValueType *bookmark)
+                       const IndexType* csrPtr,
+                       const IndexType* csrInd,
+                       ValueType* val,
+                       ValueType* bookmark)
 {
   rmm::cuda_stream_view stream_view;
   rmm::device_uvector<IndexType> degree(n, stream_view);
@@ -360,7 +360,7 @@ void HT_matrix_csc_coo(const IndexType n,
 }
 
 template <typename offsets_t, typename index_t>
-__global__ void offsets_to_indices_kernel(const offsets_t *offsets, index_t v, index_t *indices)
+__global__ void offsets_to_indices_kernel(const offsets_t* offsets, index_t v, index_t* indices)
 {
   auto tid{threadIdx.x};
   auto ctaStart{blockIdx.x};
@@ -377,7 +377,7 @@ __global__ void offsets_to_indices_kernel(const offsets_t *offsets, index_t v, i
 }
 
 template <typename offsets_t, typename index_t>
-void offsets_to_indices(const offsets_t *offsets, index_t v, index_t *indices)
+void offsets_to_indices(const offsets_t* offsets, index_t v, index_t* indices)
 {
   cudaStream_t stream{nullptr};
   index_t nthreads = min(v, (index_t)CUDA_MAX_KERNEL_THREADS);
@@ -387,7 +387,7 @@ void offsets_to_indices(const offsets_t *offsets, index_t v, index_t *indices)
 }
 
 template <typename IndexType>
-void sequence(IndexType n, IndexType *vec, IndexType init = 0)
+void sequence(IndexType n, IndexType* vec, IndexType init = 0)
 {
   thrust::sequence(
     thrust::device, thrust::device_pointer_cast(vec), thrust::device_pointer_cast(vec + n), init);
@@ -395,7 +395,7 @@ void sequence(IndexType n, IndexType *vec, IndexType init = 0)
 }
 
 template <typename DistType>
-bool has_negative_val(DistType *arr, size_t n)
+bool has_negative_val(DistType* arr, size_t n)
 {
   // custom kernel with boolean bitwise reduce may be
   // faster.

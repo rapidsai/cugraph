@@ -32,10 +32,10 @@ namespace cugraph {
 namespace test {
 
 template <typename T>
-void single_gpu_renumber_edgelist_given_number_map(raft::handle_t const &handle,
-                                                   rmm::device_uvector<T> &edgelist_rows_v,
-                                                   rmm::device_uvector<T> &edgelist_cols_v,
-                                                   rmm::device_uvector<T> &renumber_map_gathered_v)
+void single_gpu_renumber_edgelist_given_number_map(raft::handle_t const& handle,
+                                                   rmm::device_uvector<T>& edgelist_rows_v,
+                                                   rmm::device_uvector<T>& edgelist_cols_v,
+                                                   rmm::device_uvector<T>& renumber_map_gathered_v)
 {
   rmm::device_uvector<T> index_v(renumber_map_gathered_v.size(), handle.get_stream());
 
@@ -62,9 +62,9 @@ void single_gpu_renumber_edgelist_given_number_map(raft::handle_t const &handle,
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::
   tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  compressed_sparse_to_edgelist(edge_t const *compressed_sparse_offsets,
-                                vertex_t const *compressed_sparse_indices,
-                                weight_t const *compressed_sparse_weights,
+  compressed_sparse_to_edgelist(edge_t const* compressed_sparse_offsets,
+                                vertex_t const* compressed_sparse_indices,
+                                weight_t const* compressed_sparse_weights,
                                 vertex_t major_first,
                                 vertex_t major_last,
                                 cudaStream_t stream)
@@ -108,9 +108,9 @@ std::
 }
 
 template <typename vertex_t, typename weight_t>
-void sort_and_coarsen_edgelist(rmm::device_uvector<vertex_t> &edgelist_major_vertices /* [INOUT] */,
-                               rmm::device_uvector<vertex_t> &edgelist_minor_vertices /* [INOUT] */,
-                               rmm::device_uvector<weight_t> &edgelist_weights /* [INOUT] */,
+void sort_and_coarsen_edgelist(rmm::device_uvector<vertex_t>& edgelist_major_vertices /* [INOUT] */,
+                               rmm::device_uvector<vertex_t>& edgelist_minor_vertices /* [INOUT] */,
+                               rmm::device_uvector<weight_t>& edgelist_weights /* [INOUT] */,
                                cudaStream_t stream)
 {
   auto pair_first = thrust::make_zip_iterator(
@@ -163,11 +163,11 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 std::
   tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
   compressed_sparse_to_relabeled_and_sorted_and_coarsened_edgelist(
-    edge_t const *compressed_sparse_offsets,
-    vertex_t const *compressed_sparse_indices,
-    weight_t const *compressed_sparse_weights,
-    vertex_t const *p_major_labels,
-    vertex_t const *p_minor_labels,
+    edge_t const* compressed_sparse_offsets,
+    vertex_t const* compressed_sparse_indices,
+    weight_t const* compressed_sparse_weights,
+    vertex_t const* p_major_labels,
+    vertex_t const* p_minor_labels,
     vertex_t major_first,
     vertex_t major_last,
     vertex_t minor_first,
@@ -212,10 +212,10 @@ std::
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
 std::unique_ptr<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
 coarsen_graph(
-  raft::handle_t const &handle,
-  cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, false> const
-    &graph_view,
-  vertex_t const *labels)
+  raft::handle_t const& handle,
+  cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, false> const&
+    graph_view,
+  vertex_t const* labels)
 {
   rmm::device_uvector<vertex_t> coarsened_edgelist_major_vertices(0, handle.get_stream());
   rmm::device_uvector<vertex_t> coarsened_edgelist_minor_vertices(0, handle.get_stream());
@@ -236,10 +236,10 @@ coarsen_graph(
       handle.get_stream());
 
   cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{};
-  edgelist.p_src_vertices = store_transposed ? coarsened_edgelist_minor_vertices.data()
-                                             : coarsened_edgelist_major_vertices.data();
-  edgelist.p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices.data()
-                                             : coarsened_edgelist_minor_vertices.data();
+  edgelist.p_src_vertices  = store_transposed ? coarsened_edgelist_minor_vertices.data()
+                                              : coarsened_edgelist_major_vertices.data();
+  edgelist.p_dst_vertices  = store_transposed ? coarsened_edgelist_major_vertices.data()
+                                              : coarsened_edgelist_minor_vertices.data();
   edgelist.p_edge_weights  = coarsened_edgelist_weights.data();
   edgelist.number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices.size());
 
@@ -263,16 +263,16 @@ coarsen_graph(
 // explicit instantiation
 
 template void single_gpu_renumber_edgelist_given_number_map(
-  raft::handle_t const &handle,
-  rmm::device_uvector<int> &d_edgelist_rows,
-  rmm::device_uvector<int> &d_edgelist_cols,
-  rmm::device_uvector<int> &d_renumber_map_gathered_v);
+  raft::handle_t const& handle,
+  rmm::device_uvector<int>& d_edgelist_rows,
+  rmm::device_uvector<int>& d_edgelist_cols,
+  rmm::device_uvector<int>& d_renumber_map_gathered_v);
 
 template std::unique_ptr<cugraph::experimental::graph_t<int32_t, int32_t, float, false, false>>
 coarsen_graph(
-  raft::handle_t const &handle,
-  cugraph::experimental::graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
-  int32_t const *labels);
+  raft::handle_t const& handle,
+  cugraph::experimental::graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+  int32_t const* labels);
 
 }  // namespace test
 }  // namespace cugraph

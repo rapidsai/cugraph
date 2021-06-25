@@ -25,8 +25,8 @@ template <typename IndexType>
 class BFS {
  private:
   IndexType number_of_vertices, number_of_edges;
-  const IndexType *row_offsets = nullptr;
-  const IndexType *col_indices = nullptr;
+  const IndexType* row_offsets = nullptr;
+  const IndexType* col_indices = nullptr;
 
   bool directed;
   bool deterministic;
@@ -36,10 +36,10 @@ class BFS {
   bool computeDistances;
   bool computePredecessors;
   rmm::device_vector<IndexType> distances_vals;
-  IndexType *distances    = nullptr;
-  IndexType *predecessors = nullptr;
-  double *sp_counters     = nullptr;
-  int *edge_mask          = nullptr;
+  IndexType* distances    = nullptr;
+  IndexType* predecessors = nullptr;
+  double* sp_counters     = nullptr;
+  int* edge_mask          = nullptr;
 
   rmm::device_vector<IndexType> original_frontier;
   rmm::device_vector<int> visited_bmap;
@@ -53,16 +53,16 @@ class BFS {
   // Working data
   // For complete description of each, go to bfs.cu
   IndexType nisolated;
-  IndexType *frontier                             = nullptr;
-  IndexType *new_frontier                         = nullptr;
-  IndexType *frontier_vertex_degree               = nullptr;
-  IndexType *exclusive_sum_frontier_vertex_degree = nullptr;
-  IndexType *unvisited_queue                      = nullptr;
-  IndexType *left_unvisited_queue                 = nullptr;
-  IndexType *d_new_frontier_cnt                   = nullptr;
-  IndexType *d_mu                                 = nullptr;
-  IndexType *d_unvisited_cnt                      = nullptr;
-  IndexType *d_left_unvisited_cnt                 = nullptr;
+  IndexType* frontier                             = nullptr;
+  IndexType* new_frontier                         = nullptr;
+  IndexType* frontier_vertex_degree               = nullptr;
+  IndexType* exclusive_sum_frontier_vertex_degree = nullptr;
+  IndexType* unvisited_queue                      = nullptr;
+  IndexType* left_unvisited_queue                 = nullptr;
+  IndexType* d_new_frontier_cnt                   = nullptr;
+  IndexType* d_mu                                 = nullptr;
+  IndexType* d_unvisited_cnt                      = nullptr;
+  IndexType* d_left_unvisited_cnt                 = nullptr;
 
   IndexType vertices_bmap_size;
 
@@ -80,8 +80,8 @@ class BFS {
 
   BFS(IndexType _number_of_vertices,
       IndexType _number_of_edges,
-      const IndexType *_row_offsets,
-      const IndexType *_col_indices,
+      const IndexType* _row_offsets,
+      const IndexType* _col_indices,
       bool _directed,
       IndexType _alpha,
       IndexType _beta,
@@ -98,10 +98,10 @@ class BFS {
     setup();
   }
 
-  void configure(IndexType *distances,
-                 IndexType *predecessors,
-                 double *sp_counters,
-                 int *edge_mask);
+  void configure(IndexType* distances,
+                 IndexType* predecessors,
+                 double* sp_counters,
+                 int* edge_mask);
 
   void traverse(IndexType source_vertex);
 };

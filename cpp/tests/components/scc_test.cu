@@ -115,7 +115,8 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
       }
 
       std::cout << "#iterations:\n";
-      for (auto&& count : strongly_cc_counts) std::cout << count << std::endl;
+      for (auto&& count : strongly_cc_counts)
+        std::cout << count << std::endl;
     }
   }
   virtual void SetUp() {}

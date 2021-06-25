@@ -59,12 +59,12 @@ template <typename GraphViewType>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            typename GraphViewType::vertex_type,
            typename GraphViewType::edge_type>
-accumulate_new_roots(raft::handle_t const &handle,
+accumulate_new_roots(raft::handle_t const& handle,
                      vertex_partition_device_t<GraphViewType> vertex_partition,
-                     typename GraphViewType::vertex_type const *components,
-                     typename GraphViewType::edge_type const *degrees,
-                     typename GraphViewType::vertex_type const *candidate_first,
-                     typename GraphViewType::vertex_type const *candidate_last,
+                     typename GraphViewType::vertex_type const* components,
+                     typename GraphViewType::edge_type const* degrees,
+                     typename GraphViewType::vertex_type const* candidate_first,
+                     typename GraphViewType::vertex_type const* candidate_last,
                      typename GraphViewType::vertex_type max_new_roots,
                      typename GraphViewType::edge_type degree_sum_threshold)
 {
@@ -171,12 +171,12 @@ struct v_op_t {
   using vertex_type = typename GraphViewType::vertex_type;
 
   vertex_partition_device_t<GraphViewType> vertex_partition{};
-  vertex_type *level_components{};
+  vertex_type* level_components{};
   decltype(thrust::make_zip_iterator(thrust::make_tuple(
-    static_cast<vertex_type *>(nullptr), static_cast<vertex_type *>(nullptr)))) edge_buffer_first{};
+    static_cast<vertex_type*>(nullptr), static_cast<vertex_type*>(nullptr)))) edge_buffer_first{};
   // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this requires
   // placing the atomic barrier on managed memory and this adds additional complication.
-  size_t *num_edge_inserts{};
+  size_t* num_edge_inserts{};
   size_t next_bucket_idx{};
   size_t conflict_bucket_idx{};  // relevant only if GraphViewType::is_multi_gpu is true
 
@@ -212,9 +212,9 @@ struct v_op_t {
 };
 
 template <typename GraphViewType>
-void weakly_connected_components_impl(raft::handle_t const &handle,
-                                      GraphViewType const &push_graph_view,
-                                      typename GraphViewType::vertex_type *components,
+void weakly_connected_components_impl(raft::handle_t const& handle,
+                                      GraphViewType const& push_graph_view,
+                                      typename GraphViewType::vertex_type* components,
                                       bool do_expensive_check)
 {
   using vertex_t = typename GraphViewType::vertex_type;
@@ -343,7 +343,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
 
     auto init_max_new_roots = max_new_roots;
     if (GraphViewType::is_multi_gpu) {
-      auto &comm           = handle.get_comms();
+      auto& comm           = handle.get_comms();
       auto const comm_rank = comm.get_rank();
       auto const comm_size = comm.get_size();
 
@@ -398,7 +398,9 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
           std::shuffle(gpuids.begin(), gpuids.end(), std::mt19937(rd()));
           gpuids.resize(
             std::max(static_cast<vertex_t>(gpuids.size() * max_new_roots_ratio), vertex_t{1}));
-          for (size_t i = 0; i < gpuids.size(); ++i) { ++init_max_new_root_counts[gpuids[i]]; }
+          for (size_t i = 0; i < gpuids.size(); ++i) {
+            ++init_max_new_root_counts[gpuids[i]];
+          }
         } else {
           std::fill(init_max_new_root_counts.begin(),
                     init_max_new_root_counts.end(),
@@ -557,7 +559,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
             atomicCAS(col_components + col_offset, invalid_component_id<vertex_t>::value, tag);
           if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
             static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-            auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int *>(num_edge_inserts),
+            auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),
                                       static_cast<unsigned long long int>(1));
             // keep only the edges in the lower triangular part
             *(edge_buffer_first + edge_idx) =
@@ -579,7 +581,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
 
       if (GraphViewType::is_multi_gpu) {
         auto cur_num_edge_inserts = num_edge_inserts.value(handle.get_stream_view());
-        auto &conflict_bucket = vertex_frontier.get_bucket(static_cast<size_t>(Bucket::conflict));
+        auto& conflict_bucket = vertex_frontier.get_bucket(static_cast<size_t>(Bucket::conflict));
         resize_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
           edge_buffer, cur_num_edge_inserts + conflict_bucket.size(), handle.get_stream());
         thrust::for_each(
@@ -596,7 +598,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
             auto old = *(level_components + v_offset);
             auto tag = thrust::get<1>(tagged_v);
             static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-            auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int *>(num_edge_inserts),
+            auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),
                                       static_cast<unsigned long long int>(1));
             // keep only the edges in the lower triangular part
             *(edge_buffer_first + edge_idx) =
@@ -660,7 +662,7 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
     auto num_inserts           = num_edge_inserts.value(handle.get_stream_view());
     auto aggregate_num_inserts = num_inserts;
     if (GraphViewType::is_multi_gpu) {
-      auto &comm            = handle.get_comms();
+      auto& comm            = handle.get_comms();
       aggregate_num_inserts = host_scalar_allreduce(comm, num_inserts, handle.get_stream());
     }
 
@@ -678,11 +680,11 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
                    output_first);
 
       if (GraphViewType::is_multi_gpu) {
-        auto &comm           = handle.get_comms();
+        auto& comm           = handle.get_comms();
         auto const comm_size = comm.get_size();
-        auto &row_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+        auto& row_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
         auto const row_comm_size = row_comm.get_size();
-        auto &col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+        auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
         auto const col_comm_size = col_comm.get_size();
 
         std::tie(edge_buffer, std::ignore) =
@@ -763,9 +765,9 @@ void weakly_connected_components_impl(raft::handle_t const &handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
-  vertex_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  vertex_t* components,
   bool do_expensive_check)
 {
   weakly_connected_components_impl(handle, graph_view, components, do_expensive_check);
@@ -774,75 +776,75 @@ void weakly_connected_components(
 // explicit instantiation
 
 template void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
-  int32_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+  int32_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<int32_t, int32_t, float, false, true> const &graph_view,
-  int32_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+  int32_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<int32_t, int32_t, double, false, false> const &graph_view,
-  int32_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+  int32_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<int32_t, int32_t, double, false, true> const &graph_view,
-  int32_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+  int32_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<int32_t, int64_t, float, false, false> const &graph_view,
-  int32_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+  int32_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<int32_t, int64_t, float, false, true> const &graph_view,
-  int32_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+  int32_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<int32_t, int64_t, double, false, false> const &graph_view,
-  int32_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+  int32_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<int32_t, int64_t, double, false, true> const &graph_view,
-  int32_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+  int32_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<int64_t, int64_t, float, false, false> const &graph_view,
-  int64_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+  int64_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<int64_t, int64_t, float, false, true> const &graph_view,
-  int64_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+  int64_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<int64_t, int64_t, double, false, false> const &graph_view,
-  int64_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+  int64_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
-  raft::handle_t const &handle,
-  graph_view_t<int64_t, int64_t, double, false, true> const &graph_view,
-  int64_t *components,
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+  int64_t* components,
   bool do_expensive_check);
 
 }  // namespace experimental

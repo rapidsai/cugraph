@@ -145,9 +145,9 @@ void pagerank(raft::handle_t const& handle,
   auto tmp_vertex_out_weight_sums = precomputed_vertex_out_weight_sums == nullptr
                                       ? pull_graph_view.compute_out_weight_sums(handle)
                                       : rmm::device_uvector<weight_t>(0, handle.get_stream());
-  auto vertex_out_weight_sums = precomputed_vertex_out_weight_sums != nullptr
-                                  ? precomputed_vertex_out_weight_sums
-                                  : tmp_vertex_out_weight_sums.data();
+  auto vertex_out_weight_sums     = precomputed_vertex_out_weight_sums != nullptr
+                                      ? precomputed_vertex_out_weight_sums
+                                      : tmp_vertex_out_weight_sums.data();
 
   // 3. initialize pagerank values
 

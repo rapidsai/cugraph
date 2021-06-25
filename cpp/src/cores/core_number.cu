@@ -25,7 +25,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename VT, typename ET, typename WT>
-void core_number(legacy::GraphCSRView<VT, ET, WT> const &graph, int *core_number)
+void core_number(legacy::GraphCSRView<VT, ET, WT> const& graph, int* core_number)
 {
   using HornetGraph = hornet::gpu::HornetStatic<int>;
   using HornetInit  = hornet::HornetInit<VT>;
@@ -38,9 +38,9 @@ void core_number(legacy::GraphCSRView<VT, ET, WT> const &graph, int *core_number
 
 struct FilterEdges {
   int k;
-  int *core_number;
+  int* core_number;
 
-  FilterEdges(int _k, int *d_core_num) : k(_k), core_number(d_core_num) {}
+  FilterEdges(int _k, int* d_core_num) : k(_k), core_number(d_core_num) {}
 
   template <typename T>
   __host__ __device__ bool operator()(T t)
@@ -52,9 +52,9 @@ struct FilterEdges {
 };
 
 template <typename VT, typename ET, typename WT>
-void extract_edges(legacy::GraphCOOView<VT, ET, WT> const &i_graph,
-                   legacy::GraphCOOView<VT, ET, WT> &o_graph,
-                   VT *d_core,
+void extract_edges(legacy::GraphCOOView<VT, ET, WT> const& i_graph,
+                   legacy::GraphCOOView<VT, ET, WT>& o_graph,
+                   VT* d_core,
                    int k)
 {
   cudaStream_t stream{nullptr};
@@ -97,12 +97,12 @@ void extract_edges(legacy::GraphCOOView<VT, ET, WT> const &i_graph,
 // if core_num[s] and core_num[d] are greater than or equal to k.
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph(
-  legacy::GraphCOOView<VT, ET, WT> const &in_graph,
-  int const *vid,
-  int const *core_num,
+  legacy::GraphCOOView<VT, ET, WT> const& in_graph,
+  int const* vid,
+  int const* core_num,
   int k,
   int len,
-  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
+  rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource())
 
 {
   cudaStream_t stream{nullptr};
@@ -112,7 +112,7 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph(
   thrust::scatter(
     rmm::exec_policy(stream)->on(stream), core_num, core_num + len, vid, sorted_core_num.begin());
 
-  VT *d_sorted_core_num = sorted_core_num.data().get();
+  VT* d_sorted_core_num = sorted_core_num.data().get();
 
   // Count number of edges in the input graph that satisfy kcore conditions
   // i.e. core_num[src] and core_num[dst] are both greater than or equal to k
@@ -138,19 +138,19 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph(
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void core_number(legacy::GraphCSRView<VT, ET, WT> const &graph, VT *core_number)
+void core_number(legacy::GraphCSRView<VT, ET, WT> const& graph, VT* core_number)
 {
   return detail::core_number(graph, core_number);
 }
 
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_core(
-  legacy::GraphCOOView<VT, ET, WT> const &in_graph,
+  legacy::GraphCOOView<VT, ET, WT> const& in_graph,
   int k,
-  VT const *vertex_id,
-  VT const *core_number,
+  VT const* vertex_id,
+  VT const* core_number,
   VT num_vertex_ids,
-  rmm::mr::device_memory_resource *mr)
+  rmm::mr::device_memory_resource* mr)
 {
   CUGRAPH_EXPECTS(vertex_id != nullptr, "Invalid input argument: vertex_id is NULL");
   CUGRAPH_EXPECTS(core_number != nullptr, "Invalid input argument: core_number is NULL");
@@ -160,20 +160,20 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_core(
 }
 
 template void core_number<int32_t, int32_t, float>(
-  legacy::GraphCSRView<int32_t, int32_t, float> const &, int32_t *core_number);
+  legacy::GraphCSRView<int32_t, int32_t, float> const&, int32_t* core_number);
 template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, float>> k_core<int32_t, int32_t, float>(
-  legacy::GraphCOOView<int32_t, int32_t, float> const &,
+  legacy::GraphCOOView<int32_t, int32_t, float> const&,
   int,
-  int32_t const *,
-  int32_t const *,
+  int32_t const*,
+  int32_t const*,
   int32_t,
-  rmm::mr::device_memory_resource *);
+  rmm::mr::device_memory_resource*);
 template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, double>>
-k_core<int32_t, int32_t, double>(legacy::GraphCOOView<int32_t, int32_t, double> const &,
+k_core<int32_t, int32_t, double>(legacy::GraphCOOView<int32_t, int32_t, double> const&,
                                  int,
-                                 int32_t const *,
-                                 int32_t const *,
+                                 int32_t const*,
+                                 int32_t const*,
                                  int32_t,
-                                 rmm::mr::device_memory_resource *);
+                                 rmm::mr::device_memory_resource*);
 
 }  // namespace cugraph

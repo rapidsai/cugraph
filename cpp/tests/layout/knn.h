@@ -44,7 +44,8 @@ double sq_euclid_dist(const point& x, const point& y)
   double total = 0;
   auto i       = x.attributes.begin();
   auto j       = y.attributes.begin();
-  for (; i != x.attributes.end() && j != y.attributes.end(); ++i, ++j) total += pow(*i - *j, 2);
+  for (; i != x.attributes.end() && j != y.attributes.end(); ++i, ++j)
+    total += pow(*i - *j, 2);
   return total;
 }
 
@@ -63,6 +64,7 @@ std::vector<int> knn_classify(std::list<point>& dataframe, const point& c, const
   auto count = 0;
   auto j     = distances.begin();
   ++j;
-  for (; j != distances.end() && count < k; ++j, ++count) res.push_back(j->index);
+  for (; j != distances.end() && count < k; ++j, ++count)
+    res.push_back(j->index);
   return res;
 }

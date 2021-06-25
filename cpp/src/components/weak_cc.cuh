@@ -47,22 +47,22 @@ namespace Sparse {
 
 class WeakCCState {
  public:
-  bool *xa;
-  bool *fa;
-  bool *m;
+  bool* xa;
+  bool* fa;
+  bool* m;
   bool owner;
 
-  WeakCCState(bool *xa, bool *fa, bool *m) : xa(xa), fa(fa), m(m) {}
+  WeakCCState(bool* xa, bool* fa, bool* m) : xa(xa), fa(fa), m(m) {}
 };
 
 template <typename vertex_t, typename edge_t, int TPB_X = 32>
-__global__ void weak_cc_label_device(vertex_t *labels,
-                                     edge_t const *offsets,
-                                     vertex_t const *indices,
+__global__ void weak_cc_label_device(vertex_t* labels,
+                                     edge_t const* offsets,
+                                     vertex_t const* indices,
                                      edge_t nnz,
-                                     bool *fa,
-                                     bool *xa,
-                                     bool *m,
+                                     bool* fa,
+                                     bool* xa,
+                                     bool* m,
                                      vertex_t startVertexId,
                                      vertex_t batchSize)
 {
@@ -115,7 +115,7 @@ __global__ void weak_cc_label_device(vertex_t *labels,
 }
 
 template <typename vertex_t, int TPB_X = 32, typename Lambda>
-__global__ void weak_cc_init_label_kernel(vertex_t *labels,
+__global__ void weak_cc_init_label_kernel(vertex_t* labels,
                                           vertex_t startVertexId,
                                           vertex_t batchSize,
                                           vertex_t MAX_LABEL,
@@ -132,7 +132,7 @@ __global__ void weak_cc_init_label_kernel(vertex_t *labels,
 
 template <typename vertex_t, int TPB_X = 32>
 __global__ void weak_cc_init_all_kernel(
-  vertex_t *labels, bool *fa, bool *xa, vertex_t N, vertex_t MAX_LABEL)
+  vertex_t* labels, bool* fa, bool* xa, vertex_t N, vertex_t MAX_LABEL)
 {
   vertex_t tid = threadIdx.x + blockIdx.x * TPB_X;
   if (tid < N) {
@@ -143,12 +143,12 @@ __global__ void weak_cc_init_all_kernel(
 }
 
 template <typename vertex_t, typename edge_t, int TPB_X = 32, typename Lambda>
-void weak_cc_label_batched(vertex_t *labels,
-                           edge_t const *offsets,
-                           vertex_t const *indices,
+void weak_cc_label_batched(vertex_t* labels,
+                           edge_t const* offsets,
+                           vertex_t const* indices,
                            edge_t nnz,
                            vertex_t N,
-                           WeakCCState &state,
+                           WeakCCState& state,
                            vertex_t startVertexId,
                            vertex_t batchSize,
                            cudaStream_t stream,
@@ -217,14 +217,14 @@ template <typename vertex_t,
           typename edge_t,
           int TPB_X       = 32,
           typename Lambda = auto(vertex_t)->bool>
-void weak_cc_batched(vertex_t *labels,
-                     edge_t const *offsets,
-                     vertex_t const *indices,
+void weak_cc_batched(vertex_t* labels,
+                     edge_t const* offsets,
+                     vertex_t const* indices,
                      edge_t nnz,
                      vertex_t N,
                      vertex_t startVertexId,
                      vertex_t batchSize,
-                     WeakCCState &state,
+                     WeakCCState& state,
                      cudaStream_t stream,
                      Lambda filter_op)
 {
@@ -273,9 +273,9 @@ template <typename vertex_t,
           typename edge_t,
           int TPB_X       = 32,
           typename Lambda = auto(vertex_t)->bool>
-void weak_cc(vertex_t *labels,
-             edge_t const *offsets,
-             vertex_t const *indices,
+void weak_cc(vertex_t* labels,
+             edge_t const* offsets,
+             vertex_t const* indices,
              edge_t nnz,
              vertex_t N,
              cudaStream_t stream,
@@ -315,9 +315,9 @@ void weak_cc(vertex_t *labels,
  * @param stream      Cuda stream to use
  */
 template <typename vertex_t, typename edge_t, int TPB_X = 32>
-void weak_cc_entry(vertex_t *labels,
-                   edge_t const *offsets,
-                   vertex_t const *indices,
+void weak_cc_entry(vertex_t* labels,
+                   edge_t const* offsets,
+                   vertex_t const* indices,
                    edge_t nnz,
                    vertex_t N,
                    cudaStream_t stream)

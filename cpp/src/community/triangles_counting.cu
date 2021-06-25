@@ -31,8 +31,8 @@
 #include "cub/cub.cuh"
 
 #define TH_CENT_K_LOCLEN (34)
-#define WP_LEN_TH1 (24)
-#define WP_LEN_TH2 (2)
+#define WP_LEN_TH1       (24)
+#define WP_LEN_TH2       (2)
 
 #if WP_LEN_TH1 > 32
 #error WP_LEN_TH1 must be <= 32!
@@ -41,9 +41,9 @@
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
-#define THREADS (128)
+#define THREADS      (128)
 #define DIV_UP(a, b) (((a) + ((b)-1)) / (b))
-#define BITSOF(x) (sizeof(*x) * 8)
+#define BITSOF(x)    (sizeof(*x) * 8)
 
 #define BLK_BWL0 (128)
 
@@ -73,9 +73,9 @@ struct spmat_t {
   T N;
   T nnz;
   T nrows;
-  const T *roff_d;
-  const T *rows_d;
-  const T *cols_d;
+  const T* roff_d;
+  const T* rows_d;
+  const T* cols_d;
   bool is_lower_triangular;
 };
 
@@ -173,7 +173,9 @@ __device__ __forceinline__ T block_sum(T v)
   const int wid = threadIdx.x / 32 + ((BDIM_Y > 1) ? threadIdx.y * (BDIM_X / 32) : 0);
 
 #pragma unroll
-  for (int i = WSIZE / 2; i; i >>= 1) { v += __shfl_down_sync(raft::warp_full_mask(), v, i); }
+  for (int i = WSIZE / 2; i; i >>= 1) {
+    v += __shfl_down_sync(raft::warp_full_mask(), v, i);
+  }
   if (lid == 0) sh[wid] = v;
 
   __syncthreads();
@@ -197,13 +199,13 @@ template <int BDIM,
           typename CNT_T,
           typename MAP_T>
 __global__ void tricnt_b2b_k(const ROW_T ner,
-                             const ROW_T *__restrict__ rows,
-                             const OFF_T *__restrict__ roff,
-                             const ROW_T *__restrict__ cols,
-                             CNT_T *__restrict__ ocnt,
-                             MAP_T *__restrict__ bmapL0,
+                             const ROW_T* __restrict__ rows,
+                             const OFF_T* __restrict__ roff,
+                             const ROW_T* __restrict__ cols,
+                             CNT_T* __restrict__ ocnt,
+                             MAP_T* __restrict__ bmapL0,
                              const size_t bmldL0,
-                             MAP_T *__restrict__ bmapL1,
+                             MAP_T* __restrict__ bmapL1,
                              const size_t bmldL1)
 {
   CNT_T __cnt = 0;
@@ -277,11 +279,11 @@ __global__ void tricnt_b2b_k(const ROW_T ner,
 
 template <typename T>
 void tricnt_b2b(T nblock,
-                spmat_t<T> *m,
-                uint64_t *ocnt_d,
-                unsigned int *bmapL0_d,
+                spmat_t<T>* m,
+                uint64_t* ocnt_d,
+                unsigned int* bmapL0_d,
                 size_t bmldL0,
-                unsigned int *bmapL1_d,
+                unsigned int* bmapL1_d,
                 size_t bmldL1,
                 cudaStream_t stream)
 {
@@ -294,13 +296,15 @@ void tricnt_b2b(T nblock,
 
 //////////////////////////////////////////////////////////////////////////////////////////
 template <int BDIM_X, int BDIM_Y, int WSIZE, typename T>
-__device__ __forceinline__ T block_sum_sh(T v, T *sh)
+__device__ __forceinline__ T block_sum_sh(T v, T* sh)
 {
   const int lid = threadIdx.x % 32;
   const int wid = threadIdx.x / 32 + ((BDIM_Y > 1) ? threadIdx.y * (BDIM_X / 32) : 0);
 
 #pragma unroll
-  for (int i = WSIZE / 2; i; i >>= 1) { v += __shfl_down_sync(raft::warp_full_mask(), v, i); }
+  for (int i = WSIZE / 2; i; i >>= 1) {
+    v += __shfl_down_sync(raft::warp_full_mask(), v, i);
+  }
   if (lid == 0) sh[wid] = v;
 
   __syncthreads();
@@ -317,10 +321,10 @@ __device__ __forceinline__ T block_sum_sh(T v, T *sh)
 
 template <int BDIM, int WSIZE, typename ROW_T, typename OFF_T, typename CNT_T>
 __global__ void tricnt_bsh_k(const ROW_T ner,
-                             const ROW_T *__restrict__ rows,
-                             const OFF_T *__restrict__ roff,
-                             const ROW_T *__restrict__ cols,
-                             CNT_T *__restrict__ ocnt,
+                             const ROW_T* __restrict__ rows,
+                             const OFF_T* __restrict__ roff,
+                             const ROW_T* __restrict__ cols,
+                             CNT_T* __restrict__ ocnt,
                              const size_t bmld)
 {
   CNT_T __cnt = 0;
@@ -374,7 +378,7 @@ __global__ void tricnt_bsh_k(const ROW_T ner,
     __syncthreads();
     if (lastcol - firstcol < rend - rbeg) {
       for (int i = firstcol; i <= lastcol; i += BDIM) {
-        if (i + threadIdx.x <= lastcol) { ((unsigned long long *)shm)[i + threadIdx.x] = 0ull; }
+        if (i + threadIdx.x <= lastcol) { ((unsigned long long*)shm)[i + threadIdx.x] = 0ull; }
       }
     } else {
       for (int i = rbeg; i < rend; i += BDIM) {
@@ -383,14 +387,14 @@ __global__ void tricnt_bsh_k(const ROW_T ner,
     }
     __syncthreads();
   }
-  __cnt = block_sum_sh<BDIM, 1, WSIZE>(__cnt, (uint64_t *)shm);
+  __cnt = block_sum_sh<BDIM, 1, WSIZE>(__cnt, (uint64_t*)shm);
   if (threadIdx.x == 0) ocnt[blockIdx.x] = __cnt;
 
   return;
 }
 
 template <typename T>
-void tricnt_bsh(T nblock, spmat_t<T> *m, uint64_t *ocnt_d, size_t bmld, cudaStream_t stream)
+void tricnt_bsh(T nblock, spmat_t<T>* m, uint64_t* ocnt_d, size_t bmld, cudaStream_t stream)
 {
   tricnt_bsh_k<THREADS, 32><<<nblock, THREADS, sizeof(unsigned int) * bmld, stream>>>(
     m->nrows, m->rows_d, m->roff_d, m->cols_d, ocnt_d, bmld);
@@ -408,11 +412,11 @@ template <int WSIZE,
           typename CNT_T,
           typename MAP_T>
 __global__ void tricnt_wrp_ps_k(const ROW_T ner,
-                                const ROW_T *__restrict__ rows,
-                                const OFF_T *__restrict__ roff,
-                                const ROW_T *__restrict__ cols,
-                                CNT_T *__restrict__ ocnt,
-                                MAP_T *__restrict__ bmap,
+                                const ROW_T* __restrict__ rows,
+                                const OFF_T* __restrict__ roff,
+                                const ROW_T* __restrict__ cols,
+                                CNT_T* __restrict__ ocnt,
+                                MAP_T* __restrict__ bmap,
                                 const size_t bmld)
 {
   __shared__ OFF_T sho[NWARP][WSIZE];
@@ -520,7 +524,7 @@ __global__ void tricnt_wrp_ps_k(const ROW_T ner,
 
       if (lastcol - firstcol < rend - rbeg) {
         for (int i = firstcol; i <= lastcol; i += WSIZE) {
-          if (i + threadIdx.x <= lastcol) { ((unsigned long long *)bmap)[i + threadIdx.x] = 0ull; }
+          if (i + threadIdx.x <= lastcol) { ((unsigned long long*)bmap)[i + threadIdx.x] = 0ull; }
         }
       } else {
         for (int i = rbeg; i < rend; i += WSIZE) {
@@ -537,7 +541,7 @@ __global__ void tricnt_wrp_ps_k(const ROW_T ner,
 
 template <typename T>
 void tricnt_wrp(
-  T nblock, spmat_t<T> *m, uint64_t *ocnt_d, unsigned int *bmap_d, size_t bmld, cudaStream_t stream)
+  T nblock, spmat_t<T>* m, uint64_t* ocnt_d, unsigned int* bmap_d, size_t bmld, cudaStream_t stream)
 {
   dim3 block(32, THREADS / 32);
   tricnt_wrp_ps_k<32, THREADS / 32, WP_LEN_TH1, WP_LEN_TH2>
@@ -549,10 +553,10 @@ void tricnt_wrp(
 //////////////////////////////////////////////////////////////////////////////////////////
 template <int BDIM, int LOCLEN, typename ROW_T, typename OFF_T, typename CNT_T>
 __global__ void tricnt_thr_k(const ROW_T ner,
-                             const ROW_T *__restrict__ rows,
-                             const OFF_T *__restrict__ roff,
-                             const ROW_T *__restrict__ cols,
-                             CNT_T *__restrict__ ocnt)
+                             const ROW_T* __restrict__ rows,
+                             const OFF_T* __restrict__ roff,
+                             const ROW_T* __restrict__ cols,
+                             CNT_T* __restrict__ ocnt)
 {
   CNT_T __cnt     = 0;
   const ROW_T tid = blockIdx.x * BDIM + threadIdx.x;
@@ -619,7 +623,7 @@ __global__ void tricnt_thr_k(const ROW_T ner,
 }
 
 template <typename T>
-void tricnt_thr(T nblock, spmat_t<T> *m, uint64_t *ocnt_d, cudaStream_t stream)
+void tricnt_thr(T nblock, spmat_t<T>* m, uint64_t* ocnt_d, cudaStream_t stream)
 {
   cudaFuncSetCacheConfig(tricnt_thr_k<THREADS,
                                       TH_CENT_K_LOCLEN,
@@ -637,9 +641,9 @@ void tricnt_thr(T nblock, spmat_t<T> *m, uint64_t *ocnt_d, cudaStream_t stream)
 /////////////////////////////////////////////////////////////////
 template <typename IndexType>
 struct NonEmptyRow {
-  const IndexType *p_roff;
-  __host__ __device__ NonEmptyRow(const IndexType *roff) : p_roff(roff) {}
-  __host__ __device__ __forceinline__ bool operator()(const IndexType &a) const
+  const IndexType* p_roff;
+  __host__ __device__ NonEmptyRow(const IndexType* roff) : p_roff(roff) {}
+  __host__ __device__ __forceinline__ bool operator()(const IndexType& a) const
   {
     return (p_roff[a] < p_roff[a + 1]);
   }
@@ -647,7 +651,7 @@ struct NonEmptyRow {
 
 template <typename T>
 void create_nondangling_vector(
-  const T *roff, T *p_nonempty, T *n_nonempty, size_t n, cudaStream_t stream)
+  const T* roff, T* p_nonempty, T* n_nonempty, size_t n, cudaStream_t stream)
 {
   if (n <= 0) return;
   thrust::counting_iterator<T> it(0);
@@ -660,7 +664,7 @@ void create_nondangling_vector(
 }
 
 template <typename T>
-uint64_t reduce(uint64_t *v_d, T n, cudaStream_t stream)
+uint64_t reduce(uint64_t* v_d, T n, cudaStream_t stream)
 {
   rmm::device_vector<uint64_t> tmp(1);
 
@@ -694,8 +698,8 @@ class TrianglesCount {
   // Simple constructor
   TrianglesCount(IndexType num_vertices,
                  IndexType num_edges,
-                 IndexType const *row_offsets,
-                 IndexType const *col_indices,
+                 IndexType const* row_offsets,
+                 IndexType const* col_indices,
                  cudaStream_t stream = NULL);
 
   void count();
@@ -705,8 +709,8 @@ class TrianglesCount {
 template <typename IndexType>
 TrianglesCount<IndexType>::TrianglesCount(IndexType num_vertices,
                                           IndexType num_edges,
-                                          IndexType const *row_offsets,
-                                          IndexType const *col_indices,
+                                          IndexType const* row_offsets,
+                                          IndexType const* col_indices,
                                           cudaStream_t stream)
   : m_mat{num_vertices, num_edges, num_vertices, row_offsets, nullptr, col_indices},
     m_stream{stream},
@@ -841,7 +845,7 @@ void TrianglesCount<IndexType>::count()
 }  // namespace
 
 template <typename VT, typename ET, typename WT>
-uint64_t triangle_count(legacy::GraphCSRView<VT, ET, WT> const &graph)
+uint64_t triangle_count(legacy::GraphCSRView<VT, ET, WT> const& graph)
 {
   TrianglesCount<VT> counter(
     graph.number_of_vertices, graph.number_of_edges, graph.offsets, graph.indices);
@@ -851,7 +855,7 @@ uint64_t triangle_count(legacy::GraphCSRView<VT, ET, WT> const &graph)
 }
 
 template uint64_t triangle_count<int32_t, int32_t, float>(
-  legacy::GraphCSRView<int32_t, int32_t, float> const &);
+  legacy::GraphCSRView<int32_t, int32_t, float> const&);
 
 }  // namespace triangle
 }  // namespace cugraph

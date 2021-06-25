@@ -15,18 +15,18 @@
  */
 
 #pragma once
-#define restrict __restrict__
+#define restrict           __restrict__
 #define CUDA_MAX_BLOCKS_2D 256
 
 namespace cugraph {
 namespace detail {
 
 template <typename vertex_t>
-__global__ void repulsion_kernel(const float *restrict x_pos,
-                                 const float *restrict y_pos,
-                                 float *restrict repel_x,
-                                 float *restrict repel_y,
-                                 const int *restrict mass,
+__global__ void repulsion_kernel(const float* restrict x_pos,
+                                 const float* restrict y_pos,
+                                 float* restrict repel_x,
+                                 float* restrict repel_y,
+                                 const int* restrict mass,
                                  const float scaling_ratio,
                                  const vertex_t n)
 {
@@ -50,11 +50,11 @@ __global__ void repulsion_kernel(const float *restrict x_pos,
 }
 
 template <typename vertex_t, int TPB_X = 32, int TPB_Y = 32>
-void apply_repulsion(const float *restrict x_pos,
-                     const float *restrict y_pos,
-                     float *restrict repel_x,
-                     float *restrict repel_y,
-                     const int *restrict mass,
+void apply_repulsion(const float* restrict x_pos,
+                     const float* restrict y_pos,
+                     float* restrict repel_x,
+                     float* restrict repel_y,
+                     const int* restrict mass,
                      const float scaling_ratio,
                      const vertex_t n,
                      cudaStream_t stream)

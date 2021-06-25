@@ -21,7 +21,7 @@
 #include <vector>
 
 template <typename VT, typename ET>
-void populate_neighbors(VT *indices, ET *offsets, VT w, std::vector<VT> &neighbors)
+void populate_neighbors(VT* indices, ET* offsets, VT w, std::vector<VT>& neighbors)
 {
   ET edge_start = offsets[w];
   ET edge_end   = offsets[w + 1];
@@ -31,14 +31,14 @@ void populate_neighbors(VT *indices, ET *offsets, VT w, std::vector<VT> &neighbo
 
 // This implements the BFS based on (Brandes, 2001) for shortest path counting
 template <typename VT, typename ET>
-void ref_bfs(VT *indices,
-             ET *offsets,
+void ref_bfs(VT* indices,
+             ET* offsets,
              VT const number_of_vertices,
-             std::queue<VT> &Q,
-             std::stack<VT> &S,
-             std::vector<VT> &dist,
-             std::vector<std::vector<VT>> &pred,
-             std::vector<double> &sigmas,
+             std::queue<VT>& Q,
+             std::stack<VT>& S,
+             std::vector<VT>& dist,
+             std::vector<std::vector<VT>>& pred,
+             std::vector<double>& sigmas,
              VT source)
 {
   std::vector<VT> neighbors;

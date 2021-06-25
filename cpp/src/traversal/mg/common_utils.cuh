@@ -42,25 +42,25 @@ constexpr inline return_t number_of_words(return_t number_of_bits)
 
 template <typename edge_t>
 struct isDegreeZero {
-  edge_t const *offset_;
-  isDegreeZero(edge_t const *offset) : offset_(offset) {}
+  edge_t const* offset_;
+  isDegreeZero(edge_t const* offset) : offset_(offset) {}
 
-  __device__ bool operator()(const edge_t &id) const { return (offset_[id + 1] == offset_[id]); }
+  __device__ bool operator()(const edge_t& id) const { return (offset_[id + 1] == offset_[id]); }
 };
 
 struct set_nth_bit {
-  uint32_t *bmap_;
-  set_nth_bit(uint32_t *bmap) : bmap_(bmap) {}
+  uint32_t* bmap_;
+  set_nth_bit(uint32_t* bmap) : bmap_(bmap) {}
 
   template <typename return_t>
-  __device__ void operator()(const return_t &id)
+  __device__ void operator()(const return_t& id)
   {
     atomicOr(bmap_ + (id / BitsPWrd<uint32_t>), (uint32_t{1} << (id % BitsPWrd<uint32_t>)));
   }
 };
 
 template <typename vertex_t>
-bool is_vertex_isolated(rmm::device_vector<uint32_t> &bmap, vertex_t id)
+bool is_vertex_isolated(rmm::device_vector<uint32_t>& bmap, vertex_t id)
 {
   uint32_t word       = bmap[id / BitsPWrd<uint32_t>];
   uint32_t active_bit = static_cast<uint32_t>(1) << (id % BitsPWrd<uint32_t>);
@@ -70,11 +70,11 @@ bool is_vertex_isolated(rmm::device_vector<uint32_t> &bmap, vertex_t id)
 
 template <typename vertex_t, typename edge_t>
 struct BFSStepNoDist {
-  uint32_t *output_frontier_;
-  uint32_t *visited_;
-  vertex_t *predecessors_;
+  uint32_t* output_frontier_;
+  uint32_t* visited_;
+  vertex_t* predecessors_;
 
-  BFSStepNoDist(uint32_t *output_frontier, uint32_t *visited, vertex_t *predecessors)
+  BFSStepNoDist(uint32_t* output_frontier, uint32_t* visited, vertex_t* predecessors)
     : output_frontier_(output_frontier), visited_(visited), predecessors_(predecessors)
   {
   }
@@ -101,13 +101,13 @@ struct BFSStepNoDist {
 
 template <typename vertex_t, typename edge_t>
 struct BFSStep {
-  uint32_t *output_frontier_;
-  uint32_t *visited_;
-  vertex_t *predecessors_;
-  vertex_t *distances_;
+  uint32_t* output_frontier_;
+  uint32_t* visited_;
+  vertex_t* predecessors_;
+  vertex_t* distances_;
   vertex_t level_;
 
-  BFSStep(uint32_t *output_frontier, uint32_t *visited, vertex_t *predecessors, vertex_t *distances)
+  BFSStep(uint32_t* output_frontier, uint32_t* visited, vertex_t* predecessors, vertex_t* distances)
     : output_frontier_(output_frontier),
       visited_(visited),
       predecessors_(predecessors),
@@ -138,9 +138,9 @@ struct BFSStep {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 vertex_t populate_isolated_vertices(
-  raft::handle_t const &handle,
-  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  rmm::device_vector<vertex_t> &isolated_vertex_ids)
+  raft::handle_t const& handle,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+  rmm::device_vector<vertex_t>& isolated_vertex_ids)
 {
   bool is_mg          = (handle.comms_initialized() && (graph.local_vertices != nullptr) &&
                 (graph.local_offsets != nullptr));
@@ -166,11 +166,11 @@ vertex_t populate_isolated_vertices(
 }
 
 template <typename return_t>
-return_t collect_vectors(raft::handle_t const &handle,
-                         rmm::device_vector<size_t> &buffer_len,
-                         rmm::device_vector<return_t> &local,
+return_t collect_vectors(raft::handle_t const& handle,
+                         rmm::device_vector<size_t>& buffer_len,
+                         rmm::device_vector<return_t>& local,
                          return_t local_count,
-                         rmm::device_vector<return_t> &global)
+                         rmm::device_vector<return_t>& global)
 {
   CHECK_CUDA(handle.get_stream());
   buffer_len.resize(handle.get_comms().get_size());
@@ -202,9 +202,9 @@ return_t collect_vectors(raft::handle_t const &handle,
 }
 
 template <typename return_t>
-void add_to_bitmap(raft::handle_t const &handle,
-                   rmm::device_vector<uint32_t> &bmap,
-                   rmm::device_vector<return_t> &id,
+void add_to_bitmap(raft::handle_t const& handle,
+                   rmm::device_vector<uint32_t>& bmap,
+                   rmm::device_vector<return_t>& id,
                    return_t count)
 {
   cudaStream_t stream = handle.get_stream();
@@ -218,12 +218,12 @@ void add_to_bitmap(raft::handle_t const &handle,
 // For all vertex ids i which are isolated (out degree is 0), set
 // ith bit of isolated_bmap to 1
 template <typename vertex_t, typename edge_t, typename weight_t>
-void create_isolated_bitmap(raft::handle_t const &handle,
-                            cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                            rmm::device_vector<vertex_t> &local_isolated_ids,
-                            rmm::device_vector<vertex_t> &global_isolated_ids,
-                            rmm::device_vector<size_t> &temp_buffer_len,
-                            rmm::device_vector<uint32_t> &isolated_bmap)
+void create_isolated_bitmap(raft::handle_t const& handle,
+                            cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+                            rmm::device_vector<vertex_t>& local_isolated_ids,
+                            rmm::device_vector<vertex_t>& global_isolated_ids,
+                            rmm::device_vector<size_t>& temp_buffer_len,
+                            rmm::device_vector<uint32_t>& isolated_bmap)
 {
   size_t word_count = detail::number_of_words(graph.number_of_vertices);
   local_isolated_ids.resize(graph.number_of_vertices);
@@ -238,8 +238,8 @@ void create_isolated_bitmap(raft::handle_t const &handle,
 }
 
 template <typename return_t>
-return_t remove_duplicates(raft::handle_t const &handle,
-                           rmm::device_vector<return_t> &data,
+return_t remove_duplicates(raft::handle_t const& handle,
+                           rmm::device_vector<return_t>& data,
                            return_t data_len)
 {
   cudaStream_t stream = handle.get_stream();
@@ -255,13 +255,13 @@ return_t remove_duplicates(raft::handle_t const &handle,
 // ids. bmap is expected to be of the length
 // id_end/BitsPWrd<uint32_t> and is set to 0 initially
 template <uint32_t BLOCK_SIZE, typename return_t>
-__global__ void remove_duplicates_kernel(uint32_t *bmap,
-                                         return_t *in_id,
+__global__ void remove_duplicates_kernel(uint32_t* bmap,
+                                         return_t* in_id,
                                          return_t id_begin,
                                          return_t id_end,
                                          return_t count,
-                                         return_t *out_id,
-                                         return_t *out_count)
+                                         return_t* out_id,
+                                         return_t* out_count)
 {
   return_t tid = blockIdx.x * blockDim.x + threadIdx.x;
   return_t id;
@@ -303,14 +303,14 @@ __global__ void remove_duplicates_kernel(uint32_t *bmap,
 }
 
 template <uint32_t BLOCK_SIZE, typename return_t>
-__global__ void remove_duplicates_kernel(uint32_t *bmap,
-                                         uint32_t *isolated_bmap,
-                                         return_t *in_id,
+__global__ void remove_duplicates_kernel(uint32_t* bmap,
+                                         uint32_t* isolated_bmap,
+                                         return_t* in_id,
                                          return_t id_begin,
                                          return_t id_end,
                                          return_t count,
-                                         return_t *out_id,
-                                         return_t *out_count)
+                                         return_t* out_id,
+                                         return_t* out_count)
 {
   return_t tid = blockIdx.x * blockDim.x + threadIdx.x;
   return_t id;
@@ -356,13 +356,13 @@ __global__ void remove_duplicates_kernel(uint32_t *bmap,
 }
 
 template <typename return_t>
-return_t remove_duplicates(raft::handle_t const &handle,
-                           rmm::device_vector<uint32_t> &bmap,
-                           rmm::device_vector<return_t> &data,
+return_t remove_duplicates(raft::handle_t const& handle,
+                           rmm::device_vector<uint32_t>& bmap,
+                           rmm::device_vector<return_t>& data,
                            return_t data_len,
                            return_t data_begin,
                            return_t data_end,
-                           rmm::device_vector<return_t> &out_data)
+                           rmm::device_vector<return_t>& out_data)
 {
   cudaStream_t stream = handle.get_stream();
 
@@ -385,13 +385,13 @@ return_t remove_duplicates(raft::handle_t const &handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 vertex_t preprocess_input_frontier(
-  raft::handle_t const &handle,
-  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  rmm::device_vector<uint32_t> &bmap,
-  rmm::device_vector<uint32_t> &isolated_bmap,
-  rmm::device_vector<vertex_t> &input_frontier,
+  raft::handle_t const& handle,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+  rmm::device_vector<uint32_t>& bmap,
+  rmm::device_vector<uint32_t>& isolated_bmap,
+  rmm::device_vector<vertex_t>& input_frontier,
   vertex_t input_frontier_len,
-  rmm::device_vector<vertex_t> &output_frontier)
+  rmm::device_vector<vertex_t>& output_frontier)
 {
   cudaStream_t stream = handle.get_stream();
 
@@ -418,12 +418,12 @@ vertex_t preprocess_input_frontier(
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 vertex_t preprocess_input_frontier(
-  raft::handle_t const &handle,
-  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  rmm::device_vector<uint32_t> &bmap,
-  rmm::device_vector<vertex_t> &input_frontier,
+  raft::handle_t const& handle,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+  rmm::device_vector<uint32_t>& bmap,
+  rmm::device_vector<vertex_t>& input_frontier,
   vertex_t input_frontier_len,
-  rmm::device_vector<vertex_t> &output_frontier)
+  rmm::device_vector<vertex_t>& output_frontier)
 {
   cudaStream_t stream = handle.get_stream();
 
@@ -448,7 +448,7 @@ vertex_t preprocess_input_frontier(
 }
 
 template <typename vertex_t>
-__global__ void fill_kernel(vertex_t *distances, vertex_t count, vertex_t start_vertex)
+__global__ void fill_kernel(vertex_t* distances, vertex_t count, vertex_t start_vertex)
 {
   vertex_t tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid >= count) { return; }
@@ -460,11 +460,11 @@ __global__ void fill_kernel(vertex_t *distances, vertex_t count, vertex_t start_
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void fill_max_dist(raft::handle_t const &handle,
-                   cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void fill_max_dist(raft::handle_t const& handle,
+                   cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
                    vertex_t start_vertex,
                    vertex_t global_number_of_vertices,
-                   vertex_t *distances)
+                   vertex_t* distances)
 {
   if (distances == nullptr) { return; }
   vertex_t array_size        = global_number_of_vertices;
@@ -475,8 +475,8 @@ void fill_max_dist(raft::handle_t const &handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 vertex_t get_global_vertex_count(
-  raft::handle_t const &handle,
-  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph)
+  raft::handle_t const& handle,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph)
 {
   rmm::device_vector<vertex_t> id(1);
   id[0] = *thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),

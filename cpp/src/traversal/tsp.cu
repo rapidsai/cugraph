@@ -27,17 +27,17 @@
 namespace cugraph {
 namespace detail {
 
-TSP::TSP(raft::handle_t const &handle,
-         int const *vtx_ptr,
-         float const *x_pos,
-         float const *y_pos,
+TSP::TSP(raft::handle_t const& handle,
+         int const* vtx_ptr,
+         float const* x_pos,
+         float const* y_pos,
          int nodes,
          int restarts,
          bool beam_search,
          int k,
          int nstart,
          bool verbose,
-         int *route)
+         int* route)
   : handle_(handle),
     vtx_ptr_(vtx_ptr),
     x_pos_(x_pos),
@@ -117,11 +117,11 @@ float TSP::compute()
   h_x_pos.reserve(nodes_ + 1);
   h_y_pos.reserve(nodes_ + 1);
   h_route.reserve(nodes_);
-  std::vector<float *> addr_best_x_pos(1);
-  std::vector<float *> addr_best_y_pos(1);
-  std::vector<int *> addr_best_route(1);
+  std::vector<float*> addr_best_x_pos(1);
+  std::vector<float*> addr_best_y_pos(1);
+  std::vector<int*> addr_best_route(1);
   HighResTimer hr_timer;
-  auto create_timer = [&hr_timer, this](char const *name) {
+  auto create_timer = [&hr_timer, this](char const* name) {
     return VerboseTimer(name, hr_timer, verbose_);
   };
 
@@ -213,18 +213,18 @@ void TSP::knn()
   bool row_major_order = false;
 
   rmm::device_uvector<float> input(nodes_ * dim, stream_);
-  float *input_ptr = input.data();
+  float* input_ptr = input.data();
   raft::copy(input_ptr, x_pos_, nodes_, stream_);
   raft::copy(input_ptr + nodes_, y_pos_, nodes_, stream_);
 
   rmm::device_uvector<float> search_data(nodes_ * dim, stream_);
-  float *search_data_ptr = search_data.data();
+  float* search_data_ptr = search_data.data();
   raft::copy(search_data_ptr, input_ptr, nodes_ * dim, stream_);
 
   rmm::device_uvector<float> distances(nodes_ * (k_ + 1), stream_);
-  float *distances_ptr = distances.data();
+  float* distances_ptr = distances.data();
 
-  std::vector<float *> input_vec;
+  std::vector<float*> input_vec;
   std::vector<int> sizes_vec;
   input_vec.push_back(input_ptr);
   sizes_vec.push_back(nodes_);
@@ -246,17 +246,17 @@ void TSP::knn()
 }
 }  // namespace detail
 
-float traveling_salesperson(raft::handle_t const &handle,
-                            int const *vtx_ptr,
-                            float const *x_pos,
-                            float const *y_pos,
+float traveling_salesperson(raft::handle_t const& handle,
+                            int const* vtx_ptr,
+                            float const* x_pos,
+                            float const* y_pos,
                             int nodes,
                             int restarts,
                             bool beam_search,
                             int k,
                             int nstart,
                             bool verbose,
-                            int *route)
+                            int* route)
 {
   RAFT_EXPECTS(route != nullptr, "route should equal the number of nodes");
   RAFT_EXPECTS(nodes > 0, "nodes should be strictly positive");

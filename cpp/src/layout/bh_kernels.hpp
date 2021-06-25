@@ -42,9 +42,9 @@ namespace detail {
 /**
  * Intializes the states of objects. This speeds the overall kernel up.
  */
-__global__ void InitializationKernel(unsigned *restrict limiter,
-                                     int *restrict maxdepthd,
-                                     float *restrict radiusd)
+__global__ void InitializationKernel(unsigned* restrict limiter,
+                                     int* restrict maxdepthd,
+                                     float* restrict radiusd)
 {
   maxdepthd[0] = 1;
   limiter[0]   = 0;
@@ -54,10 +54,10 @@ __global__ void InitializationKernel(unsigned *restrict limiter,
 /**
  * Reset root.
  */
-__global__ void ResetKernel(float *restrict radiusd_squared,
-                            int *restrict bottomd,
+__global__ void ResetKernel(float* restrict radiusd_squared,
+                            int* restrict bottomd,
                             const int NNODES,
-                            const float *restrict radiusd)
+                            const float* restrict radiusd)
 {
   radiusd_squared[0] = radiusd[0] * radiusd[0];
   // create root node
@@ -67,20 +67,20 @@ __global__ void ResetKernel(float *restrict radiusd_squared,
 /**
  * Figures the bounding boxes for every point in the embedding.
  */
-__global__ __launch_bounds__(THREADS1, FACTOR1) void BoundingBoxKernel(int *restrict startd,
-                                                                       int *restrict childd,
-                                                                       int *restrict massd,
-                                                                       float *restrict posxd,
-                                                                       float *restrict posyd,
-                                                                       float *restrict maxxd,
-                                                                       float *restrict maxyd,
-                                                                       float *restrict minxd,
-                                                                       float *restrict minyd,
+__global__ __launch_bounds__(THREADS1, FACTOR1) void BoundingBoxKernel(int* restrict startd,
+                                                                       int* restrict childd,
+                                                                       int* restrict massd,
+                                                                       float* restrict posxd,
+                                                                       float* restrict posyd,
+                                                                       float* restrict maxxd,
+                                                                       float* restrict maxyd,
+                                                                       float* restrict minxd,
+                                                                       float* restrict minyd,
                                                                        const int FOUR_NNODES,
                                                                        const int NNODES,
                                                                        const int N,
-                                                                       unsigned *restrict limiter,
-                                                                       float *restrict radiusd)
+                                                                       unsigned* restrict limiter,
+                                                                       float* restrict radiusd)
 {
   float val, minx, maxx, miny, maxy;
   __shared__ float sminx[THREADS1], smaxx[THREADS1], sminy[THREADS1], smaxy[THREADS1];
@@ -150,14 +150,15 @@ __global__ __launch_bounds__(THREADS1, FACTOR1) void BoundingBoxKernel(int *rest
     posyd[NNODES]  = (miny + maxy) * 0.5f;
 
 #pragma unroll
-    for (int a = 0; a < 4; a++) childd[FOUR_NNODES + a] = -1;
+    for (int a = 0; a < 4; a++)
+      childd[FOUR_NNODES + a] = -1;
   }
 }
 
 /**
  * Clear some of the state vectors up.
  */
-__global__ __launch_bounds__(1024, 1) void ClearKernel1(int *restrict childd,
+__global__ __launch_bounds__(1024, 1) void ClearKernel1(int* restrict childd,
                                                         const int FOUR_NNODES,
                                                         const int FOUR_N)
 {
@@ -167,21 +168,22 @@ __global__ __launch_bounds__(1024, 1) void ClearKernel1(int *restrict childd,
 
 // iterate over all cells assigned to thread
 #pragma unroll
-  for (; k < FOUR_NNODES; k += inc) childd[k] = -1;
+  for (; k < FOUR_NNODES; k += inc)
+    childd[k] = -1;
 }
 
 /**
  * Build the actual KD Tree.
  */
 __global__ __launch_bounds__(THREADS2,
-                             FACTOR2) void TreeBuildingKernel(int *restrict childd,
-                                                              const float *restrict posxd,
-                                                              const float *restrict posyd,
+                             FACTOR2) void TreeBuildingKernel(int* restrict childd,
+                                                              const float* restrict posxd,
+                                                              const float* restrict posyd,
                                                               const int NNODES,
                                                               const int N,
-                                                              int *restrict maxdepthd,
-                                                              int *restrict bottomd,
-                                                              const float *restrict radiusd)
+                                                              int* restrict maxdepthd,
+                                                              int* restrict bottomd,
+                                                              const float* restrict radiusd)
 {
   int j, depth;
   float x, y, r;
@@ -294,10 +296,10 @@ __global__ __launch_bounds__(THREADS2,
 /**
  * Clean more state vectors.
  */
-__global__ __launch_bounds__(1024, 1) void ClearKernel2(int *restrict startd,
-                                                        int *restrict massd,
+__global__ __launch_bounds__(1024, 1) void ClearKernel2(int* restrict startd,
+                                                        int* restrict massd,
                                                         const int NNODES,
-                                                        const int *restrict bottomd)
+                                                        const int* restrict bottomd)
 {
   const int bottom = bottomd[0];
   const int inc    = blockDim.x * gridDim.x;
@@ -316,14 +318,14 @@ __global__ __launch_bounds__(1024, 1) void ClearKernel2(int *restrict startd,
  * Summarize the KD Tree via cell gathering
  */
 __global__ __launch_bounds__(THREADS3,
-                             FACTOR3) void SummarizationKernel(int *restrict countd,
-                                                               const int *restrict childd,
-                                                               volatile int *restrict massd,
-                                                               float *restrict posxd,
-                                                               float *restrict posyd,
+                             FACTOR3) void SummarizationKernel(int* restrict countd,
+                                                               const int* restrict childd,
+                                                               volatile int* restrict massd,
+                                                               float* restrict posxd,
+                                                               float* restrict posyd,
                                                                const int NNODES,
                                                                const int N,
-                                                               const int *restrict bottomd)
+                                                               const int* restrict bottomd)
 {
   bool flag = 0;
   float cm, px, py;
@@ -451,13 +453,13 @@ __global__ __launch_bounds__(THREADS3,
 /**
  * Sort the cells
  */
-__global__ __launch_bounds__(THREADS4, FACTOR4) void SortKernel(int *restrict sortd,
-                                                                const int *restrict countd,
-                                                                volatile int *restrict startd,
-                                                                int *restrict childd,
+__global__ __launch_bounds__(THREADS4, FACTOR4) void SortKernel(int* restrict sortd,
+                                                                const int* restrict countd,
+                                                                volatile int* restrict startd,
+                                                                int* restrict childd,
                                                                 const int NNODES,
                                                                 const int N,
-                                                                const int *restrict bottomd)
+                                                                const int* restrict bottomd)
 {
   const int bottom = bottomd[0];
   const int dec    = blockDim.x * gridDim.x;
@@ -505,19 +507,19 @@ __global__ __launch_bounds__(
                                           const float scaling_ratio,
                                           const float theta,
                                           const float epssqd,  // correction for zero distance
-                                          const int *restrict sortd,
-                                          const int *restrict childd,
-                                          const int *restrict massd,
-                                          const float *restrict posxd,
-                                          const float *restrict posyd,
-                                          float *restrict velxd,
-                                          float *restrict velyd,
+                                          const int* restrict sortd,
+                                          const int* restrict childd,
+                                          const int* restrict massd,
+                                          const float* restrict posxd,
+                                          const float* restrict posyd,
+                                          float* restrict velxd,
+                                          float* restrict velyd,
                                           const float theta_squared,
                                           const int NNODES,
                                           const int FOUR_NNODES,
                                           const int N,
-                                          const float *restrict radiusd_squared,
-                                          const int *restrict maxdepthd)
+                                          const float* restrict radiusd_squared,
+                                          const int* restrict maxdepthd)
 {
   __shared__ int pos[THREADS5], node[THREADS5];
   __shared__ float dq[THREADS5];
@@ -611,15 +613,15 @@ __global__ __launch_bounds__(
 }
 
 __global__ __launch_bounds__(THREADS6,
-                             FACTOR6) void apply_forces_bh(float *restrict Y_x,
-                                                           float *restrict Y_y,
-                                                           const float *restrict attract_x,
-                                                           const float *restrict attract_y,
-                                                           const float *restrict repel_x,
-                                                           const float *restrict repel_y,
-                                                           float *restrict old_dx,
-                                                           float *restrict old_dy,
-                                                           const float *restrict swinging,
+                             FACTOR6) void apply_forces_bh(float* restrict Y_x,
+                                                           float* restrict Y_y,
+                                                           const float* restrict attract_x,
+                                                           const float* restrict attract_y,
+                                                           const float* restrict repel_x,
+                                                           const float* restrict repel_y,
+                                                           float* restrict old_dx,
+                                                           float* restrict old_dy,
+                                                           const float* restrict swinging,
                                                            const float speed,
                                                            const int n)
 {

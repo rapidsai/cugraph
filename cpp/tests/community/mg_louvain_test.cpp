@@ -185,7 +185,9 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
     auto const comm_rank = comm.get_rank();
 
     auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) { --row_comm_size; }
+    while (comm_size % row_comm_size != 0) {
+      --row_comm_size;
+    }
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
       subcomm_factory(handle, row_comm_size);
 
