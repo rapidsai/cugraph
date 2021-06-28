@@ -35,6 +35,7 @@
 #include <iterator>
 #include <limits>
 #include <numeric>
+#include <tuple>
 #include <utilities/high_res_timer.hpp>
 #include <vector>
 
@@ -55,6 +56,10 @@ void fill_start(raft::handle_t const& handle,
 }
 }  // namespace
 
+namespace impl_details = cugraph::experimental::detail;
+
+enum class traversal_id_t : int { HORIZONTAL = 0, VERTICAL };
+
 struct RandomWalks_Usecase {
   std::string graph_file_full_path{};
   bool test_weighted{false};
@@ -70,7 +75,8 @@ struct RandomWalks_Usecase {
   };
 };
 
-class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
+class Tests_RandomWalks
+  : public ::testing::TestWithParam<std::tuple<traversal_id_t, RandomWalks_Usecase>> {
  public:
   Tests_RandomWalks() {}
   static void SetupTestCase() {}
@@ -80,7 +86,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(RandomWalks_Usecase const& configuration)
+  void run_current_test(std::tuple<traversal_id_t, RandomWalks_Usecase> const& configuration)
   {
     raft::handle_t handle{};
 
@@ -88,19 +94,21 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
     //
     // std::cout << "read graph file: " << configuration.graph_file_full_path << std::endl;
 
+    traversal_id_t trv_id = std::get<0>(configuration);
+    auto const& target    = std::get<1>(configuration);
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
     std::tie(graph, std::ignore) =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted, false);
+        handle, target.graph_file_full_path, target.test_weighted, false);
 
     auto graph_view = graph.view();
 
     // call random_walks:
-    start_random_walks(graph_view);
+    start_random_walks(graph_view, trv_id);
   }
 
   template <typename graph_vt>
-  void start_random_walks(graph_vt const& graph_view)
+  void start_random_walks(graph_vt const& graph_view, traversal_id_t trv_id)
   {
     using vertex_t = typename graph_vt::vertex_type;
     using edge_t   = typename graph_vt::edge_type;
@@ -115,23 +123,40 @@ class Tests_RandomWalks : public ::testing::TestWithParam<RandomWalks_Usecase> {
 
     // 0-copy const device view:
     //
-    cugraph::experimental::detail::device_const_vector_view<vertex_t, edge_t> d_start_view{
-      d_start.data(), num_paths};
+    impl_details::device_const_vector_view<vertex_t, edge_t> d_start_view{d_start.data(),
+                                                                          num_paths};
 
     edge_t max_depth{10};
 
-    auto ret_tuple =
-      cugraph::experimental::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+    if (trv_id == traversal_id_t::HORIZONTAL) {
+      auto ret_tuple =
+        impl_details::random_walks_impl<graph_vt, impl_details::horizontal_traversal_t>(
+          handle, graph_view, d_start_view, max_depth);
 
-    // check results:
-    //
-    bool test_all_paths = cugraph::test::host_check_rw_paths(
-      handle, graph_view, std::get<0>(ret_tuple), std::get<1>(ret_tuple), std::get<2>(ret_tuple));
+      // check results:
+      //
+      bool test_all_paths = cugraph::test::host_check_rw_paths(
+        handle, graph_view, std::get<0>(ret_tuple), std::get<1>(ret_tuple), std::get<2>(ret_tuple));
 
-    if (!test_all_paths)
-      std::cout << "starting seed on failure: " << std::get<3>(ret_tuple) << '\n';
+      if (!test_all_paths)
+        std::cout << "starting seed on failure: " << std::get<3>(ret_tuple) << '\n';
 
-    ASSERT_TRUE(test_all_paths);
+      ASSERT_TRUE(test_all_paths);
+    } else {  // VERTICAL
+      auto ret_tuple =
+        impl_details::random_walks_impl<graph_vt, impl_details::vertical_traversal_t>(
+          handle, graph_view, d_start_view, max_depth);
+
+      // check results:
+      //
+      bool test_all_paths = cugraph::test::host_check_rw_paths(
+        handle, graph_view, std::get<0>(ret_tuple), std::get<1>(ret_tuple), std::get<2>(ret_tuple));
+
+      if (!test_all_paths)
+        std::cout << "starting seed on failure: " << std::get<3>(ret_tuple) << '\n';
+
+      ASSERT_TRUE(test_all_paths);
+    }
   }
 };
 
@@ -143,9 +168,10 @@ TEST_P(Tests_RandomWalks, Initialize_i32_i32_f)
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_RandomWalks,
-  ::testing::Values(RandomWalks_Usecase("test/datasets/karate.mtx", true),
-                    RandomWalks_Usecase("test/datasets/web-Google.mtx", true),
-                    RandomWalks_Usecase("test/datasets/ljournal-2008.mtx", true),
-                    RandomWalks_Usecase("test/datasets/webbase-1M.mtx", true)));
+  ::testing::Combine(::testing::Values(traversal_id_t::HORIZONTAL, traversal_id_t::VERTICAL),
+                     ::testing::Values(RandomWalks_Usecase("test/datasets/karate.mtx", true),
+                                       RandomWalks_Usecase("test/datasets/web-Google.mtx", true),
+                                       RandomWalks_Usecase("test/datasets/ljournal-2008.mtx", true),
+                                       RandomWalks_Usecase("test/datasets/webbase-1M.mtx", true))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
