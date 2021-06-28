@@ -15,12 +15,14 @@
  */
 #pragma once
 
+#include <cugraph/experimental/graph.hpp>
 #include <cugraph/experimental/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <thrust/optional.h>
 #include <thrust/tuple.h>
 
+#include <cassert>
 #include <optional>
 #include <type_traits>
 
@@ -49,25 +51,28 @@ class matrix_partition_device_view_base_t {
   __host__ __device__ vertex_t const* get_indices() const { return indices_; }
   __host__ __device__ thrust::optional<weight_t const*> get_weights() const { return weights_; }
 
+  // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
   __device__ thrust::tuple<vertex_t const*, thrust::optional<weight_t const*>, edge_t>
-  get_local_edges(vertex_t major_offset) const noexcept
+  get_local_edges(vertex_t major_idx) const noexcept
   {
-    auto edge_offset  = *(offsets_ + major_offset);
-    auto local_degree = *(offsets_ + (major_offset + 1)) - edge_offset;
+    auto edge_offset  = *(offsets_ + major_idx);
+    auto local_degree = *(offsets_ + (major_idx + 1)) - edge_offset;
     auto indices      = indices_ + edge_offset;
     auto weights =
       weights_ ? thrust::optional<weight_t const*>{*weights_ + edge_offset} : thrust::nullopt;
     return thrust::make_tuple(indices, weights, local_degree);
   }
 
-  __device__ edge_t get_local_degree(vertex_t major_offset) const noexcept
+  // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
+  __device__ edge_t get_local_degree(vertex_t major_idx) const noexcept
   {
-    return *(offsets_ + (major_offset + 1)) - *(offsets_ + major_offset);
+    return *(offsets_ + (major_idx + 1)) - *(offsets_ + major_idx);
   }
 
-  __device__ edge_t get_local_offset(vertex_t major_offset) const noexcept
+  // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
+  __device__ edge_t get_local_offset(vertex_t major_idx) const noexcept
   {
-    return *(offsets_ + major_offset);
+    return *(offsets_ + major_idx);
   }
 
  private:
@@ -148,6 +153,13 @@ class matrix_partition_device_view_t<vertex_t,
     return major_first_ + major_offset;
   }
 
+  // major_hypersparse_idx: index within the hypersparse segment
+  __host__ __device__ vertex_t
+  get_major_from_major_hypersparse_idx_nocheck(vertex_t major_hypersparse_idx) const noexcept
+  {
+    return (*dcs_nzd_vertices_)[major_hypersparse_idx];
+  }
+
   __host__ __device__ vertex_t get_minor_from_minor_offset_nocheck(vertex_t minor_offset) const
     noexcept
   {
@@ -157,6 +169,15 @@ class matrix_partition_device_view_t<vertex_t,
   __host__ __device__ vertex_t get_major_value_start_offset() const
   {
     return major_value_start_offset_;
+  }
+
+  __host__ __device__ thrust::optional<vertex_t const*> get_dcs_nzd_vertices() const
+  {
+    return dcs_nzd_vertices_;
+  }
+  __host__ __device__ thrust::optional<vertex_t> get_dcs_nzd_vertex_count() const
+  {
+    return dcs_nzd_vertex_count_;
   }
 
  private:
@@ -220,10 +241,27 @@ class matrix_partition_device_view_t<vertex_t,
     return major_offset;
   }
 
+  // major_hypersparse_idx: index within the hypersparse segment
+  __host__ __device__ vertex_t
+  get_major_from_major_hypersparse_idx_nocheck(vertex_t major_hypersparse_idx) const noexcept
+  {
+    assert(false);
+    return invalid_vertex_id<vertex_t>::value;
+  }
+
   __host__ __device__ vertex_t get_minor_from_minor_offset_nocheck(vertex_t minor_offset) const
     noexcept
   {
     return minor_offset;
+  }
+
+  __host__ __device__ thrust::optional<vertex_t const*> get_dcs_nzd_vertices() const
+  {
+    return thrust::nullopt;
+  }
+  __host__ __device__ thrust::optional<vertex_t> get_dcs_nzd_vertex_count() const
+  {
+    return thrust::nullopt;
   }
 
  private:
