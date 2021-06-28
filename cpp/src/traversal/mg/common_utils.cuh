@@ -16,11 +16,15 @@
 
 #pragma once
 
-#include <raft/integer_utils.h>
+#include "../traversal_common.cuh"
+
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/host_vector.h>
 #include <cub/cub.cuh>
-#include "../traversal_common.cuh"
+
+#include <raft/cudart_utils.h>
+#include <raft/integer_utils.h>
+#include <raft/handle.hpp>
 
 namespace cugraph {
 
