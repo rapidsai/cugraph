@@ -97,7 +97,7 @@ create_graph_from_edgelist_impl(
   cugraph::experimental::partition_t<vertex_t> partition{};
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
-  std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
+  auto segment_offsets = std::make_optional<std::vector<vertex_t>>(0);
   {
     std::vector<vertex_t*> major_ptrs(h_edge_counts.size());
     std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
@@ -165,6 +165,7 @@ create_graph_from_edgelist_impl(
              : std::nullopt;
   std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
   if (renumber) {
+    segment_offsets = std::vector<vertex_t>{};
     std::tie(*renumber_map_labels, *segment_offsets) =
       cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle,
