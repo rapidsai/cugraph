@@ -290,6 +290,8 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
     } else {
       row = thrust::get<0>(key);
     }
+    // we can avoid binary search (and potentially improve performance) if we add an auxiliary array
+    // or cuco::static_map (at the expense of additional memory)
     auto it = thrust::lower_bound(
       thrust::seq, dcs_nzd_vertices, dcs_nzd_vertices + dcs_nzd_vertex_count, row);
     if ((it != dcs_nzd_vertices + dcs_nzd_vertex_count) && (*it == row)) {
