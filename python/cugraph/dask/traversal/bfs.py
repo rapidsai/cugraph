@@ -110,8 +110,7 @@ def bfs(graph,
                     compute()
             start = start.iloc[0]
         else:
-            start = graph.lookup_internal_vertex_id(cudf.Series([start],
-                                                    dtype='int32')).compute()
+            start = graph.lookup_internal_vertex_id(cudf.Series([start]).compute()
             start = start.iloc[0]
 
     result = [client.submit(
