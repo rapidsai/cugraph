@@ -48,7 +48,6 @@ def mg_pagerank(input_df,
         edge_t = np.dtype("int64")
     else:
         edge_t = vertex_t
-    print(vertex_t, edge_t)
     if "value" in input_df.columns:
         weights = input_df['value']
         weight_t = weights.dtype
