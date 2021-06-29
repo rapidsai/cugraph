@@ -47,72 +47,18 @@
 #include <thrust/tuple.h>
 
 #include <cassert>
+#include <cstdlib>  // FIXME: requirement for temporary std::getenv()
 #include <ctime>
 #include <optional>
 #include <tuple>
 #include <type_traits>
 
+#include "rw_traversals.hpp"
+
 namespace cugraph {
 namespace experimental {
 
 namespace detail {
-
-template <typename T>
-using device_vec_t = rmm::device_uvector<T>;
-
-template <typename T>
-using device_v_it = typename device_vec_t<T>::iterator;
-
-template <typename value_t>
-value_t* raw_ptr(device_vec_t<value_t>& dv)
-{
-  return dv.data();
-}
-
-template <typename value_t>
-value_t const* raw_const_ptr(device_vec_t<value_t> const& dv)
-{
-  return dv.data();
-}
-
-template <typename value_t, typename index_t = size_t>
-struct device_const_vector_view {
-  device_const_vector_view(value_t const* d_buffer, index_t size) : d_buffer_(d_buffer), size_(size)
-  {
-  }
-
-  device_const_vector_view(device_const_vector_view const& other) = delete;
-  device_const_vector_view& operator=(device_const_vector_view const& other) = delete;
-
-  device_const_vector_view(device_const_vector_view&& other)
-  {
-    d_buffer_ = other.d_buffer_;
-    size_     = other.size_;
-  }
-  device_const_vector_view& operator=(device_const_vector_view&& other)
-  {
-    d_buffer_ = other.d_buffer_;
-    size_     = other.size_;
-
-    return *this;
-  }
-
-  value_t const* begin(void) const { return d_buffer_; }
-
-  value_t const* end() const { return d_buffer_ + size_; }
-
-  index_t size(void) const { return size_; }
-
- private:
-  value_t const* d_buffer_{nullptr};
-  index_t size_;
-};
-
-template <typename value_t>
-value_t const* raw_const_ptr(device_const_vector_view<value_t>& dv)
-{
-  return dv.begin();
-}
 
 // raft random generator:
 // (using upper-bound cached "map"
@@ -129,6 +75,9 @@ struct rrandom_gen_t {
   using seed_type = seed_t;
   using real_type = real_t;
 
+  // cnstr. version that provides step-wise in-place
+  // rnd generation:
+  //
   rrandom_gen_t(raft::handle_t const& handle,
                 index_t num_paths,
                 device_vec_t<real_t>& d_random,             // scratch-pad, non-coalesced
@@ -149,9 +98,23 @@ struct rrandom_gen_t {
     // this must be done at each step,
     // but this object is constructed at each step;
     //
-    raft::random::Rng rng(seed_);
-    rng.uniform<real_t, index_t>(
-      d_ptr_random_, num_paths, real_t{0.0}, real_t{1.0}, handle.get_stream());
+    generate_random(handle, d_ptr_random_, num_paths, seed_);
+  }
+
+  // cnstr. version for the case when the
+  // random vector is provided by the caller:
+  //
+  rrandom_gen_t(raft::handle_t const& handle,
+                index_t num_paths,
+                real_t* ptr_d_rnd,                          // supplied
+                device_vec_t<edge_t> const& d_crt_out_deg,  // non-coalesced
+                seed_t seed = seed_t{})
+    : handle_(handle),
+      seed_(seed),
+      num_paths_(num_paths),
+      d_ptr_out_degs_(raw_const_ptr(d_crt_out_deg)),
+      d_ptr_random_(ptr_d_rnd)
+  {
   }
 
   // in place:
@@ -175,6 +138,14 @@ struct rrandom_gen_t {
         return (v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx);
       },
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
+  }
+
+  // abstracts away the random values generation:
+  //
+  static void generate_random(raft::handle_t const& handle, real_t* p_d_rnd, size_t sz, seed_t seed)
+  {
+    raft::random::Rng rng(seed);
+    rng.uniform<real_t, index_t>(p_d_rnd, sz, real_t{0.0}, real_t{1.0}, handle.get_stream());
   }
 
  private:
@@ -347,11 +318,12 @@ template <typename graph_t,
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
           typename index_t = typename graph_t::edge_type>
 struct random_walker_t {
-  using vertex_t = typename graph_t::vertex_type;
-  using edge_t   = typename graph_t::edge_type;
-  using weight_t = typename graph_t::weight_type;
-  using seed_t   = typename random_engine_t::seed_type;
-  using real_t   = typename random_engine_t::real_type;
+  using vertex_t     = typename graph_t::vertex_type;
+  using edge_t       = typename graph_t::edge_type;
+  using weight_t     = typename graph_t::weight_type;
+  using seed_t       = typename random_engine_t::seed_type;
+  using real_t       = typename random_engine_t::real_type;
+  using rnd_engine_t = random_engine_t;
 
   random_walker_t(raft::handle_t const& handle,
                   graph_t const& graph,
@@ -442,6 +414,71 @@ struct random_walker_t {
     // generate random destination indices:
     //
     random_engine_t rgen(handle_, num_paths_, d_random, d_crt_out_degs, seed);
+
+    rgen.generate_col_indices(d_col_indx);
+
+    // dst extraction from dst indices:
+    //
+    col_indx_extract_t<graph_t> col_extractor(handle_,
+                                              graph,
+                                              raw_const_ptr(d_crt_out_degs),
+                                              raw_const_ptr(d_paths_sz),
+                                              num_paths_,
+                                              max_depth_);
+
+    // The following steps update the next entry in each path,
+    // except the paths that reached sinks;
+    //
+    // for each indx in [0..num_paths) {
+    //   v_indx = d_v_rnd_n_indx[indx];
+    //
+    //   -- get the `v_indx`-th out-vertex of d_v_paths_v_set[indx] vertex:
+    //   -- also, note the size deltas increased by 1 in dst (d_sizes[]):
+    //
+    //   d_coalesced_v[indx*num_paths + d_sizes[indx]] =
+    //       get_out_vertex(graph, d_coalesced_v[indx*num_paths + d_sizes[indx] -1)], v_indx);
+    //   d_coalesced_w[indx*(num_paths-1) + d_sizes[indx] - 1] =
+    //       get_out_edge_weight(graph, d_coalesced_v[indx*num_paths + d_sizes[indx]-2], v_indx);
+    //
+    // (1) generate actual vertex destinations:
+    //
+    col_extractor(d_coalesced_v, d_col_indx, d_next_v, d_next_w);
+
+    // (2) update path sizes:
+    //
+    update_path_sizes(d_crt_out_degs, d_paths_sz);
+
+    // (3) actual coalesced updates:
+    //
+    scatter_vertices(d_next_v, d_coalesced_v, d_crt_out_degs, d_paths_sz);
+    scatter_weights(d_next_w, d_coalesced_w, d_crt_out_degs, d_paths_sz);
+  }
+
+  // step() version that doesn't update the random vector:
+  // (the caller supplies it)
+  //
+  void step_only(
+    graph_t const& graph,
+    device_vec_t<vertex_t>& d_coalesced_v,  // crt coalesced vertex set
+    device_vec_t<weight_t>& d_coalesced_w,  // crt coalesced weight set
+    device_vec_t<index_t>& d_paths_sz,      // crt paths sizes
+    device_vec_t<edge_t>& d_crt_out_degs,   // crt out-degs for current set of vertices
+    real_t* ptr_d_random,                   // crt set of random real values (supplied)
+    device_vec_t<vertex_t>& d_col_indx,  // crt col col indices to be used for retrieving next step
+    device_vec_t<vertex_t>& d_next_v,    // crt set of destination vertices, for next step
+    device_vec_t<weight_t>& d_next_w)
+    const  // set of weights between src and destination vertices, for next step
+  {
+    // update crt snapshot of out-degs,
+    // from cached out degs, using
+    // latest vertex in each path as source:
+    //
+    gather_from_coalesced(
+      d_coalesced_v, d_cached_out_degs_, d_paths_sz, d_crt_out_degs, max_depth_, num_paths_);
+
+    // generate random destination indices:
+    //
+    random_engine_t rgen(handle_, num_paths_, ptr_d_random, d_crt_out_degs);
 
     rgen.generate_col_indices(d_col_indx);
 
@@ -680,6 +717,8 @@ struct random_walker_t {
                  weight_padding_value_);
   }
 
+  decltype(auto) get_handle(void) const { return handle_; }
+
  private:
   raft::handle_t const& handle_;
   index_t num_paths_;
@@ -694,7 +733,12 @@ struct random_walker_t {
  * length. Single-GPU specialization.
  *
  * @tparam graph_t Type of graph (view).
+ * @tparam traversal_t Traversal policy. Either horizontal (faster but requires more memory) or
+ * vertical. Defaults to horizontal.
  * @tparam random_engine_t Type of random engine used to generate RW.
+ * @tparam seeding_policy_t Random engine seeding policy: variable or fixed (for reproducibility).
+ * Defaults to variable, clock dependent.
+ * @tparam index_t Indexing type. Defaults to edge_type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph object to generate RW on.
@@ -718,6 +762,7 @@ struct random_walker_t {
  * entries;
  */
 template <typename graph_t,
+          typename traversal_t = horizontal_traversal_t,
           typename random_engine_t =
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
           typename seeding_policy_t = clock_seeding_t<typename random_engine_t::seed_type>,
@@ -764,12 +809,22 @@ random_walks_impl(raft::handle_t const& handle,
   device_vec_t<vertex_t> d_coalesced_v(coalesced_sz, stream);  // coalesced vertex set
   device_vec_t<weight_t> d_coalesced_w(coalesced_sz, stream);  // coalesced weight set
   device_vec_t<index_t> d_paths_sz(num_paths, stream);         // paths sizes
-  device_vec_t<edge_t> d_crt_out_degs(num_paths, stream);  // out-degs for current set of vertices
-  device_vec_t<real_t> d_random(num_paths, stream);
-  device_vec_t<vertex_t> d_col_indx(num_paths, stream);
-  device_vec_t<vertex_t> d_next_v(num_paths, stream);
-  device_vec_t<weight_t> d_next_w(num_paths, stream);
 
+  // traversal policy:
+  //
+  traversal_t traversor(num_paths, max_depth);
+
+  auto tmp_buff_sz = traversor.get_tmp_buff_sz();
+
+  device_vec_t<edge_t> d_crt_out_degs(tmp_buff_sz, stream);  // crt vertex set out-degs
+  device_vec_t<vertex_t> d_col_indx(tmp_buff_sz, stream);    // \in {0,..,out-deg(v)}
+  device_vec_t<vertex_t> d_next_v(tmp_buff_sz, stream);      // crt set of next vertices
+  device_vec_t<weight_t> d_next_w(tmp_buff_sz, stream);      // crt set of next weights
+
+  // random data handling:
+  //
+  auto rnd_data_sz = traversor.get_random_buff_sz();
+  device_vec_t<real_t> d_random(rnd_data_sz, stream);
   // abstracted out seed initialization:
   //
   seed_t seed0 = static_cast<seed_t>(seeder());
@@ -782,26 +837,19 @@ random_walks_impl(raft::handle_t const& handle,
   //
   rand_walker.start(d_v_start, d_coalesced_v, d_paths_sz);
 
-  // start from 1, as 0-th was initialized above:
+  // traverse paths:
   //
-  for (decltype(max_depth) step_indx = 1; step_indx < max_depth; ++step_indx) {
-    // take one-step in-sync for each path in parallel:
-    //
-    rand_walker.step(graph,
-                     seed0 + static_cast<seed_t>(step_indx),
-                     d_coalesced_v,
-                     d_coalesced_w,
-                     d_paths_sz,
-                     d_crt_out_degs,
-                     d_random,
-                     d_col_indx,
-                     d_next_v,
-                     d_next_w);
-
-    // early exit: all paths have reached sinks:
-    //
-    if (rand_walker.all_paths_stopped(d_crt_out_degs)) break;
-  }
+  traversor(graph,
+            rand_walker,
+            seed0,
+            d_coalesced_v,
+            d_coalesced_w,
+            d_paths_sz,
+            d_crt_out_degs,
+            d_random,
+            d_col_indx,
+            d_next_v,
+            d_next_w);
 
   // wrap-up, post-process:
   // truncate v_set, w_set to actual space used
@@ -831,7 +879,12 @@ random_walks_impl(raft::handle_t const& handle,
  * length. Multi-GPU specialization.
  *
  * @tparam graph_t Type of graph (view).
+ * @tparam traversal_t Traversal policy. Either horizontal (faster but requires more memory) or
+ * vertical. Defaults to horizontal.
  * @tparam random_engine_t Type of random engine used to generate RW.
+ * @tparam seeding_policy_t Random engine seeding policy: variable or fixed (for reproducibility).
+ * Defaults to variable, clock dependent.
+ * @tparam index_t Indexing type. Defaults to edge_type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph Graph object to generate RW on.
@@ -855,6 +908,7 @@ random_walks_impl(raft::handle_t const& handle,
  * entries;
  */
 template <typename graph_t,
+          typename traversal_t = horizontal_traversal_t,
           typename random_engine_t =
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
           typename seeding_policy_t = clock_seeding_t<typename random_engine_t::seed_type>,
@@ -1060,19 +1114,60 @@ random_walks(raft::handle_t const& handle,
              index_t max_depth,
              bool use_padding)
 {
-  using vertex_t = typename graph_t::vertex_type;
+  using vertex_t     = typename graph_t::vertex_type;
+  using edge_t       = typename graph_t::edge_type;
+  using weight_t     = typename graph_t::weight_type;
+  using rnd_engine_t = float;
 
   // 0-copy const device view:
   //
   detail::device_const_vector_view<vertex_t, index_t> d_v_start{ptr_d_start, num_paths};
 
-  auto quad_tuple = detail::random_walks_impl(handle, graph, d_v_start, max_depth, use_padding);
-  // ignore last element of the quad, seed,
-  // since it's meant for testing / debugging, only:
+  // GPU memory availability:
   //
-  return std::make_tuple(std::move(std::get<0>(quad_tuple)),
-                         std::move(std::get<1>(quad_tuple)),
-                         std::move(std::get<2>(quad_tuple)));
+  size_t free_mem_sp_bytes{0};
+  size_t total_mem_sp_bytes{0};
+  cudaMemGetInfo(&free_mem_sp_bytes, &total_mem_sp_bytes);
+
+  // GPU memory requirements:
+  //
+  size_t coalesced_v_count = num_paths * max_depth;
+  auto coalesced_e_count   = coalesced_v_count - num_paths;
+  size_t req_mem_common    = sizeof(vertex_t) * coalesced_v_count +
+                          sizeof(weight_t) * coalesced_e_count +  // coalesced_v + coalesced_w
+                          (sizeof(vertex_t) + sizeof(index_t)) * num_paths;  // start_v + sizes
+
+  size_t req_mem_horizontal =
+    req_mem_common + sizeof(rnd_engine_t) * coalesced_e_count;  // + rnd_buff
+  size_t req_mem_vertical = req_mem_common + (sizeof(edge_t) + 2 * sizeof(vertex_t) +
+                                              sizeof(weight_t) + sizeof(rnd_engine_t)) *
+                                               num_paths;  // + smaller_rnd_buff + tmp_buffs
+
+  bool use_vertical_strategy{false};
+  if (req_mem_horizontal > req_mem_vertical && req_mem_horizontal > free_mem_sp_bytes) {
+    use_vertical_strategy = true;
+    std::cerr
+      << "WARNING: Due to GPU memory availability, slower vertical traversal will be used.\n";
+  }
+
+  if (use_vertical_strategy) {
+    auto quad_tuple = detail::random_walks_impl<graph_t, detail::vertical_traversal_t>(
+      handle, graph, d_v_start, max_depth, use_padding);
+    // ignore last element of the quad, seed,
+    // since it's meant for testing / debugging, only:
+    //
+    return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                           std::move(std::get<1>(quad_tuple)),
+                           std::move(std::get<2>(quad_tuple)));
+  } else {
+    auto quad_tuple = detail::random_walks_impl(handle, graph, d_v_start, max_depth, use_padding);
+    // ignore last element of the quad, seed,
+    // since it's meant for testing / debugging, only:
+    //
+    return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                           std::move(std::get<1>(quad_tuple)),
+                           std::move(std::get<2>(quad_tuple)));
+  }
 }
 
 /**
