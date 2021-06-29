@@ -451,6 +451,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG GRAPH BROADCAST tests --------------------------------------------------------------
         ConfigureTestMG(MG_GRAPH_BROADCAST_TEST bcast/mg_graph_bcast.cpp)
+
+        ###########################################################################################
+        # - MG GRAPH BROADCAST tests --------------------------------------------------------------
+        ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()
