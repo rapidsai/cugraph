@@ -292,7 +292,7 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
     }
     auto it = thrust::lower_bound(
       thrust::seq, dcs_nzd_vertices, dcs_nzd_vertices + dcs_nzd_vertex_count, row);
-    if (it != dcs_nzd_vertices + dcs_nzd_vertex_count) {
+    if ((it != dcs_nzd_vertices + dcs_nzd_vertex_count) && (*it == row)) {
       auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
       auto row_idx    = row_start_offset + thrust::distance(dcs_nzd_vertices, it);
       vertex_t const* indices{nullptr};
