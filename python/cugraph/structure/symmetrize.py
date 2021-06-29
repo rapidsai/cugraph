@@ -137,15 +137,13 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
     else:
         ddf2 = df[[dst_name, src_name]]
         ddf2.columns = [src_name, dst_name]
-
-    ddf = df.append(ddf2).reset_index(drop=True)
     worker_list = Comms.get_workers()
     num_workers = len(worker_list)
-    result = (
-        ddf.groupby(by=[src_name, dst_name], as_index=False)
-        .min(split_out=num_workers)
-        .reset_index()
-    )
+    ddf = df.append(ddf2).reset_index(drop=True)
+    result = ddf.shuffle(on=[
+        src_name, dst_name], ignore_index=True, npartitions=num_workers)
+    result = result.map_partitions(lambda x: x.groupby(
+        by=[src_name, dst_name], as_index=False).min().reset_index(drop=True))
 
     return result
 
