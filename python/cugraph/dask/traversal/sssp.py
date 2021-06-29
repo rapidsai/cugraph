@@ -98,8 +98,8 @@ def sssp(graph,
     data = get_distributed_data(ddf)
 
     if graph.renumbered:
-        source = graph.lookup_internal_vertex_id(cudf.Series([source],
-                                                 dtype='int32')).compute()
+        source = graph.lookup_internal_vertex_id(cudf.Series([source])
+                                                 ).compute()
         source = source.iloc[0]
 
     result = [client.submit(
