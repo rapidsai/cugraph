@@ -48,7 +48,7 @@ def mg_katz_centrality(input_df,
     if num_global_edges > (2**31 - 1):
         edge_t = np.dtype("int64")
     else:
-        edge_t = np.dtype("int32")
+        edge_t = vertex_t
     if "value" in input_df.columns:
         weights = input_df['value']
         weight_t = weights.dtype
@@ -105,11 +105,18 @@ def mg_katz_centrality(input_df,
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_katz_centralities = df['katz_centrality'].__cuda_array_interface__['data'][0]
 
-    if (df['katz_centrality'].dtype == np.float32):
-        c_katz_centrality.call_katz_centrality[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_katz_centralities,
-                                               alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
+    if vertex_t == np.int32:
+        if (df['katz_centrality'].dtype == np.float32):
+            c_katz_centrality.call_katz_centrality[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_katz_centralities,
+                                                   alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
+        else:
+            c_katz_centrality.call_katz_centrality[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_katz_centralities,
+                                                   alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
     else:
-        c_katz_centrality.call_katz_centrality[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_katz_centralities,
-                                               alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
-    
+        if (df['katz_centrality'].dtype == np.float32):
+            c_katz_centrality.call_katz_centrality[long, float](handle_[0], graph_container, <long*>c_identifier, <float*> c_katz_centralities,
+                                                   alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
+        else:
+            c_katz_centrality.call_katz_centrality[long, double](handle_[0], graph_container, <long*>c_identifier, <double*> c_katz_centralities,
+                                                   alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
     return df
