@@ -42,7 +42,7 @@ def mg_sssp(input_df,
     if num_global_edges > (2**31 - 1):
         edge_t = np.dtype("int64")
     else:
-        edge_t = np.dtype("int32")
+        edge_t = vertex_t
     if "value" in input_df.columns:
         weights = input_df['value']
         weight_t = weights.dtype
@@ -99,21 +99,34 @@ def mg_sssp(input_df,
     cdef uintptr_t c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
 
     # MG BFS path assumes directed is true
-    if weight_t == np.float32:
-        c_sssp.call_sssp[int, float](handle_[0],
-                                     graph_container,
-                                     <int*> NULL,
-                                     <float*> c_distance_ptr,
-                                     <int*> c_predecessor_ptr,
-                                     <int> start)
-    elif weight_t == np.float64:
-        c_sssp.call_sssp[int, double](handle_[0],
-                                      graph_container,
-                                      <int*> NULL,
-                                      <double*> c_distance_ptr,
-                                      <int*> c_predecessor_ptr,
-                                      <int> start)
-    else: # This case should not happen
-        raise NotImplementedError
-
+    if vertex_t == np.int32:
+        if weight_t == np.float32:
+            c_sssp.call_sssp[int, float](handle_[0],
+                                         graph_container,
+                                         <int*> NULL,
+                                         <float*> c_distance_ptr,
+                                         <int*> c_predecessor_ptr,
+                                         <int> start)
+        elif weight_t == np.float64:
+            c_sssp.call_sssp[int, double](handle_[0],
+                                          graph_container,
+                                          <int*> NULL,
+                                          <double*> c_distance_ptr,
+                                          <int*> c_predecessor_ptr,
+                                          <int> start)
+    else:
+        if weight_t == np.float32:
+            c_sssp.call_sssp[long, float](handle_[0],
+                                         graph_container,
+                                         <long*> NULL,
+                                         <float*> c_distance_ptr,
+                                         <long*> c_predecessor_ptr,
+                                         <long> start)
+        elif weight_t == np.float64:
+            c_sssp.call_sssp[long, double](handle_[0],
+                                          graph_container,
+                                          <long*> NULL,
+                                          <double*> c_distance_ptr,
+                                          <long*> c_predecessor_ptr,
+                                          <long> start)
     return df
