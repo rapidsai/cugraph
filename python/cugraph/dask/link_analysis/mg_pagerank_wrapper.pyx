@@ -48,7 +48,7 @@ def mg_pagerank(input_df,
     if num_global_edges > (2**31 - 1):
         edge_t = np.dtype("int64")
     else:
-        edge_t = np.dtype("int32")
+        edge_t = vertex_t
     if "value" in input_df.columns:
         weights = input_df['value']
         weight_t = weights.dtype
@@ -124,11 +124,19 @@ def mg_pagerank(input_df,
         c_pers_vtx = personalization['vertex'].__cuda_array_interface__['data'][0]
         c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
 
-    if (df['pagerank'].dtype == np.float32):
-        c_pagerank.call_pagerank[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
-                                 <float> alpha, <float> tol, <int> max_iter, <bool> 0)
+    if vertex_t == np.int32:
+        if (df['pagerank'].dtype == np.float32):
+            c_pagerank.call_pagerank[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_pagerank_val, sz, <int*> c_pers_vtx, <float*> c_pers_val,
+                                     <float> alpha, <float> tol, <int> max_iter, <bool> 0)
+        else:
+            c_pagerank.call_pagerank[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
+                                     <float> alpha, <float> tol, <int> max_iter, <bool> 0)
     else:
-        c_pagerank.call_pagerank[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_pagerank_val, sz, <int*> c_pers_vtx, <double*> c_pers_val,
-                            <float> alpha, <float> tol, <int> max_iter, <bool> 0)
-    
+        if (df['pagerank'].dtype == np.float32):
+            c_pagerank.call_pagerank[long, float](handle_[0], graph_container, <long*>c_identifier, <float*> c_pagerank_val, sz, <long*> c_pers_vtx, <float*> c_pers_val,
+                                     <float> alpha, <float> tol, <int> max_iter, <bool> 0)
+        else:
+            c_pagerank.call_pagerank[long, double](handle_[0], graph_container, <long*>c_identifier, <double*> c_pagerank_val, sz, <long*> c_pers_vtx, <double*> c_pers_val,
+                                     <float> alpha, <float> tol, <int> max_iter, <bool> 0)
+
     return df

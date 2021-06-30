@@ -41,7 +41,7 @@ def mg_wcc(input_df,
     if num_global_edges > (2**31 - 1):
         edge_t = np.dtype("int64")
     else:
-        edge_t = np.dtype("int32")
+        edge_t = vertex_t
 
     weights = None
     weight_t = np.dtype("float32")

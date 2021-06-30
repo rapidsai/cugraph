@@ -68,7 +68,7 @@ def louvain(input_df,
     if num_global_edges > (2**31 - 1):
         edge_t = np.dtype("int64")
     else:
-        edge_t = np.dtype("int32")
+        edge_t = vertex_t
     weight_t = weights.dtype
 
     # COO
