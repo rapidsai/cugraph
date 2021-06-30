@@ -226,7 +226,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                   "Invalid input argument: errneous edgelists.size().");
   CUGRAPH_EXPECTS(
     !segment_offsets.has_value() ||
-      ((*segment_offsets).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
+      ((*segment_offsets).size() == (detail::num_sparse_segments_per_vertex_partition + 1)) ||
+      ((*segment_offsets).size() == (detail::num_sparse_segments_per_vertex_partition + 2)),
     "Invalid input argument: segment_offsets.size() returns an invalid value.");
 
   auto is_weighted = edgelists[0].p_edge_weights.has_value();
