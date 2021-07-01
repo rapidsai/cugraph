@@ -20,7 +20,7 @@ import pytest
 
 import scipy
 import cudf
-from cudf.tests.utils import assert_eq
+from cudf.testing.testing import assert_frame_equal
 import cugraph
 from cugraph.tests import utils
 
@@ -327,7 +327,7 @@ def test_edges_for_Graph(graph_file):
         else:
             edges.append([edge[0], edge[1]])
     nx_edge_list = cudf.DataFrame(list(edges), columns=['src', 'dst'])
-    assert_eq(
+    assert_frame_equal(
         nx_edge_list.sort_values(by=['src', 'dst']).reset_index(drop=True),
         cu_edge_list.sort_values(by=['src', 'dst']).reset_index(drop=True),
         check_dtype=False

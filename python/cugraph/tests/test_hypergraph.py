@@ -39,7 +39,7 @@ import datetime as dt
 import pandas as pd
 import pytest
 import cudf
-from cudf.tests.utils import assert_eq
+from cudf.testing.testing import assert_frame_equal
 
 import cugraph
 
@@ -109,11 +109,10 @@ def test_hyperedges(categorical_metadata):
     h = cugraph.hypergraph(simple_df,
                            categorical_metadata=categorical_metadata)
 
-    assert_eq(
-        len(h.keys()), len(["entities", "nodes", "edges", "events", "graph"])
-    )
+    assert len(h.keys()) == len(
+        ["entities", "nodes", "edges", "events", "graph"])
 
-    edges = pd.DataFrame({
+    edges = cudf.from_pandas(pd.DataFrame({
         "event_id": [
             "event_id::0",
             "event_id::1",
@@ -160,25 +159,24 @@ def test_hyperedges(categorical_metadata):
         "a1": [1, 2, 3] * 4,
         "a2": ["red", "blue", "green"] * 4,
         "🙈": ["æski ēˈmōjē", "😋", "s"] * 4,
-    })
+    }))
 
     if categorical_metadata:
         edges = edges.astype({"edge_type": "category"})
 
-    assert_eq(edges, h["edges"])
-
+    assert_frame_equal(edges, h["edges"], check_dtype=False)
     for (k, v) in [
         ("entities", 12), ("nodes", 15), ("edges", 12), ("events", 3)
     ]:
-        assert_eq(len(h[k]), v)
+        assert len(h[k]) == v
 
 
 def test_hyperedges_direct():
 
     h = cugraph.hypergraph(hyper_df, direct=True)
 
-    assert_eq(len(h["edges"]), 9)
-    assert_eq(len(h["nodes"]), 9)
+    assert len(h["edges"]) == 9
+    assert len(h["nodes"]) == 9
 
 
 def test_hyperedges_direct_categories():
@@ -193,8 +191,8 @@ def test_hyperedges_direct_categories():
         },
     )
 
-    assert_eq(len(h["edges"]), 9)
-    assert_eq(len(h["nodes"]), 6)
+    assert len(h["edges"]) == 9
+    assert len(h["nodes"]) == 6
 
 
 def test_hyperedges_direct_manual_shaping():
@@ -204,14 +202,14 @@ def test_hyperedges_direct_manual_shaping():
         direct=True,
         EDGES={"aa": ["cc"], "cc": ["cc"]},
     )
-    assert_eq(len(h1["edges"]), 6)
+    assert len(h1["edges"]) == 6
 
     h2 = cugraph.hypergraph(
         hyper_df,
         direct=True,
         EDGES={"aa": ["cc", "bb", "aa"], "cc": ["cc"]},
     )
-    assert_eq(len(h2["edges"]), 12)
+    assert len(h2["edges"]) == 12
 
 
 @pytest.mark.parametrize("categorical_metadata", [False, True])
@@ -222,9 +220,8 @@ def test_drop_edge_attrs(categorical_metadata):
                            drop_edge_attrs=True,
                            categorical_metadata=categorical_metadata)
 
-    assert_eq(
-        len(h.keys()), len(["entities", "nodes", "edges", "events", "graph"])
-    )
+    assert len(h.keys()) == len(
+        ["entities", "nodes", "edges", "events", "graph"])
 
     edges = cudf.DataFrame.from_pandas(pd.DataFrame({
         "event_id": [
@@ -257,12 +254,12 @@ def test_drop_edge_attrs(categorical_metadata):
     if categorical_metadata:
         edges = edges.astype({"edge_type": "category"})
 
-    assert_eq(edges, h["edges"])
+    assert_frame_equal(edges, h["edges"], check_dtype=False)
 
     for (k, v) in [
         ("entities", 9), ("nodes", 12), ("edges", 9), ("events", 3)
     ]:
-        assert_eq(len(h[k]), v)
+        assert len(h[k]) == v
 
 
 @pytest.mark.parametrize("categorical_metadata", [False, True])
@@ -277,9 +274,8 @@ def test_drop_edge_attrs_direct(categorical_metadata):
         categorical_metadata=categorical_metadata,
     )
 
-    assert_eq(
-        len(h.keys()), len(["entities", "nodes", "edges", "events", "graph"])
-    )
+    assert len(h.keys()) == len(
+        ["entities", "nodes", "edges", "events", "graph"])
 
     edges = cudf.DataFrame.from_pandas(pd.DataFrame({
         "event_id": [
@@ -300,10 +296,10 @@ def test_drop_edge_attrs_direct(categorical_metadata):
     if categorical_metadata:
         edges = edges.astype({"edge_type": "category"})
 
-    assert_eq(edges, h["edges"])
+    assert_frame_equal(edges, h["edges"], check_dtype=False)
 
     for (k, v) in [("entities", 9), ("nodes", 9), ("edges", 6), ("events", 0)]:
-        assert_eq(len(h[k]), v)
+        assert len(h[k]) == v
 
 
 def test_skip_hyper():
@@ -399,10 +395,10 @@ def test_skip_na_hyperedge():
         nans_df, drop_edge_attrs=True
     )["edges"]
 
-    assert_eq(len(skip_attr_h_edges), len(expected_hits))
+    assert len(skip_attr_h_edges) == len(expected_hits)
 
     default_h_edges = cugraph.hypergraph(nans_df)["edges"]
-    assert_eq(len(default_h_edges), len(expected_hits))
+    assert len(default_h_edges) == len(expected_hits)
 
 
 def test_hyper_to_pa_vanilla():
