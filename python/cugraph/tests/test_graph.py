@@ -20,7 +20,7 @@ import pytest
 
 import scipy
 import cudf
-from cudf.tests.utils import assert_eq
+from cudf.testing._utils import assert_eq
 import cugraph
 from cugraph.tests import utils
 
