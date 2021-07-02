@@ -24,7 +24,6 @@
 #include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/vertex_partition_device.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -42,18 +41,19 @@ namespace detail {
 
 // FIXME: personalization_vector_size is confusing in OPG (local or aggregate?)
 template <typename GraphViewType, typename result_t>
-void pagerank(raft::handle_t const& handle,
-              GraphViewType const& pull_graph_view,
-              typename GraphViewType::weight_type const* precomputed_vertex_out_weight_sums,
-              typename GraphViewType::vertex_type const* personalization_vertices,
-              result_t const* personalization_values,
-              typename GraphViewType::vertex_type personalization_vector_size,
-              result_t* pageranks,
-              result_t alpha,
-              result_t epsilon,
-              size_t max_iterations,
-              bool has_initial_guess,
-              bool do_expensive_check)
+void pagerank(
+  raft::handle_t const& handle,
+  GraphViewType const& pull_graph_view,
+  std::optional<typename GraphViewType::weight_type const*> precomputed_vertex_out_weight_sums,
+  std::optional<typename GraphViewType::vertex_type const*> personalization_vertices,
+  std::optional<result_t const*> personalization_values,
+  std::optional<typename GraphViewType::vertex_type> personalization_vector_size,
+  result_t* pageranks,
+  result_t alpha,
+  result_t epsilon,
+  size_t max_iterations,
+  bool has_initial_guess,
+  bool do_expensive_check)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using weight_t = typename GraphViewType::weight_type;
@@ -69,27 +69,28 @@ void pagerank(raft::handle_t const& handle,
   if (num_vertices == 0) { return; }
 
   auto aggregate_personalization_vector_size =
-    GraphViewType::is_multi_gpu
-      ? host_scalar_allreduce(handle.get_comms(), personalization_vector_size, handle.get_stream())
-      : personalization_vector_size;
+    personalization_vertices
+      ? GraphViewType::is_multi_gpu
+          ? host_scalar_allreduce(
+              handle.get_comms(), *personalization_vector_size, handle.get_stream())
+          : *personalization_vector_size
+      : vertex_t{0};
 
   // 1. check input arguments
 
-  CUGRAPH_EXPECTS(
-    ((personalization_vector_size > 0) && (personalization_vertices != nullptr) &&
-     (personalization_values != nullptr)) ||
-      ((personalization_vector_size == 0) && (personalization_vertices == nullptr) &&
-       (personalization_values == nullptr)),
-    "Invalid input argument: if personalization_vector_size is non-zero, personalization verties "
-    "and personalization values should be provided. Otherwise, they should not be provided.");
+  CUGRAPH_EXPECTS((personalization_vertices.has_value() == false) ||
+                    (personalization_values.has_value() && personalization_vector_size.has_value()),
+                  "Invalid input argument: if personalization_vertices.has_value() is true, "
+                  "personalization_values.has_value() and personalization_vector_size.has_value() "
+                  "should be true as well.");
   CUGRAPH_EXPECTS((alpha >= 0.0) && (alpha <= 1.0),
                   "Invalid input argument: alpha should be in [0.0, 1.0].");
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
 
   if (do_expensive_check) {
-    if (precomputed_vertex_out_weight_sums != nullptr) {
+    if (precomputed_vertex_out_weight_sums) {
       auto num_negative_precomputed_vertex_out_weight_sums = count_if_v(
-        handle, pull_graph_view, precomputed_vertex_out_weight_sums, [] __device__(auto val) {
+        handle, pull_graph_view, *precomputed_vertex_out_weight_sums, [] __device__(auto val) {
           return val < result_t{0.0};
         });
       CUGRAPH_EXPECTS(
@@ -118,12 +119,13 @@ void pagerank(raft::handle_t const& handle,
     }
 
     if (aggregate_personalization_vector_size > 0) {
-      vertex_partition_device_t<GraphViewType> vertex_partition(pull_graph_view);
+      auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+        pull_graph_view.get_vertex_partition_view());
       auto num_invalid_vertices =
         count_if_v(handle,
                    pull_graph_view,
-                   personalization_vertices,
-                   personalization_vertices + personalization_vector_size,
+                   *personalization_vertices,
+                   *personalization_vertices + *personalization_vector_size,
                    [vertex_partition] __device__(auto val) {
                      return !(vertex_partition.is_valid_vertex(val) &&
                               vertex_partition.is_local_vertex_nocheck(val));
@@ -132,8 +134,8 @@ void pagerank(raft::handle_t const& handle,
                       "Invalid input argument: peresonalization vertices have invalid vertex IDs.");
       auto num_negative_values = count_if_v(handle,
                                             pull_graph_view,
-                                            personalization_values,
-                                            personalization_values + personalization_vector_size,
+                                            *personalization_values,
+                                            *personalization_values + *personalization_vector_size,
                                             [] __device__(auto val) { return val < 0.0; });
       CUGRAPH_EXPECTS(num_negative_values == 0,
                       "Invalid input argument: peresonalization values should be non-negative.");
@@ -142,20 +144,21 @@ void pagerank(raft::handle_t const& handle,
 
   // 2. compute the sums of the out-going edge weights (if not provided)
 
-  auto tmp_vertex_out_weight_sums = precomputed_vertex_out_weight_sums == nullptr
-                                      ? pull_graph_view.compute_out_weight_sums(handle)
-                                      : rmm::device_uvector<weight_t>(0, handle.get_stream());
-  auto vertex_out_weight_sums = precomputed_vertex_out_weight_sums != nullptr
-                                  ? precomputed_vertex_out_weight_sums
-                                  : tmp_vertex_out_weight_sums.data();
+  auto tmp_vertex_out_weight_sums = precomputed_vertex_out_weight_sums
+                                      ? std::nullopt
+                                      : std::optional<rmm::device_uvector<weight_t>>{
+                                          pull_graph_view.compute_out_weight_sums(handle)};
+  auto vertex_out_weight_sums = precomputed_vertex_out_weight_sums
+                                  ? *precomputed_vertex_out_weight_sums
+                                  : (*tmp_vertex_out_weight_sums).data();
 
   // 3. initialize pagerank values
 
   if (has_initial_guess) {
     auto sum = reduce_v(handle, pull_graph_view, pageranks, result_t{0.0});
-    CUGRAPH_EXPECTS(
-      sum > 0.0,
-      "Invalid input argument: sum of the PageRank initial guess values should be positive.");
+    CUGRAPH_EXPECTS(sum > 0.0,
+                    "Invalid input argument: sum of the PageRank initial "
+                    "guess values should be positive.");
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       pageranks,
                       pageranks + pull_graph_view.get_number_of_local_vertices(),
@@ -174,11 +177,12 @@ void pagerank(raft::handle_t const& handle,
   if (aggregate_personalization_vector_size > 0) {
     personalization_sum = reduce_v(handle,
                                    pull_graph_view,
-                                   personalization_values,
-                                   personalization_values + personalization_vector_size,
+                                   *personalization_values,
+                                   *personalization_values + *personalization_vector_size,
                                    result_t{0.0});
     CUGRAPH_EXPECTS(personalization_sum > 0.0,
-                    "Invalid input argument: sum of personalization valuese should be positive.");
+                    "Invalid input argument: sum of personalization valuese "
+                    "should be positive.");
   }
 
   // 5. pagerank iteration
@@ -240,13 +244,14 @@ void pagerank(raft::handle_t const& handle,
       pageranks);
 
     if (aggregate_personalization_vector_size > 0) {
-      vertex_partition_device_t<GraphViewType> vertex_partition(pull_graph_view);
+      auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+        pull_graph_view.get_vertex_partition_view());
       auto val_first = thrust::make_zip_iterator(
-        thrust::make_tuple(personalization_vertices, personalization_values));
+        thrust::make_tuple(*personalization_vertices, *personalization_values));
       thrust::for_each(
         rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
         val_first,
-        val_first + personalization_vector_size,
+        val_first + *personalization_vector_size,
         [vertex_partition, pageranks, dangling_sum, personalization_sum, alpha] __device__(
           auto val) {
           auto v     = thrust::get<0>(val);
@@ -279,10 +284,10 @@ void pagerank(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void pagerank(raft::handle_t const& handle,
               graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
-              weight_t const* precomputed_vertex_out_weight_sums,
-              vertex_t const* personalization_vertices,
-              result_t const* personalization_values,
-              vertex_t personalization_vector_size,
+              std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
+              std::optional<vertex_t const*> personalization_vertices,
+              std::optional<result_t const*> personalization_values,
+              std::optional<vertex_t> personalization_vector_size,
               result_t* pageranks,
               result_t alpha,
               result_t epsilon,
@@ -308,10 +313,10 @@ void pagerank(raft::handle_t const& handle,
 
 template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
-                       float const* precomputed_vertex_out_weight_sums,
-                       int32_t const* personalization_vertices,
-                       float const* personalization_values,
-                       int32_t personalization_vector_size,
+                       std::optional<float const*> precomputed_vertex_out_weight_sums,
+                       std::optional<int32_t const*> personalization_vertices,
+                       std::optional<float const*> personalization_values,
+                       std::optional<int32_t> personalization_vector_size,
                        float* pageranks,
                        float alpha,
                        float epsilon,
@@ -321,10 +326,10 @@ template void pagerank(raft::handle_t const& handle,
 
 template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int32_t, double, true, true> const& graph_view,
-                       double const* precomputed_vertex_out_weight_sums,
-                       int32_t const* personalization_vertices,
-                       double const* personalization_values,
-                       int32_t personalization_vector_size,
+                       std::optional<double const*> precomputed_vertex_out_weight_sums,
+                       std::optional<int32_t const*> personalization_vertices,
+                       std::optional<double const*> personalization_values,
+                       std::optional<int32_t> personalization_vector_size,
                        double* pageranks,
                        double alpha,
                        double epsilon,
@@ -334,10 +339,10 @@ template void pagerank(raft::handle_t const& handle,
 
 template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int64_t, float, true, true> const& graph_view,
-                       float const* precomputed_vertex_out_weight_sums,
-                       int32_t const* personalization_vertices,
-                       float const* personalization_values,
-                       int32_t personalization_vector_size,
+                       std::optional<float const*> precomputed_vertex_out_weight_sums,
+                       std::optional<int32_t const*> personalization_vertices,
+                       std::optional<float const*> personalization_values,
+                       std::optional<int32_t> personalization_vector_size,
                        float* pageranks,
                        float alpha,
                        float epsilon,
@@ -347,10 +352,10 @@ template void pagerank(raft::handle_t const& handle,
 
 template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int64_t, double, true, true> const& graph_view,
-                       double const* precomputed_vertex_out_weight_sums,
-                       int32_t const* personalization_vertices,
-                       double const* personalization_values,
-                       int32_t personalization_vector_size,
+                       std::optional<double const*> precomputed_vertex_out_weight_sums,
+                       std::optional<int32_t const*> personalization_vertices,
+                       std::optional<double const*> personalization_values,
+                       std::optional<int32_t> personalization_vector_size,
                        double* pageranks,
                        double alpha,
                        double epsilon,
@@ -360,10 +365,10 @@ template void pagerank(raft::handle_t const& handle,
 
 template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int64_t, int64_t, float, true, true> const& graph_view,
-                       float const* precomputed_vertex_out_weight_sums,
-                       int64_t const* personalization_vertices,
-                       float const* personalization_values,
-                       int64_t personalization_vector_size,
+                       std::optional<float const*> precomputed_vertex_out_weight_sums,
+                       std::optional<int64_t const*> personalization_vertices,
+                       std::optional<float const*> personalization_values,
+                       std::optional<int64_t> personalization_vector_size,
                        float* pageranks,
                        float alpha,
                        float epsilon,
@@ -373,10 +378,10 @@ template void pagerank(raft::handle_t const& handle,
 
 template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int64_t, int64_t, double, true, true> const& graph_view,
-                       double const* precomputed_vertex_out_weight_sums,
-                       int64_t const* personalization_vertices,
-                       double const* personalization_values,
-                       int64_t personalization_vector_size,
+                       std::optional<double const*> precomputed_vertex_out_weight_sums,
+                       std::optional<int64_t const*> personalization_vertices,
+                       std::optional<double const*> personalization_values,
+                       std::optional<int64_t> personalization_vector_size,
                        double* pageranks,
                        double alpha,
                        double epsilon,
@@ -386,10 +391,10 @@ template void pagerank(raft::handle_t const& handle,
 
 template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int32_t, float, true, false> const& graph_view,
-                       float const* precomputed_vertex_out_weight_sums,
-                       int32_t const* personalization_vertices,
-                       float const* personalization_values,
-                       int32_t personalization_vector_size,
+                       std::optional<float const*> precomputed_vertex_out_weight_sums,
+                       std::optional<int32_t const*> personalization_vertices,
+                       std::optional<float const*> personalization_values,
+                       std::optional<int32_t> personalization_vector_size,
                        float* pageranks,
                        float alpha,
                        float epsilon,
@@ -399,10 +404,10 @@ template void pagerank(raft::handle_t const& handle,
 
 template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int32_t, double, true, false> const& graph_view,
-                       double const* precomputed_vertex_out_weight_sums,
-                       int32_t const* personalization_vertices,
-                       double const* personalization_values,
-                       int32_t personalization_vector_size,
+                       std::optional<double const*> precomputed_vertex_out_weight_sums,
+                       std::optional<int32_t const*> personalization_vertices,
+                       std::optional<double const*> personalization_values,
+                       std::optional<int32_t> personalization_vector_size,
                        double* pageranks,
                        double alpha,
                        double epsilon,
@@ -412,10 +417,10 @@ template void pagerank(raft::handle_t const& handle,
 
 template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int64_t, float, true, false> const& graph_view,
-                       float const* precomputed_vertex_out_weight_sums,
-                       int32_t const* personalization_vertices,
-                       float const* personalization_values,
-                       int32_t personalization_vector_size,
+                       std::optional<float const*> precomputed_vertex_out_weight_sums,
+                       std::optional<int32_t const*> personalization_vertices,
+                       std::optional<float const*> personalization_values,
+                       std::optional<int32_t> personalization_vector_size,
                        float* pageranks,
                        float alpha,
                        float epsilon,
@@ -425,10 +430,10 @@ template void pagerank(raft::handle_t const& handle,
 
 template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int32_t, int64_t, double, true, false> const& graph_view,
-                       double const* precomputed_vertex_out_weight_sums,
-                       int32_t const* personalization_vertices,
-                       double const* personalization_values,
-                       int32_t personalization_vector_size,
+                       std::optional<double const*> precomputed_vertex_out_weight_sums,
+                       std::optional<int32_t const*> personalization_vertices,
+                       std::optional<double const*> personalization_values,
+                       std::optional<int32_t> personalization_vector_size,
                        double* pageranks,
                        double alpha,
                        double epsilon,
@@ -438,10 +443,10 @@ template void pagerank(raft::handle_t const& handle,
 
 template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int64_t, int64_t, float, true, false> const& graph_view,
-                       float const* precomputed_vertex_out_weight_sums,
-                       int64_t const* personalization_vertices,
-                       float const* personalization_values,
-                       int64_t personalization_vector_size,
+                       std::optional<float const*> precomputed_vertex_out_weight_sums,
+                       std::optional<int64_t const*> personalization_vertices,
+                       std::optional<float const*> personalization_values,
+                       std::optional<int64_t> personalization_vector_size,
                        float* pageranks,
                        float alpha,
                        float epsilon,
@@ -451,10 +456,10 @@ template void pagerank(raft::handle_t const& handle,
 
 template void pagerank(raft::handle_t const& handle,
                        graph_view_t<int64_t, int64_t, double, true, false> const& graph_view,
-                       double const* precomputed_vertex_out_weight_sums,
-                       int64_t const* personalization_vertices,
-                       double const* personalization_values,
-                       int64_t personalization_vector_size,
+                       std::optional<double const*> precomputed_vertex_out_weight_sums,
+                       std::optional<int64_t const*> personalization_vertices,
+                       std::optional<double const*> personalization_values,
+                       std::optional<int64_t> personalization_vector_size,
                        double* pageranks,
                        double alpha,
                        double epsilon,

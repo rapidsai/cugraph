@@ -57,7 +57,7 @@ cutoff and subgraph extraction
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<weight_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract(
   raft::handle_t const &handle,
@@ -176,13 +176,16 @@ extract(
   return cugraph::experimental::extract_induced_subgraphs(
     handle, csr_view, neighbors_offsets.data().get(), neighbors.data().get(), n_subgraphs);
 }
+
 }  // namespace
+
 namespace cugraph {
 namespace experimental {
+
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<weight_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const &handle,
             graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
@@ -211,7 +214,7 @@ extract_ego(raft::handle_t const &handle,
 // SG FP32
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<float>,
+                    std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const &,
             graph_view_t<int32_t, int32_t, float, false, false> const &,
@@ -220,7 +223,7 @@ extract_ego(raft::handle_t const &,
             int32_t);
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<float>,
+                    std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const &,
             graph_view_t<int32_t, int64_t, float, false, false> const &,
@@ -229,7 +232,7 @@ extract_ego(raft::handle_t const &,
             int32_t);
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<float>,
+                    std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const &,
             graph_view_t<int64_t, int64_t, float, false, false> const &,
@@ -240,7 +243,7 @@ extract_ego(raft::handle_t const &,
 // SG FP64
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<double>,
+                    std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const &,
             graph_view_t<int32_t, int32_t, double, false, false> const &,
@@ -249,7 +252,7 @@ extract_ego(raft::handle_t const &,
             int32_t);
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<double>,
+                    std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const &,
             graph_view_t<int32_t, int64_t, double, false, false> const &,
@@ -258,7 +261,7 @@ extract_ego(raft::handle_t const &,
             int32_t);
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<double>,
+                    std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const &,
             graph_view_t<int64_t, int64_t, double, false, false> const &,
