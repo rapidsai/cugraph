@@ -160,8 +160,6 @@ class matrix_partition_device_view_t<vertex_t,
     vertex_t major) const noexcept
   {
     if (dcs_nzd_vertices_) {
-      return thrust::nullopt;
-    } else {
       // we can avoid binary search (and potentially improve performance) if we add an auxiliary
       // array or cuco::static_map (at the expense of additional memory)
       auto it = thrust::lower_bound(
@@ -171,6 +169,8 @@ class matrix_partition_device_view_t<vertex_t,
                                    thrust::distance(*dcs_nzd_vertices_, it))}
                                : thrust::nullopt)
                : thrust::nullopt;
+    } else {
+      return thrust::nullopt;
     }
   }
 
@@ -288,10 +288,12 @@ class matrix_partition_device_view_t<vertex_t,
 
   __host__ __device__ thrust::optional<vertex_t const*> get_dcs_nzd_vertices() const
   {
+    assert(false);
     return thrust::nullopt;
   }
   __host__ __device__ thrust::optional<vertex_t> get_dcs_nzd_vertex_count() const
   {
+    assert(false);
     return thrust::nullopt;
   }
 

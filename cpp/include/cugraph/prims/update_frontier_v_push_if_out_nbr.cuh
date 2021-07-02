@@ -670,16 +670,49 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
                    static_cast<int>(i),
                    handle.get_stream());
 
-      ret += thrust::transform_reduce(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-        frontier_vertices.begin(),
-        frontier_vertices.end(),
-        [matrix_partition] __device__(auto major) {
-          auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
-          return matrix_partition.get_local_degree(major_offset);
-        },
-        edge_t{0},
-        thrust::plus<edge_t>());
+      auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+      auto use_dcs =
+        segment_offsets
+          ? ((*segment_offsets).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
+          : false;
+
+      ret +=
+        use_dcs
+          ? thrust::transform_reduce(
+              rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+              frontier_vertices.begin(),
+              frontier_vertices.end(),
+              [matrix_partition,
+               major_hypersparse_first =
+                 matrix_partition.get_major_first() +
+                 (*segment_offsets)
+                   [detail::num_sparse_segments_per_vertex_partition]] __device__(auto major) {
+                if (major < major_hypersparse_first) {
+                  auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
+                  return matrix_partition.get_local_degree(major_offset);
+                } else {
+                  auto major_hypersparse_idx =
+                    matrix_partition.get_major_hypersparse_idx_from_major_nocheck(major);
+                  return major_hypersparse_idx
+                           ? matrix_partition.get_local_degree(
+                               matrix_partition.get_major_offset_from_major_nocheck(
+                                 major_hypersparse_first) +
+                               *major_hypersparse_idx)
+                           : edge_t{0};
+                }
+              },
+              edge_t{0},
+              thrust::plus<edge_t>())
+          : thrust::transform_reduce(
+              rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+              frontier_vertices.begin(),
+              frontier_vertices.end(),
+              [matrix_partition] __device__(auto major) {
+                auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
+                return matrix_partition.get_local_degree(major_offset);
+              },
+              edge_t{0},
+              thrust::plus<edge_t>());
     } else {
       assert(i == 0);
       ret += thrust::transform_reduce(
@@ -910,8 +943,10 @@ void update_frontier_v_push_if_out_nbr(
                   matrix_partition_frontier_row_first,
                   matrix_partition_frontier_row_last,
                   [matrix_partition,
-                   major_hypersparse_first = (*segment_offsets)
-                     [detail::num_sparse_segments_per_vertex_partition]] __device__(auto row) {
+                   major_hypersparse_first =
+                     matrix_partition.get_major_first() +
+                     (*segment_offsets)
+                       [detail::num_sparse_segments_per_vertex_partition]] __device__(auto row) {
                     if (row < major_hypersparse_first) {
                       auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
                       return matrix_partition.get_local_degree(row_offset);
@@ -1045,7 +1080,7 @@ void update_frontier_v_push_if_out_nbr(
         detail::for_all_frontier_row_for_all_nbr_hypersparse<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
-            (*segment_offsets)[3],
+            matrix_partition.get_major_first() + (*segment_offsets)[3],
             get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[2],
             get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer) + h_offsets[3],
             adj_matrix_row_value_input_first + row_value_input_offset,
