@@ -290,13 +290,10 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
     } else {
       row = thrust::get<0>(key);
     }
-    // we can avoid binary search (and potentially improve performance) if we add an auxiliary array
-    // or cuco::static_map (at the expense of additional memory)
-    auto it = thrust::lower_bound(
-      thrust::seq, dcs_nzd_vertices, dcs_nzd_vertices + dcs_nzd_vertex_count, row);
-    if ((it != dcs_nzd_vertices + dcs_nzd_vertex_count) && (*it == row)) {
+    auto row_hypersparse_idx = matrix_partition.get_major_hypersparse_idx_from_major_nocheck(row);
+    if (row_hypersparse_idx) {
       auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-      auto row_idx    = row_start_offset + thrust::distance(dcs_nzd_vertices, it);
+      auto row_idx    = row_start_offset + *row_hypersparse_idx;
       vertex_t const* indices{nullptr};
       thrust::optional<weight_t const*> weights{nullptr};
       edge_t local_out_degree{};
@@ -900,19 +897,47 @@ void update_frontier_v_push_if_out_nbr(
       matrix_partition_frontier_row_last = thrust::get<0>(
         get_dataframe_buffer_end<key_t>(matrix_partition_frontier_key_buffer).get_iterator_tuple());
     }
+
+    auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+    auto use_dcs =
+      segment_offsets
+        ? ((*segment_offsets).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
+        : false;
+
     auto max_pushes =
-      thrust::distance(matrix_partition_frontier_row_first, matrix_partition_frontier_row_last) > 0
-        ? thrust::transform_reduce(
-            rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-            matrix_partition_frontier_row_first,
-            matrix_partition_frontier_row_last,
-            [matrix_partition] __device__(auto row) {
-              auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-              return matrix_partition.get_local_degree(row_offset);
-            },
-            edge_t{0},
-            thrust::plus<edge_t>())
-        : edge_t{0};
+      use_dcs ? thrust::transform_reduce(
+                  rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                  matrix_partition_frontier_row_first,
+                  matrix_partition_frontier_row_last,
+                  [matrix_partition,
+                   major_hypersparse_first = (*segment_offsets)
+                     [detail::num_sparse_segments_per_vertex_partition]] __device__(auto row) {
+                    if (row < major_hypersparse_first) {
+                      auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+                      return matrix_partition.get_local_degree(row_offset);
+                    } else {
+                      auto row_hypersparse_idx =
+                        matrix_partition.get_major_hypersparse_idx_from_major_nocheck(row);
+                      return row_hypersparse_idx
+                               ? matrix_partition.get_local_degree(
+                                   matrix_partition.get_major_offset_from_major_nocheck(
+                                     major_hypersparse_first) +
+                                   *row_hypersparse_idx)
+                               : edge_t{0};
+                    }
+                  },
+                  edge_t{0},
+                  thrust::plus<edge_t>())
+              : thrust::transform_reduce(
+                  rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                  matrix_partition_frontier_row_first,
+                  matrix_partition_frontier_row_last,
+                  [matrix_partition] __device__(auto row) {
+                    auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+                    return matrix_partition.get_local_degree(row_offset);
+                  },
+                  edge_t{0},
+                  thrust::plus<edge_t>());
 
     // FIXME: This is highly pessimistic for single GPU (and multi-GPU as well if we maintain
     // additional per column data for filtering in e_op). If we can pause & resume execution if
@@ -937,11 +962,8 @@ void update_frontier_v_push_if_out_nbr(
     auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
                                     ? vertex_t{0}
                                     : matrix_partition.get_major_value_start_offset();
-    auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
     if (segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
-      auto use_dcs =
-        (*segment_offsets).size() > (detail::num_sparse_segments_per_vertex_partition + 1);
       std::vector<vertex_t> h_thresholds(detail::num_sparse_segments_per_vertex_partition +
                                          (use_dcs ? 1 : 0) - 1);
       h_thresholds[0] = matrix_partition.get_major_first() + (*segment_offsets)[1];
@@ -1015,7 +1037,7 @@ void update_frontier_v_push_if_out_nbr(
             buffer_idx.data(),
             e_op);
       }
-      if ((h_offsets.size() > 3) && (h_offsets[3] - h_offsets[2] > 0)) {
+      if (matrix_partition.get_dcs_nzd_vertex_count() && (h_offsets[3] - h_offsets[2] > 0)) {
         raft::grid_1d_thread_t update_grid(
           h_offsets[3] - h_offsets[2],
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,

@@ -69,7 +69,7 @@ std::vector<edge_t> update_adj_matrix_partition_edge_counts(
                         (use_dcs ? ((*adj_matrix_partition_segment_offsets)
                                       [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
                                        detail::num_sparse_segments_per_vertex_partition] -
-                                    major_first + (*adj_matrix_partition_dcs_nzd_vertex_counts)[i])
+                                    (*adj_matrix_partition_dcs_nzd_vertex_counts)[i])
                                  : (major_last - major_first)),
                       1,
                       stream);

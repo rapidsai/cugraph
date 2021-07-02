@@ -68,7 +68,7 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
     auto major =
-      matrix_partition.get_major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx));
+      *(matrix_partition.get_major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
     auto major_idx =
       major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
     vertex_t const* indices{nullptr};
@@ -465,8 +465,9 @@ T transform_reduce_e(raft::handle_t const& handle,
             get_dataframe_buffer_begin<T>(result_buffer),
             e_op);
       }
-      if (((*segment_offsets).size() > 4) && ((*segment_offsets)[4] - (*segment_offsets)[3] > 0)) {
-        raft::grid_1d_thread_t update_grid((*segment_offsets)[4] - (*segment_offsets)[3],
+      if (matrix_partition.get_dcs_nzd_vertex_count() &&
+          (*(matrix_partition.get_dcs_nzd_vertex_count()) > 0)) {
+        raft::grid_1d_thread_t update_grid(*(matrix_partition.get_dcs_nzd_vertex_count()),
                                            detail::transform_reduce_e_for_all_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
         detail::for_all_major_for_all_nbr_hypersparse<GraphViewType>

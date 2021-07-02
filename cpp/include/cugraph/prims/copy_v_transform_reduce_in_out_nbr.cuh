@@ -64,10 +64,9 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
   EdgeOp e_op,
   T init /* relevent only if update_major == true */)
 {
-  using vertex_t      = typename GraphViewType::vertex_type;
-  using edge_t        = typename GraphViewType::edge_type;
-  using weight_t      = typename GraphViewType::weight_type;
-  using e_op_result_t = T;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = typename GraphViewType::weight_type;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   auto major_start_offset =
@@ -78,7 +77,7 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
 
   while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
     auto major =
-      matrix_partition.get_major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx));
+      *(matrix_partition.get_major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
     auto major_idx =
       major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
     vertex_t const* indices{nullptr};
@@ -162,10 +161,9 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   EdgeOp e_op,
   T init /* relevent only if update_major == true */)
 {
-  using vertex_t      = typename GraphViewType::vertex_type;
-  using edge_t        = typename GraphViewType::edge_type;
-  using weight_t      = typename GraphViewType::weight_type;
-  using e_op_result_t = T;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = typename GraphViewType::weight_type;
 
   auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
@@ -541,19 +539,29 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
             e_op,
             major_init);
       }
-      if (((*segment_offsets).size() > 4) && ((*segment_offsets)[4] - (*segment_offsets)[3] > 0)) {
-        raft::grid_1d_thread_t update_grid((*segment_offsets)[4] - (*segment_offsets)[3],
-                                           detail::copy_v_transform_reduce_nbr_for_all_block_size,
-                                           handle.get_device_properties().maxGridSize[0]);
-        detail::for_all_major_for_all_nbr_hypersparse<update_major, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-            matrix_partition,
-            (*segment_offsets)[3],
-            adj_matrix_row_value_input_first + row_value_input_offset,
-            adj_matrix_col_value_input_first + col_value_input_offset,
-            output_buffer_first + (update_major ? (*segment_offsets)[2] : vertex_t{0}),
-            e_op,
-            major_init);
+      if (matrix_partition.get_dcs_nzd_vertex_count()) {
+        if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the
+                                       // hypersparse segment in
+                                       // for_all_major_for_all_nbr_hypersparse
+          thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                       output_buffer_first + (*segment_offsets)[3],
+                       output_buffer_first + (*segment_offsets)[4],
+                       major_init);
+        }
+        if (*(matrix_partition.get_dcs_nzd_vertex_count()) > 0) {
+          raft::grid_1d_thread_t update_grid(*(matrix_partition.get_dcs_nzd_vertex_count()),
+                                             detail::copy_v_transform_reduce_nbr_for_all_block_size,
+                                             handle.get_device_properties().maxGridSize[0]);
+          detail::for_all_major_for_all_nbr_hypersparse<update_major, GraphViewType>
+            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+              matrix_partition,
+              (*segment_offsets)[3],
+              adj_matrix_row_value_input_first + row_value_input_offset,
+              adj_matrix_col_value_input_first + col_value_input_offset,
+              output_buffer_first + (update_major ? (*segment_offsets)[3] : vertex_t{0}),
+              e_op,
+              major_init);
+        }
       }
     } else {
       if (matrix_partition.get_major_size() > 0) {

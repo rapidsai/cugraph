@@ -19,6 +19,8 @@
 #include <cugraph/experimental/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <thrust/binary_search.h>
+#include <thrust/distance.h>
 #include <thrust/optional.h>
 #include <thrust/tuple.h>
 
@@ -154,10 +156,31 @@ class matrix_partition_device_view_t<vertex_t,
   }
 
   // major_hypersparse_idx: index within the hypersparse segment
-  __host__ __device__ vertex_t
-  get_major_from_major_hypersparse_idx_nocheck(vertex_t major_hypersparse_idx) const noexcept
+  __host__ __device__ thrust::optional<vertex_t> get_major_hypersparse_idx_from_major_nocheck(
+    vertex_t major) const noexcept
   {
-    return (*dcs_nzd_vertices_)[major_hypersparse_idx];
+    if (dcs_nzd_vertices_) {
+      return thrust::nullopt;
+    } else {
+      // we can avoid binary search (and potentially improve performance) if we add an auxiliary
+      // array or cuco::static_map (at the expense of additional memory)
+      auto it = thrust::lower_bound(
+        thrust::seq, *dcs_nzd_vertices_, *dcs_nzd_vertices_ + *dcs_nzd_vertex_count_, major);
+      return it != *dcs_nzd_vertices_ + *dcs_nzd_vertex_count_
+               ? (*it == major ? thrust::optional<vertex_t>{static_cast<vertex_t>(
+                                   thrust::distance(*dcs_nzd_vertices_, it))}
+                               : thrust::nullopt)
+               : thrust::nullopt;
+    }
+  }
+
+  // major_hypersparse_idx: index within the hypersparse segment
+  __host__ __device__ thrust::optional<vertex_t> get_major_from_major_hypersparse_idx_nocheck(
+    vertex_t major_hypersparse_idx) const noexcept
+  {
+    return dcs_nzd_vertices_
+             ? thrust::optional<vertex_t>{(*dcs_nzd_vertices_)[major_hypersparse_idx]}
+             : thrust::nullopt;
   }
 
   __host__ __device__ vertex_t get_minor_from_minor_offset_nocheck(vertex_t minor_offset) const
@@ -242,11 +265,19 @@ class matrix_partition_device_view_t<vertex_t,
   }
 
   // major_hypersparse_idx: index within the hypersparse segment
-  __host__ __device__ vertex_t
-  get_major_from_major_hypersparse_idx_nocheck(vertex_t major_hypersparse_idx) const noexcept
+  __host__ __device__ thrust::optional<vertex_t> get_major_hypersparse_idx_from_major_nocheck(
+    vertex_t major) const noexcept
   {
     assert(false);
-    return invalid_vertex_id<vertex_t>::value;
+    return thrust::nullopt;
+  }
+
+  // major_hypersparse_idx: index within the hypersparse segment
+  __host__ __device__ thrust::optional<vertex_t> get_major_from_major_hypersparse_idx_nocheck(
+    vertex_t major_hypersparse_idx) const noexcept
+  {
+    assert(false);
+    return thrust::nullopt;
   }
 
   __host__ __device__ vertex_t get_minor_from_minor_offset_nocheck(vertex_t minor_offset) const
