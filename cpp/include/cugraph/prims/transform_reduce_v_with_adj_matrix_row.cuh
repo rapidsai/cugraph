@@ -70,6 +70,10 @@ T transform_reduce_v_with_adj_matrix_row(
   VertexOp v_op,
   T init)
 {
+  using vertex_t = GraphViewtype::vertex_type;
+  using edge_t   = GraphViewtype::edge_type;
+  using weight_t = GraphViewtype::weight_type;
+
   T ret{};
 
   auto vertex_first = graph_view.get_local_vertex_first();
@@ -82,7 +86,9 @@ T transform_reduce_v_with_adj_matrix_row(
     auto range_last  = std::min(vertex_last, row_last);
 
     if (range_last > range_first) {
-      matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+      auto matrix_partition =
+        matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+          graph_view.get_matrix_partition_view(i));
       auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
                                       ? 0
                                       : matrix_partition.get_major_value_start_offset();

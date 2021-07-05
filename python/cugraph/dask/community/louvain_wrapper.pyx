@@ -17,6 +17,7 @@
 # cython: language_level = 3
 
 from libc.stdint cimport uintptr_t
+from libcpp.vector cimport vector
 
 from cugraph.dask.community cimport louvain as c_louvain
 from cugraph.structure.graph_utilities cimport *
@@ -37,7 +38,7 @@ def louvain(input_df,
             vertex_partition_offsets,
             rank,
             handle,
-            sorted_by_degree,
+            segment_offsets,
             max_level,
             resolution):
     """
@@ -67,7 +68,7 @@ def louvain(input_df,
     if num_global_edges > (2**31 - 1):
         edge_t = np.dtype("int64")
     else:
-        edge_t = np.dtype("int32")
+        edge_t = vertex_t
     weight_t = weights.dtype
 
     # COO
@@ -82,6 +83,16 @@ def louvain(input_df,
 
     num_local_verts = vertex_partition_offsets_host[rank+1] - vertex_partition_offsets_host[rank]
 
+    cdef vector[int] v_segment_offsets_32
+    cdef vector[long] v_segment_offsets_64
+    cdef uintptr_t c_segment_offsets
+    if (vertex_t == np.dtype("int32")):
+        v_segment_offsets_32 = segment_offsets
+        c_segment_offsets = <uintptr_t>v_segment_offsets_32.data()
+    else:
+        v_segment_offsets_64 = segment_offsets
+        c_segment_offsets = <uintptr_t>v_segment_offsets_64.data()
+
     cdef graph_container_t graph_container
 
     # FIXME: The excessive casting for the enum arg is needed to make cython
@@ -91,12 +102,13 @@ def louvain(input_df,
                              handle_[0],
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
                              <void*>c_vertex_partition_offsets,
+                             <void*>c_segment_offsets,
+                             len(segment_offsets) - 1,
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                              num_local_edges,
                              num_global_verts, num_global_edges,
-                             sorted_by_degree,
                              True,
                              False,
                              False, True)  # store_transposed, multi_gpu

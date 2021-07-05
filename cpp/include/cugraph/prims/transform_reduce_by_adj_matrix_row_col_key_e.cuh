@@ -17,7 +17,7 @@
 
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/matrix_partition_device.cuh>
+#include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/prims/edge_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -43,7 +43,10 @@ template <bool adj_matrix_row_key,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_low_degree(
-  matrix_partition_device_t<GraphViewType> matrix_partition,
+  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+                                 typename GraphViewType::edge_type,
+                                 typename GraphViewType::weight_type,
+                                 GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
   AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
@@ -64,7 +67,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    weight_t const* weights{nullptr};
+    thrust::optional<weight_t const*> weights{nullptr};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
@@ -78,7 +81,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
                            indices,
                            weights] __device__(auto i) {
         auto minor        = indices[i];
-        auto weight       = weights != nullptr ? weights[i] : weight_t{1.0};
+        auto weight       = weights ? (*weights)[i] : weight_t{1.0};
         auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
         auto row          = GraphViewType::is_adj_matrix_transposed
                               ? minor
@@ -183,7 +186,9 @@ transform_reduce_by_adj_matrix_row_col_key_e(
   rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
   auto value_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+    auto matrix_partition =
+      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+        graph_view.get_matrix_partition_view(i));
 
     int comm_root_rank = 0;
     if (GraphViewType::is_multi_gpu) {
@@ -224,7 +229,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
       // FIXME: This is highly inefficient for graphs with high-degree vertices. If we renumber
       // vertices to insure that rows within a partition are sorted by their out-degree in
       // decreasing order, we will apply this kernel only to low out-degree vertices.
-      detail::for_all_major_for_all_nbr_low_degree<adj_matrix_row_key>
+      detail::for_all_major_for_all_nbr_low_degree<adj_matrix_row_key, GraphViewType>
         <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
           matrix_partition,
           graph_view.get_vertex_partition_first(comm_root_rank),

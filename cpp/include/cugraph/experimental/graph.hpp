@@ -22,6 +22,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -33,7 +34,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 struct edgelist_t {
   vertex_t const* p_src_vertices{nullptr};
   vertex_t const* p_dst_vertices{nullptr};
-  weight_t const* p_edge_weights{nullptr};
+  std::optional<weight_t const*> p_edge_weights{std::nullopt};
   edge_t number_of_edges{0};
 };
 
@@ -69,18 +70,36 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           vertex_t number_of_vertices,
           edge_t number_of_edges,
           graph_properties_t properties,
-          bool sorted_by_global_degree_within_vertex_partition,
+          std::optional<std::vector<vertex_t>> const& segment_offsets,
           bool do_expensive_check = false);
+
+  bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
 
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
   {
     std::vector<edge_t const*> offsets(adj_matrix_partition_offsets_.size(), nullptr);
     std::vector<vertex_t const*> indices(adj_matrix_partition_indices_.size(), nullptr);
-    std::vector<weight_t const*> weights(adj_matrix_partition_weights_.size(), nullptr);
+    auto weights          = adj_matrix_partition_weights_
+                              ? std::make_optional<std::vector<weight_t const*>>(
+                         (*adj_matrix_partition_weights_).size(), nullptr)
+                              : std::nullopt;
+    auto dcs_nzd_vertices = adj_matrix_partition_dcs_nzd_vertices_
+                              ? std::make_optional<std::vector<vertex_t const*>>(
+                                  (*adj_matrix_partition_dcs_nzd_vertices_).size(), nullptr)
+                              : std::nullopt;
+    auto dcs_nzd_vertex_counts =
+      adj_matrix_partition_dcs_nzd_vertex_counts_
+        ? std::make_optional<std::vector<vertex_t>>(
+            (*adj_matrix_partition_dcs_nzd_vertex_counts_).size(), vertex_t{0})
+        : std::nullopt;
     for (size_t i = 0; i < offsets.size(); ++i) {
       offsets[i] = adj_matrix_partition_offsets_[i].data();
       indices[i] = adj_matrix_partition_indices_[i].data();
-      if (weights.size() > 0) { weights[i] = adj_matrix_partition_weights_[i].data(); }
+      if (weights) { (*weights)[i] = (*adj_matrix_partition_weights_)[i].data(); }
+      if (dcs_nzd_vertices) {
+        (*dcs_nzd_vertices)[i]      = (*adj_matrix_partition_dcs_nzd_vertices_)[i].data();
+        (*dcs_nzd_vertex_counts)[i] = (*adj_matrix_partition_dcs_nzd_vertex_counts_)[i];
+      }
     }
 
     return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
@@ -88,27 +107,31 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       offsets,
       indices,
       weights,
-      adj_matrix_partition_segment_offsets_,
+      dcs_nzd_vertices,
+      dcs_nzd_vertex_counts,
       partition_,
       this->get_number_of_vertices(),
       this->get_number_of_edges(),
       this->get_graph_properties(),
-      adj_matrix_partition_segment_offsets_.size() > 0,
+      adj_matrix_partition_segment_offsets_,
       false);
   }
 
  private:
   std::vector<rmm::device_uvector<edge_t>> adj_matrix_partition_offsets_{};
   std::vector<rmm::device_uvector<vertex_t>> adj_matrix_partition_indices_{};
-  std::vector<rmm::device_uvector<weight_t>> adj_matrix_partition_weights_{};
+  std::optional<std::vector<rmm::device_uvector<weight_t>>> adj_matrix_partition_weights_{
+    std::nullopt};
 
+  // nzd: nonzero (local) degree, relevant only if segment_offsets.size() > 0
+  std::optional<std::vector<rmm::device_uvector<vertex_t>>> adj_matrix_partition_dcs_nzd_vertices_{
+    std::nullopt};
+  std::optional<std::vector<vertex_t>> adj_matrix_partition_dcs_nzd_vertex_counts_{std::nullopt};
   partition_t<vertex_t> partition_{};
 
-  std::vector<vertex_t>
-    adj_matrix_partition_segment_offsets_{};  // segment offsets within the vertex partition based
-                                              // on vertex degree, relevant only if
-                                              // sorted_by_global_degree_within_vertex_partition is
-                                              // true
+  // segment offsets within the vertex partition based on vertex degree, relevant only if
+  // segment_offsets.size() > 0
+  std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets_{std::nullopt};
 };
 
 // single-GPU version
@@ -129,17 +152,16 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   graph_t(raft::handle_t const& handle)
     : detail::graph_base_t<vertex_t, edge_t, weight_t>(),
       offsets_(0, handle.get_stream()),
-      indices_(0, handle.get_stream()),
-      weights_(0, handle.get_stream()){};
+      indices_(0, handle.get_stream()){};
 
   graph_t(raft::handle_t const& handle,
           edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
           vertex_t number_of_vertices,
           graph_properties_t properties,
-          bool sorted_by_degree,
+          std::optional<std::vector<vertex_t>> const& segment_offsets,
           bool do_expensive_check = false);
 
-  vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
+  bool is_weighted() const { return weights_.has_value(); }
 
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
   {
@@ -147,12 +169,11 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       *(this->get_handle_ptr()),
       offsets_.data(),
       indices_.data(),
-      weights_.data(),
-      segment_offsets_,
+      weights_ ? std::optional<weight_t const*>{(*weights_).data()} : std::nullopt,
       this->get_number_of_vertices(),
       this->get_number_of_edges(),
       this->get_graph_properties(),
-      segment_offsets_.size() > 0,
+      segment_offsets_,
       false);
   }
 
@@ -167,8 +188,8 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           graph_properties_t properties,
           rmm::device_uvector<edge_t>&& offsets,
           rmm::device_uvector<vertex_t>&& indices,
-          rmm::device_uvector<weight_t>&& weights,
-          std::vector<vertex_t>&& segment_offsets)
+          std::optional<rmm::device_uvector<weight_t>>&& weights,
+          std::optional<std::vector<vertex_t>>&& segment_offsets)
     : detail::graph_base_t<vertex_t, edge_t, weight_t>(
         handle, number_of_vertices, number_of_edges, properties),
       offsets_(std::move(offsets)),
@@ -180,9 +201,10 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   rmm::device_uvector<edge_t> offsets_;
   rmm::device_uvector<vertex_t> indices_;
-  rmm::device_uvector<weight_t> weights_;
-  std::vector<vertex_t> segment_offsets_{};  // segment offsets based on vertex degree, relevant
-                                             // only if sorted_by_global_degree is true
+  std::optional<rmm::device_uvector<weight_t>> weights_{std::nullopt};
+
+  // segment offsets based on vertex degree, relevant only if sorted_by_global_degree is true
+  std::optional<std::vector<vertex_t>> segment_offsets_{};
 };
 
 template <typename T, typename Enable = void>

@@ -105,14 +105,12 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
 
     if (rank == 0) {
       // Create initial SG graph, renumbered according to the MNMG renumber map
-      rmm::device_uvector<vertex_t> d_edgelist_rows(0, handle.get_stream());
-      rmm::device_uvector<vertex_t> d_edgelist_cols(0, handle.get_stream());
-      rmm::device_uvector<weight_t> d_edgelist_weights(0, handle.get_stream());
-      vertex_t number_of_vertices{};
-      bool is_symmetric{};
 
-      std::tie(
-        d_edgelist_rows, d_edgelist_cols, d_edgelist_weights, number_of_vertices, is_symmetric) =
+      auto [d_edgelist_rows,
+            d_edgelist_cols,
+            d_edgelist_weights,
+            number_of_vertices,
+            is_symmetric] =
         cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
           handle, graph_filename, true);
 
@@ -137,7 +135,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
           std::move(d_edgelist_rows),
           std::move(d_edgelist_cols),
           std::move(d_edgelist_weights),
-          cugraph::experimental::graph_properties_t{is_symmetric, false, true},
+          cugraph::experimental::graph_properties_t{is_symmetric, false},
           false);
     }
 
@@ -193,11 +191,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
 
     cudaStream_t stream = handle.get_stream();
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, true> mg_graph(handle);
-
-    rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
-
-    std::tie(mg_graph, d_renumber_map_labels) =
+    auto [mg_graph, d_renumber_map_labels] =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, true>(
         handle, param.graph_file_full_path, true, true);
 
@@ -212,7 +206,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
     SCOPED_TRACE("compare modularity input: " + param.graph_file_full_path);
 
     auto d_renumber_map_gathered_v = cugraph::test::device_gatherv(
-      handle, d_renumber_map_labels.data(), d_renumber_map_labels.size());
+      handle, (*d_renumber_map_labels).data(), (*d_renumber_map_labels).size());
 
     compare_sg_results<vertex_t, edge_t, weight_t>(handle,
                                                    param.graph_file_full_path,

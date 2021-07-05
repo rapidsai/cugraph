@@ -55,13 +55,19 @@ void fill_start(raft::handle_t const& handle,
                     [num_vertices] __device__(auto indx) { return indx % num_vertices; });
 }
 
+namespace impl_details = cugraph::experimental::detail;
+
+enum class traversal_id_t : int { HORIZONTAL = 0, VERTICAL };
+
 /**
  * @internal
- * @brief Calls the random_walks algorithm and displays the time metrics (total
- * time for all requested paths, average time for each path).
+ * @brief Calls the random_walks algorithm with specified traversal strategy and displays the time
+ * metrics (total time for all requested paths, average time for each path).
  */
 template <typename graph_vt>
-void output_random_walks_time(graph_vt const& graph_view, typename graph_vt::edge_type num_paths)
+void output_random_walks_time(graph_vt const& graph_view,
+                              typename graph_vt::edge_type num_paths,
+                              traversal_id_t trv_id)
 {
   using vertex_t = typename graph_vt::vertex_type;
   using edge_t   = typename graph_vt::edge_type;
@@ -75,19 +81,31 @@ void output_random_walks_time(graph_vt const& graph_view, typename graph_vt::edg
 
   // 0-copy const device view:
   //
-  cugraph::experimental::detail::device_const_vector_view<vertex_t, edge_t> d_start_view{
-    d_start.data(), num_paths};
+  impl_details::device_const_vector_view<vertex_t, edge_t> d_start_view{d_start.data(), num_paths};
 
   edge_t max_depth{10};
 
   HighResTimer hr_timer;
-  std::string label("RandomWalks");
-  hr_timer.start(label);
-  cudaProfilerStart();
-  auto ret_tuple =
-    cugraph::experimental::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
-  cudaProfilerStop();
-  hr_timer.stop();
+  std::string label{};
+
+  if (trv_id == traversal_id_t::HORIZONTAL) {
+    label = std::string("RandomWalks; Horizontal traversal");
+    hr_timer.start(label);
+    cudaProfilerStart();
+    auto ret_tuple =
+      impl_details::random_walks_impl<graph_vt, impl_details::horizontal_traversal_t>(
+        handle, graph_view, d_start_view, max_depth);
+    cudaProfilerStop();
+    hr_timer.stop();
+  } else {
+    label = std::string("RandomWalks; Vertical traversal");
+    hr_timer.start(label);
+    cudaProfilerStart();
+    auto ret_tuple = impl_details::random_walks_impl<graph_vt, impl_details::vertical_traversal_t>(
+      handle, graph_view, d_start_view, max_depth);
+    cudaProfilerStop();
+    hr_timer.stop();
+  }
   try {
     auto runtime = hr_timer.get_average_runtime(label);
 
@@ -146,9 +164,10 @@ struct RandomWalks_Usecase {
  *
  * @param[in] configuration RandomWalks_Usecase instance containing the input
  * file to read for constructing the graph_t.
+ * @param[in] trv_id traversal strategy.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-void run(RandomWalks_Usecase const& configuration)
+void run(RandomWalks_Usecase const& configuration, traversal_id_t trv_id)
 {
   raft::handle_t handle{};
 
@@ -163,7 +182,7 @@ void run(RandomWalks_Usecase const& configuration)
   // configuration input instead of hardcoding here.
   std::vector<edge_t> v_np{1, 10, 100};
   for (auto&& num_paths : v_np) {
-    output_random_walks_time(graph_view, num_paths);
+    output_random_walks_time(graph_view, num_paths, trv_id);
   }
 }
 
@@ -208,7 +227,12 @@ int main(int argc, char** argv)
 
   // Run benchmarks
   std::cout << "Using dataset: " << dataset << std::endl;
-  run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true));
+
+  std::cout << "Horizontal traversal strategy:\n";
+  run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true), traversal_id_t::HORIZONTAL);
+
+  std::cout << "Vertical traversal strategy:\n";
+  run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true), traversal_id_t::VERTICAL);
 
   // FIXME: consider returning non-zero for situations that warrant it (eg. if
   // the algo ran but the results are invalid, if a benchmark threshold is

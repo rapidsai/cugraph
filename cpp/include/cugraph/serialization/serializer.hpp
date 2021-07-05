@@ -76,6 +76,7 @@ class serializer_t {
       : num_vertices_(graph.get_number_of_vertices()),
         num_edges_(graph.get_number_of_edges()),
         properties_(graph.get_graph_properties()),
+        is_weighted_(graph.is_weighted()),
         segment_offsets_(graph.view().get_local_adj_matrix_partition_segment_offsets(0))
     {
     }
@@ -83,10 +84,12 @@ class serializer_t {
     graph_meta_t(size_t num_vertices,
                  size_t num_edges,
                  graph_properties_t const& properties,
-                 std::vector<vertex_t> const& segment_offsets)
+                 bool is_weighted,
+                 std::optional<std::vector<vertex_t>> const& segment_offsets)
       : num_vertices_(num_vertices),
         num_edges_(num_edges),
         properties_(properties),
+        is_weighted_(is_weighted),
         segment_offsets_(segment_offsets)
     {
     }
@@ -94,11 +97,13 @@ class serializer_t {
     size_t num_vertices_;
     size_t num_edges_;
     graph_properties_t properties_{};
-    std::vector<vertex_t> segment_offsets_{};
+    bool is_weighted_{};
+    std::optional<std::vector<vertex_t>> segment_offsets_{};
 
     size_t get_device_sz_bytes(void) const
     {
-      return 2 * sizeof(size_t) + segment_offsets_.size() * sizeof(vertex_t) +
+      return 2 * sizeof(size_t) +
+             (segment_offsets_ ? (*segment_offsets_).size() : size_t{0}) * sizeof(vertex_t) +
              3 * sizeof(bool_ser_t);
     }
   };
@@ -151,8 +156,7 @@ class serializer_t {
       size_t num_vertices = graph_meta.num_vertices_;
       size_t num_edges    = graph_meta.num_edges_;
 
-      size_t weight_storage_sz =
-        graph_meta.properties_.is_weighted ? num_edges * sizeof(weight_t) : 0;
+      size_t weight_storage_sz = graph_meta.is_weighted_ ? num_edges * sizeof(weight_t) : 0;
 
       size_t device_ser_sz =
         (num_vertices + 1) * sizeof(edge_t) + num_edges * sizeof(vertex_t) + weight_storage_sz;

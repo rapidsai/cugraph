@@ -24,7 +24,6 @@
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/vertex_partition_device.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
@@ -41,6 +40,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <numeric>
 #include <random>
 #include <type_traits>
 #include <vector>
@@ -60,7 +60,8 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            typename GraphViewType::vertex_type,
            typename GraphViewType::edge_type>
 accumulate_new_roots(raft::handle_t const& handle,
-                     vertex_partition_device_t<GraphViewType> vertex_partition,
+                     vertex_partition_device_view_t<typename GraphViewType::vertex_type,
+                                                    GraphViewType::is_multi_gpu> vertex_partition,
                      typename GraphViewType::vertex_type const* components,
                      typename GraphViewType::edge_type const* degrees,
                      typename GraphViewType::vertex_type const* candidate_first,
@@ -170,17 +171,13 @@ template <typename GraphViewType>
 struct v_op_t {
   using vertex_type = typename GraphViewType::vertex_type;
 
-  vertex_partition_device_t<GraphViewType> vertex_partition{};
+  vertex_partition_device_view_t<typename GraphViewType::vertex_type, GraphViewType::is_multi_gpu>
+    vertex_partition{};
   vertex_type* level_components{};
   decltype(thrust::make_zip_iterator(thrust::make_tuple(
-    static_cast<vertex_type*>(nullptr), static_cast<vertex_type*>(nullptr)))) edge_buffer_first{};
-  // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this requires
-  // placing the atomic barrier on managed memory and this adds additional complication.
-  size_t* num_edge_inserts{};
   size_t next_bucket_idx{};
   size_t conflict_bucket_idx{};  // relevant only if GraphViewType::is_multi_gpu is true
 
-  template <bool multi_gpu = GraphViewType::is_multi_gpu>
   __device__ std::enable_if_t<multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
   operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int v_val /* dummy */) const
   {
@@ -267,7 +264,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
   std::vector<vertex_t> level_local_vertex_first_vectors{};
   while (true) {
     auto level_graph_view = num_levels == 0 ? push_graph_view : level_graph.view();
-    vertex_partition_device_t<GraphViewType> vertex_partition(level_graph_view);
+    auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+      level_graph_view.get_vertex_partition_view());
     level_component_vectors.push_back(rmm::device_uvector<vertex_t>(
       num_levels == 0 ? vertex_t{0} : level_graph_view.get_number_of_local_vertices(),
       handle.get_stream_view()));
@@ -473,15 +471,15 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     while (true) {
       if ((edge_count < degree_sum_threshold) &&
           (next_candidate_offset < static_cast<vertex_t>(new_root_candidates.size()))) {
-        auto [new_roots, num_scanned, degree_sum] =
-          accumulate_new_roots(handle,
-                               vertex_partition,
-                               level_components,
-                               degrees.data(),
-                               new_root_candidates.data() + next_candidate_offset,
-                               new_root_candidates.data() + new_root_candidates.size(),
-                               iter == 0 ? init_max_new_roots : max_new_roots,
-                               degree_sum_threshold - edge_count);
+        auto [new_roots, num_scanned, degree_sum] = accumulate_new_roots<GraphViewType>(
+          handle,
+          vertex_partition,
+          level_components,
+          degrees.data(),
+          new_root_candidates.data() + next_candidate_offset,
+          new_root_candidates.data() + new_root_candidates.size(),
+          iter == 0 ? init_max_new_roots : max_new_roots,
+          degree_sum_threshold - edge_count);
         next_candidate_offset += num_scanned;
         edge_count += degree_sum;
 
@@ -712,19 +710,20 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                                                           handle.get_stream());
       }
 
-      std::tie(level_graph, level_renumber_map) =
+      std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
+      std::tie(level_graph, tmp_renumber_map) =
         create_graph_from_edgelist<vertex_t,
                                    edge_t,
                                    weight_t,
                                    GraphViewType::is_adj_matrix_transposed,
-                                   GraphViewType::is_multi_gpu>(
-          handle,
-          std::nullopt,
-          std::move(std::get<0>(edge_buffer)),
-          std::move(std::get<1>(edge_buffer)),
-          rmm::device_uvector<weight_t>(size_t{0}, handle.get_stream_view()),
-          graph_properties_t{true, false, false},
-          true);
+                                   GraphViewType::is_multi_gpu>(handle,
+                                                                std::nullopt,
+                                                                std::move(std::get<0>(edge_buffer)),
+                                                                std::move(std::get<1>(edge_buffer)),
+                                                                std::nullopt,
+                                                                graph_properties_t{true, false},
+                                                                true);
+      level_renumber_map = std::move(*tmp_renumber_map);
     } else {
       break;
     }
