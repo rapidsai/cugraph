@@ -23,10 +23,10 @@
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -47,7 +47,7 @@ namespace experimental {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> compute_renumber_map(
+std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumber_map(
   raft::handle_t const& handle,
   std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
   std::vector<vertex_t const*> const& edgelist_major_vertices,
@@ -83,16 +83,16 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
     {
       rmm::device_uvector<vertex_t> sorted_major_labels(edgelist_edge_counts[i],
                                                         handle.get_stream());
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::copy(rmm::exec_policy(handle.get_stream_view()),
                    edgelist_major_vertices[i],
                    edgelist_major_vertices[i] + edgelist_edge_counts[i],
                    sorted_major_labels.begin());
       // FIXME: better refactor this sort-count_if-reduce_by_key routine for reuse
-      thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::sort(rmm::exec_policy(handle.get_stream_view()),
                    sorted_major_labels.begin(),
                    sorted_major_labels.end());
       auto num_unique_labels =
-        thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
                          thrust::make_counting_iterator(size_t{0}),
                          thrust::make_counting_iterator(sorted_major_labels.size()),
                          [labels = sorted_major_labels.data()] __device__(auto i) {
@@ -100,7 +100,7 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
                          });
       tmp_major_labels.resize(num_unique_labels, handle.get_stream());
       tmp_major_counts.resize(tmp_major_labels.size(), handle.get_stream());
-      thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::reduce_by_key(rmm::exec_policy(handle.get_stream_view()),
                             sorted_major_labels.begin(),
                             sorted_major_labels.end(),
                             thrust::make_constant_iterator(edge_t{1}),
@@ -146,20 +146,19 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
   }
   if (multi_gpu) {
     // FIXME: better refactor this sort-count_if-reduce_by_key routine for reuse
-    thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::sort_by_key(rmm::exec_policy(handle.get_stream_view()),
                         major_labels.begin(),
                         major_labels.end(),
                         major_counts.begin());
-    auto num_unique_labels =
-      thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                       thrust::make_counting_iterator(size_t{0}),
-                       thrust::make_counting_iterator(major_labels.size()),
-                       [labels = major_labels.data()] __device__(auto i) {
-                         return (i == 0) || (labels[i - 1] != labels[i]);
-                       });
+    auto num_unique_labels = thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
+                                              thrust::make_counting_iterator(size_t{0}),
+                                              thrust::make_counting_iterator(major_labels.size()),
+                                              [labels = major_labels.data()] __device__(auto i) {
+                                                return (i == 0) || (labels[i - 1] != labels[i]);
+                                              });
     rmm::device_uvector<vertex_t> tmp_major_labels(num_unique_labels, handle.get_stream());
     rmm::device_uvector<edge_t> tmp_major_counts(tmp_major_labels.size(), handle.get_stream());
-    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream_view()),
                           major_labels.begin(),
                           major_labels.end(),
                           major_counts.begin(),
@@ -177,20 +176,18 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
   rmm::device_uvector<vertex_t> minor_labels(minor_displs.back() + edgelist_edge_counts.back(),
                                              handle.get_stream());
   for (size_t i = 0; i < edgelist_minor_vertices.size(); ++i) {
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(rmm::exec_policy(handle.get_stream_view()),
                  edgelist_minor_vertices[i],
                  edgelist_minor_vertices[i] + edgelist_edge_counts[i],
                  minor_labels.begin() + minor_displs[i]);
   }
-  thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               minor_labels.begin(),
-               minor_labels.end());
-  minor_labels.resize(
-    thrust::distance(minor_labels.begin(),
-                     thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                    minor_labels.begin(),
-                                    minor_labels.end())),
-    handle.get_stream());
+  thrust::sort(
+    rmm::exec_policy(handle.get_stream_view()), minor_labels.begin(), minor_labels.end());
+  minor_labels.resize(thrust::distance(minor_labels.begin(),
+                                       thrust::unique(rmm::exec_policy(handle.get_stream_view()),
+                                                      minor_labels.begin(),
+                                                      minor_labels.end())),
+                      handle.get_stream());
   if (multi_gpu) {
     auto& comm               = handle.get_comms();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -216,15 +213,13 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
         [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{row_comm_size}] __device__(
           auto val) { return key_func(val); },
         handle.get_stream());
-      thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   rx_minor_labels.begin(),
-                   rx_minor_labels.end());
+      thrust::sort(
+        rmm::exec_policy(handle.get_stream_view()), rx_minor_labels.begin(), rx_minor_labels.end());
       rx_minor_labels.resize(
-        thrust::distance(
-          rx_minor_labels.begin(),
-          thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                         rx_minor_labels.begin(),
-                         rx_minor_labels.end())),
+        thrust::distance(rx_minor_labels.begin(),
+                         thrust::unique(rmm::exec_policy(handle.get_stream_view()),
+                                        rx_minor_labels.begin(),
+                                        rx_minor_labels.end())),
         handle.get_stream());
       minor_labels = std::move(rx_minor_labels);
     }
@@ -241,14 +236,14 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   }
-  minor_labels.shrink_to_fit(handle.get_stream());
+  minor_labels.shrink_to_fit(handle.get_stream_view());
 
   // 3. merge major and minor labels and vertex labels
 
   rmm::device_uvector<vertex_t> merged_labels(major_labels.size() + minor_labels.size(),
-                                              handle.get_stream());
-  rmm::device_uvector<edge_t> merged_counts(merged_labels.size(), handle.get_stream());
-  thrust::merge_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                                              handle.get_stream_view());
+  rmm::device_uvector<edge_t> merged_counts(merged_labels.size(), handle.get_stream_view());
+  thrust::merge_by_key(rmm::exec_policy(handle.get_stream_view()),
                        major_labels.begin(),
                        major_labels.end(),
                        minor_labels.begin(),
@@ -267,13 +262,12 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
   rmm::device_uvector<vertex_t> labels(merged_labels.size(), handle.get_stream());
   rmm::device_uvector<edge_t> counts(labels.size(), handle.get_stream());
-  auto pair_it =
-    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          merged_labels.begin(),
-                          merged_labels.end(),
-                          merged_counts.begin(),
-                          labels.begin(),
-                          counts.begin());
+  auto pair_it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream_view()),
+                                       merged_labels.begin(),
+                                       merged_labels.end(),
+                                       merged_counts.begin(),
+                                       labels.begin(),
+                                       counts.begin());
   merged_labels.resize(0, handle.get_stream());
   merged_counts.resize(0, handle.get_stream());
   merged_labels.shrink_to_fit(handle.get_stream());
@@ -289,14 +283,14 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
   if (optional_vertex_span) {
     auto [vertices, num_vertices] = *optional_vertex_span;
     auto num_isolated_vertices    = thrust::count_if(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      rmm::exec_policy(handle.get_stream_view()),
       vertices,
       vertices + num_vertices,
       [label_first = labels.begin(), label_last = labels.end()] __device__(auto v) {
         return !thrust::binary_search(thrust::seq, label_first, label_last, v);
       });
     isolated_vertices.resize(num_isolated_vertices, handle.get_stream());
-    thrust::copy_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy_if(rmm::exec_policy(handle.get_stream_view()),
                     vertices,
                     vertices + num_vertices,
                     isolated_vertices.begin(),
@@ -308,11 +302,11 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
   if (isolated_vertices.size() > 0) {
     labels.resize(labels.size() + isolated_vertices.size(), handle.get_stream());
     counts.resize(labels.size(), handle.get_stream());
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(rmm::exec_policy(handle.get_stream_view()),
                  isolated_vertices.begin(),
                  isolated_vertices.end(),
                  labels.end() - isolated_vertices.size());
-    thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::fill(rmm::exec_policy(handle.get_stream_view()),
                  counts.end() - isolated_vertices.size(),
                  counts.end(),
                  edge_t{0});
@@ -320,13 +314,67 @@ rmm::device_uvector<vertex_t> compute_renumber_map(
 
   // 6. sort by degree
 
-  thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::sort_by_key(rmm::exec_policy(handle.get_stream_view()),
                       counts.begin(),
                       counts.end(),
                       labels.begin(),
                       thrust::greater<edge_t>());
 
-  return labels;
+  // 7. compute segment_offsets
+
+  static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
+  static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
+                (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
+  size_t mid_degree_threshold{detail::mid_degree_threshold};
+  size_t low_degree_threshold{detail::low_degree_threshold};
+  size_t hypersparse_degree_threshold{0};
+  if (multi_gpu) {
+    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto const col_comm_size = col_comm.get_size();
+    mid_degree_threshold *= col_comm_size;
+    low_degree_threshold *= col_comm_size;
+    hypersparse_degree_threshold =
+      static_cast<size_t>(col_comm_size * detail::hypersparse_threshold_ratio);
+  }
+  auto num_segments_per_vertex_partition =
+    detail::num_sparse_segments_per_vertex_partition +
+    (hypersparse_degree_threshold > 0 ? size_t{1} : size_t{0});
+  rmm::device_uvector<edge_t> d_thresholds(num_segments_per_vertex_partition - 1,
+                                           handle.get_stream());
+  auto h_thresholds = hypersparse_degree_threshold > 0
+                        ? std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
+                                              static_cast<edge_t>(low_degree_threshold),
+                                              static_cast<edge_t>(hypersparse_degree_threshold)}
+                        : std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
+                                              static_cast<edge_t>(low_degree_threshold)};
+  raft::update_device(
+    d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
+
+  rmm::device_uvector<vertex_t> d_segment_offsets(num_segments_per_vertex_partition + 1,
+                                                  handle.get_stream());
+
+  auto zero_vertex  = vertex_t{0};
+  auto vertex_count = static_cast<vertex_t>(counts.size());
+  d_segment_offsets.set_element_async(0, zero_vertex, handle.get_stream());
+  d_segment_offsets.set_element_async(
+    num_segments_per_vertex_partition, vertex_count, handle.get_stream());
+
+  thrust::upper_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                      counts.begin(),
+                      counts.end(),
+                      d_thresholds.begin(),
+                      d_thresholds.end(),
+                      d_segment_offsets.begin() + 1,
+                      thrust::greater<edge_t>{});
+
+  std::vector<vertex_t> h_segment_offsets(d_segment_offsets.size());
+  raft::update_host(h_segment_offsets.data(),
+                    d_segment_offsets.data(),
+                    d_segment_offsets.size(),
+                    handle.get_stream());
+  handle.get_stream_view().synchronize();
+
+  return std::make_tuple(std::move(labels), h_segment_offsets);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -341,16 +389,16 @@ void expensive_check_edgelist(
   if (optional_vertex_span) {
     auto [vertices, num_vertices] = *optional_vertex_span;
     sorted_local_vertices.resize(num_vertices, handle.get_stream());
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(rmm::exec_policy(handle.get_stream_view()),
                  vertices,
                  vertices + num_vertices,
                  sorted_local_vertices.begin());
-    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::sort(rmm::exec_policy(handle.get_stream_view()),
                  sorted_local_vertices.begin(),
                  sorted_local_vertices.end());
     CUGRAPH_EXPECTS(static_cast<size_t>(thrust::distance(
                       sorted_local_vertices.begin(),
-                      thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                      thrust::unique(rmm::exec_policy(handle.get_stream_view()),
                                      sorted_local_vertices.begin(),
                                      sorted_local_vertices.end()))) == sorted_local_vertices.size(),
                     "Invalid input argument: local_vertices should not have duplicates.");
@@ -375,7 +423,7 @@ void expensive_check_edgelist(
     auto [local_vertices, num_local_vertices] = *optional_vertex_span;
     CUGRAPH_EXPECTS(
       thrust::count_if(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        rmm::exec_policy(handle.get_stream_view()),
         local_vertices,
         local_vertices + num_local_vertices,
         [comm_rank,
@@ -390,7 +438,7 @@ void expensive_check_edgelist(
         thrust::make_tuple(edgelist_major_vertices[i], edgelist_minor_vertices[i]));
       CUGRAPH_EXPECTS(
         thrust::count_if(
-          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          rmm::exec_policy(handle.get_stream_view()),
           edge_first,
           edge_first + edgelist_edge_counts[i],
           [comm_size,
@@ -442,7 +490,7 @@ void expensive_check_edgelist(
                             recvcounts,
                             displacements,
                             handle.get_stream());
-          thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          thrust::sort(rmm::exec_policy(handle.get_stream_view()),
                        sorted_major_vertices.begin(),
                        sorted_major_vertices.end());
         }
@@ -472,7 +520,7 @@ void expensive_check_edgelist(
                             recvcounts,
                             displacements,
                             handle.get_stream());
-          thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          thrust::sort(rmm::exec_policy(handle.get_stream_view()),
                        sorted_minor_vertices.begin(),
                        sorted_minor_vertices.end());
         }
@@ -492,7 +540,7 @@ void expensive_check_edgelist(
           thrust::make_tuple(edgelist_major_vertices[i], edgelist_minor_vertices[i]));
         CUGRAPH_EXPECTS(
           thrust::count_if(
-            rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+            rmm::exec_policy(handle.get_stream_view()),
             edge_first,
             edge_first + edgelist_edge_counts[i],
             [num_major_vertices    = static_cast<vertex_t>(sorted_major_vertices.size()),
@@ -521,7 +569,7 @@ void expensive_check_edgelist(
         thrust::make_tuple(edgelist_major_vertices[0], edgelist_minor_vertices[0]));
       CUGRAPH_EXPECTS(
         thrust::count_if(
-          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          rmm::exec_policy(handle.get_stream_view()),
           edge_first,
           edge_first + edgelist_edge_counts[0],
           [sorted_local_vertices = sorted_local_vertices.data(),
@@ -544,7 +592,11 @@ void expensive_check_edgelist(
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
-                 std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
+                 std::tuple<rmm::device_uvector<vertex_t>,
+                            partition_t<vertex_t>,
+                            vertex_t,
+                            edge_t,
+                            std::vector<vertex_t>>>
 renumber_edgelist(raft::handle_t const& handle,
                   std::optional<std::tuple<vertex_t const*, vertex_t>> optional_local_vertex_span,
                   std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
@@ -579,7 +631,7 @@ renumber_edgelist(raft::handle_t const& handle,
 
   // 1. compute renumber map
 
-  auto renumber_map_labels =
+  auto [renumber_map_labels, segment_offsets] =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(handle,
                                                               optional_local_vertex_span,
                                                               edgelist_const_major_vertices,
@@ -718,18 +770,21 @@ renumber_edgelist(raft::handle_t const& handle,
   comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
-  return std::make_tuple(
-    std::move(renumber_map_labels), partition, number_of_vertices, number_of_edges);
+  return std::make_tuple(std::move(renumber_map_labels),
+                         partition,
+                         number_of_vertices,
+                         number_of_edges,
+                         segment_offsets);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
-  vertex_t* edgelist_major_vertices /* [INOUT] */,
-  vertex_t* edgelist_minor_vertices /* [INOUT] */,
-  edge_t num_edgelist_edges,
-  bool do_expensive_check)
+std::enable_if_t<!multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>>>
+renumber_edgelist(raft::handle_t const& handle,
+                  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
+                  vertex_t* edgelist_major_vertices /* [INOUT] */,
+                  vertex_t* edgelist_minor_vertices /* [INOUT] */,
+                  edge_t num_edgelist_edges,
+                  bool do_expensive_check)
 {
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, edge_t, multi_gpu>(
@@ -740,12 +795,13 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
       std::vector<edge_t>{num_edgelist_edges});
   }
 
-  auto renumber_map_labels = detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
-    handle,
-    optional_vertex_span,
-    std::vector<vertex_t const*>{edgelist_major_vertices},
-    std::vector<vertex_t const*>{edgelist_minor_vertices},
-    std::vector<edge_t>{num_edgelist_edges});
+  auto [renumber_map_labels, segment_offsets] =
+    detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
+      handle,
+      optional_vertex_span,
+      std::vector<vertex_t const*>{edgelist_major_vertices},
+      std::vector<vertex_t const*>{edgelist_minor_vertices},
+      std::vector<edge_t>{num_edgelist_edges});
 
   double constexpr load_factor = 0.7;
 
@@ -770,14 +826,18 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
   renumber_map.find(
     edgelist_minor_vertices, edgelist_minor_vertices + num_edgelist_edges, edgelist_minor_vertices);
 
-  return renumber_map_labels;
+  return std::make_tuple(std::move(renumber_map_labels), segment_offsets);
 }
 
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
-                 std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t>>
+                 std::tuple<rmm::device_uvector<vertex_t>,
+                            partition_t<vertex_t>,
+                            vertex_t,
+                            edge_t,
+                            std::vector<vertex_t>>>
 renumber_edgelist(raft::handle_t const& handle,
                   std::optional<std::tuple<vertex_t const*, vertex_t>> optional_local_vertex_span,
                   std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
@@ -794,13 +854,13 @@ renumber_edgelist(raft::handle_t const& handle,
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
-  vertex_t* edgelist_major_vertices /* [INOUT] */,
-  vertex_t* edgelist_minor_vertices /* [INOUT] */,
-  edge_t num_edgelist_edges,
-  bool do_expensive_check)
+std::enable_if_t<!multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>>>
+renumber_edgelist(raft::handle_t const& handle,
+                  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
+                  vertex_t* edgelist_major_vertices /* [INOUT] */,
+                  vertex_t* edgelist_minor_vertices /* [INOUT] */,
+                  edge_t num_edgelist_edges,
+                  bool do_expensive_check)
 {
   return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
                                                                 optional_vertex_span,
@@ -815,16 +875,18 @@ std::enable_if_t<!multi_gpu, rmm::device_uvector<vertex_t>> renumber_edgelist(
 
 // instantiations for <vertex_t == int32_t, edge_t == int32_t>
 //
-template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int32_t>
-renumber_edgelist<int32_t, int32_t, true>(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_local_vertex_span,
-  std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
-  std::vector<int32_t> const& edgelist_edge_counts,
-  bool do_expensive_check);
+template std::
+  tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int32_t, std::vector<int32_t>>
+  renumber_edgelist<int32_t, int32_t, true>(
+    raft::handle_t const& handle,
+    std::optional<std::tuple<int32_t const*, int32_t>> optional_local_vertex_span,
+    std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
+    std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
+    std::vector<int32_t> const& edgelist_edge_counts,
+    bool do_expensive_check);
 
-template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int32_t, false>(
+template std::tuple<rmm::device_uvector<int32_t>, std::vector<int32_t>>
+renumber_edgelist<int32_t, int32_t, false>(
   raft::handle_t const& handle,
   std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   int32_t* edgelist_major_vertices /* [INOUT] */,
@@ -834,16 +896,18 @@ template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int32_t, false>
 
 // instantiations for <vertex_t == int32_t, edge_t == int64_t>
 //
-template std::tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int64_t>
-renumber_edgelist<int32_t, int64_t, true>(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_local_vertex_span,
-  std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
-  std::vector<int64_t> const& edgelist_edge_counts,
-  bool do_expensive_check);
+template std::
+  tuple<rmm::device_uvector<int32_t>, partition_t<int32_t>, int32_t, int64_t, std::vector<int32_t>>
+  renumber_edgelist<int32_t, int64_t, true>(
+    raft::handle_t const& handle,
+    std::optional<std::tuple<int32_t const*, int32_t>> optional_local_vertex_span,
+    std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
+    std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
+    std::vector<int64_t> const& edgelist_edge_counts,
+    bool do_expensive_check);
 
-template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int64_t, false>(
+template std::tuple<rmm::device_uvector<int32_t>, std::vector<int32_t>>
+renumber_edgelist<int32_t, int64_t, false>(
   raft::handle_t const& handle,
   std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
   int32_t* edgelist_major_vertices /* [INOUT] */,
@@ -853,16 +917,18 @@ template rmm::device_uvector<int32_t> renumber_edgelist<int32_t, int64_t, false>
 
 // instantiations for <vertex_t == int64_t, edge_t == int64_t>
 //
-template std::tuple<rmm::device_uvector<int64_t>, partition_t<int64_t>, int64_t, int64_t>
-renumber_edgelist<int64_t, int64_t, true>(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<int64_t const*, int64_t>> optional_local_vertex_span,
-  std::vector<int64_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<int64_t*> const& edgelist_minor_vertices /* [INOUT] */,
-  std::vector<int64_t> const& edgelist_edge_counts,
-  bool do_expensive_check);
+template std::
+  tuple<rmm::device_uvector<int64_t>, partition_t<int64_t>, int64_t, int64_t, std::vector<int64_t>>
+  renumber_edgelist<int64_t, int64_t, true>(
+    raft::handle_t const& handle,
+    std::optional<std::tuple<int64_t const*, int64_t>> optional_local_vertex_span,
+    std::vector<int64_t*> const& edgelist_major_vertices /* [INOUT] */,
+    std::vector<int64_t*> const& edgelist_minor_vertices /* [INOUT] */,
+    std::vector<int64_t> const& edgelist_edge_counts,
+    bool do_expensive_check);
 
-template rmm::device_uvector<int64_t> renumber_edgelist<int64_t, int64_t, false>(
+template std::tuple<rmm::device_uvector<int64_t>, std::vector<int64_t>>
+renumber_edgelist<int64_t, int64_t, false>(
   raft::handle_t const& handle,
   std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
   int64_t* edgelist_major_vertices /* [INOUT] */,

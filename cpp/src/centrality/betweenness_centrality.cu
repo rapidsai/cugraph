@@ -21,9 +21,11 @@
 #include <raft/cudart_utils.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+
 #include <rmm/device_scalar.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <raft/handle.hpp>
 #include "betweenness_centrality.cuh"
@@ -34,7 +36,7 @@ namespace detail {
 namespace {
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void betweenness_centrality_impl(raft::handle_t const &handle,
-                                 GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                 legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                  result_t *result,
                                  bool normalize,
                                  bool endpoints,
@@ -58,7 +60,7 @@ void betweenness_centrality_impl(raft::handle_t const &handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void edge_betweenness_centrality_impl(raft::handle_t const &handle,
-                                      GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                      legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                       result_t *result,
                                       bool normalize,
                                       weight_t const *weight,
@@ -227,15 +229,13 @@ void BC<vertex_t, edge_t, weight_t, result_t>::compute_single_source(vertex_t so
   // the traversal, this value is avalaible within the bfs implementation and
   // there could be a way to access it directly and avoid both replace and the
   // max
-  thrust::replace(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+  thrust::replace(rmm::exec_policy(handle_.get_stream_view()),
                   distances_,
                   distances_ + number_of_vertices_,
                   std::numeric_limits<vertex_t>::max(),
                   static_cast<vertex_t>(-1));
-  auto current_max_depth =
-    thrust::max_element(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
-                        distances_,
-                        distances_ + number_of_vertices_);
+  auto current_max_depth = thrust::max_element(
+    rmm::exec_policy(handle_.get_stream_view()), distances_, distances_ + number_of_vertices_);
   vertex_t max_depth = 0;
   CUDA_TRY(cudaMemcpy(&max_depth, current_max_depth, sizeof(vertex_t), cudaMemcpyDeviceToHost));
   // Step 2) Dependency accumulation
@@ -265,7 +265,7 @@ void BC<vertex_t, edge_t, weight_t, result_t>::accumulate(vertex_t source_vertex
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void BC<vertex_t, edge_t, weight_t, result_t>::initialize_dependencies()
 {
-  thrust::fill(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+  thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
                deltas_,
                deltas_ + number_of_vertices_,
                static_cast<result_t>(0));
@@ -315,16 +315,13 @@ template <typename vertex_t, typename edge_t, typename weight_t, typename result
 void BC<vertex_t, edge_t, weight_t, result_t>::add_reached_endpoints_to_source_betweenness(
   vertex_t source_vertex)
 {
-  vertex_t number_of_unvisited_vertices =
-    thrust::count(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
-                  distances_,
-                  distances_ + number_of_vertices_,
-                  -1);
+  vertex_t number_of_unvisited_vertices = thrust::count(
+    rmm::exec_policy(handle_.get_stream_view()), distances_, distances_ + number_of_vertices_, -1);
   vertex_t number_of_visited_vertices_except_source =
     number_of_vertices_ - number_of_unvisited_vertices - 1;
   rmm::device_vector<vertex_t> buffer(1);
   buffer[0] = number_of_visited_vertices_except_source;
-  thrust::transform(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+  thrust::transform(rmm::exec_policy(handle_.get_stream_view()),
                     buffer.begin(),
                     buffer.end(),
                     betweenness_ + source_vertex,
@@ -335,7 +332,7 @@ void BC<vertex_t, edge_t, weight_t, result_t>::add_reached_endpoints_to_source_b
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void BC<vertex_t, edge_t, weight_t, result_t>::add_vertices_dependencies_to_betweenness()
 {
-  thrust::transform(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+  thrust::transform(rmm::exec_policy(handle_.get_stream_view()),
                     deltas_,
                     deltas_ + number_of_vertices_,
                     betweenness_,
@@ -420,7 +417,7 @@ void BC<vertex_t, edge_t, weight_t, result_t>::apply_rescale_factor_to_betweenne
 {
   size_t result_size = number_of_vertices_;
   if (is_edge_betweenness_) result_size = number_of_edges_;
-  thrust::transform(rmm::exec_policy(handle_.get_stream())->on(handle_.get_stream()),
+  thrust::transform(rmm::exec_policy(handle_.get_stream_view()),
                     betweenness_,
                     betweenness_ + result_size,
                     thrust::make_constant_iterator(rescale_factor),
@@ -452,7 +449,7 @@ void BC<vertex_t, edge_t, weight_t, result_t>::rescale_by_total_sources_used(
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void betweenness_centrality(raft::handle_t const &handle,
-                            GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                            legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                             result_t *result,
                             bool normalize,
                             bool endpoints,
@@ -491,17 +488,18 @@ void betweenness_centrality(raft::handle_t const &handle,
   }
 }
 
-template void betweenness_centrality<int, int, float, float>(const raft::handle_t &,
-                                                             GraphCSRView<int, int, float> const &,
-                                                             float *,
-                                                             bool,
-                                                             bool,
-                                                             float const *,
-                                                             int,
-                                                             int const *);
+template void betweenness_centrality<int, int, float, float>(
+  const raft::handle_t &,
+  legacy::GraphCSRView<int, int, float> const &,
+  float *,
+  bool,
+  bool,
+  float const *,
+  int,
+  int const *);
 template void betweenness_centrality<int, int, double, double>(
   const raft::handle_t &,
-  GraphCSRView<int, int, double> const &,
+  legacy::GraphCSRView<int, int, double> const &,
   double *,
   bool,
   bool,
@@ -511,7 +509,7 @@ template void betweenness_centrality<int, int, double, double>(
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void edge_betweenness_centrality(raft::handle_t const &handle,
-                                 GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                                 legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                                  result_t *result,
                                  bool normalize,
                                  weight_t const *weight,
@@ -543,7 +541,7 @@ void edge_betweenness_centrality(raft::handle_t const &handle,
 
 template void edge_betweenness_centrality<int, int, float, float>(
   const raft::handle_t &,
-  GraphCSRView<int, int, float> const &,
+  legacy::GraphCSRView<int, int, float> const &,
   float *,
   bool,
   float const *,
@@ -552,7 +550,7 @@ template void edge_betweenness_centrality<int, int, float, float>(
 
 template void edge_betweenness_centrality<int, int, double, double>(
   raft::handle_t const &handle,
-  GraphCSRView<int, int, double> const &,
+  legacy::GraphCSRView<int, int, double> const &,
   double *,
   bool,
   double const *,

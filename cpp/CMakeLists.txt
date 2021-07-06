@@ -19,7 +19,7 @@ include(FetchContent)
 FetchContent_Declare(
   rapids-cmake
   GIT_REPOSITORY https://github.com/rapidsai/rapids-cmake.git
-  GIT_TAG        origin/branch-21.06
+  GIT_TAG        origin/branch-21.08
   )
 FetchContent_MakeAvailable(rapids-cmake)
 
@@ -169,7 +169,6 @@ add_library(cugraph SHARED
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
     src/layout/force_atlas2.cu
-    src/converters/renumber.cu
     src/converters/COOtoCSR.cu
     src/community/spectral_clustering.cu
     src/community/louvain.cu
@@ -337,8 +336,8 @@ install(TARGETS cugraph
         DESTINATION lib
         EXPORT cugraph-exports)
 
-install(DIRECTORY include/
-        DESTINATION include)
+install(DIRECTORY include/cugraph/
+        DESTINATION include/cugraph)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph/version_config.hpp
         DESTINATION include/cugraph)

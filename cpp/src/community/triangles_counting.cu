@@ -18,7 +18,7 @@
 
 #include <raft/cudart_utils.h>
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <cugraph/utilities/error.hpp>
 
@@ -841,7 +841,7 @@ void TrianglesCount<IndexType>::count()
 }  // namespace
 
 template <typename VT, typename ET, typename WT>
-uint64_t triangle_count(GraphCSRView<VT, ET, WT> const &graph)
+uint64_t triangle_count(legacy::GraphCSRView<VT, ET, WT> const &graph)
 {
   TrianglesCount<VT> counter(
     graph.number_of_vertices, graph.number_of_edges, graph.offsets, graph.indices);
@@ -851,7 +851,7 @@ uint64_t triangle_count(GraphCSRView<VT, ET, WT> const &graph)
 }
 
 template uint64_t triangle_count<int32_t, int32_t, float>(
-  GraphCSRView<int32_t, int32_t, float> const &);
+  legacy::GraphCSRView<int32_t, int32_t, float> const &);
 
 }  // namespace triangle
 }  // namespace cugraph

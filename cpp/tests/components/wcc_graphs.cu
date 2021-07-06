@@ -29,7 +29,7 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           rmm::device_uvector<vertex_t>>
+           std::optional<rmm::device_uvector<vertex_t>>>
 LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
                                    bool test_weighted,
                                    bool renumber) const
@@ -43,7 +43,6 @@ LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> src_v(num_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> dst_v(num_edges, handle.get_stream());
   rmm::device_uvector<double> order_v(num_vertices_, handle.get_stream());
-  rmm::device_uvector<weight_t> weights_v(edge_t{0}, handle.get_stream());
 
   thrust::sequence(
     rmm::exec_policy(handle.get_stream()), vertices_v.begin(), vertices_v.end(), vertex_t{0});
@@ -77,13 +76,13 @@ LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
         std::make_tuple(vertices_v.data(), static_cast<vertex_t>(vertices_v.size()))},
       std::move(src_v),
       std::move(dst_v),
-      std::move(weights_v),
-      cugraph::experimental::graph_properties_t{true, false, false},
+      std::nullopt,
+      cugraph::experimental::graph_properties_t{true, false},
       false);
 }
 
-template std::tuple<cugraph::experimental::graph_t<int, int, float, false, false>,
-                    rmm::device_uvector<int>>
+template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, false, false>,
+                    std::optional<rmm::device_uvector<int32_t>>>
 LineGraph_Usecase::construct_graph(raft::handle_t const&, bool, bool) const;
 
 }  // namespace test

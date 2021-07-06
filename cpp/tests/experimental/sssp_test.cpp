@@ -58,7 +58,9 @@ void sssp_reference(edge_t const* offsets,
   using queue_item_t = std::tuple<weight_t, vertex_t>;
 
   std::fill(distances, distances + num_vertices, std::numeric_limits<weight_t>::max());
-  std::fill(predecessors, predecessors + num_vertices, cugraph::invalid_vertex_id<vertex_t>::value);
+  std::fill(predecessors,
+            predecessors + num_vertices,
+            cugraph::experimental::invalid_vertex_id<vertex_t>::value);
 
   *(distances + source) = weight_t{0.0};
   std::priority_queue<queue_item_t, std::vector<queue_item_t>, std::greater<queue_item_t>> queue{};
@@ -114,11 +116,11 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
-    rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
-    std::tie(graph, d_renumber_map_labels) =
+
+    auto [graph, d_renumber_map_labels] =
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, true, renumber);
+
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
@@ -170,15 +172,15 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
       std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
       std::vector<weight_t> h_weights(unrenumbered_graph_view.get_number_of_edges());
       raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.offsets(),
+                        unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
                         unrenumbered_graph_view.get_number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.indices(),
+                        unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
                         unrenumbered_graph_view.get_number_of_edges(),
                         handle.get_stream());
       raft::update_host(h_weights.data(),
-                        unrenumbered_graph_view.weights(),
+                        *(unrenumbered_graph_view.get_matrix_partition_view().get_weights()),
                         unrenumbered_graph_view.get_number_of_edges(),
                         handle.get_stream());
 
@@ -186,10 +188,10 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
 
       auto unrenumbered_source = static_cast<vertex_t>(sssp_usecase.source);
       if (renumber) {
-        std::vector<vertex_t> h_renumber_map_labels(d_renumber_map_labels.size());
+        std::vector<vertex_t> h_renumber_map_labels((*d_renumber_map_labels).size());
         raft::update_host(h_renumber_map_labels.data(),
-                          d_renumber_map_labels.data(),
-                          d_renumber_map_labels.size(),
+                          (*d_renumber_map_labels).data(),
+                          (*d_renumber_map_labels).size(),
                           handle.get_stream());
 
         handle.get_stream_view().synchronize();
@@ -216,20 +218,23 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
         cugraph::experimental::unrenumber_local_int_vertices(handle,
                                                              d_predecessors.data(),
                                                              d_predecessors.size(),
-                                                             d_renumber_map_labels.data(),
+                                                             (*d_renumber_map_labels).data(),
                                                              vertex_t{0},
                                                              graph_view.get_number_of_vertices(),
                                                              true);
 
         rmm::device_uvector<weight_t> d_unrenumbered_distances(size_t{0}, handle.get_stream());
-        std::tie(std::ignore, d_unrenumbered_distances) = cugraph::test::sort_by_key(
-          handle, d_renumber_map_labels.data(), d_distances.data(), d_renumber_map_labels.size());
+        std::tie(std::ignore, d_unrenumbered_distances) =
+          cugraph::test::sort_by_key(handle,
+                                     (*d_renumber_map_labels).data(),
+                                     d_distances.data(),
+                                     (*d_renumber_map_labels).size());
         rmm::device_uvector<vertex_t> d_unrenumbered_predecessors(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_predecessors) =
           cugraph::test::sort_by_key(handle,
-                                     d_renumber_map_labels.data(),
+                                     (*d_renumber_map_labels).data(),
                                      d_predecessors.data(),
-                                     d_renumber_map_labels.size());
+                                     (*d_renumber_map_labels).size());
 
         raft::update_host(h_cugraph_distances.data(),
                           d_unrenumbered_distances.data(),
@@ -264,7 +269,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
 
       for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
         auto i = std::distance(h_cugraph_predecessors.begin(), it);
-        if (*it == cugraph::invalid_vertex_id<vertex_t>::value) {
+        if (*it == cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
           ASSERT_TRUE(h_reference_predecessors[i] == *it)
             << "vertex reachability do not match with the reference.";
         } else {

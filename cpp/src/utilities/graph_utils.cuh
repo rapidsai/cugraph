@@ -16,8 +16,9 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/device_atomics.cuh>
+#include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -80,20 +81,6 @@ __inline__ __device__ value_t parallel_prefix_sum(count_t n, index_t const *ind,
   return last;
 }
 
-// dot
-template <typename T>
-T dot(size_t n, T *x, T *y)
-{
-  cudaStream_t stream{nullptr};
-  T result = thrust::inner_product(rmm::exec_policy(stream)->on(stream),
-                                   thrust::device_pointer_cast(x),
-                                   thrust::device_pointer_cast(x + n),
-                                   thrust::device_pointer_cast(y),
-                                   0.0f);
-  CHECK_CUDA(stream);
-  return result;
-}
-
 // axpy
 template <typename T>
 struct axpy_functor : public thrust::binary_function<T, T, T> {
@@ -105,14 +92,14 @@ struct axpy_functor : public thrust::binary_function<T, T, T> {
 template <typename T>
 void axpy(size_t n, T a, T *x, T *y)
 {
-  cudaStream_t stream{nullptr};
-  thrust::transform(rmm::exec_policy(stream)->on(stream),
+  rmm::cuda_stream_view stream_view;
+  thrust::transform(rmm::exec_policy(stream_view),
                     thrust::device_pointer_cast(x),
                     thrust::device_pointer_cast(x + n),
                     thrust::device_pointer_cast(y),
                     thrust::device_pointer_cast(y),
                     axpy_functor<T>(a));
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 }
 
 // norm
@@ -124,76 +111,76 @@ struct square {
 template <typename T>
 T nrm2(size_t n, T *x)
 {
-  cudaStream_t stream{nullptr};
+  rmm::cuda_stream_view stream_view;
   T init   = 0;
-  T result = std::sqrt(thrust::transform_reduce(rmm::exec_policy(stream)->on(stream),
+  T result = std::sqrt(thrust::transform_reduce(rmm::exec_policy(stream_view),
                                                 thrust::device_pointer_cast(x),
                                                 thrust::device_pointer_cast(x + n),
                                                 square<T>(),
                                                 init,
                                                 thrust::plus<T>()));
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
   return result;
 }
 
 template <typename T>
 T nrm1(size_t n, T *x)
 {
-  cudaStream_t stream{nullptr};
-  T result = thrust::reduce(rmm::exec_policy(stream)->on(stream),
+  rmm::cuda_stream_view stream_view;
+  T result = thrust::reduce(rmm::exec_policy(stream_view),
                             thrust::device_pointer_cast(x),
                             thrust::device_pointer_cast(x + n));
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
   return result;
 }
 
 template <typename T>
 void scal(size_t n, T val, T *x)
 {
-  cudaStream_t stream{nullptr};
-  thrust::transform(rmm::exec_policy(stream)->on(stream),
+  rmm::cuda_stream_view stream_view;
+  thrust::transform(rmm::exec_policy(stream_view),
                     thrust::device_pointer_cast(x),
                     thrust::device_pointer_cast(x + n),
                     thrust::make_constant_iterator(val),
                     thrust::device_pointer_cast(x),
                     thrust::multiplies<T>());
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
 void addv(size_t n, T val, T *x)
 {
-  cudaStream_t stream{nullptr};
-  thrust::transform(rmm::exec_policy(stream)->on(stream),
+  rmm::cuda_stream_view stream_view;
+  thrust::transform(rmm::exec_policy(stream_view),
                     thrust::device_pointer_cast(x),
                     thrust::device_pointer_cast(x + n),
                     thrust::make_constant_iterator(val),
                     thrust::device_pointer_cast(x),
                     thrust::plus<T>());
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
 void fill(size_t n, T *x, T value)
 {
-  cudaStream_t stream{nullptr};
-  thrust::fill(rmm::exec_policy(stream)->on(stream),
+  rmm::cuda_stream_view stream_view;
+  thrust::fill(rmm::exec_policy(stream_view),
                thrust::device_pointer_cast(x),
                thrust::device_pointer_cast(x + n),
                value);
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename T, typename M>
 void scatter(size_t n, T *src, T *dst, M *map)
 {
-  cudaStream_t stream{nullptr};
-  thrust::scatter(rmm::exec_policy(stream)->on(stream),
+  rmm::cuda_stream_view stream_view;
+  thrust::scatter(rmm::exec_policy(stream_view),
                   thrust::device_pointer_cast(src),
                   thrust::device_pointer_cast(src + n),
                   thrust::device_pointer_cast(map),
                   thrust::device_pointer_cast(dst));
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
@@ -216,9 +203,9 @@ void copy(size_t n, T *x, T *res)
 {
   thrust::device_ptr<T> dev_ptr(x);
   thrust::device_ptr<T> res_ptr(res);
-  cudaStream_t stream{nullptr};
-  thrust::copy_n(rmm::exec_policy(stream)->on(stream), dev_ptr, n, res_ptr);
-  CHECK_CUDA(stream);
+  rmm::cuda_stream_view stream_view;
+  thrust::copy_n(rmm::exec_policy(stream_view), dev_ptr, n, res_ptr);
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
@@ -236,14 +223,14 @@ struct dangling_functor : public thrust::unary_function<T, T> {
 template <typename T>
 void update_dangling_nodes(size_t n, T *dangling_nodes, T damping_factor)
 {
-  cudaStream_t stream{nullptr};
-  thrust::transform_if(rmm::exec_policy(stream)->on(stream),
+  rmm::cuda_stream_view stream_view;
+  thrust::transform_if(rmm::exec_policy(stream_view),
                        thrust::device_pointer_cast(dangling_nodes),
                        thrust::device_pointer_cast(dangling_nodes + n),
                        thrust::device_pointer_cast(dangling_nodes),
                        dangling_functor<T>(1.0 - damping_factor),
                        is_zero<T>());
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 }
 
 // google matrix kernels
@@ -332,8 +319,8 @@ void HT_matrix_csc_coo(const IndexType n,
                        ValueType *val,
                        ValueType *bookmark)
 {
-  cudaStream_t stream{nullptr};
-  rmm::device_vector<IndexType> degree(n, 0);
+  rmm::cuda_stream_view stream_view;
+  rmm::device_uvector<IndexType> degree(n, stream_view);
 
   dim3 nthreads, nblocks;
   nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
@@ -343,8 +330,8 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.y  = 1;
   nblocks.z  = 1;
   degree_coo<IndexType, IndexType>
-    <<<nblocks, nthreads, 0, stream>>>(n, e, csrInd, degree.data().get());
-  CHECK_CUDA(stream);
+    <<<nblocks, nthreads, 0, stream_view.value()>>>(n, e, csrInd, degree.data());
+  CHECK_CUDA(stream_view.value());
 
   int y      = 4;
   nthreads.x = 32 / y;
@@ -354,12 +341,12 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.y  = 1;
   nblocks.z  = min((n + nthreads.z - 1) / nthreads.z, CUDA_MAX_BLOCKS);  // 1;
   equi_prob3<IndexType, ValueType>
-    <<<nblocks, nthreads, 0, stream>>>(n, e, csrPtr, csrInd, val, degree.data().get());
-  CHECK_CUDA(stream);
+    <<<nblocks, nthreads, 0, stream_view.value()>>>(n, e, csrPtr, csrInd, val, degree.data());
+  CHECK_CUDA(stream_view.value());
 
   ValueType a = 0.0;
   fill(n, bookmark, a);
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 
   nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
   nthreads.y = 1;
@@ -368,96 +355,8 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.y  = 1;
   nblocks.z  = 1;
   flag_leafs_kernel<IndexType, ValueType>
-    <<<nblocks, nthreads, 0, stream>>>(n, degree.data().get(), bookmark);
-  CHECK_CUDA(stream);
-}
-
-template <typename IndexType, typename ValueType>
-__global__ void permute_vals_kernel(const IndexType e,
-                                    IndexType *perm,
-                                    ValueType *in,
-                                    ValueType *out)
-{
-  for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < e; i += gridDim.x * blockDim.x)
-    out[i] = in[perm[i]];
-}
-
-template <typename IndexType, typename ValueType>
-void permute_vals(
-  const IndexType e, IndexType *perm, ValueType *in, ValueType *out, cudaStream_t stream = nullptr)
-{
-  int nthreads = min(e, CUDA_MAX_KERNEL_THREADS);
-  int nblocks  = min((e + nthreads - 1) / nthreads, CUDA_MAX_BLOCKS);
-  permute_vals_kernel<<<nblocks, nthreads, 0, stream>>>(e, perm, in, out);
-}
-
-// This will remove duplicate along with sorting
-// This will sort the COO Matrix, row will be sorted and each column of same row will be sorted.
-template <typename IndexType, typename ValueType, typename SizeT>
-void remove_duplicate(
-  IndexType *src, IndexType *dest, ValueType *val, SizeT &nnz, cudaStream_t stream = nullptr)
-{
-  if (val != NULL) {
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
-                               thrust::raw_pointer_cast(val),
-                               thrust::raw_pointer_cast(val) + nnz,
-                               thrust::make_zip_iterator(thrust::make_tuple(
-                                 thrust::raw_pointer_cast(src), thrust::raw_pointer_cast(dest))));
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
-                               thrust::raw_pointer_cast(dest),
-                               thrust::raw_pointer_cast(dest + nnz),
-                               thrust::make_zip_iterator(thrust::make_tuple(
-                                 thrust::raw_pointer_cast(src), thrust::raw_pointer_cast(val))));
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
-                               thrust::raw_pointer_cast(src),
-                               thrust::raw_pointer_cast(src + nnz),
-                               thrust::make_zip_iterator(thrust::make_tuple(
-                                 thrust::raw_pointer_cast(dest), thrust::raw_pointer_cast(val))));
-
-    typedef thrust::tuple<IndexType *, ValueType *> IteratorTuple;
-    typedef thrust::zip_iterator<IteratorTuple> ZipIterator;
-    typedef thrust::tuple<IndexType *, ZipIterator> ZipIteratorTuple;
-    typedef thrust::zip_iterator<ZipIteratorTuple> ZipZipIterator;
-
-    ZipZipIterator newEnd =
-      thrust::unique(rmm::exec_policy(stream)->on(stream),
-                     thrust::make_zip_iterator(thrust::make_tuple(
-                       thrust::raw_pointer_cast(src),
-                       thrust::make_zip_iterator(thrust::make_tuple(
-                         thrust::raw_pointer_cast(dest), thrust::raw_pointer_cast(val))))),
-                     thrust::make_zip_iterator(thrust::make_tuple(
-                       thrust::raw_pointer_cast(src + nnz),
-                       thrust::make_zip_iterator(thrust::make_tuple(dest + nnz, val + nnz)))));
-
-    ZipIteratorTuple endTuple = newEnd.get_iterator_tuple();
-    IndexType *row_end        = thrust::get<0>(endTuple);
-
-    nnz = ((size_t)row_end - (size_t)src) / sizeof(IndexType);
-  } else {
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
-                               thrust::raw_pointer_cast(dest),
-                               thrust::raw_pointer_cast(dest + nnz),
-                               thrust::raw_pointer_cast(src));
-    thrust::stable_sort_by_key(rmm::exec_policy(stream)->on(stream),
-                               thrust::raw_pointer_cast(src),
-                               thrust::raw_pointer_cast(src + nnz),
-                               thrust::raw_pointer_cast(dest));
-
-    typedef thrust::tuple<IndexType *, IndexType *> IteratorTuple;
-    typedef thrust::zip_iterator<IteratorTuple> ZipIterator;
-
-    ZipIterator newEnd =
-      thrust::unique(rmm::exec_policy(stream)->on(stream),
-                     thrust::make_zip_iterator(thrust::make_tuple(thrust::raw_pointer_cast(src),
-                                                                  thrust::raw_pointer_cast(dest))),
-                     thrust::make_zip_iterator(thrust::make_tuple(
-                       thrust::raw_pointer_cast(src + nnz), thrust::raw_pointer_cast(dest + nnz))));
-
-    IteratorTuple endTuple = newEnd.get_iterator_tuple();
-    IndexType *row_end     = thrust::get<0>(endTuple);
-
-    nnz = ((size_t)row_end - (size_t)src) / sizeof(IndexType);
-  }
+    <<<nblocks, nthreads, 0, stream_view.value()>>>(n, degree.data(), bookmark);
+  CHECK_CUDA(stream_view.value());
 }
 
 template <typename offsets_t, typename index_t>
@@ -500,12 +399,12 @@ bool has_negative_val(DistType *arr, size_t n)
 {
   // custom kernel with boolean bitwise reduce may be
   // faster.
-  cudaStream_t stream{nullptr};
-  DistType result = *thrust::min_element(rmm::exec_policy(stream)->on(stream),
+  rmm::cuda_stream_view stream_view;
+  DistType result = *thrust::min_element(rmm::exec_policy(stream_view),
                                          thrust::device_pointer_cast(arr),
                                          thrust::device_pointer_cast(arr + n));
 
-  CHECK_CUDA(stream);
+  CHECK_CUDA(stream_view.value());
 
   return (result < 0);
 }

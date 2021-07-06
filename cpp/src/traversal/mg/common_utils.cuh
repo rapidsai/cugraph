@@ -16,11 +16,15 @@
 
 #pragma once
 
-#include <raft/integer_utils.h>
+#include "../traversal_common.cuh"
+
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/host_vector.h>
 #include <cub/cub.cuh>
-#include "../traversal_common.cuh"
+
+#include <raft/cudart_utils.h>
+#include <raft/integer_utils.h>
+#include <raft/handle.hpp>
 
 namespace cugraph {
 
@@ -137,9 +141,10 @@ struct BFSStep {
 };
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-vertex_t populate_isolated_vertices(raft::handle_t const &handle,
-                                    cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                    rmm::device_vector<vertex_t> &isolated_vertex_ids)
+vertex_t populate_isolated_vertices(
+  raft::handle_t const &handle,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  rmm::device_vector<vertex_t> &isolated_vertex_ids)
 {
   bool is_mg          = (handle.comms_initialized() && (graph.local_vertices != nullptr) &&
                 (graph.local_offsets != nullptr));
@@ -218,7 +223,7 @@ void add_to_bitmap(raft::handle_t const &handle,
 // ith bit of isolated_bmap to 1
 template <typename vertex_t, typename edge_t, typename weight_t>
 void create_isolated_bitmap(raft::handle_t const &handle,
-                            cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                            cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                             rmm::device_vector<vertex_t> &local_isolated_ids,
                             rmm::device_vector<vertex_t> &global_isolated_ids,
                             rmm::device_vector<size_t> &temp_buffer_len,
@@ -383,13 +388,14 @@ return_t remove_duplicates(raft::handle_t const &handle,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-vertex_t preprocess_input_frontier(raft::handle_t const &handle,
-                                   cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                   rmm::device_vector<uint32_t> &bmap,
-                                   rmm::device_vector<uint32_t> &isolated_bmap,
-                                   rmm::device_vector<vertex_t> &input_frontier,
-                                   vertex_t input_frontier_len,
-                                   rmm::device_vector<vertex_t> &output_frontier)
+vertex_t preprocess_input_frontier(
+  raft::handle_t const &handle,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  rmm::device_vector<uint32_t> &bmap,
+  rmm::device_vector<uint32_t> &isolated_bmap,
+  rmm::device_vector<vertex_t> &input_frontier,
+  vertex_t input_frontier_len,
+  rmm::device_vector<vertex_t> &output_frontier)
 {
   cudaStream_t stream = handle.get_stream();
 
@@ -415,12 +421,13 @@ vertex_t preprocess_input_frontier(raft::handle_t const &handle,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-vertex_t preprocess_input_frontier(raft::handle_t const &handle,
-                                   cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                   rmm::device_vector<uint32_t> &bmap,
-                                   rmm::device_vector<vertex_t> &input_frontier,
-                                   vertex_t input_frontier_len,
-                                   rmm::device_vector<vertex_t> &output_frontier)
+vertex_t preprocess_input_frontier(
+  raft::handle_t const &handle,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  rmm::device_vector<uint32_t> &bmap,
+  rmm::device_vector<vertex_t> &input_frontier,
+  vertex_t input_frontier_len,
+  rmm::device_vector<vertex_t> &output_frontier)
 {
   cudaStream_t stream = handle.get_stream();
 
@@ -458,7 +465,7 @@ __global__ void fill_kernel(vertex_t *distances, vertex_t count, vertex_t start_
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void fill_max_dist(raft::handle_t const &handle,
-                   cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+                   cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                    vertex_t start_vertex,
                    vertex_t global_number_of_vertices,
                    vertex_t *distances)
@@ -471,8 +478,9 @@ void fill_max_dist(raft::handle_t const &handle,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-vertex_t get_global_vertex_count(raft::handle_t const &handle,
-                                 cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph)
+vertex_t get_global_vertex_count(
+  raft::handle_t const &handle,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph)
 {
   rmm::device_vector<vertex_t> id(1);
   id[0] = *thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),

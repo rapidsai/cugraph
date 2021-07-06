@@ -18,7 +18,7 @@
 #include <raft/handle.hpp>
 #include <rmm/device_buffer.hpp>
 
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 namespace cugraph {
 
@@ -40,42 +40,8 @@ namespace cugraph {
  *
  */
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCSR<VT, ET, WT>> coo_to_csr(
-  GraphCOOView<VT, ET, WT> const &graph,
-  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
-
-/**
- * @brief    Renumber source and destination indices
- *
- * Renumber source and destination indexes to be a dense numbering,
- * using contiguous values between 0 and number of vertices minus 1.
- *
- * @throws                    cugraph::logic_error when an error occurs.
- *
- * @tparam VT_IN              type of vertex index input
- * @tparam VT_OUT             type of vertex index output
- * @tparam ET                 type of edge index
- *
- * @param[in]  number_of_edges number of edges in the graph
- * @param[in]  src            Pointer to device memory containing source vertex ids
- * @param[in]  dst            Pointer to device memory containing destination vertex ids
- * @param[out] src_renumbered Pointer to device memory containing the output source vertices.
- * @param[out] dst_renumbered Pointer to device memory containing the output destination vertices.
- * @param[out] map_size       Pointer to local memory containing the number of elements in the
- * renumbering map
- * @param[in]  mr             Memory resource used to allocate the returned graph
- *
- * @return                    Unique pointer to renumbering map
- *
- */
-template <typename VT_IN, typename VT_OUT, typename ET>
-std::unique_ptr<rmm::device_buffer> renumber_vertices(
-  ET number_of_edges,
-  VT_IN const *src,
-  VT_IN const *dst,
-  VT_OUT *src_renumbered,
-  VT_OUT *dst_renumbered,
-  ET *map_size,
+std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
+  legacy::GraphCOOView<VT, ET, WT> const &graph,
   rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
 
 /**

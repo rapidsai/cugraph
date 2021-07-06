@@ -298,10 +298,6 @@ ConfigureTest(TRIANGLE_TEST community/triangle_test.cu)
 ConfigureTest(EGO_TEST community/egonet_test.cu)
 
 ###################################################################################################
-# - RENUMBERING tests -----------------------------------------------------------------------------
-ConfigureTest(RENUMBERING_TEST renumber/renumber_test.cu)
-
-###################################################################################################
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
 ConfigureTest(FA2_TEST layout/force_atlas2_test.cu)
 
