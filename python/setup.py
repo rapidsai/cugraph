@@ -128,7 +128,7 @@ EXTENSIONS = [
                   cuda_lib_dir,
                   os.path.join(os.sys.prefix, "lib")
               ],
-              libraries=['cudart', 'cugraph', 'nccl'],
+              libraries=['cudart', 'cusparse', 'cugraph', 'nccl'],
               language='c++',
               extra_compile_args=['-std=c++17'])
 ]
