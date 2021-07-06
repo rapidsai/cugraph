@@ -25,21 +25,15 @@
 #include <cugraph/partition_manager.hpp>
 
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/prims/any_of_adj_matrix_row.cuh>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
-#include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
-#include <cugraph/prims/count_if_e.cuh>
 #include <cugraph/prims/count_if_v.cuh>
-#include <cugraph/prims/reduce_v.cuh>
-#include <cugraph/prims/transform_reduce_v.cuh>
-#include <cugraph/utilities/error.hpp>
-#include <cugraph/vertex_partition_device.cuh>
+#include <cuco/detail/hash_functions.cuh>
 
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <thrust/count.h>
 
 #include <gtest/gtest.h>
 
@@ -107,12 +101,13 @@ class Tests_MG_CountIfV
     std::cout<<"Number of map labels : "<<d_mg_renumber_map_labels.size()<<"\n";
 
     vertex_t const * data = d_mg_renumber_map_labels.data();
-
+    const int hash_bin_count = 5;
     auto num_vertices = count_if_v(handle,
                                    mg_graph_view,
                                    data,
-                                   [] __device__(auto val) { return true; });
-    std::cout<<"Count if vertices : "<<num_vertices<<"\n";
+                                   [hash_bin_count] __device__(auto val) {
+    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    return 0 == (hash_func(val) % hash_bin_count); });
 
 
     // 3. compute max in-degree
@@ -133,8 +128,23 @@ class Tests_MG_CountIfV
       std::cout << "MG Katz Centrality took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    // 5. copmare SG & MG results
-
+    // 5. compare SG & MG results
+    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(handle);
+    rmm::device_uvector<vertex_t> d_sg_renumber_map_labels(0, handle.get_stream());
+    std::tie(sg_graph, d_sg_renumber_map_labels) =
+      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
+        handle, true, false);
+    auto sg_graph_view = sg_graph.view();
+    auto golden = thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                     thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
+                     thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
+                                   [hash_bin_count] __device__(auto val) {
+    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    return hash_func(val) % hash_bin_count; });
+    std::cout<<"Golden "<<golden<<"\n";
+    std::cout<<"Count if vertices : "<<num_vertices<<"\n";
+    std::cout<<sg_graph_view.get_local_vertex_first()<<"\n";
+    std::cout<<sg_graph_view.get_local_vertex_last()<<"\n";
   }
 };
 
