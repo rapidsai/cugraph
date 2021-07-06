@@ -78,6 +78,8 @@ raft_path = get_environment_option('RAFT_PATH')
 # https://github.com/rapidsai/raft/issues/83
 raft_include_dir = use_raft_package(raft_path, libcugraph_path)
 
+if not libcugraph_path:
+    libcugraph_path = conda_lib_dir
 
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
@@ -128,7 +130,7 @@ EXTENSIONS = [
                   cuda_lib_dir,
                   os.path.join(os.sys.prefix, "lib")
               ],
-              libraries=['cudart', 'cusparse', 'cugraph', 'nccl'],
+              libraries=['cudart', 'cusparse', 'cusolver', 'cugraph', 'nccl'],
               language='c++',
               extra_compile_args=['-std=c++17'])
 ]
