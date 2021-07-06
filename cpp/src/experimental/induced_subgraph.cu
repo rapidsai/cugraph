@@ -205,13 +205,8 @@ extract_induced_subgraphs(
           subgraph_offsets + 1,
           thrust::upper_bound(
             thrust::seq, subgraph_offsets, subgraph_offsets + num_subgraphs, size_t{i}));
-<<<<<<< HEAD
-        vertex_t const* indices{nullptr};
-        weight_t const* weights{nullptr};
-=======
         vertex_t const* indices{nullptr};
         thrust::optional<weight_t const*> weights{thrust::nullopt};
->>>>>>> branch-21.08
         edge_t local_degree{};
         auto major_offset =
           matrix_partition.get_major_offset_from_major_nocheck(subgraph_vertices[i]);
