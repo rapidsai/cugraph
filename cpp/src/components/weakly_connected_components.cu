@@ -175,6 +175,10 @@ struct v_op_t {
     vertex_partition{};
   vertex_type* level_components{};
   decltype(thrust::make_zip_iterator(thrust::make_tuple(
+    static_cast<vertex_type*>(nullptr), static_cast<vertex_type*>(nullptr)))) edge_buffer_first{};
+  // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this requires
+  // placing the atomic barrier on managed memory and this adds additional complication.
+  size_t* num_edge_inserts{};
   size_t next_bucket_idx{};
   size_t conflict_bucket_idx{};  // relevant only if GraphViewType::is_multi_gpu is true
 
