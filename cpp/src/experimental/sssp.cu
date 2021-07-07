@@ -43,9 +43,9 @@ namespace experimental {
 namespace detail {
 
 template <typename GraphViewType, typename PredecessorIterator>
-void sssp(raft::handle_t const &handle,
-          GraphViewType const &push_graph_view,
-          typename GraphViewType::weight_type *distances,
+void sssp(raft::handle_t const& handle,
+          GraphViewType const& push_graph_view,
+          typename GraphViewType::weight_type* distances,
           PredecessorIterator predecessor_first,
           typename GraphViewType::vertex_type source_vertex,
           typename GraphViewType::weight_type cutoff,
@@ -201,9 +201,9 @@ void sssp(raft::handle_t const &handle,
       [near_far_threshold] __device__(auto v, auto v_val, auto pushed_val) {
         auto new_dist = thrust::get<0>(pushed_val);
         auto idx      = new_dist < v_val
-                     ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::next_near)
-                                                      : static_cast<size_t>(Bucket::far))
-                     : VertexFrontier<vertex_t>::kInvalidBucketIdx;
+                          ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::next_near)
+                                                           : static_cast<size_t>(Bucket::far))
+                          : VertexFrontier<vertex_t>::kInvalidBucketIdx;
         return new_dist < v_val
                  ? thrust::optional<thrust::tuple<size_t, decltype(pushed_val)>>{thrust::make_tuple(
                      static_cast<size_t>(new_dist < near_far_threshold ? Bucket::next_near
@@ -261,10 +261,10 @@ void sssp(raft::handle_t const &handle,
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void sssp(raft::handle_t const &handle,
-          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
-          weight_t *distances,
-          vertex_t *predecessors,
+void sssp(raft::handle_t const& handle,
+          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+          weight_t* distances,
+          vertex_t* predecessors,
           vertex_t source_vertex,
           weight_t cutoff,
           bool do_expensive_check)
@@ -285,98 +285,98 @@ void sssp(raft::handle_t const &handle,
 
 // explicit instantiation
 
-template void sssp(raft::handle_t const &handle,
-                   graph_view_t<int32_t, int32_t, float, false, true> const &graph_view,
-                   float *distances,
-                   int32_t *predecessors,
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+                   float* distances,
+                   int32_t* predecessors,
                    int32_t source_vertex,
                    float cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t const &handle,
-                   graph_view_t<int32_t, int32_t, double, false, true> const &graph_view,
-                   double *distances,
-                   int32_t *predecessors,
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+                   double* distances,
+                   int32_t* predecessors,
                    int32_t source_vertex,
                    double cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t const &handle,
-                   graph_view_t<int32_t, int64_t, float, false, true> const &graph_view,
-                   float *distances,
-                   int32_t *predecessors,
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+                   float* distances,
+                   int32_t* predecessors,
                    int32_t source_vertex,
                    float cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t const &handle,
-                   graph_view_t<int32_t, int64_t, double, false, true> const &graph_view,
-                   double *distances,
-                   int32_t *predecessors,
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+                   double* distances,
+                   int32_t* predecessors,
                    int32_t source_vertex,
                    double cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t const &handle,
-                   graph_view_t<int64_t, int64_t, float, false, true> const &graph_view,
-                   float *distances,
-                   int64_t *predecessors,
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+                   float* distances,
+                   int64_t* predecessors,
                    int64_t source_vertex,
                    float cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t const &handle,
-                   graph_view_t<int64_t, int64_t, double, false, true> const &graph_view,
-                   double *distances,
-                   int64_t *predecessors,
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+                   double* distances,
+                   int64_t* predecessors,
                    int64_t source_vertex,
                    double cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t const &handle,
-                   graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
-                   float *distances,
-                   int32_t *predecessors,
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+                   float* distances,
+                   int32_t* predecessors,
                    int32_t source_vertex,
                    float cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t const &handle,
-                   graph_view_t<int32_t, int32_t, double, false, false> const &graph_view,
-                   double *distances,
-                   int32_t *predecessors,
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+                   double* distances,
+                   int32_t* predecessors,
                    int32_t source_vertex,
                    double cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t const &handle,
-                   graph_view_t<int32_t, int64_t, float, false, false> const &graph_view,
-                   float *distances,
-                   int32_t *predecessors,
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+                   float* distances,
+                   int32_t* predecessors,
                    int32_t source_vertex,
                    float cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t const &handle,
-                   graph_view_t<int32_t, int64_t, double, false, false> const &graph_view,
-                   double *distances,
-                   int32_t *predecessors,
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+                   double* distances,
+                   int32_t* predecessors,
                    int32_t source_vertex,
                    double cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t const &handle,
-                   graph_view_t<int64_t, int64_t, float, false, false> const &graph_view,
-                   float *distances,
-                   int64_t *predecessors,
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+                   float* distances,
+                   int64_t* predecessors,
                    int64_t source_vertex,
                    float cutoff,
                    bool do_expensive_check);
 
-template void sssp(raft::handle_t const &handle,
-                   graph_view_t<int64_t, int64_t, double, false, false> const &graph_view,
-                   double *distances,
-                   int64_t *predecessors,
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+                   double* distances,
+                   int64_t* predecessors,
                    int64_t source_vertex,
                    double cutoff,
                    bool do_expensive_check);

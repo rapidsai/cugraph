@@ -32,9 +32,9 @@ namespace experimental {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct edgelist_t {
-  vertex_t const *p_src_vertices{nullptr};
-  vertex_t const *p_dst_vertices{nullptr};
-  std::optional<weight_t const *> p_edge_weights{std::nullopt};
+  vertex_t const* p_src_vertices{nullptr};
+  vertex_t const* p_dst_vertices{nullptr};
+  std::optional<weight_t const*> p_edge_weights{std::nullopt};
   edge_t number_of_edges{0};
 };
 
@@ -62,29 +62,29 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   static constexpr bool is_adj_matrix_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
 
-  graph_t(raft::handle_t const &handle) : detail::graph_base_t<vertex_t, edge_t, weight_t>() {}
+  graph_t(raft::handle_t const& handle) : detail::graph_base_t<vertex_t, edge_t, weight_t>() {}
 
-  graph_t(raft::handle_t const &handle,
-          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edgelists,
-          partition_t<vertex_t> const &partition,
+  graph_t(raft::handle_t const& handle,
+          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
+          partition_t<vertex_t> const& partition,
           vertex_t number_of_vertices,
           edge_t number_of_edges,
           graph_properties_t properties,
-          std::optional<std::vector<vertex_t>> const &segment_offsets,
+          std::optional<std::vector<vertex_t>> const& segment_offsets,
           bool do_expensive_check = false);
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
 
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
   {
-    std::vector<edge_t const *> offsets(adj_matrix_partition_offsets_.size(), nullptr);
-    std::vector<vertex_t const *> indices(adj_matrix_partition_indices_.size(), nullptr);
-    auto weights = adj_matrix_partition_weights_
-                     ? std::make_optional<std::vector<weight_t const *>>(
+    std::vector<edge_t const*> offsets(adj_matrix_partition_offsets_.size(), nullptr);
+    std::vector<vertex_t const*> indices(adj_matrix_partition_indices_.size(), nullptr);
+    auto weights          = adj_matrix_partition_weights_
+                              ? std::make_optional<std::vector<weight_t const*>>(
                          (*adj_matrix_partition_weights_).size(), nullptr)
-                     : std::nullopt;
+                              : std::nullopt;
     auto dcs_nzd_vertices = adj_matrix_partition_dcs_nzd_vertices_
-                              ? std::make_optional<std::vector<vertex_t const *>>(
+                              ? std::make_optional<std::vector<vertex_t const*>>(
                                   (*adj_matrix_partition_dcs_nzd_vertices_).size(), nullptr)
                               : std::nullopt;
     auto dcs_nzd_vertex_counts =
@@ -149,16 +149,16 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   static constexpr bool is_adj_matrix_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
 
-  graph_t(raft::handle_t const &handle)
+  graph_t(raft::handle_t const& handle)
     : detail::graph_base_t<vertex_t, edge_t, weight_t>(),
       offsets_(0, handle.get_stream()),
       indices_(0, handle.get_stream()){};
 
-  graph_t(raft::handle_t const &handle,
-          edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
+  graph_t(raft::handle_t const& handle,
+          edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
           vertex_t number_of_vertices,
           graph_properties_t properties,
-          std::optional<std::vector<vertex_t>> const &segment_offsets,
+          std::optional<std::vector<vertex_t>> const& segment_offsets,
           bool do_expensive_check = false);
 
   bool is_weighted() const { return weights_.has_value(); }
@@ -169,7 +169,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       *(this->get_handle_ptr()),
       offsets_.data(),
       indices_.data(),
-      weights_ ? std::optional<weight_t const *>{(*weights_).data()} : std::nullopt,
+      weights_ ? std::optional<weight_t const*>{(*weights_).data()} : std::nullopt,
       this->get_number_of_vertices(),
       this->get_number_of_edges(),
       this->get_graph_properties(),
@@ -182,14 +182,14 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   // cnstr. to be used _only_ for un/serialization purposes:
   //
-  graph_t(raft::handle_t const &handle,
+  graph_t(raft::handle_t const& handle,
           vertex_t number_of_vertices,
           edge_t number_of_edges,
           graph_properties_t properties,
-          rmm::device_uvector<edge_t> &&offsets,
-          rmm::device_uvector<vertex_t> &&indices,
-          std::optional<rmm::device_uvector<weight_t>> &&weights,
-          std::optional<std::vector<vertex_t>> &&segment_offsets)
+          rmm::device_uvector<edge_t>&& offsets,
+          rmm::device_uvector<vertex_t>&& indices,
+          std::optional<rmm::device_uvector<weight_t>>&& weights,
+          std::optional<std::vector<vertex_t>>&& segment_offsets)
     : detail::graph_base_t<vertex_t, edge_t, weight_t>(
         handle, number_of_vertices, number_of_edges, properties),
       offsets_(std::move(offsets)),

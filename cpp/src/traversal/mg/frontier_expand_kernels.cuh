@@ -26,13 +26,13 @@ namespace mg {
 namespace detail {
 
 template <typename vertex_t, typename edge_t>
-__device__ void write_to_frontier(vertex_t const *thread_frontier,
+__device__ void write_to_frontier(vertex_t const* thread_frontier,
                                   int thread_frontier_count,
-                                  vertex_t *block_frontier,
-                                  int *block_frontier_count,
-                                  vertex_t *output_frontier,
-                                  edge_t *block_write_offset,
-                                  edge_t *output_frontier_count)
+                                  vertex_t* block_frontier,
+                                  int* block_frontier_count,
+                                  vertex_t* output_frontier,
+                                  edge_t* block_write_offset,
+                                  edge_t* output_frontier_count)
 {
   // Set frontier count for block to 0
   if (threadIdx.x == 0) { *block_frontier_count = 0; }
@@ -66,13 +66,13 @@ template <int BlockSize,
           typename vertex_t,
           typename edge_t,
           typename operator_t>
-__global__ void block_per_vertex(edge_t const *offsets,
-                                 vertex_t const *indices,
-                                 vertex_t const *input_frontier,
+__global__ void block_per_vertex(edge_t const* offsets,
+                                 vertex_t const* indices,
+                                 vertex_t const* input_frontier,
                                  vertex_t input_frontier_count,
                                  vertex_t vertex_begin,
-                                 vertex_t *output_frontier,
-                                 edge_t *output_frontier_count,
+                                 vertex_t* output_frontier,
+                                 edge_t* output_frontier_count,
                                  operator_t op)
 {
   if (blockIdx.x >= input_frontier_count) { return; }
@@ -121,13 +121,13 @@ template <int BlockSize,
           typename vertex_t,
           typename edge_t,
           typename operator_t>
-__global__ void kernel_per_vertex(edge_t const *offsets,
-                                  vertex_t const *indices,
-                                  vertex_t const *input_frontier,
+__global__ void kernel_per_vertex(edge_t const* offsets,
+                                  vertex_t const* indices,
+                                  vertex_t const* input_frontier,
                                   vertex_t input_frontier_count,
                                   vertex_t vertex_begin,
-                                  vertex_t *output_frontier,
-                                  edge_t *output_frontier_count,
+                                  vertex_t* output_frontier,
+                                  edge_t* output_frontier_count,
                                   operator_t op)
 {
   vertex_t current_vertex_index = 0;
@@ -171,12 +171,12 @@ __global__ void kernel_per_vertex(edge_t const *offsets,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename operator_t>
-void large_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                     DegreeBucket<vertex_t, edge_t> &bucket,
+void large_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+                     DegreeBucket<vertex_t, edge_t>& bucket,
                      operator_t op,
                      vertex_t vertex_begin,
-                     vertex_t *output_vertex_ids,
-                     edge_t *output_vertex_ids_offset,
+                     vertex_t* output_vertex_ids,
+                     edge_t* output_vertex_ids_offset,
                      cudaStream_t stream)
 {
   if (bucket.numberOfVertices != 0) {
@@ -196,12 +196,12 @@ void large_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> c
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename operator_t>
-void medium_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                      DegreeBucket<vertex_t, edge_t> &bucket,
+void medium_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+                      DegreeBucket<vertex_t, edge_t>& bucket,
                       operator_t op,
                       vertex_t vertex_begin,
-                      vertex_t *output_vertex_ids,
-                      edge_t *output_vertex_ids_offset,
+                      vertex_t* output_vertex_ids,
+                      edge_t* output_vertex_ids_offset,
                       cudaStream_t stream)
 {
   // Vertices with degrees 2^12 <= d < 2^16 are handled by this kernel
@@ -223,12 +223,12 @@ void medium_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> 
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename operator_t>
-void small_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                     DegreeBucket<vertex_t, edge_t> &bucket,
+void small_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+                     DegreeBucket<vertex_t, edge_t>& bucket,
                      operator_t op,
                      vertex_t vertex_begin,
-                     vertex_t *output_vertex_ids,
-                     edge_t *output_vertex_ids_offset,
+                     vertex_t* output_vertex_ids,
+                     edge_t* output_vertex_ids_offset,
                      cudaStream_t stream)
 {
   int block_count = bucket.numberOfVertices;

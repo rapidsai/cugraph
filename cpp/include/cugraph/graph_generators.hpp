@@ -67,7 +67,7 @@ namespace cugraph {
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generate_rmat_edgelist(
-  raft::handle_t const &handle,
+  raft::handle_t const& handle,
   size_t scale,
   size_t num_edges,
   double a           = 0.57,
@@ -114,7 +114,7 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 template <typename vertex_t>
 std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>>
 generate_rmat_edgelists(
-  raft::handle_t const &handle,
+  raft::handle_t const& handle,
   size_t n_edgelists,
   size_t min_scale,
   size_t max_scale,
@@ -150,8 +150,8 @@ generate_rmat_edgelists(
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
 generate_path_graph_edgelist(
-  raft::handle_t const &handle,
-  std::vector<std::tuple<vertex_t, vertex_t>> const &component_parameters_v);
+  raft::handle_t const& handle,
+  std::vector<std::tuple<vertex_t, vertex_t>> const& component_parameters_v);
 
 /**
  * @brief generate an edge list for a 2D Mesh Graph
@@ -175,8 +175,8 @@ generate_path_graph_edgelist(
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
 generate_2d_mesh_graph_edgelist(
-  raft::handle_t const &handle,
-  std::vector<std::tuple<vertex_t, vertex_t, vertex_t>> const &component_parameters_v);
+  raft::handle_t const& handle,
+  std::vector<std::tuple<vertex_t, vertex_t, vertex_t>> const& component_parameters_v);
 
 /**
  * @brief generate an edge list for a 3D Mesh Graph
@@ -200,8 +200,8 @@ generate_2d_mesh_graph_edgelist(
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
 generate_3d_mesh_graph_edgelist(
-  raft::handle_t const &handle,
-  std::vector<std::tuple<vertex_t, vertex_t, vertex_t, vertex_t>> const &component_parameters_v);
+  raft::handle_t const& handle,
+  std::vector<std::tuple<vertex_t, vertex_t, vertex_t, vertex_t>> const& component_parameters_v);
 
 /**
  * @brief generate an edge lists for some complete graphs
@@ -225,8 +225,8 @@ generate_3d_mesh_graph_edgelist(
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
 generate_complete_graph_edgelist(
-  raft::handle_t const &handle,
-  std::vector<std::tuple<vertex_t, vertex_t>> const &component_parameters_v);
+  raft::handle_t const& handle,
+  std::vector<std::tuple<vertex_t, vertex_t>> const& component_parameters_v);
 
 /**
  * @brief generate an edge lists for an Erdos-Renyi graph
@@ -249,7 +249,7 @@ generate_complete_graph_edgelist(
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const &handle,
+generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
                                         vertex_t num_vertices,
                                         float p,
                                         vertex_t base_vertex_id,
@@ -276,7 +276,7 @@ generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const &handle,
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const &handle,
+generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
                                         vertex_t num_vertices,
                                         size_t m,
                                         vertex_t base_vertex_id,
@@ -304,10 +304,10 @@ template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-symmetrize_edgelist(raft::handle_t const &handle,
-                    rmm::device_uvector<vertex_t> &&d_src_v,
-                    rmm::device_uvector<vertex_t> &&d_dst_v,
-                    std::optional<rmm::device_uvector<weight_t>> &&optional_d_weights_v);
+symmetrize_edgelist(raft::handle_t const& handle,
+                    rmm::device_uvector<vertex_t>&& d_src_v,
+                    rmm::device_uvector<vertex_t>&& d_dst_v,
+                    std::optional<rmm::device_uvector<weight_t>>&& optional_d_weights_v);
 
 /**
  * @brief scramble vertex ids in a graph
@@ -327,9 +327,9 @@ symmetrize_edgelist(raft::handle_t const &handle,
  * @param seed Used to initialize random number generator
  */
 template <typename vertex_t>
-void scramble_vertex_ids(raft::handle_t const &handle,
-                         rmm::device_uvector<vertex_t> &d_src_v,
-                         rmm::device_uvector<vertex_t> &d_dst_v,
+void scramble_vertex_ids(raft::handle_t const& handle,
+                         rmm::device_uvector<vertex_t>& d_src_v,
+                         rmm::device_uvector<vertex_t>& d_dst_v,
                          vertex_t vertex_id_offset,
                          uint64_t seed = 0);
 
@@ -355,10 +355,10 @@ template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-combine_edgelists(raft::handle_t const &handle,
-                  std::vector<rmm::device_uvector<vertex_t>> &&d_sources,
-                  std::vector<rmm::device_uvector<vertex_t>> &&d_dests,
-                  std::optional<std::vector<rmm::device_uvector<weight_t>>> &&optional_d_weights,
+combine_edgelists(raft::handle_t const& handle,
+                  std::vector<rmm::device_uvector<vertex_t>>&& d_sources,
+                  std::vector<rmm::device_uvector<vertex_t>>&& d_dests,
+                  std::optional<std::vector<rmm::device_uvector<weight_t>>>&& optional_d_weights,
                   bool remove_multi_edges = true);
 
 }  // namespace cugraph

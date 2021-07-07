@@ -60,7 +60,7 @@ namespace detail {
  * @param[out] result      Total number of vertices
  */
 template <typename VT, typename ET, typename WT>
-VT sort(legacy::GraphCOOView<VT, ET, WT> &graph, rmm::cuda_stream_view stream_view)
+VT sort(legacy::GraphCOOView<VT, ET, WT>& graph, rmm::cuda_stream_view stream_view)
 {
   VT max_src_id;
   VT max_dst_id;
@@ -97,8 +97,8 @@ VT sort(legacy::GraphCOOView<VT, ET, WT> &graph, rmm::cuda_stream_view stream_vi
 }
 
 template <typename VT, typename ET>
-void fill_offset(VT *source,
-                 ET *offsets,
+void fill_offset(VT* source,
+                 ET* offsets,
                  VT number_of_vertices,
                  ET number_of_edges,
                  rmm::cuda_stream_view stream_view)
@@ -125,16 +125,16 @@ void fill_offset(VT *source,
 }
 
 template <typename VT, typename ET>
-rmm::device_buffer create_offset(VT *source,
+rmm::device_buffer create_offset(VT* source,
                                  VT number_of_vertices,
                                  ET number_of_edges,
                                  rmm::cuda_stream_view stream_view,
-                                 rmm::mr::device_memory_resource *mr)
+                                 rmm::mr::device_memory_resource* mr)
 {
   // Offset array needs an extra element at the end to contain the ending offsets
   // of the last vertex
   rmm::device_buffer offsets_buffer(sizeof(ET) * (number_of_vertices + 1), stream_view, mr);
-  ET *offsets = static_cast<ET *>(offsets_buffer.data());
+  ET* offsets = static_cast<ET*>(offsets_buffer.data());
 
   fill_offset(source, offsets, number_of_vertices, number_of_edges, stream_view);
 
@@ -145,7 +145,7 @@ rmm::device_buffer create_offset(VT *source,
 
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
-  legacy::GraphCOOView<VT, ET, WT> const &graph, rmm::mr::device_memory_resource *mr)
+  legacy::GraphCOOView<VT, ET, WT> const& graph, rmm::mr::device_memory_resource* mr)
 {
   rmm::cuda_stream_view stream_view;
 
@@ -166,8 +166,8 @@ std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
 }
 
 template <typename VT, typename ET, typename WT>
-void coo_to_csr_inplace(legacy::GraphCOOView<VT, ET, WT> &graph,
-                        legacy::GraphCSRView<VT, ET, WT> &result)
+void coo_to_csr_inplace(legacy::GraphCOOView<VT, ET, WT>& graph,
+                        legacy::GraphCSRView<VT, ET, WT>& result)
 {
   rmm::cuda_stream_view stream_view;
 
@@ -190,64 +190,64 @@ void coo_to_csr_inplace(legacy::GraphCOOView<VT, ET, WT> &graph,
 //
 // EIDecl for uint32_t + float
 extern template std::unique_ptr<legacy::GraphCSR<uint32_t, uint32_t, float>>
-coo_to_csr<uint32_t, uint32_t, float>(legacy::GraphCOOView<uint32_t, uint32_t, float> const &graph,
-                                      rmm::mr::device_memory_resource *);
+coo_to_csr<uint32_t, uint32_t, float>(legacy::GraphCOOView<uint32_t, uint32_t, float> const& graph,
+                                      rmm::mr::device_memory_resource*);
 
 // EIDecl for uint32_t + double
 extern template std::unique_ptr<legacy::GraphCSR<uint32_t, uint32_t, double>>
 coo_to_csr<uint32_t, uint32_t, double>(
-  legacy::GraphCOOView<uint32_t, uint32_t, double> const &graph, rmm::mr::device_memory_resource *);
+  legacy::GraphCOOView<uint32_t, uint32_t, double> const& graph, rmm::mr::device_memory_resource*);
 
 // EIDecl for int + float
 extern template std::unique_ptr<legacy::GraphCSR<int32_t, int32_t, float>>
-coo_to_csr<int32_t, int32_t, float>(legacy::GraphCOOView<int32_t, int32_t, float> const &graph,
-                                    rmm::mr::device_memory_resource *);
+coo_to_csr<int32_t, int32_t, float>(legacy::GraphCOOView<int32_t, int32_t, float> const& graph,
+                                    rmm::mr::device_memory_resource*);
 
 // EIDecl for int + double
 extern template std::unique_ptr<legacy::GraphCSR<int32_t, int32_t, double>>
-coo_to_csr<int32_t, int32_t, double>(legacy::GraphCOOView<int32_t, int32_t, double> const &graph,
-                                     rmm::mr::device_memory_resource *);
+coo_to_csr<int32_t, int32_t, double>(legacy::GraphCOOView<int32_t, int32_t, double> const& graph,
+                                     rmm::mr::device_memory_resource*);
 
 // EIDecl for int64_t + float
 extern template std::unique_ptr<legacy::GraphCSR<int64_t, int64_t, float>>
-coo_to_csr<int64_t, int64_t, float>(legacy::GraphCOOView<int64_t, int64_t, float> const &graph,
-                                    rmm::mr::device_memory_resource *);
+coo_to_csr<int64_t, int64_t, float>(legacy::GraphCOOView<int64_t, int64_t, float> const& graph,
+                                    rmm::mr::device_memory_resource*);
 
 // EIDecl for int64_t + double
 extern template std::unique_ptr<legacy::GraphCSR<int64_t, int64_t, double>>
-coo_to_csr<int64_t, int64_t, double>(legacy::GraphCOOView<int64_t, int64_t, double> const &graph,
-                                     rmm::mr::device_memory_resource *);
+coo_to_csr<int64_t, int64_t, double>(legacy::GraphCOOView<int64_t, int64_t, double> const& graph,
+                                     rmm::mr::device_memory_resource*);
 
 // in-place versions:
 //
 // EIDecl for uint32_t + float
 extern template void coo_to_csr_inplace<uint32_t, uint32_t, float>(
-  legacy::GraphCOOView<uint32_t, uint32_t, float> &graph,
-  legacy::GraphCSRView<uint32_t, uint32_t, float> &result);
+  legacy::GraphCOOView<uint32_t, uint32_t, float>& graph,
+  legacy::GraphCSRView<uint32_t, uint32_t, float>& result);
 
 // EIDecl for uint32_t + double
 extern template void coo_to_csr_inplace<uint32_t, uint32_t, double>(
-  legacy::GraphCOOView<uint32_t, uint32_t, double> &graph,
-  legacy::GraphCSRView<uint32_t, uint32_t, double> &result);
+  legacy::GraphCOOView<uint32_t, uint32_t, double>& graph,
+  legacy::GraphCSRView<uint32_t, uint32_t, double>& result);
 
 // EIDecl for int + float
 extern template void coo_to_csr_inplace<int32_t, int32_t, float>(
-  legacy::GraphCOOView<int32_t, int32_t, float> &graph,
-  legacy::GraphCSRView<int32_t, int32_t, float> &result);
+  legacy::GraphCOOView<int32_t, int32_t, float>& graph,
+  legacy::GraphCSRView<int32_t, int32_t, float>& result);
 
 // EIDecl for int + double
 extern template void coo_to_csr_inplace<int32_t, int32_t, double>(
-  legacy::GraphCOOView<int32_t, int32_t, double> &graph,
-  legacy::GraphCSRView<int32_t, int32_t, double> &result);
+  legacy::GraphCOOView<int32_t, int32_t, double>& graph,
+  legacy::GraphCSRView<int32_t, int32_t, double>& result);
 
 // EIDecl for int64_t + float
 extern template void coo_to_csr_inplace<int64_t, int64_t, float>(
-  legacy::GraphCOOView<int64_t, int64_t, float> &graph,
-  legacy::GraphCSRView<int64_t, int64_t, float> &result);
+  legacy::GraphCOOView<int64_t, int64_t, float>& graph,
+  legacy::GraphCSRView<int64_t, int64_t, float>& result);
 
 // EIDecl for int64_t + double
 extern template void coo_to_csr_inplace<int64_t, int64_t, double>(
-  legacy::GraphCOOView<int64_t, int64_t, double> &graph,
-  legacy::GraphCSRView<int64_t, int64_t, double> &result);
+  legacy::GraphCOOView<int64_t, int64_t, double>& graph,
+  legacy::GraphCSRView<int64_t, int64_t, double>& result);
 
 }  // namespace cugraph

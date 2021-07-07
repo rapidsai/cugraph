@@ -88,7 +88,7 @@ std::vector<edge_t> compute_edge_counts(raft::handle_t const& handle,
   auto major_vertices = transposed
                           ? reinterpret_cast<vertex_t const*>(graph_container.dst_vertices)
                           : reinterpret_cast<vertex_t const*>(graph_container.src_vertices);
-  auto key_first = thrust::make_transform_iterator(
+  auto key_first      = thrust::make_transform_iterator(
     major_vertices, compute_local_partition_id_t<vertex_t>{d_lasts.data(), num_local_partitions});
   rmm::device_uvector<size_t> d_local_partition_ids(num_local_partitions, handle.get_stream());
   rmm::device_uvector<edge_t> d_edge_counts(d_local_partition_ids.size(), handle.get_stream());

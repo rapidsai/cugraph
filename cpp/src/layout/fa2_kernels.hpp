@@ -23,15 +23,15 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-__global__ void attraction_kernel(const vertex_t *restrict row,
-                                  const vertex_t *restrict col,
-                                  const weight_t *restrict v,
+__global__ void attraction_kernel(const vertex_t* restrict row,
+                                  const vertex_t* restrict col,
+                                  const weight_t* restrict v,
                                   const edge_t e,
-                                  const float *restrict x_pos,
-                                  const float *restrict y_pos,
-                                  float *restrict attract_x,
-                                  float *restrict attract_y,
-                                  const int *restrict mass,
+                                  const float* restrict x_pos,
+                                  const float* restrict y_pos,
+                                  float* restrict attract_x,
+                                  float* restrict attract_y,
+                                  const int* restrict mass,
                                   bool outbound_attraction_distribution,
                                   bool lin_log_mode,
                                   const float edge_weight_influence,
@@ -71,15 +71,15 @@ __global__ void attraction_kernel(const vertex_t *restrict row,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void apply_attraction(const vertex_t *restrict row,
-                      const vertex_t *restrict col,
-                      const weight_t *restrict v,
+void apply_attraction(const vertex_t* restrict row,
+                      const vertex_t* restrict col,
+                      const weight_t* restrict v,
                       const edge_t e,
-                      const float *restrict x_pos,
-                      const float *restrict y_pos,
-                      float *restrict attract_x,
-                      float *restrict attract_y,
-                      const int *restrict mass,
+                      const float* restrict x_pos,
+                      const float* restrict y_pos,
+                      float* restrict attract_x,
+                      float* restrict attract_y,
+                      const int* restrict mass,
                       bool outbound_attraction_distribution,
                       bool lin_log_mode,
                       const float edge_weight_influence,
@@ -116,11 +116,11 @@ void apply_attraction(const vertex_t *restrict row,
 }
 
 template <typename vertex_t>
-__global__ void linear_gravity_kernel(const float *restrict x_pos,
-                                      const float *restrict y_pos,
-                                      float *restrict attract_x,
-                                      float *restrict attract_y,
-                                      const int *restrict mass,
+__global__ void linear_gravity_kernel(const float* restrict x_pos,
+                                      const float* restrict y_pos,
+                                      float* restrict attract_x,
+                                      float* restrict attract_y,
+                                      const int* restrict mass,
                                       const float gravity,
                                       const vertex_t n)
 {
@@ -136,11 +136,11 @@ __global__ void linear_gravity_kernel(const float *restrict x_pos,
 }
 
 template <typename vertex_t>
-__global__ void strong_gravity_kernel(const float *restrict x_pos,
-                                      const float *restrict y_pos,
-                                      float *restrict attract_x,
-                                      float *restrict attract_y,
-                                      const int *restrict mass,
+__global__ void strong_gravity_kernel(const float* restrict x_pos,
+                                      const float* restrict y_pos,
+                                      float* restrict attract_x,
+                                      float* restrict attract_y,
+                                      const int* restrict mass,
                                       const float gravity,
                                       const float scaling_ratio,
                                       const vertex_t n)
@@ -157,11 +157,11 @@ __global__ void strong_gravity_kernel(const float *restrict x_pos,
 }
 
 template <typename vertex_t>
-void apply_gravity(const float *restrict x_pos,
-                   const float *restrict y_pos,
-                   float *restrict attract_x,
-                   float *restrict attract_y,
-                   const int *restrict mass,
+void apply_gravity(const float* restrict x_pos,
+                   const float* restrict y_pos,
+                   float* restrict attract_x,
+                   float* restrict attract_y,
+                   const int* restrict mass,
                    const float gravity,
                    bool strong_gravity_mode,
                    const float scaling_ratio,
@@ -187,15 +187,15 @@ void apply_gravity(const float *restrict x_pos,
 }
 
 template <typename vertex_t>
-__global__ void local_speed_kernel(const float *restrict repel_x,
-                                   const float *restrict repel_y,
-                                   const float *restrict attract_x,
-                                   const float *restrict attract_y,
-                                   const float *restrict old_dx,
-                                   const float *restrict old_dy,
-                                   const int *restrict mass,
-                                   float *restrict swinging,
-                                   float *restrict traction,
+__global__ void local_speed_kernel(const float* restrict repel_x,
+                                   const float* restrict repel_y,
+                                   const float* restrict attract_x,
+                                   const float* restrict attract_y,
+                                   const float* restrict old_dx,
+                                   const float* restrict old_dy,
+                                   const int* restrict mass,
+                                   float* restrict swinging,
+                                   float* restrict traction,
                                    const vertex_t n)
 {
   // For every node.
@@ -210,15 +210,15 @@ __global__ void local_speed_kernel(const float *restrict repel_x,
 }
 
 template <typename vertex_t>
-void compute_local_speed(const float *restrict repel_x,
-                         const float *restrict repel_y,
-                         const float *restrict attract_x,
-                         const float *restrict attract_y,
-                         float *restrict old_dx,
-                         float *restrict old_dy,
-                         const int *restrict mass,
-                         float *restrict swinging,
-                         float *restrict traction,
+void compute_local_speed(const float* restrict repel_x,
+                         const float* restrict repel_y,
+                         const float* restrict attract_x,
+                         const float* restrict attract_y,
+                         float* restrict old_dx,
+                         float* restrict old_dy,
+                         const int* restrict mass,
+                         float* restrict swinging,
+                         float* restrict traction,
                          const vertex_t n,
                          cudaStream_t stream)
 {
@@ -237,9 +237,9 @@ void compute_local_speed(const float *restrict repel_x,
 
 template <typename vertex_t>
 void adapt_speed(const float jitter_tolerance,
-                 float *restrict jt,
-                 float *restrict speed,
-                 float *restrict speed_efficiency,
+                 float* restrict jt,
+                 float* restrict speed,
+                 float* restrict speed_efficiency,
                  const float s,
                  const float t,
                  const vertex_t n)
@@ -272,15 +272,15 @@ void adapt_speed(const float jitter_tolerance,
 }
 
 template <typename vertex_t>
-__global__ void update_positions_kernel(float *restrict x_pos,
-                                        float *restrict y_pos,
-                                        const float *restrict repel_x,
-                                        const float *restrict repel_y,
-                                        const float *restrict attract_x,
-                                        const float *restrict attract_y,
-                                        float *restrict old_dx,
-                                        float *restrict old_dy,
-                                        const float *restrict swinging,
+__global__ void update_positions_kernel(float* restrict x_pos,
+                                        float* restrict y_pos,
+                                        const float* restrict repel_x,
+                                        const float* restrict repel_y,
+                                        const float* restrict attract_x,
+                                        const float* restrict attract_y,
+                                        float* restrict old_dx,
+                                        float* restrict old_dy,
+                                        const float* restrict swinging,
                                         const float speed,
                                         const vertex_t n)
 {
@@ -298,15 +298,15 @@ __global__ void update_positions_kernel(float *restrict x_pos,
 }
 
 template <typename vertex_t>
-void apply_forces(float *restrict x_pos,
-                  float *restrict y_pos,
-                  const float *restrict repel_x,
-                  const float *restrict repel_y,
-                  const float *restrict attract_x,
-                  const float *restrict attract_y,
-                  float *restrict old_dx,
-                  float *restrict old_dy,
-                  const float *restrict swinging,
+void apply_forces(float* restrict x_pos,
+                  float* restrict y_pos,
+                  const float* restrict repel_x,
+                  const float* restrict repel_y,
+                  const float* restrict attract_x,
+                  const float* restrict attract_y,
+                  float* restrict old_dx,
+                  float* restrict old_dy,
+                  const float* restrict swinging,
                   const float speed,
                   const vertex_t n,
                   cudaStream_t stream)

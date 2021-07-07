@@ -274,7 +274,9 @@ host_scalar_allgather(raft::comms::comms_t const& comm, T input, cudaStream_t st
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
   std::vector<size_t> rx_counts(comm.get_size(), tuple_size);
   std::vector<size_t> displacements(rx_counts.size(), size_t{0});
-  for (size_t i = 0; i < displacements.size(); ++i) { displacements[i] = i * tuple_size; }
+  for (size_t i = 0; i < displacements.size(); ++i) {
+    displacements[i] = i * tuple_size;
+  }
   std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
   rmm::device_uvector<int64_t> d_allgathered_tuple_scalar_elements(comm.get_size() * tuple_size,
                                                                    stream);
