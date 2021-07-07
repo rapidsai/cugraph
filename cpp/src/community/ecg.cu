@@ -28,7 +28,7 @@
 namespace {
 template <typename IndexType>
 __device__ IndexType
-binsearch_maxle(const IndexType *vec, const IndexType val, IndexType low, IndexType high)
+binsearch_maxle(const IndexType* vec, const IndexType val, IndexType low, IndexType high)
 {
   while (true) {
     if (low == high) return low;  // we know it exists
@@ -47,7 +47,7 @@ binsearch_maxle(const IndexType *vec, const IndexType val, IndexType low, IndexT
 //        seems like it should just be a thrust::transform
 template <typename IdxT, typename ValT>
 __global__ void match_check_kernel(
-  IdxT size, IdxT num_verts, IdxT *offsets, IdxT *indices, IdxT *parts, ValT *weights)
+  IdxT size, IdxT num_verts, IdxT* offsets, IdxT* indices, IdxT* parts, ValT* weights)
 {
   IdxT tid = blockIdx.x * blockDim.x + threadIdx.x;
   while (tid < size) {
@@ -90,7 +90,7 @@ struct update_functor {
  * responsible for freeing the allocated memory using ALLOC_FREE_TRY().
  */
 template <typename T>
-void get_permutation_vector(T size, T seed, T *permutation, rmm::cuda_stream_view stream_view)
+void get_permutation_vector(T size, T seed, T* permutation, rmm::cuda_stream_view stream_view)
 {
   rmm::device_uvector<float> randoms_v(size, stream_view);
 
@@ -109,7 +109,7 @@ class EcgLouvain : public cugraph::Louvain<graph_type> {
   using edge_t   = typename graph_type::edge_type;
   using weight_t = typename graph_type::weight_type;
 
-  EcgLouvain(raft::handle_t const &handle, graph_type const &graph, vertex_t seed)
+  EcgLouvain(raft::handle_t const& handle, graph_type const& graph, vertex_t seed)
     : cugraph::Louvain<graph_type>(handle, graph), seed_(seed)
   {
   }
@@ -133,11 +133,11 @@ class EcgLouvain : public cugraph::Louvain<graph_type> {
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void ecg(raft::handle_t const &handle,
-         legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void ecg(raft::handle_t const& handle,
+         legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
          weight_t min_weight,
          vertex_t ensemble_size,
-         vertex_t *clustering)
+         vertex_t* clustering)
 {
   using graph_type = legacy::GraphCSRView<vertex_t, edge_t, weight_t>;
 
@@ -202,15 +202,15 @@ void ecg(raft::handle_t const &handle,
 
 // Explicit template instantiations.
 template void ecg<int32_t, int32_t, float>(
-  raft::handle_t const &,
-  legacy::GraphCSRView<int32_t, int32_t, float> const &graph,
+  raft::handle_t const&,
+  legacy::GraphCSRView<int32_t, int32_t, float> const& graph,
   float min_weight,
   int32_t ensemble_size,
-  int32_t *clustering);
+  int32_t* clustering);
 template void ecg<int32_t, int32_t, double>(
-  raft::handle_t const &,
-  legacy::GraphCSRView<int32_t, int32_t, double> const &graph,
+  raft::handle_t const&,
+  legacy::GraphCSRView<int32_t, int32_t, double> const& graph,
   double min_weight,
   int32_t ensemble_size,
-  int32_t *clustering);
+  int32_t* clustering);
 }  // namespace cugraph

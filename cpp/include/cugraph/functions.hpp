@@ -41,8 +41,8 @@ namespace cugraph {
  */
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
-  legacy::GraphCOOView<VT, ET, WT> const &graph,
-  rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource());
+  legacy::GraphCOOView<VT, ET, WT> const& graph,
+  rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
 
 /**
  * @brief    Broadcast using handle communicator
@@ -60,7 +60,7 @@ std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
 
 // FIXME: It would be better to expose it in RAFT
 template <typename value_t>
-void comms_bcast(const raft::handle_t &handle, value_t *value, size_t count)
+void comms_bcast(const raft::handle_t& handle, value_t* value, size_t count)
 {
   handle.get_comms().bcast(value, count, 0, handle.get_stream());
 }

@@ -858,7 +858,7 @@ void update_frontier_v_push_if_out_nbr(
     auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
                                     ? vertex_t{0}
                                     : matrix_partition.get_major_value_start_offset();
-    auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+    auto segment_offsets        = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
     if (segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
       std::vector<vertex_t> h_thresholds(detail::num_sparse_segments_per_vertex_partition - 1);

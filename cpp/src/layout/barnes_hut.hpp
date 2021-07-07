@@ -36,12 +36,12 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void barnes_hut(raft::handle_t const &handle,
-                legacy::GraphCOOView<vertex_t, edge_t, weight_t> &graph,
-                float *pos,
+void barnes_hut(raft::handle_t const& handle,
+                legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
+                float* pos,
                 const int max_iter                            = 500,
-                float *x_start                                = nullptr,
-                float *y_start                                = nullptr,
+                float* x_start                                = nullptr,
+                float* y_start                                = nullptr,
                 bool outbound_attraction_distribution         = true,
                 bool lin_log_mode                             = false,
                 bool prevent_overlapping                      = false,
@@ -52,7 +52,7 @@ void barnes_hut(raft::handle_t const &handle,
                 bool strong_gravity_mode                      = false,
                 const float gravity                           = 1.0,
                 bool verbose                                  = false,
-                internals::GraphBasedDimRedCallback *callback = nullptr)
+                internals::GraphBasedDimRedCallback* callback = nullptr)
 {
   rmm::cuda_stream_view stream_view(handle.get_stream_view());
   const edge_t e   = graph.number_of_edges;
@@ -64,7 +64,8 @@ void barnes_hut(raft::handle_t const &handle,
   // We use the same array for nodes and cells.
   int nnodes = n * 2;
   if (nnodes < 1024 * blocks) nnodes = 1024 * blocks;
-  while ((nnodes & (32 - 1)) != 0) nnodes++;
+  while ((nnodes & (32 - 1)) != 0)
+    nnodes++;
   nnodes--;
 
   // Allocate more space
@@ -74,10 +75,10 @@ void barnes_hut(raft::handle_t const &handle,
   rmm::device_uvector<int> d_bottomd(1, stream_view);
   rmm::device_uvector<float> d_radiusd(1, stream_view);
 
-  unsigned *limiter = d_limiter.data();
-  int *maxdepthd    = d_maxdepthd.data();
-  int *bottomd      = d_bottomd.data();
-  float *radiusd    = d_radiusd.data();
+  unsigned* limiter = d_limiter.data();
+  int* maxdepthd    = d_maxdepthd.data();
+  int* bottomd      = d_bottomd.data();
+  float* radiusd    = d_radiusd.data();
 
   InitializationKernel<<<1, 1, 0, stream_view.value()>>>(limiter, maxdepthd, radiusd);
   CHECK_CUDA(stream_view.value());
@@ -99,32 +100,32 @@ void barnes_hut(raft::handle_t const &handle,
   rmm::device_uvector<float> d_minyl(blocks * FACTOR1, stream_view);
 
   // Actual mallocs
-  int *startl = d_startl.data();
-  int *childl = d_childl.data();
-  int *massl  = d_massl.data();
+  int* startl = d_startl.data();
+  int* childl = d_childl.data();
+  int* massl  = d_massl.data();
 
-  float *maxxl = d_maxxl.data();
-  float *maxyl = d_maxyl.data();
-  float *minxl = d_minxl.data();
-  float *minyl = d_minyl.data();
+  float* maxxl = d_maxxl.data();
+  float* maxyl = d_maxyl.data();
+  float* minxl = d_minxl.data();
+  float* minyl = d_minyl.data();
 
   // SummarizationKernel
   rmm::device_uvector<int> d_countl(nnodes + 1, stream_view);
-  int *countl = d_countl.data();
+  int* countl = d_countl.data();
 
   // SortKernel
   rmm::device_uvector<int> d_sortl(nnodes + 1, stream_view);
-  int *sortl = d_sortl.data();
+  int* sortl = d_sortl.data();
 
   // RepulsionKernel
   rmm::device_uvector<float> d_rep_forces((nnodes + 1) * 2, stream_view);
-  float *rep_forces = d_rep_forces.data();
+  float* rep_forces = d_rep_forces.data();
 
   rmm::device_uvector<float> d_radius_squared(1, stream_view);
-  float *radiusd_squared = d_radius_squared.data();
+  float* radiusd_squared = d_radius_squared.data();
 
   rmm::device_uvector<float> d_nodes_pos((nnodes + 1) * 2, stream_view);
-  float *nodes_pos = d_nodes_pos.data();
+  float* nodes_pos = d_nodes_pos.data();
 
   // Initialize positions with random values
   int random_state = 0;
@@ -139,10 +140,10 @@ void barnes_hut(raft::handle_t const &handle,
   }
 
   // Allocate arrays for force computation
-  float *attract{nullptr};
-  float *old_forces{nullptr};
-  float *swinging{nullptr};
-  float *traction{nullptr};
+  float* attract{nullptr};
+  float* old_forces{nullptr};
+  float* swinging{nullptr};
+  float* traction{nullptr};
 
   rmm::device_uvector<float> d_attract(n * 2, stream_view);
   rmm::device_uvector<float> d_old_forces(n * 2, stream_view);
@@ -163,9 +164,9 @@ void barnes_hut(raft::handle_t const &handle,
   graph.degree(massl, cugraph::legacy::DegreeDirection::OUT);
   CHECK_CUDA(stream_view.value());
 
-  const vertex_t *row = graph.src_indices;
-  const vertex_t *col = graph.dst_indices;
-  const weight_t *v   = graph.edge_data;
+  const vertex_t* row = graph.src_indices;
+  const vertex_t* col = graph.dst_indices;
+  const weight_t* v   = graph.edge_data;
 
   // Scalars used to adapt global speed.
   float speed                     = 1.f;

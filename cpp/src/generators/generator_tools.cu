@@ -33,17 +33,18 @@ namespace cugraph {
 namespace detail {
 
 template <typename T>
-rmm::device_uvector<T> append_all(raft::handle_t const &handle,
-                                  std::vector<rmm::device_uvector<T>> &&input)
+rmm::device_uvector<T> append_all(raft::handle_t const& handle,
+                                  std::vector<rmm::device_uvector<T>>&& input)
 {
   size_t size{0};
   // for (size_t i = 0; i < input.size(); ++i) size += input[i].size();
-  for (auto &element : input) size += element.size();
+  for (auto& element : input)
+    size += element.size();
 
   rmm::device_uvector<T> output(size, handle.get_stream());
   auto output_iter = output.begin();
 
-  for (auto &element : input) {
+  for (auto& element : input) {
     raft::copy(output_iter, element.begin(), element.size(), handle.get_stream());
     output_iter += element.size();
   }
@@ -61,9 +62,9 @@ for (size_t i = 0; i < input.size(); ++i) {
 }  // namespace detail
 
 template <typename vertex_t>
-void scramble_vertex_ids(raft::handle_t const &handle,
-                         rmm::device_uvector<vertex_t> &d_src_v,
-                         rmm::device_uvector<vertex_t> &d_dst_v,
+void scramble_vertex_ids(raft::handle_t const& handle,
+                         rmm::device_uvector<vertex_t>& d_src_v,
+                         rmm::device_uvector<vertex_t>& d_dst_v,
                          vertex_t vertex_id_offset,
                          uint64_t seed)
 {
@@ -85,10 +86,10 @@ template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-combine_edgelists(raft::handle_t const &handle,
-                  std::vector<rmm::device_uvector<vertex_t>> &&sources,
-                  std::vector<rmm::device_uvector<vertex_t>> &&dests,
-                  std::optional<std::vector<rmm::device_uvector<weight_t>>> &&optional_d_weights,
+combine_edgelists(raft::handle_t const& handle,
+                  std::vector<rmm::device_uvector<vertex_t>>&& sources,
+                  std::vector<rmm::device_uvector<vertex_t>>&& dests,
+                  std::optional<std::vector<rmm::device_uvector<weight_t>>>&& optional_d_weights,
                   bool remove_multi_edges)
 {
   CUGRAPH_EXPECTS(sources.size() == dests.size(),
@@ -190,10 +191,10 @@ template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-symmetrize_edgelist(raft::handle_t const &handle,
-                    rmm::device_uvector<vertex_t> &&d_src_v,
-                    rmm::device_uvector<vertex_t> &&d_dst_v,
-                    std::optional<rmm::device_uvector<weight_t>> &&optional_d_weights_v)
+symmetrize_edgelist(raft::handle_t const& handle,
+                    rmm::device_uvector<vertex_t>&& d_src_v,
+                    rmm::device_uvector<vertex_t>&& d_dst_v,
+                    std::optional<rmm::device_uvector<weight_t>>&& optional_d_weights_v)
 {
   auto offset = d_src_v.size();
   d_src_v.resize(offset * 2, handle.get_stream_view());
@@ -220,82 +221,82 @@ symmetrize_edgelist(raft::handle_t const &handle,
                          optional_d_weights_v ? std::move(optional_d_weights_v) : std::nullopt);
 }
 
-template void scramble_vertex_ids(raft::handle_t const &handle,
-                                  rmm::device_uvector<int32_t> &d_src_v,
-                                  rmm::device_uvector<int32_t> &d_dst_v,
+template void scramble_vertex_ids(raft::handle_t const& handle,
+                                  rmm::device_uvector<int32_t>& d_src_v,
+                                  rmm::device_uvector<int32_t>& d_dst_v,
                                   int32_t vertex_id_offset,
                                   uint64_t seed);
 
-template void scramble_vertex_ids(raft::handle_t const &handle,
-                                  rmm::device_uvector<int64_t> &d_src_v,
-                                  rmm::device_uvector<int64_t> &d_dst_v,
+template void scramble_vertex_ids(raft::handle_t const& handle,
+                                  rmm::device_uvector<int64_t>& d_src_v,
+                                  rmm::device_uvector<int64_t>& d_dst_v,
                                   int64_t vertex_id_offset,
                                   uint64_t seed);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
-combine_edgelists(raft::handle_t const &handle,
-                  std::vector<rmm::device_uvector<int32_t>> &&sources,
-                  std::vector<rmm::device_uvector<int32_t>> &&dests,
-                  std::optional<std::vector<rmm::device_uvector<float>>> &&optional_d_weights,
+combine_edgelists(raft::handle_t const& handle,
+                  std::vector<rmm::device_uvector<int32_t>>&& sources,
+                  std::vector<rmm::device_uvector<int32_t>>&& dests,
+                  std::optional<std::vector<rmm::device_uvector<float>>>&& optional_d_weights,
                   bool remove_multi_edges);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
-combine_edgelists(raft::handle_t const &handle,
-                  std::vector<rmm::device_uvector<int64_t>> &&sources,
-                  std::vector<rmm::device_uvector<int64_t>> &&dests,
-                  std::optional<std::vector<rmm::device_uvector<float>>> &&optional_d_weights,
+combine_edgelists(raft::handle_t const& handle,
+                  std::vector<rmm::device_uvector<int64_t>>&& sources,
+                  std::vector<rmm::device_uvector<int64_t>>&& dests,
+                  std::optional<std::vector<rmm::device_uvector<float>>>&& optional_d_weights,
                   bool remove_multi_edges);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
-combine_edgelists(raft::handle_t const &handle,
-                  std::vector<rmm::device_uvector<int32_t>> &&sources,
-                  std::vector<rmm::device_uvector<int32_t>> &&dests,
-                  std::optional<std::vector<rmm::device_uvector<double>>> &&optional_d_weights,
+combine_edgelists(raft::handle_t const& handle,
+                  std::vector<rmm::device_uvector<int32_t>>&& sources,
+                  std::vector<rmm::device_uvector<int32_t>>&& dests,
+                  std::optional<std::vector<rmm::device_uvector<double>>>&& optional_d_weights,
                   bool remove_multi_edges);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
-combine_edgelists(raft::handle_t const &handle,
-                  std::vector<rmm::device_uvector<int64_t>> &&sources,
-                  std::vector<rmm::device_uvector<int64_t>> &&dests,
-                  std::optional<std::vector<rmm::device_uvector<double>>> &&optional_d_weights,
+combine_edgelists(raft::handle_t const& handle,
+                  std::vector<rmm::device_uvector<int64_t>>&& sources,
+                  std::vector<rmm::device_uvector<int64_t>>&& dests,
+                  std::optional<std::vector<rmm::device_uvector<double>>>&& optional_d_weights,
                   bool remove_multi_edges);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
-symmetrize_edgelist(raft::handle_t const &handle,
-                    rmm::device_uvector<int32_t> &&d_src_v,
-                    rmm::device_uvector<int32_t> &&d_dst_v,
-                    std::optional<rmm::device_uvector<float>> &&optional_d_weights_v);
+symmetrize_edgelist(raft::handle_t const& handle,
+                    rmm::device_uvector<int32_t>&& d_src_v,
+                    rmm::device_uvector<int32_t>&& d_dst_v,
+                    std::optional<rmm::device_uvector<float>>&& optional_d_weights_v);
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
-symmetrize_edgelist(raft::handle_t const &handle,
-                    rmm::device_uvector<int64_t> &&d_src_v,
-                    rmm::device_uvector<int64_t> &&d_dst_v,
-                    std::optional<rmm::device_uvector<float>> &&optional_d_weights_v);
+symmetrize_edgelist(raft::handle_t const& handle,
+                    rmm::device_uvector<int64_t>&& d_src_v,
+                    rmm::device_uvector<int64_t>&& d_dst_v,
+                    std::optional<rmm::device_uvector<float>>&& optional_d_weights_v);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
-symmetrize_edgelist(raft::handle_t const &handle,
-                    rmm::device_uvector<int32_t> &&d_src_v,
-                    rmm::device_uvector<int32_t> &&d_dst_v,
-                    std::optional<rmm::device_uvector<double>> &&optional_d_weights_v);
+symmetrize_edgelist(raft::handle_t const& handle,
+                    rmm::device_uvector<int32_t>&& d_src_v,
+                    rmm::device_uvector<int32_t>&& d_dst_v,
+                    std::optional<rmm::device_uvector<double>>&& optional_d_weights_v);
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
-symmetrize_edgelist(raft::handle_t const &handle,
-                    rmm::device_uvector<int64_t> &&d_src_v,
-                    rmm::device_uvector<int64_t> &&d_dst_v,
-                    std::optional<rmm::device_uvector<double>> &&optional_d_weights_v);
+symmetrize_edgelist(raft::handle_t const& handle,
+                    rmm::device_uvector<int64_t>&& d_src_v,
+                    rmm::device_uvector<int64_t>&& d_dst_v,
+                    std::optional<rmm::device_uvector<double>>&& optional_d_weights_v);
 
 }  // namespace cugraph

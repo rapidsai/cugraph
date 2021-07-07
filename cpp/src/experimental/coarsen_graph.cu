@@ -90,9 +90,9 @@ decompress_matrix_partition_to_edgelist(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-edge_t groupby_e_and_coarsen_edgelist(vertex_t *edgelist_major_vertices /* [INOUT] */,
-                                      vertex_t *edgelist_minor_vertices /* [INOUT] */,
-                                      std::optional<weight_t *> edgelist_weights /* [INOUT] */,
+edge_t groupby_e_and_coarsen_edgelist(vertex_t* edgelist_major_vertices /* [INOUT] */,
+                                      vertex_t* edgelist_minor_vertices /* [INOUT] */,
+                                      std::optional<weight_t*> edgelist_weights /* [INOUT] */,
                                       edge_t number_of_edges,
                                       cudaStream_t stream)
 {
@@ -146,8 +146,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
-  vertex_t const *p_major_labels,
-  vertex_t const *p_minor_labels,
+  vertex_t const* p_major_labels,
+  vertex_t const* p_minor_labels,
   cudaStream_t stream)
 {
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
@@ -173,7 +173,7 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   auto number_of_edges = groupby_e_and_coarsen_edgelist(
     edgelist_major_vertices.data(),
     edgelist_minor_vertices.data(),
-    edgelist_weights ? std::optional<weight_t *>{(*edgelist_weights).data()} : std::nullopt,
+    edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
     static_cast<edge_t>(edgelist_major_vertices.size()),
     stream);
   edgelist_major_vertices.resize(number_of_edges, stream);
@@ -201,18 +201,18 @@ std::enable_if_t<
   std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
              rmm::device_uvector<vertex_t>>>
 coarsen_graph(
-  raft::handle_t const &handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
-  vertex_t const *labels,
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  vertex_t const* labels,
   bool do_expensive_check)
 {
-  auto &comm               = handle.get_comms();
+  auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
   auto const comm_rank     = comm.get_rank();
-  auto &row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_size = row_comm.get_size();
   auto const row_comm_rank = row_comm.get_rank();
-  auto &col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_size = col_comm.get_size();
   auto const col_comm_rank = col_comm.get_rank();
 
@@ -390,9 +390,8 @@ coarsen_graph(
       auto number_of_partition_edges = groupby_e_and_coarsen_edgelist(
         edgelist_major_vertices.begin() + h_displacements[j],
         edgelist_minor_vertices.begin() + h_displacements[j],
-        edgelist_weights
-          ? std::optional<weight_t *>{(*edgelist_weights).data() + h_displacements[j]}
-          : std::nullopt,
+        edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data() + h_displacements[j]}
+                         : std::nullopt,
         h_counts[j],
         handle.get_stream());
 
@@ -442,9 +441,8 @@ coarsen_graph(
     auto number_of_partition_edges = groupby_e_and_coarsen_edgelist(
       coarsened_edgelist_major_vertices[i].data(),
       coarsened_edgelist_minor_vertices[i].data(),
-      coarsened_edgelist_weights
-        ? std::optional<weight_t *>{(*coarsened_edgelist_weights)[i].data()}
-        : std::nullopt,
+      coarsened_edgelist_weights ? std::optional<weight_t*>{(*coarsened_edgelist_weights)[i].data()}
+                                 : std::nullopt,
       static_cast<edge_t>(coarsened_edgelist_major_vertices[i].size()),
       handle.get_stream());
     coarsened_edgelist_major_vertices[i].resize(number_of_partition_edges, handle.get_stream());
@@ -508,8 +506,8 @@ coarsen_graph(
   edge_t number_of_edges{};
   std::optional<std::vector<vertex_t>> segment_offsets{};
   {
-    std::vector<vertex_t *> major_ptrs(coarsened_edgelist_major_vertices.size());
-    std::vector<vertex_t *> minor_ptrs(major_ptrs.size());
+    std::vector<vertex_t*> major_ptrs(coarsened_edgelist_major_vertices.size());
+    std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
     std::vector<edge_t> counts(major_ptrs.size());
     for (size_t i = 0; i < coarsened_edgelist_major_vertices.size(); ++i) {
       major_ptrs[i] = coarsened_edgelist_major_vertices[i].data();
@@ -519,7 +517,7 @@ coarsen_graph(
     std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges, segment_offsets) =
       renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle,
-        std::optional<std::tuple<vertex_t const *, vertex_t>>{
+        std::optional<std::tuple<vertex_t const*, vertex_t>>{
           std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
         major_ptrs,
         minor_ptrs,
@@ -538,7 +536,7 @@ coarsen_graph(
                                                    : coarsened_edgelist_minor_vertices[i].data();
     edgelists[i].p_edge_weights =
       coarsened_edgelist_weights
-        ? std::optional<weight_t const *>{(*coarsened_edgelist_weights)[i].data()}
+        ? std::optional<weight_t const*>{(*coarsened_edgelist_weights)[i].data()}
         : std::nullopt,
     edgelists[i].number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices[i].size());
   }
@@ -566,9 +564,9 @@ std::enable_if_t<
   std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
              rmm::device_uvector<vertex_t>>>
 coarsen_graph(
-  raft::handle_t const &handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
-  vertex_t const *labels,
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  vertex_t const* labels,
   bool do_expensive_check)
 {
   if (do_expensive_check) {
@@ -603,7 +601,7 @@ coarsen_graph(
 
   auto [renumber_map_labels, segment_offsets] = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
     handle,
-    std::optional<std::tuple<vertex_t const *, vertex_t>>{
+    std::optional<std::tuple<vertex_t const*, vertex_t>>{
       std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
     coarsened_edgelist_major_vertices.data(),
     coarsened_edgelist_minor_vertices.data(),
@@ -611,14 +609,13 @@ coarsen_graph(
     do_expensive_check);
 
   edgelist_t<vertex_t, edge_t, weight_t> edgelist{};
-  edgelist.p_src_vertices = store_transposed ? coarsened_edgelist_minor_vertices.data()
-                                             : coarsened_edgelist_major_vertices.data();
-  edgelist.p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices.data()
-                                             : coarsened_edgelist_minor_vertices.data();
-  edgelist.p_edge_weights =
-    coarsened_edgelist_weights
-      ? std::optional<weight_t const *>{(*coarsened_edgelist_weights).data()}
-      : std::nullopt;
+  edgelist.p_src_vertices  = store_transposed ? coarsened_edgelist_minor_vertices.data()
+                                              : coarsened_edgelist_major_vertices.data();
+  edgelist.p_dst_vertices  = store_transposed ? coarsened_edgelist_major_vertices.data()
+                                              : coarsened_edgelist_minor_vertices.data();
+  edgelist.p_edge_weights  = coarsened_edgelist_weights
+                               ? std::optional<weight_t const*>{(*coarsened_edgelist_weights).data()}
+                               : std::nullopt;
   edgelist.number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices.size());
 
   return std::make_tuple(
@@ -641,9 +638,9 @@ template <typename vertex_t,
 std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
            rmm::device_uvector<vertex_t>>
 coarsen_graph(
-  raft::handle_t const &handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
-  vertex_t const *labels,
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  vertex_t const* labels,
   bool do_expensive_check)
 {
   return detail::coarsen_graph(handle, graph_view, labels, do_expensive_check);
@@ -653,170 +650,170 @@ coarsen_graph(
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, true, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, float, true, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, false, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, float, false, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, true, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, float, true, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, float, true, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, false, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, float, true, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, float, true, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, float, true, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, float, false, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, float, false, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, float, true, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, float, true, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, float, true, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, float, false, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, float, false, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, float, true, true>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, float, true, true> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, float, true, true> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, float, false, true>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, float, false, true> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, float, true, false>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, float, true, false> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, float, true, false> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, float, false, false>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, float, false, false> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, double, true, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, double, true, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, double, true, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, double, false, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, double, false, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, double, true, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, double, true, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, double, true, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, double, false, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, double, false, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, double, true, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, double, true, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, double, true, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, double, false, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, double, false, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, double, true, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, double, true, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, double, true, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, double, false, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, double, false, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, double, true, true>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, double, true, true> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, double, true, true> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, double, false, true>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, double, false, true> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, double, true, false>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, double, true, false> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, double, true, false> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, double, false, false>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, double, false, false> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 }  // namespace experimental

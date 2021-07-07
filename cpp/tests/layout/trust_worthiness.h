@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ double euclidian_dist(const std::vector<int>& x, const std::vector<int>& y)
   double total = 0;
   auto i       = x.begin();
   auto j       = y.begin();
-  for (; i != x.end() && j != y.end(); ++i, ++j) total += pow(*i, 2) - 2 * *i * *j + pow(*j, 2);
+  for (; i != x.end() && j != y.end(); ++i, ++j)
+    total += pow(*i, 2) - 2 * *i * *j + pow(*j, 2);
   return sqrt(total);
 }
 
@@ -62,7 +63,8 @@ std::vector<int> argsort(Iter begin, Iter end, Compare comp)
                      return comp(*prev.second, *next.second);
                    });
 
-  for (auto i : pairList) ret.push_back(i.first);
+  for (auto i : pairList)
+    ret.push_back(i.first);
 
   return ret;
 }
@@ -109,7 +111,8 @@ double compute_rank(const std::vector<std::vector<int>>& ind_X,
         ranks[j] = idx;
       }
     }
-    for (auto& val : ranks) val -= k;
+    for (auto& val : ranks)
+      val -= k;
 
     for (const auto& val : ranks)
       if (val > 0) rank += val;
@@ -122,7 +125,9 @@ void print_matrix(const std::vector<std::vector<T>>& matrix)
 {
   for (size_t i = 0; i < matrix.size(); ++i) {
     std::cout << "[ ";
-    for (size_t j = 0; j < matrix[i].size(); ++j) { std::cout << matrix[i][j] << ' '; }
+    for (size_t j = 0; j < matrix[i].size(); ++j) {
+      std::cout << matrix[i][j] << ' ';
+    }
     std::cout << "]\n";
   }
 }
