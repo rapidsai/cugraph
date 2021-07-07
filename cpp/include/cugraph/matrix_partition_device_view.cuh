@@ -149,8 +149,8 @@ class matrix_partition_device_view_t<vertex_t,
     return minor - minor_first_;
   }
 
-  __host__ __device__ vertex_t get_major_from_major_offset_nocheck(vertex_t major_offset) const
-    noexcept
+  __host__ __device__ vertex_t
+  get_major_from_major_offset_nocheck(vertex_t major_offset) const noexcept
   {
     return major_first_ + major_offset;
   }
@@ -183,8 +183,8 @@ class matrix_partition_device_view_t<vertex_t,
              : thrust::nullopt;
   }
 
-  __host__ __device__ vertex_t get_minor_from_minor_offset_nocheck(vertex_t minor_offset) const
-    noexcept
+  __host__ __device__ vertex_t
+  get_minor_from_minor_offset_nocheck(vertex_t minor_offset) const noexcept
   {
     return minor_first_ + minor_offset;
   }
@@ -258,8 +258,8 @@ class matrix_partition_device_view_t<vertex_t,
     return minor;
   }
 
-  __host__ __device__ vertex_t get_major_from_major_offset_nocheck(vertex_t major_offset) const
-    noexcept
+  __host__ __device__ vertex_t
+  get_major_from_major_offset_nocheck(vertex_t major_offset) const noexcept
   {
     return major_offset;
   }
@@ -280,8 +280,8 @@ class matrix_partition_device_view_t<vertex_t,
     return thrust::nullopt;
   }
 
-  __host__ __device__ vertex_t get_minor_from_minor_offset_nocheck(vertex_t minor_offset) const
-    noexcept
+  __host__ __device__ vertex_t
+  get_minor_from_minor_offset_nocheck(vertex_t minor_offset) const noexcept
   {
     return minor_offset;
   }

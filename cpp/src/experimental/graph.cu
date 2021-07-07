@@ -65,7 +65,7 @@ std::tuple<rmm::device_uvector<edge_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
-compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
+compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                   vertex_t major_first,
                   vertex_t major_hypersparse_first,
                   vertex_t major_last,
@@ -196,13 +196,13 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  graph_t(raft::handle_t const &handle,
-          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edgelists,
-          partition_t<vertex_t> const &partition,
+  graph_t(raft::handle_t const& handle,
+          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
+          partition_t<vertex_t> const& partition,
           vertex_t number_of_vertices,
           edge_t number_of_edges,
           graph_properties_t properties,
-          std::optional<std::vector<vertex_t>> const &segment_offsets,
+          std::optional<std::vector<vertex_t>> const& segment_offsets,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, number_of_vertices, number_of_edges, properties),
@@ -210,13 +210,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 {
   // cheap error checks
 
-  auto &comm           = this->get_handle_ptr()->get_comms();
+  auto& comm           = this->get_handle_ptr()->get_comms();
   auto const comm_size = comm.get_size();
-  auto &row_comm =
+  auto& row_comm =
     this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_rank = row_comm.get_rank();
   auto const row_comm_size = row_comm.get_size();
-  auto &col_comm =
+  auto& col_comm =
     this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_rank = col_comm.get_rank();
   auto const col_comm_size = col_comm.get_size();
@@ -369,11 +369,11 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  graph_t(raft::handle_t const &handle,
-          edgelist_t<vertex_t, edge_t, weight_t> const &edgelist,
+  graph_t(raft::handle_t const& handle,
+          edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
           vertex_t number_of_vertices,
           graph_properties_t properties,
-          std::optional<std::vector<vertex_t>> const &segment_offsets,
+          std::optional<std::vector<vertex_t>> const& segment_offsets,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, number_of_vertices, edgelist.number_of_edges, properties),

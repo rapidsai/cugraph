@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ __device__ inline typename std::enable_if<(sizeof(degree_t) == 8), int>::type ce
 }
 
 template <typename return_t>
-__global__ void simple_fill(return_t *bin0, return_t *bin1, return_t count)
+__global__ void simple_fill(return_t* bin0, return_t* bin1, return_t count)
 {
   for (return_t i = 0; i < count; i++) {
     bin0[i] = 0;
@@ -49,7 +49,7 @@ __global__ void simple_fill(return_t *bin0, return_t *bin1, return_t count)
 }
 
 template <typename return_t>
-__global__ void exclusive_scan(return_t *data, return_t *out)
+__global__ void exclusive_scan(return_t* data, return_t* out)
 {
   constexpr int BinCount = NumberBins<return_t>;
   return_t lData[BinCount];
@@ -71,9 +71,9 @@ __global__ void exclusive_scan(return_t *data, return_t *out)
 // In this function, any id in vertex_ids array is only acceptable as long
 // as its value is between vertex_begin and vertex_end
 template <typename vertex_t, typename edge_t>
-__global__ void count_bin_sizes(edge_t *bins,
-                                edge_t const *offsets,
-                                vertex_t const *vertex_ids,
+__global__ void count_bin_sizes(edge_t* bins,
+                                edge_t const* offsets,
+                                vertex_t const* vertex_ids,
                                 edge_t const vertex_id_count,
                                 vertex_t vertex_begin,
                                 vertex_t vertex_end)
@@ -81,7 +81,9 @@ __global__ void count_bin_sizes(edge_t *bins,
   using cugraph::detail::traversal::atomicAdd;
   constexpr int BinCount = NumberBins<edge_t>;
   __shared__ edge_t lBin[BinCount];
-  for (int i = threadIdx.x; i < BinCount; i += blockDim.x) { lBin[i] = 0; }
+  for (int i = threadIdx.x; i < BinCount; i += blockDim.x) {
+    lBin[i] = 0;
+  }
   __syncthreads();
 
   for (vertex_t i = threadIdx.x + (blockIdx.x * blockDim.x); i < vertex_id_count;
@@ -98,16 +100,18 @@ __global__ void count_bin_sizes(edge_t *bins,
   }
   __syncthreads();
 
-  for (int i = threadIdx.x; i < BinCount; i += blockDim.x) { atomicAdd(bins + i, lBin[i]); }
+  for (int i = threadIdx.x; i < BinCount; i += blockDim.x) {
+    atomicAdd(bins + i, lBin[i]);
+  }
 }
 
 // Bin vertices to the appropriate bins by taking into account
 // the starting offsets calculated by count_bin_sizes
 template <typename vertex_t, typename edge_t>
-__global__ void create_vertex_bins(vertex_t *out_vertex_ids,
-                                   edge_t *bin_offsets,
-                                   edge_t const *offsets,
-                                   vertex_t *in_vertex_ids,
+__global__ void create_vertex_bins(vertex_t* out_vertex_ids,
+                                   edge_t* bin_offsets,
+                                   edge_t const* offsets,
+                                   vertex_t* in_vertex_ids,
                                    edge_t const vertex_id_count,
                                    vertex_t vertex_begin,
                                    vertex_t vertex_end)
@@ -149,12 +153,12 @@ __global__ void create_vertex_bins(vertex_t *out_vertex_ids,
 }
 
 template <typename vertex_t, typename edge_t>
-void bin_vertices(rmm::device_vector<vertex_t> &input_vertex_ids,
+void bin_vertices(rmm::device_vector<vertex_t>& input_vertex_ids,
                   vertex_t input_vertex_ids_len,
-                  rmm::device_vector<vertex_t> &reorganized_vertex_ids,
-                  rmm::device_vector<edge_t> &bin_count_offsets,
-                  rmm::device_vector<edge_t> &bin_count,
-                  edge_t *offsets,
+                  rmm::device_vector<vertex_t>& reorganized_vertex_ids,
+                  rmm::device_vector<edge_t>& bin_count_offsets,
+                  rmm::device_vector<edge_t>& bin_count,
+                  edge_t* offsets,
                   vertex_t vertex_begin,
                   vertex_t vertex_end,
                   cudaStream_t stream)

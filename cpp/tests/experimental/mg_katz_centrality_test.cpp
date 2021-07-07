@@ -57,8 +57,8 @@ class Tests_MGKatzCentrality
 
   // Compare the results of running Katz Centrality on multiple GPUs to that of a single-GPU run
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-  void run_current_test(KatzCentrality_Usecase const &katz_usecase,
-                        input_usecase_t const &input_usecase)
+  void run_current_test(KatzCentrality_Usecase const& katz_usecase,
+                        input_usecase_t const& input_usecase)
   {
     // 1. initialize handle
 
@@ -66,12 +66,14 @@ class Tests_MGKatzCentrality
     HighResClock hr_clock{};
 
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    auto &comm           = handle.get_comms();
+    auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
     auto const comm_rank = comm.get_rank();
 
     auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) { --row_comm_size; }
+    while (comm_size % row_comm_size != 0) {
+      --row_comm_size;
+    }
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
       subcomm_factory(handle, row_comm_size);
 
@@ -118,7 +120,7 @@ class Tests_MGKatzCentrality
 
     cugraph::experimental::katz_centrality(handle,
                                            mg_graph_view,
-                                           static_cast<result_t *>(nullptr),
+                                           static_cast<result_t*>(nullptr),
                                            d_mg_katz_centralities.data(),
                                            alpha,
                                            beta,
@@ -173,7 +175,7 @@ class Tests_MGKatzCentrality
         cugraph::experimental::katz_centrality(
           handle,
           sg_graph_view,
-          static_cast<result_t *>(nullptr),
+          static_cast<result_t*>(nullptr),
           d_sg_katz_centralities.data(),
           alpha,
           beta,

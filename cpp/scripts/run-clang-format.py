@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import argparse
 import tempfile
 
 
-EXPECTED_VERSION = "8.0.1"
+EXPECTED_VERSION = "11.0.0"
 VERSION_REGEX = re.compile(r"clang-format version ([0-9.]+)")
 # NOTE: populate this list with more top-level dirs as we add more of them to the cugraph repo
 DEFAULT_DIRS = ["cpp/include",
@@ -139,4 +139,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

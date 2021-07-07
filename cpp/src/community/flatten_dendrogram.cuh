@@ -24,10 +24,10 @@
 namespace cugraph {
 
 template <typename vertex_t, bool multi_gpu>
-void partition_at_level(raft::handle_t const &handle,
-                        Dendrogram<vertex_t> const &dendrogram,
-                        vertex_t const *d_vertex_ids,
-                        vertex_t *d_partition,
+void partition_at_level(raft::handle_t const& handle,
+                        Dendrogram<vertex_t> const& dendrogram,
+                        vertex_t const* d_vertex_ids,
+                        vertex_t* d_partition,
                         size_t level)
 {
   vertex_t local_num_verts = dendrogram.get_level_size_nocheck(0);
@@ -47,8 +47,8 @@ void partition_at_level(raft::handle_t const &handle,
 
       cugraph::experimental::relabel<vertex_t, multi_gpu>(
         handle,
-        std::tuple<vertex_t const *, vertex_t const *>(local_vertex_ids_v.data(),
-                                                       dendrogram.get_level_ptr_nocheck(l)),
+        std::tuple<vertex_t const*, vertex_t const*>(local_vertex_ids_v.data(),
+                                                     dendrogram.get_level_ptr_nocheck(l)),
         dendrogram.get_level_size_nocheck(l),
         d_partition,
         local_num_verts,
