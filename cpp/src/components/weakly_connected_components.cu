@@ -182,6 +182,7 @@ struct v_op_t {
   size_t next_bucket_idx{};
   size_t conflict_bucket_idx{};  // relevant only if GraphViewType::is_multi_gpu is true
 
+  template <bool multi_gpu = GraphViewType::is_multi_gpu>
   __device__ std::enable_if_t<multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
   operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int v_val /* dummy */) const
   {
