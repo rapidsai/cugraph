@@ -46,7 +46,7 @@
 // C++ Reference Implementation
 // ============================================================================
 template <typename T, typename precision_t>
-bool compare_close(const T &a, const T &b, const precision_t epsilon, precision_t zero_threshold)
+bool compare_close(const T& a, const T& b, const precision_t epsilon, precision_t zero_threshold)
 {
   return ((zero_threshold > a && zero_threshold > b)) ||
          (a >= b * (1.0 - epsilon)) && (a <= b * (1.0 + epsilon));
@@ -59,9 +59,9 @@ typedef struct BFS_Usecase_t {
   std::string config_;     // Path to graph file
   std::string file_path_;  // Complete path to graph using dataset_root_dir
   int source_;             // Starting point from the traversal
-  BFS_Usecase_t(const std::string &config, int source) : config_(config), source_(source)
+  BFS_Usecase_t(const std::string& config, int source) : config_(config), source_(source)
   {
-    const std::string &rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
+    const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((config_ != "") && (config_[0] != '/')) {
       file_path_ = rapidsDatasetRootDir + "/" + config_;
     } else {
@@ -86,7 +86,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   // WT                 edge weight data type
   // return_sp_counter  should BFS return shortest path countner
   template <typename VT, typename ET, typename WT, bool return_sp_counter>
-  void run_current_test(const BFS_Usecase &configuration)
+  void run_current_test(const BFS_Usecase& configuration)
   {
     // Step 1: Construction of the graph based on configuration
     VT number_of_vertices;

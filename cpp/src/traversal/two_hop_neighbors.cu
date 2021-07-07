@@ -33,12 +33,12 @@ namespace cugraph {
 
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
-  legacy::GraphCSRView<VT, ET, WT> const &graph)
+  legacy::GraphCSRView<VT, ET, WT> const& graph)
 {
   cudaStream_t stream{nullptr};
 
   rmm::device_vector<ET> exsum_degree(graph.number_of_edges + 1);
-  ET *d_exsum_degree = exsum_degree.data().get();
+  ET* d_exsum_degree = exsum_degree.data().get();
 
   // Find the degree of the out vertex of each edge
   degree_iterator<ET> deg_it(graph.offsets);
@@ -63,14 +63,14 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
   rmm::device_vector<VT> first_pair(output_size);
   rmm::device_vector<VT> second_pair(output_size);
 
-  VT *d_first_pair  = first_pair.data().get();
-  VT *d_second_pair = second_pair.data().get();
+  VT* d_first_pair  = first_pair.data().get();
+  VT* d_second_pair = second_pair.data().get();
 
   // Figure out number of blocks and allocate memory for block bucket offsets
   ET num_blocks = (output_size + TWO_HOP_BLOCK_SIZE - 1) / TWO_HOP_BLOCK_SIZE;
   rmm::device_vector<ET> block_bucket_offsets(num_blocks + 1);
 
-  ET *d_block_bucket_offsets = block_bucket_offsets.data().get();
+  ET* d_block_bucket_offsets = block_bucket_offsets.data().get();
 
   // Compute the block bucket offsets
   dim3 grid, block;
@@ -119,9 +119,9 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
 }
 
 template std::unique_ptr<legacy::GraphCOO<int, int, float>> get_two_hop_neighbors(
-  legacy::GraphCSRView<int, int, float> const &);
+  legacy::GraphCSRView<int, int, float> const&);
 
 template std::unique_ptr<legacy::GraphCOO<int, int, double>> get_two_hop_neighbors(
-  legacy::GraphCSRView<int, int, double> const &);
+  legacy::GraphCSRView<int, int, double> const&);
 
 }  // namespace cugraph

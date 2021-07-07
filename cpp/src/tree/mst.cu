@@ -39,9 +39,9 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
-  raft::handle_t const &handle,
-  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  rmm::mr::device_memory_resource *mr)
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+  rmm::mr::device_memory_resource* mr)
 
 {
   auto stream = handle.get_stream();
@@ -69,19 +69,19 @@ std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
-  raft::handle_t const &handle,
-  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  rmm::mr::device_memory_resource *mr)
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+  rmm::mr::device_memory_resource* mr)
 {
   return detail::mst_impl(handle, graph, mr);
 }
 
 template std::unique_ptr<legacy::GraphCOO<int, int, float>> minimum_spanning_tree<int, int, float>(
-  raft::handle_t const &handle,
-  legacy::GraphCSRView<int, int, float> const &graph,
-  rmm::mr::device_memory_resource *mr);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, float> const& graph,
+  rmm::mr::device_memory_resource* mr);
 template std::unique_ptr<legacy::GraphCOO<int, int, double>>
-minimum_spanning_tree<int, int, double>(raft::handle_t const &handle,
-                                        legacy::GraphCSRView<int, int, double> const &graph,
-                                        rmm::mr::device_memory_resource *mr);
+minimum_spanning_tree<int, int, double>(raft::handle_t const& handle,
+                                        legacy::GraphCSRView<int, int, double> const& graph,
+                                        rmm::mr::device_memory_resource* mr);
 }  // namespace cugraph

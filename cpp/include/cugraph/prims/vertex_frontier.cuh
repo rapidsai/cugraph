@@ -300,7 +300,9 @@ class VertexFrontier {
 
   VertexFrontier(raft::handle_t const& handle) : handle_ptr_(&handle)
   {
-    for (size_t i = 0; i < num_buckets; ++i) { buckets_.emplace_back(handle); }
+    for (size_t i = 0; i < num_buckets; ++i) {
+      buckets_.emplace_back(handle);
+    }
   }
 
   SortedUniqueKeyBucket<vertex_t, tag_t, is_multi_gpu>& get_bucket(size_t bucket_idx)
