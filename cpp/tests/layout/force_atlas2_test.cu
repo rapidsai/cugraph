@@ -215,7 +215,8 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     // Transpose the data
     std::vector<std::vector<double>> C_contiguous_embedding(m, std::vector<double>(2));
     for (int i = 0; i < m; i++) {
-      for (int j = 0; j < 2; j++) C_contiguous_embedding[i][j] = h_pos[j * m + i];
+      for (int j = 0; j < 2; j++)
+        C_contiguous_embedding[i][j] = h_pos[j * m + i];
     }
 
     // Test trustworthiness

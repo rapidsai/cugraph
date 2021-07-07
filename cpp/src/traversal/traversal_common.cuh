@@ -21,7 +21,7 @@
 
 #define MAXBLOCKS 65535
 #define WARP_SIZE 32
-#define INT_SIZE 32
+#define INT_SIZE  32
 
 //
 // Bottom up macros
@@ -31,7 +31,7 @@
 
 #define COUNT_UNVISITED_EDGES_DIMX 256
 
-#define MAIN_BOTTOMUP_DIMX 256
+#define MAIN_BOTTOMUP_DIMX   256
 #define MAIN_BOTTOMUP_NWARPS (MAIN_BOTTOMUP_DIMX / WARP_SIZE)
 
 #define LARGE_BOTTOMUP_DIMX 256

@@ -148,9 +148,9 @@ void pagerank(
                                       ? std::nullopt
                                       : std::optional<rmm::device_uvector<weight_t>>{
                                           pull_graph_view.compute_out_weight_sums(handle)};
-  auto vertex_out_weight_sums = precomputed_vertex_out_weight_sums
-                                  ? *precomputed_vertex_out_weight_sums
-                                  : (*tmp_vertex_out_weight_sums).data();
+  auto vertex_out_weight_sums     = precomputed_vertex_out_weight_sums
+                                      ? *precomputed_vertex_out_weight_sums
+                                      : (*tmp_vertex_out_weight_sums).data();
 
   // 3. initialize pagerank values
 

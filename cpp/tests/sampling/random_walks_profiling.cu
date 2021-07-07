@@ -181,7 +181,9 @@ void run(RandomWalks_Usecase const& configuration, traversal_id_t trv_id)
   // FIXME: the num_paths vector might be better specified via the
   // configuration input instead of hardcoding here.
   std::vector<edge_t> v_np{1, 10, 100};
-  for (auto&& num_paths : v_np) { output_random_walks_time(graph_view, num_paths, trv_id); }
+  for (auto&& num_paths : v_np) {
+    output_random_walks_time(graph_view, num_paths, trv_id);
+  }
 }
 
 /**

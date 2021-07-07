@@ -53,7 +53,7 @@ class Louvain {
                                         graph_view_t::is_adj_matrix_transposed,
                                         graph_view_t::is_multi_gpu>;
 
-  Louvain(raft::handle_t const &handle, graph_view_t const &graph_view)
+  Louvain(raft::handle_t const& handle, graph_view_t const& graph_view)
     :
 #ifdef TIMING
       hr_timer_(),
@@ -70,9 +70,9 @@ class Louvain {
   {
   }
 
-  Dendrogram<vertex_t> const &get_dendrogram() const { return *dendrogram_; }
+  Dendrogram<vertex_t> const& get_dendrogram() const { return *dendrogram_; }
 
-  Dendrogram<vertex_t> &get_dendrogram() { return *dendrogram_; }
+  Dendrogram<vertex_t>& get_dendrogram() { return *dendrogram_; }
 
   std::unique_ptr<Dendrogram<vertex_t>> move_dendrogram() { return std::move(dendrogram_); }
 
@@ -111,7 +111,7 @@ class Louvain {
   }
 
  protected:
-  void timer_start(std::string const &region)
+  void timer_start(std::string const& region)
   {
 #ifdef TIMING
     if (graph_view_t::is_multi_gpu) {
@@ -137,7 +137,7 @@ class Louvain {
 #endif
   }
 
-  void timer_display(std::ostream &os)
+  void timer_display(std::ostream& os)
   {
 #ifdef TIMING
     if (graph_view_t::is_multi_gpu) {
@@ -243,7 +243,7 @@ class Louvain {
   }
 
   template <typename T>
-  T *cache_src_vertex_properties(rmm::device_uvector<T> &input, rmm::device_uvector<T> &src_cache_v)
+  T* cache_src_vertex_properties(rmm::device_uvector<T>& input, rmm::device_uvector<T>& src_cache_v)
   {
     if (graph_view_t::is_multi_gpu) {
       src_cache_v.resize(current_graph_view_.get_number_of_local_adj_matrix_partition_rows(),
@@ -256,7 +256,7 @@ class Louvain {
   }
 
   template <typename T>
-  T *cache_dst_vertex_properties(rmm::device_uvector<T> &input, rmm::device_uvector<T> &dst_cache_v)
+  T* cache_dst_vertex_properties(rmm::device_uvector<T>& input, rmm::device_uvector<T>& dst_cache_v)
   {
     if (graph_view_t::is_multi_gpu) {
       dst_cache_v.resize(current_graph_view_.get_number_of_local_adj_matrix_partition_cols(),
@@ -312,8 +312,8 @@ class Louvain {
     return cur_Q;
   }
 
-  void compute_cluster_sum_and_subtract(rmm::device_uvector<weight_t> &old_cluster_sum_v,
-                                        rmm::device_uvector<weight_t> &cluster_subtract_v)
+  void compute_cluster_sum_and_subtract(rmm::device_uvector<weight_t>& old_cluster_sum_v,
+                                        rmm::device_uvector<weight_t>& cluster_subtract_v)
   {
     auto output_buffer =
       cugraph::experimental::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
@@ -362,7 +362,7 @@ class Louvain {
 
   void update_by_delta_modularity(weight_t total_edge_weight,
                                   weight_t resolution,
-                                  rmm::device_uvector<vertex_t> &next_cluster_v,
+                                  rmm::device_uvector<vertex_t>& next_cluster_v,
                                   bool up_down)
   {
     rmm::device_uvector<weight_t> old_cluster_sum_v(
@@ -378,9 +378,9 @@ class Louvain {
       cugraph::experimental::allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
         current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
 
-    vertex_t *map_key_first;
-    vertex_t *map_key_last;
-    weight_t *map_value_first;
+    vertex_t* map_key_first;
+    vertex_t* map_key_last;
+    weight_t* map_value_first;
 
     if (graph_t::is_multi_gpu) {
       cugraph::experimental::detail::compute_gpu_id_from_vertex_t<vertex_t> vertex_to_gpu_id_op{
@@ -521,8 +521,8 @@ class Louvain {
 
     relabel<vertex_t, graph_view_t::is_multi_gpu>(
       handle_,
-      std::make_tuple(static_cast<vertex_t const *>(numbering_map.begin()),
-                      static_cast<vertex_t const *>(numbering_indices.begin())),
+      std::make_tuple(static_cast<vertex_t const*>(numbering_map.begin()),
+                      static_cast<vertex_t const*>(numbering_indices.begin())),
       current_graph_view_.get_number_of_local_vertices(),
       dendrogram_->current_level_begin(),
       dendrogram_->current_level_size(),
@@ -532,7 +532,7 @@ class Louvain {
   }
 
  protected:
-  raft::handle_t const &handle_;
+  raft::handle_t const& handle_;
 
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram_;
 
@@ -551,9 +551,9 @@ class Louvain {
   rmm::device_uvector<vertex_t> cluster_keys_v_;
   rmm::device_uvector<weight_t> cluster_weights_v_;
 
-  weight_t *d_src_vertex_weights_cache_;
-  vertex_t *d_src_cluster_cache_;
-  vertex_t *d_dst_cluster_cache_;
+  weight_t* d_src_vertex_weights_cache_;
+  vertex_t* d_src_cluster_cache_;
+  vertex_t* d_dst_cluster_cache_;
 
 #ifdef TIMING
   HighResTimer hr_timer_;

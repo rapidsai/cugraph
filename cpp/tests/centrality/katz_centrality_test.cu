@@ -35,7 +35,9 @@ std::vector<int> getGoldenTopKIds(std::ifstream& fs_result, int k = 10)
   std::vector<int> vec;
   int val;
   int count = 0;
-  while (fs_result >> val && ((count++) < k)) { vec.push_back(val); }
+  while (fs_result >> val && ((count++) < k)) {
+    vec.push_back(val);
+  }
   vec.resize(k);
   return vec;
 }

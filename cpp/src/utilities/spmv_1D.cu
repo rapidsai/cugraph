@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,13 @@
 namespace cugraph {
 namespace mg {
 template <typename vertex_t, typename edge_t, typename weight_t>
-MGcsrmv<vertex_t, edge_t, weight_t>::MGcsrmv(raft::handle_t const &handle,
-                                             vertex_t *local_vertices,
-                                             vertex_t *part_off,
-                                             edge_t *off,
-                                             vertex_t *ind,
-                                             weight_t *val,
-                                             weight_t *x)
+MGcsrmv<vertex_t, edge_t, weight_t>::MGcsrmv(raft::handle_t const& handle,
+                                             vertex_t* local_vertices,
+                                             vertex_t* part_off,
+                                             edge_t* off,
+                                             vertex_t* ind,
+                                             weight_t* val,
+                                             weight_t* x)
   : handle_(handle),
     local_vertices_(local_vertices),
     part_off_(part_off),
@@ -49,7 +49,7 @@ MGcsrmv<vertex_t, edge_t, weight_t>::~MGcsrmv()
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void MGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t *x)
+void MGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t* x)
 {
   using namespace raft::matrix;
 
@@ -72,7 +72,7 @@ void MGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t *x)
 
   auto stream = handle_.get_stream();
 
-  auto const &comm{handle_.get_comms()};  // local
+  auto const& comm{handle_.get_comms()};  // local
 
   std::vector<size_t> recvbuf(comm.get_size());
   std::vector<size_t> displs(comm.get_size());

@@ -41,14 +41,14 @@ namespace detail {
 // false) or columns (of the graph adjacency matrix, if store_transposed = true)
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_major_degrees(
-  raft::handle_t const &handle,
-  std::vector<edge_t const *> const &adj_matrix_partition_offsets,
-  partition_t<vertex_t> const &partition)
+  raft::handle_t const& handle,
+  std::vector<edge_t const*> const& adj_matrix_partition_offsets,
+  partition_t<vertex_t> const& partition)
 {
-  auto &row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_rank = row_comm.get_rank();
   auto const row_comm_size = row_comm.get_size();
-  auto &col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_rank = col_comm.get_rank();
   auto const col_comm_size = col_comm.get_size();
 
@@ -75,7 +75,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                       local_degrees.data(),
                       [p_offsets] __device__(auto i) { return p_offsets[i + 1] - p_offsets[i]; });
     col_comm.reduce(local_degrees.data(),
-                    i == col_comm_rank ? degrees.data() : static_cast<edge_t *>(nullptr),
+                    i == col_comm_rank ? degrees.data() : static_cast<edge_t*>(nullptr),
                     static_cast<size_t>(major_last - major_first),
                     raft::comms::op_t::SUM,
                     i,
@@ -89,24 +89,24 @@ rmm::device_uvector<edge_t> compute_major_degrees(
 // false) or columns (of the graph adjacency matrix, if store_transposed = true)
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_major_degrees(
-  raft::handle_t const &handle,
-  std::vector<rmm::device_uvector<edge_t>> const &adj_matrix_partition_offsets,
-  partition_t<vertex_t> const &partition)
+  raft::handle_t const& handle,
+  std::vector<rmm::device_uvector<edge_t>> const& adj_matrix_partition_offsets,
+  partition_t<vertex_t> const& partition)
 {
   // we can avoid creating this temporary with "if constexpr" supported from C++17
-  std::vector<edge_t const *> tmp_offsets(adj_matrix_partition_offsets.size(), nullptr);
+  std::vector<edge_t const*> tmp_offsets(adj_matrix_partition_offsets.size(), nullptr);
   std::transform(adj_matrix_partition_offsets.begin(),
                  adj_matrix_partition_offsets.end(),
                  tmp_offsets.begin(),
-                 [](auto const &offsets) { return offsets.data(); });
+                 [](auto const& offsets) { return offsets.data(); });
   return compute_major_degrees(handle, tmp_offsets, partition);
 }
 
 // compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
 // false) or columns (of the graph adjacency matrix, if store_transposed = true)
 template <typename vertex_t, typename edge_t>
-rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const &handle,
-                                                  edge_t const *offsets,
+rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const& handle,
+                                                  edge_t const* offsets,
                                                   vertex_t number_of_vertices)
 {
   rmm::device_uvector<edge_t> degrees(number_of_vertices, handle.get_stream());
@@ -119,7 +119,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const &handle,
 
 template <typename vertex_t, typename edge_t>
 struct degree_from_offsets_t {
-  edge_t const *offsets{nullptr};
+  edge_t const* offsets{nullptr};
 
   __device__ edge_t operator()(vertex_t v) { return offsets[v + 1] - offsets[v]; }
 };

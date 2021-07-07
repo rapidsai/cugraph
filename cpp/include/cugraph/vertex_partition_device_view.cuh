@@ -73,8 +73,8 @@ class vertex_partition_device_view_t<vertex_t, multi_gpu, std::enable_if_t<multi
     return (v >= local_vertex_first_) && (v < local_vertex_last_);
   }
 
-  __host__ __device__ vertex_t get_local_vertex_offset_from_vertex_nocheck(vertex_t v) const
-    noexcept
+  __host__ __device__ vertex_t
+  get_local_vertex_offset_from_vertex_nocheck(vertex_t v) const noexcept
   {
     return v - local_vertex_first_;
   }
