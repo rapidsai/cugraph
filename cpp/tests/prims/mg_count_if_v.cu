@@ -44,6 +44,17 @@
 //
 static int PERF = 0;
 
+template <typename vertex_t>
+struct primitive_lambda {
+  int mod;
+  primitive_lambda(int mod_count) : mod(mod_count) {}
+  __device__
+  bool operator()(const vertex_t &val) {
+    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    return (0 == (hash_func(val) % mod));
+  }
+};
+
 template <typename input_usecase_t>
 class Tests_MG_CountIfV
   : public ::testing::TestWithParam<input_usecase_t> {
@@ -97,10 +108,6 @@ class Tests_MG_CountIfV
 
     const int hash_bin_count = 5;
 
-    auto primitive_lambda = [hash_bin_count] __device__(auto val) {
-      cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-      return (0 == (hash_func(val) % hash_bin_count)); };
-
     // 4. run MG count if
 
     if (PERF) {
@@ -113,7 +120,7 @@ class Tests_MG_CountIfV
     auto vertex_count = count_if_v(handle,
                                    mg_graph_view,
                                    data,
-                                   primitive_lambda);
+                                   primitive_lambda<vertex_t>(hash_bin_count));
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -132,7 +139,7 @@ class Tests_MG_CountIfV
       thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
                        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
-                                                  primitive_lambda);
+                                                  primitive_lambda<vertex_t>(hash_bin_count));
     ASSERT_TRUE(expected_vertex_count == vertex_count);
   }
 };
