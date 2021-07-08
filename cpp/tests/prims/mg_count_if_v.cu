@@ -55,7 +55,7 @@ class Tests_MG_CountIfV
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of running Katz Centrality on multiple GPUs to that of a single-GPU run
+  // Compare the results of count_if_v primitive and thrust count_if on a single GPU
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(input_usecase_t const &input_usecase)
   {
@@ -97,22 +97,13 @@ class Tests_MG_CountIfV
 
     auto mg_graph_view = mg_graph.view();
 
-    std::cout<<"Number of local vertices : "<<mg_graph_view.get_number_of_local_vertices()<<"\n";
-    std::cout<<"Number of map labels : "<<d_mg_renumber_map_labels.size()<<"\n";
-
-    vertex_t const * data = d_mg_renumber_map_labels.data();
     const int hash_bin_count = 5;
-    auto num_vertices = count_if_v(handle,
-                                   mg_graph_view,
-                                   data,
-                                   [hash_bin_count] __device__(auto val) {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    return 0 == (hash_func(val) % hash_bin_count); });
 
+    auto primitive_lambda = [hash_bin_count] __device__(auto val) {
+      cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+      return (0 == (hash_func(val) % hash_bin_count)); };
 
-    // 3. compute max in-degree
-
-    // 4. run MG Katz Centrality
+    // 4. run MG count if
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -120,12 +111,18 @@ class Tests_MG_CountIfV
       hr_clock.start();
     }
 
+    vertex_t const * data = d_mg_renumber_map_labels.data();
+    auto vertex_count = count_if_v(handle,
+                                   mg_graph_view,
+                                   data,
+                                   primitive_lambda);
+
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG Katz Centrality took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG count if took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     // 5. compare SG & MG results
@@ -135,16 +132,12 @@ class Tests_MG_CountIfV
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
         handle, true, false);
     auto sg_graph_view = sg_graph.view();
-    auto golden = thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
-                     thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
-                                   [hash_bin_count] __device__(auto val) {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    return hash_func(val) % hash_bin_count; });
-    std::cout<<"Golden "<<golden<<"\n";
-    std::cout<<"Count if vertices : "<<num_vertices<<"\n";
-    std::cout<<sg_graph_view.get_local_vertex_first()<<"\n";
-    std::cout<<sg_graph_view.get_local_vertex_last()<<"\n";
+    auto expected_vertex_count =
+      thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                       thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
+                       thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
+                                                  primitive_lambda);
+    ASSERT_TRUE(expected_vertex_count == vertex_count);
   }
 };
 
@@ -164,20 +157,19 @@ TEST_P(Tests_MG_CountIfV_Rmat, CheckInt32Int32FloatFloat)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MG_CountIfV_File,
-  ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")));
- // ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
- //                   cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
- //                   cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
- //                   cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx")));
+  ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                    cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                    cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+                    cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx")));
 
-//INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-//                         Tests_MG_CountIfV_Rmat,
-//                         ::testing::Values(cugraph::test::Rmat_Usecase(
-//                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true)));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MG_CountIfV_Rmat,
+                         ::testing::Values(cugraph::test::Rmat_Usecase(
+                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true)));
 
-//INSTANTIATE_TEST_SUITE_P(rmat_large_test,
-//                         Tests_MG_CountIfV_Rmat,
-//                         ::testing::Values(cugraph::test::Rmat_Usecase(
-//                             20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true)));
+INSTANTIATE_TEST_SUITE_P(rmat_large_test,
+                         Tests_MG_CountIfV_Rmat,
+                         ::testing::Values(cugraph::test::Rmat_Usecase(
+                             20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true)));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
