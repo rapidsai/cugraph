@@ -19,6 +19,10 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_view.hpp>
 
+// visitor logic:
+//
+#include <cugraph/visitors/graph_envelope.hpp>
+
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -228,7 +232,7 @@ size_t constexpr num_sparse_segments_per_vertex_partition{3};
 
 // Common for both graph_view_t & graph_t and both single-GPU & multi-GPU versions
 template <typename vertex_t, typename edge_t, typename weight_t>
-class graph_base_t {
+class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ {
  public:
   graph_base_t() = default;
 
@@ -240,6 +244,10 @@ class graph_base_t {
       number_of_vertices_(number_of_vertices),
       number_of_edges_(number_of_edges),
       properties_(properties){};
+
+  // required by:
+  //
+  graph_base_t(void) {}  // <- visitor logic
 
   vertex_t get_number_of_vertices() const { return number_of_vertices_; }
   edge_t get_number_of_edges() const { return number_of_edges_; }
@@ -258,6 +266,11 @@ class graph_base_t {
 
   bool is_symmetric() const { return properties_.is_symmetric; }
   bool is_multigraph() const { return properties_.is_multigraph; }
+
+  void apply(visitor_t& v) const override  // <- visitor logic
+  {
+    v.visit_graph(*this);
+  }
 
  protected:
   friend class cugraph::serializer::serializer_t;
