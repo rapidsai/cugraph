@@ -45,9 +45,9 @@
 static int PERF = 0;
 
 template <typename vertex_t>
-struct primitive_lambda {
+struct test_predicate {
   int mod;
-  primitive_lambda(int mod_count) : mod(mod_count) {}
+  test_predicate(int mod_count) : mod(mod_count) {}
   __device__
   bool operator()(const vertex_t &val) {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
@@ -120,7 +120,7 @@ class Tests_MG_CountIfV
     auto vertex_count = count_if_v(handle,
                                    mg_graph_view,
                                    data,
-                                   primitive_lambda<vertex_t>(hash_bin_count));
+                                   test_predicate<vertex_t>(hash_bin_count));
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -139,7 +139,7 @@ class Tests_MG_CountIfV
       thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
                        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
-                                                  primitive_lambda<vertex_t>(hash_bin_count));
+                                                  test_predicate<vertex_t>(hash_bin_count));
     ASSERT_TRUE(expected_vertex_count == vertex_count);
   }
 };
