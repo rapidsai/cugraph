@@ -81,9 +81,7 @@ class Tests_MG_CountIfV
       handle.get_comms().barrier();
       hr_clock.start();
     }
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, true> mg_graph(handle);
-    rmm::device_uvector<vertex_t> d_mg_renumber_map_labels(0, handle.get_stream());
-    std::tie(mg_graph, d_mg_renumber_map_labels) =
+    auto [mg_graph, d_mg_renumber_map_labels] =
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, true>(
         handle, true, true);
 
@@ -111,7 +109,7 @@ class Tests_MG_CountIfV
       hr_clock.start();
     }
 
-    vertex_t const * data = d_mg_renumber_map_labels.data();
+    vertex_t const * data = (*d_mg_renumber_map_labels).data();
     auto vertex_count = count_if_v(handle,
                                    mg_graph_view,
                                    data,
@@ -126,9 +124,7 @@ class Tests_MG_CountIfV
     }
 
     // 5. compare SG & MG results
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(handle);
-    rmm::device_uvector<vertex_t> d_sg_renumber_map_labels(0, handle.get_stream());
-    std::tie(sg_graph, d_sg_renumber_map_labels) =
+    auto [sg_graph, d_sg_renumber_map_labels] =
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
         handle, true, false);
     auto sg_graph_view = sg_graph.view();
