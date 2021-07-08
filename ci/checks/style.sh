@@ -18,7 +18,8 @@ ERRORCODE=0
 PATH=/conda/bin:$PATH
 
 # Activate common conda env
-source activate gdf
+. /opt/conda/etc/profile.d/conda.sh
+conda activate rapids
 
 # Run flake8 and get results/return code
 FLAKE=`flake8 --config=python/.flake8 python`
