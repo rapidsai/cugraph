@@ -57,9 +57,9 @@ namespace detail {
  */
 template <typename VT, typename ET, typename WT, int TPB_X = 32>
 std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
-  legacy::GraphCSRView<VT, ET, WT> const &graph,
+  legacy::GraphCSRView<VT, ET, WT> const& graph,
   cugraph_cc_t connectivity_type,
-  VT *labels,
+  VT* labels,
   cudaStream_t stream)
 {
   using ByteT = unsigned char;  // minimum addressable unit
@@ -84,9 +84,9 @@ std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void connected_components(legacy::GraphCSRView<VT, ET, WT> const &graph,
+void connected_components(legacy::GraphCSRView<VT, ET, WT> const& graph,
                           cugraph_cc_t connectivity_type,
-                          VT *labels)
+                          VT* labels)
 {
   cudaStream_t stream{nullptr};
 
@@ -96,8 +96,8 @@ void connected_components(legacy::GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template void connected_components<int32_t, int32_t, float>(
-  legacy::GraphCSRView<int32_t, int32_t, float> const &, cugraph_cc_t, int32_t *);
+  legacy::GraphCSRView<int32_t, int32_t, float> const&, cugraph_cc_t, int32_t*);
 template void connected_components<int64_t, int64_t, float>(
-  legacy::GraphCSRView<int64_t, int64_t, float> const &, cugraph_cc_t, int64_t *);
+  legacy::GraphCSRView<int64_t, int64_t, float> const&, cugraph_cc_t, int64_t*);
 
 }  // namespace cugraph

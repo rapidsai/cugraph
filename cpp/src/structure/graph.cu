@@ -25,8 +25,8 @@ namespace {
 
 template <typename vertex_t, typename edge_t>
 void degree_from_offsets(vertex_t number_of_vertices,
-                         edge_t const *offsets,
-                         edge_t *degree,
+                         edge_t const* offsets,
+                         edge_t* degree,
                          rmm::cuda_stream_view stream_view)
 {
   // Computes out-degree for x = 0 and x = 2
@@ -38,11 +38,11 @@ void degree_from_offsets(vertex_t number_of_vertices,
 }
 
 template <typename vertex_t, typename edge_t>
-void degree_from_vertex_ids(const raft::handle_t *handle,
+void degree_from_vertex_ids(const raft::handle_t* handle,
                             vertex_t number_of_vertices,
                             edge_t number_of_edges,
-                            vertex_t const *indices,
-                            edge_t *degree,
+                            vertex_t const* indices,
+                            edge_t* degree,
                             rmm::cuda_stream_view stream_view)
 {
   thrust::for_each(rmm::exec_policy(stream_view),
@@ -50,7 +50,7 @@ void degree_from_vertex_ids(const raft::handle_t *handle,
                    thrust::make_counting_iterator<edge_t>(number_of_edges),
                    [indices, degree] __device__(edge_t e) { atomicAdd(degree + indices[e], 1); });
   if ((handle != nullptr) && (handle->comms_initialized())) {
-    auto &comm = handle->get_comms();
+    auto& comm = handle->get_comms();
     comm.allreduce(degree, degree, number_of_vertices, raft::comms::op_t::SUM, stream_view.value());
   }
 }
@@ -61,13 +61,13 @@ namespace cugraph {
 namespace legacy {
 
 template <typename VT, typename ET, typename WT>
-void GraphViewBase<VT, ET, WT>::get_vertex_identifiers(VT *identifiers) const
+void GraphViewBase<VT, ET, WT>::get_vertex_identifiers(VT* identifiers) const
 {
   cugraph::detail::sequence<VT>(number_of_vertices, identifiers);
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT *src_indices) const
+void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT* src_indices) const
 {
   CUGRAPH_EXPECTS(offsets != nullptr, "No graph specified");
   cugraph::detail::offsets_to_indices<VT>(
@@ -75,7 +75,7 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT *src_indic
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCOOView<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) const
+void GraphCOOView<VT, ET, WT>::degree(ET* degree, DegreeDirection direction) const
 {
   //
   // NOTE:  We assume offsets/indices are a CSR.  If a CSC is passed
@@ -112,7 +112,7 @@ void GraphCOOView<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) con
 }
 
 template <typename VT, typename ET, typename WT>
-void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET *degree, DegreeDirection direction) const
+void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET* degree, DegreeDirection direction) const
 {
   //
   // NOTE:  We assume offsets/indices are a CSR.  If a CSC is passed

@@ -33,6 +33,7 @@
 
 namespace cugraph {
 namespace serializer {
+
 template <typename value_t>
 void serializer_t::serialize(value_t val)
 {
@@ -98,14 +99,15 @@ void serializer_t::serialize(serializer_t::graph_meta_t<graph_t> const& gmeta)
     serialize(gmeta.num_edges_);
     serialize(static_cast<bool_t>(gmeta.properties_.is_symmetric));
     serialize(static_cast<bool_t>(gmeta.properties_.is_multigraph));
-    serialize(static_cast<bool_t>(gmeta.properties_.is_weighted));
+    serialize(static_cast<bool_t>(gmeta.is_weighted_));
 
-    auto seg_off_sz_bytes = gmeta.segment_offsets_.size() * sizeof(vertex_t);
+    auto seg_off_sz_bytes =
+      (gmeta.segment_offsets_ ? (*(gmeta.segment_offsets_)).size() : size_t{0}) * sizeof(vertex_t);
     if (seg_off_sz_bytes > 0) {
       auto it_end = begin_ + seg_off_sz_bytes;
 
       raft::update_device(begin_,
-                          reinterpret_cast<byte_t const*>(gmeta.segment_offsets_.data()),
+                          reinterpret_cast<byte_t const*>((*(gmeta.segment_offsets_)).data()),
                           seg_off_sz_bytes,
                           handle_.get_stream());
 
@@ -141,15 +143,15 @@ serializer_t::graph_meta_t<graph_t> serializer_t::unserialize(
     bool_t is_weighted   = unserialize<bool_t>();
 
     graph_properties_t properties{static_cast<bool>(is_symmetric),
-                                  static_cast<bool>(is_multigraph),
-                                  static_cast<bool>(is_weighted)};
+                                  static_cast<bool>(is_multigraph)};
 
-    std::vector<vertex_t> segment_offsets{};
+    std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
 
     size_t seg_off_sz_bytes = graph_meta_sz_bytes - 2 * sizeof(size_t) - 3 * sizeof(bool_t);
 
     if (seg_off_sz_bytes > 0) {
-      raft::update_host(segment_offsets.data(),
+      segment_offsets = std::vector<vertex_t>(seg_off_sz_bytes / sizeof(vertex_t), vertex_t{0});
+      raft::update_host((*segment_offsets).data(),
                         reinterpret_cast<vertex_t const*>(cbegin_),
                         seg_off_sz_bytes,
                         handle_.get_stream());
@@ -157,7 +159,8 @@ serializer_t::graph_meta_t<graph_t> serializer_t::unserialize(
       cbegin_ += seg_off_sz_bytes;
     }
 
-    return graph_meta_t<graph_t>{num_vertices, num_edges, properties, segment_offsets};
+    return graph_meta_t<graph_t>{
+      num_vertices, num_edges, properties, static_cast<bool>(is_weighted), segment_offsets};
 
   } else {
     CUGRAPH_FAIL("Unsupported graph type for unserialization.");
@@ -182,9 +185,9 @@ void serializer_t::serialize(graph_t const& graph, serializer_t::graph_meta_t<gr
 
     gvmeta = graph_meta_t<graph_t>{graph};
 
-    edge_t const* offsets   = gview.offsets();
-    vertex_t const* indices = gview.indices();
-    weight_t const* weights = gview.weights();
+    auto offsets = gview.get_matrix_partition_view().get_offsets();
+    auto indices = gview.get_matrix_partition_view().get_indices();
+    auto weights = gview.get_matrix_partition_view().get_weights();
 
     // FIXME: remove when host_bcast() becomes available for vectors;
     //
@@ -197,7 +200,7 @@ void serializer_t::serialize(graph_t const& graph, serializer_t::graph_meta_t<gr
     serialize(offsets, num_vertices + 1);
     serialize(indices, num_edges);
 
-    if (graph.is_weighted()) serialize(weights, num_edges);
+    if (weights) serialize(*weights, num_edges);
 
   } else {
     CUGRAPH_FAIL("Unsupported graph type for serialization.");
@@ -232,33 +235,22 @@ graph_t serializer_t::unserialize(size_t device_sz_bytes, size_t host_sz_bytes)
     vertex_t num_vertices = gvmeta.num_vertices_;
     edge_t num_edges      = gvmeta.num_edges_;
     auto g_props          = gvmeta.properties_;
+    auto is_weighted      = gvmeta.is_weighted_;
     auto seg_offsets      = gvmeta.segment_offsets_;
 
     auto d_offsets = unserialize<edge_t>(num_vertices + 1);
     auto d_indices = unserialize<vertex_t>(num_edges);
 
-    if (g_props.is_weighted) {
-      auto d_weights = unserialize<weight_t>(num_edges);
-
-      return graph_t(handle_,
-                     num_vertices,
-                     num_edges,
-                     g_props,
-                     std::move(d_offsets),
-                     std::move(d_indices),
-                     std::move(d_weights),
-                     std::move(seg_offsets));  // RVO-ed
-    } else {
-      return graph_t(handle_,
-                     num_vertices,
-                     num_edges,
-                     g_props,
-                     std::move(d_offsets),
-                     std::move(d_indices),
-                     rmm::device_uvector<weight_t>(0, handle_.get_stream()),
-                     std::move(seg_offsets));  // RVO-ed
-    }
-
+    return graph_t(
+      handle_,
+      num_vertices,
+      num_edges,
+      g_props,
+      std::move(d_offsets),
+      std::move(d_indices),
+      is_weighted ? std::optional<rmm::device_uvector<weight_t>>{unserialize<weight_t>(num_edges)}
+                  : std::nullopt,
+      std::move(seg_offsets));  // RVO-ed
   } else {
     CUGRAPH_FAIL("Unsupported graph type for unserialization.");
 

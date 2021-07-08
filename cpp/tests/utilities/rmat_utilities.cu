@@ -39,7 +39,7 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           rmm::device_uvector<vertex_t>>
+           std::optional<rmm::device_uvector<vertex_t>>>
 generate_graph_from_rmat_params(raft::handle_t const& handle,
                                 size_t scale,
                                 size_t edge_factor,
@@ -87,7 +87,9 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
 
   rmm::device_uvector<vertex_t> d_edgelist_rows(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_edgelist_cols(0, handle.get_stream());
-  rmm::device_uvector<weight_t> d_edgelist_weights(0, handle.get_stream());
+  auto d_edgelist_weights =
+    test_weighted ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
+                  : std::nullopt;
   for (size_t i = 0; i < partition_ids.size(); ++i) {
     auto id = partition_ids[i];
 
@@ -103,17 +105,18 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
                                                 base_seed + id,
                                                 undirected ? true : false);
 
-    rmm::device_uvector<weight_t> d_tmp_weights(0, handle.get_stream());
-    if (test_weighted) {
+    std::optional<rmm::device_uvector<weight_t>> d_tmp_weights{std::nullopt};
+    if (d_edgelist_weights) {
       if (i == 0) {
-        d_edgelist_weights.resize(d_edgelist_rows.size(), handle.get_stream());
+        (*d_edgelist_weights).resize(d_edgelist_rows.size(), handle.get_stream());
       } else {
-        d_tmp_weights.resize(d_tmp_rows.size(), handle.get_stream());
+        d_tmp_weights =
+          std::make_optional<rmm::device_uvector<weight_t>>(d_tmp_rows.size(), handle.get_stream());
       }
 
       raft::random::Rng rng(base_seed + num_partitions + id);
-      rng.uniform<weight_t, size_t>(i == 0 ? d_edgelist_weights.data() : d_tmp_weights.data(),
-                                    i == 0 ? d_edgelist_weights.size() : d_tmp_weights.size(),
+      rng.uniform<weight_t, size_t>(i == 0 ? (*d_edgelist_weights).data() : (*d_tmp_weights).data(),
+                                    i == 0 ? (*d_edgelist_weights).size() : (*d_tmp_weights).size(),
                                     weight_t{0.0},
                                     weight_t{1.0},
                                     handle.get_stream());
@@ -131,12 +134,12 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
                    d_tmp_cols.begin(),
                    d_tmp_cols.end(),
                    d_edgelist_cols.begin() + start_offset);
-      if (test_weighted) {
-        d_edgelist_weights.resize(d_edgelist_rows.size(), handle.get_stream());
+      if (d_edgelist_weights) {
+        (*d_edgelist_weights).resize(d_edgelist_rows.size(), handle.get_stream());
         thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     d_tmp_weights.begin(),
-                     d_tmp_weights.end(),
-                     d_edgelist_weights.begin() + start_offset);
+                     (*d_tmp_weights).begin(),
+                     (*d_tmp_weights).end(),
+                     (*d_edgelist_weights).begin() + start_offset);
       }
     }
   }
@@ -148,8 +151,9 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
     auto offset = d_edgelist_rows.size();
     d_edgelist_rows.resize(offset * 2, handle.get_stream());
     d_edgelist_cols.resize(d_edgelist_rows.size(), handle.get_stream());
-    d_edgelist_weights.resize(test_weighted ? d_edgelist_rows.size() : size_t{0},
-                              handle.get_stream());
+    if (d_edgelist_weights) {
+      (*d_edgelist_weights).resize(d_edgelist_rows.size(), handle.get_stream());
+    }
     thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  d_edgelist_cols.begin(),
                  d_edgelist_cols.begin() + offset,
@@ -158,11 +162,11 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
                  d_edgelist_rows.begin(),
                  d_edgelist_rows.begin() + offset,
                  d_edgelist_cols.begin() + offset);
-    if (test_weighted) {
+    if (d_edgelist_weights) {
       thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   d_edgelist_weights.begin(),
-                   d_edgelist_weights.begin() + offset,
-                   d_edgelist_weights.begin() + offset);
+                   (*d_edgelist_weights).begin(),
+                   (*d_edgelist_weights).begin() + offset,
+                   (*d_edgelist_weights).begin() + offset);
     }
 #endif
   }
@@ -177,12 +181,12 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> d_rx_edgelist_rows(0, handle.get_stream());
     rmm::device_uvector<vertex_t> d_rx_edgelist_cols(0, handle.get_stream());
-    rmm::device_uvector<weight_t> d_rx_edgelist_weights(0, handle.get_stream());
-    if (test_weighted) {
+    std::optional<rmm::device_uvector<weight_t>> d_rx_edgelist_weights{std::nullopt};
+    if (d_edgelist_weights) {
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(store_transposed ? d_edgelist_cols.begin() : d_edgelist_rows.begin(),
                            store_transposed ? d_edgelist_rows.begin() : d_edgelist_cols.begin(),
-                           d_edgelist_weights.begin()));
+                           (*d_edgelist_weights).begin()));
 
       std::forward_as_tuple(std::tie(store_transposed ? d_rx_edgelist_cols : d_rx_edgelist_rows,
                                      store_transposed ? d_rx_edgelist_rows : d_rx_edgelist_cols,
@@ -260,14 +264,14 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
       std::move(d_edgelist_rows),
       std::move(d_edgelist_cols),
       std::move(d_edgelist_weights),
-      cugraph::experimental::graph_properties_t{undirected, true, test_weighted},
+      cugraph::experimental::graph_properties_t{undirected, true},
       renumber);
 }
 
 // explicit instantiations
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, false, false>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int32_t, float, false, false>(
   raft::handle_t const& handle,
   size_t scale,
@@ -284,7 +288,7 @@ generate_graph_from_rmat_params<int32_t, int32_t, float, false, false>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, false, true>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int32_t, float, false, true>(
   raft::handle_t const& handle,
   size_t scale,
@@ -301,7 +305,7 @@ generate_graph_from_rmat_params<int32_t, int32_t, float, false, true>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, true, false>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int32_t, float, true, false>(
   raft::handle_t const& handle,
   size_t scale,
@@ -318,7 +322,7 @@ generate_graph_from_rmat_params<int32_t, int32_t, float, true, false>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, true, true>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int32_t, float, true, true>(
   raft::handle_t const& handle,
   size_t scale,
@@ -335,7 +339,7 @@ generate_graph_from_rmat_params<int32_t, int32_t, float, true, true>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, false, false>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int32_t, double, false, false>(
   raft::handle_t const& handle,
   size_t scale,
@@ -352,7 +356,7 @@ generate_graph_from_rmat_params<int32_t, int32_t, double, false, false>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, false, true>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int32_t, double, false, true>(
   raft::handle_t const& handle,
   size_t scale,
@@ -369,7 +373,7 @@ generate_graph_from_rmat_params<int32_t, int32_t, double, false, true>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, true, false>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int32_t, double, true, false>(
   raft::handle_t const& handle,
   size_t scale,
@@ -386,7 +390,7 @@ generate_graph_from_rmat_params<int32_t, int32_t, double, true, false>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, true, true>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int32_t, double, true, true>(
   raft::handle_t const& handle,
   size_t scale,
@@ -403,7 +407,7 @@ generate_graph_from_rmat_params<int32_t, int32_t, double, true, true>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, false, false>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int64_t, float, false, false>(
   raft::handle_t const& handle,
   size_t scale,
@@ -420,7 +424,7 @@ generate_graph_from_rmat_params<int32_t, int64_t, float, false, false>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, false, true>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
   size_t scale,
@@ -437,7 +441,7 @@ generate_graph_from_rmat_params<int32_t, int64_t, float, false, true>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, true, false>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int64_t, float, true, false>(
   raft::handle_t const& handle,
   size_t scale,
@@ -454,7 +458,7 @@ generate_graph_from_rmat_params<int32_t, int64_t, float, true, false>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, true, true>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
   size_t scale,
@@ -471,7 +475,7 @@ generate_graph_from_rmat_params<int32_t, int64_t, float, true, true>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, false, false>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
   size_t scale,
@@ -488,7 +492,7 @@ generate_graph_from_rmat_params<int32_t, int64_t, double, false, false>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, false, true>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
   size_t scale,
@@ -505,7 +509,7 @@ generate_graph_from_rmat_params<int32_t, int64_t, double, false, true>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, true, false>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int64_t, double, true, false>(
   raft::handle_t const& handle,
   size_t scale,
@@ -522,7 +526,7 @@ generate_graph_from_rmat_params<int32_t, int64_t, double, true, false>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, true, true>,
-                    rmm::device_uvector<int32_t>>
+                    std::optional<rmm::device_uvector<int32_t>>>
 generate_graph_from_rmat_params<int32_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
   size_t scale,
@@ -539,7 +543,7 @@ generate_graph_from_rmat_params<int32_t, int64_t, double, true, true>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, false, false>,
-                    rmm::device_uvector<int64_t>>
+                    std::optional<rmm::device_uvector<int64_t>>>
 generate_graph_from_rmat_params<int64_t, int64_t, float, false, false>(
   raft::handle_t const& handle,
   size_t scale,
@@ -556,7 +560,7 @@ generate_graph_from_rmat_params<int64_t, int64_t, float, false, false>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, false, true>,
-                    rmm::device_uvector<int64_t>>
+                    std::optional<rmm::device_uvector<int64_t>>>
 generate_graph_from_rmat_params<int64_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
   size_t scale,
@@ -573,7 +577,7 @@ generate_graph_from_rmat_params<int64_t, int64_t, float, false, true>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, true, false>,
-                    rmm::device_uvector<int64_t>>
+                    std::optional<rmm::device_uvector<int64_t>>>
 generate_graph_from_rmat_params<int64_t, int64_t, float, true, false>(
   raft::handle_t const& handle,
   size_t scale,
@@ -590,7 +594,7 @@ generate_graph_from_rmat_params<int64_t, int64_t, float, true, false>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, true, true>,
-                    rmm::device_uvector<int64_t>>
+                    std::optional<rmm::device_uvector<int64_t>>>
 generate_graph_from_rmat_params<int64_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
   size_t scale,
@@ -607,7 +611,7 @@ generate_graph_from_rmat_params<int64_t, int64_t, float, true, true>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, false, false>,
-                    rmm::device_uvector<int64_t>>
+                    std::optional<rmm::device_uvector<int64_t>>>
 generate_graph_from_rmat_params<int64_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
   size_t scale,
@@ -624,7 +628,7 @@ generate_graph_from_rmat_params<int64_t, int64_t, double, false, false>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, false, true>,
-                    rmm::device_uvector<int64_t>>
+                    std::optional<rmm::device_uvector<int64_t>>>
 generate_graph_from_rmat_params<int64_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
   size_t scale,
@@ -641,7 +645,7 @@ generate_graph_from_rmat_params<int64_t, int64_t, double, false, true>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, true, false>,
-                    rmm::device_uvector<int64_t>>
+                    std::optional<rmm::device_uvector<int64_t>>>
 generate_graph_from_rmat_params<int64_t, int64_t, double, true, false>(
   raft::handle_t const& handle,
   size_t scale,
@@ -658,7 +662,7 @@ generate_graph_from_rmat_params<int64_t, int64_t, double, true, false>(
   size_t num_partitions);
 
 template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, true, true>,
-                    rmm::device_uvector<int64_t>>
+                    std::optional<rmm::device_uvector<int64_t>>>
 generate_graph_from_rmat_params<int64_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
   size_t scale,

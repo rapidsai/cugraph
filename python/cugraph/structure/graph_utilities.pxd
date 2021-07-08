@@ -43,13 +43,14 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
         void *dst_vertices,
         void *weights,
         void *vertex_partition_offsets,
+        void *segment_offsets,
+        size_t num_segments,
         numberTypeEnum vertexType,
         numberTypeEnum edgeType,
         numberTypeEnum weightType,
         size_t num_local_edges,
         size_t num_global_vertices,
         size_t num_global_edges,
-        bool sorted_by_degree,
         bool is_weighted,
         bool is_symmetric,
         bool transposed,
@@ -144,15 +145,17 @@ ctypedef fused shuffled_vertices_t:
 #
 cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef cppclass renum_quad_t[vertex_t, edge_t]:
-        renum_quad_t(const handle_t &handle)
+    cdef cppclass renum_tuple_t[vertex_t, edge_t]:
+        renum_tuple_t(const handle_t &handle)
         pair[unique_ptr[device_buffer], size_t] get_dv_wrap()
         vertex_t& get_num_vertices()
         edge_t& get_num_edges()
+        vector[vertex_t]& get_segment_offsets()
+        unique_ptr[vector[vertex_t]] get_segment_offsets_wrap()
         int get_part_row_size()
         int get_part_col_size()
         int get_part_comm_rank()
-        unique_ptr[vector[vertex_t]] get_partition_offsets()
+        unique_ptr[vector[vertex_t]] get_partition_offsets_wrap()
         pair[vertex_t, vertex_t] get_part_local_vertex_range()
         vertex_t get_part_local_vertex_first()
         vertex_t get_part_local_vertex_last()
@@ -183,7 +186,7 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 #
 cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef unique_ptr[renum_quad_t[vertex_t, edge_t]] call_renumber[vertex_t, edge_t](
+    cdef unique_ptr[renum_tuple_t[vertex_t, edge_t]] call_renumber[vertex_t, edge_t](
         const handle_t &handle,
         vertex_t *edgelist_major_vertices,
         vertex_t *edgelist_minor_vertices,

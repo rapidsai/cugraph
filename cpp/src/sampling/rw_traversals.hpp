@@ -213,9 +213,11 @@ struct horizontal_traversal_t {
 
     random_engine_t::generate_random(handle, ptr_d_random, d_random.size(), seed0);
 
-    auto const* col_indices       = graph.indices();
-    auto const* row_offsets       = graph.offsets();
-    auto const* values            = graph.weights();
+    auto const* col_indices       = graph.get_matrix_partition_view().get_indices();
+    auto const* row_offsets       = graph.get_matrix_partition_view().get_offsets();
+    auto const* values            = graph.get_matrix_partition_view().get_weights()
+                                      ? *(graph.get_matrix_partition_view().get_weights())
+                                      : static_cast<weight_t*>(nullptr);
     auto* ptr_d_sizes             = raw_ptr(d_paths_sz);
     auto const& d_cached_out_degs = rand_walker.get_out_degs();
 

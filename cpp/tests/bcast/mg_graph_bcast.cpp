@@ -84,22 +84,14 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
     const auto& comm = handle.get_comms();
 
-    auto const comm_size = comm.get_size();
     auto const comm_rank = comm.get_rank();
 
-    cudaStream_t stream = handle.get_stream();
-
-    sg_graph_t sg_graph(handle);
-
-    rmm::device_uvector<vertex_t> d_renumber_map_labels(0, stream);
-
-    std::tie(sg_graph, d_renumber_map_labels) =
+    auto [sg_graph, d_renumber_map_labels] =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
         handle, param.graph_file_full_path, true, /*renumber=*/false);
 
     if (comm_rank == 0) {
       graph_broadcast(handle, &sg_graph);
-      ;
     } else {
       sg_graph_t* g_ignore{nullptr};
       auto graph_copy       = graph_broadcast(handle, g_ignore);

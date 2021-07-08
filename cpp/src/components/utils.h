@@ -73,7 +73,9 @@ class Exception : public std::exception {
       return;
     }
     ///@todo: support for demangling of C++ symbol names
-    for (int i = 0; i < depth; ++i) { oss << "#" << i << " in " << strings.get()[i] << std::endl; }
+    for (int i = 0; i < depth; ++i) {
+      oss << "#" << i << " in " << strings.get()[i] << std::endl;
+    }
     msg += oss.str();
 #endif  // __GNUC__
   }

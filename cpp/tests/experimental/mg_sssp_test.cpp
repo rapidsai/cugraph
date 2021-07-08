@@ -71,7 +71,9 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
     auto const comm_rank = comm.get_rank();
 
     auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) { --row_comm_size; }
+    while (comm_size % row_comm_size != 0) {
+      --row_comm_size;
+    }
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
       subcomm_factory(handle, row_comm_size);
 
@@ -82,9 +84,8 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
       handle.get_comms().barrier();
       hr_clock.start();
     }
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, true> mg_graph(handle);
-    rmm::device_uvector<vertex_t> d_mg_renumber_map_labels(0, handle.get_stream());
-    std::tie(mg_graph, d_mg_renumber_map_labels) =
+
+    auto [mg_graph, d_mg_renumber_map_labels] =
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, true>(
         handle, true, true);
 
@@ -136,7 +137,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
       // 4-1. aggregate MG results
 
       auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        handle, d_mg_renumber_map_labels.data(), d_mg_renumber_map_labels.size());
+        handle, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
       auto d_mg_aggregate_distances =
         cugraph::test::device_gatherv(handle, d_mg_distances.data(), d_mg_distances.size());
       auto d_mg_aggregate_predecessors =
@@ -203,15 +204,15 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
         std::vector<vertex_t> h_sg_indices(sg_graph_view.get_number_of_edges());
         std::vector<weight_t> h_sg_weights(sg_graph_view.get_number_of_edges());
         raft::update_host(h_sg_offsets.data(),
-                          sg_graph_view.offsets(),
+                          sg_graph_view.get_matrix_partition_view().get_offsets(),
                           sg_graph_view.get_number_of_vertices() + 1,
                           handle.get_stream());
         raft::update_host(h_sg_indices.data(),
-                          sg_graph_view.indices(),
+                          sg_graph_view.get_matrix_partition_view().get_indices(),
                           sg_graph_view.get_number_of_edges(),
                           handle.get_stream());
         raft::update_host(h_sg_weights.data(),
-                          sg_graph_view.weights(),
+                          *(sg_graph_view.get_matrix_partition_view().get_weights()),
                           sg_graph_view.get_number_of_edges(),
                           handle.get_stream());
 
@@ -249,7 +250,8 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
                                nearly_equal));
 
         for (size_t i = 0; i < h_mg_aggregate_predecessors.size(); ++i) {
-          if (h_mg_aggregate_predecessors[i] == cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
+          if (h_mg_aggregate_predecessors[i] ==
+              cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
             ASSERT_TRUE(h_sg_predecessors[i] == h_mg_aggregate_predecessors[i])
               << "vertex reachability does not match with the SG result.";
           } else {

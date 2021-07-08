@@ -29,7 +29,8 @@ def mg_wcc(input_df,
            num_global_edges,
            vertex_partition_offsets,
            rank,
-           handle):
+           handle,
+           segment_offsets):
 
     cdef size_t handle_size_t = <size_t>handle.getHandle()
     handle_ = <c_connectivity.handle_t*>handle_size_t
@@ -40,7 +41,7 @@ def mg_wcc(input_df,
     if num_global_edges > (2**31 - 1):
         edge_t = np.dtype("int64")
     else:
-        edge_t = np.dtype("int32")
+        edge_t = vertex_t
 
     weights = None
     weight_t = np.dtype("float32")
@@ -64,18 +65,29 @@ def mg_wcc(input_df,
     vertex_partition_offsets_host = vertex_partition_offsets.values_host
     cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets_host.__array_interface__['data'][0]
 
+    cdef vector[int] v_segment_offsets_32
+    cdef vector[long] v_segment_offsets_64
+    cdef uintptr_t c_segment_offsets
+    if (vertex_t == np.dtype("int32")):
+        v_segment_offsets_32 = segment_offsets
+        c_segment_offsets = <uintptr_t>v_segment_offsets_32.data()
+    else:
+        v_segment_offsets_64 = segment_offsets
+        c_segment_offsets = <uintptr_t>v_segment_offsets_64.data()
+
     cdef graph_container_t graph_container
 
     populate_graph_container(graph_container,
                              handle_[0],
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
                              <void*>c_vertex_partition_offsets,
+                             <void*>c_segment_offsets,
+                             len(segment_offsets) - 1,
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                              num_local_edges,
                              num_global_verts, num_global_edges,
-                             True,
                              is_weighted,
                              True,
                              False,

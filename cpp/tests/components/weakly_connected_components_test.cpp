@@ -118,9 +118,7 @@ class Tests_WeaklyConnectedComponent
       hr_clock.start();
     }
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
-    rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
-    std::tie(graph, d_renumber_map_labels) =
+    auto [graph, d_renumber_map_labels] =
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, false, renumber);
 
@@ -165,11 +163,11 @@ class Tests_WeaklyConnectedComponent
       std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
       std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
       raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.offsets(),
+                        unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
                         unrenumbered_graph_view.get_number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.indices(),
+                        unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
                         unrenumbered_graph_view.get_number_of_edges(),
                         handle.get_stream());
 
@@ -187,8 +185,11 @@ class Tests_WeaklyConnectedComponent
       if (renumber) {
         rmm::device_uvector<vertex_t> d_unrenumbered_components(size_t{0},
                                                                 handle.get_stream_view());
-        std::tie(std::ignore, d_unrenumbered_components) = cugraph::test::sort_by_key(
-          handle, d_renumber_map_labels.data(), d_components.data(), d_renumber_map_labels.size());
+        std::tie(std::ignore, d_unrenumbered_components) =
+          cugraph::test::sort_by_key(handle,
+                                     (*d_renumber_map_labels).data(),
+                                     d_components.data(),
+                                     (*d_renumber_map_labels).size());
         raft::update_host(h_cugraph_components.data(),
                           d_unrenumbered_components.data(),
                           d_unrenumbered_components.size(),
