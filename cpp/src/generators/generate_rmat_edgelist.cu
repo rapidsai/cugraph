@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/detail/utility_wrappers.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
@@ -64,7 +64,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(srcs.begin(), dsts.begin())) +
                       num_edges_generated;
 
-    detail::uniform_random_fill(handle.get_stream_view(), rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, seed);
+    detail::uniform_random_fill(
+      handle.get_stream_view(), rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, seed);
     seed += num_edges_to_generate * 2 * scale;
 
     thrust::transform(

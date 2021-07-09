@@ -144,7 +144,8 @@ struct rrandom_gen_t {
   //
   static void generate_random(raft::handle_t const& handle, real_t* p_d_rnd, size_t sz, seed_t seed)
   {
-    cugraph::detail::uniform_random_fill(handle.get_stream_view(), p_d_rnd, sz, real_t{0.0}, real_t{1.0}, seed);
+    cugraph::detail::uniform_random_fill(
+      handle.get_stream_view(), p_d_rnd, sz, real_t{0.0}, real_t{1.0}, seed);
   }
 
  private:

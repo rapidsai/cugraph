@@ -31,17 +31,17 @@ template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-shuffle_edgelist_by_edge(raft::handle_t const &handle,
-                         rmm::device_uvector<vertex_t> &d_edgelist_rows,
-                         rmm::device_uvector<vertex_t> &d_edgelist_cols,
-                         std::optional<rmm::device_uvector<weight_t>> &d_edgelist_weights,
+shuffle_edgelist_by_edge(raft::handle_t const& handle,
+                         rmm::device_uvector<vertex_t>& d_edgelist_rows,
+                         rmm::device_uvector<vertex_t>& d_edgelist_cols,
+                         std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
                          bool store_transposed)
 {
-  auto &comm               = handle.get_comms();
+  auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
-  auto &row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_size = row_comm.get_size();
-  auto &col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_size = col_comm.get_size();
 
   // TODO:  Make a shuffle_edges and shuffle_vertices out of these...
@@ -95,44 +95,44 @@ shuffle_edgelist_by_edge(raft::handle_t const &handle,
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
-shuffle_edgelist_by_edge(raft::handle_t const &handle,
-                         rmm::device_uvector<int32_t> &d_edgelist_rows,
-                         rmm::device_uvector<int32_t> &d_edgelist_cols,
-                         std::optional<rmm::device_uvector<float>> &d_edgelist_weights,
+shuffle_edgelist_by_edge(raft::handle_t const& handle,
+                         rmm::device_uvector<int32_t>& d_edgelist_rows,
+                         rmm::device_uvector<int32_t>& d_edgelist_cols,
+                         std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
                          bool store_transposed);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
-shuffle_edgelist_by_edge(raft::handle_t const &handle,
-                         rmm::device_uvector<int32_t> &d_edgelist_rows,
-                         rmm::device_uvector<int32_t> &d_edgelist_cols,
-                         std::optional<rmm::device_uvector<double>> &d_edgelist_weights,
+shuffle_edgelist_by_edge(raft::handle_t const& handle,
+                         rmm::device_uvector<int32_t>& d_edgelist_rows,
+                         rmm::device_uvector<int32_t>& d_edgelist_cols,
+                         std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
                          bool store_transposed);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
-shuffle_edgelist_by_edge(raft::handle_t const &handle,
-                         rmm::device_uvector<int64_t> &d_edgelist_rows,
-                         rmm::device_uvector<int64_t> &d_edgelist_cols,
-                         std::optional<rmm::device_uvector<float>> &d_edgelist_weights,
+shuffle_edgelist_by_edge(raft::handle_t const& handle,
+                         rmm::device_uvector<int64_t>& d_edgelist_rows,
+                         rmm::device_uvector<int64_t>& d_edgelist_cols,
+                         std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
                          bool store_transposed);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
-shuffle_edgelist_by_edge(raft::handle_t const &handle,
-                         rmm::device_uvector<int64_t> &d_edgelist_rows,
-                         rmm::device_uvector<int64_t> &d_edgelist_cols,
-                         std::optional<rmm::device_uvector<double>> &d_edgelist_weights,
+shuffle_edgelist_by_edge(raft::handle_t const& handle,
+                         rmm::device_uvector<int64_t>& d_edgelist_rows,
+                         rmm::device_uvector<int64_t>& d_edgelist_cols,
+                         std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
                          bool store_transposed);
 
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_vertices(raft::handle_t const &handle,
-                                               rmm::device_uvector<vertex_t> &d_vertices)
+rmm::device_uvector<vertex_t> shuffle_vertices(raft::handle_t const& handle,
+                                               rmm::device_uvector<vertex_t>& d_vertices)
 {
-  auto &comm           = handle.get_comms();
+  auto& comm           = handle.get_comms();
   auto const comm_size = comm.get_size();
 
   rmm::device_uvector<vertex_t> d_rx_vertices(0, handle.get_stream());
@@ -148,27 +148,27 @@ rmm::device_uvector<vertex_t> shuffle_vertices(raft::handle_t const &handle,
   return d_rx_vertices;
 }
 
-template rmm::device_uvector<int32_t> shuffle_vertices(raft::handle_t const &handle,
-                                                       rmm::device_uvector<int32_t> &d_vertices);
+template rmm::device_uvector<int32_t> shuffle_vertices(raft::handle_t const& handle,
+                                                       rmm::device_uvector<int32_t>& d_vertices);
 
-template rmm::device_uvector<int64_t> shuffle_vertices(raft::handle_t const &handle,
-                                                       rmm::device_uvector<int64_t> &d_vertices);
+template rmm::device_uvector<int64_t> shuffle_vertices(raft::handle_t const& handle,
+                                                       rmm::device_uvector<int64_t>& d_vertices);
 
 template <typename vertex_t, typename weight_t>
 rmm::device_uvector<size_t> groupby_and_count_by_edge(
-  raft::handle_t const &handle,
-  rmm::device_uvector<vertex_t> &d_edgelist_rows,
-  rmm::device_uvector<vertex_t> &d_edgelist_cols,
-  std::optional<rmm::device_uvector<weight_t>> &d_edgelist_weights,
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>& d_edgelist_rows,
+  rmm::device_uvector<vertex_t>& d_edgelist_cols,
+  std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
   size_t number_of_local_adj_matrix_partitions)
 {
-  auto &comm               = handle.get_comms();
+  auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
   auto const comm_rank     = comm.get_rank();
-  auto &row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_size = row_comm.get_size();
   auto const row_comm_rank = row_comm.get_rank();
-  auto &col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_size = col_comm.get_size();
   auto const col_comm_rank = col_comm.get_rank();
 
@@ -198,31 +198,31 @@ rmm::device_uvector<size_t> groupby_and_count_by_edge(
 }
 
 template rmm::device_uvector<size_t> groupby_and_count_by_edge(
-  raft::handle_t const &handle,
-  rmm::device_uvector<int32_t> &d_edgelist_rows,
-  rmm::device_uvector<int32_t> &d_edgelist_cols,
-  std::optional<rmm::device_uvector<float>> &d_edgelist_weights,
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>& d_edgelist_rows,
+  rmm::device_uvector<int32_t>& d_edgelist_cols,
+  std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
   size_t number_of_local_adj_matrix_partitions);
 
 template rmm::device_uvector<size_t> groupby_and_count_by_edge(
-  raft::handle_t const &handle,
-  rmm::device_uvector<int32_t> &d_edgelist_rows,
-  rmm::device_uvector<int32_t> &d_edgelist_cols,
-  std::optional<rmm::device_uvector<double>> &d_edgelist_weights,
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>& d_edgelist_rows,
+  rmm::device_uvector<int32_t>& d_edgelist_cols,
+  std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
   size_t number_of_local_adj_matrix_partitions);
 
 template rmm::device_uvector<size_t> groupby_and_count_by_edge(
-  raft::handle_t const &handle,
-  rmm::device_uvector<int64_t> &d_edgelist_rows,
-  rmm::device_uvector<int64_t> &d_edgelist_cols,
-  std::optional<rmm::device_uvector<float>> &d_edgelist_weights,
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>& d_edgelist_rows,
+  rmm::device_uvector<int64_t>& d_edgelist_cols,
+  std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
   size_t number_of_local_adj_matrix_partitions);
 
 template rmm::device_uvector<size_t> groupby_and_count_by_edge(
-  raft::handle_t const &handle,
-  rmm::device_uvector<int64_t> &d_edgelist_rows,
-  rmm::device_uvector<int64_t> &d_edgelist_cols,
-  std::optional<rmm::device_uvector<double>> &d_edgelist_weights,
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>& d_edgelist_rows,
+  rmm::device_uvector<int64_t>& d_edgelist_cols,
+  std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
   size_t number_of_local_adj_matrix_partitions);
 
 }  // namespace detail

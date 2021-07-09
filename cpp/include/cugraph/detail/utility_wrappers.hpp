@@ -38,8 +38,8 @@ namespace detail {
  *
  */
 template <typename value_t>
-void uniform_random_fill(rmm::cuda_stream_view const &stream_view,
-                         value_t *d_value,
+void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
+                         value_t* d_value,
                          size_t size,
                          value_t min_value,
                          value_t max_value,
@@ -62,8 +62,8 @@ void uniform_random_fill(rmm::cuda_stream_view const &stream_view,
  *
  */
 template <typename value_t>
-void sequence_fill(rmm::cuda_stream_view const &stream_view,
-                   value_t *d_value,
+void sequence_fill(rmm::cuda_stream_view const& stream_view,
+                   value_t* d_value,
                    size_t size,
                    value_t start_value);
 
@@ -81,9 +81,9 @@ void sequence_fill(rmm::cuda_stream_view const &stream_view,
  * @param the maximum value occurring in the edge list
  */
 template <typename vertex_t>
-vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const &stream_view,
-                                   rmm::device_uvector<vertex_t> const &d_edgelist_rows,
-                                   rmm::device_uvector<vertex_t> const &d_edgelist_cols);
+vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
+                                   rmm::device_uvector<vertex_t> const& d_edgelist_rows,
+                                   rmm::device_uvector<vertex_t> const& d_edgelist_cols);
 
 }  // namespace detail
 }  // namespace cugraph

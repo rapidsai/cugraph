@@ -23,10 +23,10 @@
 #include <converters/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
 
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/detail/utility_wrappers.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -134,7 +134,8 @@ void barnes_hut(raft::handle_t const& handle,
     raft::copy(nodes_pos, x_start, n, stream_view.value());
     raft::copy(nodes_pos + nnodes + 1, y_start, n, stream_view.value());
   } else {
-    uniform_random_fill(handle.get_stream_view(), nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, random_state);
+    uniform_random_fill(
+      handle.get_stream_view(), nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, random_state);
   }
 
   // Allocate arrays for force computation

@@ -21,10 +21,10 @@
 
 #include <converters/COOtoCSR.cuh>
 
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/detail/utility_wrappers.hpp>
 
 #include "exact_repulsion.cuh"
 #include "fa2_kernels.cuh"

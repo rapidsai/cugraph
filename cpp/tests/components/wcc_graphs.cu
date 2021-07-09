@@ -12,8 +12,8 @@
 #include <components/wcc_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
 
 #include <rmm/exec_policy.hpp>
 
@@ -45,7 +45,8 @@ LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
   thrust::sequence(
     rmm::exec_policy(handle.get_stream()), vertices_v.begin(), vertices_v.end(), vertex_t{0});
 
-  cugraph::detail::uniform_random_fill(handle.get_stream_view(), order_v.data(), num_vertices_, double{0.0}, double{1.0}, seed);
+  cugraph::detail::uniform_random_fill(
+    handle.get_stream_view(), order_v.data(), num_vertices_, double{0.0}, double{1.0}, seed);
 
   thrust::sort_by_key(
     rmm::exec_policy(handle.get_stream()), order_v.begin(), order_v.end(), vertices_v.begin());
