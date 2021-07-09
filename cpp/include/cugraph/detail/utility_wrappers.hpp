@@ -67,5 +67,23 @@ void sequence_fill(rmm::cuda_stream_view const &stream_view,
                    size_t size,
                    value_t start_value);
 
+/**
+ * @brief    Compute the maximum vertex id of an edge list
+ *
+ * max(d_edgelist_rows.max(), d_edgelist_cols.max())
+ *
+ * @tparam      vertex_t     vertex type
+ *
+ * @param[in]   stream_view  stream view
+ * @param[in]   d_edgelist_rows      device array to fill
+ * @param[in]   d_edgelist_cols         number of elements in array
+ *
+ * @param the maximum value occurring in the edge list
+ */
+template <typename vertex_t>
+vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const &stream_view,
+                                   rmm::device_uvector<vertex_t> const &d_edgelist_rows,
+                                   rmm::device_uvector<vertex_t> const &d_edgelist_cols);
+
 }  // namespace detail
 }  // namespace cugraph

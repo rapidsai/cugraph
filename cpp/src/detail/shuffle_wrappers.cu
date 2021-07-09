@@ -148,13 +148,82 @@ rmm::device_uvector<vertex_t> shuffle_vertices(raft::handle_t const &handle,
   return d_rx_vertices;
 }
 
-template
-rmm::device_uvector<int32_t> shuffle_vertices(raft::handle_t const &handle,
-                                              rmm::device_uvector<int32_t> &d_vertices);
+template rmm::device_uvector<int32_t> shuffle_vertices(raft::handle_t const &handle,
+                                                       rmm::device_uvector<int32_t> &d_vertices);
 
-template
-rmm::device_uvector<int64_t> shuffle_vertices(raft::handle_t const &handle,
-                                              rmm::device_uvector<int64_t> &d_vertices);
+template rmm::device_uvector<int64_t> shuffle_vertices(raft::handle_t const &handle,
+                                                       rmm::device_uvector<int64_t> &d_vertices);
+
+template <typename vertex_t, typename weight_t>
+rmm::device_uvector<size_t> groupby_and_count_by_edge(
+  raft::handle_t const &handle,
+  rmm::device_uvector<vertex_t> &d_edgelist_rows,
+  rmm::device_uvector<vertex_t> &d_edgelist_cols,
+  std::optional<rmm::device_uvector<weight_t>> &d_edgelist_weights,
+  size_t number_of_local_adj_matrix_partitions)
+{
+  auto &comm               = handle.get_comms();
+  auto const comm_size     = comm.get_size();
+  auto const comm_rank     = comm.get_rank();
+  auto &row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto const row_comm_size = row_comm.get_size();
+  auto const row_comm_rank = row_comm.get_rank();
+  auto &col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto const col_comm_size = col_comm.get_size();
+  auto const col_comm_rank = col_comm.get_rank();
+
+  auto local_partition_id_op =
+    [comm_size,
+     key_func = cugraph::experimental::detail::compute_partition_id_from_edge_t<vertex_t>{
+       comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
+      return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
+             comm_size;  // global partition id to local partition id
+    };
+
+  auto pair_first =
+    thrust::make_zip_iterator(thrust::make_tuple(d_edgelist_rows.begin(), d_edgelist_cols.begin()));
+
+  return d_edgelist_weights
+           ? cugraph::experimental::groupby_and_count(pair_first,
+                                                      pair_first + d_edgelist_rows.size(),
+                                                      d_edgelist_weights->begin(),
+                                                      local_partition_id_op,
+                                                      number_of_local_adj_matrix_partitions,
+                                                      handle.get_stream())
+           : cugraph::experimental::groupby_and_count(pair_first,
+                                                      pair_first + d_edgelist_rows.size(),
+                                                      local_partition_id_op,
+                                                      number_of_local_adj_matrix_partitions,
+                                                      handle.get_stream());
+}
+
+template rmm::device_uvector<size_t> groupby_and_count_by_edge(
+  raft::handle_t const &handle,
+  rmm::device_uvector<int32_t> &d_edgelist_rows,
+  rmm::device_uvector<int32_t> &d_edgelist_cols,
+  std::optional<rmm::device_uvector<float>> &d_edgelist_weights,
+  size_t number_of_local_adj_matrix_partitions);
+
+template rmm::device_uvector<size_t> groupby_and_count_by_edge(
+  raft::handle_t const &handle,
+  rmm::device_uvector<int32_t> &d_edgelist_rows,
+  rmm::device_uvector<int32_t> &d_edgelist_cols,
+  std::optional<rmm::device_uvector<double>> &d_edgelist_weights,
+  size_t number_of_local_adj_matrix_partitions);
+
+template rmm::device_uvector<size_t> groupby_and_count_by_edge(
+  raft::handle_t const &handle,
+  rmm::device_uvector<int64_t> &d_edgelist_rows,
+  rmm::device_uvector<int64_t> &d_edgelist_cols,
+  std::optional<rmm::device_uvector<float>> &d_edgelist_weights,
+  size_t number_of_local_adj_matrix_partitions);
+
+template rmm::device_uvector<size_t> groupby_and_count_by_edge(
+  raft::handle_t const &handle,
+  rmm::device_uvector<int64_t> &d_edgelist_rows,
+  rmm::device_uvector<int64_t> &d_edgelist_cols,
+  std::optional<rmm::device_uvector<double>> &d_edgelist_weights,
+  size_t number_of_local_adj_matrix_partitions);
 
 }  // namespace detail
 }  // namespace cugraph

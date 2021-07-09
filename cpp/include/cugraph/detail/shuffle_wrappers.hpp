@@ -71,5 +71,32 @@ template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_vertices(raft::handle_t const &handle,
                                                rmm::device_uvector<vertex_t> &d_vertices);
 
+/**
+ * @brief    Groupby and count edgelist using the edge key function
+ *
+ * NOTE:  d_edgelist_rows, d_edgelist_cols and d_edgelist_weights
+ *        are modified within this function (data is sorted)
+ *        But the actual output is returned. The exact contents
+ *        of d_edgelist_rows, d_edgelist_cols and d_edgelist_weights
+ *        after the function is undefined.
+ *
+ * @tparam         vertex_t             vertex type
+ * @tparam         weight_t             weight type
+ *
+ * @param[in]      handle               raft handle
+ * @param[in/out]  d_edgelist_rows      vertex ids for row
+ * @param[in/out]  d_edgelist_cols      vertex ids for column
+ * @param[in/out]  d_edgelist_weights   optional edge weights
+ *
+ * @return tuple of shuffled rows, columns and optional weights
+ */
+template <typename vertex_t, typename weight_t>
+rmm::device_uvector<size_t> groupby_and_count_by_edge(
+  raft::handle_t const &handle,
+  rmm::device_uvector<vertex_t> &d_edgelist_rows,
+  rmm::device_uvector<vertex_t> &d_edgelist_cols,
+  std::optional<rmm::device_uvector<weight_t>> &d_edgelist_weights,
+  size_t number_of_local_adj_matrix_partitions);
+
 }  // namespace detail
 }  // namespace cugraph

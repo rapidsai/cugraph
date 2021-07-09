@@ -204,7 +204,7 @@ add_library(cugraph SHARED
     src/serialization/serializer.cu
     src/tree/mst.cu
     src/components/weakly_connected_components.cu
-    src/structure/create_graph_from_edgelist.cu
+    src/structure/create_graph_from_edgelist.cpp
     src/utilities/host_barrier.cpp
 )
 

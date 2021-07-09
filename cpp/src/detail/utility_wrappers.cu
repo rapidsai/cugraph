@@ -17,8 +17,8 @@
 
 #include <raft/random/rng.cuh>
 
-#include <rmm/exec_policy.hpp>
 #include <thrust/sequence.h>
+#include <rmm/exec_policy.hpp>
 
 namespace cugraph {
 namespace detail {
@@ -67,6 +67,31 @@ template void sequence_fill(rmm::cuda_stream_view const &stream_view,
                             int64_t *d_value,
                             size_t size,
                             int64_t start_value);
+
+template <typename vertex_t>
+vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const &stream_view,
+                                   rmm::device_uvector<vertex_t> const &d_edgelist_rows,
+                                   rmm::device_uvector<vertex_t> const &d_edgelist_cols)
+{
+  auto edge_first =
+    thrust::make_zip_iterator(thrust::make_tuple(d_edgelist_rows.begin(), d_edgelist_cols.begin()));
+
+  return thrust::transform_reduce(
+    rmm::exec_policy(stream_view),
+    edge_first,
+    edge_first + d_edgelist_rows.size(),
+    [] __device__(auto e) { return std::max(thrust::get<0>(e), thrust::get<1>(e)); },
+    vertex_t{0},
+    thrust::maximum<vertex_t>());
+}
+
+template int32_t compute_maximum_vertex_id(rmm::cuda_stream_view const &stream_view,
+                                           rmm::device_uvector<int32_t> const &d_edgelist_rows,
+                                           rmm::device_uvector<int32_t> const &d_edgelist_cols);
+
+template int64_t compute_maximum_vertex_id(rmm::cuda_stream_view const &stream_view,
+                                           rmm::device_uvector<int64_t> const &d_edgelist_rows,
+                                           rmm::device_uvector<int64_t> const &d_edgelist_cols);
 
 }  // namespace detail
 }  // namespace cugraph
