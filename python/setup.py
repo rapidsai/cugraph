@@ -13,6 +13,7 @@
 
 import os
 import sys
+import sysconfig
 import shutil
 
 from setuptools import setup, find_packages, Command
@@ -29,13 +30,25 @@ from distutils.sysconfig import get_python_lib
 
 
 INSTALL_REQUIRES = ['numba', 'cython']
+CYTHON_FILES = ['cugraph/**/*.pyx']
+
+UCX_HOME = get_environment_option("UCX_HOME")
+CUDA_HOME = get_environment_option('CUDA_HOME')
+CONDA_PREFIX = get_environment_option('CONDA_PREFIX')
 
 conda_lib_dir = os.path.normpath(sys.prefix) + '/lib'
 conda_include_dir = os.path.normpath(sys.prefix) + '/include'
 
-CYTHON_FILES = ['cugraph/**/*.pyx']
+if CONDA_PREFIX:
+    conda_include_dir = CONDA_PREFIX + '/include'
+    conda_lib_dir = CONDA_PREFIX + '/lib'
 
-CUDA_HOME = os.environ.get("CUDA_HOME", False)
+if not UCX_HOME:
+    UCX_HOME = CONDA_PREFIX if CONDA_PREFIX else os.sys.prefix
+
+ucx_include_dir = os.path.join(UCX_HOME, "include")
+ucx_lib_dir = os.path.join(UCX_HOME, "lib")
+
 if not CUDA_HOME:
     path_to_cuda_gdb = shutil.which("cuda-gdb")
     if path_to_cuda_gdb is None:
@@ -53,11 +66,7 @@ if not os.path.isdir(CUDA_HOME):
     )
 
 cuda_include_dir = os.path.join(CUDA_HOME, "include")
-
-if (os.environ.get('CONDA_PREFIX', None)):
-    conda_prefix = os.environ.get('CONDA_PREFIX')
-    conda_include_dir = conda_prefix + '/include'
-    conda_lib_dir = conda_prefix + '/lib'
+cuda_lib_dir = os.path.join(CUDA_HOME, "lib64")
 
 # Optional location of C++ build folder that can be configured by the user
 libcugraph_path = get_environment_option('CUGRAPH_BUILD_PATH')
@@ -68,6 +77,9 @@ raft_path = get_environment_option('RAFT_PATH')
 # deprecated: This functionality will go away after
 # https://github.com/rapidsai/raft/issues/83
 raft_include_dir = use_raft_package(raft_path, libcugraph_path)
+
+if not libcugraph_path:
+    libcugraph_path = conda_lib_dir
 
 
 class CleanCommand(Command):
@@ -101,16 +113,25 @@ cmdclass["clean"] = CleanCommand
 EXTENSIONS = [
     Extension("*",
               sources=CYTHON_FILES,
-              include_dirs=[conda_include_dir,
-                            '../cpp/include',
-                            "../thirdparty/cub",
-                            raft_include_dir,
-                            os.path.join(
-                                conda_include_dir, "libcudacxx"),
-                            cuda_include_dir],
-              library_dirs=[get_python_lib()],
-              runtime_library_dirs=[conda_lib_dir],
-              libraries=['cugraph', 'nccl'],
+              include_dirs=[
+                  conda_include_dir,
+                  ucx_include_dir,
+                  '../cpp/include',
+                  "../thirdparty/cub",
+                  raft_include_dir,
+                  os.path.join(conda_include_dir, "libcudacxx"),
+                  cuda_include_dir,
+                  os.path.dirname(sysconfig.get_path("include"))
+              ],
+              library_dirs=[
+                  get_python_lib(),
+                  conda_lib_dir,
+                  libcugraph_path,
+                  ucx_lib_dir,
+                  cuda_lib_dir,
+                  os.path.join(os.sys.prefix, "lib")
+              ],
+              libraries=['cudart', 'cusparse', 'cusolver', 'cugraph', 'nccl'],
               language='c++',
               extra_compile_args=['-std=c++17'])
 ]
