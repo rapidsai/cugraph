@@ -26,7 +26,7 @@ namespace cugraph {
 namespace test {
 
 template <typename T>
-rmm::device_uvector<T> device_gatherv(raft::handle_t const &handle, T const *d_input, size_t size)
+rmm::device_uvector<T> device_gatherv(raft::handle_t const& handle, T const* d_input, size_t size)
 {
   bool is_root  = handle.get_comms().get_rank() == int{0};
   auto rx_sizes = cugraph::experimental::host_scalar_gather(
@@ -52,20 +52,20 @@ rmm::device_uvector<T> device_gatherv(raft::handle_t const &handle, T const *d_i
 
 // explicit instantiation
 
-template rmm::device_uvector<int32_t> device_gatherv(raft::handle_t const &handle,
-                                                     int32_t const *d_input,
+template rmm::device_uvector<int32_t> device_gatherv(raft::handle_t const& handle,
+                                                     int32_t const* d_input,
                                                      size_t size);
 
-template rmm::device_uvector<int64_t> device_gatherv(raft::handle_t const &handle,
-                                                     int64_t const *d_input,
+template rmm::device_uvector<int64_t> device_gatherv(raft::handle_t const& handle,
+                                                     int64_t const* d_input,
                                                      size_t size);
 
-template rmm::device_uvector<float> device_gatherv(raft::handle_t const &handle,
-                                                   float const *d_input,
+template rmm::device_uvector<float> device_gatherv(raft::handle_t const& handle,
+                                                   float const* d_input,
                                                    size_t size);
 
-template rmm::device_uvector<double> device_gatherv(raft::handle_t const &handle,
-                                                    double const *d_input,
+template rmm::device_uvector<double> device_gatherv(raft::handle_t const& handle,
+                                                    double const* d_input,
                                                     size_t size);
 
 }  // namespace test

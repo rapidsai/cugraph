@@ -39,20 +39,20 @@ class compute_partition_t {
   using graph_view_t = graph_view_type;
   using vertex_t     = typename graph_view_type::vertex_type;
 
-  compute_partition_t(raft::handle_t const &handle, graph_view_t const &graph_view)
+  compute_partition_t(raft::handle_t const& handle, graph_view_t const& graph_view)
     : vertex_partition_offsets_v_(0, handle.get_stream())
   {
     init<graph_view_t::is_multi_gpu>(handle, graph_view);
   }
 
  private:
-  template <bool is_multi_gpu, typename std::enable_if_t<!is_multi_gpu> * = nullptr>
-  void init(raft::handle_t const &handle, graph_view_t const &graph_view)
+  template <bool is_multi_gpu, typename std::enable_if_t<!is_multi_gpu>* = nullptr>
+  void init(raft::handle_t const& handle, graph_view_t const& graph_view)
   {
   }
 
-  template <bool is_multi_gpu, typename std::enable_if_t<is_multi_gpu> * = nullptr>
-  void init(raft::handle_t const &handle, graph_view_t const &graph_view)
+  template <bool is_multi_gpu, typename std::enable_if_t<is_multi_gpu>* = nullptr>
+  void init(raft::handle_t const& handle, graph_view_t const& graph_view)
   {
     auto partition = graph_view.get_partition();
     row_size_      = partition.get_row_size();
@@ -81,7 +81,7 @@ class compute_partition_t {
    */
   class vertex_device_view_t {
    public:
-    vertex_device_view_t(vertex_t const *d_vertex_partition_offsets, int size)
+    vertex_device_view_t(vertex_t const* d_vertex_partition_offsets, int size)
       : d_vertex_partition_offsets_(d_vertex_partition_offsets), size_(size)
     {
     }
@@ -106,13 +106,13 @@ class compute_partition_t {
     }
 
    private:
-    vertex_t const *d_vertex_partition_offsets_;
+    vertex_t const* d_vertex_partition_offsets_;
     int size_;
   };
 
   class edge_device_view_t {
    public:
-    edge_device_view_t(vertex_t const *d_vertex_partition_offsets,
+    edge_device_view_t(vertex_t const* d_vertex_partition_offsets,
                        int row_size,
                        int col_size,
                        int size)
@@ -158,7 +158,7 @@ class compute_partition_t {
     }
 
    private:
-    vertex_t const *d_vertex_partition_offsets_;
+    vertex_t const* d_vertex_partition_offsets_;
     int row_size_;
     int col_size_;
     int size_;

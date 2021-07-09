@@ -36,6 +36,22 @@
 namespace cugraph {
 namespace experimental {
 
+namespace detail {
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename VertexIterator>
+struct minor_to_key_t {
+  using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
+  VertexIterator adj_matrix_col_key_first{};
+  vertex_t minor_first{};
+  __device__ vertex_t operator()(vertex_t minor)
+  {
+    return *(adj_matrix_col_key_first + (minor - minor_first));
+  }
+};
+
+}  // namespace detail
+
 /**
  * @brief Iterate over every vertex's key-aggregated outgoing edges to update vertex properties.
  *
@@ -255,10 +271,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     if (matrix_partition.get_major_size() > 0) {
       auto minor_key_first = thrust::make_transform_iterator(
         matrix_partition.get_indices(),
-        [adj_matrix_col_key_first, matrix_partition] __device__(auto minor) {
-          return *(adj_matrix_col_key_first +
-                   matrix_partition.get_minor_offset_from_minor_nocheck(minor));
-        });
+        detail::minor_to_key_t<VertexIterator0>{adj_matrix_col_key_first,
+                                                matrix_partition.get_minor_first()});
       thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    minor_key_first,
                    minor_key_first + matrix_partition.get_number_of_edges(),
