@@ -18,10 +18,6 @@
 //
 
 #include <cugraph/algorithms.hpp>
-
-//#include <cugraph/experimental/graph.hpp>
-//#include <cugraph/visitors/bfs_visitor.cuh>
-
 #include <cugraph/visitors/bfs_visitor.hpp>
 
 namespace cugraph {
@@ -39,6 +35,9 @@ void bfs_visitor<vertex_t,
                  std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>::
   visit_graph(graph_envelope_t::base_graph_t const& graph)
 {
+  // Note: this must be called only on:
+  // graph_view_t<vertex_t, edge_t, weight_t, false, mg>
+  //
   if constexpr (st == false) {
     // unless algorithms only call virtual graph methods
     // under the hood, the algos require this conversion:
@@ -46,11 +45,6 @@ void bfs_visitor<vertex_t,
     graph_t<vertex_t, edge_t, weight_t, false, mg> const* p_g =
       static_cast<graph_t<vertex_t, edge_t, weight_t, st, mg> const*>(&graph);
 
-    // Note: this must be called only on:
-    // graph_view_t<vertex_t, edge_t, weight_t, false, mg>
-    // which requires the "no-op" overload of bfs_low_level()
-    // in `bfs_visitor.cuh`;
-    //
     auto gview = p_g->view();
 
     auto const& v_args = ep_.get_args();
