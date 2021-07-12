@@ -118,21 +118,19 @@ __global__ void for_all_major_for_all_nbr_low_degree(
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
-    if (local_degree > 0) {
-      auto local_offset = matrix_partition.get_local_offset(major_offset);
-      for (edge_t i = 0; i < local_degree; ++i) {
-        update_buffer_element<adj_matrix_row_key, GraphViewType>(
-          matrix_partition,
-          static_cast<vertex_t>(major_offset),
-          indices[i],
-          weights ? (*weights)[i] : weight_t{1.0},
-          adj_matrix_row_value_input_first,
-          adj_matrix_col_value_input_first,
-          adj_matrix_row_col_key_first,
-          e_op,
-          keys + local_offset + i,
-          values + local_offset + i);
-      }
+    auto local_offset = matrix_partition.get_local_offset(major_offset);
+    for (edge_t i = 0; i < local_degree; ++i) {
+      update_buffer_element<adj_matrix_row_key, GraphViewType>(
+        matrix_partition,
+        static_cast<vertex_t>(major_offset),
+        indices[i],
+        weights ? (*weights)[i] : weight_t{1.0},
+        adj_matrix_row_value_input_first,
+        adj_matrix_col_value_input_first,
+        adj_matrix_row_col_key_first,
+        e_op,
+        keys + local_offset + i,
+        values + local_offset + i);
     }
 
     idx += gridDim.x * blockDim.x;
@@ -178,21 +176,19 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
-    if (local_degree > 0) {
-      auto local_offset = matrix_partition.get_local_offset(major_offset);
-      for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
-        update_buffer_element<adj_matrix_row_key, GraphViewType>(
-          matrix_partition,
-          static_cast<vertex_t>(major_offset),
-          indices[i],
-          weights ? (*weights)[i] : weight_t{1.0},
-          adj_matrix_row_value_input_first,
-          adj_matrix_col_value_input_first,
-          adj_matrix_row_col_key_first,
-          e_op,
-          keys + local_offset + i,
-          values + local_offset + i);
-      }
+    auto local_offset = matrix_partition.get_local_offset(major_offset);
+    for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
+      update_buffer_element<adj_matrix_row_key, GraphViewType>(
+        matrix_partition,
+        static_cast<vertex_t>(major_offset),
+        indices[i],
+        weights ? (*weights)[i] : weight_t{1.0},
+        adj_matrix_row_value_input_first,
+        adj_matrix_col_value_input_first,
+        adj_matrix_row_col_key_first,
+        e_op,
+        keys + local_offset + i,
+        values + local_offset + i);
     }
 
     idx += gridDim.x * (blockDim.x / raft::warp_size());
@@ -234,21 +230,19 @@ __global__ void for_all_major_for_all_nbr_high_degree(
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
-    if (local_degree > 0) {
-      auto local_offset = matrix_partition.get_local_offset(major_offset);
-      for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
-        update_buffer_element<adj_matrix_row_key, GraphViewType>(
-          matrix_partition,
-          static_cast<vertex_t>(major_offset),
-          indices[i],
-          weights ? (*weights)[i] : weight_t{1.0},
-          adj_matrix_row_value_input_first,
-          adj_matrix_col_value_input_first,
-          adj_matrix_row_col_key_first,
-          e_op,
-          keys + local_offset + i,
-          values + local_offset + i);
-      }
+    auto local_offset = matrix_partition.get_local_offset(major_offset);
+    for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
+      update_buffer_element<adj_matrix_row_key, GraphViewType>(
+        matrix_partition,
+        static_cast<vertex_t>(major_offset),
+        indices[i],
+        weights ? (*weights)[i] : weight_t{1.0},
+        adj_matrix_row_value_input_first,
+        adj_matrix_col_value_input_first,
+        adj_matrix_row_col_key_first,
+        e_op,
+        keys + local_offset + i,
+        values + local_offset + i);
     }
 
     idx += gridDim.x;
