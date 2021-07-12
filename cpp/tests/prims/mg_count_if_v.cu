@@ -55,9 +55,13 @@ struct test_predicate {
   }
 };
 
+struct Prims_Usecase {
+  bool check_correctness {true};
+};
+
 template <typename input_usecase_t>
 class Tests_MG_CountIfV
-  : public ::testing::TestWithParam<input_usecase_t> {
+  : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
   Tests_MG_CountIfV() {}
   static void SetupTestCase() {}
@@ -67,8 +71,8 @@ class Tests_MG_CountIfV
   virtual void TearDown() {}
 
   // Compare the results of count_if_v primitive and thrust count_if on a single GPU
-  template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-  void run_current_test(input_usecase_t const &input_usecase)
+  template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+  void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     // 1. initialize handle
 
@@ -93,7 +97,7 @@ class Tests_MG_CountIfV
       hr_clock.start();
     }
     auto [mg_graph, d_mg_renumber_map_labels] =
-      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, true>(
+      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         handle, true, true);
 
     if (PERF) {
@@ -131,48 +135,72 @@ class Tests_MG_CountIfV
     }
 
     // 5. compare SG & MG results
-    auto [sg_graph, d_sg_renumber_map_labels] =
-      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
-        handle, true, false);
-    auto sg_graph_view = sg_graph.view();
-    auto expected_vertex_count =
-      thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                       thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
-                       thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
-                                                  test_predicate<vertex_t>(hash_bin_count));
-    ASSERT_TRUE(expected_vertex_count == vertex_count);
+
+    if (prims_usecase.check_correctness) {
+      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
+      std::tie (sg_graph, std::ignore) =
+        input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
+          handle, true, false);
+      auto sg_graph_view = sg_graph.view();
+      auto expected_vertex_count =
+        thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                         thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
+                         thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
+                         test_predicate<vertex_t>(hash_bin_count));
+      ASSERT_TRUE(expected_vertex_count == vertex_count);
+    }
   }
 };
 
 using Tests_MG_CountIfV_File = Tests_MG_CountIfV<cugraph::test::File_Usecase>;
 using Tests_MG_CountIfV_Rmat = Tests_MG_CountIfV<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MG_CountIfV_File, CheckInt32Int32FloatFloat)
+TEST_P(Tests_MG_CountIfV_File, CheckInt32Int32FloatTransposeFalse)
 {
-  run_current_test<int32_t, int32_t, float, float>(GetParam());
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, false>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_CountIfV_Rmat, CheckInt32Int32FloatFloat)
+TEST_P(Tests_MG_CountIfV_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
-  run_current_test<int32_t, int32_t, float, float>(GetParam());
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, false>(std::get<0>(param), std::get<1>(param));
+}
+
+TEST_P(Tests_MG_CountIfV_File, CheckInt32Int32FloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, true>(std::get<0>(param), std::get<1>(param));
+}
+
+TEST_P(Tests_MG_CountIfV_Rmat, CheckInt32Int32FloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, true>(std::get<0>(param), std::get<1>(param));
 }
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MG_CountIfV_File,
+  ::testing::Combine(
+  ::testing::Values(Prims_Usecase{true}),
   ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                     cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                     cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                    cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx")));
+                    cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MG_CountIfV_Rmat,
+                         ::testing::Combine(
+                         ::testing::Values(Prims_Usecase{true}),
                          ::testing::Values(cugraph::test::Rmat_Usecase(
-                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true)));
+                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_large_test,
                          Tests_MG_CountIfV_Rmat,
+                         ::testing::Combine(
+                         ::testing::Values(Prims_Usecase{false}),
                          ::testing::Values(cugraph::test::Rmat_Usecase(
-                             20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true)));
+                             20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
