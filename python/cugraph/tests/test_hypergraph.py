@@ -39,7 +39,11 @@ import datetime as dt
 import pandas as pd
 import pytest
 import cudf
+<<<<<<< HEAD
 from cudf.testing.testing import assert_frame_equal
+=======
+from cudf.testing._utils import assert_eq
+>>>>>>> 1a636029db9cafcbb746837ac21ff1c30d1bc479
 
 import cugraph
 

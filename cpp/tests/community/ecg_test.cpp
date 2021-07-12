@@ -143,7 +143,9 @@ TEST(ecg, dolphin)
     ASSERT_EQ((min >= 0), 1);
 
     std::set<int> cluster_ids;
-    for (auto c : cluster_id) { cluster_ids.insert(c); }
+    for (auto c : cluster_id) {
+      cluster_ids.insert(c);
+    }
 
     ASSERT_EQ(cluster_ids.size(), size_t(max + 1));
 

@@ -35,11 +35,11 @@ namespace cugraph {
  * @param num_vertices Number of vertices.
  **/
 template <typename vertex_t, typename weight_t>
-void get_traversed_cost(raft::handle_t const &handle,
-                        vertex_t const *vertices,
-                        vertex_t const *preds,
-                        weight_t const *info_weights,
-                        weight_t *out,
+void get_traversed_cost(raft::handle_t const& handle,
+                        vertex_t const* vertices,
+                        vertex_t const* preds,
+                        weight_t const* info_weights,
+                        weight_t* out,
                         vertex_t stop_vertex,
                         vertex_t num_vertices);
 
@@ -62,11 +62,11 @@ namespace experimental {
 template <typename vertex_t, typename index_t>
 std::
   tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<index_t>>
-  convert_paths_to_coo(raft::handle_t const &handle,
+  convert_paths_to_coo(raft::handle_t const& handle,
                        index_t coalesced_sz_v,
                        index_t num_paths,
-                       rmm::device_buffer &&d_coalesced_v,
-                       rmm::device_buffer &&d_sizes);
+                       rmm::device_buffer&& d_coalesced_v,
+                       rmm::device_buffer&& d_sizes);
 
 /**
  * @brief returns additional RW information on vertex paths offsets and weight path sizes and
@@ -82,7 +82,7 @@ std::
  */
 template <typename index_t>
 std::tuple<rmm::device_uvector<index_t>, rmm::device_uvector<index_t>, rmm::device_uvector<index_t>>
-query_rw_sizes_offsets(raft::handle_t const &handle, index_t num_paths, index_t const *ptr_d_sizes);
+query_rw_sizes_offsets(raft::handle_t const& handle, index_t num_paths, index_t const* ptr_d_sizes);
 }  // namespace experimental
 
 namespace broadcast {
@@ -96,7 +96,7 @@ namespace broadcast {
  * @return graph_t object that was sent/received
  */
 template <typename graph_t>
-graph_t graph_broadcast(raft::handle_t const &handle, graph_t *graph_ptr);
+graph_t graph_broadcast(raft::handle_t const& handle, graph_t* graph_ptr);
 };  // namespace broadcast
 
 }  // namespace cugraph

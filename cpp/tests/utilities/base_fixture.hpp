@@ -46,14 +46,14 @@ namespace test {
  * ```
  **/
 class BaseFixture : public ::testing::Test {
-  rmm::mr::device_memory_resource *_mr{rmm::mr::get_current_device_resource()};
+  rmm::mr::device_memory_resource* _mr{rmm::mr::get_current_device_resource()};
 
  public:
   /**
    * @brief Returns pointer to `device_memory_resource` that should be used for all tests inheriting
    *from this fixture
    **/
-  rmm::mr::device_memory_resource *mr() { return _mr; }
+  rmm::mr::device_memory_resource* mr() { return _mr; }
 };
 
 /// MR factory functions
@@ -90,7 +90,7 @@ inline auto make_binning()
  * @return Memory resource instance
  */
 inline std::shared_ptr<rmm::mr::device_memory_resource> create_memory_resource(
-  std::string const &allocation_mode)
+  std::string const& allocation_mode)
 {
   if (allocation_mode == "binning") return make_binning();
   if (allocation_mode == "cuda") return make_cuda();
@@ -110,7 +110,7 @@ inline std::shared_ptr<rmm::mr::device_memory_resource> create_memory_resource(
  *
  * @return Parsing results in the form of cxxopts::ParseResult
  */
-inline auto parse_test_options(int argc, char **argv)
+inline auto parse_test_options(int argc, char** argv)
 {
   try {
     cxxopts::Options options(argv[0], " - cuGraph tests command line options");
@@ -118,7 +118,7 @@ inline auto parse_test_options(int argc, char **argv)
       "rmm_mode", "RMM allocation mode", cxxopts::value<std::string>()->default_value("pool"));
 
     return options.parse(argc, argv);
-  } catch (const cxxopts::OptionException &e) {
+  } catch (const cxxopts::OptionException& e) {
     CUGRAPH_FAIL("Error parsing command line options");
   }
 }
@@ -133,7 +133,7 @@ inline auto parse_test_options(int argc, char **argv)
  * creating the default memory resource.
  */
 #define CUGRAPH_TEST_PROGRAM_MAIN()                                        \
-  int main(int argc, char **argv)                                          \
+  int main(int argc, char** argv)                                          \
   {                                                                        \
     ::testing::InitGoogleTest(&argc, argv);                                \
     auto const cmd_opts = parse_test_options(argc, argv);                  \
@@ -144,7 +144,7 @@ inline auto parse_test_options(int argc, char **argv)
   }
 
 #define CUGRAPH_MG_TEST_PROGRAM_MAIN()                                                \
-  int main(int argc, char **argv)                                                     \
+  int main(int argc, char** argv)                                                     \
   {                                                                                   \
     MPI_TRY(MPI_Init(&argc, &argv));                                                  \
     int comm_rank{};                                                                  \

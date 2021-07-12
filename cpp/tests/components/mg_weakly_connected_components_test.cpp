@@ -75,7 +75,9 @@ class Tests_MGWeaklyConnectedComponents
     auto const comm_rank = comm.get_rank();
 
     auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) { --row_comm_size; }
+    while (comm_size % row_comm_size != 0) {
+      --row_comm_size;
+    }
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
       subcomm_factory(handle, row_comm_size);
 
@@ -87,9 +89,7 @@ class Tests_MGWeaklyConnectedComponents
       hr_clock.start();
     }
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, true> mg_graph(handle);
-    rmm::device_uvector<vertex_t> d_mg_renumber_map_labels(0, handle.get_stream());
-    std::tie(mg_graph, d_mg_renumber_map_labels) =
+    auto [mg_graph, d_mg_renumber_map_labels] =
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, true>(
         handle, false, true);
 
@@ -131,7 +131,7 @@ class Tests_MGWeaklyConnectedComponents
       // 4-1. aggregate MG results
 
       auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        handle, d_mg_renumber_map_labels.data(), d_mg_renumber_map_labels.size());
+        handle, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
       auto d_mg_aggregate_components =
         cugraph::test::device_gatherv(handle, d_mg_components.data(), d_mg_components.size());
 

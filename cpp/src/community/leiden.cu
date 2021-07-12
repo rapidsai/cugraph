@@ -22,9 +22,9 @@
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
-                                   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                   vertex_t *clustering,
+std::pair<size_t, weight_t> leiden(raft::handle_t const& handle,
+                                   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+                                   vertex_t* clustering,
                                    size_t max_level,
                                    weight_t resolution)
 {
@@ -56,15 +56,15 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const &handle,
 }
 
 // Explicit template instantations
-template std::pair<size_t, float> leiden(raft::handle_t const &,
-                                         legacy::GraphCSRView<int32_t, int32_t, float> const &,
-                                         int32_t *,
+template std::pair<size_t, float> leiden(raft::handle_t const&,
+                                         legacy::GraphCSRView<int32_t, int32_t, float> const&,
+                                         int32_t*,
                                          size_t,
                                          float);
 
-template std::pair<size_t, double> leiden(raft::handle_t const &,
-                                          legacy::GraphCSRView<int32_t, int32_t, double> const &,
-                                          int32_t *,
+template std::pair<size_t, double> leiden(raft::handle_t const&,
+                                          legacy::GraphCSRView<int32_t, int32_t, double> const&,
+                                          int32_t*,
                                           size_t,
                                           double);
 

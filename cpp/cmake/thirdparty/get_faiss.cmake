@@ -40,7 +40,10 @@ function(find_and_configure_faiss)
 
     if(FAISS_ADDED)
       set(FAISS_GPU_HEADERS ${FAISS_SOURCE_DIR} PARENT_SCOPE)
-      add_library(FAISS::FAISS ALIAS faiss)
+    endif()
+
+    if(TARGET faiss AND NOT TARGET FAISS::FAISS)
+        add_library(FAISS::FAISS ALIAS faiss)
     endif()
 
 endfunction()

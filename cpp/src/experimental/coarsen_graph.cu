@@ -43,47 +43,45 @@ namespace cugraph {
 namespace experimental {
 namespace detail {
 
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  compressed_sparse_to_edgelist(edge_t const *compressed_sparse_offsets,
-                                vertex_t const *compressed_sparse_indices,
-                                weight_t const *compressed_sparse_weights,
-                                vertex_t major_first,
-                                vertex_t major_last,
-                                bool is_weighted,
-                                cudaStream_t stream)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+decompress_matrix_partition_to_edgelist(
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
+  cudaStream_t stream)
 {
-  edge_t number_of_edges{0};
-  raft::update_host(
-    &number_of_edges, compressed_sparse_offsets + (major_last - major_first), 1, stream);
-  CUDA_TRY(cudaStreamSynchronize(stream));
+  auto number_of_edges = matrix_partition.get_number_of_edges();
   rmm::device_uvector<vertex_t> edgelist_major_vertices(number_of_edges, stream);
   rmm::device_uvector<vertex_t> edgelist_minor_vertices(number_of_edges, stream);
-  rmm::device_uvector<weight_t> edgelist_weights(is_weighted ? number_of_edges : 0, stream);
+  auto edgelist_weights =
+    matrix_partition.get_weights()
+      ? std::make_optional<rmm::device_uvector<weight_t>>(number_of_edges, stream)
+      : std::nullopt;
 
+  auto major_first = matrix_partition.get_major_first();
+  auto major_last  = matrix_partition.get_major_last();
   // FIXME: this is highly inefficient for very high-degree vertices, for better performance, we can
   // fill high-degree vertices using one CUDA block per vertex, mid-degree vertices using one CUDA
   // warp per vertex, and low-degree vertices using one CUDA thread per block
-  thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                   thrust::make_counting_iterator(major_first),
-                   thrust::make_counting_iterator(major_last),
-                   [compressed_sparse_offsets,
-                    major_first,
-                    p_majors = edgelist_major_vertices.begin()] __device__(auto v) {
-                     auto first = compressed_sparse_offsets[v - major_first];
-                     auto last  = compressed_sparse_offsets[v - major_first + 1];
-                     thrust::fill(thrust::seq, p_majors + first, p_majors + last, v);
-                   });
+  thrust::for_each(
+    rmm::exec_policy(stream)->on(stream),
+    thrust::make_counting_iterator(major_first),
+    thrust::make_counting_iterator(major_last),
+    [matrix_partition, major_first, p_majors = edgelist_major_vertices.begin()] __device__(auto v) {
+      auto first = matrix_partition.get_local_offset(v - major_first);
+      auto last  = first + matrix_partition.get_local_degree(v - major_first);
+      thrust::fill(thrust::seq, p_majors + first, p_majors + last, v);
+    });
   thrust::copy(rmm::exec_policy(stream)->on(stream),
-               compressed_sparse_indices,
-               compressed_sparse_indices + number_of_edges,
+               matrix_partition.get_indices(),
+               matrix_partition.get_indices() + number_of_edges,
                edgelist_minor_vertices.begin());
-  if (is_weighted) {
+  if (edgelist_weights) {
     thrust::copy(rmm::exec_policy(stream)->on(stream),
-                 compressed_sparse_weights,
-                 compressed_sparse_weights + number_of_edges,
-                 edgelist_weights.data());
+                 *(matrix_partition.get_weights()),
+                 *(matrix_partition.get_weights()) + number_of_edges,
+                 (*edgelist_weights).data());
   }
 
   return std::make_tuple(std::move(edgelist_major_vertices),
@@ -92,21 +90,20 @@ std::
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-edge_t groupby_e_and_coarsen_edgelist(vertex_t *edgelist_major_vertices /* [INOUT] */,
-                                      vertex_t *edgelist_minor_vertices /* [INOUT] */,
-                                      weight_t *edgelist_weights /* [INOUT] */,
+edge_t groupby_e_and_coarsen_edgelist(vertex_t* edgelist_major_vertices /* [INOUT] */,
+                                      vertex_t* edgelist_minor_vertices /* [INOUT] */,
+                                      std::optional<weight_t*> edgelist_weights /* [INOUT] */,
                                       edge_t number_of_edges,
-                                      bool is_weighted,
                                       cudaStream_t stream)
 {
   auto pair_first =
     thrust::make_zip_iterator(thrust::make_tuple(edgelist_major_vertices, edgelist_minor_vertices));
 
-  if (is_weighted) {
+  if (edgelist_weights) {
     thrust::sort_by_key(rmm::exec_policy(stream)->on(stream),
                         pair_first,
                         pair_first + number_of_edges,
-                        edgelist_weights);
+                        *edgelist_weights);
 
     rmm::device_uvector<vertex_t> tmp_edgelist_major_vertices(number_of_edges, stream);
     rmm::device_uvector<vertex_t> tmp_edgelist_minor_vertices(tmp_edgelist_major_vertices.size(),
@@ -116,7 +113,7 @@ edge_t groupby_e_and_coarsen_edgelist(vertex_t *edgelist_major_vertices /* [INOU
       rmm::exec_policy(stream)->on(stream),
       pair_first,
       pair_first + number_of_edges,
-      edgelist_weights,
+      (*edgelist_weights),
       thrust::make_zip_iterator(thrust::make_tuple(tmp_edgelist_major_vertices.begin(),
                                                    tmp_edgelist_minor_vertices.begin())),
       tmp_edgelist_weights.begin());
@@ -131,7 +128,7 @@ edge_t groupby_e_and_coarsen_edgelist(vertex_t *edgelist_major_vertices /* [INOU
                  edge_first,
                  edge_first + ret,
                  thrust::make_zip_iterator(thrust::make_tuple(
-                   edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights)));
+                   edgelist_major_vertices, edgelist_minor_vertices, *edgelist_weights)));
 
     return ret;
   } else {
@@ -143,63 +140,49 @@ edge_t groupby_e_and_coarsen_edgelist(vertex_t *edgelist_major_vertices /* [INOU
   }
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  compressed_sparse_to_relabeled_and_grouped_and_coarsened_edgelist(
-    edge_t const *compressed_sparse_offsets,
-    vertex_t const *compressed_sparse_indices,
-    weight_t const *compressed_sparse_weights,
-    vertex_t const *p_major_labels,
-    vertex_t const *p_minor_labels,
-    vertex_t major_first,
-    vertex_t major_last,
-    vertex_t minor_first,
-    vertex_t minor_last,
-    bool is_weighted,
-    cudaStream_t stream)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
+  vertex_t const* p_major_labels,
+  vertex_t const* p_minor_labels,
+  cudaStream_t stream)
 {
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
   // compressed sparse format to save memory
 
-  rmm::device_uvector<vertex_t> edgelist_major_vertices(0, stream);
-  rmm::device_uvector<vertex_t> edgelist_minor_vertices(0, stream);
-  rmm::device_uvector<weight_t> edgelist_weights(0, stream);
-  std::tie(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights) =
-    compressed_sparse_to_edgelist(compressed_sparse_offsets,
-                                  compressed_sparse_indices,
-                                  compressed_sparse_weights,
-                                  major_first,
-                                  major_last,
-                                  is_weighted,
-                                  stream);
+  auto [edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights] =
+    decompress_matrix_partition_to_edgelist(matrix_partition, stream);
 
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
-  thrust::transform(
-    rmm::exec_policy(stream)->on(stream),
-    pair_first,
-    pair_first + edgelist_major_vertices.size(),
-    pair_first,
-    [p_major_labels, p_minor_labels, major_first, minor_first] __device__(auto val) {
-      return thrust::make_tuple(p_major_labels[thrust::get<0>(val) - major_first],
-                                p_minor_labels[thrust::get<1>(val) - minor_first]);
-    });
+  thrust::transform(rmm::exec_policy(stream)->on(stream),
+                    pair_first,
+                    pair_first + edgelist_major_vertices.size(),
+                    pair_first,
+                    [p_major_labels,
+                     p_minor_labels,
+                     major_first = matrix_partition.get_major_first(),
+                     minor_first = matrix_partition.get_minor_first()] __device__(auto val) {
+                      return thrust::make_tuple(p_major_labels[thrust::get<0>(val) - major_first],
+                                                p_minor_labels[thrust::get<1>(val) - minor_first]);
+                    });
 
-  auto number_of_edges =
-    groupby_e_and_coarsen_edgelist(edgelist_major_vertices.data(),
-                                   edgelist_minor_vertices.data(),
-                                   edgelist_weights.data(),
-                                   static_cast<edge_t>(edgelist_major_vertices.size()),
-                                   is_weighted,
-                                   stream);
+  auto number_of_edges = groupby_e_and_coarsen_edgelist(
+    edgelist_major_vertices.data(),
+    edgelist_minor_vertices.data(),
+    edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
+    static_cast<edge_t>(edgelist_major_vertices.size()),
+    stream);
   edgelist_major_vertices.resize(number_of_edges, stream);
   edgelist_major_vertices.shrink_to_fit(stream);
   edgelist_minor_vertices.resize(number_of_edges, stream);
   edgelist_minor_vertices.shrink_to_fit(stream);
-  if (is_weighted) {
-    edgelist_weights.resize(number_of_edges, stream);
-    edgelist_weights.shrink_to_fit(stream);
+  if (edgelist_weights) {
+    (*edgelist_weights).resize(number_of_edges, stream);
+    (*edgelist_weights).shrink_to_fit(stream);
   }
 
   return std::make_tuple(std::move(edgelist_major_vertices),
@@ -218,18 +201,18 @@ std::enable_if_t<
   std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
              rmm::device_uvector<vertex_t>>>
 coarsen_graph(
-  raft::handle_t const &handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
-  vertex_t const *labels,
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  vertex_t const* labels,
   bool do_expensive_check)
 {
-  auto &comm               = handle.get_comms();
+  auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
   auto const comm_rank     = comm.get_rank();
-  auto &row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_size = row_comm.get_size();
   auto const row_comm_rank = row_comm.get_rank();
-  auto &col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_size = col_comm.get_size();
   auto const col_comm_rank = col_comm.get_rank();
 
@@ -251,16 +234,19 @@ coarsen_graph(
 
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_major_vertices{};
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_minor_vertices{};
-  std::vector<rmm::device_uvector<weight_t>> coarsened_edgelist_weights{};
+  auto coarsened_edgelist_weights =
+    graph_view.is_weighted() ? std::make_optional<std::vector<rmm::device_uvector<weight_t>>>({})
+                             : std::nullopt;
   coarsened_edgelist_major_vertices.reserve(graph_view.get_number_of_local_adj_matrix_partitions());
   coarsened_edgelist_minor_vertices.reserve(coarsened_edgelist_major_vertices.size());
-  coarsened_edgelist_weights.reserve(
-    graph_view.is_weighted() ? coarsened_edgelist_major_vertices.size() : size_t{0});
+  if (coarsened_edgelist_weights) {
+    (*coarsened_edgelist_weights).reserve(coarsened_edgelist_major_vertices.size());
+  }
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     coarsened_edgelist_major_vertices.emplace_back(0, handle.get_stream());
     coarsened_edgelist_minor_vertices.emplace_back(0, handle.get_stream());
-    if (graph_view.is_weighted()) {
-      coarsened_edgelist_weights.emplace_back(0, handle.get_stream());
+    if (coarsened_edgelist_weights) {
+      (*coarsened_edgelist_weights).emplace_back(0, handle.get_stream());
     }
   }
   // FIXME: we may compare performance/memory footprint with the hash_based approach especially when
@@ -309,25 +295,12 @@ coarsen_graph(
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
-    rmm::device_uvector<vertex_t> edgelist_major_vertices(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> edgelist_minor_vertices(0, handle.get_stream());
-    rmm::device_uvector<weight_t> edgelist_weights(0, handle.get_stream());
-    std::tie(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights) =
-      compressed_sparse_to_relabeled_and_grouped_and_coarsened_edgelist(
-        graph_view.offsets(i),
-        graph_view.indices(i),
-        graph_view.weights(i),
+    auto [edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights] =
+      decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+        matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+          graph_view.get_matrix_partition_view(i)),
         major_labels.data(),
         adj_matrix_minor_labels.data(),
-        store_transposed ? graph_view.get_local_adj_matrix_partition_col_first(i)
-                         : graph_view.get_local_adj_matrix_partition_row_first(i),
-        store_transposed ? graph_view.get_local_adj_matrix_partition_col_last(i)
-                         : graph_view.get_local_adj_matrix_partition_row_last(i),
-        store_transposed ? graph_view.get_local_adj_matrix_partition_row_first(i)
-                         : graph_view.get_local_adj_matrix_partition_col_first(i),
-        store_transposed ? graph_view.get_local_adj_matrix_partition_row_last(i)
-                         : graph_view.get_local_adj_matrix_partition_col_last(i),
-        graph_view.is_weighted(),
         handle.get_stream());
 
     // 1-2. globaly shuffle
@@ -335,14 +308,16 @@ coarsen_graph(
     {
       rmm::device_uvector<vertex_t> rx_edgelist_major_vertices(0, handle.get_stream());
       rmm::device_uvector<vertex_t> rx_edgelist_minor_vertices(0, handle.get_stream());
-      rmm::device_uvector<weight_t> rx_edgelist_weights(0, handle.get_stream());
-      if (graph_view.is_weighted()) {
+      auto rx_edgelist_weights =
+        edgelist_weights ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
+                         : std::nullopt;
+      if (edgelist_weights) {
         auto edge_first =
           thrust::make_zip_iterator(thrust::make_tuple(edgelist_major_vertices.begin(),
                                                        edgelist_minor_vertices.begin(),
-                                                       edgelist_weights.begin()));
+                                                       (*edgelist_weights).begin()));
         std::forward_as_tuple(
-          std::tie(rx_edgelist_major_vertices, rx_edgelist_minor_vertices, rx_edgelist_weights),
+          std::tie(rx_edgelist_major_vertices, rx_edgelist_minor_vertices, *rx_edgelist_weights),
           std::ignore) =
           groupby_gpuid_and_shuffle_values(
             handle.get_comms(),
@@ -391,10 +366,10 @@ coarsen_graph(
       };
     auto pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
-    auto counts = graph_view.is_weighted()
+    auto counts = edgelist_weights
                     ? groupby_and_count(pair_first,
                                         pair_first + edgelist_major_vertices.size(),
-                                        edgelist_weights.begin(),
+                                        (*edgelist_weights).begin(),
                                         local_partition_id_op,
                                         graph_view.get_number_of_local_adj_matrix_partitions(),
                                         handle.get_stream())
@@ -415,10 +390,9 @@ coarsen_graph(
       auto number_of_partition_edges = groupby_e_and_coarsen_edgelist(
         edgelist_major_vertices.begin() + h_displacements[j],
         edgelist_minor_vertices.begin() + h_displacements[j],
-        graph_view.is_weighted() ? edgelist_weights.begin() + h_displacements[j]
-                                 : static_cast<weight_t *>(nullptr),
+        edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data() + h_displacements[j]}
+                         : std::nullopt,
         h_counts[j],
-        graph_view.is_weighted(),
         handle.get_stream());
 
       auto cur_size = coarsened_edgelist_major_vertices[j].size();
@@ -429,19 +403,19 @@ coarsen_graph(
                                                   handle.get_stream());
       coarsened_edgelist_minor_vertices[j].resize(coarsened_edgelist_major_vertices[j].size(),
                                                   handle.get_stream());
-      if (graph_view.is_weighted()) {
-        coarsened_edgelist_weights[j].resize(coarsened_edgelist_major_vertices[j].size(),
-                                             handle.get_stream());
+      if (coarsened_edgelist_weights) {
+        (*coarsened_edgelist_weights)[j].resize(coarsened_edgelist_major_vertices[j].size(),
+                                                handle.get_stream());
 
         auto src_edge_first =
           thrust::make_zip_iterator(thrust::make_tuple(edgelist_major_vertices.begin(),
                                                        edgelist_minor_vertices.begin(),
-                                                       edgelist_weights.begin())) +
+                                                       (*edgelist_weights).begin())) +
           h_displacements[j];
         auto dst_edge_first =
           thrust::make_zip_iterator(thrust::make_tuple(coarsened_edgelist_major_vertices[j].begin(),
                                                        coarsened_edgelist_minor_vertices[j].begin(),
-                                                       coarsened_edgelist_weights[j].begin())) +
+                                                       (*coarsened_edgelist_weights)[j].begin())) +
           cur_size;
         thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                      src_edge_first,
@@ -467,18 +441,17 @@ coarsen_graph(
     auto number_of_partition_edges = groupby_e_and_coarsen_edgelist(
       coarsened_edgelist_major_vertices[i].data(),
       coarsened_edgelist_minor_vertices[i].data(),
-      graph_view.is_weighted() ? coarsened_edgelist_weights[i].data()
-                               : static_cast<weight_t *>(nullptr),
+      coarsened_edgelist_weights ? std::optional<weight_t*>{(*coarsened_edgelist_weights)[i].data()}
+                                 : std::nullopt,
       static_cast<edge_t>(coarsened_edgelist_major_vertices[i].size()),
-      graph_view.is_weighted(),
       handle.get_stream());
     coarsened_edgelist_major_vertices[i].resize(number_of_partition_edges, handle.get_stream());
     coarsened_edgelist_major_vertices[i].shrink_to_fit(handle.get_stream());
     coarsened_edgelist_minor_vertices[i].resize(number_of_partition_edges, handle.get_stream());
     coarsened_edgelist_minor_vertices[i].shrink_to_fit(handle.get_stream());
-    if (coarsened_edgelist_weights.size() > 0) {
-      coarsened_edgelist_weights[i].resize(number_of_partition_edges, handle.get_stream());
-      coarsened_edgelist_weights[i].shrink_to_fit(handle.get_stream());
+    if (coarsened_edgelist_weights) {
+      (*coarsened_edgelist_weights)[i].resize(number_of_partition_edges, handle.get_stream());
+      (*coarsened_edgelist_weights)[i].shrink_to_fit(handle.get_stream());
     }
   }
 
@@ -531,19 +504,20 @@ coarsen_graph(
                                   col_comm_rank);
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
+  std::optional<std::vector<vertex_t>> segment_offsets{};
   {
-    std::vector<vertex_t *> major_ptrs(coarsened_edgelist_major_vertices.size());
-    std::vector<vertex_t *> minor_ptrs(major_ptrs.size());
+    std::vector<vertex_t*> major_ptrs(coarsened_edgelist_major_vertices.size());
+    std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
     std::vector<edge_t> counts(major_ptrs.size());
     for (size_t i = 0; i < coarsened_edgelist_major_vertices.size(); ++i) {
       major_ptrs[i] = coarsened_edgelist_major_vertices[i].data();
       minor_ptrs[i] = coarsened_edgelist_minor_vertices[i].data();
       counts[i]     = static_cast<edge_t>(coarsened_edgelist_major_vertices[i].size());
     }
-    std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges) =
+    std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges, segment_offsets) =
       renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle,
-        std::optional<std::tuple<vertex_t const *, vertex_t>>{
+        std::optional<std::tuple<vertex_t const*, vertex_t>>{
           std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
         major_ptrs,
         minor_ptrs,
@@ -560,8 +534,10 @@ coarsen_graph(
                                                    : coarsened_edgelist_major_vertices[i].data();
     edgelists[i].p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices[i].data()
                                                    : coarsened_edgelist_minor_vertices[i].data();
-    edgelists[i].p_edge_weights = graph_view.is_weighted() ? coarsened_edgelist_weights[i].data()
-                                                           : static_cast<weight_t *>(nullptr);
+    edgelists[i].p_edge_weights =
+      coarsened_edgelist_weights
+        ? std::optional<weight_t const*>{(*coarsened_edgelist_weights)[i].data()}
+        : std::nullopt,
     edgelists[i].number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices[i].size());
   }
 
@@ -572,8 +548,8 @@ coarsen_graph(
       partition,
       number_of_vertices,
       number_of_edges,
-      graph_properties_t{graph_view.is_symmetric(), false, graph_view.is_weighted()},
-      true),
+      graph_properties_t{graph_view.is_symmetric(), false},
+      segment_offsets),
     std::move(renumber_map_labels));
 }
 
@@ -588,32 +564,23 @@ std::enable_if_t<
   std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
              rmm::device_uvector<vertex_t>>>
 coarsen_graph(
-  raft::handle_t const &handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
-  vertex_t const *labels,
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  vertex_t const* labels,
   bool do_expensive_check)
 {
   if (do_expensive_check) {
     // currently, nothing to do
   }
 
-  rmm::device_uvector<vertex_t> coarsened_edgelist_major_vertices(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> coarsened_edgelist_minor_vertices(0, handle.get_stream());
-  rmm::device_uvector<weight_t> coarsened_edgelist_weights(0, handle.get_stream());
-  std::tie(coarsened_edgelist_major_vertices,
-           coarsened_edgelist_minor_vertices,
-           coarsened_edgelist_weights) =
-    compressed_sparse_to_relabeled_and_grouped_and_coarsened_edgelist(
-      graph_view.offsets(),
-      graph_view.indices(),
-      graph_view.weights(),
+  auto [coarsened_edgelist_major_vertices,
+        coarsened_edgelist_minor_vertices,
+        coarsened_edgelist_weights] =
+    decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+        graph_view.get_matrix_partition_view()),
       labels,
       labels,
-      vertex_t{0},
-      graph_view.get_number_of_vertices(),
-      vertex_t{0},
-      graph_view.get_number_of_vertices(),
-      graph_view.is_weighted(),
       handle.get_stream());
 
   rmm::device_uvector<vertex_t> unique_labels(graph_view.get_number_of_vertices(),
@@ -632,9 +599,9 @@ coarsen_graph(
                                     unique_labels.end())),
     handle.get_stream());
 
-  auto renumber_map_labels = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+  auto [renumber_map_labels, segment_offsets] = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
     handle,
-    std::optional<std::tuple<vertex_t const *, vertex_t>>{
+    std::optional<std::tuple<vertex_t const*, vertex_t>>{
       std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
     coarsened_edgelist_major_vertices.data(),
     coarsened_edgelist_minor_vertices.data(),
@@ -642,11 +609,13 @@ coarsen_graph(
     do_expensive_check);
 
   edgelist_t<vertex_t, edge_t, weight_t> edgelist{};
-  edgelist.p_src_vertices = store_transposed ? coarsened_edgelist_minor_vertices.data()
-                                             : coarsened_edgelist_major_vertices.data();
-  edgelist.p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices.data()
-                                             : coarsened_edgelist_minor_vertices.data();
-  edgelist.p_edge_weights  = coarsened_edgelist_weights.data();
+  edgelist.p_src_vertices  = store_transposed ? coarsened_edgelist_minor_vertices.data()
+                                              : coarsened_edgelist_major_vertices.data();
+  edgelist.p_dst_vertices  = store_transposed ? coarsened_edgelist_major_vertices.data()
+                                              : coarsened_edgelist_minor_vertices.data();
+  edgelist.p_edge_weights  = coarsened_edgelist_weights
+                               ? std::optional<weight_t const*>{(*coarsened_edgelist_weights).data()}
+                               : std::nullopt;
   edgelist.number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices.size());
 
   return std::make_tuple(
@@ -654,8 +623,8 @@ coarsen_graph(
       handle,
       edgelist,
       static_cast<vertex_t>(renumber_map_labels.size()),
-      graph_properties_t{graph_view.is_symmetric(), false, graph_view.is_weighted()},
-      true),
+      graph_properties_t{graph_view.is_symmetric(), false},
+      segment_offsets),
     std::move(renumber_map_labels));
 }
 
@@ -669,9 +638,9 @@ template <typename vertex_t,
 std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
            rmm::device_uvector<vertex_t>>
 coarsen_graph(
-  raft::handle_t const &handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const &graph_view,
-  vertex_t const *labels,
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  vertex_t const* labels,
   bool do_expensive_check)
 {
   return detail::coarsen_graph(handle, graph_view, labels, do_expensive_check);
@@ -681,170 +650,170 @@ coarsen_graph(
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, true, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, float, true, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, false, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, float, false, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, true, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, float, true, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, float, true, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, false, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, float, true, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, float, true, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, float, true, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, float, false, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, float, false, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, float, true, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, float, true, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, float, true, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, float, false, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, float, false, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, float, true, true>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, float, true, true> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, float, true, true> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, float, false, true>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, float, false, true> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, float, true, false>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, float, true, false> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, float, true, false> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, float, false, false>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, float, false, false> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, double, true, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, double, true, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, double, true, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, double, false, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, double, false, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, double, true, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, double, true, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, double, true, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, double, false, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int32_t, double, false, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, double, true, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, double, true, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, double, true, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, double, false, true>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, double, false, true> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, double, true, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, double, true, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, double, true, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, double, false, false>>,
                     rmm::device_uvector<int32_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int32_t, int64_t, double, false, false> const &graph_view,
-              int32_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+              int32_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, double, true, true>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, double, true, true> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, double, true, true> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, double, false, true>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, double, false, true> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, double, true, false>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, double, true, false> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, double, true, false> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, double, false, false>>,
                     rmm::device_uvector<int64_t>>
-coarsen_graph(raft::handle_t const &handle,
-              graph_view_t<int64_t, int64_t, double, false, false> const &graph_view,
-              int64_t const *labels,
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+              int64_t const* labels,
               bool do_expensive_check);
 
 }  // namespace experimental

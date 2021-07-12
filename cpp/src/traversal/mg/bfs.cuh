@@ -28,12 +28,12 @@ namespace mg {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename operator_t>
-void bfs_traverse(raft::handle_t const &handle,
-                  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void bfs_traverse(raft::handle_t const& handle,
+                  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
                   const vertex_t start_vertex,
-                  rmm::device_vector<uint32_t> &visited_bmap,
-                  rmm::device_vector<uint32_t> &output_frontier_bmap,
-                  operator_t &bfs_op)
+                  rmm::device_vector<uint32_t>& visited_bmap,
+                  rmm::device_vector<uint32_t>& output_frontier_bmap,
+                  operator_t& bfs_op)
 {
   // Frontiers required for BFS
   rmm::device_vector<vertex_t> input_frontier(graph.number_of_vertices);
@@ -47,8 +47,8 @@ void bfs_traverse(raft::handle_t const &handle,
 
   // Reusing buffers to create isolated bitmap
   {
-    rmm::device_vector<vertex_t> &local_isolated_ids  = input_frontier;
-    rmm::device_vector<vertex_t> &global_isolated_ids = output_frontier;
+    rmm::device_vector<vertex_t>& local_isolated_ids  = input_frontier;
+    rmm::device_vector<vertex_t>& global_isolated_ids = output_frontier;
     detail::create_isolated_bitmap(
       handle, graph, local_isolated_ids, global_isolated_ids, temp_buffer_len, isolated_bmap);
   }
@@ -110,10 +110,10 @@ void bfs_traverse(raft::handle_t const &handle,
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void bfs(raft::handle_t const &handle,
-         cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-         vertex_t *distances,
-         vertex_t *predecessors,
+void bfs(raft::handle_t const& handle,
+         cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+         vertex_t* distances,
+         vertex_t* predecessors,
          const vertex_t start_vertex)
 {
   CUGRAPH_EXPECTS(handle.comms_initialized(),
