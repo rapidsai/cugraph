@@ -45,7 +45,8 @@ struct bfs_visitor<vertex_t,
                    weight_t,
                    st,
                    mg,
-                   std::enable_if_t<!is_candidate<vertex_t, edge_t, weight_t>::value>> : visitor_t {
+                   std::enable_if_t<(!is_candidate<vertex_t, edge_t, weight_t>::value)>>
+  : visitor_t {
   void visit_graph(graph_envelope_t::base_graph_t const&) override
   {
     // purposely empty

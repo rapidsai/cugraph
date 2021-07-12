@@ -30,8 +30,8 @@
 // just to make happy the clang-format policy
 // of header inclusion to be order-independent...
 //
-#include <experimental/graph.hpp>
-#include <partition_manager.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/partition_manager.hpp>
 
 #define _DEBUG_
 
@@ -114,43 +114,6 @@ struct graph_factory_t<
     /// std::cout << "Multi-GPU factory.\n";
     std::vector<void*> const& v_args{ep.get_args()};
 
-#ifdef _DIRECT_CNSTR_INVOKE_
-    // direct invocation of cnstr.:
-    //
-    assert(v_args.size() == 8);
-
-    // cnstr. args unpacking:
-    //
-    raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
-
-    auto const& elist =
-      *static_cast<std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const*>(v_args[1]);
-
-    auto const& partition = *static_cast<partition_t<vertex_t> const*>(v_args[2]);
-
-    auto nv = *static_cast<vertex_t*>(v_args[3]);
-
-    auto ne = *static_cast<edge_t*>(v_args[4]);
-
-    auto props = *static_cast<graph_properties_t*>(v_args[5]);
-
-    bool sorted = *static_cast<bool*>(v_args[6]);
-
-    bool check = *static_cast<bool*>(v_args[7]);
-
-    // when a `graph_t<>` instantiation path has more than one
-    // cnstr. then must dispatch `graph_t<>` cnstr. based on
-    // `ep.pack_id()`; not the case here, because the 2 different
-    // `graph_t` constructors each belong to a different `graph_t`
-    // instantiation;
-    //
-    // FIXED: linker error because of PROBLEM above...
-    // i.e., when there's no `graph_t<int, int, int,...>::graph_t(...)`, etc.
-    // because there's no instantiation of `graph_t` with `weight_t = int`, etc.
-    //
-    return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
-      handle, elist, partition, nv, ne, props, sorted, check);
-#else
     // invoke cnstr. using cython arg pack:
     //
     assert(v_args.size() == 9);
@@ -172,11 +135,10 @@ struct graph_factory_t<
     edge_t num_global_edges            = *static_cast<edge_t*>(v_args[7]);
     bool sorted_by_degree              = *static_cast<bool*>(v_args[8]);
 
-    // TODO: un-hardcode:
+    // TODO: un-hardcode: have it passed int `ep`
     //
     experimental::graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
-    bool do_expensive_check{false};  // true};
-    bool hypergraph_partitioned{false};
+    bool do_expensive_check{false};  // FIXME: check what should this default to
 
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
     auto const row_comm_rank = row_comm.get_rank();
@@ -191,12 +153,11 @@ struct graph_factory_t<
     std::vector<vertex_t> partition_offsets_vector(
       vertex_partition_offsets, vertex_partition_offsets + (row_comm_size * col_comm_size) + 1);
 
-    experimental::partition_t<vertex_t> partition(partition_offsets_vector,
-                                                  hypergraph_partitioned,
-                                                  row_comm_size,
-                                                  col_comm_size,
-                                                  row_comm_rank,
-                                                  col_comm_rank);
+    experimental::partition_t<vertex_t> partition(
+      partition_offsets_vector, row_comm_size, col_comm_size, row_comm_rank, col_comm_rank);
+
+    std::optional<std::vector<vertex_t>>
+      opt_seg_off{};  // FIXME: may needd to pass/extract segment_offsets vector
 
     return std::make_unique<
       experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
@@ -206,9 +167,8 @@ struct graph_factory_t<
       num_global_vertices,
       num_global_edges,
       graph_props,
-      false,  // sorted_by_degree,  FIXME:  This currently fails if sorted_by_degree is true...
+      opt_seg_off,
       do_expensive_check);
-#endif
   }
 };
 
@@ -235,15 +195,14 @@ struct graph_factory_t<
 
     auto props = *static_cast<graph_properties_t*>(v_args[3]);
 
-    bool sorted = *static_cast<bool*>(v_args[4]);
+    bool sorted = *static_cast<bool*>(v_args[4]);  // FIXME: no need to pass this!
 
     bool check = *static_cast<bool*>(v_args[5]);
 
-    return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
-      handle, elist, nv, props, sorted, check);
+    std::optional<std::vector<vertex_t>> opt_seg_off{};  // should not be needed for (!multi_gpu)
 
-    // return nullptr;  // for now...
-    // Might need TODO: dispatch graph_t<> cnstr. based on ep.pack_id()
+    return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
+      handle, elist, nv, props, opt_seg_off, check);
   }
 };
 

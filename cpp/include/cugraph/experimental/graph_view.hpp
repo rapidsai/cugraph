@@ -234,7 +234,7 @@ size_t constexpr num_sparse_segments_per_vertex_partition{3};
 template <typename vertex_t, typename edge_t, typename weight_t>
 class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ {
  public:
-  graph_base_t() = default;
+  graph_base_t() = default;  // Note: required by visitor logic
 
   graph_base_t(raft::handle_t const& handle,
                vertex_t number_of_vertices,
@@ -244,10 +244,6 @@ class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ 
       number_of_vertices_(number_of_vertices),
       number_of_edges_(number_of_edges),
       properties_(properties){};
-
-  // required by:
-  //
-  graph_base_t(void) {}  // <- visitor logic
 
   vertex_t get_number_of_vertices() const { return number_of_vertices_; }
   edge_t get_number_of_edges() const { return number_of_edges_; }

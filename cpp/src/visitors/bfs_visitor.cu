@@ -17,8 +17,11 @@
 // Andrei Schaffer, aschaffer@nvidia.com
 //
 
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/visitors/bfs_visitor.cuh>
+#include <cugraph/algorithms.hpp>
+
+//#include <cugraph/experimental/graph.hpp>
+//#include <cugraph/visitors/bfs_visitor.cuh>
+
 #include <cugraph/visitors/bfs_visitor.hpp>
 
 namespace cugraph {
@@ -31,53 +34,54 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool m
 void bfs_visitor<vertex_t,
                  edge_t,
                  weight_t,
-                 st,
+                 st,  // FIXME: can only be false for BFS
                  mg,
                  std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>::
   visit_graph(graph_envelope_t::base_graph_t const& graph)
 {
-  // TODO: check compile-time branch at runtime trick...
-  //
+  if constexpr (st == false) {
+    // unless algorithms only call virtual graph methods
+    // under the hood, the algos require this conversion:
+    //
+    graph_t<vertex_t, edge_t, weight_t, false, mg> const* p_g =
+      static_cast<graph_t<vertex_t, edge_t, weight_t, st, mg> const*>(&graph);
 
-  // unless algorithms only call virtual graph methods
-  // under the hood, the algos require this conversion:
-  //
-  graph_t<vertex_t, edge_t, weight_t, st, mg> const* p_g =
-    static_cast<graph_t<vertex_t, edge_t, weight_t, st, mg> const*>(&graph);
+    // Note: this must be called only on:
+    // graph_view_t<vertex_t, edge_t, weight_t, false, mg>
+    // which requires the "no-op" overload of bfs_low_level()
+    // in `bfs_visitor.cuh`;
+    //
+    auto gview = p_g->view();
 
-  // Note: this must be called only on:
-  // graph_view_t<vertex_t, edge_t, weight_t, false, mg>
-  // which requires the "no-op" overload of bfs_low_level()
-  // in `bfs_visitor.cuh`;
-  //
-  auto gview = p_g->view();
+    auto const& v_args = ep_.get_args();
 
-  auto const& v_args = ep_.get_args();
+    // unpack bfs() args:
+    //
+    assert(v_args.size() == 7);
 
-  // unpack bfs() args:
-  //
-  assert(v_args.size() == 7);
+    // cnstr. args unpacking:
+    //
+    raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
 
-  // cnstr. args unpacking:
-  //
-  raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
+    vertex_t* p_d_dist = static_cast<vertex_t*>(v_args[1]);
 
-  vertex_t* p_d_dist = static_cast<vertex_t*>(v_args[1]);
+    vertex_t* p_d_predec = static_cast<vertex_t*>(v_args[2]);
 
-  vertex_t* p_d_predec = static_cast<vertex_t*>(v_args[2]);
+    vertex_t src_v = *static_cast<vertex_t*>(v_args[3]);
 
-  vertex_t src_v = *static_cast<vertex_t*>(v_args[3]);
+    bool dir_opt = *static_cast<bool*>(v_args[4]);
 
-  bool dir_opt = *static_cast<bool*>(v_args[4]);
+    auto depth_l = *static_cast<vertex_t*>(v_args[5]);
 
-  auto depth_l = *static_cast<vertex_t*>(v_args[5]);
+    bool check = *static_cast<bool*>(v_args[6]);
 
-  bool check = *static_cast<bool*>(v_args[6]);
-
-  // call algorithm
-  // (no result; void)
-  //
-  algorithms::bfs_low_level(handle, gview, p_d_dist, p_d_predec, src_v, dir_opt, depth_l, check);
+    // call algorithm
+    // (no result; void)
+    //
+    bfs(handle, gview, p_d_dist, p_d_predec, src_v, dir_opt, depth_l, check);
+  } else {
+    CUGRAPH_FAIL("Unsupported BFS algorithm (store_transposed == true).");
+  }
 }
 
 // EIDir's:
