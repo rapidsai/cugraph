@@ -24,16 +24,16 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/partition_manager.hpp>
 
+#include <cuco/detail/hash_functions.cuh>
 #include <cugraph/experimental/graph_view.hpp>
 #include <cugraph/prims/count_if_v.cuh>
-#include <cuco/detail/hash_functions.cuh>
 
+#include <thrust/count.h>
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
-#include <thrust/count.h>
 
 #include <gtest/gtest.h>
 
@@ -48,15 +48,15 @@ template <typename vertex_t>
 struct test_predicate {
   int mod{};
   test_predicate(int mod_count) : mod(mod_count) {}
-  __device__
-  bool operator()(const vertex_t &val) {
+  __device__ bool operator()(const vertex_t& val)
+  {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     return (0 == (hash_func(val) % mod));
   }
 };
 
 struct Prims_Usecase {
-  bool check_correctness {true};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
@@ -80,12 +80,14 @@ class Tests_MG_CountIfV
     HighResClock hr_clock{};
 
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    auto &comm           = handle.get_comms();
+    auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
     auto const comm_rank = comm.get_rank();
 
     auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) { --row_comm_size; }
+    while (comm_size % row_comm_size != 0) {
+      --row_comm_size;
+    }
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
       subcomm_factory(handle, row_comm_size);
 
@@ -120,11 +122,9 @@ class Tests_MG_CountIfV
       hr_clock.start();
     }
 
-    vertex_t const * data = (*d_mg_renumber_map_labels).data();
-    auto vertex_count = count_if_v(handle,
-                                   mg_graph_view,
-                                   data,
-                                   test_predicate<vertex_t>(hash_bin_count));
+    vertex_t const* data = (*d_mg_renumber_map_labels).data();
+    auto vertex_count =
+      count_if_v(handle, mg_graph_view, data, test_predicate<vertex_t>(hash_bin_count));
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -137,8 +137,9 @@ class Tests_MG_CountIfV
     // 4. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
-      std::tie (sg_graph, std::ignore) =
+      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(
+        handle);
+      std::tie(sg_graph, std::ignore) =
         input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
           handle, true, false);
       auto sg_graph_view = sg_graph.view();
@@ -183,24 +184,24 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MG_CountIfV_File,
   ::testing::Combine(
-  ::testing::Values(Prims_Usecase{true}),
-  ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                    cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                    cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                    cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+    ::testing::Values(Prims_Usecase{true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MG_CountIfV_Rmat,
-                         ::testing::Combine(
-                         ::testing::Values(Prims_Usecase{true}),
-                         ::testing::Values(cugraph::test::Rmat_Usecase(
-                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MG_CountIfV_Rmat,
+  ::testing::Combine(::testing::Values(Prims_Usecase{true}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_large_test,
-                         Tests_MG_CountIfV_Rmat,
-                         ::testing::Combine(
-                         ::testing::Values(Prims_Usecase{false}),
-                         ::testing::Values(cugraph::test::Rmat_Usecase(
-                             20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_large_test,
+  Tests_MG_CountIfV_Rmat,
+  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
