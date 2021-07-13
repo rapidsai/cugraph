@@ -123,6 +123,9 @@ class matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable
   {
   }
 
+  std::optional<vertex_t const*> get_dcs_nzd_vertices() const { return std::nullopt; }
+  std::optional<vertex_t> get_dcs_nzd_vertex_count() const { return std::nullopt; }
+
   vertex_t get_major_first() const { return vertex_t{0}; }
   vertex_t get_major_last() const { return number_of_vertices_; }
   vertex_t get_minor_first() const { return vertex_t{0}; }
