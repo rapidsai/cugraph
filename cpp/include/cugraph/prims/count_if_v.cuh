@@ -19,8 +19,8 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
@@ -55,7 +55,7 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
                                                VertexOp v_op)
 {
   auto count =
-    thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::count_if(rmm::exec_policy(handle.get_stream()),
                      vertex_value_input_first,
                      vertex_value_input_first + graph_view.get_number_of_local_vertices(),
                      v_op);
@@ -93,8 +93,8 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
                                                InputIterator input_last,
                                                VertexOp v_op)
 {
-  auto count = thrust::count_if(
-    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()), input_first, input_last, v_op);
+  auto count =
+    thrust::count_if(rmm::exec_policy(handle.get_stream()), input_first, input_last, v_op);
   if (GraphViewType::is_multi_gpu) {
     count = host_scalar_allreduce(handle.get_comms(), count, handle.get_stream());
   }

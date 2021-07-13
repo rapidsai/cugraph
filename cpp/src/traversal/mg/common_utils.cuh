@@ -18,9 +18,9 @@
 
 #include "../traversal_common.cuh"
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <thrust/host_vector.h>
 #include <cub/cub.cuh>
+#include <rmm/exec_policy.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/integer_utils.h>
@@ -159,7 +159,7 @@ vertex_t populate_isolated_vertices(
     vertex_begin_ = 0;
     vertex_end_   = graph.number_of_vertices;
   }
-  auto count = thrust::copy_if(rmm::exec_policy(stream)->on(stream),
+  auto count = thrust::copy_if(rmm::exec_policy(stream),
                                thrust::make_counting_iterator<vertex_t>(vertex_begin_),
                                thrust::make_counting_iterator<vertex_t>(vertex_end_),
                                thrust::make_counting_iterator<edge_t>(0),
@@ -212,10 +212,8 @@ void add_to_bitmap(raft::handle_t const& handle,
                    return_t count)
 {
   cudaStream_t stream = handle.get_stream();
-  thrust::for_each(rmm::exec_policy(stream)->on(stream),
-                   id.begin(),
-                   id.begin() + count,
-                   set_nth_bit(bmap.data().get()));
+  thrust::for_each(
+    rmm::exec_policy(stream), id.begin(), id.begin() + count, set_nth_bit(bmap.data().get()));
   CHECK_CUDA(stream);
 }
 
@@ -247,10 +245,9 @@ return_t remove_duplicates(raft::handle_t const& handle,
                            return_t data_len)
 {
   cudaStream_t stream = handle.get_stream();
-  thrust::sort(rmm::exec_policy(stream)->on(stream), data.begin(), data.begin() + data_len);
+  thrust::sort(rmm::exec_policy(stream), data.begin(), data.begin() + data_len);
   auto unique_count =
-    thrust::unique(rmm::exec_policy(stream)->on(stream), data.begin(), data.begin() + data_len) -
-    data.begin();
+    thrust::unique(rmm::exec_policy(stream), data.begin(), data.begin() + data_len) - data.begin();
   return static_cast<return_t>(unique_count);
 }
 
@@ -372,8 +369,7 @@ return_t remove_duplicates(raft::handle_t const& handle,
 
   rmm::device_vector<return_t> unique_count(1, 0);
 
-  thrust::fill(
-    rmm::exec_policy(stream)->on(stream), bmap.begin(), bmap.end(), static_cast<uint32_t>(0));
+  thrust::fill(rmm::exec_policy(stream), bmap.begin(), bmap.end(), static_cast<uint32_t>(0));
   constexpr return_t threads = 256;
   return_t blocks            = raft::div_rounding_up_safe(data_len, threads);
   remove_duplicates_kernel<threads><<<blocks, threads, 0, stream>>>(bmap.data().get(),
@@ -404,8 +400,7 @@ vertex_t preprocess_input_frontier(
                         graph.local_vertices[handle.get_comms().get_rank()];
   rmm::device_vector<vertex_t> unique_count(1, 0);
 
-  thrust::fill(
-    rmm::exec_policy(stream)->on(stream), bmap.begin(), bmap.end(), static_cast<uint32_t>(0));
+  thrust::fill(rmm::exec_policy(stream), bmap.begin(), bmap.end(), static_cast<uint32_t>(0));
   constexpr vertex_t threads = 256;
   vertex_t blocks            = raft::div_rounding_up_safe(input_frontier_len, threads);
   remove_duplicates_kernel<threads><<<blocks, threads, 0, stream>>>(bmap.data().get(),
@@ -436,8 +431,7 @@ vertex_t preprocess_input_frontier(
                         graph.local_vertices[handle.get_comms().get_rank()];
   rmm::device_vector<vertex_t> unique_count(1, 0);
 
-  thrust::fill(
-    rmm::exec_policy(stream)->on(stream), bmap.begin(), bmap.end(), static_cast<uint32_t>(0));
+  thrust::fill(rmm::exec_policy(stream), bmap.begin(), bmap.end(), static_cast<uint32_t>(0));
   constexpr vertex_t threads = 256;
   vertex_t blocks            = raft::div_rounding_up_safe(input_frontier_len, threads);
   remove_duplicates_kernel<threads><<<blocks, threads, 0, stream>>>(bmap.data().get(),
@@ -483,9 +477,8 @@ vertex_t get_global_vertex_count(
   cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph)
 {
   rmm::device_vector<vertex_t> id(1);
-  id[0] = *thrust::max_element(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                               graph.indices,
-                               graph.indices + graph.number_of_edges);
+  id[0] = *thrust::max_element(
+    rmm::exec_policy(handle.get_stream()), graph.indices, graph.indices + graph.number_of_edges);
   handle.get_comms().allreduce(
     id.data().get(), id.data().get(), 1, raft::comms::op_t::MAX, handle.get_stream());
   vertex_t max_vertex_id = id[0];

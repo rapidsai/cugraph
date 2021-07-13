@@ -25,8 +25,8 @@
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/utilities/error.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
@@ -159,13 +159,13 @@ void pagerank(
     CUGRAPH_EXPECTS(sum > 0.0,
                     "Invalid input argument: sum of the PageRank initial "
                     "guess values should be positive.");
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::transform(rmm::exec_policy(handle.get_stream()),
                       pageranks,
                       pageranks + pull_graph_view.get_number_of_local_vertices(),
                       pageranks,
                       [sum] __device__(auto val) { return val / sum; });
   } else {
-    thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::fill(rmm::exec_policy(handle.get_stream()),
                  pageranks,
                  pageranks + pull_graph_view.get_number_of_local_vertices(),
                  result_t{1.0} / static_cast<result_t>(num_vertices));
@@ -194,7 +194,7 @@ void pagerank(
     pull_graph_view.get_number_of_local_adj_matrix_partition_rows(), handle.get_stream());
   size_t iter{0};
   while (true) {
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(rmm::exec_policy(handle.get_stream()),
                  pageranks,
                  pageranks + pull_graph_view.get_number_of_local_vertices(),
                  old_pageranks.data());
@@ -213,7 +213,7 @@ void pagerank(
       },
       result_t{0.0});
 
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::transform(rmm::exec_policy(handle.get_stream()),
                       vertex_val_first,
                       vertex_val_first + pull_graph_view.get_number_of_local_vertices(),
                       pageranks,
@@ -249,7 +249,7 @@ void pagerank(
       auto val_first = thrust::make_zip_iterator(
         thrust::make_tuple(*personalization_vertices, *personalization_values));
       thrust::for_each(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        rmm::exec_policy(handle.get_stream()),
         val_first,
         val_first + *personalization_vector_size,
         [vertex_partition, pageranks, dangling_sum, personalization_sum, alpha] __device__(

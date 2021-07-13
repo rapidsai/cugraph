@@ -19,7 +19,7 @@
 
 #include <cugraph/experimental/graph.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 
 namespace cugraph {
 namespace experimental {

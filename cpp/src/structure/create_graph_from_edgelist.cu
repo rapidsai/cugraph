@@ -18,7 +18,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/functional.h>
 #include <thrust/transform_reduce.h>
@@ -186,7 +186,7 @@ create_graph_from_edgelist_impl(
         thrust::make_zip_iterator(thrust::make_tuple(edgelist_rows.begin(), edgelist_cols.begin()));
       num_vertices =
         thrust::transform_reduce(
-          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          rmm::exec_policy(handle.get_stream()),
           edge_first,
           edge_first + edgelist_rows.size(),
           [] __device__(auto e) { return std::max(thrust::get<0>(e), thrust::get<1>(e)); },

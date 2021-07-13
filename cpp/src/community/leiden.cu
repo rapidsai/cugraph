@@ -39,7 +39,7 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const& handle,
 
   rmm::device_uvector<vertex_t> vertex_ids_v(graph.number_of_vertices, handle.get_stream());
 
-  thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::copy(rmm::exec_policy(handle.get_stream()),
                thrust::make_counting_iterator<vertex_t>(0),  // MNMG - base vertex id
                thrust::make_counting_iterator<vertex_t>(
                  graph.number_of_vertices),  // MNMG - base vertex id + number_of_vertices

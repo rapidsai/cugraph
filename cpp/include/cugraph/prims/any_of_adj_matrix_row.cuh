@@ -19,8 +19,8 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
@@ -59,7 +59,7 @@ bool any_of_adj_matrix_row(raft::handle_t const& handle,
 {
   // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
   auto count = thrust::count_if(
-    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    rmm::exec_policy(handle.get_stream()),
     adj_matrix_row_value_input_first,
     adj_matrix_row_value_input_first + graph_view.get_number_of_local_adj_matrix_partition_rows(),
     row_op);

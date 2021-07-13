@@ -21,6 +21,7 @@
  * @file katz_centrality.cu
  * --------------------------------------------------------------------------*/
 
+#include <rmm/thrust_rmm_allocator.h>
 #include <Hornet.hpp>
 #include <Static/KatzCentrality/Katz.cuh>
 #include <cugraph/legacy/graph.hpp>

@@ -133,12 +133,12 @@ template <typename vertex_t, typename value_t, typename BufferType>
 std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
   rmm::device_uvector<vertex_t>&& keys, BufferType&& value_buffer, cudaStream_t stream)
 {
-  thrust::sort_by_key(rmm::exec_policy(stream)->on(stream),
+  thrust::sort_by_key(rmm::exec_policy(stream),
                       keys.begin(),
                       keys.end(),
                       get_dataframe_buffer_begin<value_t>(value_buffer));
   auto num_uniques =
-    thrust::count_if(rmm::exec_policy(stream)->on(stream),
+    thrust::count_if(rmm::exec_policy(stream),
                      thrust::make_counting_iterator(size_t{0}),
                      thrust::make_counting_iterator(keys.size()),
                      [keys = keys.data()] __device__(auto i) {
@@ -147,7 +147,7 @@ std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
 
   rmm::device_uvector<vertex_t> unique_keys(num_uniques, stream);
   auto value_for_unique_key_buffer = allocate_dataframe_buffer<value_t>(unique_keys.size(), stream);
-  thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
+  thrust::reduce_by_key(rmm::exec_policy(stream),
                         keys.begin(),
                         keys.end(),
                         get_dataframe_buffer_begin<value_t>(value_buffer),
@@ -201,7 +201,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
     }
 
     auto num_edges = thrust::transform_reduce(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      rmm::exec_policy(handle.get_stream()),
       thrust::make_counting_iterator(graph_view.get_vertex_partition_first(comm_root_rank)),
       thrust::make_counting_iterator(graph_view.get_vertex_partition_last(comm_root_rank)),
       [matrix_partition] __device__(auto row) {
@@ -276,11 +276,11 @@ transform_reduce_by_adj_matrix_row_col_key_e(
       keys.resize(cur_size + tmp_keys.size(), handle.get_stream());
       resize_dataframe_buffer<T>(value_buffer, keys.size(), handle.get_stream());
 
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::copy(rmm::exec_policy(handle.get_stream()),
                    tmp_keys.begin(),
                    tmp_keys.end(),
                    keys.begin() + cur_size);
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::copy(rmm::exec_policy(handle.get_stream()),
                    get_dataframe_buffer_begin<T>(tmp_value_buffer),
                    get_dataframe_buffer_begin<T>(tmp_value_buffer) + tmp_keys.size(),
                    get_dataframe_buffer_begin<T>(value_buffer) + cur_size);

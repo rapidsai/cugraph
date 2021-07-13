@@ -46,12 +46,9 @@ std::vector<int> getTopKIds(double* p_katz, int count, int k = 10)
 {
   cudaStream_t stream = nullptr;
   rmm::device_vector<int> id(count);
-  thrust::sequence(rmm::exec_policy(stream)->on(stream), id.begin(), id.end());
-  thrust::sort_by_key(rmm::exec_policy(stream)->on(stream),
-                      p_katz,
-                      p_katz + count,
-                      id.begin(),
-                      thrust::greater<double>());
+  thrust::sequence(rmm::exec_policy(stream), id.begin(), id.end());
+  thrust::sort_by_key(
+    rmm::exec_policy(stream), p_katz, p_katz + count, id.begin(), thrust::greater<double>());
   std::vector<int> topK(k);
   thrust::copy(id.begin(), id.begin() + k, topK.begin());
   return topK;
@@ -65,7 +62,7 @@ int getMaxDegree(cugraph::legacy::GraphCSRView<VT, ET, WT> const& g)
   rmm::device_vector<ET> degree_vector(g.number_of_vertices);
   ET* p_degree = degree_vector.data().get();
   g.degree(p_degree, cugraph::legacy::DegreeDirection::OUT);
-  ET max_out_degree = thrust::reduce(rmm::exec_policy(stream)->on(stream),
+  ET max_out_degree = thrust::reduce(rmm::exec_policy(stream),
                                      p_degree,
                                      p_degree + g.number_of_vertices,
                                      static_cast<ET>(-1),

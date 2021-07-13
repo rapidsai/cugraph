@@ -22,8 +22,8 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -79,7 +79,7 @@ void bfs(raft::handle_t const& handle,
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
   auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
-  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::transform(rmm::exec_policy(handle.get_stream()),
                     thrust::make_counting_iterator(push_graph_view.get_local_vertex_first()),
                     thrust::make_counting_iterator(push_graph_view.get_local_vertex_last()),
                     val_first,

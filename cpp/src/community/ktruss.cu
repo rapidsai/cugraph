@@ -23,6 +23,7 @@
 
 #include <cugraph/utilities/error.hpp>
 
+#include <rmm/thrust_rmm_allocator.h>
 #include <Hornet.hpp>
 #include <StandardAPI.hpp>
 #include <cugraph/algorithms.hpp>

@@ -20,6 +20,7 @@
 #include <cugraph/experimental/graph.hpp>
 #include <cugraph/graph_generators.hpp>
 
+#include <thrust/execution_policy.h>
 #include <thrust/sort.h>
 
 #include <gtest/gtest.h>

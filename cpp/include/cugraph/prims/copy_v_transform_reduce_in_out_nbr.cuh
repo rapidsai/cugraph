@@ -25,8 +25,8 @@
 #include <cugraph/utilities/host_barrier.hpp>
 
 #include <raft/cudart_utils.h>
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/distance.h>
 #include <thrust/functional.h>
@@ -341,12 +341,12 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     }
 
     if (GraphViewType::is_multi_gpu) {
-      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::fill(rmm::exec_policy(handle.get_stream()),
                    minor_buffer_first,
                    minor_buffer_first + minor_tmp_buffer_size,
                    minor_init);
     } else {
-      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::fill(rmm::exec_policy(handle.get_stream()),
                    vertex_value_output_first,
                    vertex_value_output_first + graph_view.get_number_of_local_vertices(),
                    minor_init);

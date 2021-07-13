@@ -23,8 +23,8 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/random/rng.cuh>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/sequence.h>
 
@@ -126,17 +126,17 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
       auto start_offset = d_edgelist_rows.size();
       d_edgelist_rows.resize(start_offset + d_tmp_rows.size(), handle.get_stream());
       d_edgelist_cols.resize(d_edgelist_rows.size(), handle.get_stream());
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::copy(rmm::exec_policy(handle.get_stream()),
                    d_tmp_rows.begin(),
                    d_tmp_rows.end(),
                    d_edgelist_rows.begin() + start_offset);
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::copy(rmm::exec_policy(handle.get_stream()),
                    d_tmp_cols.begin(),
                    d_tmp_cols.end(),
                    d_edgelist_cols.begin() + start_offset);
       if (d_edgelist_weights) {
         (*d_edgelist_weights).resize(d_edgelist_rows.size(), handle.get_stream());
-        thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::copy(rmm::exec_policy(handle.get_stream()),
                      (*d_tmp_weights).begin(),
                      (*d_tmp_weights).end(),
                      (*d_edgelist_weights).begin() + start_offset);
@@ -154,16 +154,16 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
     if (d_edgelist_weights) {
       (*d_edgelist_weights).resize(d_edgelist_rows.size(), handle.get_stream());
     }
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(rmm::exec_policy(handle.get_stream()),
                  d_edgelist_cols.begin(),
                  d_edgelist_cols.begin() + offset,
                  d_edgelist_rows.begin() + offset);
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(rmm::exec_policy(handle.get_stream()),
                  d_edgelist_rows.begin(),
                  d_edgelist_rows.begin() + offset,
                  d_edgelist_cols.begin() + offset);
     if (d_edgelist_weights) {
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::copy(rmm::exec_policy(handle.get_stream()),
                    (*d_edgelist_weights).begin(),
                    (*d_edgelist_weights).begin() + offset,
                    (*d_edgelist_weights).begin() + offset);
@@ -234,7 +234,7 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
     auto start_offset = d_vertices.size();
     d_vertices.resize(start_offset + (partition_vertex_lasts[i] - partition_vertex_firsts[i]),
                       handle.get_stream());
-    thrust::sequence(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::sequence(rmm::exec_policy(handle.get_stream()),
                      d_vertices.begin() + start_offset,
                      d_vertices.end(),
                      partition_vertex_firsts[i]);

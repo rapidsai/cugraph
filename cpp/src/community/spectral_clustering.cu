@@ -22,9 +22,10 @@
 
 #include <cugraph/algorithms.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <thrust/transform.h>
 #include <ctime>
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -70,8 +71,7 @@ void balancedCutClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t>
 
   raft::handle_t handle;
   auto stream  = handle.get_stream();
-  auto exec    = rmm::exec_policy(stream);
-  auto t_exe_p = exec->on(stream);
+  auto t_exe_p = rmm::exec_policy(stream);
 
   int evs_max_it{4000};
   int kmean_max_it{200};
@@ -141,8 +141,7 @@ void spectralModularityMaximization_impl(
 
   raft::handle_t handle;
   auto stream  = handle.get_stream();
-  auto exec    = rmm::exec_policy(stream);
-  auto t_exe_p = exec->on(stream);
+  auto t_exe_p = rmm::exec_policy(stream);
 
   int evs_max_it{4000};
   int kmean_max_it{200};
@@ -194,8 +193,7 @@ void analyzeModularityClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, wei
 {
   raft::handle_t handle;
   auto stream  = handle.get_stream();
-  auto exec    = rmm::exec_policy(stream);
-  auto t_exe_p = exec->on(stream);
+  auto t_exe_p = rmm::exec_policy(stream);
 
   using index_type = vertex_t;
   using value_type = weight_t;
@@ -216,8 +214,7 @@ void analyzeBalancedCut_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t> co
 {
   raft::handle_t handle;
   auto stream  = handle.get_stream();
-  auto exec    = rmm::exec_policy(stream);
-  auto t_exe_p = exec->on(stream);
+  auto t_exe_p = rmm::exec_policy(stream);
 
   RAFT_EXPECTS(n_clusters <= graph.number_of_vertices,
                "API error: number of clusters must be <= number of vertices");
