@@ -29,17 +29,12 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
-#define _USE_VISITOR_
-
-#ifdef _USE_VISITOR_
 // visitor artifacts:
 //
 #include <cugraph/visitors/bfs_visitor.hpp>
 #include <cugraph/visitors/erased_pack.hpp>
 #include <cugraph/visitors/graph_envelope.hpp>
 #include <cugraph/visitors/ret_terased.hpp>
-
-#endif
 
 #include <gtest/gtest.h>
 
@@ -118,7 +113,6 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     using weight_t = float;
 
     raft::handle_t handle{};
-#ifdef _USE_VISITOR_
     // visitors version:
     //
     using namespace cugraph::experimental;
@@ -159,12 +153,6 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       graph_envelope.graph().get());
 
     auto graph_view = p_graph->view();
-#else
-    auto graph =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
-        handle, configuration.graph_file_full_path, false);
-    auto graph_view = graph.view();
-#endif
 
     std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
     std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
@@ -200,8 +188,6 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                                                  handle.get_stream());
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-
-#ifdef _USE_VISITOR_
     {
       // visitors version:
       //
@@ -248,19 +234,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       //      we can invoke the algorithm via the wrapper:
       //
       return_t ret = bfs_wrapper(graph_envelope, ep);
-
-      std::cout << "############# Visitor used...\n";
     }
-#else
-    cugraph::experimental::bfs(handle,
-                               graph_view,
-                               d_distances.begin(),
-                               d_predecessors.begin(),
-                               static_cast<vertex_t>(configuration.source),
-                               false,
-                               std::numeric_limits<vertex_t>::max(),
-                               false);
-#endif
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
