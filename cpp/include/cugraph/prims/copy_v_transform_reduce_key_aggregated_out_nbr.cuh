@@ -53,20 +53,13 @@ struct minor_to_key_t {
   }
 };
 
-template <typename GraphViewType>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 __global__ void for_all_major_for_all_nbr_mid_degree(
-  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> matrix_partition,
-  typename GraphViewType::vertex_type major_first,
-  typename GraphViewType::vertex_type major_last,
-  typename GraphViewType::vertex_type* majors)
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,
+  vertex_t major_first,
+  vertex_t major_last,
+  vertex_t* majors)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
-
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(
     copy_v_transform_reduce_key_aggregated_out_nbr_for_all_block_size % raft::warp_size() == 0);
@@ -90,20 +83,13 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   }
 }
 
-template <typename GraphViewType>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 __global__ void for_all_major_for_all_nbr_high_degree(
-  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> matrix_partition,
-  typename GraphViewType::vertex_type major_first,
-  typename GraphViewType::vertex_type major_last,
-  typename GraphViewType::vertex_type* majors)
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,
+  vertex_t major_first,
+  vertex_t major_last,
+  vertex_t* majors)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
-
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(blockIdx.x);
 
@@ -124,15 +110,12 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   }
 }
 
-template <typename GraphViewType>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void decompress_matrix_partition_to_fill_edgelist_majors(
   raft::handle_t const& handle,
-  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> matrix_partition,
-  std::optional<std::vector<typename GraphViewType::vertex_type>> const& segment_offsets,
-  typename GraphViewType::vertex_type* majors)
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,
+  vertex_t* majors,
+  std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
   if (segment_offsets) {
     // FIXME: we may further improve performance by 1) concurrently running kernels on different
@@ -145,12 +128,14 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
         detail::copy_v_transform_reduce_key_aggregated_out_nbr_for_all_block_size,
         handle.get_device_properties().maxGridSize[0]);
 
-      detail::for_all_major_for_all_nbr_high_degree<GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-          matrix_partition,
-          matrix_partition.get_major_first(),
-          matrix_partition.get_major_first() + (*segment_offsets)[1],
-          majors);
+      detail::for_all_major_for_all_nbr_high_degree<<<update_grid.num_blocks,
+                                                      update_grid.block_size,
+                                                      0,
+                                                      handle.get_stream()>>>(
+        matrix_partition,
+        matrix_partition.get_major_first(),
+        matrix_partition.get_major_first() + (*segment_offsets)[1],
+        majors);
     }
     if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
       raft::grid_1d_warp_t update_grid(
@@ -158,12 +143,14 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
         detail::copy_v_transform_reduce_key_aggregated_out_nbr_for_all_block_size,
         handle.get_device_properties().maxGridSize[0]);
 
-      detail::for_all_major_for_all_nbr_mid_degree<GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-          matrix_partition,
-          matrix_partition.get_major_first() + (*segment_offsets)[1],
-          matrix_partition.get_major_first() + (*segment_offsets)[2],
-          majors);
+      detail::for_all_major_for_all_nbr_mid_degree<<<update_grid.num_blocks,
+                                                     update_grid.block_size,
+                                                     0,
+                                                     handle.get_stream()>>>(
+        matrix_partition,
+        matrix_partition.get_major_first() + (*segment_offsets)[1],
+        matrix_partition.get_major_first() + (*segment_offsets)[2],
+        majors);
     }
     if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
       thrust::for_each(
@@ -427,11 +414,11 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                      *(matrix_partition.get_weights()) + matrix_partition.get_number_of_edges(),
                      tmp_key_aggregated_edge_weights.begin());
       }
-      detail::decompress_matrix_partition_to_fill_edgelist_majors<GraphViewType>(
+      detail::decompress_matrix_partition_to_fill_edgelist_majors(
         handle,
         matrix_partition,
-        graph_view.get_local_adj_matrix_partition_segment_offsets(i),
-        tmp_major_vertices.data());
+        tmp_major_vertices.data(),
+        graph_view.get_local_adj_matrix_partition_segment_offsets(i));
       rmm::device_uvector<vertex_t> reduced_major_vertices(tmp_major_vertices.size(),
                                                            handle.get_stream());
       rmm::device_uvector<vertex_t> reduced_minor_keys(reduced_major_vertices.size(),

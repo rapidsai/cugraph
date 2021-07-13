@@ -19,6 +19,7 @@
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/experimental/graph_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/prims/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_barrier.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -48,37 +49,26 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 decompress_matrix_partition_to_edgelist(
+  raft::handle_t const& handle,
   matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
-  cudaStream_t stream)
+  std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
   auto number_of_edges = matrix_partition.get_number_of_edges();
-  rmm::device_uvector<vertex_t> edgelist_major_vertices(number_of_edges, stream);
-  rmm::device_uvector<vertex_t> edgelist_minor_vertices(number_of_edges, stream);
+  rmm::device_uvector<vertex_t> edgelist_major_vertices(number_of_edges, handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_minor_vertices(number_of_edges, handle.get_stream());
   auto edgelist_weights =
     matrix_partition.get_weights()
-      ? std::make_optional<rmm::device_uvector<weight_t>>(number_of_edges, stream)
+      ? std::make_optional<rmm::device_uvector<weight_t>>(number_of_edges, handle.get_stream())
       : std::nullopt;
 
-  auto major_first = matrix_partition.get_major_first();
-  auto major_last  = matrix_partition.get_major_last();
-  // FIXME: this is highly inefficient for very high-degree vertices, for better performance, we can
-  // fill high-degree vertices using one CUDA block per vertex, mid-degree vertices using one CUDA
-  // warp per vertex, and low-degree vertices using one CUDA thread per block
-  thrust::for_each(
-    rmm::exec_policy(stream)->on(stream),
-    thrust::make_counting_iterator(major_first),
-    thrust::make_counting_iterator(major_last),
-    [matrix_partition, major_first, p_majors = edgelist_major_vertices.begin()] __device__(auto v) {
-      auto first = matrix_partition.get_local_offset(v - major_first);
-      auto last  = first + matrix_partition.get_local_degree(v - major_first);
-      thrust::fill(thrust::seq, p_majors + first, p_majors + last, v);
-    });
-  thrust::copy(rmm::exec_policy(stream)->on(stream),
+  decompress_matrix_partition_to_fill_edgelist_majors(
+    handle, matrix_partition, edgelist_major_vertices.data(), segment_offsets);
+  thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                matrix_partition.get_indices(),
                matrix_partition.get_indices() + number_of_edges,
                edgelist_minor_vertices.begin());
   if (edgelist_weights) {
-    thrust::copy(rmm::exec_policy(stream)->on(stream),
+    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                  *(matrix_partition.get_weights()),
                  *(matrix_partition.get_weights()) + number_of_edges,
                  (*edgelist_weights).data());
@@ -145,20 +135,21 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+  raft::handle_t const& handle,
   matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
   vertex_t const* p_major_labels,
   vertex_t const* p_minor_labels,
-  cudaStream_t stream)
+  std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
   // compressed sparse format to save memory
 
   auto [edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights] =
-    decompress_matrix_partition_to_edgelist(matrix_partition, stream);
+    decompress_matrix_partition_to_edgelist(handle, matrix_partition, segment_offsets);
 
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
-  thrust::transform(rmm::exec_policy(stream)->on(stream),
+  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                     pair_first,
                     pair_first + edgelist_major_vertices.size(),
                     pair_first,
@@ -175,14 +166,14 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
     edgelist_minor_vertices.data(),
     edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
     static_cast<edge_t>(edgelist_major_vertices.size()),
-    stream);
-  edgelist_major_vertices.resize(number_of_edges, stream);
-  edgelist_major_vertices.shrink_to_fit(stream);
-  edgelist_minor_vertices.resize(number_of_edges, stream);
-  edgelist_minor_vertices.shrink_to_fit(stream);
+    handle.get_stream());
+  edgelist_major_vertices.resize(number_of_edges, handle.get_stream());
+  edgelist_major_vertices.shrink_to_fit(handle.get_stream());
+  edgelist_minor_vertices.resize(number_of_edges, handle.get_stream());
+  edgelist_minor_vertices.shrink_to_fit(handle.get_stream());
   if (edgelist_weights) {
-    (*edgelist_weights).resize(number_of_edges, stream);
-    (*edgelist_weights).shrink_to_fit(stream);
+    (*edgelist_weights).resize(number_of_edges, handle.get_stream());
+    (*edgelist_weights).shrink_to_fit(handle.get_stream());
   }
 
   return std::make_tuple(std::move(edgelist_major_vertices),
@@ -297,11 +288,12 @@ coarsen_graph(
 
     auto [edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights] =
       decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+        handle,
         matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
           graph_view.get_matrix_partition_view(i)),
         major_labels.data(),
         adj_matrix_minor_labels.data(),
-        handle.get_stream());
+        graph_view.get_local_adj_matrix_partition_segment_offsets(i));
 
     // 1-2. globaly shuffle
 
@@ -577,11 +569,12 @@ coarsen_graph(
         coarsened_edgelist_minor_vertices,
         coarsened_edgelist_weights] =
     decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+      handle,
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
         graph_view.get_matrix_partition_view()),
       labels,
       labels,
-      handle.get_stream());
+      graph_view.get_local_adj_matrix_partition_segment_offsets(0));
 
   rmm::device_uvector<vertex_t> unique_labels(graph_view.get_number_of_vertices(),
                                               handle.get_stream());
