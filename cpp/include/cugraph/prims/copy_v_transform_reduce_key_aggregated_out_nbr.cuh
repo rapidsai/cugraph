@@ -165,6 +165,24 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
             thrust::seq, majors + local_offset, majors + local_offset + local_degree, major);
         });
     }
+    if (matrix_partition.get_dcs_nzd_vertex_count() &&
+        (*(matrix_partition.get_dcs_nzd_vertex_count()) > 0)) {
+      thrust::for_each(
+        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::make_counting_iterator(vertex_t{0}),
+        thrust::make_counting_iterator(*(matrix_partition.get_dcs_nzd_vertex_count())),
+        [matrix_partition, major_start_offset = (*segment_offsets)[3], majors] __device__(
+          auto idx) {
+          auto major = *(matrix_partition.get_major_from_major_hypersparse_idx_nocheck(
+            static_cast<vertex_t>(idx)));
+          auto major_idx =
+            major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
+          auto local_degree = matrix_partition.get_local_degree(major_idx);
+          auto local_offset = matrix_partition.get_local_offset(major_idx);
+          thrust::fill(
+            thrust::seq, majors + local_offset, majors + local_offset + local_degree, major);
+        });
+    }
   } else {
     thrust::for_each(
       rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
