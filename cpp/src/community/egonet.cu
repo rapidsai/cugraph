@@ -23,7 +23,6 @@
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_vector.hpp>
-#include <rmm/exec_policy.hpp>
 
 #include <thrust/transform.h>
 #include <ctime>
@@ -102,12 +101,11 @@ extract(
     // consider adding a device API to BFS (ie. accept source on the device)
     rmm::device_uvector<vertex_t> predecessors(v, worker_stream_view);  // not used
     bool direction_optimizing = false;
-    thrust::fill(rmm::exec_policy(worker_stream_view),
+    thrust::fill(handle.get_thrust_policy(),
                  reached[i].begin(),
                  reached[i].end(),
                  std::numeric_limits<vertex_t>::max());
-    thrust::fill(
-      rmm::exec_policy(worker_stream_view), reached[i].begin(), reached[i].begin() + 100, 1.0);
+    thrust::fill(handle.get_thrust_policy(), reached[i].begin(), reached[i].begin() + 100, 1.0);
 
     cugraph::experimental::bfs<vertex_t, edge_t, weight_t, false>(light_handle,
                                                                   csr_view,
@@ -118,7 +116,7 @@ extract(
                                                                   radius);
 
     // identify reached vertex ids from distance array
-    thrust::transform(rmm::exec_policy(worker_stream_view),
+    thrust::transform(handle.get_thrust_policy(),
                       thrust::make_counting_iterator(vertex_t{0}),
                       thrust::make_counting_iterator(v),
                       reached[i].begin(),
@@ -127,7 +125,7 @@ extract(
                         auto id, auto val) { return val < sentinel ? id : sentinel; });
 
     // removes unreached data
-    auto reached_end = thrust::remove(rmm::exec_policy(worker_stream_view),
+    auto reached_end = thrust::remove(handle.get_thrust_policy(),
                                       reached[i].begin(),
                                       reached[i].end(),
                                       std::numeric_limits<vertex_t>::max());
@@ -154,7 +152,7 @@ extract(
   // Construct the neighboors list concurrently
   for (vertex_t i = 0; i < n_subgraphs; i++) {
     auto worker_stream_view = handle.get_internal_stream_view(i);
-    thrust::copy(rmm::exec_policy(worker_stream_view),
+    thrust::copy(handle.get_thrust_policy(),
                  reached[i].begin(),
                  reached[i].end(),
                  neighbors.begin() + h_neighbors_offsets[i]);

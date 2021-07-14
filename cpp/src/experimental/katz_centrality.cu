@@ -23,7 +23,6 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
-#include <rmm/exec_policy.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -81,7 +80,7 @@ void katz_centrality(raft::handle_t const& handle,
   // 2. initialize katz centrality values
 
   if (!has_initial_guess) {
-    thrust::fill(rmm::exec_policy(handle.get_stream()),
+    thrust::fill(handle.get_thrust_policy(),
                  katz_centralities,
                  katz_centralities + pull_graph_view.get_number_of_local_vertices(),
                  result_t{0.0});
@@ -116,7 +115,7 @@ void katz_centrality(raft::handle_t const& handle,
 
     if (betas != nullptr) {
       auto val_first = thrust::make_zip_iterator(thrust::make_tuple(new_katz_centralities, betas));
-      thrust::transform(rmm::exec_policy(handle.get_stream()),
+      thrust::transform(handle.get_thrust_policy(),
                         val_first,
                         val_first + pull_graph_view.get_number_of_local_vertices(),
                         new_katz_centralities,
@@ -144,7 +143,7 @@ void katz_centrality(raft::handle_t const& handle,
   }
 
   if (new_katz_centralities != katz_centralities) {
-    thrust::copy(rmm::exec_policy(handle.get_stream()),
+    thrust::copy(handle.get_thrust_policy(),
                  new_katz_centralities,
                  new_katz_centralities + pull_graph_view.get_number_of_local_vertices(),
                  katz_centralities);
@@ -160,7 +159,7 @@ void katz_centrality(raft::handle_t const& handle,
     l2_norm = std::sqrt(l2_norm);
     CUGRAPH_EXPECTS(l2_norm > 0.0,
                     "L2 norm of the computed Katz Centrality values should be positive.");
-    thrust::transform(rmm::exec_policy(handle.get_stream()),
+    thrust::transform(handle.get_thrust_policy(),
                       katz_centralities,
                       katz_centralities + pull_graph_view.get_number_of_local_vertices(),
                       katz_centralities,

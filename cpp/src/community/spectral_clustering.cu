@@ -25,7 +25,6 @@
 #include <thrust/transform.h>
 #include <ctime>
 #include <rmm/device_vector.hpp>
-#include <rmm/exec_policy.hpp>
 
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -70,8 +69,6 @@ void balancedCutClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t>
   RAFT_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
 
   raft::handle_t handle;
-  auto stream  = handle.get_stream();
-  auto t_exe_p = rmm::exec_policy(stream);
 
   int evs_max_it{4000};
   int kmean_max_it{200};
@@ -105,7 +102,7 @@ void balancedCutClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t>
   raft::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
 
   raft::spectral::partition(
-    handle, t_exe_p, r_csr_m, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
+    handle, r_csr_m, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -140,8 +137,6 @@ void spectralModularityMaximization_impl(
   RAFT_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
 
   raft::handle_t handle;
-  auto stream  = handle.get_stream();
-  auto t_exe_p = rmm::exec_policy(stream);
 
   int evs_max_it{4000};
   int kmean_max_it{200};
@@ -177,7 +172,7 @@ void spectralModularityMaximization_impl(
   // not returned...
   // auto result =
   raft::spectral::modularity_maximization(
-    handle, t_exe_p, r_csr_m, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
+    handle, r_csr_m, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
 
   // not returned...
   // int iters_lanczos, iters_kmeans;
@@ -192,8 +187,6 @@ void analyzeModularityClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, wei
                                       weight_t* modularity)
 {
   raft::handle_t handle;
-  auto stream  = handle.get_stream();
-  auto t_exe_p = rmm::exec_policy(stream);
 
   using index_type = vertex_t;
   using value_type = weight_t;
@@ -201,7 +194,7 @@ void analyzeModularityClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, wei
   raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
   weight_t mod;
-  raft::spectral::analyzeModularity(handle, t_exe_p, r_csr_m, n_clusters, clustering, mod);
+  raft::spectral::analyzeModularity(handle, r_csr_m, n_clusters, clustering, mod);
   *modularity = mod;
 }
 
@@ -213,8 +206,6 @@ void analyzeBalancedCut_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t> co
                              weight_t* ratioCut)
 {
   raft::handle_t handle;
-  auto stream  = handle.get_stream();
-  auto t_exe_p = rmm::exec_policy(stream);
 
   RAFT_EXPECTS(n_clusters <= graph.number_of_vertices,
                "API error: number of clusters must be <= number of vertices");
@@ -228,8 +219,7 @@ void analyzeBalancedCut_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t> co
 
   raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
-  raft::spectral::analyzePartition(
-    handle, t_exe_p, r_csr_m, n_clusters, clustering, edge_cut, cost);
+  raft::spectral::analyzePartition(handle, r_csr_m, n_clusters, clustering, edge_cut, cost);
 
   *edgeCut  = edge_cut;
   *ratioCut = cost;

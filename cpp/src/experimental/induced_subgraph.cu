@@ -22,7 +22,6 @@
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -77,13 +76,13 @@ extract_induced_subgraphs(
     CUGRAPH_EXPECTS(should_be_zero == 0,
                     "Invalid input argument: subgraph_offsets[0] should be 0.");
 
-    CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(handle.get_stream_view()),
-                                      subgraph_offsets,
-                                      subgraph_offsets + (num_subgraphs + 1)),
-                    "Invalid input argument: subgraph_offsets is not sorted.");
+    CUGRAPH_EXPECTS(
+      thrust::is_sorted(
+        handle.get_thrust_policy(), subgraph_offsets, subgraph_offsets + (num_subgraphs + 1)),
+      "Invalid input argument: subgraph_offsets is not sorted.");
     auto vertex_partition =
       vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.get_vertex_partition_view());
-    CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
+    CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
                                      subgraph_vertices,
                                      subgraph_vertices + num_aggregate_subgraph_vertices,
                                      [vertex_partition] __device__(auto v) {
@@ -94,7 +93,7 @@ extract_induced_subgraphs(
 
     CUGRAPH_EXPECTS(
       thrust::count_if(
-        rmm::exec_policy(handle.get_stream_view()),
+        handle.get_thrust_policy(),
         thrust::make_counting_iterator(size_t{0}),
         thrust::make_counting_iterator(num_subgraphs),
         [subgraph_offsets, subgraph_vertices] __device__(auto i) {
@@ -139,7 +138,7 @@ extract_induced_subgraphs(
     // count the numbers of the induced subgraph edges for each vertex in the aggregate subgraph
     // vertex list.
     thrust::transform(
-      rmm::exec_policy(handle.get_stream_view()),
+      handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
       thrust::make_counting_iterator(num_aggregate_subgraph_vertices),
       subgraph_vertex_output_offsets.begin(),
@@ -165,7 +164,7 @@ extract_induced_subgraphs(
             return thrust::binary_search(thrust::seq, vertex_first, vertex_last, nbr);
           });
       });
-    thrust::exclusive_scan(rmm::exec_policy(handle.get_stream_view()),
+    thrust::exclusive_scan(handle.get_thrust_policy(),
                            subgraph_vertex_output_offsets.begin(),
                            subgraph_vertex_output_offsets.end(),
                            subgraph_vertex_output_offsets.begin());
@@ -189,7 +188,7 @@ extract_induced_subgraphs(
     // fill the edge list buffer (to be returned) for each vetex in the aggregate subgraph vertex
     // list (use the offsets computed in the Phase 1)
     thrust::for_each(
-      rmm::exec_policy(handle.get_stream_view()),
+      handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
       thrust::make_counting_iterator(num_aggregate_subgraph_vertices),
       [subgraph_offsets,
@@ -247,7 +246,7 @@ extract_induced_subgraphs(
       });
 
     rmm::device_uvector<size_t> subgraph_edge_offsets(num_subgraphs + 1, handle.get_stream_view());
-    thrust::gather(rmm::exec_policy(handle.get_stream_view()),
+    thrust::gather(handle.get_thrust_policy(),
                    subgraph_offsets,
                    subgraph_offsets + (num_subgraphs + 1),
                    subgraph_vertex_output_offsets.begin(),

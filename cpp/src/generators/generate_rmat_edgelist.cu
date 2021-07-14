@@ -20,7 +20,6 @@
 #include <raft/handle.hpp>
 #include <raft/random/rng.cuh>
 #include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
 
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
@@ -67,7 +66,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
     rng.uniform<float, size_t>(
       rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, handle.get_stream());
     thrust::transform(
-      rmm::exec_policy(handle.get_stream_view()),
+      handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
       thrust::make_counting_iterator(num_edges_to_generate),
       pair_first,
