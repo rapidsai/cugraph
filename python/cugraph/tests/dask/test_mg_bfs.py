@@ -17,22 +17,13 @@ import pytest
 import cugraph
 import dask_cudf
 import cudf
-from cugraph.dask.common.mg_utils import (is_single_gpu,
-                                          setup_local_dask_cluster,
-                                          teardown_local_dask_cluster)
-
-
-@pytest.fixture(scope="module")
-def client_connection():
-    (cluster, client) = setup_local_dask_cluster(p2p=True)
-    yield client
-    teardown_local_dask_cluster(cluster, client)
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_dask_bfs(client_connection):
+def test_dask_bfs(dask_client):
     gc.collect()
 
     # FIXME: update this to allow dataset to be parameterized and have dataset
@@ -83,7 +74,7 @@ def test_dask_bfs(client_connection):
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_dask_bfs_multi_column_depthlimit(client_connection):
+def test_dask_bfs_multi_column_depthlimit(dask_client):
     gc.collect()
 
     # FIXME: update this to allow dataset to be parameterized and have dataset
