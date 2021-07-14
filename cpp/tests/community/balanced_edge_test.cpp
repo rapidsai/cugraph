@@ -12,6 +12,7 @@
 
 #include <cugraph/algorithms.hpp>
 
+#include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
 TEST(balanced_edge, success)

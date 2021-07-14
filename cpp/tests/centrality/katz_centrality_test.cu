@@ -22,6 +22,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <rmm/device_vector.hpp>
 
 #include <gmock/gmock-generated-matchers.h>
 #include <gmock/gmock.h>

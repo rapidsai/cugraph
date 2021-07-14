@@ -15,9 +15,7 @@
  */
 #pragma once
 
-#include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/device_vector.hpp>
 
 #include <memory>
 #include <vector>
