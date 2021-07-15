@@ -30,16 +30,17 @@ import cugraph.dask.common.mg_utils as mg_utils
 import numpy as np
 
 
-def replicate_cudf_dataframe(input_graph, cudf_dataframe, client=None, comms=None):
+def replicate_cudf_dataframe(cudf_dataframe, client=None, comms=None):
     if type(cudf_dataframe) is not cudf.DataFrame:
         raise TypeError("Expected a cudf.Series to replicate")
     client = mg_utils.get_client() if client is None else client
     comms = Comms.get_comms() if comms is None else comms
     dask_cudf_df = dask_cudf.from_cudf(cudf_dataframe, npartitions=1)
     df_length = len(dask_cudf_df)
-
-    batch_enabled = input_graph.batch_enabled
-    _df_data =  get_mg_batch_data(dask_cudf_df, batch_enabled=batch_enabled)
+    
+    #if input_graph!=None:
+    #    batch_enabled = input_graph.batch_enabled
+    _df_data =  get_mg_batch_data(dask_cudf_df, batch_enabled=True)
     df_data =  mg_utils.prepare_worker_to_parts(_df_data, client)
 
     workers_to_futures = {worker: client.submit(_replicate_cudf_dataframe,
@@ -83,7 +84,7 @@ def _replicate_cudf_dataframe(input_data, session_id):
     return result
 
 
-def replicate_cudf_series(input_graph, cudf_series, client=None, comms=None):
+def replicate_cudf_series(cudf_series, client=None, comms=None):
     if type(cudf_series) is not cudf.Series:
         raise TypeError("Expected a cudf.Series to replicate")
     client = mg_utils.get_client() if client is None else client
@@ -91,8 +92,9 @@ def replicate_cudf_series(input_graph, cudf_series, client=None, comms=None):
     dask_cudf_series =  dask_cudf.from_cudf(cudf_series,
                                             npartitions=1)
     series_length = len(dask_cudf_series)
-    batch_enabled = input_graph.batch_enabled
-    _series_data = get_mg_batch_data(dask_cudf_series, batch_enabled=batch_enabled)
+    #if input_graph!=None:
+    #    batch_enabled = input_graph.batch_enabled
+    _series_data = get_mg_batch_data(dask_cudf_series, batch_enabled=True)
     series_data = mg_utils.prepare_worker_to_parts(_series_data)
 
     dtype = cudf_series.dtype

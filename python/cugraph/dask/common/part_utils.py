@@ -79,7 +79,6 @@ def persist_distributed_data(dask_df, client):
 
 
 async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
-
     client = default_client() if client is None else client
     worker_list = Comms.get_workers()
     # dask.dataframe or dask.array

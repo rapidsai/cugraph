@@ -421,7 +421,7 @@ class simpleGraphImpl:
         if client is None:
             return
         work_futures = replication.replicate_cudf_dataframe(
-            self, self.edgelist.edgelist_df, client=client, comms=comms
+            self.edgelist.edgelist_df, client=client, comms=comms
         )
 
         self.batch_edgelists = work_futures
@@ -436,10 +436,10 @@ class simpleGraphImpl:
 
         weights = None
         offsets_futures = replication.replicate_cudf_series(
-            self, self.adjlist.offsets, client=client, comms=comms
+            self.adjlist.offsets, client=client, comms=comms
         )
         indices_futures = replication.replicate_cudf_series(
-            self, self.adjlist.indices, client=client, comms=comms
+            self.adjlist.indices, client=client, comms=comms
         )
 
         if self.adjlist.weights is not None:

@@ -38,7 +38,7 @@ from cugraph.tests.test_betweenness_centrality import (
 # Parameters
 # =============================================================================
 DATASETS = [utils.DATASETS_UNDIRECTED[0]]
-MG_DEVICE_COUNT_OPTIONS = [pytest.param(1, marks=pytest.mark.preset_gpu_count),
+MG_DEVICE_COUNT_OPTIONS = [pytest.param(2, marks=pytest.mark.preset_gpu_count),
                            pytest.param(2, marks=pytest.mark.preset_gpu_count),
                            pytest.param(3, marks=pytest.mark.preset_gpu_count),
                            pytest.param(4, marks=pytest.mark.preset_gpu_count),
