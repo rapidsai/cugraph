@@ -312,6 +312,11 @@ TEST_P(Tests_Louvain, CheckInt32Int32FloatFloat)
   run_current_test<int32_t, int32_t, float, float>(GetParam());
 }
 
+TEST_P(Tests_Louvain, CheckInt64Int64FloatFloat)
+{
+  run_current_test<int64_t, int64_t, float, float>(GetParam());
+}
+
 // FIXME: Expand testing once we evaluate RMM memory use
 INSTANTIATE_TEST_SUITE_P(
   simple_test,

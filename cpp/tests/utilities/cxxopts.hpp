@@ -17,6 +17,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+/*
+ * Copyright (c) 2021, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #ifndef CXXOPTS_HPP_INCLUDED
 #define CXXOPTS_HPP_INCLUDED
 
@@ -89,7 +105,9 @@ inline String& stringAppend(String& s, String a) { return s.append(std::move(a))
 
 inline String& stringAppend(String& s, int n, UChar32 c)
 {
-  for (int i = 0; i != n; ++i) { s.append(c); }
+  for (int i = 0; i != n; ++i) {
+    s.append(c);
+  }
 
   return s;
 }
@@ -1449,7 +1467,9 @@ inline void Options::generate_all_groups_help(String& result) const
   std::vector<std::string> all_groups;
   all_groups.reserve(m_help.size());
 
-  for (auto& group : m_help) { all_groups.push_back(group.first); }
+  for (auto& group : m_help) {
+    all_groups.push_back(group.first);
+  }
 
   generate_group_help(result, all_groups);
 }

@@ -23,7 +23,7 @@ namespace cugraph {
 namespace test {
 
 template <typename T>
-rmm::device_uvector<T> device_gatherv(raft::handle_t const &handle, T const *d_input, size_t size);
+rmm::device_uvector<T> device_gatherv(raft::handle_t const& handle, T const* d_input, size_t size);
 
 }  // namespace test
 }  // namespace cugraph

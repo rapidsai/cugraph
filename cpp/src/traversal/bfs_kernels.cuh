@@ -40,11 +40,11 @@ namespace bfs_kernels {
 // visited_bmap_nints = the visited_bmap is made of that number of ints
 
 template <typename IndexType>
-__global__ void fill_unvisited_queue_kernel(int *visited_bmap,
+__global__ void fill_unvisited_queue_kernel(int* visited_bmap,
                                             IndexType visited_bmap_nints,
                                             IndexType n,
-                                            IndexType *unvisited,
-                                            IndexType *unvisited_cnt)
+                                            IndexType* unvisited,
+                                            IndexType* unvisited_cnt)
 {
   typedef cub::BlockScan<int, FILL_UNVISITED_QUEUE_DIMX> BlockScan;
   __shared__ typename BlockScan::TempStorage scan_temp_storage;
@@ -118,8 +118,8 @@ __global__ void fill_unvisited_queue_kernel(int *visited_bmap,
         vec_v.z = v_idx * INT_SIZE + traversal::getNextZeroBit(thread_visited_int);
         vec_v.w = v_idx * INT_SIZE + traversal::getNextZeroBit(thread_visited_int);
 
-        typename traversal::vec_t<IndexType>::vec4 *unvisited_i4 =
-          reinterpret_cast<typename traversal::vec_t<IndexType>::vec4 *>(
+        typename traversal::vec_t<IndexType>::vec4* unvisited_i4 =
+          reinterpret_cast<typename traversal::vec_t<IndexType>::vec4*>(
             &unvisited[current_unvisited_index]);
         *unvisited_i4 = vec_v;
 
@@ -131,8 +131,8 @@ __global__ void fill_unvisited_queue_kernel(int *visited_bmap,
         vec_v.x = v_idx * INT_SIZE + traversal::getNextZeroBit(thread_visited_int);
         vec_v.y = v_idx * INT_SIZE + traversal::getNextZeroBit(thread_visited_int);
 
-        typename traversal::vec_t<IndexType>::vec2 *unvisited_i2 =
-          reinterpret_cast<typename traversal::vec_t<IndexType>::vec2 *>(
+        typename traversal::vec_t<IndexType>::vec2* unvisited_i2 =
+          reinterpret_cast<typename traversal::vec_t<IndexType>::vec2*>(
             &unvisited[current_unvisited_index]);
         *unvisited_i2 = vec_v;
 
@@ -152,11 +152,11 @@ __global__ void fill_unvisited_queue_kernel(int *visited_bmap,
 
 // Wrapper
 template <typename IndexType>
-void fill_unvisited_queue(int *visited_bmap,
+void fill_unvisited_queue(int* visited_bmap,
                           IndexType visited_bmap_nints,
                           IndexType n,
-                          IndexType *unvisited,
-                          IndexType *unvisited_cnt,
+                          IndexType* unvisited,
+                          IndexType* unvisited_cnt,
                           cudaStream_t m_stream,
                           bool deterministic)
 {
@@ -181,11 +181,11 @@ void fill_unvisited_queue(int *visited_bmap,
 //
 
 template <typename IndexType>
-__global__ void count_unvisited_edges_kernel(const IndexType *potentially_unvisited,
+__global__ void count_unvisited_edges_kernel(const IndexType* potentially_unvisited,
                                              const IndexType potentially_unvisited_size,
-                                             const int *visited_bmap,
-                                             IndexType *degree_vertices,
-                                             IndexType *mu)
+                                             const int* visited_bmap,
+                                             IndexType* degree_vertices,
+                                             IndexType* mu)
 {
   typedef cub::BlockReduce<IndexType, COUNT_UNVISITED_EDGES_DIMX> BlockReduce;
   __shared__ typename BlockReduce::TempStorage reduce_temp_storage;
@@ -214,11 +214,11 @@ __global__ void count_unvisited_edges_kernel(const IndexType *potentially_unvisi
 
 // Wrapper
 template <typename IndexType>
-void count_unvisited_edges(const IndexType *potentially_unvisited,
+void count_unvisited_edges(const IndexType* potentially_unvisited,
                            const IndexType potentially_unvisited_size,
-                           const int *visited_bmap,
-                           IndexType *node_degree,
-                           IndexType *mu,
+                           const int* visited_bmap,
+                           IndexType* node_degree,
+                           IndexType* mu,
                            cudaStream_t m_stream)
 {
   dim3 grid, block;
@@ -246,19 +246,19 @@ void count_unvisited_edges(const IndexType *potentially_unvisited,
 //
 
 template <typename IndexType>
-__global__ void main_bottomup_kernel(const IndexType *unvisited,
+__global__ void main_bottomup_kernel(const IndexType* unvisited,
                                      const IndexType unvisited_size,
-                                     IndexType *left_unvisited,
-                                     IndexType *left_unvisited_cnt,
-                                     int *visited_bmap,
-                                     const IndexType *row_ptr,
-                                     const IndexType *col_ind,
+                                     IndexType* left_unvisited,
+                                     IndexType* left_unvisited_cnt,
+                                     int* visited_bmap,
+                                     const IndexType* row_ptr,
+                                     const IndexType* col_ind,
                                      IndexType lvl,
-                                     IndexType *new_frontier,
-                                     IndexType *new_frontier_cnt,
-                                     IndexType *distances,
-                                     IndexType *predecessors,
-                                     int *edge_mask)
+                                     IndexType* new_frontier,
+                                     IndexType* new_frontier_cnt,
+                                     IndexType* distances,
+                                     IndexType* predecessors,
+                                     int* edge_mask)
 {
   typedef cub::BlockDiscontinuity<IndexType, MAIN_BOTTOMUP_DIMX> BlockDiscontinuity;
   typedef cub::WarpReduce<int> WarpReduce;
@@ -487,19 +487,19 @@ __global__ void main_bottomup_kernel(const IndexType *unvisited,
 }
 
 template <typename IndexType>
-void bottom_up_main(IndexType *unvisited,
+void bottom_up_main(IndexType* unvisited,
                     IndexType unvisited_size,
-                    IndexType *left_unvisited,
-                    IndexType *d_left_unvisited_idx,
-                    int *visited,
-                    const IndexType *row_ptr,
-                    const IndexType *col_ind,
+                    IndexType* left_unvisited,
+                    IndexType* d_left_unvisited_idx,
+                    int* visited,
+                    const IndexType* row_ptr,
+                    const IndexType* col_ind,
                     IndexType lvl,
-                    IndexType *new_frontier,
-                    IndexType *new_frontier_idx,
-                    IndexType *distances,
-                    IndexType *predecessors,
-                    int *edge_mask,
+                    IndexType* new_frontier,
+                    IndexType* new_frontier_idx,
+                    IndexType* distances,
+                    IndexType* predecessors,
+                    int* edge_mask,
                     cudaStream_t m_stream,
                     bool deterministic)
 {
@@ -531,17 +531,17 @@ void bottom_up_main(IndexType *unvisited,
 // MAIN_BOTTOMUP_MAX_EDGES && no parent found
 //
 template <typename IndexType>
-__global__ void bottom_up_large_degree_kernel(IndexType *left_unvisited,
+__global__ void bottom_up_large_degree_kernel(IndexType* left_unvisited,
                                               IndexType left_unvisited_size,
-                                              int *visited,
-                                              const IndexType *row_ptr,
-                                              const IndexType *col_ind,
+                                              int* visited,
+                                              const IndexType* row_ptr,
+                                              const IndexType* col_ind,
                                               IndexType lvl,
-                                              IndexType *new_frontier,
-                                              IndexType *new_frontier_cnt,
-                                              IndexType *distances,
-                                              IndexType *predecessors,
-                                              int *edge_mask)
+                                              IndexType* new_frontier,
+                                              IndexType* new_frontier_cnt,
+                                              IndexType* distances,
+                                              IndexType* predecessors,
+                                              int* edge_mask)
 {
   int logical_lane_id         = threadIdx.x % BOTTOM_UP_LOGICAL_WARP_SIZE;
   int logical_warp_id         = threadIdx.x / BOTTOM_UP_LOGICAL_WARP_SIZE;
@@ -610,17 +610,17 @@ __global__ void bottom_up_large_degree_kernel(IndexType *left_unvisited,
 }
 
 template <typename IndexType>
-void bottom_up_large(IndexType *left_unvisited,
+void bottom_up_large(IndexType* left_unvisited,
                      IndexType left_unvisited_size,
-                     int *visited,
-                     const IndexType *row_ptr,
-                     const IndexType *col_ind,
+                     int* visited,
+                     const IndexType* row_ptr,
+                     const IndexType* col_ind,
                      IndexType lvl,
-                     IndexType *new_frontier,
-                     IndexType *new_frontier_idx,
-                     IndexType *distances,
-                     IndexType *predecessors,
-                     int *edge_mask,
+                     IndexType* new_frontier,
+                     IndexType* new_frontier_idx,
+                     IndexType* distances,
+                     IndexType* predecessors,
+                     int* edge_mask,
                      cudaStream_t m_stream,
                      bool deterministic)
 {
@@ -680,24 +680,24 @@ void bottom_up_large(IndexType *left_unvisited,
 
 template <typename IndexType>
 __global__ void topdown_expand_kernel(
-  const IndexType *row_ptr,
-  const IndexType *col_ind,
-  const IndexType *frontier,
+  const IndexType* row_ptr,
+  const IndexType* col_ind,
+  const IndexType* frontier,
   const IndexType frontier_size,
   const IndexType totaldegree,
   const IndexType max_items_per_thread,
   const IndexType lvl,
-  IndexType *new_frontier,
-  IndexType *new_frontier_cnt,
-  const IndexType *frontier_degrees_exclusive_sum,
-  const IndexType *frontier_degrees_exclusive_sum_buckets_offsets,
-  int *previous_bmap,
-  int *bmap,
-  IndexType *distances,
-  IndexType *predecessors,
-  double *sp_counters,
-  const int *edge_mask,
-  const int *isolated_bmap,
+  IndexType* new_frontier,
+  IndexType* new_frontier_cnt,
+  const IndexType* frontier_degrees_exclusive_sum,
+  const IndexType* frontier_degrees_exclusive_sum_buckets_offsets,
+  int* previous_bmap,
+  int* bmap,
+  IndexType* distances,
+  IndexType* predecessors,
+  double* sp_counters,
+  const int* edge_mask,
+  const int* isolated_bmap,
   bool directed)
 {
   // BlockScan
@@ -844,7 +844,7 @@ __global__ void topdown_expand_kernel(
         IndexType local_buf1[TOP_DOWN_BATCH_SIZE];
         IndexType local_buf2[TOP_DOWN_BATCH_SIZE];
 
-        IndexType *vec_frontier_degrees_exclusive_sum_index = &local_buf2[0];
+        IndexType* vec_frontier_degrees_exclusive_sum_index = &local_buf2[0];
 
 #pragma unroll
         for (IndexType iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
@@ -869,7 +869,7 @@ __global__ void topdown_expand_kernel(
           }
         }
 
-        IndexType *vec_row_ptr_u = &local_buf1[0];
+        IndexType* vec_row_ptr_u = &local_buf1[0];
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
           IndexType u = vec_u[iv];
@@ -878,7 +878,7 @@ __global__ void topdown_expand_kernel(
         }
 
         // We won't need row_ptr after that, reusing pointer
-        IndexType *vec_dest_v = vec_row_ptr_u;
+        IndexType* vec_dest_v = vec_row_ptr_u;
 
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
@@ -901,7 +901,7 @@ __global__ void topdown_expand_kernel(
         }
 
         // We don't need vec_frontier_degrees_exclusive_sum_index anymore
-        IndexType *vec_v_visited_bmap = vec_frontier_degrees_exclusive_sum_index;
+        IndexType* vec_v_visited_bmap = vec_frontier_degrees_exclusive_sum_index;
 
         // Visited bmap need to contain information about the previous
         // frontier if we actually process every edge (shortest path counting)
@@ -916,7 +916,7 @@ __global__ void topdown_expand_kernel(
         // From now on we will consider v as a frontier candidate
         // If for some reason vec_candidate[iv] should be put in the
         // new_frontier Then set vec_candidate[iv] = -1
-        IndexType *vec_frontier_candidate = vec_dest_v;
+        IndexType* vec_frontier_candidate = vec_dest_v;
 
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
@@ -943,7 +943,7 @@ __global__ void topdown_expand_kernel(
 
         if (directed) {
           // vec_v_visited_bmap is available
-          IndexType *vec_is_isolated_bmap = vec_v_visited_bmap;
+          IndexType* vec_is_isolated_bmap = vec_v_visited_bmap;
 
 #pragma unroll
           for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
@@ -1021,7 +1021,7 @@ __global__ void topdown_expand_kernel(
 
         IndexType naccepted_vertices = 0;
         // We won't need vec_frontier_candidate after that
-        IndexType *vec_frontier_accepted_vertex = vec_frontier_candidate;
+        IndexType* vec_frontier_accepted_vertex = vec_frontier_candidate;
 
 #pragma unroll
         for (int iv = 0; iv < TOP_DOWN_BATCH_SIZE; ++iv) {
@@ -1094,23 +1094,23 @@ __global__ void topdown_expand_kernel(
 }
 
 template <typename IndexType>
-void frontier_expand(const IndexType *row_ptr,
-                     const IndexType *col_ind,
-                     const IndexType *frontier,
+void frontier_expand(const IndexType* row_ptr,
+                     const IndexType* col_ind,
+                     const IndexType* frontier,
                      const IndexType frontier_size,
                      const IndexType totaldegree,
                      const IndexType lvl,
-                     IndexType *new_frontier,
-                     IndexType *new_frontier_cnt,
-                     const IndexType *frontier_degrees_exclusive_sum,
-                     const IndexType *frontier_degrees_exclusive_sum_buckets_offsets,
-                     int *previous_visited_bmap,
-                     int *visited_bmap,
-                     IndexType *distances,
-                     IndexType *predecessors,
-                     double *sp_counters,
-                     const int *edge_mask,
-                     const int *isolated_bmap,
+                     IndexType* new_frontier,
+                     IndexType* new_frontier_cnt,
+                     const IndexType* frontier_degrees_exclusive_sum,
+                     const IndexType* frontier_degrees_exclusive_sum_buckets_offsets,
+                     int* previous_visited_bmap,
+                     int* visited_bmap,
+                     IndexType* distances,
+                     IndexType* predecessors,
+                     double* sp_counters,
+                     const int* edge_mask,
+                     const int* isolated_bmap,
                      bool directed,
                      cudaStream_t m_stream,
                      bool deterministic)

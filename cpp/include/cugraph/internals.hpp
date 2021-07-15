@@ -35,9 +35,9 @@ class GraphBasedDimRedCallback : public Callback {
     this->n_components = n_components;
     this->isFloat      = std::is_same<T, float>::value;
   }
-  virtual void on_preprocess_end(void *positions) = 0;
-  virtual void on_epoch_end(void *positions)      = 0;
-  virtual void on_train_end(void *positions)      = 0;
+  virtual void on_preprocess_end(void* positions) = 0;
+  virtual void on_epoch_end(void* positions)      = 0;
+  virtual void on_train_end(void* positions)      = 0;
 
  protected:
   int n;

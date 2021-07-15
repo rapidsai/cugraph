@@ -56,11 +56,11 @@ double default_epsilon()
 }
 
 template <typename index_t, typename weight_t>
-weight_t hungarian(raft::handle_t const &handle,
+weight_t hungarian(raft::handle_t const& handle,
                    index_t num_rows,
                    index_t num_cols,
-                   weight_t const *d_original_cost,
-                   index_t *d_assignment,
+                   weight_t const* d_original_cost,
+                   index_t* d_assignment,
                    weight_t epsilon)
 {
   if (num_rows == num_cols) {
@@ -116,11 +116,11 @@ weight_t hungarian(raft::handle_t const &handle,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-weight_t hungarian_sparse(raft::handle_t const &handle,
-                          legacy::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+weight_t hungarian_sparse(raft::handle_t const& handle,
+                          legacy::GraphCOOView<vertex_t, edge_t, weight_t> const& graph,
                           vertex_t num_workers,
-                          vertex_t const *workers,
-                          vertex_t *assignment,
+                          vertex_t const* workers,
+                          vertex_t* assignment,
                           weight_t epsilon)
 {
   CUGRAPH_EXPECTS(assignment != nullptr, "Invalid input argument: assignment pointer is NULL");
@@ -148,13 +148,13 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
   rmm::device_uvector<vertex_t> temp_tasks_v(graph.number_of_vertices, handle.get_stream_view());
   rmm::device_uvector<vertex_t> temp_workers_v(graph.number_of_vertices, handle.get_stream_view());
 
-  weight_t *d_cost         = cost_v.data();
-  vertex_t *d_tasks        = tasks_v.data();
-  vertex_t *d_temp_tasks   = temp_tasks_v.data();
-  vertex_t *d_temp_workers = temp_workers_v.data();
-  vertex_t *d_src_indices  = graph.src_indices;
-  vertex_t *d_dst_indices  = graph.dst_indices;
-  weight_t *d_edge_data    = graph.edge_data;
+  weight_t* d_cost         = cost_v.data();
+  vertex_t* d_tasks        = tasks_v.data();
+  vertex_t* d_temp_tasks   = temp_tasks_v.data();
+  vertex_t* d_temp_workers = temp_workers_v.data();
+  vertex_t* d_src_indices  = graph.src_indices;
+  vertex_t* d_dst_indices  = graph.dst_indices;
+  weight_t* d_edge_data    = graph.edge_data;
 
   //
   //  Renumber vertices internally.  Workers will become
@@ -232,7 +232,7 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
   //  bipartite matrix numbering
   //
   rmm::device_uvector<vertex_t> temp_assignment_v(matrix_dimension, handle.get_stream_view());
-  vertex_t *d_temp_assignment = temp_assignment_v.data();
+  vertex_t* d_temp_assignment = temp_assignment_v.data();
 
   weight_t min_cost = detail::hungarian(
     handle, matrix_dimension, matrix_dimension, d_cost, d_temp_assignment, epsilon);
@@ -265,106 +265,106 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-weight_t hungarian(raft::handle_t const &handle,
-                   legacy::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+weight_t hungarian(raft::handle_t const& handle,
+                   legacy::GraphCOOView<vertex_t, edge_t, weight_t> const& graph,
                    vertex_t num_workers,
-                   vertex_t const *workers,
-                   vertex_t *assignment)
+                   vertex_t const* workers,
+                   vertex_t* assignment)
 {
   return detail::hungarian_sparse(
     handle, graph, num_workers, workers, assignment, detail::default_epsilon<weight_t>());
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-weight_t hungarian(raft::handle_t const &handle,
-                   legacy::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+weight_t hungarian(raft::handle_t const& handle,
+                   legacy::GraphCOOView<vertex_t, edge_t, weight_t> const& graph,
                    vertex_t num_workers,
-                   vertex_t const *workers,
-                   vertex_t *assignment,
+                   vertex_t const* workers,
+                   vertex_t* assignment,
                    weight_t epsilon)
 {
   return detail::hungarian_sparse(handle, graph, num_workers, workers, assignment, epsilon);
 }
 
 template int32_t hungarian<int32_t, int32_t, int32_t>(
-  raft::handle_t const &,
-  legacy::GraphCOOView<int32_t, int32_t, int32_t> const &,
+  raft::handle_t const&,
+  legacy::GraphCOOView<int32_t, int32_t, int32_t> const&,
   int32_t,
-  int32_t const *,
-  int32_t *,
+  int32_t const*,
+  int32_t*,
   int32_t);
 
 template float hungarian<int32_t, int32_t, float>(
-  raft::handle_t const &,
-  legacy::GraphCOOView<int32_t, int32_t, float> const &,
+  raft::handle_t const&,
+  legacy::GraphCOOView<int32_t, int32_t, float> const&,
   int32_t,
-  int32_t const *,
-  int32_t *,
+  int32_t const*,
+  int32_t*,
   float);
 template double hungarian<int32_t, int32_t, double>(
-  raft::handle_t const &,
-  legacy::GraphCOOView<int32_t, int32_t, double> const &,
+  raft::handle_t const&,
+  legacy::GraphCOOView<int32_t, int32_t, double> const&,
   int32_t,
-  int32_t const *,
-  int32_t *,
+  int32_t const*,
+  int32_t*,
   double);
 
 template int32_t hungarian<int32_t, int32_t, int32_t>(
-  raft::handle_t const &,
-  legacy::GraphCOOView<int32_t, int32_t, int32_t> const &,
+  raft::handle_t const&,
+  legacy::GraphCOOView<int32_t, int32_t, int32_t> const&,
   int32_t,
-  int32_t const *,
-  int32_t *);
+  int32_t const*,
+  int32_t*);
 
 template float hungarian<int32_t, int32_t, float>(
-  raft::handle_t const &,
-  legacy::GraphCOOView<int32_t, int32_t, float> const &,
+  raft::handle_t const&,
+  legacy::GraphCOOView<int32_t, int32_t, float> const&,
   int32_t,
-  int32_t const *,
-  int32_t *);
+  int32_t const*,
+  int32_t*);
 template double hungarian<int32_t, int32_t, double>(
-  raft::handle_t const &,
-  legacy::GraphCOOView<int32_t, int32_t, double> const &,
+  raft::handle_t const&,
+  legacy::GraphCOOView<int32_t, int32_t, double> const&,
   int32_t,
-  int32_t const *,
-  int32_t *);
+  int32_t const*,
+  int32_t*);
 
 namespace dense {
 
 template <typename index_t, typename weight_t>
-weight_t hungarian(raft::handle_t const &handle,
-                   weight_t const *costs,
+weight_t hungarian(raft::handle_t const& handle,
+                   weight_t const* costs,
                    index_t num_rows,
                    index_t num_cols,
-                   index_t *assignment)
+                   index_t* assignment)
 {
   return detail::hungarian(
     handle, num_rows, num_cols, costs, assignment, detail::default_epsilon<weight_t>());
 }
 
 template <typename index_t, typename weight_t>
-weight_t hungarian(raft::handle_t const &handle,
-                   weight_t const *costs,
+weight_t hungarian(raft::handle_t const& handle,
+                   weight_t const* costs,
                    index_t num_rows,
                    index_t num_cols,
-                   index_t *assignment,
+                   index_t* assignment,
                    weight_t epsilon)
 {
   return detail::hungarian(handle, num_rows, num_cols, costs, assignment, epsilon);
 }
 
 template int32_t hungarian<int32_t, int32_t>(
-  raft::handle_t const &, int32_t const *, int32_t, int32_t, int32_t *);
+  raft::handle_t const&, int32_t const*, int32_t, int32_t, int32_t*);
 template float hungarian<int32_t, float>(
-  raft::handle_t const &, float const *, int32_t, int32_t, int32_t *);
+  raft::handle_t const&, float const*, int32_t, int32_t, int32_t*);
 template double hungarian<int32_t, double>(
-  raft::handle_t const &, double const *, int32_t, int32_t, int32_t *);
+  raft::handle_t const&, double const*, int32_t, int32_t, int32_t*);
 template int32_t hungarian<int32_t, int32_t>(
-  raft::handle_t const &, int32_t const *, int32_t, int32_t, int32_t *, int32_t);
+  raft::handle_t const&, int32_t const*, int32_t, int32_t, int32_t*, int32_t);
 template float hungarian<int32_t, float>(
-  raft::handle_t const &, float const *, int32_t, int32_t, int32_t *, float);
+  raft::handle_t const&, float const*, int32_t, int32_t, int32_t*, float);
 template double hungarian<int32_t, double>(
-  raft::handle_t const &, double const *, int32_t, int32_t, int32_t *, double);
+  raft::handle_t const&, double const*, int32_t, int32_t, int32_t*, double);
 
 }  // namespace dense
 

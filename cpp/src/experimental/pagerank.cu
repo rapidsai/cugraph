@@ -16,7 +16,6 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/prims/any_of_adj_matrix_row.cuh>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/count_if_e.cuh>
@@ -148,9 +147,9 @@ void pagerank(
                                       ? std::nullopt
                                       : std::optional<rmm::device_uvector<weight_t>>{
                                           pull_graph_view.compute_out_weight_sums(handle)};
-  auto vertex_out_weight_sums = precomputed_vertex_out_weight_sums
-                                  ? *precomputed_vertex_out_weight_sums
-                                  : (*tmp_vertex_out_weight_sums).data();
+  auto vertex_out_weight_sums     = precomputed_vertex_out_weight_sums
+                                      ? *precomputed_vertex_out_weight_sums
+                                      : (*tmp_vertex_out_weight_sums).data();
 
   // 3. initialize pagerank values
 

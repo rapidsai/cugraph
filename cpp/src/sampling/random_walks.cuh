@@ -250,7 +250,7 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
        row_offsets       = row_offsets_,
        col_indices       = col_indices_,
        values            = values_ ? thrust::optional<weight_t const*>{*values_}
-                        : thrust::nullopt] __device__(auto indx, auto col_indx) {
+                                   : thrust::nullopt] __device__(auto indx, auto col_indx) {
         auto delta     = ptr_d_sizes[indx] - 1;
         auto v_indx    = ptr_d_coalesced_v[indx * max_depth + delta];
         auto start_row = row_offsets[v_indx];

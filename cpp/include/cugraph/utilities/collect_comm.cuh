@@ -43,7 +43,7 @@ template <typename VertexIterator0,
           typename KeyToGPUIdOp>
 decltype(allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
   0, cudaStream_t{nullptr}))
-collect_values_for_keys(raft::comms::comms_t const &comm,
+collect_values_for_keys(raft::comms::comms_t const& comm,
                         VertexIterator0 map_key_first,
                         VertexIterator0 map_key_last,
                         ValueIterator map_value_first,
@@ -158,7 +158,7 @@ template <typename VertexIterator0,
           typename KeyToGPUIdOp>
 decltype(allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
   0, cudaStream_t{nullptr}))
-collect_values_for_unique_keys(raft::comms::comms_t const &comm,
+collect_values_for_unique_keys(raft::comms::comms_t const& comm,
                                VertexIterator0 map_key_first,
                                VertexIterator0 map_key_last,
                                ValueIterator map_value_first,

@@ -26,14 +26,14 @@
 #include <thrust/equal.h>
 #include <thrust/random.h>
 
-__global__ void setup_generator(curandState *state)
+__global__ void setup_generator(curandState* state)
 {
   int id = threadIdx.x + blockIdx.x * blockDim.x;
   curand_init(43, id, 0, &state[id]);
 }
 
 template <typename T>
-__global__ void generate_random(curandState *state, int n, T *data, int32_t upper_bound)
+__global__ void generate_random(curandState* state, int n, T* data, int32_t upper_bound)
 {
   int first  = threadIdx.x + blockIdx.x * blockDim.x;
   int stride = blockDim.x * gridDim.x;
