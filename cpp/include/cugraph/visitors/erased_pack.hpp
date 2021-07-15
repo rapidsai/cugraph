@@ -19,8 +19,6 @@
 
 #pragma once
 
-#define _DEBUG_
-
 #ifdef _DEBUG_
 #include <iostream>
 #endif
@@ -61,7 +59,8 @@ struct erased_pack_t {
   void print(void) const
   {
     std::cout << "list args addresses:\n";
-    for (auto&& elem : args_) std::cout << elem << ", ";
+    for (auto&& elem : args_)
+      std::cout << elem << ", ";
     std::cout << '\n';
   }
 #endif
