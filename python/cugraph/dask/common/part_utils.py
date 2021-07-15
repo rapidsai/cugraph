@@ -78,13 +78,18 @@ def persist_distributed_data(dask_df, client):
     return parts
 
 
-async def _extract_partitions(dask_obj, client=None):
+async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
 
     client = default_client() if client is None else client
+    worker_list = Comms.get_workers()
     # dask.dataframe or dask.array
     if isinstance(dask_obj, (daskDataFrame, daskArray, daskSeries)):
         # parts = persist_distributed_data(dask_obj, client)
-        persisted = client.persist(dask_obj)
+        #FIXME: persist data to the same worker when batch_enabled=True
+        if batch_enabled:
+            persisted = client.persist(dask_obj, workers=worker_list[0])
+        else:
+            persisted = client.persist(dask_obj)
         parts = futures_of(persisted)
     # iterable of dask collections (need to colocate them)
     elif isinstance(dask_obj, collections.Sequence):
