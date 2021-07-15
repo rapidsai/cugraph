@@ -46,7 +46,7 @@ static int PERF = 0;
 
 template <typename vertex_t>
 struct test_predicate {
-  int mod;
+  int mod{};
   test_predicate(int mod_count) : mod(mod_count) {}
   __device__ bool operator()(const vertex_t& val)
   {
@@ -114,7 +114,7 @@ class Tests_MG_CountIfV
 
     const int hash_bin_count = 5;
 
-    // 4. run MG count if
+    // 3. run MG count if
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -134,7 +134,7 @@ class Tests_MG_CountIfV
       std::cout << "MG count if took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    // 5. compare SG & MG results
+    // 4. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
       cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(
