@@ -84,7 +84,7 @@ async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
     # dask.dataframe or dask.array
     if isinstance(dask_obj, (daskDataFrame, daskArray, daskSeries)):
         # parts = persist_distributed_data(dask_obj, client)
-        #FIXME: persist data to the same worker when batch_enabled=True
+        # FIXME: persist data to the same worker when batch_enabled=True
         if batch_enabled:
             persisted = client.persist(dask_obj, workers=worker_list[0])
         else:

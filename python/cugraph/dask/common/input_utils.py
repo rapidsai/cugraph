@@ -90,7 +90,8 @@ class DistributedDataHandler:
         else:
             raise Exception("Graph data must be dask-cudf dataframe")
 
-        gpu_futures = client.sync(_extract_partitions, data, client, batch_enabled=batch_enabled)
+        gpu_futures = client.sync(
+            _extract_partitions, data, client, batch_enabled=batch_enabled)
         workers = tuple(OrderedDict.fromkeys(map(lambda x: x[0], gpu_futures)))
         return DistributedDataHandler(gpu_futures=gpu_futures, workers=workers,
                                       datatype=datatype, multiple=multiple,
@@ -198,7 +199,7 @@ def _workers_to_parts(futures):
         w_to_p_map[w].append(p)
     _w_to_p_map = w_to_p_map.copy()
     for w, p in _w_to_p_map.items():
-        if p == None:
+        if p is None:
             del w_to_p_map[w]
     return w_to_p_map
 
@@ -210,7 +211,8 @@ def _get_rows(objs, multiple):
 
 
 def get_mg_batch_data(dask_cudf_data, batch_enabled=False):
-    data = DistributedDataHandler.create(data=dask_cudf_data, batch_enabled=batch_enabled)
+    data = DistributedDataHandler.create(
+        data=dask_cudf_data, batch_enabled=batch_enabled)
     return data
 
 
