@@ -116,15 +116,10 @@ class Tests_MG_ReduceIfV
 
     auto mg_graph_view = mg_graph.view();
 
-    const int hash_bin_count = 5;
-
     // 3. run MG count if
 
-    if (PERF) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
-      hr_clock.start();
-    }
+    const int hash_bin_count     = 5;
+    const result_t initial_value = 10;
 
     vertex_t const* data = (*d_mg_renumber_map_labels).data();
     rmm::device_uvector<result_t> test_property(d_mg_renumber_map_labels->size(),
@@ -134,8 +129,15 @@ class Tests_MG_ReduceIfV
                       data + test_property.size(),
                       test_property.begin(),
                       property_transform<vertex_t, result_t>(hash_bin_count));
-    auto vertex_count =
-      reduce_v(handle, mg_graph_view, test_property.begin(), test_property.end(), result_t{0});
+
+    if (PERF) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
+      hr_clock.start();
+    }
+
+    auto result = reduce_v(
+      handle, mg_graph_view, test_property.begin(), test_property.end(), result_t{initial_value});
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -153,15 +155,15 @@ class Tests_MG_ReduceIfV
       std::tie(sg_graph, std::ignore) =
         input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
           handle, true, false);
-      auto sg_graph_view         = sg_graph.view();
-      auto expected_vertex_count = thrust::transform_reduce(
+      auto sg_graph_view   = sg_graph.view();
+      auto expected_result = thrust::transform_reduce(
         rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
         thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
         thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
         property_transform<vertex_t, result_t>(hash_bin_count),
-        result_t{0},
+        initial_value,
         thrust::plus<result_t>());
-      ASSERT_TRUE(expected_vertex_count == vertex_count);
+      ASSERT_TRUE(expected_result == result);
     }
   }
 };

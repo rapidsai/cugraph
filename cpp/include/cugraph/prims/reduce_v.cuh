@@ -54,7 +54,7 @@ T reduce_v(raft::handle_t const& handle,
   auto ret = thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                             vertex_value_input_first,
                             vertex_value_input_first + graph_view.get_number_of_local_vertices(),
-                            init);
+                            (handle.get_comms().get_rank() == 0) ? init : T{0});
   if (GraphViewType::is_multi_gpu) {
     ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
   }
@@ -86,8 +86,10 @@ T reduce_v(raft::handle_t const& handle,
            InputIterator input_last,
            T init)
 {
-  auto ret = thrust::reduce(
-    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()), input_first, input_last, init);
+  auto ret = thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                            input_first,
+                            input_last,
+                            (handle.get_comms().get_rank() == 0) ? init : T{0});
   if (GraphViewType::is_multi_gpu) {
     ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
   }
