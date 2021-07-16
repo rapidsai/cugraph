@@ -173,8 +173,7 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
         thrust::make_counting_iterator(*(matrix_partition.get_dcs_nzd_vertex_count())),
         [matrix_partition, major_start_offset = (*segment_offsets)[3], majors] __device__(
           auto idx) {
-          auto major = *(matrix_partition.get_major_from_major_hypersparse_idx_nocheck(
-            static_cast<vertex_t>(idx)));
+          auto major = *(matrix_partition.get_major_from_major_hypersparse_idx_nocheck(idx));
           auto major_idx =
             major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
           auto local_degree = matrix_partition.get_local_degree(major_idx);

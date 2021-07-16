@@ -67,7 +67,7 @@ std::tuple<rmm::device_uvector<edge_t>,
            std::optional<rmm::device_uvector<vertex_t>>>
 compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                   vertex_t major_first,
-                  vertex_t major_hypersparse_first,
+                  std::optional<vertex_t> major_hypersparse_first,
                   vertex_t major_last,
                   vertex_t minor_first,
                   vertex_t minor_last,
@@ -141,16 +141,16 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                      });
   }
 
-  auto dcs_nzd_vertices = (major_hypersparse_first < major_last)
+  auto dcs_nzd_vertices = major_hypersparse_first
                             ? std::make_optional<rmm::device_uvector<vertex_t>>(
-                                major_last - major_hypersparse_first, stream_view)
+                                major_last - *major_hypersparse_first, stream_view)
                             : std::nullopt;
   if (dcs_nzd_vertices) {
     auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 
     thrust::transform(
       rmm::exec_policy(stream_view),
-      thrust::make_counting_iterator(major_hypersparse_first),
+      thrust::make_counting_iterator(*major_hypersparse_first),
       thrust::make_counting_iterator(major_last),
       (*dcs_nzd_vertices).begin(),
       [major_first, offsets = offsets.data()] __device__(auto major) {
@@ -159,7 +159,7 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
       });
 
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      (*dcs_nzd_vertices).begin(), offsets.begin() + (major_hypersparse_first - major_first)));
+      (*dcs_nzd_vertices).begin(), offsets.begin() + (*major_hypersparse_first - major_first)));
     (*dcs_nzd_vertices)
       .resize(thrust::distance(pair_first,
                                thrust::remove_if(rmm::exec_policy(stream_view),
@@ -170,13 +170,13 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                                                  })),
               stream_view);
     (*dcs_nzd_vertices).shrink_to_fit(stream_view);
-    if (static_cast<vertex_t>((*dcs_nzd_vertices).size()) < major_last - major_hypersparse_first) {
+    if (static_cast<vertex_t>((*dcs_nzd_vertices).size()) < major_last - *major_hypersparse_first) {
       thrust::copy(
         rmm::exec_policy(stream_view),
         offsets.begin() + (major_last - major_first),
         offsets.end(),
-        offsets.begin() + (major_hypersparse_first - major_first) + (*dcs_nzd_vertices).size());
-      offsets.resize((major_hypersparse_first - major_first) + (*dcs_nzd_vertices).size() + 1,
+        offsets.begin() + (*major_hypersparse_first - major_first) + (*dcs_nzd_vertices).size());
+      offsets.resize((*major_hypersparse_first - major_first) + (*dcs_nzd_vertices).size() + 1,
                      stream_view);
       offsets.shrink_to_fit(stream_view);
     }
@@ -328,11 +328,11 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     auto [major_first, major_last] = partition.get_matrix_partition_major_range(i);
     auto [minor_first, minor_last] = partition.get_matrix_partition_minor_range();
     auto major_hypersparse_first =
-      use_dcs
-        ? major_first +
-            (*adj_matrix_partition_segment_offsets_)
-              [(*segment_offsets).size() * i + detail::num_sparse_segments_per_vertex_partition]
-        : major_last;
+      use_dcs ? std::optional<vertex_t>{major_first +
+                                        (*adj_matrix_partition_segment_offsets_)
+                                          [(*segment_offsets).size() * i +
+                                           detail::num_sparse_segments_per_vertex_partition]}
+              : std::nullopt;
     auto [offsets, indices, weights, dcs_nzd_vertices] =
       compress_edgelist<store_transposed>(edgelists[i],
                                           major_first,
@@ -428,7 +428,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   std::tie(offsets_, indices_, weights_, std::ignore) =
     compress_edgelist<store_transposed>(edgelist,
                                         vertex_t{0},
-                                        this->get_number_of_vertices(),
+                                        std::optional<vertex_t>{std::nullopt},
                                         this->get_number_of_vertices(),
                                         vertex_t{0},
                                         this->get_number_of_vertices(),

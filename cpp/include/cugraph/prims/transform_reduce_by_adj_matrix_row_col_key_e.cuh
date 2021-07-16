@@ -387,26 +387,12 @@ transform_reduce_by_adj_matrix_row_col_key_e(
       comm_root_rank           = i * row_comm_size + row_comm_rank;
     }
 
-    auto num_edges = thrust::transform_reduce(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-      thrust::make_counting_iterator(graph_view.get_vertex_partition_first(comm_root_rank)),
-      thrust::make_counting_iterator(graph_view.get_vertex_partition_last(comm_root_rank)),
-      [matrix_partition] __device__(auto row) {
-        auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-        return matrix_partition.get_local_degree(major_offset);
-      },
-      edge_t{0},
-      thrust::plus<edge_t>());
+    auto num_edges = matrix_partition.get_number_of_edges();
 
     rmm::device_uvector<vertex_t> tmp_keys(num_edges, handle.get_stream());
     auto tmp_value_buffer = allocate_dataframe_buffer<T>(tmp_keys.size(), handle.get_stream());
 
     if (graph_view.get_vertex_partition_size(comm_root_rank) > 0) {
-      raft::grid_1d_thread_t update_grid(
-        graph_view.get_vertex_partition_size(comm_root_rank),
-        detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
-        handle.get_device_properties().maxGridSize[0]);
-
       auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
                                       ? vertex_t{0}
                                       : matrix_partition.get_major_value_start_offset();
@@ -420,9 +406,10 @@ transform_reduce_by_adj_matrix_row_col_key_e(
         // more segment for very high degree vertices and running segmented reduction
         static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
         if ((*segment_offsets)[1] > 0) {
-          raft::grid_1d_block_t update_grid((*segment_offsets)[1],
-                                            detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
-                                            handle.get_device_properties().maxGridSize[0]);
+          raft::grid_1d_block_t update_grid(
+            (*segment_offsets)[1],
+            detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
+            handle.get_device_properties().maxGridSize[0]);
           detail::for_all_major_for_all_nbr_high_degree<adj_matrix_row_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
@@ -437,9 +424,10 @@ transform_reduce_by_adj_matrix_row_col_key_e(
               get_dataframe_buffer_begin<T>(tmp_value_buffer));
         }
         if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
-          raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
-                                           detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
-                                           handle.get_device_properties().maxGridSize[0]);
+          raft::grid_1d_warp_t update_grid(
+            (*segment_offsets)[2] - (*segment_offsets)[1],
+            detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
+            handle.get_device_properties().maxGridSize[0]);
           detail::for_all_major_for_all_nbr_mid_degree<adj_matrix_row_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
@@ -454,9 +442,10 @@ transform_reduce_by_adj_matrix_row_col_key_e(
               get_dataframe_buffer_begin<T>(tmp_value_buffer));
         }
         if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
-          raft::grid_1d_thread_t update_grid((*segment_offsets)[3] - (*segment_offsets)[2],
-                                             detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
-                                             handle.get_device_properties().maxGridSize[0]);
+          raft::grid_1d_thread_t update_grid(
+            (*segment_offsets)[3] - (*segment_offsets)[2],
+            detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
+            handle.get_device_properties().maxGridSize[0]);
           detail::for_all_major_for_all_nbr_low_degree<adj_matrix_row_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
@@ -472,9 +461,10 @@ transform_reduce_by_adj_matrix_row_col_key_e(
         }
         if (matrix_partition.get_dcs_nzd_vertex_count() &&
             (*(matrix_partition.get_dcs_nzd_vertex_count()) > 0)) {
-          raft::grid_1d_thread_t update_grid(*(matrix_partition.get_dcs_nzd_vertex_count()),
-                                             detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
-                                             handle.get_device_properties().maxGridSize[0]);
+          raft::grid_1d_thread_t update_grid(
+            *(matrix_partition.get_dcs_nzd_vertex_count()),
+            detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
+            handle.get_device_properties().maxGridSize[0]);
           detail::for_all_major_for_all_nbr_hypersparse<adj_matrix_row_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
@@ -488,6 +478,11 @@ transform_reduce_by_adj_matrix_row_col_key_e(
               get_dataframe_buffer_begin<T>(tmp_value_buffer));
         }
       } else {
+        raft::grid_1d_thread_t update_grid(
+          matrix_partition.get_major_size(),
+          detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
+          handle.get_device_properties().maxGridSize[0]);
+
         detail::for_all_major_for_all_nbr_low_degree<adj_matrix_row_key, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
