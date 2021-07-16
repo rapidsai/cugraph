@@ -18,6 +18,7 @@ import cugraph
 import dask_cudf
 import cudf
 from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 @pytest.mark.skipif(
@@ -26,9 +27,8 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 def test_dask_bfs(dask_client):
     gc.collect()
 
-    # FIXME: update this to allow dataset to be parameterized and have dataset
-    # part of test param id (see other tests)
-    input_data_path = r"../datasets/netscience.csv"
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "netscience.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -77,9 +77,8 @@ def test_dask_bfs(dask_client):
 def test_dask_bfs_multi_column_depthlimit(dask_client):
     gc.collect()
 
-    # FIXME: update this to allow dataset to be parameterized and have dataset
-    # part of test param id (see other tests)
-    input_data_path = r"../datasets/netscience.csv"
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "netscience.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 

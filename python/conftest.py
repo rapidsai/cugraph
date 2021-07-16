@@ -34,16 +34,18 @@ def dask_client():
         # Env var UCX_MAX_RNDV_RAILS=1 must be set too.
         initialize(enable_tcp_over_ucx=True,
                    enable_nvlink=True,
-                   enable_infiniband=False,
-                   enable_rdmacm=False,
+                   enable_infiniband=True,
+                   enable_rdmacm=True,
                    #net_devices="mlx5_0:1",
                   )
         client = Client(scheduler_file=dask_scheduler_file)
-
+        print(f"dask_client fixture: client created using {dask_scheduler_file}")
     else:
-        cluster = LocalCUDACluster()
+        # FIXME: use a better local_dir
+        cluster = LocalCUDACluster(local_dir="/tmp")
         client = Client(cluster)
         client.wait_for_workers(len(get_visible_devices()))
+        print(f"dask_client fixture: client created using LocalCUDACluster")
 
     Comms.initialize(p2p=True)
 
@@ -53,3 +55,4 @@ def dask_client():
     client.close()
     if cluster:
         cluster.close()
+    print(f"dask_client fixture: client.close() called")
