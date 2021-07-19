@@ -32,6 +32,7 @@
 // visitor artifacts:
 //
 #include <cugraph/visitors/bfs_visitor.hpp>
+#include <cugraph/visitors/erased_api.hpp>
 #include <cugraph/visitors/erased_pack.hpp>
 #include <cugraph/visitors/graph_envelope.hpp>
 #include <cugraph/visitors/ret_terased.hpp>
@@ -233,7 +234,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       // (3.) if only the `graph_envelope_t` object exists,
       //      we can invoke the algorithm via the wrapper:
       //
-      return_t ret = bfs_wrapper(graph_envelope, ep);
+      return_t ret = cugraph::api::bfs(graph_envelope, ep);
     }
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

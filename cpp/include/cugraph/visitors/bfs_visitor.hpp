@@ -78,8 +78,5 @@ struct bfs_visitor<vertex_t,
   return_t result_;
 };
 
-// wrapper:
-//
-return_t bfs_wrapper(graph_envelope_t const& g, erased_pack_t& ep);
 }  // namespace visitors
 }  // namespace cugraph
