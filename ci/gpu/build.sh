@@ -54,7 +54,7 @@ gpuci_logger "Activate conda env"
 conda activate rapids
 
 gpuci_logger "Install dependencies"
-gpuci_conda_retry install -y \
+gpuci_mamba_retry install -y \
       "libcudf=${MINOR_VERSION}" \
       "cudf=${MINOR_VERSION}" \
       "librmm=${MINOR_VERSION}" \
@@ -69,8 +69,8 @@ gpuci_conda_retry install -y \
       rapids-pytest-benchmark
 
 # https://docs.rapids.ai/maintainers/depmgmt/
-# gpuci_conda_retry remove --force rapids-build-env rapids-notebook-env
-# gpuci_conda_retry install -y "your-pkg=1.0.0"
+# gpuci_mamba_retry remove --force rapids-build-env rapids-notebook-env
+# gpuci_mamba_retry install -y "your-pkg=1.0.0"
 
 gpuci_logger "Check versions"
 python --version
