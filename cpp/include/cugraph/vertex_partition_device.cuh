@@ -66,8 +66,8 @@ class vertex_partition_device_t<GraphViewType, std::enable_if_t<GraphViewType::i
   {
   }
 
-  __host__ __device__ bool is_local_vertex_nocheck(typename GraphViewType::vertex_type v) const
-    noexcept
+  __host__ __device__ bool is_local_vertex_nocheck(
+    typename GraphViewType::vertex_type v) const noexcept
   {
     return (v >= first_) && (v < last_);
   }

@@ -29,7 +29,7 @@ class Leiden : public Louvain<graph_type> {
   using edge_t   = typename graph_type::edge_type;
   using weight_t = typename graph_type::weight_type;
 
-  Leiden(raft::handle_t const &handle, graph_type const &graph)
+  Leiden(raft::handle_t const& handle, graph_type const& graph)
     : Louvain<graph_type>(handle, graph),
       constraint_v_(graph.number_of_vertices, handle.get_stream())
   {
@@ -37,7 +37,7 @@ class Leiden : public Louvain<graph_type> {
 
   weight_t update_clustering_constrained(weight_t total_edge_weight,
                                          weight_t resolution,
-                                         graph_type const &graph)
+                                         graph_type const& graph)
   {
     this->timer_start("update_clustering_constrained");
 
@@ -49,14 +49,14 @@ class Leiden : public Louvain<graph_type> {
     rmm::device_uvector<weight_t> old_cluster_sum_v(graph.number_of_vertices,
                                                     this->handle_.get_stream_view());
 
-    vertex_t const *d_src_indices    = this->src_indices_v_.data();
-    vertex_t const *d_dst_indices    = graph.indices;
-    vertex_t *d_cluster_hash         = cluster_hash_v.data();
-    vertex_t *d_cluster              = this->dendrogram_->current_level_begin();
-    weight_t const *d_vertex_weights = this->vertex_weights_v_.data();
-    weight_t *d_cluster_weights      = this->cluster_weights_v_.data();
-    weight_t *d_delta_Q              = delta_Q_v.data();
-    vertex_t *d_constraint           = constraint_v_.data();
+    vertex_t const* d_src_indices    = this->src_indices_v_.data();
+    vertex_t const* d_dst_indices    = graph.indices;
+    vertex_t* d_cluster_hash         = cluster_hash_v.data();
+    vertex_t* d_cluster              = this->dendrogram_->current_level_begin();
+    weight_t const* d_vertex_weights = this->vertex_weights_v_.data();
+    weight_t* d_cluster_weights      = this->cluster_weights_v_.data();
+    weight_t* d_delta_Q              = delta_Q_v.data();
+    vertex_t* d_constraint           = constraint_v_.data();
 
     thrust::copy(rmm::exec_policy(this->handle_.get_stream_view()),
                  this->dendrogram_->current_level_begin(),
@@ -122,11 +122,11 @@ class Leiden : public Louvain<graph_type> {
     //  Our copy of the graph.  Each iteration of the outer loop will
     //  shrink this copy of the graph.
     //
-    GraphCSRView<vertex_t, edge_t, weight_t> current_graph(this->offsets_v_.data(),
-                                                           this->indices_v_.data(),
-                                                           this->weights_v_.data(),
-                                                           this->number_of_vertices_,
-                                                           this->number_of_edges_);
+    legacy::GraphCSRView<vertex_t, edge_t, weight_t> current_graph(this->offsets_v_.data(),
+                                                                   this->indices_v_.data(),
+                                                                   this->weights_v_.data(),
+                                                                   this->number_of_vertices_,
+                                                                   this->number_of_edges_);
 
     current_graph.get_source_indices(this->src_indices_v_.data());
 

@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <converters/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
@@ -41,7 +41,7 @@ class Louvain {
   using edge_t   = typename graph_type::edge_type;
   using weight_t = typename graph_type::weight_type;
 
-  Louvain(raft::handle_t const &handle, graph_type const &graph)
+  Louvain(raft::handle_t const& handle, graph_type const& graph)
     :
 #ifdef TIMING
       hr_timer_(),
@@ -84,8 +84,8 @@ class Louvain {
 
   weight_t modularity(weight_t total_edge_weight,
                       weight_t resolution,
-                      graph_t const &graph,
-                      vertex_t const *d_cluster)
+                      graph_t const& graph,
+                      vertex_t const* d_cluster)
   {
     vertex_t n_verts = graph.number_of_vertices;
 
@@ -140,9 +140,9 @@ class Louvain {
     return Q;
   }
 
-  Dendrogram<vertex_t> const &get_dendrogram() const { return *dendrogram_; }
+  Dendrogram<vertex_t> const& get_dendrogram() const { return *dendrogram_; }
 
-  Dendrogram<vertex_t> &get_dendrogram() { return *dendrogram_; }
+  Dendrogram<vertex_t>& get_dendrogram() { return *dendrogram_; }
 
   std::unique_ptr<Dendrogram<vertex_t>> move_dendrogram() { return std::move(dendrogram_); }
 
@@ -157,11 +157,11 @@ class Louvain {
     //  Our copy of the graph.  Each iteration of the outer loop will
     //  shrink this copy of the graph.
     //
-    GraphCSRView<vertex_t, edge_t, weight_t> current_graph(offsets_v_.data(),
-                                                           indices_v_.data(),
-                                                           weights_v_.data(),
-                                                           number_of_vertices_,
-                                                           number_of_edges_);
+    legacy::GraphCSRView<vertex_t, edge_t, weight_t> current_graph(offsets_v_.data(),
+                                                                   indices_v_.data(),
+                                                                   weights_v_.data(),
+                                                                   number_of_vertices_,
+                                                                   number_of_edges_);
 
     current_graph.get_source_indices(src_indices_v_.data());
 
@@ -188,7 +188,7 @@ class Louvain {
   }
 
  protected:
-  void timer_start(std::string const &region)
+  void timer_start(std::string const& region)
   {
 #ifdef TIMING
     hr_timer_.start(region);
@@ -203,7 +203,7 @@ class Louvain {
 #endif
   }
 
-  void timer_display(std::ostream &os)
+  void timer_display(std::ostream& os)
   {
 #ifdef TIMING
     hr_timer_.display(os);
@@ -220,15 +220,15 @@ class Louvain {
   }
 
  public:
-  void compute_vertex_and_cluster_weights(graph_type const &graph)
+  void compute_vertex_and_cluster_weights(graph_type const& graph)
   {
     timer_start("compute_vertex_and_cluster_weights");
 
-    edge_t const *d_offsets     = graph.offsets;
-    vertex_t const *d_indices   = graph.indices;
-    weight_t const *d_weights   = graph.edge_data;
-    weight_t *d_vertex_weights  = vertex_weights_v_.data();
-    weight_t *d_cluster_weights = cluster_weights_v_.data();
+    edge_t const* d_offsets     = graph.offsets;
+    vertex_t const* d_indices   = graph.indices;
+    weight_t const* d_weights   = graph.edge_data;
+    weight_t* d_vertex_weights  = vertex_weights_v_.data();
+    weight_t* d_cluster_weights = cluster_weights_v_.data();
 
     //
     // MNMG:  copy_v_transform_reduce_out_nbr, then copy
@@ -251,7 +251,7 @@ class Louvain {
 
   virtual weight_t update_clustering(weight_t total_edge_weight,
                                      weight_t resolution,
-                                     graph_type const &graph)
+                                     graph_type const& graph)
   {
     timer_start("update_clustering");
 
@@ -262,10 +262,10 @@ class Louvain {
     rmm::device_uvector<weight_t> old_cluster_sum_v(graph.number_of_vertices,
                                                     handle_.get_stream_view());
 
-    vertex_t *d_cluster              = dendrogram_->current_level_begin();
-    weight_t const *d_vertex_weights = vertex_weights_v_.data();
-    weight_t *d_cluster_weights      = cluster_weights_v_.data();
-    weight_t *d_delta_Q              = delta_Q_v.data();
+    vertex_t* d_cluster              = dendrogram_->current_level_begin();
+    weight_t const* d_vertex_weights = vertex_weights_v_.data();
+    weight_t* d_cluster_weights      = cluster_weights_v_.data();
+    weight_t* d_delta_Q              = delta_Q_v.data();
 
     thrust::copy(rmm::exec_policy(handle_.get_stream_view()),
                  dendrogram_->current_level_begin(),
@@ -308,21 +308,21 @@ class Louvain {
 
   void compute_delta_modularity(weight_t total_edge_weight,
                                 weight_t resolution,
-                                graph_type const &graph,
-                                rmm::device_uvector<vertex_t> &cluster_hash_v,
-                                rmm::device_uvector<weight_t> &old_cluster_sum_v,
-                                rmm::device_uvector<weight_t> &delta_Q_v)
+                                graph_type const& graph,
+                                rmm::device_uvector<vertex_t>& cluster_hash_v,
+                                rmm::device_uvector<weight_t>& old_cluster_sum_v,
+                                rmm::device_uvector<weight_t>& delta_Q_v)
   {
-    edge_t const *d_offsets           = graph.offsets;
-    weight_t const *d_weights         = graph.edge_data;
-    vertex_t const *d_cluster         = dendrogram_->current_level_begin();
-    weight_t const *d_vertex_weights  = vertex_weights_v_.data();
-    weight_t const *d_cluster_weights = cluster_weights_v_.data();
+    edge_t const* d_offsets           = graph.offsets;
+    weight_t const* d_weights         = graph.edge_data;
+    vertex_t const* d_cluster         = dendrogram_->current_level_begin();
+    weight_t const* d_vertex_weights  = vertex_weights_v_.data();
+    weight_t const* d_cluster_weights = cluster_weights_v_.data();
 
-    vertex_t *d_cluster_hash    = cluster_hash_v.data();
-    weight_t *d_delta_Q         = delta_Q_v.data();
-    weight_t *d_old_cluster_sum = old_cluster_sum_v.data();
-    weight_t *d_new_cluster_sum = d_delta_Q;
+    vertex_t* d_cluster_hash    = cluster_hash_v.data();
+    weight_t* d_delta_Q         = delta_Q_v.data();
+    weight_t* d_old_cluster_sum = old_cluster_sum_v.data();
+    weight_t* d_new_cluster_sum = d_delta_Q;
 
     thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
                  cluster_hash_v.begin(),
@@ -409,10 +409,10 @@ class Louvain {
       });
   }
 
-  void assign_nodes(graph_type const &graph,
-                    rmm::device_uvector<vertex_t> &cluster_hash_v,
-                    rmm::device_uvector<vertex_t> &next_cluster_v,
-                    rmm::device_uvector<weight_t> &delta_Q_v,
+  void assign_nodes(graph_type const& graph,
+                    rmm::device_uvector<vertex_t>& cluster_hash_v,
+                    rmm::device_uvector<vertex_t>& next_cluster_v,
+                    rmm::device_uvector<weight_t>& delta_Q_v,
                     bool up_down)
   {
     rmm::device_uvector<vertex_t> temp_vertices_v(graph.number_of_vertices,
@@ -483,7 +483,7 @@ class Louvain {
                      });
   }
 
-  void shrink_graph(graph_t &graph)
+  void shrink_graph(graph_t& graph)
   {
     timer_start("shrinking graph");
 
@@ -499,9 +499,9 @@ class Louvain {
 
   vertex_t renumber_clusters()
   {
-    vertex_t *d_tmp_array       = tmp_arr_v_.data();
-    vertex_t *d_cluster_inverse = cluster_inverse_v_.data();
-    vertex_t *d_cluster         = dendrogram_->current_level_begin();
+    vertex_t* d_tmp_array       = tmp_arr_v_.data();
+    vertex_t* d_cluster_inverse = cluster_inverse_v_.data();
+    vertex_t* d_cluster         = dendrogram_->current_level_begin();
 
     vertex_t old_num_clusters = dendrogram_->current_level_size();
 
@@ -560,7 +560,7 @@ class Louvain {
     return new_num_clusters;
   }
 
-  void generate_superverticies_graph(graph_t &graph, vertex_t num_clusters)
+  void generate_superverticies_graph(graph_t& graph, vertex_t num_clusters)
   {
     rmm::device_uvector<vertex_t> new_src_v(graph.number_of_edges, handle_.get_stream_view());
     rmm::device_uvector<vertex_t> new_dst_v(graph.number_of_edges, handle_.get_stream_view());
@@ -627,7 +627,7 @@ class Louvain {
   }
 
  protected:
-  raft::handle_t const &handle_;
+  raft::handle_t const& handle_;
   vertex_t number_of_vertices_;
   edge_t number_of_edges_;
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #include <rmm/thrust_rmm_allocator.h>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>
 #include "converters/COOtoCSR.cuh"
@@ -24,8 +24,8 @@ namespace detail {
 
 template <typename IdxT>
 struct permutation_functor {
-  IdxT const *permutation;
-  permutation_functor(IdxT const *p) : permutation(p) {}
+  IdxT const* permutation;
+  permutation_functor(IdxT const* p) : permutation(p) {}
   __host__ __device__ IdxT operator()(IdxT in) const { return permutation[in]; }
 };
 
@@ -42,9 +42,9 @@ struct permutation_functor {
  * @return The permuted graph.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-void permute_graph(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                   vertex_t const *permutation,
-                   GraphCSRView<vertex_t, edge_t, weight_t> result,
+void permute_graph(legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+                   vertex_t const* permutation,
+                   legacy::GraphCSRView<vertex_t, edge_t, weight_t> result,
                    cudaStream_t stream = 0)
 {
   //  Create a COO out of the CSR
@@ -52,9 +52,9 @@ void permute_graph(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
   rmm::device_vector<vertex_t> dst_vertices_v(graph.number_of_edges);
   rmm::device_vector<weight_t> weights_v(graph.number_of_edges);
 
-  vertex_t *d_src     = src_vertices_v.data().get();
-  vertex_t *d_dst     = dst_vertices_v.data().get();
-  weight_t *d_weights = weights_v.data().get();
+  vertex_t* d_src     = src_vertices_v.data().get();
+  vertex_t* d_dst     = dst_vertices_v.data().get();
+  weight_t* d_weights = weights_v.data().get();
 
   graph.get_source_indices(d_src);
 
@@ -76,7 +76,7 @@ void permute_graph(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
                     d_dst,
                     pf);
 
-  GraphCOOView<vertex_t, edge_t, weight_t> graph_coo;
+  legacy::GraphCOOView<vertex_t, edge_t, weight_t> graph_coo;
 
   graph_coo.number_of_vertices = graph.number_of_vertices;
   graph_coo.number_of_edges    = graph.number_of_edges;

@@ -16,16 +16,15 @@
 #pragma once
 
 #include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph.hpp>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/matrix_partition_device.cuh>
+#include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_barrier.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/vertex_partition_device.cuh>
+#include <cugraph/vertex_partition_device_view.cuh>
 
 #include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
@@ -36,6 +35,22 @@
 
 namespace cugraph {
 namespace experimental {
+
+namespace detail {
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename VertexIterator>
+struct minor_to_key_t {
+  using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
+  VertexIterator adj_matrix_col_key_first{};
+  vertex_t minor_first{};
+  __device__ vertex_t operator()(vertex_t minor)
+  {
+    return *(adj_matrix_col_key_first + (minor - minor_first));
+  }
+};
+
+}  // namespace detail
 
 /**
  * @brief Iterate over every vertex's key-aggregated outgoing edges to update vertex properties.
@@ -243,7 +258,9 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   rmm::device_uvector<vertex_t> major_vertices(0, handle.get_stream());
   auto e_op_result_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    matrix_partition_device_t<GraphViewType> matrix_partition(graph_view, i);
+    auto matrix_partition =
+      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+        graph_view.get_matrix_partition_view(i));
 
     rmm::device_uvector<vertex_t> tmp_major_vertices(matrix_partition.get_number_of_edges(),
                                                      handle.get_stream());
@@ -254,18 +271,16 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     if (matrix_partition.get_major_size() > 0) {
       auto minor_key_first = thrust::make_transform_iterator(
         matrix_partition.get_indices(),
-        [adj_matrix_col_key_first, matrix_partition] __device__(auto minor) {
-          return *(adj_matrix_col_key_first +
-                   matrix_partition.get_minor_offset_from_minor_nocheck(minor));
-        });
+        detail::minor_to_key_t<VertexIterator0>{adj_matrix_col_key_first,
+                                                matrix_partition.get_minor_first()});
       thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                    minor_key_first,
                    minor_key_first + matrix_partition.get_number_of_edges(),
                    tmp_minor_keys.begin());
       if (graph_view.is_weighted()) {
         thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     matrix_partition.get_weights(),
-                     matrix_partition.get_weights() + matrix_partition.get_number_of_edges(),
+                     *(matrix_partition.get_weights()),
+                     *(matrix_partition.get_weights()) + matrix_partition.get_number_of_edges(),
                      tmp_key_aggregated_edge_weights.begin());
       }
       // FIXME: This is highly inefficient for graphs with high-degree vertices. If we renumber
@@ -526,8 +541,10 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       vertex_value_output_first,
       thrust::make_transform_iterator(
         unique_major_vertices.begin(),
-        [vertex_partition = vertex_partition_device_t<GraphViewType>(graph_view)] __device__(
-          auto v) { return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v); })),
+        [vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+           graph_view.get_vertex_partition_view())] __device__(auto v) {
+          return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v);
+        })),
     thrust::equal_to<vertex_t>{},
     reduce_op);
 

@@ -21,8 +21,8 @@
 
 #include <converters/COOtoCSR.cuh>
 
-#include <cugraph/graph.hpp>
 #include <cugraph/internals.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <raft/random/rng.cuh>
 
@@ -34,12 +34,12 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void exact_fa2(raft::handle_t const &handle,
-               GraphCOOView<vertex_t, edge_t, weight_t> &graph,
-               float *pos,
+void exact_fa2(raft::handle_t const& handle,
+               legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
+               float* pos,
                const int max_iter                            = 500,
-               float *x_start                                = nullptr,
-               float *y_start                                = nullptr,
+               float* x_start                                = nullptr,
+               float* y_start                                = nullptr,
                bool outbound_attraction_distribution         = true,
                bool lin_log_mode                             = false,
                bool prevent_overlapping                      = false,
@@ -49,18 +49,18 @@ void exact_fa2(raft::handle_t const &handle,
                bool strong_gravity_mode                      = false,
                const float gravity                           = 1.0,
                bool verbose                                  = false,
-               internals::GraphBasedDimRedCallback *callback = nullptr)
+               internals::GraphBasedDimRedCallback* callback = nullptr)
 {
   auto stream_view = handle.get_stream_view();
   const edge_t e   = graph.number_of_edges;
   const vertex_t n = graph.number_of_vertices;
 
-  float *d_repel{nullptr};
-  float *d_attract{nullptr};
-  float *d_old_forces{nullptr};
-  int *d_mass{nullptr};
-  float *d_swinging{nullptr};
-  float *d_traction{nullptr};
+  float* d_repel{nullptr};
+  float* d_attract{nullptr};
+  float* d_old_forces{nullptr};
+  int* d_mass{nullptr};
+  float* d_swinging{nullptr};
+  float* d_traction{nullptr};
 
   rmm::device_uvector<float> repel(n * 2, stream_view);
   rmm::device_uvector<float> attract(n * 2, stream_view);
@@ -92,12 +92,12 @@ void exact_fa2(raft::handle_t const &handle,
   sort(graph, stream_view.value());
   CHECK_CUDA(stream_view.value());
 
-  graph.degree(d_mass, cugraph::DegreeDirection::OUT);
+  graph.degree(d_mass, cugraph::legacy::DegreeDirection::OUT);
   CHECK_CUDA(stream_view.value());
 
-  const vertex_t *row = graph.src_indices;
-  const vertex_t *col = graph.dst_indices;
-  const weight_t *v   = graph.edge_data;
+  const vertex_t* row = graph.src_indices;
+  const vertex_t* col = graph.dst_indices;
+  const weight_t* v   = graph.edge_data;
 
   float speed                     = 1.f;
   float speed_efficiency          = 1.f;

@@ -16,6 +16,7 @@
 #pragma once
 
 namespace cugraph {
+namespace legacy {
 extern template class GraphViewBase<int32_t, int32_t, float>;
 extern template class GraphViewBase<int32_t, int32_t, double>;
 extern template class GraphViewBase<int32_t, int64_t, float>;
@@ -88,4 +89,5 @@ extern template class GraphCSC<int64_t, int32_t, float>;
 extern template class GraphCSC<int64_t, int32_t, double>;
 extern template class GraphCSC<int64_t, int64_t, float>;
 extern template class GraphCSC<int64_t, int64_t, double>;
+}  // namespace legacy
 }  // namespace cugraph

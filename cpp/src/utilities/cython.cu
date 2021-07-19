@@ -18,12 +18,13 @@
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/graph.hpp>
 #include <cugraph/graph_generators.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/cython.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_traits.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/path_retrieval.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -87,7 +88,7 @@ std::vector<edge_t> compute_edge_counts(raft::handle_t const& handle,
   auto major_vertices = transposed
                           ? reinterpret_cast<vertex_t const*>(graph_container.dst_vertices)
                           : reinterpret_cast<vertex_t const*>(graph_container.src_vertices);
-  auto key_first = thrust::make_transform_iterator(
+  auto key_first      = thrust::make_transform_iterator(
     major_vertices, compute_local_partition_id_t<vertex_t>{d_lasts.data(), num_local_partitions});
   rmm::device_uvector<size_t> d_local_partition_ids(num_local_partitions, handle.get_stream());
   rmm::device_uvector<edge_t> d_edge_counts(d_local_partition_ids.size(), handle.get_stream());
@@ -146,9 +147,10 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     edgelists[i] = cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>{
       reinterpret_cast<vertex_t*>(graph_container.src_vertices) + displacements[i],
       reinterpret_cast<vertex_t*>(graph_container.dst_vertices) + displacements[i],
-      graph_container.graph_props.is_weighted
-        ? reinterpret_cast<weight_t*>(graph_container.weights) + displacements[i]
-        : static_cast<weight_t*>(nullptr),
+      graph_container.is_weighted
+        ? std::optional<weight_t const*>(
+            {static_cast<weight_t const*>(graph_container.weights) + displacements[i]})
+        : std::nullopt,
       edge_counts[i]};
   }
 
@@ -165,7 +167,12 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
     static_cast<vertex_t>(graph_container.num_global_vertices),
     static_cast<edge_t>(graph_container.num_global_edges),
     graph_container.graph_props,
-    true,
+    graph_container.segment_offsets != nullptr
+      ? std::make_optional<std::vector<vertex_t>>(
+          static_cast<vertex_t const*>(graph_container.segment_offsets),
+          static_cast<vertex_t const*>(graph_container.segment_offsets) +
+            graph_container.num_segments + 1)
+      : std::nullopt,
     graph_container.do_expensive_check);
 }
 
@@ -181,14 +188,21 @@ create_graph(raft::handle_t const& handle, graph_container_t const& graph_contai
   experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
     reinterpret_cast<vertex_t*>(graph_container.src_vertices),
     reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
-    reinterpret_cast<weight_t*>(graph_container.weights),
+    graph_container.is_weighted
+      ? std::optional<weight_t const*>{reinterpret_cast<weight_t*>(graph_container.weights)}
+      : std::nullopt,
     static_cast<edge_t>(graph_container.num_local_edges)};
   return std::make_unique<experimental::graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelist,
     static_cast<vertex_t>(graph_container.num_global_vertices),
     graph_container.graph_props,
-    graph_container.sorted_by_degree,
+    graph_container.segment_offsets != nullptr
+      ? std::make_optional<std::vector<vertex_t>>(
+          static_cast<vertex_t const*>(graph_container.segment_offsets),
+          static_cast<vertex_t const*>(graph_container.segment_offsets) +
+            graph_container.num_segments + 1)
+      : std::nullopt,
     graph_container.do_expensive_check);
 }
 
@@ -203,13 +217,14 @@ void populate_graph_container(graph_container_t& graph_container,
                               void* dst_vertices,
                               void* weights,
                               void* vertex_partition_offsets,
+                              void* segment_offsets,
+                              size_t num_segments,
                               numberTypeEnum vertexType,
                               numberTypeEnum edgeType,
                               numberTypeEnum weightType,
                               size_t num_local_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
-                              bool sorted_by_degree,
                               bool is_weighted,
                               bool is_symmetric,
                               bool transposed,
@@ -233,10 +248,13 @@ void populate_graph_container(graph_container_t& graph_container,
     graph_container.col_comm_rank = col_comm_rank;
   }
 
-  graph_container.vertex_partition_offsets = vertex_partition_offsets;
   graph_container.src_vertices             = src_vertices;
   graph_container.dst_vertices             = dst_vertices;
   graph_container.weights                  = weights;
+  graph_container.is_weighted              = is_weighted;
+  graph_container.vertex_partition_offsets = vertex_partition_offsets;
+  graph_container.segment_offsets          = segment_offsets;
+  graph_container.num_segments             = num_segments;
   graph_container.num_local_edges          = num_local_edges;
   graph_container.num_global_vertices      = num_global_vertices;
   graph_container.num_global_edges         = num_global_edges;
@@ -245,11 +263,10 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.weightType               = weightType;
   graph_container.transposed               = transposed;
   graph_container.is_multi_gpu             = multi_gpu;
-  graph_container.sorted_by_degree         = sorted_by_degree;
   graph_container.do_expensive_check       = do_expensive_check;
 
-  experimental::graph_properties_t graph_props{
-    .is_symmetric = is_symmetric, .is_multigraph = false, .is_weighted = is_weighted};
+  experimental::graph_properties_t graph_props{.is_symmetric  = is_symmetric,
+                                               .is_multigraph = false};
   graph_container.graph_props = graph_props;
 
   graph_container.graph_type = graphTypeEnum::graph_t;
@@ -281,11 +298,11 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
     switch (legacyType) {
       case graphTypeEnum::LegacyCSR: {
         graph_container.graph_ptr_union.GraphCSRViewFloatPtr =
-          std::make_unique<GraphCSRView<int, int, float>>(reinterpret_cast<int*>(offsets),
-                                                          reinterpret_cast<int*>(indices),
-                                                          reinterpret_cast<float*>(weights),
-                                                          num_global_vertices,
-                                                          num_global_edges);
+          std::make_unique<legacy::GraphCSRView<int, int, float>>(reinterpret_cast<int*>(offsets),
+                                                                  reinterpret_cast<int*>(indices),
+                                                                  reinterpret_cast<float*>(weights),
+                                                                  num_global_vertices,
+                                                                  num_global_edges);
         graph_container.graph_type = graphTypeEnum::GraphCSRViewFloat;
         (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -294,11 +311,11 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
       } break;
       case graphTypeEnum::LegacyCSC: {
         graph_container.graph_ptr_union.GraphCSCViewFloatPtr =
-          std::make_unique<GraphCSCView<int, int, float>>(reinterpret_cast<int*>(offsets),
-                                                          reinterpret_cast<int*>(indices),
-                                                          reinterpret_cast<float*>(weights),
-                                                          num_global_vertices,
-                                                          num_global_edges);
+          std::make_unique<legacy::GraphCSCView<int, int, float>>(reinterpret_cast<int*>(offsets),
+                                                                  reinterpret_cast<int*>(indices),
+                                                                  reinterpret_cast<float*>(weights),
+                                                                  num_global_vertices,
+                                                                  num_global_edges);
         graph_container.graph_type = graphTypeEnum::GraphCSCViewFloat;
         (graph_container.graph_ptr_union.GraphCSCViewFloatPtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -307,11 +324,11 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
       } break;
       case graphTypeEnum::LegacyCOO: {
         graph_container.graph_ptr_union.GraphCOOViewFloatPtr =
-          std::make_unique<GraphCOOView<int, int, float>>(reinterpret_cast<int*>(offsets),
-                                                          reinterpret_cast<int*>(indices),
-                                                          reinterpret_cast<float*>(weights),
-                                                          num_global_vertices,
-                                                          num_global_edges);
+          std::make_unique<legacy::GraphCOOView<int, int, float>>(reinterpret_cast<int*>(offsets),
+                                                                  reinterpret_cast<int*>(indices),
+                                                                  reinterpret_cast<float*>(weights),
+                                                                  num_global_vertices,
+                                                                  num_global_edges);
         graph_container.graph_type = graphTypeEnum::GraphCOOViewFloat;
         (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -325,11 +342,12 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
     switch (legacyType) {
       case graphTypeEnum::LegacyCSR: {
         graph_container.graph_ptr_union.GraphCSRViewDoublePtr =
-          std::make_unique<GraphCSRView<int, int, double>>(reinterpret_cast<int*>(offsets),
-                                                           reinterpret_cast<int*>(indices),
-                                                           reinterpret_cast<double*>(weights),
-                                                           num_global_vertices,
-                                                           num_global_edges);
+          std::make_unique<legacy::GraphCSRView<int, int, double>>(
+            reinterpret_cast<int*>(offsets),
+            reinterpret_cast<int*>(indices),
+            reinterpret_cast<double*>(weights),
+            num_global_vertices,
+            num_global_edges);
         graph_container.graph_type = graphTypeEnum::GraphCSRViewDouble;
         (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -338,11 +356,12 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
       } break;
       case graphTypeEnum::LegacyCSC: {
         graph_container.graph_ptr_union.GraphCSCViewDoublePtr =
-          std::make_unique<GraphCSCView<int, int, double>>(reinterpret_cast<int*>(offsets),
-                                                           reinterpret_cast<int*>(indices),
-                                                           reinterpret_cast<double*>(weights),
-                                                           num_global_vertices,
-                                                           num_global_edges);
+          std::make_unique<legacy::GraphCSCView<int, int, double>>(
+            reinterpret_cast<int*>(offsets),
+            reinterpret_cast<int*>(indices),
+            reinterpret_cast<double*>(weights),
+            num_global_vertices,
+            num_global_edges);
         graph_container.graph_type = graphTypeEnum::GraphCSCViewDouble;
         (graph_container.graph_ptr_union.GraphCSCViewDoublePtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -351,11 +370,12 @@ void populate_graph_container_legacy(graph_container_t& graph_container,
       } break;
       case graphTypeEnum::LegacyCOO: {
         graph_container.graph_ptr_union.GraphCOOViewDoublePtr =
-          std::make_unique<GraphCOOView<int, int, double>>(reinterpret_cast<int*>(offsets),
-                                                           reinterpret_cast<int*>(indices),
-                                                           reinterpret_cast<double*>(weights),
-                                                           num_global_vertices,
-                                                           num_global_edges);
+          std::make_unique<legacy::GraphCOOView<int, int, double>>(
+            reinterpret_cast<int*>(offsets),
+            reinterpret_cast<int*>(indices),
+            reinterpret_cast<double*>(weights),
+            num_global_vertices,
+            num_global_edges);
         graph_container.graph_type = graphTypeEnum::GraphCOOViewDouble;
         (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
           ->set_local_data(local_vertices, local_edges, local_offsets);
@@ -563,68 +583,95 @@ void call_pagerank(raft::handle_t const& handle,
                    bool has_guess)
 {
   if (graph_container.is_multi_gpu) {
+    auto& comm                                 = handle.get_comms();
+    auto aggregate_personalization_subset_size = cugraph::experimental::host_scalar_allreduce(
+      comm, personalization_subset_size, handle.get_stream());
+
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
-      cugraph::experimental::pagerank(handle,
-                                      graph->view(),
-                                      static_cast<weight_t*>(nullptr),
-                                      reinterpret_cast<int32_t*>(personalization_subset),
-                                      reinterpret_cast<weight_t*>(personalization_values),
-                                      static_cast<int32_t>(personalization_subset_size),
-                                      reinterpret_cast<weight_t*>(p_pagerank),
-                                      static_cast<weight_t>(alpha),
-                                      static_cast<weight_t>(tolerance),
-                                      max_iter,
-                                      has_guess,
-                                      true);
+      cugraph::experimental::pagerank<int32_t, int32_t, weight_t>(
+        handle,
+        graph->view(),
+        std::nullopt,
+        aggregate_personalization_subset_size > 0
+          ? std::optional<int32_t const*>{reinterpret_cast<int32_t const*>(personalization_subset)}
+          : std::nullopt,
+        aggregate_personalization_subset_size > 0
+          ? std::optional<weight_t const*>{personalization_values}
+          : std::nullopt,
+        aggregate_personalization_subset_size > 0
+          ? std::optional<int32_t>{static_cast<int32_t>(personalization_subset_size)}
+          : std::nullopt,
+        reinterpret_cast<weight_t*>(p_pagerank),
+        static_cast<weight_t>(alpha),
+        static_cast<weight_t>(tolerance),
+        max_iter,
+        has_guess,
+        true);
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, true, true>(handle, graph_container);
-      cugraph::experimental::pagerank(handle,
-                                      graph->view(),
-                                      static_cast<weight_t*>(nullptr),
-                                      reinterpret_cast<vertex_t*>(personalization_subset),
-                                      reinterpret_cast<weight_t*>(personalization_values),
-                                      static_cast<vertex_t>(personalization_subset_size),
-                                      reinterpret_cast<weight_t*>(p_pagerank),
-                                      static_cast<weight_t>(alpha),
-                                      static_cast<weight_t>(tolerance),
-                                      max_iter,
-                                      has_guess,
-                                      true);
+      cugraph::experimental::pagerank<vertex_t, int64_t, weight_t>(
+        handle,
+        graph->view(),
+        std::nullopt,
+        aggregate_personalization_subset_size > 0
+          ? std::optional<vertex_t const*>{personalization_subset}
+          : std::nullopt,
+        aggregate_personalization_subset_size > 0
+          ? std::optional<weight_t const*>{personalization_values}
+          : std::nullopt,
+        aggregate_personalization_subset_size > 0
+          ? std::optional<vertex_t>{personalization_subset_size}
+          : std::nullopt,
+        reinterpret_cast<weight_t*>(p_pagerank),
+        static_cast<weight_t>(alpha),
+        static_cast<weight_t>(tolerance),
+        max_iter,
+        has_guess,
+        true);
     }
   } else {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
         detail::create_graph<int32_t, int32_t, weight_t, true, false>(handle, graph_container);
-      cugraph::experimental::pagerank(handle,
-                                      graph->view(),
-                                      static_cast<weight_t*>(nullptr),
-                                      reinterpret_cast<int32_t*>(personalization_subset),
-                                      reinterpret_cast<weight_t*>(personalization_values),
-                                      static_cast<int32_t>(personalization_subset_size),
-                                      reinterpret_cast<weight_t*>(p_pagerank),
-                                      static_cast<weight_t>(alpha),
-                                      static_cast<weight_t>(tolerance),
-                                      max_iter,
-                                      has_guess,
-                                      true);
+      cugraph::experimental::pagerank<int32_t, int32_t, weight_t>(
+        handle,
+        graph->view(),
+        std::nullopt,
+        personalization_subset_size > 0
+          ? std::optional<int32_t const*>{reinterpret_cast<int32_t const*>(personalization_subset)}
+          : std::nullopt,
+        personalization_subset_size > 0 ? std::optional<weight_t const*>{personalization_values}
+                                        : std::nullopt,
+        personalization_subset_size > 0 ? std::optional<int32_t>{personalization_subset_size}
+                                        : std::nullopt,
+        reinterpret_cast<weight_t*>(p_pagerank),
+        static_cast<weight_t>(alpha),
+        static_cast<weight_t>(tolerance),
+        max_iter,
+        has_guess,
+        true);
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
       auto graph =
         detail::create_graph<vertex_t, int64_t, weight_t, true, false>(handle, graph_container);
-      cugraph::experimental::pagerank(handle,
-                                      graph->view(),
-                                      static_cast<weight_t*>(nullptr),
-                                      reinterpret_cast<vertex_t*>(personalization_subset),
-                                      reinterpret_cast<weight_t*>(personalization_values),
-                                      static_cast<vertex_t>(personalization_subset_size),
-                                      reinterpret_cast<weight_t*>(p_pagerank),
-                                      static_cast<weight_t>(alpha),
-                                      static_cast<weight_t>(tolerance),
-                                      max_iter,
-                                      has_guess,
-                                      true);
+      cugraph::experimental::pagerank<vertex_t, int64_t, weight_t>(
+        handle,
+        graph->view(),
+        std::nullopt,
+        personalization_subset_size > 0 ? std::optional<vertex_t const*>{personalization_subset}
+                                        : std::nullopt,
+        personalization_subset_size > 0 ? std::optional<weight_t const*>{personalization_values}
+                                        : std::nullopt,
+        personalization_subset_size > 0 ? std::optional<vertex_t>{personalization_subset_size}
+                                        : std::nullopt,
+        reinterpret_cast<weight_t*>(p_pagerank),
+        static_cast<weight_t>(alpha),
+        static_cast<weight_t>(tolerance),
+        max_iter,
+        has_guess,
+        true);
     }
   }
 }
@@ -769,7 +816,9 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
       static_cast<size_t>(n_subgraphs),
       std::make_unique<rmm::device_buffer>(std::get<0>(g).release()),
       std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
-      std::make_unique<rmm::device_buffer>(std::get<2>(g).release()),
+      std::make_unique<rmm::device_buffer>(
+        std::get<2>(g) ? (*std::get<2>(g)).release()
+                       : rmm::device_buffer(size_t{0}, handle.get_stream_view())),
       std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
     return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
   } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
@@ -786,7 +835,9 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
       static_cast<size_t>(n_subgraphs),
       std::make_unique<rmm::device_buffer>(std::get<0>(g).release()),
       std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
-      std::make_unique<rmm::device_buffer>(std::get<2>(g).release()),
+      std::make_unique<rmm::device_buffer>(
+        std::get<2>(g) ? (*std::get<2>(g)).release()
+                       : rmm::device_buffer(size_t{0}, handle.get_stream_view())),
       std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
     return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
   } else {
@@ -1140,7 +1191,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
 // TODO: check if return type needs further handling...
 //
 template <typename vertex_t, typename edge_t>
-std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
+std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
   raft::handle_t const& handle,
   vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
@@ -1150,8 +1201,8 @@ std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
 {
   // caveat: return values have different types on the 2 branches below:
   //
-  std::unique_ptr<renum_quad_t<vertex_t, edge_t>> p_ret =
-    std::make_unique<renum_quad_t<vertex_t, edge_t>>(handle);
+  std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> p_ret =
+    std::make_unique<renum_tuple_t<vertex_t, edge_t>>(handle);
 
   if (multi_gpu) {
     std::vector<edge_t> displacements(edge_counts.size(), edge_t{0});
@@ -1163,18 +1214,22 @@ std::unique_ptr<renum_quad_t<vertex_t, edge_t>> call_renumber(
       minor_ptrs[i] = shuffled_edgelist_minor_vertices + displacements[i];
     }
 
-    std::tie(
-      p_ret->get_dv(), p_ret->get_partition(), p_ret->get_num_vertices(), p_ret->get_num_edges()) =
+    std::tie(p_ret->get_dv(),
+             p_ret->get_partition(),
+             p_ret->get_num_vertices(),
+             p_ret->get_num_edges(),
+             p_ret->get_segment_offsets()) =
       cugraph::experimental::renumber_edgelist<vertex_t, edge_t, true>(
         handle, std::nullopt, major_ptrs, minor_ptrs, edge_counts, do_expensive_check);
   } else {
-    p_ret->get_dv() = cugraph::experimental::renumber_edgelist<vertex_t, edge_t, false>(
-      handle,
-      std::nullopt,
-      shuffled_edgelist_major_vertices,
-      shuffled_edgelist_minor_vertices,
-      edge_counts[0],
-      do_expensive_check);
+    std::tie(p_ret->get_dv(), p_ret->get_segment_offsets()) =
+      cugraph::experimental::renumber_edgelist<vertex_t, edge_t, false>(
+        handle,
+        std::nullopt,
+        shuffled_edgelist_major_vertices,
+        shuffled_edgelist_minor_vertices,
+        edge_counts[0],
+        do_expensive_check);
 
     p_ret->get_partition() = cugraph::experimental::partition_t<vertex_t>{};  // dummy
 
@@ -1491,7 +1546,7 @@ template std::unique_ptr<major_minor_weights_t<int64_t, int64_t, double>> call_s
 
 // TODO: add the remaining relevant EIDIr's:
 //
-template std::unique_ptr<renum_quad_t<int32_t, int32_t>> call_renumber(
+template std::unique_ptr<renum_tuple_t<int32_t, int32_t>> call_renumber(
   raft::handle_t const& handle,
   int32_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   int32_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
@@ -1499,7 +1554,7 @@ template std::unique_ptr<renum_quad_t<int32_t, int32_t>> call_renumber(
   bool do_expensive_check,
   bool multi_gpu);
 
-template std::unique_ptr<renum_quad_t<int32_t, int64_t>> call_renumber(
+template std::unique_ptr<renum_tuple_t<int32_t, int64_t>> call_renumber(
   raft::handle_t const& handle,
   int32_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   int32_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
@@ -1507,7 +1562,7 @@ template std::unique_ptr<renum_quad_t<int32_t, int64_t>> call_renumber(
   bool do_expensive_check,
   bool multi_gpu);
 
-template std::unique_ptr<renum_quad_t<int64_t, int64_t>> call_renumber(
+template std::unique_ptr<renum_tuple_t<int64_t, int64_t>> call_renumber(
   raft::handle_t const& handle,
   int64_t* shuffled_edgelist_major_vertices /* [INOUT] */,
   int64_t* shuffled_edgelist_minor_vertices /* [INOUT] */,

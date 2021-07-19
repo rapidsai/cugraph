@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,13 @@
 
 #include <thrust/tuple.h>
 
-#define MAXBLOCKS 65535
+#define MAXBLOCKS          65535
 #define TWO_HOP_BLOCK_SIZE 512
 
 template <typename edge_t>
 struct degree_iterator {
-  edge_t const *offsets;
-  degree_iterator(edge_t const *_offsets) : offsets(_offsets) {}
+  edge_t const* offsets;
+  degree_iterator(edge_t const* _offsets) : offsets(_offsets) {}
 
   __host__ __device__ edge_t operator[](edge_t place)
   {
@@ -53,7 +53,7 @@ struct self_loop_flagger {
 };
 
 template <typename edge_t>
-__device__ edge_t binsearch_maxle(const edge_t *vec, const edge_t val, edge_t low, edge_t high)
+__device__ edge_t binsearch_maxle(const edge_t* vec, const edge_t val, edge_t low, edge_t high)
 {
   while (true) {
     if (low == high) return low;  // we know it exists
@@ -69,8 +69,8 @@ __device__ edge_t binsearch_maxle(const edge_t *vec, const edge_t val, edge_t lo
 }
 
 template <typename edge_t>
-__global__ void compute_bucket_offsets_kernel(const edge_t *frontier_degrees_exclusive_sum,
-                                              edge_t *bucket_offsets,
+__global__ void compute_bucket_offsets_kernel(const edge_t* frontier_degrees_exclusive_sum,
+                                              edge_t* bucket_offsets,
                                               const edge_t frontier_size,
                                               edge_t total_degree)
 {
@@ -86,15 +86,15 @@ __global__ void compute_bucket_offsets_kernel(const edge_t *frontier_degrees_exc
 }
 
 template <typename vertex_t, typename edge_t>
-__global__ void scatter_expand_kernel(const edge_t *exsum_degree,
-                                      const vertex_t *indices,
-                                      const edge_t *offsets,
-                                      const edge_t *bucket_offsets,
+__global__ void scatter_expand_kernel(const edge_t* exsum_degree,
+                                      const vertex_t* indices,
+                                      const edge_t* offsets,
+                                      const edge_t* bucket_offsets,
                                       vertex_t num_verts,
                                       edge_t max_item,
                                       edge_t max_block,
-                                      vertex_t *output_first,
-                                      vertex_t *output_second)
+                                      vertex_t* output_first,
+                                      vertex_t* output_second)
 {
   __shared__ edge_t blockRange[2];
   for (edge_t bid = blockIdx.x; bid < max_block; bid += gridDim.x) {

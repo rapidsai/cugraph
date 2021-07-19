@@ -18,7 +18,6 @@
 
 from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure.graph_primtypes cimport get_two_hop_neighbors as c_get_two_hop_neighbors
-from cugraph.structure.graph_primtypes cimport renumber_vertices as c_renumber_vertices
 from cugraph.structure.utils_wrapper import *
 from libcpp cimport bool
 import enum
@@ -50,45 +49,6 @@ class Direction(enum.Enum):
     ALL = 0
     IN = 1
     OUT = 2
-
-
-def renumber(source_col, dest_col):
-    num_edges = len(source_col)
-
-    src_renumbered = cudf.Series(np.zeros(num_edges), dtype=np.int32)
-    dst_renumbered = cudf.Series(np.zeros(num_edges), dtype=np.int32)
-
-    cdef uintptr_t c_src = source_col.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_dst = dest_col.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_src_renumbered = src_renumbered.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_dst_renumbered = dst_renumbered.__cuda_array_interface__['data'][0]
-    cdef int map_size = 0
-    cdef int n_edges = num_edges
-
-    cdef unique_ptr[device_buffer] numbering_map
-
-    if (source_col.dtype == np.int32):
-        numbering_map = move(c_renumber_vertices[int,int,int](n_edges,
-                                                              <int*>c_src,
-                                                              <int*>c_dst,
-                                                              <int*>c_src_renumbered,
-                                                              <int*>c_dst_renumbered,
-                                                              &map_size))
-    else:
-        numbering_map = move(c_renumber_vertices[long,int,int](n_edges,
-                                                               <long*>c_src,
-                                                               <long*>c_dst,
-                                                               <int*>c_src_renumbered,
-                                                               <int*>c_dst_renumbered,
-                                                               &map_size))
-
-
-    map = DeviceBuffer.c_from_unique_ptr(move(numbering_map))
-    map = Buffer(map)
-
-    output_map = cudf.Series(data=map, dtype=source_col.dtype)
-
-    return src_renumbered, dst_renumbered, output_map
 
 
 def view_adj_list(input_graph):

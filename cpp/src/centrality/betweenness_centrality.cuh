@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,69 +22,69 @@
 namespace cugraph {
 namespace detail {
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void betweenness_centrality(raft::handle_t const &handle,
-                            GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                            result_t *result,
+void betweenness_centrality(raft::handle_t const& handle,
+                            legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+                            result_t* result,
                             bool normalize,
                             bool endpoints,
-                            weight_t const *weight,
+                            weight_t const* weight,
                             vertex_t const number_of_sources,
-                            vertex_t const *sources);
+                            vertex_t const* sources);
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void edge_betweenness_centrality(GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-                                 result_t *result,
+void edge_betweenness_centrality(legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+                                 result_t* result,
                                  bool normalize,
-                                 weight_t const *weight,
+                                 weight_t const* weight,
                                  vertex_t const number_of_sources,
-                                 vertex_t const *sources);
+                                 vertex_t const* sources);
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void verify_betweenness_centrality_input(result_t *result,
+void verify_betweenness_centrality_input(result_t* result,
                                          bool is_edge_betweenness,
                                          bool normalize,
                                          bool endpoints,
-                                         weight_t const *weights,
+                                         weight_t const* weights,
                                          vertex_t const number_of_sources,
-                                         vertex_t const *sources);
+                                         vertex_t const* sources);
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 class BC {
  public:
   virtual ~BC(void) {}
-  BC(raft::handle_t const &handle,
-     GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+  BC(raft::handle_t const& handle,
+     legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
      cudaStream_t stream = 0)
     : handle_(handle), graph_(graph)
   {
     setup();
   }
-  void configure(result_t *betweenness,
+  void configure(result_t* betweenness,
                  bool is_edge_betweenness,
                  bool normalize,
                  bool endpoints,
-                 weight_t const *weight,
-                 vertex_t const *sources,
+                 weight_t const* weight,
+                 vertex_t const* sources,
                  vertex_t const number_of_sources);
 
-  void configure_edge(result_t *betweenness,
+  void configure_edge(result_t* betweenness,
                       bool normalize,
-                      weight_t const *weight,
-                      vertex_t const *sources,
+                      weight_t const* weight,
+                      vertex_t const* sources,
                       vertex_t const number_of_sources);
   void compute();
   void rescale_by_total_sources_used(vertex_t total_number_of_sources_used);
 
  private:
   // --- RAFT handle ---
-  raft::handle_t const &handle_;
+  raft::handle_t const& handle_;
   // --- Information concerning the graph ---
-  const GraphCSRView<vertex_t, edge_t, weight_t> &graph_;
+  const legacy::GraphCSRView<vertex_t, edge_t, weight_t>& graph_;
   // --- These information are extracted on setup ---
   vertex_t number_of_vertices_;  // Number of vertices in the graph
   vertex_t number_of_edges_;     // Number of edges in the graph
-  edge_t const *offsets_ptr_;    // Pointer to the offsets
-  vertex_t const *indices_ptr_;  // Pointers to the indices
+  edge_t const* offsets_ptr_;    // Pointer to the offsets
+  vertex_t const* indices_ptr_;  // Pointers to the indices
 
   // --- Information from configuration ---
   bool configured_          = false;  // Flag to ensure configuration was called
@@ -92,14 +92,14 @@ class BC {
   bool is_edge_betweenness_ = false;  // If True compute edge_betweeness
 
   // FIXME: For weighted version
-  weight_t const *edge_weights_ptr_ = nullptr;  // Pointer to the weights
+  weight_t const* edge_weights_ptr_ = nullptr;  // Pointer to the weights
   bool endpoints_                   = false;    // If True normalize the betweenness
-  vertex_t const *sources_          = nullptr;  // Subset of vertices to gather information from
+  vertex_t const* sources_          = nullptr;  // Subset of vertices to gather information from
   vertex_t number_of_sources_;                  // Number of vertices in sources
 
   // --- Output ----
   // betweenness is set/read by users - using Vectors
-  result_t *betweenness_ = nullptr;
+  result_t* betweenness_ = nullptr;
 
   // --- Data required to perform computation ----
   rmm::device_vector<vertex_t> distances_vec_;
@@ -107,13 +107,13 @@ class BC {
   rmm::device_vector<double> sp_counters_vec_;
   rmm::device_vector<double> deltas_vec_;
 
-  vertex_t *distances_ =
+  vertex_t* distances_ =
     nullptr;  // array<vertex_t>(|V|) stores the distances gathered by the latest SSSP
-  vertex_t *predecessors_ =
+  vertex_t* predecessors_ =
     nullptr;  // array<weight_t>(|V|) stores the predecessors of the latest SSSP
-  double *sp_counters_ =
+  double* sp_counters_ =
     nullptr;  // array<vertex_t>(|V|) stores the shortest path counter for the latest SSSP
-  double *deltas_ = nullptr;  // array<result_t>(|V|) stores the dependencies for the latest SSSP
+  double* deltas_ = nullptr;  // array<result_t>(|V|) stores the dependencies for the latest SSSP
 
   int max_grid_dim_1D_  = 0;
   int max_block_dim_1D_ = 0;

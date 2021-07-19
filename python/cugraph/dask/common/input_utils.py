@@ -191,9 +191,9 @@ def _workers_to_parts(futures):
     :param futures: list of (worker, part) tuples
     :return:
     """
-    w_to_p_map = OrderedDict()
+    w_to_p_map = OrderedDict.fromkeys(Comms.get_workers())
     for w, p in futures:
-        if w not in w_to_p_map:
+        if w_to_p_map[w] is None:
             w_to_p_map[w] = []
         w_to_p_map[w].append(p)
     return w_to_p_map
