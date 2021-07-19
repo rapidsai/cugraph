@@ -23,7 +23,7 @@
 #include "graph_enum.hpp"
 
 namespace cugraph {
-namespace experimental {
+namespace visitors {
 
 template <typename vertex_t,
           typename edge_t,
@@ -40,5 +40,5 @@ struct GMapType<vertex_t, edge_t, weight_t, st_tr, multi_gpu, GTypes::GRAPH_T> {
   using type = graph_t<vertex_t, edge_t, weight_t, st_tr, multi_gpu>;
 };
 
-}  // namespace experimental
+}  // namespace visitors
 }  // namespace cugraph

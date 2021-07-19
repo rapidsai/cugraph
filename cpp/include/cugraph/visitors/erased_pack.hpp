@@ -27,7 +27,7 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
+namespace visitors {
 
 struct erased_pack_t {
   erased_pack_t(void** p_args, size_t n)
@@ -69,5 +69,5 @@ struct erased_pack_t {
   std::vector<void*> args_;
 };
 
-}  // namespace experimental
+}  // namespace visitors
 }  // namespace cugraph

@@ -23,7 +23,9 @@
 #include "ret_terased.hpp"
 
 namespace cugraph {
-namespace experimental {
+namespace visitors {
+
+using namespace cugraph::experimental;
 
 // macro option: MAKE_VISITOR(bfs)
 
@@ -79,5 +81,5 @@ struct bfs_visitor<vertex_t,
 // wrapper:
 //
 return_t bfs_wrapper(graph_envelope_t const& g, erased_pack_t& ep);
-}  // namespace experimental
+}  // namespace visitors
 }  // namespace cugraph

@@ -222,6 +222,8 @@ struct graph_properties_t {
 
 namespace detail {
 
+using namespace cugraph::visitors;
+
 // FIXME: threshold values require tuning
 // use the hypersparse format (currently, DCSR or DCSC) for the vertices with their degrees smaller
 // than col_comm_size * hypersparse_threshold_ratio, should be less than 1.0

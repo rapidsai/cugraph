@@ -110,12 +110,12 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   template <typename vertex_t, typename edge_t>
   void run_current_test(BFS_Usecase const& configuration)
   {
+    using namespace cugraph::experimental;
+    using namespace cugraph::visitors;
+
     using weight_t = float;
 
     raft::handle_t handle{};
-    // visitors version:
-    //
-    using namespace cugraph::experimental;
 
     bool test_weighted = false;
 

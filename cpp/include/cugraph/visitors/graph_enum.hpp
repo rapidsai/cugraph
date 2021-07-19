@@ -20,7 +20,7 @@
 #pragma once
 
 namespace cugraph {
-namespace experimental {
+namespace visitors {
 enum class GTypes { GRAPH_T = 0, GRAPH_VIEW_T, NTYPES };
-}  // namespace experimental
+}  // namespace visitors
 }  // namespace cugraph

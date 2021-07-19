@@ -21,7 +21,7 @@
 #include <cugraph/visitors/bfs_visitor.hpp>
 
 namespace cugraph {
-namespace experimental {
+namespace visitors {
 
 //
 // wrapper code:
@@ -134,5 +134,5 @@ return_t bfs_wrapper(graph_envelope_t const& g, erased_pack_t& ep)
   return ret;  // RVO-ed;
 }
 
-}  // namespace experimental
+}  // namespace visitors
 }  // namespace cugraph

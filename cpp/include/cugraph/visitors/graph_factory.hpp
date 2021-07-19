@@ -40,7 +40,9 @@
 #endif
 
 namespace cugraph {
-namespace experimental {
+namespace visitors {
+
+using namespace cugraph::experimental;
 
 struct graph_factory_base_t {
   virtual ~graph_factory_base_t(void) {}
@@ -137,7 +139,7 @@ struct graph_factory_t<
 
     // TODO: un-hardcode: have it passed int `ep`
     //
-    experimental::graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
+    graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
     bool do_expensive_check{false};  // FIXME: check what should this default to
 
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -147,20 +149,19 @@ struct graph_factory_t<
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();  // prows
 
-    std::vector<experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelist(
+    std::vector<edgelist_t<vertex_t, edge_t, weight_t>> edgelist(
       {{src_vertices, dst_vertices, weights, num_partition_edges}});
 
     std::vector<vertex_t> partition_offsets_vector(
       vertex_partition_offsets, vertex_partition_offsets + (row_comm_size * col_comm_size) + 1);
 
-    experimental::partition_t<vertex_t> partition(
+    partition_t<vertex_t> partition(
       partition_offsets_vector, row_comm_size, col_comm_size, row_comm_rank, col_comm_rank);
 
     std::optional<std::vector<vertex_t>>
       opt_seg_off{};  // FIXME: may needd to pass/extract segment_offsets vector
 
-    return std::make_unique<
-      experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
+    return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
       handle,
       edgelist,
       partition,
@@ -206,5 +207,5 @@ struct graph_factory_t<
   }
 };
 
-}  // namespace experimental
+}  // namespace visitors
 }  // namespace cugraph

@@ -22,7 +22,7 @@
 #include <cstdint>
 
 namespace cugraph {
-namespace experimental {
+namespace visitors {
 
 enum class DTypes { INT32 = 0, INT64, FLOAT32, FLOAT64, NTYPES };
 
@@ -72,5 +72,5 @@ struct reverse_dmap_t<double> {
   static constexpr DTypes type_id = DTypes::FLOAT64;
 };
 
-}  // namespace experimental
+}  // namespace visitors
 }  // namespace cugraph

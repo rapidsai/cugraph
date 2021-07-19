@@ -21,7 +21,7 @@
 #include <cugraph/visitors/graph_envelope.hpp>
 
 namespace cugraph {
-namespace experimental {
+namespace visitors {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
 std::unique_ptr<visitor_t>
@@ -99,5 +99,5 @@ template class dependent_factory_t<long, long, double, false, false>;
 // Prefer specialization when EIdir's are not enough
 // because of cascaded-dispatcher exhaustive instantiations
 // In this case EIDir above are enough;
-}  // namespace experimental
+}  // namespace visitors
 }  // namespace cugraph

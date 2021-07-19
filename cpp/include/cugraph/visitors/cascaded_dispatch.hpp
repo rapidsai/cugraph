@@ -35,8 +35,9 @@
 #include "graph_factory.hpp"
 
 namespace cugraph {
-namespace experimental {
+namespace visitors {
 
+using namespace cugraph::experimental;
 using pair_uniques_t = graph_envelope_t::pair_uniques_t;
 
 // dummy-out non-candidate paths:
@@ -249,5 +250,5 @@ inline decltype(auto) vertex_dispatcher(DTypes vertex_type,
   }
 }
 
-}  // namespace experimental
+}  // namespace visitors
 }  // namespace cugraph

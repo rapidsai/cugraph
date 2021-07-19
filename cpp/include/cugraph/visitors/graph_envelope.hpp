@@ -46,7 +46,9 @@ constructs.
 #include <cugraph/utilities/graph_traits.hpp>
 
 namespace cugraph {
-namespace experimental {
+namespace visitors {
+
+using namespace cugraph::experimental;
 
 class erased_pack_t;  // forward...
 class return_t;       // forward...
@@ -202,5 +204,5 @@ std::unique_ptr<visitor_t> make_visitor(
   return f(factory, ep);
 }
 
-}  // namespace experimental
+}  // namespace visitors
 }  // namespace cugraph

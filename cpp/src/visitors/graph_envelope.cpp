@@ -21,7 +21,7 @@
 #include <cugraph/visitors/graph_envelope.hpp>
 
 namespace cugraph {
-namespace experimental {
+namespace visitors {
 
 // call cascaded dispatcher with factory and erased_pack_t
 //
@@ -48,5 +48,5 @@ template class graph_factory_t<graph_t<int, int, double, false, true>>;
 template class graph_factory_t<graph_t<int, int, float, false, false>>;
 template class graph_factory_t<graph_t<int, int, double, false, false>>;
 
-}  // namespace experimental
+}  // namespace visitors
 }  // namespace cugraph

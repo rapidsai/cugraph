@@ -22,7 +22,7 @@
 #include <stdexcept>
 
 namespace cugraph {
-namespace experimental {
+namespace visitors {
 
 struct return_t {
   struct base_return_t {
@@ -97,5 +97,5 @@ struct return_t {
   std::unique_ptr<base_return_t> p_impl_;
 };
 
-}  // namespace experimental
+}  // namespace visitors
 }  // namespace cugraph
