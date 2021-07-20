@@ -197,7 +197,7 @@ def _workers_to_parts(futures):
         if w_to_p_map[w] is None:
             w_to_p_map[w] = []
         w_to_p_map[w].append(p)
-    keys_to_delete = [w for (w,p) in w_to_p_map.items() if p is None]
+    keys_to_delete = [w for (w, p) in w_to_p_map.items() if p is None]
     for k in keys_to_delete:
         del w_to_p_map[k]
     return w_to_p_map
