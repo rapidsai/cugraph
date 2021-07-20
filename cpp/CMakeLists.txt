@@ -204,6 +204,9 @@ add_library(cugraph SHARED
     src/components/weakly_connected_components.cu
     src/structure/create_graph_from_edgelist.cu
     src/utilities/host_barrier.cpp
+    src/visitors/graph_envelope.cpp
+    src/visitors/visitors_factory.cpp
+    src/visitors/bfs_visitor.cpp
 )
 
 set_target_properties(cugraph

@@ -404,6 +404,14 @@ ConfigureTest(SERIALIZATION_TEST "${SERIALIZATION_TEST_SRCS}")
 
 
 ###################################################################################################
+# - BFS Visitor tests -----------------------------------------------------------------------------
+
+set(BFS_VISITOR_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/visitors/bfs_test.cpp")
+
+ConfigureTest(BFS_VISITOR_TEST "${BFS_VISITOR_TEST_SRCS}")
+
+###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
