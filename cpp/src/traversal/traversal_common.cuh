@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 #pragma once
 
 #include <cub/cub.cuh>
-#include "utilities/error.hpp"
+#include <cugraph/utilities/error.hpp>
 
 #define MAXBLOCKS 65535
 #define WARP_SIZE 32
-#define INT_SIZE 32
+#define INT_SIZE  32
 
 //
 // Bottom up macros
@@ -31,7 +31,7 @@
 
 #define COUNT_UNVISITED_EDGES_DIMX 256
 
-#define MAIN_BOTTOMUP_DIMX 256
+#define MAIN_BOTTOMUP_DIMX   256
 #define MAIN_BOTTOMUP_NWARPS (MAIN_BOTTOMUP_DIMX / WARP_SIZE)
 
 #define LARGE_BOTTOMUP_DIMX 256

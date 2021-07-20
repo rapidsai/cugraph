@@ -15,14 +15,19 @@
  */
 #pragma once
 
-#include <experimental/graph.hpp>
-#include <graph.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/legacy/graph.hpp>
 
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/tuple.h>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <numeric>
+#include <optional>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 extern "C" {
@@ -86,7 +91,7 @@ int mm_to_coo(FILE* f,
  * @tparam
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<cugraph::GraphCSR<vertex_t, edge_t, weight_t>> generate_graph_csr_from_mm(
+std::unique_ptr<cugraph::legacy::GraphCSR<vertex_t, edge_t, weight_t>> generate_graph_csr_from_mm(
   bool& directed, std::string mm_file);
 
 // Define RAPIDS_DATASET_ROOT_DIR using a preprocessor variable to
@@ -107,27 +112,11 @@ static const std::string& get_rapids_dataset_root_dir()
   return rdrd;
 }
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           rmm::device_uvector<vertex_t>>
-generate_graph_from_edgelist(raft::handle_t const& handle,
-                             rmm::device_uvector<vertex_t>&& vertices,
-                             rmm::device_uvector<vertex_t>&& edgelist_rows,
-                             rmm::device_uvector<vertex_t>&& edgelist_cols,
-                             rmm::device_uvector<weight_t>&& edgelist_weights,
-                             bool is_symmetric,
-                             bool test_weighted,
-                             bool renumber);
-
 // returns a tuple of (rows, columns, weights, number_of_vertices, is_symmetric)
 template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<weight_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
            vertex_t,
            bool>
 read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
@@ -141,7 +130,7 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           rmm::device_uvector<vertex_t>>
+           std::optional<rmm::device_uvector<vertex_t>>>
 read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    std::string const& graph_file_full_path,
                                    bool test_weighted,
@@ -153,7 +142,7 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           rmm::device_uvector<vertex_t>>
+           std::optional<rmm::device_uvector<vertex_t>>>
 generate_graph_from_rmat_params(raft::handle_t const& handle,
                                 size_t scale,
                                 size_t edge_factor,
@@ -168,121 +157,216 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
                                 std::vector<size_t> const& partition_ids,
                                 size_t num_partitions);
 
-class File_Usecase {
- public:
-  File_Usecase() = delete;
+// alias for easy customization for debug purposes:
+//
+template <typename value_t>
+using vector_test_t = rmm::device_uvector<value_t>;
 
-  File_Usecase(std::string const& graph_file_path)
-  {
-    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
-      graph_file_full_path_ = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
-    } else {
-      graph_file_full_path_ = graph_file_path;
-    }
+template <typename vertex_t, typename edge_t, typename weight_t>
+decltype(auto) make_graph(raft::handle_t const& handle,
+                          std::vector<vertex_t> const& v_src,
+                          std::vector<vertex_t> const& v_dst,
+                          std::optional<std::vector<weight_t>> const& v_w,
+                          vertex_t num_vertices,
+                          edge_t num_edges)
+{
+  using namespace cugraph::experimental;
+
+  vector_test_t<vertex_t> d_src(num_edges, handle.get_stream());
+  vector_test_t<vertex_t> d_dst(num_edges, handle.get_stream());
+  auto d_w = v_w ? std::make_optional<vector_test_t<weight_t>>(num_edges, handle.get_stream())
+                 : std::nullopt;
+
+  raft::update_device(d_src.data(), v_src.data(), d_src.size(), handle.get_stream());
+  raft::update_device(d_dst.data(), v_dst.data(), d_dst.size(), handle.get_stream());
+  if (d_w) {
+    raft::update_device((*d_w).data(), (*v_w).data(), (*d_w).size(), handle.get_stream());
   }
 
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            bool store_transposed,
-            bool multi_gpu>
-  std::tuple<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-    rmm::device_uvector<vertex_t>>
-  construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const
-  {
-    return read_graph_from_matrix_market_file<vertex_t,
-                                              edge_t,
-                                              weight_t,
-                                              store_transposed,
-                                              multi_gpu>(
-      handle, graph_file_full_path_, test_weighted, renumber);
-  }
-
- private:
-  std::string graph_file_full_path_{};
-};
-
-class Rmat_Usecase {
- public:
-  Rmat_Usecase() = delete;
-
-  Rmat_Usecase(size_t scale,
-               size_t edge_factor,
-               double a,
-               double b,
-               double c,
-               uint64_t seed,
-               bool undirected,
-               bool scramble_vertex_ids,
-               bool multi_gpu_usecase = false)
-    : scale_(scale),
-      edge_factor_(edge_factor),
-      a_(a),
-      b_(b),
-      c_(c),
-      seed_(seed),
-      undirected_(undirected),
-      scramble_vertex_ids_(scramble_vertex_ids),
-      multi_gpu_usecase_(multi_gpu_usecase)
-  {
-  }
-
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            bool store_transposed,
-            bool multi_gpu>
-  std::tuple<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-    rmm::device_uvector<vertex_t>>
-  construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const
-  {
-    std::vector<size_t> partition_ids(1);
-    size_t comm_size;
-
-    if (multi_gpu_usecase_) {
-      auto& comm           = handle.get_comms();
-      comm_size            = comm.get_size();
-      auto const comm_rank = comm.get_rank();
-
-      partition_ids.resize(multi_gpu ? size_t{1} : static_cast<size_t>(comm_size));
-
-      std::iota(partition_ids.begin(),
-                partition_ids.end(),
-                multi_gpu ? static_cast<size_t>(comm_rank) : size_t{0});
-    } else {
-      comm_size        = 1;
-      partition_ids[0] = size_t{0};
-    }
-
-    return generate_graph_from_rmat_params<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+  cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+  std::tie(graph, std::ignore) =
+    cugraph::experimental::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
       handle,
-      scale_,
-      edge_factor_,
-      a_,
-      b_,
-      c_,
-      seed_,
-      undirected_,
-      scramble_vertex_ids_,
-      test_weighted,
-      renumber,
-      partition_ids,
-      comm_size);
-  }
+      std::nullopt,
+      std::move(d_src),
+      std::move(d_dst),
+      std::move(d_w),
+      cugraph::experimental::graph_properties_t{false, false},
+      false);
 
- private:
-  size_t scale_{};
-  size_t edge_factor_{};
-  double a_{};
-  double b_{};
-  double c_{};
-  uint64_t seed_{};
-  bool undirected_{};
-  bool scramble_vertex_ids_{};
-  bool multi_gpu_usecase_{};
-};
+  return graph;
+}
+
+// compares single GPU CSR graph data:
+// (for testing / debugging);
+// on first == false, second == brief description of what is different;
+//
+template <typename left_graph_t, typename right_graph_t>
+std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
+                                            left_graph_t const& lgraph,
+                                            right_graph_t const& rgraph)
+{
+  if constexpr (left_graph_t::is_multi_gpu && right_graph_t::is_multi_gpu) {
+    // no support for comparing distributed graphs, yet:
+    //
+    CUGRAPH_FAIL("Unsupported graph type for comparison.");
+    return std::make_pair(false, std::string("unsupported"));
+  } else if constexpr (!std::is_same_v<left_graph_t, right_graph_t>) {
+    return std::make_pair(false, std::string("type"));
+  } else {
+    // both graphs are single GPU:
+    //
+    using graph_t = left_graph_t;
+
+    using vertex_t = typename graph_t::vertex_type;
+    using edge_t   = typename graph_t::edge_type;
+    using weight_t = typename graph_t::weight_type;
+
+    size_t num_vertices = lgraph.get_number_of_vertices();
+    size_t num_edges    = lgraph.get_number_of_edges();
+
+    {
+      size_t r_num_vertices = rgraph.get_number_of_vertices();
+      size_t r_num_edges    = rgraph.get_number_of_edges();
+
+      if (num_vertices != r_num_vertices) return std::make_pair(false, std::string("num_vertices"));
+
+      if (num_edges != r_num_edges) return std::make_pair(false, std::string("num_edges"));
+    }
+
+    if (lgraph.is_symmetric() != rgraph.is_symmetric())
+      return std::make_pair(false, std::string("symmetric"));
+
+    if (lgraph.is_multigraph() != rgraph.is_multigraph())
+      return std::make_pair(false, std::string("multigraph"));
+
+    bool is_weighted = lgraph.is_weighted();
+    if (is_weighted != rgraph.is_weighted()) return std::make_pair(false, std::string("weighted"));
+
+    auto lgraph_view = lgraph.view();
+    auto rgraph_view = rgraph.view();
+
+    std::vector<edge_t> lv_ro(num_vertices + 1);
+    std::vector<vertex_t> lv_ci(num_edges);
+
+    raft::update_host(lv_ro.data(),
+                      lgraph_view.get_matrix_partition_view().get_offsets(),
+                      num_vertices + 1,
+                      handle.get_stream());
+    raft::update_host(lv_ci.data(),
+                      lgraph_view.get_matrix_partition_view().get_indices(),
+                      num_edges,
+                      handle.get_stream());
+
+    std::vector<edge_t> rv_ro(num_vertices + 1);
+    std::vector<vertex_t> rv_ci(num_edges);
+
+    raft::update_host(rv_ro.data(),
+                      rgraph_view.get_matrix_partition_view().get_offsets(),
+                      num_vertices + 1,
+                      handle.get_stream());
+    raft::update_host(rv_ci.data(),
+                      rgraph_view.get_matrix_partition_view().get_indices(),
+                      num_edges,
+                      handle.get_stream());
+
+    auto lv_vs = is_weighted ? std::make_optional<std::vector<weight_t>>(num_edges) : std::nullopt;
+    auto rv_vs = is_weighted ? std::make_optional<std::vector<weight_t>>(num_edges) : std::nullopt;
+    if (is_weighted) {
+      raft::update_host((*lv_vs).data(),
+                        *(lgraph_view.get_matrix_partition_view().get_weights()),
+                        num_edges,
+                        handle.get_stream());
+
+      raft::update_host((*rv_vs).data(),
+                        *(rgraph_view.get_matrix_partition_view().get_weights()),
+                        num_edges,
+                        handle.get_stream());
+    }
+
+    handle.get_stream_view().synchronize();
+
+    if (lv_ro != rv_ro) return std::make_pair(false, std::string("offsets"));
+
+    for (size_t i = 0; i < num_vertices; ++i) {
+      auto first = lv_ro[i];
+      auto last  = lv_ro[i + 1];
+      if (is_weighted) {
+        std::vector<std::tuple<vertex_t, weight_t>> lv_pairs(last - first);
+        std::vector<std::tuple<vertex_t, weight_t>> rv_pairs(last - first);
+        for (edge_t j = first; j < last; ++j) {
+          lv_pairs[j - first] = std::make_tuple(lv_ci[j], (*lv_vs)[j]);
+          rv_pairs[j - first] = std::make_tuple(rv_ci[j], (*rv_vs)[j]);
+        }
+        std::sort(lv_pairs.begin(), lv_pairs.end());
+        std::sort(rv_pairs.begin(), rv_pairs.end());
+        if (!std::equal(lv_pairs.begin(), lv_pairs.end(), rv_pairs.begin(), [](auto lhs, auto rhs) {
+              return std::get<0>(lhs) == std::get<0>(rhs);
+            }))
+          return std::make_pair(false, std::string("indices"));
+        if (!std::equal(lv_pairs.begin(), lv_pairs.end(), rv_pairs.begin(), [](auto lhs, auto rhs) {
+              return std::get<1>(lhs) == std::get<1>(rhs);
+            }))
+          return std::make_pair(false, std::string("values"));
+      } else {
+        std::sort(lv_ci.begin() + first, lv_ci.begin() + last);
+        std::sort(rv_ci.begin() + first, rv_ci.begin() + last);
+        if (!std::equal(lv_ci.begin() + first, lv_ci.begin() + last, rv_ci.begin() + first))
+          return std::make_pair(false, std::string("indices"));
+      }
+    }
+
+    if (lgraph_view.get_local_adj_matrix_partition_segment_offsets(0) !=
+        rgraph_view.get_local_adj_matrix_partition_segment_offsets(0))
+      return std::make_pair(false, std::string("segment offsets"));
+
+    return std::make_pair(true, std::string{});
+  }
+}
+
+template <typename vertex_t>
+bool renumbered_vectors_same(raft::handle_t const& handle,
+                             std::vector<vertex_t> const& v1,
+                             std::vector<vertex_t> const& v2)
+{
+  if (v1.size() != v2.size()) return false;
+
+  std::map<vertex_t, vertex_t> map;
+
+  auto iter = thrust::make_zip_iterator(thrust::make_tuple(v1.begin(), v2.begin()));
+
+  std::for_each(iter, iter + v1.size(), [&map](auto pair) {
+    vertex_t e1 = thrust::get<0>(pair);
+    vertex_t e2 = thrust::get<1>(pair);
+
+    map[e1] = e2;
+  });
+
+  auto error_count = std::count_if(iter, iter + v1.size(), [&map](auto pair) {
+    vertex_t e1 = thrust::get<0>(pair);
+    vertex_t e2 = thrust::get<1>(pair);
+
+    return (map[e1] != e2);
+  });
+
+  return (error_count == 0);
+}
+
+template <typename vertex_t>
+bool renumbered_vectors_same(raft::handle_t const& handle,
+                             rmm::device_uvector<vertex_t> const& v1,
+                             rmm::device_uvector<vertex_t> const& v2)
+{
+  if (v1.size() != v2.size()) return false;
+
+  std::vector<vertex_t> h_v1(v1.size());
+  std::vector<vertex_t> h_v2(v1.size());
+
+  raft::update_host(h_v1.data(), v1.data(), v1.size(), handle.get_stream());
+  raft::update_host(h_v2.data(), v2.data(), v2.size(), handle.get_stream());
+
+  return renumbered_vectors_same(handle, h_v1, h_v2);
+}
 
 }  // namespace test
 }  // namespace cugraph

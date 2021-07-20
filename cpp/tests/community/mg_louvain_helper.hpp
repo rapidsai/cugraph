@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <experimental/graph.hpp>
+#include <cugraph/experimental/graph.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
@@ -24,30 +24,30 @@
 namespace cugraph {
 namespace test {
 
-template <typename T>
-rmm::device_uvector<T> gather_distributed_vector(raft::handle_t const &handle,
-                                                 T const *d_input,
-                                                 size_t size);
+template <typename vertex_t>
+bool compare_renumbered_vectors(raft::handle_t const& handle,
+                                std::vector<vertex_t> const& v1,
+                                std::vector<vertex_t> const& v2);
 
 template <typename vertex_t>
-bool compare_renumbered_vectors(raft::handle_t const &handle,
-                                rmm::device_uvector<vertex_t> const &v1,
-                                rmm::device_uvector<vertex_t> const &v2);
+bool compare_renumbered_vectors(raft::handle_t const& handle,
+                                rmm::device_uvector<vertex_t> const& v1,
+                                rmm::device_uvector<vertex_t> const& v2);
 
 template <typename T>
 void single_gpu_renumber_edgelist_given_number_map(
-  raft::handle_t const &handle,
-  rmm::device_uvector<T> &d_edgelist_rows,
-  rmm::device_uvector<T> &d_edgelist_cols,
-  rmm::device_uvector<T> &d_renumber_map_gathered_v);
+  raft::handle_t const& handle,
+  rmm::device_uvector<T>& d_edgelist_rows,
+  rmm::device_uvector<T>& d_edgelist_cols,
+  rmm::device_uvector<T>& d_renumber_map_gathered_v);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
 std::unique_ptr<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
 coarsen_graph(
-  raft::handle_t const &handle,
-  cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, false> const
-    &graph_view,
-  vertex_t const *labels);
+  raft::handle_t const& handle,
+  cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, false> const&
+    graph_view,
+  vertex_t const* labels);
 
 }  // namespace test
 }  // namespace cugraph

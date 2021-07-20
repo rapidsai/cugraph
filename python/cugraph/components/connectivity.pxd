@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,9 +17,10 @@
 # cython: language_level = 3
 
 from cugraph.structure.graph_primtypes cimport *
+from cugraph.structure.graph_utilities cimport *
 
 
-cdef extern from "algorithms.hpp" namespace "cugraph":
+cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
     ctypedef enum cugraph_cc_t:
         CUGRAPH_WEAK "cugraph::cugraph_cc_t::CUGRAPH_WEAK"
@@ -30,3 +31,9 @@ cdef extern from "algorithms.hpp" namespace "cugraph":
         const GraphCSRView[VT,ET,WT] &graph,
         cugraph_cc_t connect_type,
         VT *labels) except +
+
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
+    cdef void call_wcc[vertex_t, weight_t](
+        const handle_t &handle,
+        const graph_container_t &g,
+        vertex_t *identifiers) except +

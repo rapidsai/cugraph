@@ -20,7 +20,7 @@ from libcpp.utility cimport pair
 from cugraph.structure.graph_utilities cimport *
 
 
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef pair[size_t, weight_t] call_louvain[weight_t](
         const handle_t &handle,

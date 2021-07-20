@@ -27,6 +27,7 @@ def mg_bfs(input_df,
            vertex_partition_offsets,
            rank,
            handle,
+           segment_offsets,
            start,
            depth_limit,
            return_distances=False):
@@ -50,6 +51,7 @@ def mg_bfs(input_df,
     else:
         weight_t = np.dtype("float32")
 
+
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
     numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
@@ -68,19 +70,31 @@ def mg_bfs(input_df,
     vertex_partition_offsets_host = vertex_partition_offsets.values_host
     cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets_host.__array_interface__['data'][0]
 
+    cdef vector[int] v_segment_offsets_32
+    cdef vector[long] v_segment_offsets_64
+    cdef uintptr_t c_segment_offsets
+    if (vertex_t == np.dtype("int32")):
+        v_segment_offsets_32 = segment_offsets
+        c_segment_offsets = <uintptr_t>v_segment_offsets_32.data()
+    else:
+        v_segment_offsets_64 = segment_offsets
+        c_segment_offsets = <uintptr_t>v_segment_offsets_64.data()
+
     cdef graph_container_t graph_container
 
     populate_graph_container(graph_container,
                              handle_[0],
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
                              <void*>c_vertex_partition_offsets,
+                             <void*>c_segment_offsets,
+                             len(segment_offsets) - 1,
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                              num_local_edges,
                              num_global_verts, num_global_edges,
-                             True,
                              False, # BFS runs on unweighted graphs
+                             False,
                              False, True) 
 
     # Generate the cudf.DataFrame result
@@ -95,6 +109,7 @@ def mg_bfs(input_df,
     cdef uintptr_t c_predecessor_ptr = df['predecessor'].__cuda_array_interface__['data'][0]
     if (return_distances):
         c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_start_ptr = start.__cuda_array_interface__['data'][0]
 
     cdef bool direction_optimizing = <bool> 0
 
@@ -107,7 +122,8 @@ def mg_bfs(input_df,
                                    <int*> c_distance_ptr,
                                    <int*> c_predecessor_ptr,
                                    <int> depth_limit,
-                                   <int> start,
+                                   <int*> c_start_ptr,
+                                   len(start),
                                    direction_optimizing)
     else:
         if depth_limit is None:
@@ -118,6 +134,7 @@ def mg_bfs(input_df,
                                    <long*> c_distance_ptr,
                                    <long*> c_predecessor_ptr,
                                    <long> depth_limit,
-                                   <long> start,
+                                   <long*> c_start_ptr,
+                                   len(start),
                                    direction_optimizing)
     return df

@@ -13,18 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <iostream>
-#include <limits>
+#include <cugraph/legacy/graph.hpp>
+#include <cugraph/utilities/error.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
-#include <graph.hpp>
+#include <raft/lap/lap.cuh>
+
+#include <rmm/cuda_stream_view.hpp>
+#include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/for_each.h>
 #include <thrust/random.h>
 
-#include <utilities/error.hpp>
-
-#include <raft/lap/lap.cuh>
+#include <iostream>
+#include <limits>
 
 //#define TIMING
 
@@ -35,37 +37,91 @@
 namespace cugraph {
 namespace detail {
 
+template <typename weight_t>
+weight_t default_epsilon()
+{
+  return 0;
+}
+
+template <>
+float default_epsilon()
+{
+  return float{1e-6};
+}
+
+template <>
+double default_epsilon()
+{
+  return double{1e-6};
+}
+
 template <typename index_t, typename weight_t>
-weight_t hungarian(raft::handle_t const &handle,
+weight_t hungarian(raft::handle_t const& handle,
                    index_t num_rows,
                    index_t num_cols,
-                   weight_t const *d_original_cost,
-                   index_t *d_assignment,
-                   cudaStream_t stream)
+                   weight_t const* d_original_cost,
+                   index_t* d_assignment,
+                   weight_t epsilon)
 {
-  //
-  //  TODO:  Can Date/Nagi implementation in raft handle rectangular matrices?
-  //
-  CUGRAPH_EXPECTS(num_rows == num_cols, "Current implementation only supports square matrices");
+  if (num_rows == num_cols) {
+    rmm::device_uvector<index_t> col_assignments_v(num_rows, handle.get_stream_view());
 
-  rmm::device_vector<index_t> col_assignments_v(num_rows);
+    // Create an instance of LinearAssignmentProblem using problem size, number of subproblems
+    raft::lap::LinearAssignmentProblem<index_t, weight_t> lpx(handle, num_rows, 1, epsilon);
 
-  // Create an instance of LinearAssignmentProblem using problem size, number of subproblems
-  raft::lap::LinearAssignmentProblem<index_t, weight_t> lpx(handle, num_rows, 1);
+    // Solve LAP(s) for given cost matrix
+    lpx.solve(d_original_cost, d_assignment, col_assignments_v.data());
 
-  // Solve LAP(s) for given cost matrix
-  lpx.solve(d_original_cost, d_assignment, col_assignments_v.data().get());
+    return lpx.getPrimalObjectiveValue(0);
+  } else {
+    //
+    //  Create a square matrix, copy d_original_cost into it.
+    //  Fill the extra rows/columns with max(d_original_cost)
+    //
+    index_t n         = std::max(num_rows, num_cols);
+    weight_t max_cost = thrust::reduce(rmm::exec_policy(handle.get_stream_view()),
+                                       d_original_cost,
+                                       d_original_cost + (num_rows * num_cols),
+                                       weight_t{0},
+                                       thrust::maximum<weight_t>());
 
-  return lpx.getPrimalObjectiveValue(0);
+    rmm::device_uvector<weight_t> tmp_cost_v(n * n, handle.get_stream_view());
+    rmm::device_uvector<index_t> tmp_row_assignment_v(n, handle.get_stream_view());
+    rmm::device_uvector<index_t> tmp_col_assignment_v(n, handle.get_stream_view());
+
+    thrust::transform(rmm::exec_policy(handle.get_stream_view()),
+                      thrust::make_counting_iterator<index_t>(0),
+                      thrust::make_counting_iterator<index_t>(n * n),
+                      tmp_cost_v.begin(),
+                      [max_cost, d_original_cost, n, num_rows, num_cols] __device__(index_t i) {
+                        index_t row = i / n;
+                        index_t col = i % n;
+
+                        return ((row < num_rows) && (col < num_cols))
+                                 ? d_original_cost[row * num_cols + col]
+                                 : max_cost;
+                      });
+
+    raft::lap::LinearAssignmentProblem<index_t, weight_t> lpx(handle, n, 1, epsilon);
+
+    // Solve LAP(s) for given cost matrix
+    lpx.solve(tmp_cost_v.begin(), tmp_row_assignment_v.begin(), tmp_col_assignment_v.begin());
+
+    weight_t tmp_objective_value = lpx.getPrimalObjectiveValue(0);
+
+    raft::copy(d_assignment, tmp_row_assignment_v.begin(), num_rows, handle.get_stream());
+
+    return tmp_objective_value - max_cost * std::abs(num_rows - num_cols);
+  }
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-weight_t hungarian_sparse(raft::handle_t const &handle,
-                          GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+weight_t hungarian_sparse(raft::handle_t const& handle,
+                          legacy::GraphCOOView<vertex_t, edge_t, weight_t> const& graph,
                           vertex_t num_workers,
-                          vertex_t const *workers,
-                          vertex_t *assignment,
-                          cudaStream_t stream)
+                          vertex_t const* workers,
+                          vertex_t* assignment,
+                          weight_t epsilon)
 {
   CUGRAPH_EXPECTS(assignment != nullptr, "Invalid input argument: assignment pointer is NULL");
   CUGRAPH_EXPECTS(graph.edge_data != nullptr,
@@ -86,63 +142,68 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
 
   vertex_t matrix_dimension = std::max(num_rows, num_cols);
 
-  rmm::device_vector<weight_t> cost_v(matrix_dimension * matrix_dimension);
-  rmm::device_vector<vertex_t> tasks_v(num_cols);
-  rmm::device_vector<vertex_t> temp_tasks_v(graph.number_of_vertices);
-  rmm::device_vector<vertex_t> temp_workers_v(graph.number_of_vertices);
+  rmm::device_uvector<weight_t> cost_v(matrix_dimension * matrix_dimension,
+                                       handle.get_stream_view());
+  rmm::device_uvector<vertex_t> tasks_v(num_cols, handle.get_stream_view());
+  rmm::device_uvector<vertex_t> temp_tasks_v(graph.number_of_vertices, handle.get_stream_view());
+  rmm::device_uvector<vertex_t> temp_workers_v(graph.number_of_vertices, handle.get_stream_view());
 
-  weight_t *d_cost         = cost_v.data().get();
-  vertex_t *d_tasks        = tasks_v.data().get();
-  vertex_t *d_temp_tasks   = temp_tasks_v.data().get();
-  vertex_t *d_temp_workers = temp_workers_v.data().get();
-  vertex_t *d_src_indices  = graph.src_indices;
-  vertex_t *d_dst_indices  = graph.dst_indices;
-  weight_t *d_edge_data    = graph.edge_data;
+  weight_t* d_cost         = cost_v.data();
+  vertex_t* d_tasks        = tasks_v.data();
+  vertex_t* d_temp_tasks   = temp_tasks_v.data();
+  vertex_t* d_temp_workers = temp_workers_v.data();
+  vertex_t* d_src_indices  = graph.src_indices;
+  vertex_t* d_dst_indices  = graph.dst_indices;
+  weight_t* d_edge_data    = graph.edge_data;
 
   //
   //  Renumber vertices internally.  Workers will become
   //  rows, tasks will become columns
   //
-  thrust::sequence(rmm::exec_policy(stream)->on(stream), temp_tasks_v.begin(), temp_tasks_v.end());
+  thrust::sequence(
+    rmm::exec_policy(handle.get_stream_view()), temp_tasks_v.begin(), temp_tasks_v.end());
 
-  thrust::for_each(rmm::exec_policy(stream)->on(stream),
+  thrust::for_each(rmm::exec_policy(handle.get_stream_view()),
                    workers,
                    workers + num_workers,
                    [d_temp_tasks] __device__(vertex_t v) { d_temp_tasks[v] = -1; });
 
-  auto temp_end = thrust::copy_if(rmm::exec_policy(stream)->on(stream),
+  auto temp_end = thrust::copy_if(rmm::exec_policy(handle.get_stream_view()),
                                   temp_tasks_v.begin(),
                                   temp_tasks_v.end(),
                                   d_tasks,
                                   [] __device__(vertex_t v) { return v >= 0; });
 
   vertex_t size = thrust::distance(d_tasks, temp_end);
-  tasks_v.resize(size);
+  tasks_v.resize(size, handle.get_stream_view());
 
   //
   // Now we'll assign costs into the dense array
   //
-  thrust::fill(rmm::exec_policy(stream)->on(stream),
+  thrust::fill(rmm::exec_policy(handle.get_stream_view()),
                temp_workers_v.begin(),
                temp_workers_v.end(),
                vertex_t{-1});
+  thrust::fill(rmm::exec_policy(handle.get_stream_view()),
+               temp_tasks_v.begin(),
+               temp_tasks_v.end(),
+               vertex_t{-1});
   thrust::fill(
-    rmm::exec_policy(stream)->on(stream), temp_tasks_v.begin(), temp_tasks_v.end(), vertex_t{-1});
-  thrust::fill(rmm::exec_policy(stream)->on(stream), cost_v.begin(), cost_v.end(), weight_t{0});
+    rmm::exec_policy(handle.get_stream_view()), cost_v.begin(), cost_v.end(), weight_t{0});
 
   thrust::for_each(
-    rmm::exec_policy(stream)->on(stream),
+    rmm::exec_policy(handle.get_stream_view()),
     thrust::make_counting_iterator<vertex_t>(0),
     thrust::make_counting_iterator<vertex_t>(num_rows),
     [d_temp_workers, workers] __device__(vertex_t v) { d_temp_workers[workers[v]] = v; });
 
   thrust::for_each(
-    rmm::exec_policy(stream)->on(stream),
+    rmm::exec_policy(handle.get_stream_view()),
     thrust::make_counting_iterator<vertex_t>(0),
     thrust::make_counting_iterator<vertex_t>(num_cols),
     [d_temp_tasks, d_tasks] __device__(vertex_t v) { d_temp_tasks[d_tasks[v]] = v; });
 
-  thrust::for_each(rmm::exec_policy(stream)->on(stream),
+  thrust::for_each(rmm::exec_policy(handle.get_stream_view()),
                    thrust::make_counting_iterator<edge_t>(0),
                    thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
                    [d_temp_workers,
@@ -170,11 +231,11 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
   //  temp_assignment_v will hold the assignment in the dense
   //  bipartite matrix numbering
   //
-  rmm::device_vector<vertex_t> temp_assignment_v(matrix_dimension);
-  vertex_t *d_temp_assignment = temp_assignment_v.data().get();
+  rmm::device_uvector<vertex_t> temp_assignment_v(matrix_dimension, handle.get_stream_view());
+  vertex_t* d_temp_assignment = temp_assignment_v.data();
 
   weight_t min_cost = detail::hungarian(
-    handle, matrix_dimension, matrix_dimension, d_cost, d_temp_assignment, stream);
+    handle, matrix_dimension, matrix_dimension, d_cost, d_temp_assignment, epsilon);
 
 #ifdef TIMING
   hr_timer.stop();
@@ -185,7 +246,7 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
   //
   //  Translate the assignment back to the original vertex ids
   //
-  thrust::for_each(rmm::exec_policy(stream)->on(stream),
+  thrust::for_each(rmm::exec_policy(handle.get_stream_view()),
                    thrust::make_counting_iterator<vertex_t>(0),
                    thrust::make_counting_iterator<vertex_t>(num_rows),
                    [d_tasks, d_temp_assignment, assignment] __device__(vertex_t id) {
@@ -204,54 +265,106 @@ weight_t hungarian_sparse(raft::handle_t const &handle,
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-weight_t hungarian(raft::handle_t const &handle,
-                   GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
+weight_t hungarian(raft::handle_t const& handle,
+                   legacy::GraphCOOView<vertex_t, edge_t, weight_t> const& graph,
                    vertex_t num_workers,
-                   vertex_t const *workers,
-                   vertex_t *assignment)
+                   vertex_t const* workers,
+                   vertex_t* assignment)
 {
-  cudaStream_t stream{0};
+  return detail::hungarian_sparse(
+    handle, graph, num_workers, workers, assignment, detail::default_epsilon<weight_t>());
+}
 
-  return detail::hungarian_sparse(handle, graph, num_workers, workers, assignment, stream);
+template <typename vertex_t, typename edge_t, typename weight_t>
+weight_t hungarian(raft::handle_t const& handle,
+                   legacy::GraphCOOView<vertex_t, edge_t, weight_t> const& graph,
+                   vertex_t num_workers,
+                   vertex_t const* workers,
+                   vertex_t* assignment,
+                   weight_t epsilon)
+{
+  return detail::hungarian_sparse(handle, graph, num_workers, workers, assignment, epsilon);
 }
 
 template int32_t hungarian<int32_t, int32_t, int32_t>(
-  raft::handle_t const &,
-  GraphCOOView<int32_t, int32_t, int32_t> const &,
+  raft::handle_t const&,
+  legacy::GraphCOOView<int32_t, int32_t, int32_t> const&,
   int32_t,
-  int32_t const *,
-  int32_t *);
-template float hungarian<int32_t, int32_t, float>(raft::handle_t const &,
-                                                  GraphCOOView<int32_t, int32_t, float> const &,
-                                                  int32_t,
-                                                  int32_t const *,
-                                                  int32_t *);
-template double hungarian<int32_t, int32_t, double>(raft::handle_t const &,
-                                                    GraphCOOView<int32_t, int32_t, double> const &,
-                                                    int32_t,
-                                                    int32_t const *,
-                                                    int32_t *);
+  int32_t const*,
+  int32_t*,
+  int32_t);
+
+template float hungarian<int32_t, int32_t, float>(
+  raft::handle_t const&,
+  legacy::GraphCOOView<int32_t, int32_t, float> const&,
+  int32_t,
+  int32_t const*,
+  int32_t*,
+  float);
+template double hungarian<int32_t, int32_t, double>(
+  raft::handle_t const&,
+  legacy::GraphCOOView<int32_t, int32_t, double> const&,
+  int32_t,
+  int32_t const*,
+  int32_t*,
+  double);
+
+template int32_t hungarian<int32_t, int32_t, int32_t>(
+  raft::handle_t const&,
+  legacy::GraphCOOView<int32_t, int32_t, int32_t> const&,
+  int32_t,
+  int32_t const*,
+  int32_t*);
+
+template float hungarian<int32_t, int32_t, float>(
+  raft::handle_t const&,
+  legacy::GraphCOOView<int32_t, int32_t, float> const&,
+  int32_t,
+  int32_t const*,
+  int32_t*);
+template double hungarian<int32_t, int32_t, double>(
+  raft::handle_t const&,
+  legacy::GraphCOOView<int32_t, int32_t, double> const&,
+  int32_t,
+  int32_t const*,
+  int32_t*);
 
 namespace dense {
 
 template <typename index_t, typename weight_t>
-weight_t hungarian(raft::handle_t const &handle,
-                   weight_t const *costs,
+weight_t hungarian(raft::handle_t const& handle,
+                   weight_t const* costs,
                    index_t num_rows,
                    index_t num_cols,
-                   index_t *assignment)
+                   index_t* assignment)
 {
-  cudaStream_t stream{0};
+  return detail::hungarian(
+    handle, num_rows, num_cols, costs, assignment, detail::default_epsilon<weight_t>());
+}
 
-  return detail::hungarian(handle, num_rows, num_cols, costs, assignment, stream);
+template <typename index_t, typename weight_t>
+weight_t hungarian(raft::handle_t const& handle,
+                   weight_t const* costs,
+                   index_t num_rows,
+                   index_t num_cols,
+                   index_t* assignment,
+                   weight_t epsilon)
+{
+  return detail::hungarian(handle, num_rows, num_cols, costs, assignment, epsilon);
 }
 
 template int32_t hungarian<int32_t, int32_t>(
-  raft::handle_t const &, int32_t const *, int32_t, int32_t, int32_t *);
+  raft::handle_t const&, int32_t const*, int32_t, int32_t, int32_t*);
 template float hungarian<int32_t, float>(
-  raft::handle_t const &, float const *, int32_t, int32_t, int32_t *);
+  raft::handle_t const&, float const*, int32_t, int32_t, int32_t*);
 template double hungarian<int32_t, double>(
-  raft::handle_t const &, double const *, int32_t, int32_t, int32_t *);
+  raft::handle_t const&, double const*, int32_t, int32_t, int32_t*);
+template int32_t hungarian<int32_t, int32_t>(
+  raft::handle_t const&, int32_t const*, int32_t, int32_t, int32_t*, int32_t);
+template float hungarian<int32_t, float>(
+  raft::handle_t const&, float const*, int32_t, int32_t, int32_t*, float);
+template double hungarian<int32_t, double>(
+  raft::handle_t const&, double const*, int32_t, int32_t, int32_t*, double);
 
 }  // namespace dense
 

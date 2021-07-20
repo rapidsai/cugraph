@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@
 
 #include <raft/cudart_utils.h>
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
 namespace MLCommon {
 
@@ -73,7 +73,9 @@ class Exception : public std::exception {
       return;
     }
     ///@todo: support for demangling of C++ symbol names
-    for (int i = 0; i < depth; ++i) { oss << "#" << i << " in " << strings.get()[i] << std::endl; }
+    for (int i = 0; i < depth; ++i) {
+      oss << "#" << i << " in " << strings.get()[i] << std::endl;
+    }
     msg += oss.str();
 #endif  // __GNUC__
   }

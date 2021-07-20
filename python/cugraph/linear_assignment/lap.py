@@ -11,10 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cudf
 from cugraph.linear_assignment import lap_wrapper
 
 
-def hungarian(G, workers):
+def hungarian(G, workers, epsilon=None):
     """
     Execute the Hungarian algorithm against a symmetric, weighted,
     bipartite graph.
@@ -39,10 +40,16 @@ def hungarian(G, workers):
         as an an edge list.  Edge weights are required. If an edge list is
         not provided then it will be computed.
 
-    workers : cudf.Series
+    workers : cudf.Series or cudf.DataFrame
         A series or column that identifies the vertex ids of the vertices
-        in the workers set.  All vertices in G that are not in the workers
+        in the workers set.  In case of multi-column vertices, it should be a
+        cudf.DataFrame. All vertices in G that are not in the workers
         set are implicitly assigned to the jobs set.
+
+    epsilon : float or double (matching weight type in graph)
+        Used for determining when value is close enough to zero to consider 0.
+        Defaults (if not specified) to 1e-6 in the C++ code.  Unused for
+        integer weight types.
 
     Returns
     -------
@@ -67,19 +74,23 @@ def hungarian(G, workers):
     """
 
     if G.renumbered:
-        local_workers = G.lookup_internal_vertex_id(workers)
+        if isinstance(workers, cudf.DataFrame):
+            local_workers = G.lookup_internal_vertex_id(workers,
+                                                        workers.columns)
+        else:
+            local_workers = G.lookup_internal_vertex_id(workers)
     else:
         local_workers = workers
 
-    df = lap_wrapper.sparse_hungarian(G, local_workers)
+    cost, df = lap_wrapper.sparse_hungarian(G, local_workers, epsilon)
 
     if G.renumbered:
         df = G.unrenumber(df, 'vertex')
 
-    return df
+    return cost, df
 
 
-def dense_hungarian(costs, num_rows, num_columns):
+def dense_hungarian(costs, num_rows, num_columns, epsilon=None):
     """
     Execute the Hungarian algorithm against a dense bipartite
     graph representation.
@@ -101,7 +112,10 @@ def dense_hungarian(costs, num_rows, num_columns):
         Number of rows in the matrix
     num_columns : int
         Number of columns in the matrix
-
+    epsilon : float or double (matching weight type in graph)
+        Used for determining when value is close enough to zero to consider 0.
+        Defaults (if not specified) to 1e-6 in the C++ code.  Unused for
+        integer weight types.
 
     Returns
     -------
@@ -115,4 +129,4 @@ def dense_hungarian(costs, num_rows, num_columns):
 
     """
 
-    return lap_wrapper.dense_hungarian(costs, num_rows, num_columns)
+    return lap_wrapper.dense_hungarian(costs, num_rows, num_columns, epsilon)

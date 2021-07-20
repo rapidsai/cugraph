@@ -19,10 +19,12 @@
  * @file jaccard.cu
  * ---------------------------------------------------------------------------**/
 
-#include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error.hpp>
-#include "graph.hpp"
-#include "utilities/graph_utils.cuh"
+#include <cugraph/legacy/graph.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <utilities/graph_utils.cuh>
+
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 
 namespace cugraph {
 namespace detail {
@@ -30,7 +32,7 @@ namespace detail {
 // Volume of neighboors (*weight_s)
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 __global__ void jaccard_row_sum(
-  vertex_t n, edge_t const *csrPtr, vertex_t const *csrInd, weight_t const *v, weight_t *work)
+  vertex_t n, edge_t const* csrPtr, vertex_t const* csrInd, weight_t const* v, weight_t* work)
 {
   vertex_t row;
   edge_t start, end, length;
@@ -54,12 +56,12 @@ __global__ void jaccard_row_sum(
 // Volume of intersections (*weight_i) and cumulated volume of neighboors (*weight_s)
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 __global__ void jaccard_is(vertex_t n,
-                           edge_t const *csrPtr,
-                           vertex_t const *csrInd,
-                           weight_t const *v,
-                           weight_t *work,
-                           weight_t *weight_i,
-                           weight_t *weight_s)
+                           edge_t const* csrPtr,
+                           vertex_t const* csrInd,
+                           weight_t const* v,
+                           weight_t* work,
+                           weight_t* weight_i,
+                           weight_t* weight_s)
 {
   edge_t i, j, Ni, Nj;
   vertex_t row, col;
@@ -118,14 +120,14 @@ __global__ void jaccard_is(vertex_t n,
 // Using list of node pairs
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 __global__ void jaccard_is_pairs(edge_t num_pairs,
-                                 edge_t const *csrPtr,
-                                 vertex_t const *csrInd,
-                                 vertex_t const *first_pair,
-                                 vertex_t const *second_pair,
-                                 weight_t const *v,
-                                 weight_t *work,
-                                 weight_t *weight_i,
-                                 weight_t *weight_s)
+                                 edge_t const* csrPtr,
+                                 vertex_t const* csrInd,
+                                 vertex_t const* first_pair,
+                                 vertex_t const* second_pair,
+                                 weight_t const* v,
+                                 weight_t* work,
+                                 weight_t* weight_i,
+                                 weight_t* weight_s)
 {
   edge_t i, idx, Ni, Nj, match;
   vertex_t row, col, ref, cur, ref_col, cur_col;
@@ -182,9 +184,9 @@ __global__ void jaccard_is_pairs(edge_t num_pairs,
 // Jaccard  weights (*weight)
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 __global__ void jaccard_jw(edge_t e,
-                           weight_t const *weight_i,
-                           weight_t const *weight_s,
-                           weight_t *weight_j)
+                           weight_t const* weight_i,
+                           weight_t const* weight_s,
+                           weight_t* weight_j)
 {
   edge_t j;
   weight_t Wi, Ws, Wu;
@@ -200,14 +202,15 @@ __global__ void jaccard_jw(edge_t e,
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 int jaccard(vertex_t n,
             edge_t e,
-            edge_t const *csrPtr,
-            vertex_t const *csrInd,
-            weight_t const *weight_in,
-            weight_t *work,
-            weight_t *weight_i,
-            weight_t *weight_s,
-            weight_t *weight_j)
+            edge_t const* csrPtr,
+            vertex_t const* csrInd,
+            weight_t const* weight_in,
+            weight_t* work,
+            weight_t* weight_i,
+            weight_t* weight_s,
+            weight_t* weight_j)
 {
+  rmm::cuda_stream_view stream_view;
   dim3 nthreads, nblocks;
   int y = 4;
 
@@ -221,9 +224,9 @@ int jaccard(vertex_t n,
 
   // launch kernel
   jaccard_row_sum<weighted, vertex_t, edge_t, weight_t>
-    <<<nblocks, nthreads>>>(n, csrPtr, csrInd, weight_in, work);
-  cudaDeviceSynchronize();
-  fill(e, weight_i, weight_t{0.0});
+    <<<nblocks, nthreads, 0, stream_view.value()>>>(n, csrPtr, csrInd, weight_in, work);
+
+  thrust::fill(rmm::exec_policy(stream_view), weight_i, weight_i + e, weight_t{0.0});
 
   // setup launch configuration
   nthreads.x = 32 / y;
@@ -234,8 +237,8 @@ int jaccard(vertex_t n,
   nblocks.z  = min((n + nthreads.z - 1) / nthreads.z, vertex_t{CUDA_MAX_BLOCKS});  // 1;
 
   // launch kernel
-  jaccard_is<weighted, vertex_t, edge_t, weight_t>
-    <<<nblocks, nthreads>>>(n, csrPtr, csrInd, weight_in, work, weight_i, weight_s);
+  jaccard_is<weighted, vertex_t, edge_t, weight_t><<<nblocks, nthreads, 0, stream_view.value()>>>(
+    n, csrPtr, csrInd, weight_in, work, weight_i, weight_s);
 
   // setup launch configuration
   nthreads.x = min(e, edge_t{CUDA_MAX_KERNEL_THREADS});
@@ -247,7 +250,7 @@ int jaccard(vertex_t n,
 
   // launch kernel
   jaccard_jw<weighted, vertex_t, edge_t, weight_t>
-    <<<nblocks, nthreads>>>(e, weight_i, weight_s, weight_j);
+    <<<nblocks, nthreads, 0, stream_view.value()>>>(e, weight_i, weight_s, weight_j);
 
   return 0;
 }
@@ -255,15 +258,15 @@ int jaccard(vertex_t n,
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 int jaccard_pairs(vertex_t n,
                   edge_t num_pairs,
-                  edge_t const *csrPtr,
-                  vertex_t const *csrInd,
-                  vertex_t const *first_pair,
-                  vertex_t const *second_pair,
-                  weight_t const *weight_in,
-                  weight_t *work,
-                  weight_t *weight_i,
-                  weight_t *weight_s,
-                  weight_t *weight_j)
+                  edge_t const* csrPtr,
+                  vertex_t const* csrInd,
+                  vertex_t const* first_pair,
+                  vertex_t const* second_pair,
+                  weight_t const* weight_in,
+                  weight_t* work,
+                  weight_t* weight_i,
+                  weight_t* weight_s,
+                  weight_t* weight_j)
 {
   dim3 nthreads, nblocks;
   int y = 4;
@@ -313,7 +316,7 @@ int jaccard_pairs(vertex_t n,
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void jaccard(GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result)
+void jaccard(legacy::GraphCSRView<VT, ET, WT> const& graph, WT const* weights, WT* result)
 {
   CUGRAPH_EXPECTS(result != nullptr, "Invalid input argument: result pointer is NULL");
 
@@ -345,12 +348,12 @@ void jaccard(GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *resul
 }
 
 template <typename VT, typename ET, typename WT>
-void jaccard_list(GraphCSRView<VT, ET, WT> const &graph,
-                  WT const *weights,
+void jaccard_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
+                  WT const* weights,
                   ET num_pairs,
-                  VT const *first,
-                  VT const *second,
-                  WT *result)
+                  VT const* first,
+                  VT const* second,
+                  WT* result)
 {
   CUGRAPH_EXPECTS(result != nullptr, "Invalid input argument: result pointer is NULL");
   CUGRAPH_EXPECTS(first != nullptr, "Invalid input argument: first is NULL");
@@ -387,41 +390,43 @@ void jaccard_list(GraphCSRView<VT, ET, WT> const &graph,
   }
 }
 
-template void jaccard<int32_t, int32_t, float>(GraphCSRView<int32_t, int32_t, float> const &,
-                                               float const *,
-                                               float *);
-template void jaccard<int32_t, int32_t, double>(GraphCSRView<int32_t, int32_t, double> const &,
-                                                double const *,
-                                                double *);
-template void jaccard<int64_t, int64_t, float>(GraphCSRView<int64_t, int64_t, float> const &,
-                                               float const *,
-                                               float *);
-template void jaccard<int64_t, int64_t, double>(GraphCSRView<int64_t, int64_t, double> const &,
-                                                double const *,
-                                                double *);
-template void jaccard_list<int32_t, int32_t, float>(GraphCSRView<int32_t, int32_t, float> const &,
-                                                    float const *,
-                                                    int32_t,
-                                                    int32_t const *,
-                                                    int32_t const *,
-                                                    float *);
-template void jaccard_list<int32_t, int32_t, double>(GraphCSRView<int32_t, int32_t, double> const &,
-                                                     double const *,
-                                                     int32_t,
-                                                     int32_t const *,
-                                                     int32_t const *,
-                                                     double *);
-template void jaccard_list<int64_t, int64_t, float>(GraphCSRView<int64_t, int64_t, float> const &,
-                                                    float const *,
-                                                    int64_t,
-                                                    int64_t const *,
-                                                    int64_t const *,
-                                                    float *);
-template void jaccard_list<int64_t, int64_t, double>(GraphCSRView<int64_t, int64_t, double> const &,
-                                                     double const *,
-                                                     int64_t,
-                                                     int64_t const *,
-                                                     int64_t const *,
-                                                     double *);
+template void jaccard<int32_t, int32_t, float>(legacy::GraphCSRView<int32_t, int32_t, float> const&,
+                                               float const*,
+                                               float*);
+template void jaccard<int32_t, int32_t, double>(
+  legacy::GraphCSRView<int32_t, int32_t, double> const&, double const*, double*);
+template void jaccard<int64_t, int64_t, float>(legacy::GraphCSRView<int64_t, int64_t, float> const&,
+                                               float const*,
+                                               float*);
+template void jaccard<int64_t, int64_t, double>(
+  legacy::GraphCSRView<int64_t, int64_t, double> const&, double const*, double*);
+template void jaccard_list<int32_t, int32_t, float>(
+  legacy::GraphCSRView<int32_t, int32_t, float> const&,
+  float const*,
+  int32_t,
+  int32_t const*,
+  int32_t const*,
+  float*);
+template void jaccard_list<int32_t, int32_t, double>(
+  legacy::GraphCSRView<int32_t, int32_t, double> const&,
+  double const*,
+  int32_t,
+  int32_t const*,
+  int32_t const*,
+  double*);
+template void jaccard_list<int64_t, int64_t, float>(
+  legacy::GraphCSRView<int64_t, int64_t, float> const&,
+  float const*,
+  int64_t,
+  int64_t const*,
+  int64_t const*,
+  float*);
+template void jaccard_list<int64_t, int64_t, double>(
+  legacy::GraphCSRView<int64_t, int64_t, double> const&,
+  double const*,
+  int64_t,
+  int64_t const*,
+  int64_t const*,
+  double*);
 
 }  // namespace cugraph

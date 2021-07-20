@@ -9,7 +9,7 @@
  *
  */
 
-#include <experimental/graph.hpp>
+#include <cugraph/experimental/graph.hpp>
 
 #include <rmm/device_uvector.hpp>
 
@@ -29,7 +29,7 @@ class LineGraph_Usecase {
             bool multi_gpu>
   std::tuple<
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-    rmm::device_uvector<vertex_t>>
+    std::optional<rmm::device_uvector<vertex_t>>>
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const;
 
  private:

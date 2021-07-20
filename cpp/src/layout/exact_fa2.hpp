@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,15 @@
 
 #pragma once
 
-#include <rmm/thrust_rmm_allocator.h>
-#include <utilities/error.hpp>
+#include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
-#include <stdio.h>
 #include <converters/COOtoCSR.cuh>
-#include <graph.hpp>
-#include <internals.hpp>
+
+#include <cugraph/internals.hpp>
+#include <cugraph/legacy/graph.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <raft/random/rng.cuh>
 
 #include "exact_repulsion.hpp"
 #include "fa2_kernels.hpp"
@@ -32,11 +34,12 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
-               float *pos,
+void exact_fa2(raft::handle_t const& handle,
+               legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
+               float* pos,
                const int max_iter                            = 500,
-               float *x_start                                = nullptr,
-               float *y_start                                = nullptr,
+               float* x_start                                = nullptr,
+               float* y_start                                = nullptr,
                bool outbound_attraction_distribution         = true,
                bool lin_log_mode                             = false,
                bool prevent_overlapping                      = false,
@@ -46,52 +49,55 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                bool strong_gravity_mode                      = false,
                const float gravity                           = 1.0,
                bool verbose                                  = false,
-               internals::GraphBasedDimRedCallback *callback = nullptr)
+               internals::GraphBasedDimRedCallback* callback = nullptr)
 {
-  cudaStream_t stream = {nullptr};
-  const edge_t e      = graph.number_of_edges;
-  const vertex_t n    = graph.number_of_vertices;
+  auto stream_view = handle.get_stream_view();
+  const edge_t e   = graph.number_of_edges;
+  const vertex_t n = graph.number_of_vertices;
 
-  float *d_repel{nullptr};
-  float *d_attract{nullptr};
-  float *d_old_forces{nullptr};
-  int *d_mass{nullptr};
-  float *d_swinging{nullptr};
-  float *d_traction{nullptr};
+  float* d_repel{nullptr};
+  float* d_attract{nullptr};
+  float* d_old_forces{nullptr};
+  int* d_mass{nullptr};
+  float* d_swinging{nullptr};
+  float* d_traction{nullptr};
 
-  rmm::device_vector<float> repel(n * 2, 0);
-  rmm::device_vector<float> attract(n * 2, 0);
-  rmm::device_vector<float> old_forces(n * 2, 0);
+  rmm::device_uvector<float> repel(n * 2, stream_view);
+  rmm::device_uvector<float> attract(n * 2, stream_view);
+  rmm::device_uvector<float> old_forces(n * 2, stream_view);
+  thrust::fill(rmm::exec_policy(stream_view), old_forces.begin(), old_forces.end(), 0.f);
   // FA2 requires degree + 1.
-  rmm::device_vector<int> mass(n, 1);
-  rmm::device_vector<float> swinging(n, 0);
-  rmm::device_vector<float> traction(n, 0);
+  rmm::device_uvector<int> mass(n, stream_view);
+  thrust::fill(rmm::exec_policy(stream_view), mass.begin(), mass.end(), 1);
+  rmm::device_uvector<float> swinging(n, stream_view);
+  rmm::device_uvector<float> traction(n, stream_view);
 
-  d_repel      = repel.data().get();
-  d_attract    = attract.data().get();
-  d_old_forces = old_forces.data().get();
-  d_mass       = mass.data().get();
-  d_swinging   = swinging.data().get();
-  d_traction   = traction.data().get();
+  d_repel      = repel.data();
+  d_attract    = attract.data();
+  d_old_forces = old_forces.data();
+  d_mass       = mass.data();
+  d_swinging   = swinging.data();
+  d_traction   = traction.data();
 
-  int random_state = 0;
-  random_vector(pos, n * 2, random_state, stream);
+  int seed{0};
+  raft::random::Rng rng(seed);
+  rng.uniform<float, size_t>(pos, n * 2, -100.0f, 100.0f, handle.get_stream());
 
   if (x_start && y_start) {
-    copy(n, x_start, pos);
-    copy(n, y_start, pos + n);
+    raft::copy(pos, x_start, n, stream_view.value());
+    raft::copy(pos + n, y_start, n, stream_view.value());
   }
 
   // Sort COO for coalesced memory access.
-  sort(graph, stream);
-  CHECK_CUDA(stream);
+  sort(graph, stream_view.value());
+  CHECK_CUDA(stream_view.value());
 
-  graph.degree(d_mass, cugraph::DegreeDirection::OUT);
-  CHECK_CUDA(stream);
+  graph.degree(d_mass, cugraph::legacy::DegreeDirection::OUT);
+  CHECK_CUDA(stream_view.value());
 
-  const vertex_t *row = graph.src_indices;
-  const vertex_t *col = graph.dst_indices;
-  const weight_t *v   = graph.edge_data;
+  const vertex_t* row = graph.src_indices;
+  const vertex_t* col = graph.dst_indices;
+  const weight_t* v   = graph.edge_data;
 
   float speed                     = 1.f;
   float speed_efficiency          = 1.f;
@@ -99,7 +105,7 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
   float jt                        = 0.f;
 
   if (outbound_attraction_distribution) {
-    int sum = thrust::reduce(rmm::exec_policy(stream)->on(stream), mass.begin(), mass.end());
+    int sum = thrust::reduce(rmm::exec_policy(stream_view), mass.begin(), mass.end());
     outbound_att_compensation = sum / (float)n;
   }
 
@@ -110,13 +116,14 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
 
   for (int iter = 0; iter < max_iter; ++iter) {
     // Reset force arrays
-    fill(n * 2, d_repel, 0.f);
-    fill(n * 2, d_attract, 0.f);
-    fill(n, d_swinging, 0.f);
-    fill(n, d_traction, 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), repel.begin(), repel.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), attract.begin(), attract.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), swinging.begin(), swinging.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), traction.begin(), traction.end(), 0.f);
 
     // Exact repulsion
-    apply_repulsion<vertex_t>(pos, pos + n, d_repel, d_repel + n, d_mass, scaling_ratio, n, stream);
+    apply_repulsion<vertex_t>(
+      pos, pos + n, d_repel, d_repel + n, d_mass, scaling_ratio, n, stream_view.value());
 
     apply_gravity<vertex_t>(pos,
                             pos + n,
@@ -127,7 +134,7 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                             strong_gravity_mode,
                             scaling_ratio,
                             n,
-                            stream);
+                            stream_view.value());
 
     apply_attraction<vertex_t, edge_t, weight_t>(row,
                                                  col,
@@ -142,7 +149,7 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                                                  lin_log_mode,
                                                  edge_weight_influence,
                                                  outbound_att_compensation,
-                                                 stream);
+                                                 stream_view.value());
 
     compute_local_speed(d_repel,
                         d_repel + n,
@@ -154,13 +161,11 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                         d_swinging,
                         d_traction,
                         n,
-                        stream);
+                        stream_view.value());
 
     // Compute global swinging and traction values.
-    const float s =
-      thrust::reduce(rmm::exec_policy(stream)->on(stream), swinging.begin(), swinging.end());
-    const float t =
-      thrust::reduce(rmm::exec_policy(stream)->on(stream), traction.begin(), traction.end());
+    const float s = thrust::reduce(rmm::exec_policy(stream_view), swinging.begin(), swinging.end());
+    const float t = thrust::reduce(rmm::exec_policy(stream_view), traction.begin(), traction.end());
 
     adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency, s, t, n);
 
@@ -175,14 +180,14 @@ void exact_fa2(GraphCOOView<vertex_t, edge_t, weight_t> &graph,
                            d_swinging,
                            speed,
                            n,
-                           stream);
+                           stream_view.value());
 
     if (callback) callback->on_epoch_end(pos);
 
     if (verbose) {
-      printf("iteration %i, speed: %f, speed_efficiency: %f, ", iter + 1, speed, speed_efficiency);
-      printf("jt: %f, ", jt);
-      printf("swinging: %f, traction: %f\n", s, t);
+      std::cout << "iteration: " << iter + 1 << ", speed: " << speed
+                << ", speed_efficiency: " << speed_efficiency << ", jt: " << jt
+                << ", swinging: " << s << ", traction: " << t << "\n";
     }
   }
 

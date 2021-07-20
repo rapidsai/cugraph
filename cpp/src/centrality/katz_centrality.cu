@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,14 +23,14 @@
 
 #include <Hornet.hpp>
 #include <Static/KatzCentrality/Katz.cuh>
-#include <graph.hpp>
-#include "utilities/error.hpp"
+#include <cugraph/legacy/graph.hpp>
+#include <cugraph/utilities/error.hpp>
 
 namespace cugraph {
 
 template <typename VT, typename ET, typename WT, typename result_t>
-void katz_centrality(GraphCSRView<VT, ET, WT> const &graph,
-                     result_t *result,
+void katz_centrality(legacy::GraphCSRView<VT, ET, WT> const& graph,
+                     result_t* result,
                      double alpha,
                      int max_iter,
                      double tol,
@@ -52,6 +52,6 @@ void katz_centrality(GraphCSRView<VT, ET, WT> const &graph,
 }
 
 template void katz_centrality<int, int, float, double>(
-  GraphCSRView<int, int, float> const &, double *, double, int, double, bool, bool);
+  legacy::GraphCSRView<int, int, float> const&, double*, double, int, double, bool, bool);
 
 }  // namespace cugraph

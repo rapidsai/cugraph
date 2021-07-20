@@ -18,8 +18,8 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <raft/error.hpp>
 #include <raft/handle.hpp>
@@ -50,68 +50,80 @@
 // C++ Reference Implementation
 // ============================================================================
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void ref_accumulation(result_t *result,
+void ref_accumulation(result_t* result,
                       vertex_t const number_of_vertices,
-                      std::stack<vertex_t> &S,
-                      std::vector<std::vector<vertex_t>> &pred,
-                      std::vector<double> &sigmas,
-                      std::vector<double> &deltas,
+                      std::stack<vertex_t>& S,
+                      std::vector<std::vector<vertex_t>>& pred,
+                      std::vector<double>& sigmas,
+                      std::vector<double>& deltas,
                       vertex_t source)
 {
-  for (vertex_t v = 0; v < number_of_vertices; ++v) { deltas[v] = 0; }
+  for (vertex_t v = 0; v < number_of_vertices; ++v) {
+    deltas[v] = 0;
+  }
   while (!S.empty()) {
     vertex_t w = S.top();
     S.pop();
-    for (vertex_t v : pred[w]) { deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]); }
+    for (vertex_t v : pred[w]) {
+      deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]);
+    }
     if (w != source) { result[w] += deltas[w]; }
   }
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void ref_endpoints_accumulation(result_t *result,
+void ref_endpoints_accumulation(result_t* result,
                                 vertex_t const number_of_vertices,
-                                std::stack<vertex_t> &S,
-                                std::vector<std::vector<vertex_t>> &pred,
-                                std::vector<double> &sigmas,
-                                std::vector<double> &deltas,
+                                std::stack<vertex_t>& S,
+                                std::vector<std::vector<vertex_t>>& pred,
+                                std::vector<double>& sigmas,
+                                std::vector<double>& deltas,
                                 vertex_t source)
 {
   result[source] += S.size() - 1;
-  for (vertex_t v = 0; v < number_of_vertices; ++v) { deltas[v] = 0; }
+  for (vertex_t v = 0; v < number_of_vertices; ++v) {
+    deltas[v] = 0;
+  }
   while (!S.empty()) {
     vertex_t w = S.top();
     S.pop();
-    for (vertex_t v : pred[w]) { deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]); }
+    for (vertex_t v : pred[w]) {
+      deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]);
+    }
     if (w != source) { result[w] += deltas[w] + 1; }
   }
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void ref_edge_accumulation(result_t *result,
+void ref_edge_accumulation(result_t* result,
                            vertex_t const number_of_vertices,
-                           std::stack<vertex_t> &S,
-                           std::vector<std::vector<vertex_t>> &pred,
-                           std::vector<double> &sigmas,
-                           std::vector<double> &deltas,
+                           std::stack<vertex_t>& S,
+                           std::vector<std::vector<vertex_t>>& pred,
+                           std::vector<double>& sigmas,
+                           std::vector<double>& deltas,
                            vertex_t source)
 {
-  for (vertex_t v = 0; v < number_of_vertices; ++v) { deltas[v] = 0; }
+  for (vertex_t v = 0; v < number_of_vertices; ++v) {
+    deltas[v] = 0;
+  }
   while (!S.empty()) {
     vertex_t w = S.top();
     S.pop();
-    for (vertex_t v : pred[w]) { deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]); }
+    for (vertex_t v : pred[w]) {
+      deltas[v] += (sigmas[v] / sigmas[w]) * (1.0 + deltas[w]);
+    }
     if (w != source) { result[w] += deltas[w]; }
   }
 }
 
 // Algorithm 1: Shortest-path vertex betweenness, (Brandes, 2001)
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void reference_betweenness_centrality_impl(vertex_t *indices,
-                                           edge_t *offsets,
+void reference_betweenness_centrality_impl(vertex_t* indices,
+                                           edge_t* offsets,
                                            vertex_t const number_of_vertices,
-                                           result_t *result,
+                                           result_t* result,
                                            bool endpoints,
-                                           vertex_t const *sources,
+                                           vertex_t const* sources,
                                            vertex_t const number_of_sources)
 {
   std::queue<vertex_t> Q;
@@ -159,7 +171,7 @@ void reference_betweenness_centrality_impl(vertex_t *indices,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void reference_rescale(result_t *result,
+void reference_rescale(result_t* result,
                        bool directed,
                        bool normalize,
                        bool endpoints,
@@ -190,25 +202,27 @@ void reference_rescale(result_t *result,
       rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
     }
   }
-  for (auto idx = 0; idx < number_of_vertices; ++idx) { result[idx] *= rescale_factor; }
+  for (auto idx = 0; idx < number_of_vertices; ++idx) {
+    result[idx] *= rescale_factor;
+  }
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void reference_betweenness_centrality(
-  cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  result_t *result,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+  result_t* result,
   bool normalize,
   bool endpoints,  // This is not yet implemented
   vertex_t const number_of_sources,
-  vertex_t const *sources)
+  vertex_t const* sources)
 {
   vertex_t number_of_vertices = graph.number_of_vertices;
   edge_t number_of_edges      = graph.number_of_edges;
   thrust::host_vector<vertex_t> h_indices(number_of_edges);
   thrust::host_vector<edge_t> h_offsets(number_of_vertices + 1);
 
-  thrust::device_ptr<vertex_t> d_indices((vertex_t *)&graph.indices[0]);
-  thrust::device_ptr<edge_t> d_offsets((edge_t *)&graph.offsets[0]);
+  thrust::device_ptr<vertex_t> d_indices((vertex_t*)&graph.indices[0]);
+  thrust::device_ptr<edge_t> d_offsets((edge_t*)&graph.offsets[0]);
 
   thrust::copy(d_indices, d_indices + number_of_edges, h_indices.begin());
   thrust::copy(d_offsets, d_offsets + (number_of_vertices + 1), h_offsets.begin());
@@ -228,14 +242,14 @@ void reference_betweenness_centrality(
 // Explicit instantiation
 /*    FIXME!!!
 template void reference_betweenness_centrality<int, int, float, float>(
-  cugraph::GraphCSRView<int, int, float> const &,
+  cugraph::legacy::GraphCSRView<int, int, float> const &,
   float *,
   bool,
   bool,
   const int,
   int const *);
 template void reference_betweenness_centrality<int, int, double, double>(
-  cugraph::GraphCSRView<int, int, double> const &,
+  cugraph::legacy::GraphCSRView<int, int, double> const &,
   double *,
   bool,
   bool,
@@ -249,7 +263,7 @@ template void reference_betweenness_centrality<int, int, double, double>(
 // Compare while allowing relatie error of epsilon
 // zero_threshold indicates when  we should drop comparison for small numbers
 template <typename T, typename precision_t>
-bool compare_close(const T &a, const T &b, const precision_t epsilon, precision_t zero_threshold)
+bool compare_close(const T& a, const T& b, const precision_t epsilon, precision_t zero_threshold)
 {
   return ((zero_threshold > a && zero_threshold > b)) ||
          (a >= b * (1.0 - epsilon)) && (a <= b * (1.0 + epsilon));
@@ -265,12 +279,12 @@ typedef struct BC_Usecase_t {
   std::string config_;     // Path to graph file
   std::string file_path_;  // Complete path to graph using dataset_root_dir
   int number_of_sources_;  // Starting point from the traversal
-  BC_Usecase_t(const std::string &config, int number_of_sources)
+  BC_Usecase_t(const std::string& config, int number_of_sources)
     : config_(config), number_of_sources_(number_of_sources)
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     // FIXME: Use platform independent stuff from c++14/17 on compiler update
-    const std::string &rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
+    const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((config_ != "") && (config_[0] != '/')) {
       file_path_ = rapidsDatasetRootDir + "/" + config_;
     } else {
@@ -301,15 +315,15 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
             typename result_t,
             bool normalize,
             bool endpoints>
-  void run_current_test(const BC_Usecase &configuration)
+  void run_current_test(const BC_Usecase& configuration)
   {
     // Step 1: Construction of the graph based on configuration
     bool is_directed = false;
     auto csr         = cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, weight_t>(
       is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::GraphCSRView<vertex_t, edge_t, weight_t> G = csr->view();
-    G.prop.directed                                     = is_directed;
+    cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> G = csr->view();
+    G.prop.directed                                             = is_directed;
     CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_vertices, 0);
     std::vector<result_t> expected(G.number_of_vertices, 0);
@@ -324,7 +338,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     std::vector<vertex_t> sources(configuration.number_of_sources_);
     thrust::sequence(thrust::host, sources.begin(), sources.end(), 0);
 
-    vertex_t *sources_ptr = nullptr;
+    vertex_t* sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
     reference_betweenness_centrality(
@@ -339,7 +353,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
                                     d_result.data().get(),
                                     normalize,
                                     endpoints,
-                                    static_cast<weight_t *>(nullptr),
+                                    static_cast<weight_t*>(nullptr),
                                     configuration.number_of_sources_,
                                     sources_ptr);
     cudaDeviceSynchronize();

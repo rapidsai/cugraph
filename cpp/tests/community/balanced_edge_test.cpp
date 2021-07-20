@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -10,7 +10,7 @@
  */
 #include <utilities/base_fixture.hpp>
 
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 
@@ -48,7 +48,7 @@ TEST(balanced_edge, success)
   rmm::device_vector<float> weights_v(w_h);
   rmm::device_vector<int> result_v(cluster_id);
 
-  cugraph::GraphCSRView<int, int, float> G(
+  cugraph::legacy::GraphCSRView<int, int, float> G(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   int num_clusters{8};

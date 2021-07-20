@@ -28,13 +28,16 @@ def cugraph_call(cu_M, pairs):
     weights_arr = cudf.Series(
         np.ones(max(cu_M["0"].max(), cu_M["1"].max()) + 1, dtype=np.float32)
     )
+    weights = cudf.DataFrame()
+    weights['vertex'] = np.arange(len(weights_arr), dtype=np.int32)
+    weights['weight'] = weights_arr
 
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     # cugraph Overlap Call
     t1 = time.time()
-    df = cugraph.overlap_w(G, weights_arr, pairs)
+    df = cugraph.overlap_w(G, weights, pairs)
     t2 = time.time() - t1
     print("Time : " + str(t2))
     df = df.sort_values(by=["source", "destination"])
@@ -114,3 +117,42 @@ def test_woverlap(graph_file):
         else:
             diff = abs(cpu_coeff[i] - cu_coeff[i])
             assert diff < 1.0e-6
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_woverlap_multi_column(graph_file):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+
+    cu_M = cudf.DataFrame()
+    cu_M["src_0"] = cudf.Series(M["0"])
+    cu_M["dst_0"] = cudf.Series(M["1"])
+    cu_M["src_1"] = cu_M["src_0"] + 1000
+    cu_M["dst_1"] = cu_M["dst_0"] + 1000
+    G1 = cugraph.Graph()
+    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                          destination=["dst_0", "dst_1"])
+
+    G2 = cugraph.Graph()
+    G2.from_cudf_edgelist(cu_M, source="src_0",
+                          destination="dst_0")
+
+    vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
+    vertex_pair = vertex_pair[:5]
+
+    weight_arr = cudf.Series(np.ones(G2.number_of_vertices(),
+                                     dtype=np.float32))
+
+    weights = cudf.DataFrame()
+    weights['vertex'] = G2.nodes()
+    weights['vertex_'] = weights['vertex'] + 1000
+    weights['weight'] = weight_arr
+
+    df_res = cugraph.overlap_w(G1, weights, vertex_pair)
+
+    weights = weights[['vertex', 'weight']]
+    df_exp = cugraph.overlap_w(G2, weights, vertex_pair[["src_0", "dst_0"]])
+
+    # Calculating mismatch
+    assert df_res["overlap_coeff"].equals(df_exp["overlap_coeff"])

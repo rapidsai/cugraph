@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,9 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure import graph as csg
+from cugraph.structure import graph_classes as csg
 import cudf
 import dask_cudf
+from cugraph.comms import comms as Comms
 
 
 def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
@@ -136,13 +137,13 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
     else:
         ddf2 = df[[dst_name, src_name]]
         ddf2.columns = [src_name, dst_name]
-
+    worker_list = Comms.get_workers()
+    num_workers = len(worker_list)
     ddf = df.append(ddf2).reset_index(drop=True)
-    result = (
-        ddf.groupby(by=[src_name, dst_name], as_index=False)
-        .min()
-        .reset_index()
-    )
+    result = ddf.shuffle(on=[
+        src_name, dst_name], ignore_index=True, npartitions=num_workers)
+    result = result.map_partitions(lambda x: x.groupby(
+        by=[src_name, dst_name], as_index=False).min().reset_index(drop=True))
 
     return result
 
@@ -201,8 +202,12 @@ def symmetrize(source_col, dest_col, value_col=None, multi=False,
         csg.null_check(source_col)
         csg.null_check(dest_col)
     if value_col is not None:
-        weight_name = "value"
-        input_df.insert(len(input_df.columns), "value", value_col)
+        if isinstance(value_col, cudf.Series):
+            weight_name = "value"
+            input_df.insert(len(input_df.columns), "value", value_col)
+        elif isinstance(value_col, cudf.DataFrame):
+            input_df = cudf.concat([input_df, value_col], axis=1)
+
     output_df = None
     if type(source_col) is dask_cudf.Series:
         output_df = symmetrize_ddf(
@@ -211,11 +216,17 @@ def symmetrize(source_col, dest_col, value_col=None, multi=False,
     else:
         output_df = symmetrize_df(input_df, "source", "destination", multi,
                                   symmetrize)
-
     if value_col is not None:
-        return (
-            output_df["source"],
-            output_df["destination"],
-            output_df["value"],
-        )
+        if isinstance(value_col, cudf.Series):
+            return (
+                output_df["source"],
+                output_df["destination"],
+                output_df["value"],
+            )
+        elif isinstance(value_col, cudf.DataFrame):
+            return (
+                output_df["source"],
+                output_df["destination"],
+                output_df[value_col.columns],
+            )
     return output_df["source"], output_df["destination"]

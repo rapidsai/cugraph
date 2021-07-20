@@ -18,12 +18,12 @@
 #include <utilities/high_res_timer.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
-#include <experimental/graph.hpp>
-#include <experimental/graph_generator.hpp>
-#include <experimental/graph_view.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph_generators.hpp>
+#include <cugraph/experimental/graph_view.hpp>
 
-#include <graph.hpp>
+#include <cugraph/experimental/graph.hpp>
 
 #include <cuda_profiler_api.h>
 #include <gtest/gtest.h>

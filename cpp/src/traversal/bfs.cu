@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -14,14 +14,14 @@
 #include <limits>
 #include "bfs.cuh"
 
-#include "graph.hpp"
+#include <cugraph/legacy/graph.hpp>
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <utilities/graph_utils.cuh>
 #include "bfs_kernels.cuh"
 #include "mg/bfs.cuh"
 #include "mg/common_utils.cuh"
 #include "traversal_common.cuh"
-#include "utilities/graph_utils.cuh"
 
 namespace cugraph {
 namespace detail {
@@ -96,7 +96,7 @@ void BFS<IndexType>::setup()
   // Lets use this int* for the next 3 lines
   // Its dereferenced value is not initialized - so we dont care about what we
   // put in it
-  IndexType *d_nisolated = d_new_frontier_cnt;
+  IndexType* d_nisolated = d_new_frontier_cnt;
   cudaMemsetAsync(d_nisolated, 0, sizeof(IndexType), stream);
 
   // Computing isolated_bmap
@@ -114,10 +114,10 @@ void BFS<IndexType>::setup()
 }
 
 template <typename IndexType>
-void BFS<IndexType>::configure(IndexType *_distances,
-                               IndexType *_predecessors,
-                               double *_sp_counters,
-                               int *_edge_mask)
+void BFS<IndexType>::configure(IndexType* _distances,
+                               IndexType* _predecessors,
+                               double* _sp_counters,
+                               int* _edge_mask)
 {
   distances    = _distances;
   predecessors = _predecessors;
@@ -473,11 +473,11 @@ template class BFS<int64_t>;
 // NOTE: SP counter increase extremely fast on large graph
 //       It can easily reach 1e40~1e70 on GAP-road.mtx
 template <typename VT, typename ET, typename WT>
-void bfs(raft::handle_t const &handle,
-         GraphCSRView<VT, ET, WT> const &graph,
-         VT *distances,
-         VT *predecessors,
-         double *sp_counters,
+void bfs(raft::handle_t const& handle,
+         legacy::GraphCSRView<VT, ET, WT> const& graph,
+         VT* distances,
+         VT* predecessors,
+         double* sp_counters,
          const VT start_vertex,
          bool directed,
          bool mg_batch)
@@ -497,8 +497,8 @@ void bfs(raft::handle_t const &handle,
     VT number_of_vertices = graph.number_of_vertices;
     ET number_of_edges    = graph.number_of_edges;
 
-    const VT *indices_ptr = graph.indices;
-    const ET *offsets_ptr = graph.offsets;
+    const VT* indices_ptr = graph.indices;
+    const ET* offsets_ptr = graph.offsets;
 
     int alpha = 15;
     int beta  = 18;
@@ -511,63 +511,69 @@ void bfs(raft::handle_t const &handle,
 }
 
 // Explicit Instantiation
-template void bfs<uint32_t, uint32_t, float>(raft::handle_t const &handle,
-                                             GraphCSRView<uint32_t, uint32_t, float> const &graph,
-                                             uint32_t *distances,
-                                             uint32_t *predecessors,
-                                             double *sp_counters,
-                                             const uint32_t source_vertex,
-                                             bool directed,
-                                             bool mg_batch);
+template void bfs<uint32_t, uint32_t, float>(
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<uint32_t, uint32_t, float> const& graph,
+  uint32_t* distances,
+  uint32_t* predecessors,
+  double* sp_counters,
+  const uint32_t source_vertex,
+  bool directed,
+  bool mg_batch);
 
 // Explicit Instantiation
-template void bfs<uint32_t, uint32_t, double>(raft::handle_t const &handle,
-                                              GraphCSRView<uint32_t, uint32_t, double> const &graph,
-                                              uint32_t *distances,
-                                              uint32_t *predecessors,
-                                              double *sp_counters,
-                                              const uint32_t source_vertex,
-                                              bool directed,
-                                              bool mg_batch);
+template void bfs<uint32_t, uint32_t, double>(
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<uint32_t, uint32_t, double> const& graph,
+  uint32_t* distances,
+  uint32_t* predecessors,
+  double* sp_counters,
+  const uint32_t source_vertex,
+  bool directed,
+  bool mg_batch);
 
 // Explicit Instantiation
-template void bfs<int32_t, int32_t, float>(raft::handle_t const &handle,
-                                           GraphCSRView<int32_t, int32_t, float> const &graph,
-                                           int32_t *distances,
-                                           int32_t *predecessors,
-                                           double *sp_counters,
-                                           const int32_t source_vertex,
-                                           bool directed,
-                                           bool mg_batch);
+template void bfs<int32_t, int32_t, float>(
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int32_t, int32_t, float> const& graph,
+  int32_t* distances,
+  int32_t* predecessors,
+  double* sp_counters,
+  const int32_t source_vertex,
+  bool directed,
+  bool mg_batch);
 
 // Explicit Instantiation
-template void bfs<int32_t, int32_t, double>(raft::handle_t const &handle,
-                                            GraphCSRView<int32_t, int32_t, double> const &graph,
-                                            int32_t *distances,
-                                            int32_t *predecessors,
-                                            double *sp_counters,
-                                            const int32_t source_vertex,
-                                            bool directed,
-                                            bool mg_batch);
+template void bfs<int32_t, int32_t, double>(
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int32_t, int32_t, double> const& graph,
+  int32_t* distances,
+  int32_t* predecessors,
+  double* sp_counters,
+  const int32_t source_vertex,
+  bool directed,
+  bool mg_batch);
 
 // Explicit Instantiation
-template void bfs<int64_t, int64_t, float>(raft::handle_t const &handle,
-                                           GraphCSRView<int64_t, int64_t, float> const &graph,
-                                           int64_t *distances,
-                                           int64_t *predecessors,
-                                           double *sp_counters,
-                                           const int64_t source_vertex,
-                                           bool directed,
-                                           bool mg_batch);
+template void bfs<int64_t, int64_t, float>(
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int64_t, int64_t, float> const& graph,
+  int64_t* distances,
+  int64_t* predecessors,
+  double* sp_counters,
+  const int64_t source_vertex,
+  bool directed,
+  bool mg_batch);
 
 // Explicit Instantiation
-template void bfs<int64_t, int64_t, double>(raft::handle_t const &handle,
-                                            GraphCSRView<int64_t, int64_t, double> const &graph,
-                                            int64_t *distances,
-                                            int64_t *predecessors,
-                                            double *sp_counters,
-                                            const int64_t source_vertex,
-                                            bool directed,
-                                            bool mg_batch);
+template void bfs<int64_t, int64_t, double>(
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int64_t, int64_t, double> const& graph,
+  int64_t* distances,
+  int64_t* predecessors,
+  double* sp_counters,
+  const int64_t source_vertex,
+  bool directed,
+  bool mg_batch);
 
 }  // namespace cugraph

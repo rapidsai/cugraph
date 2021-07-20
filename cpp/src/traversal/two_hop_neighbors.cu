@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@
  * ---------------------------------------------------------------------------**/
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <algorithms.hpp>
-#include <graph.hpp>
-#include <utilities/error.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/legacy/graph.hpp>
+#include <cugraph/utilities/error.hpp>
 #include "two_hop_neighbors.cuh"
 
 #include <thrust/execution_policy.h>
@@ -32,12 +32,13 @@
 namespace cugraph {
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(GraphCSRView<VT, ET, WT> const &graph)
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
+  legacy::GraphCSRView<VT, ET, WT> const& graph)
 {
   cudaStream_t stream{nullptr};
 
   rmm::device_vector<ET> exsum_degree(graph.number_of_edges + 1);
-  ET *d_exsum_degree = exsum_degree.data().get();
+  ET* d_exsum_degree = exsum_degree.data().get();
 
   // Find the degree of the out vertex of each edge
   degree_iterator<ET> deg_it(graph.offsets);
@@ -62,14 +63,14 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(GraphCSRView<VT, ET,
   rmm::device_vector<VT> first_pair(output_size);
   rmm::device_vector<VT> second_pair(output_size);
 
-  VT *d_first_pair  = first_pair.data().get();
-  VT *d_second_pair = second_pair.data().get();
+  VT* d_first_pair  = first_pair.data().get();
+  VT* d_second_pair = second_pair.data().get();
 
   // Figure out number of blocks and allocate memory for block bucket offsets
   ET num_blocks = (output_size + TWO_HOP_BLOCK_SIZE - 1) / TWO_HOP_BLOCK_SIZE;
   rmm::device_vector<ET> block_bucket_offsets(num_blocks + 1);
 
-  ET *d_block_bucket_offsets = block_bucket_offsets.data().get();
+  ET* d_block_bucket_offsets = block_bucket_offsets.data().get();
 
   // Compute the block bucket offsets
   dim3 grid, block;
@@ -108,7 +109,8 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(GraphCSRView<VT, ET,
   // Get things ready to return
   ET outputSize = tuple_end - tuple_start;
 
-  auto result = std::make_unique<GraphCOO<VT, ET, WT>>(graph.number_of_vertices, outputSize, false);
+  auto result =
+    std::make_unique<legacy::GraphCOO<VT, ET, WT>>(graph.number_of_vertices, outputSize, false);
 
   cudaMemcpy(result->src_indices(), d_first_pair, sizeof(VT) * outputSize, cudaMemcpyDefault);
   cudaMemcpy(result->dst_indices(), d_second_pair, sizeof(VT) * outputSize, cudaMemcpyDefault);
@@ -116,10 +118,10 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> get_two_hop_neighbors(GraphCSRView<VT, ET,
   return result;
 }
 
-template std::unique_ptr<GraphCOO<int, int, float>> get_two_hop_neighbors(
-  GraphCSRView<int, int, float> const &);
+template std::unique_ptr<legacy::GraphCOO<int, int, float>> get_two_hop_neighbors(
+  legacy::GraphCSRView<int, int, float> const&);
 
-template std::unique_ptr<GraphCOO<int, int, double>> get_two_hop_neighbors(
-  GraphCSRView<int, int, double> const &);
+template std::unique_ptr<legacy::GraphCOO<int, int, double>> get_two_hop_neighbors(
+  legacy::GraphCSRView<int, int, double> const&);
 
 }  // namespace cugraph

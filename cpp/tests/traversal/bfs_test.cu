@@ -19,7 +19,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 
@@ -46,7 +46,7 @@
 // C++ Reference Implementation
 // ============================================================================
 template <typename T, typename precision_t>
-bool compare_close(const T &a, const T &b, const precision_t epsilon, precision_t zero_threshold)
+bool compare_close(const T& a, const T& b, const precision_t epsilon, precision_t zero_threshold)
 {
   return ((zero_threshold > a && zero_threshold > b)) ||
          (a >= b * (1.0 - epsilon)) && (a <= b * (1.0 + epsilon));
@@ -59,9 +59,9 @@ typedef struct BFS_Usecase_t {
   std::string config_;     // Path to graph file
   std::string file_path_;  // Complete path to graph using dataset_root_dir
   int source_;             // Starting point from the traversal
-  BFS_Usecase_t(const std::string &config, int source) : config_(config), source_(source)
+  BFS_Usecase_t(const std::string& config, int source) : config_(config), source_(source)
   {
-    const std::string &rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
+    const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((config_ != "") && (config_[0] != '/')) {
       file_path_ = rapidsDatasetRootDir + "/" + config_;
     } else {
@@ -86,7 +86,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   // WT                 edge weight data type
   // return_sp_counter  should BFS return shortest path countner
   template <typename VT, typename ET, typename WT, bool return_sp_counter>
-  void run_current_test(const BFS_Usecase &configuration)
+  void run_current_test(const BFS_Usecase& configuration)
   {
     // Step 1: Construction of the graph based on configuration
     VT number_of_vertices;
@@ -95,8 +95,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     auto csr =
       cugraph::test::generate_graph_csr_from_mm<VT, ET, WT>(directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::GraphCSRView<VT, ET, WT> G = csr->view();
-    G.prop.directed                     = directed;
+    cugraph::legacy::GraphCSRView<VT, ET, WT> G = csr->view();
+    G.prop.directed                             = directed;
 
     ASSERT_TRUE(configuration.source_ >= 0 && (VT)configuration.source_ < G.number_of_vertices)
       << "Starting sources should be >= 0 and"
@@ -174,7 +174,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       // that the predecessor obtained with the GPU implementation is one of the
       // predecessors obtained during the C++ BFS traversal
       VT pred = cugraph_pred[i];  // It could be equal to -1 if the node is never reached
-      constexpr VT invalid_vid = cugraph::invalid_vertex_id<VT>::value;
+      constexpr VT invalid_vid = cugraph::legacy::invalid_vertex_id<VT>::value;
       if (pred == invalid_vid) {
         EXPECT_TRUE(ref_bfs_pred[i].empty())
           << "[MISMATCH][PREDECESSOR] vaid = " << i << " cugraph had not predecessor,"

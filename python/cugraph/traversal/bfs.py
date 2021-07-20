@@ -14,7 +14,7 @@
 import cudf
 
 from cugraph.traversal import bfs_wrapper
-from cugraph.structure.graph import Graph, DiGraph
+from cugraph.structure.graph_classes import Graph, DiGraph
 from cugraph.utilities import (ensure_cugraph_obj,
                                is_matrix_type,
                                is_cp_matrix_type,
@@ -185,9 +185,9 @@ def bfs(G,
 
     if G.renumbered is True:
         if isinstance(start, cudf.DataFrame):
-            start = G.lookup_internal_vertex_id(start, start.columns).iloc[0]
+            start = G.lookup_internal_vertex_id(start, start.columns)
         else:
-            start = G.lookup_internal_vertex_id(cudf.Series([start]))[0]
+            start = G.lookup_internal_vertex_id(cudf.Series(start))
 
     df = bfs_wrapper.bfs(G, start, depth_limit)
     if G.renumbered:

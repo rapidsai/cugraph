@@ -13,7 +13,7 @@ The unit test code is the best place to search for examples on calling pagerank.
 The example assumes that you create an SG or MG graph somehow.  The caller must create the pageranks vector in device memory and pass in the raw pointer to that vector into the pagerank function.
 
 ```cpp
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 ...
 using vertex_t = int32_t;       // or int64_t, whichever is appropriate
 using weight_t = float;         // or double, whichever is appropriate
@@ -46,7 +46,7 @@ cugraph::experimental::pagerank(handle, graph_view, nullptr, nullptr, nullptr, v
 The example assumes that you create an SG or MG graph somehow.  The caller must create the pageranks vector in device memory and pass in the raw pointer to that vector into the pagerank function.  Additionally, the caller must create personalization_vertices and personalized_values vectors in device memory, populate them and pass in the raw pointers to those vectors.
 
 ```cpp
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 ...
 using vertex_t = int32_t;                    // or int64_t, whichever is appropriate
 using weight_t = float;                      // or double, whichever is appropriate

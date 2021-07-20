@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <algorithms.hpp>
-#include <graph.hpp>
-#include <utilities/error.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/legacy/graph.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/device_atomics.cuh>
@@ -24,9 +24,9 @@
 namespace {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool has_weight>
-std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_by_vertices(
-  cugraph::GraphCOOView<vertex_t, edge_t, weight_t> const &graph,
-  vertex_t const *vertices,
+std::unique_ptr<cugraph::legacy::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_by_vertices(
+  cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> const& graph,
+  vertex_t const* vertices,
   vertex_t num_vertices,
   cudaStream_t stream)
 {
@@ -35,8 +35,8 @@ std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_
   rmm::device_vector<int64_t> error_count_v{1, 0};
   rmm::device_vector<vertex_t> vertex_used_v{graph_num_verts, num_vertices};
 
-  vertex_t *d_vertex_used = vertex_used_v.data().get();
-  int64_t *d_error_count  = error_count_v.data().get();
+  vertex_t* d_vertex_used = vertex_used_v.data().get();
+  int64_t* d_error_count  = error_count_v.data().get();
 
   thrust::for_each(
     rmm::exec_policy(stream)->on(stream),
@@ -54,9 +54,9 @@ std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_
   CUGRAPH_EXPECTS(error_count_v[0] == 0,
                   "Input error... vertices specifies vertex id out of range");
 
-  vertex_t *graph_src    = graph.src_indices;
-  vertex_t *graph_dst    = graph.dst_indices;
-  weight_t *graph_weight = graph.edge_data;
+  vertex_t* graph_src    = graph.src_indices;
+  vertex_t* graph_dst    = graph.dst_indices;
+  weight_t* graph_weight = graph.edge_data;
 
   // iterate over the edges and count how many make it into the output
   int64_t count = thrust::count_if(
@@ -70,12 +70,12 @@ std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_
     });
 
   if (count > 0) {
-    auto result = std::make_unique<cugraph::GraphCOO<vertex_t, edge_t, weight_t>>(
+    auto result = std::make_unique<cugraph::legacy::GraphCOO<vertex_t, edge_t, weight_t>>(
       num_vertices, count, has_weight);
 
-    vertex_t *d_new_src    = result->src_indices();
-    vertex_t *d_new_dst    = result->dst_indices();
-    weight_t *d_new_weight = result->edge_data();
+    vertex_t* d_new_src    = result->src_indices();
+    vertex_t* d_new_dst    = result->dst_indices();
+    weight_t* d_new_weight = result->edge_data();
 
     //  reusing error_count as a vertex counter...
     thrust::for_each(rmm::exec_policy(stream)->on(stream),
@@ -106,7 +106,8 @@ std::unique_ptr<cugraph::GraphCOO<vertex_t, edge_t, weight_t>> extract_subgraph_
 
     return result;
   } else {
-    return std::make_unique<cugraph::GraphCOO<vertex_t, edge_t, weight_t>>(0, 0, has_weight);
+    return std::make_unique<cugraph::legacy::GraphCOO<vertex_t, edge_t, weight_t>>(
+      0, 0, has_weight);
   }
 }
 }  // namespace
@@ -115,9 +116,8 @@ namespace cugraph {
 namespace subgraph {
 
 template <typename VT, typename ET, typename WT>
-std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, ET, WT> const &graph,
-                                                              VT const *vertices,
-                                                              VT num_vertices)
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
+  legacy::GraphCOOView<VT, ET, WT> const& graph, VT const* vertices, VT num_vertices)
 {
   CUGRAPH_EXPECTS(vertices != nullptr, "Invalid input argument: vertices must be non null");
 
@@ -130,14 +130,12 @@ std::unique_ptr<GraphCOO<VT, ET, WT>> extract_subgraph_vertex(GraphCOOView<VT, E
   }
 }
 
-template std::unique_ptr<GraphCOO<int32_t, int32_t, float>>
-extract_subgraph_vertex<int32_t, int32_t, float>(GraphCOOView<int32_t, int32_t, float> const &,
-                                                 int32_t const *,
-                                                 int32_t);
-template std::unique_ptr<GraphCOO<int32_t, int32_t, double>>
-extract_subgraph_vertex<int32_t, int32_t, double>(GraphCOOView<int32_t, int32_t, double> const &,
-                                                  int32_t const *,
-                                                  int32_t);
+template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, float>>
+extract_subgraph_vertex<int32_t, int32_t, float>(
+  legacy::GraphCOOView<int32_t, int32_t, float> const&, int32_t const*, int32_t);
+template std::unique_ptr<legacy::GraphCOO<int32_t, int32_t, double>>
+extract_subgraph_vertex<int32_t, int32_t, double>(
+  legacy::GraphCOOView<int32_t, int32_t, double> const&, int32_t const*, int32_t);
 
 }  // namespace subgraph
 }  // namespace cugraph

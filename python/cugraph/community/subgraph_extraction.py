@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,8 +12,8 @@
 # limitations under the License.
 
 from cugraph.community import subgraph_extraction_wrapper
-from cugraph.structure.graph import null_check
 from cugraph.utilities import check_nx_graph
+import cudf
 from cugraph.utilities import cugraph_to_nx
 
 
@@ -28,8 +28,9 @@ def subgraph(G, vertices):
     ----------
     G : cugraph.Graph
         cuGraph graph descriptor
-    vertices : cudf.Series
-        Specifies the vertices of the induced subgraph
+    vertices : cudf.Series or cudf.DataFrame
+        Specifies the vertices of the induced subgraph. For multi-column
+        vertices, vertices should be provided as a cudf.DataFrame
 
     Returns
     -------
@@ -52,27 +53,30 @@ def subgraph(G, vertices):
     >>> Sg = cugraph.subgraph(G, sverts)
     """
 
-    null_check(vertices)
-
     G, isNx = check_nx_graph(G)
 
     if G.renumbered:
-        vertices = G.lookup_internal_vertex_id(vertices)
+        if isinstance(vertices, cudf.DataFrame):
+            vertices = G.lookup_internal_vertex_id(vertices, vertices.columns)
+        else:
+            vertices = G.lookup_internal_vertex_id(vertices)
 
     result_graph = type(G)()
 
     df = subgraph_extraction_wrapper.subgraph(G, vertices)
 
     if G.renumbered:
-        df = G.unrenumber(df, "src")
-        df = G.unrenumber(df, "dst")
+        df, src_names = G.unrenumber(df, "src", get_column_names=True)
+        df, dst_names = G.unrenumber(df, "dst", get_column_names=True)
 
     if G.edgelist.weights:
         result_graph.from_cudf_edgelist(
-            df, source="src", destination="dst", edge_attr="weight"
+            df, source=src_names, destination=dst_names,
+            edge_attr="weight"
         )
     else:
-        result_graph.from_cudf_edgelist(df, source="src", destination="dst")
+        result_graph.from_cudf_edgelist(df, source=src_names,
+                                        destination=dst_names)
 
     if isNx is True:
         result_graph = cugraph_to_nx(result_graph)

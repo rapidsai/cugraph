@@ -76,6 +76,8 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
         weight_t = np.dtype("float32")
         is_weighted = False
 
+    is_symmetric = not input_graph.is_directed()
+
     # FIXME: Offsets and indices are currently hardcoded to int, but this may
     #        not be acceptable in the future.
     numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
@@ -95,13 +97,15 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
                              handle_[0],
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
                              <void*>NULL,
+                             <void*>NULL,
+                             0,
                              <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
                              <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                              num_local_edges,
                              num_verts, num_edges,
-                             False,
                              is_weighted,
+                             is_symmetric,
                              True,
                              False)
 

@@ -21,7 +21,7 @@ cdef extern from "limits.h":
     cdef int INT_MAX
     cdef long LONG_MAX
 
-cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
     cdef void call_bfs[vertex_t, weight_t](
         const handle_t &handle,
@@ -30,5 +30,6 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         vertex_t *distances,
         vertex_t *predecessors,
         vertex_t depth_limit,
-        const vertex_t start_vertex,
+        const vertex_t *start_vertex,
+        size_t n_sources,
         bool direction_optimizing) except +

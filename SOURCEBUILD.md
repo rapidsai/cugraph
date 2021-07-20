@@ -7,13 +7,13 @@ The cuGraph package include both a C/C++ CUDA portion and a python portion.  Bot
 ## Prerequisites
 
 __Compiler__:
-* `gcc`         version 5.4+
-* `nvcc`        version 10.0+
+* `gcc`         version 9.3+
+* `nvcc`        version 11.0+
 * `cmake`       version 3.18+
 
 __CUDA:__
-* CUDA 10.1+
-* NVIDIA driver 396.44+
+* CUDA 11.0+
+* NVIDIA driver 450.80.02+
 * Pascal architecture or better
 
 __Other__
@@ -47,16 +47,14 @@ __Create the conda development environment__
 ```bash
 # create the conda environment (assuming in base `cugraph` directory)
 
-
-
-# for CUDA 10.1
-conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.1.yml
-
-# for CUDA 10.2
-conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.2.yml
-
-# for CUDA 11
+# for CUDA 11.0
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.0.yml
+
+# for CUDA 11.1
+conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.1.yml
+
+# for CUDA 11.2
+conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.2.yml
 
 # activate the environment
 conda activate cugraph_dev
@@ -70,14 +68,14 @@ conda deactivate
 
 ```bash
 
-# for CUDA 10.1
-conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.1.yml
-
-# for CUDA 10.2
-conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda10.2.yml
-
-# for CUDA 11
+# for CUDA 11.0
 conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.0.yml
+
+# for CUDA 11.1
+conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.1.yml
+
+# for CUDA 11.2
+conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.2.yml
 
 conda activate cugraph_dev
 ```
@@ -232,8 +230,8 @@ Next the env_vars.sh file needs to be edited
 vi ./etc/conda/activate.d/env_vars.sh
 
 #!/bin/bash
-export PATH=/usr/local/cuda-10.1/bin:$PATH # or cuda-10.2 if using CUDA 10.2
-export LD_LIBRARY_PATH=/usr/local/cuda-10.1/lib64:$LD_LIBRARY_PATH # or cuda-10.2 if using CUDA 10.2
+export PATH=/usr/local/cuda-11.0/bin:$PATH # or cuda-11.1 if using CUDA 11.1 and cuda-11.2 if using CUDA 11.2, respectively
+export LD_LIBRARY_PATH=/usr/local/cuda-11.0/lib64:$LD_LIBRARY_PATH # or cuda-11.1 if using CUDA 11.1 and cuda-11.2 if using CUDA 11.2, respectively
 ```
 
 ```

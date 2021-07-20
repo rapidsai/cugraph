@@ -16,9 +16,9 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
-#include <experimental/graph.hpp>
+#include <cugraph/experimental/graph.hpp>
 
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -204,7 +204,7 @@ TEST(louvain_legacy, success)
   raft::update_device(indices_v.data(), ind_h.data(), ind_h.size(), stream);
   raft::update_device(weights_v.data(), w_h.data(), w_h.size(), stream);
 
-  cugraph::GraphCSRView<int, int, float> G(
+  cugraph::legacy::GraphCSRView<int, int, float> G(
     offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
 
   float modularity{0.0};
@@ -275,7 +275,7 @@ TEST(louvain_legacy_renumbered, success)
   raft::update_device(indices_v.data(), ind_h.data(), ind_h.size(), stream);
   raft::update_device(weights_v.data(), w_h.data(), w_h.size(), stream);
 
-  cugraph::GraphCSRView<int, int, float> G(
+  cugraph::legacy::GraphCSRView<int, int, float> G(
     offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
 
   float modularity{0.0};
@@ -310,6 +310,11 @@ TEST_P(Tests_Louvain, CheckInt32Int32FloatFloatLegacy)
 TEST_P(Tests_Louvain, CheckInt32Int32FloatFloat)
 {
   run_current_test<int32_t, int32_t, float, float>(GetParam());
+}
+
+TEST_P(Tests_Louvain, CheckInt64Int64FloatFloat)
+{
+  run_current_test<int64_t, int64_t, float, float>(GetParam());
 }
 
 // FIXME: Expand testing once we evaluate RMM memory use

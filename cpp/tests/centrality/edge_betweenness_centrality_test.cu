@@ -26,8 +26,8 @@
 
 #include <gmock/gmock.h>
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <fstream>
 #include <queue>
@@ -53,8 +53,8 @@
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 edge_t get_edge_index_from_source_and_destination(vertex_t source_vertex,
                                                   vertex_t destination_vertex,
-                                                  vertex_t const *indices,
-                                                  edge_t const *offsets)
+                                                  vertex_t const* indices,
+                                                  edge_t const* offsets)
 {
   edge_t index          = -1;
   edge_t first_edge_idx = offsets[source_vertex];
@@ -65,17 +65,19 @@ edge_t get_edge_index_from_source_and_destination(vertex_t source_vertex,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void ref_accumulation(result_t *result,
-                      vertex_t const *indices,
-                      edge_t const *offsets,
+void ref_accumulation(result_t* result,
+                      vertex_t const* indices,
+                      edge_t const* offsets,
                       vertex_t const number_of_vertices,
-                      std::stack<vertex_t> &S,
-                      std::vector<std::vector<vertex_t>> &pred,
-                      std::vector<double> &sigmas,
-                      std::vector<double> &deltas,
+                      std::stack<vertex_t>& S,
+                      std::vector<std::vector<vertex_t>>& pred,
+                      std::vector<double>& sigmas,
+                      std::vector<double>& deltas,
                       vertex_t source)
 {
-  for (vertex_t v = 0; v < number_of_vertices; ++v) { deltas[v] = 0; }
+  for (vertex_t v = 0; v < number_of_vertices; ++v) {
+    deltas[v] = 0;
+  }
   while (!S.empty()) {
     vertex_t w = S.top();
     S.pop();
@@ -93,11 +95,11 @@ void ref_accumulation(result_t *result,
 
 // Algorithm 1: Shortest-path vertex betweenness, (Brandes, 2001)
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void reference_edge_betweenness_centrality_impl(vertex_t *indices,
-                                                edge_t *offsets,
+void reference_edge_betweenness_centrality_impl(vertex_t* indices,
+                                                edge_t* offsets,
                                                 vertex_t const number_of_vertices,
-                                                result_t *result,
-                                                vertex_t const *sources,
+                                                result_t* result,
+                                                vertex_t const* sources,
                                                 vertex_t const number_of_sources)
 {
   std::queue<vertex_t> Q;
@@ -135,7 +137,7 @@ void reference_edge_betweenness_centrality_impl(vertex_t *indices,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-void reference_rescale(result_t *result,
+void reference_rescale(result_t* result,
                        bool directed,
                        bool normalize,
                        vertex_t const number_of_vertices,
@@ -150,24 +152,26 @@ void reference_rescale(result_t *result,
   } else {
     if (!directed) { rescale_factor /= static_cast<result_t>(2); }
   }
-  for (auto idx = 0; idx < number_of_edges; ++idx) { result[idx] *= rescale_factor; }
+  for (auto idx = 0; idx < number_of_edges; ++idx) {
+    result[idx] *= rescale_factor;
+  }
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void reference_edge_betweenness_centrality(
-  cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
-  result_t *result,
+  cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+  result_t* result,
   bool normalize,
   vertex_t const number_of_sources,
-  vertex_t const *sources)
+  vertex_t const* sources)
 {
   vertex_t number_of_vertices = graph.number_of_vertices;
   edge_t number_of_edges      = graph.number_of_edges;
   thrust::host_vector<vertex_t> h_indices(number_of_edges);
   thrust::host_vector<edge_t> h_offsets(number_of_vertices + 1);
 
-  thrust::device_ptr<vertex_t> d_indices((vertex_t *)&graph.indices[0]);
-  thrust::device_ptr<edge_t> d_offsets((edge_t *)&graph.offsets[0]);
+  thrust::device_ptr<vertex_t> d_indices((vertex_t*)&graph.indices[0]);
+  thrust::device_ptr<edge_t> d_offsets((edge_t*)&graph.offsets[0]);
 
   thrust::copy(d_indices, d_indices + number_of_edges, h_indices.begin());
   thrust::copy(d_offsets, d_offsets + (number_of_vertices + 1), h_offsets.begin());
@@ -186,7 +190,7 @@ void reference_edge_betweenness_centrality(
 // Compare while allowing relatie error of epsilon
 // zero_threshold indicates when  we should drop comparison for small numbers
 template <typename T, typename precision_t>
-bool compare_close(const T &a, const T &b, const precision_t epsilon, precision_t zero_threshold)
+bool compare_close(const T& a, const T& b, const precision_t epsilon, precision_t zero_threshold)
 {
   return ((zero_threshold > a && zero_threshold > b)) ||
          (a >= b * (1.0 - epsilon)) && (a <= b * (1.0 + epsilon));
@@ -202,12 +206,12 @@ typedef struct EdgeBC_Usecase_t {
   std::string config_;     // Path to graph file
   std::string file_path_;  // Complete path to graph using dataset_root_dir
   int number_of_sources_;  // Starting point from the traversal
-  EdgeBC_Usecase_t(const std::string &config, int number_of_sources)
+  EdgeBC_Usecase_t(const std::string& config, int number_of_sources)
     : config_(config), number_of_sources_(number_of_sources)
   {
     // assume relative paths are relative to RAPIDS_DATASET_ROOT_DIR
     // FIXME: Use platform independent stuff from c++14/17 on compiler update
-    const std::string &rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
+    const std::string& rapidsDatasetRootDir = cugraph::test::get_rapids_dataset_root_dir();
     if ((config_ != "") && (config_[0] != '/')) {
       file_path_ = rapidsDatasetRootDir + "/" + config_;
     } else {
@@ -237,15 +241,15 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
             typename weight_t,
             typename result_t,
             bool normalize>
-  void run_current_test(const EdgeBC_Usecase &configuration)
+  void run_current_test(const EdgeBC_Usecase& configuration)
   {
     // Step 1: Construction of the graph based on configuration
     bool is_directed = false;
     auto csr         = cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, weight_t>(
       is_directed, configuration.file_path_);
     cudaDeviceSynchronize();
-    cugraph::GraphCSRView<vertex_t, edge_t, weight_t> G = csr->view();
-    G.prop.directed                                     = is_directed;
+    cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> G = csr->view();
+    G.prop.directed                                             = is_directed;
     CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_edges, 0);
     std::vector<result_t> expected(G.number_of_edges, 0);
@@ -260,7 +264,7 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
     std::vector<vertex_t> sources(configuration.number_of_sources_);
     thrust::sequence(thrust::host, sources.begin(), sources.end(), 0);
 
-    vertex_t *sources_ptr = nullptr;
+    vertex_t* sources_ptr = nullptr;
     if (configuration.number_of_sources_ > 0) { sources_ptr = sources.data(); }
 
     reference_edge_betweenness_centrality(
@@ -274,7 +278,7 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
                                          G,
                                          d_result.data().get(),
                                          normalize,
-                                         static_cast<weight_t *>(nullptr),
+                                         static_cast<weight_t*>(nullptr),
                                          configuration.number_of_sources_,
                                          sources_ptr);
     CUDA_TRY(cudaMemcpy(result.data(),

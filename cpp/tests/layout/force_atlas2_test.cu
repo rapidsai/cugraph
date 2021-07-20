@@ -17,8 +17,8 @@
 #include <utilities/test_utilities.hpp>
 
 #include <layout/trust_worthiness.h>
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/error.hpp>
@@ -111,9 +111,10 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     std::vector<std::vector<int>> adj_matrix(m, std::vector<int>(m));
     std::vector<float> force_atlas2(m * 2);
 
+    raft::handle_t const handle;
+    auto stream = handle.get_stream();
     // device alloc
-    rmm::device_vector<float> force_atlas2_vector(m * 2);
-    float* d_force_atlas2 = force_atlas2_vector.data().get();
+    rmm::device_uvector<float> pos(m * 2, stream);
 
     // Read
     ASSERT_EQ((cugraph::test::mm_to_coo<int, T>(
@@ -131,19 +132,19 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     }
 
     // Allocate COO on device
-    rmm::device_vector<int> srcs_v(nnz);
-    rmm::device_vector<int> dests_v(nnz);
-    rmm::device_vector<T> weights_v(nnz);
+    rmm::device_uvector<int> srcs_v(nnz, stream);
+    rmm::device_uvector<int> dests_v(nnz, stream);
+    rmm::device_uvector<T> weights_v(nnz, stream);
 
-    int* srcs  = srcs_v.data().get();
-    int* dests = dests_v.data().get();
-    T* weights = weights_v.data().get();
+    int* srcs  = srcs_v.data();
+    int* dests = dests_v.data();
+    T* weights = weights_v.data();
 
     // FIXME: RAFT error handling mechanism should be used instead
     CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
-    cugraph::GraphCOOView<int, int, T> G(srcs, dests, weights, m, nnz);
+    cugraph::legacy::GraphCOOView<int, int, T> G(srcs, dests, weights, m, nnz);
 
     const int max_iter                    = 500;
     float* x_start                        = nullptr;
@@ -163,8 +164,9 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     if (PERF) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
-        cugraph::force_atlas2<int, int, T>(G,
-                                           d_force_atlas2,
+        cugraph::force_atlas2<int, int, T>(handle,
+                                           G,
+                                           pos.data(),
                                            max_iter,
                                            x_start,
                                            y_start,
@@ -185,8 +187,9 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
       force_atlas2_time.push_back(time_tmp);
     } else {
       cudaProfilerStart();
-      cugraph::force_atlas2<int, int, T>(G,
-                                         d_force_atlas2,
+      cugraph::force_atlas2<int, int, T>(handle,
+                                         G,
+                                         pos.data(),
                                          max_iter,
                                          x_start,
                                          y_start,
@@ -207,12 +210,13 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
 
     // Copy pos to host
     std::vector<float> h_pos(m * 2);
-    CUDA_TRY(cudaMemcpy(&h_pos[0], d_force_atlas2, sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
+    CUDA_TRY(cudaMemcpy(&h_pos[0], pos.data(), sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
 
     // Transpose the data
     std::vector<std::vector<double>> C_contiguous_embedding(m, std::vector<double>(2));
     for (int i = 0; i < m; i++) {
-      for (int j = 0; j < 2; j++) C_contiguous_embedding[i][j] = h_pos[j * m + i];
+      for (int j = 0; j < 2; j++)
+        C_contiguous_embedding[i][j] = h_pos[j * m + i];
     }
 
     // Test trustworthiness

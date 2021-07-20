@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,9 +18,9 @@
 
 from cugraph.structure.graph_primtypes cimport *
 from cugraph.structure.graph_primtypes cimport get_two_hop_neighbors as c_get_two_hop_neighbors
-from cugraph.structure.graph_primtypes cimport renumber_vertices as c_renumber_vertices
 from cugraph.structure.utils_wrapper import *
 from libcpp cimport bool
+import enum
 from libc.stdint cimport uintptr_t
 
 from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
@@ -45,43 +45,10 @@ def datatype_cast(cols, dtypes):
     return cols_out
 
 
-def renumber(source_col, dest_col):
-    num_edges = len(source_col)
-
-    src_renumbered = cudf.Series(np.zeros(num_edges), dtype=np.int32)
-    dst_renumbered = cudf.Series(np.zeros(num_edges), dtype=np.int32)
-
-    cdef uintptr_t c_src = source_col.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_dst = dest_col.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_src_renumbered = src_renumbered.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_dst_renumbered = dst_renumbered.__cuda_array_interface__['data'][0]
-    cdef int map_size = 0
-    cdef int n_edges = num_edges
-
-    cdef unique_ptr[device_buffer] numbering_map
-
-    if (source_col.dtype == np.int32):
-        numbering_map = move(c_renumber_vertices[int,int,int](n_edges,
-                                                              <int*>c_src,
-                                                              <int*>c_dst,
-                                                              <int*>c_src_renumbered,
-                                                              <int*>c_dst_renumbered,
-                                                              &map_size))
-    else:
-        numbering_map = move(c_renumber_vertices[long,int,int](n_edges,
-                                                               <long*>c_src,
-                                                               <long*>c_dst,
-                                                               <int*>c_src_renumbered,
-                                                               <int*>c_dst_renumbered,
-                                                               &map_size))
-
-
-    map = DeviceBuffer.c_from_unique_ptr(move(numbering_map))
-    map = Buffer(map)
-
-    output_map = cudf.Series(data=map, dtype=source_col.dtype)
-
-    return src_renumbered, dst_renumbered, output_map
+class Direction(enum.Enum):
+    ALL = 0
+    IN = 1
+    OUT = 2
 
 
 def view_adj_list(input_graph):
@@ -137,7 +104,7 @@ def view_edge_list(input_graph):
     return src_indices, indices, weights
 
 
-def _degree_coo(edgelist_df, src_name, dst_name, x=0, num_verts=None, sID=None):
+def _degree_coo(edgelist_df, src_name, dst_name, direction=Direction.ALL, num_verts=None, sID=None):
     #
     #  Computing the degree of the input graph from COO
     #
@@ -146,11 +113,11 @@ def _degree_coo(edgelist_df, src_name, dst_name, x=0, num_verts=None, sID=None):
     src = edgelist_df[src_name]
     dst = edgelist_df[dst_name]
 
-    if x == 0:
+    if direction == Direction.ALL:
         dir = DIRECTION_IN_PLUS_OUT
-    elif x == 1:
+    elif direction == Direction.IN:
         dir = DIRECTION_IN
-    elif x == 2:
+    elif direction == Direction.OUT:
         dir = DIRECTION_OUT
     else:
         raise Exception("x should be 0, 1 or 2")
@@ -185,17 +152,17 @@ def _degree_coo(edgelist_df, src_name, dst_name, x=0, num_verts=None, sID=None):
     return vertex_col, degree_col
 
 
-def _degree_csr(offsets, indices, x=0):
+def _degree_csr(offsets, indices, direction=Direction.ALL):
     cdef DegreeDirection dir
 
-    if x == 0:
+    if direction == Direction.ALL:
         dir = DIRECTION_IN_PLUS_OUT
-    elif x == 1:
+    elif direction == Direction.IN:
         dir = DIRECTION_IN
-    elif x == 2:
+    elif direction == Direction.OUT:
         dir = DIRECTION_OUT
     else:
-        raise Exception("x should be 0, 1 or 2")
+        raise Exception("direction should be 0, 1 or 2")
 
     [offsets, indices] = datatype_cast([offsets, indices], [np.int32])
 
@@ -220,44 +187,48 @@ def _degree_csr(offsets, indices, x=0):
     return vertex_col, degree_col
 
 
-def _degree(input_graph, x=0):
-    transpose_x = { 0: 0,
-                    2: 1,
-                    1: 2 }
+def _mg_degree(input_graph, direction=Direction.ALL):
+    if input_graph.edgelist is None:
+        input_graph.compute_renumber_edge_list(transposed=False)
+    input_ddf = input_graph.edgelist.edgelist_df
+    num_verts = input_ddf[['src', 'dst']].max().max().compute() + 1
+    data = DistributedDataHandler.create(data=input_ddf)
+    comms = Comms.get_comms()
+    client = default_client()
+    data.calculate_parts_to_sizes(comms)
+    if direction==Direction.IN:
+        degree_ddf = [client.submit(_degree_coo, wf[1][0], 'src', 'dst', Direction.IN, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
+    if direction==Direction.OUT:
+        degree_ddf = [client.submit(_degree_coo, wf[1][0], 'dst', 'src', Direction.IN, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
+    wait(degree_ddf)
+    return degree_ddf[0].result()
+
+
+def _degree(input_graph, direction=Direction.ALL):
+    transpose_direction = { Direction.ALL: Direction.ALL,
+                            Direction.IN: Direction.OUT,
+                            Direction.OUT: Direction.IN }
 
     if input_graph.adjlist is not None:
         return _degree_csr(input_graph.adjlist.offsets,
                            input_graph.adjlist.indices,
-                           x)
+                           direction)
 
     if input_graph.transposedadjlist is not None:
         return _degree_csr(input_graph.transposedadjlist.offsets,
                            input_graph.transposedadjlist.indices,
-                           transpose_x[x])
-
-    if input_graph.edgelist is None and input_graph.distributed:
-        input_graph.compute_renumber_edge_list(transposed=False)
+                           transpose_direction[direction])
 
     if input_graph.edgelist is not None:
-        if isinstance(input_graph.edgelist.edgelist_df, dc.DataFrame):
-            input_ddf = input_graph.edgelist.edgelist_df
-            num_verts = input_ddf[['src', 'dst']].max().max().compute() + 1
-            data = DistributedDataHandler.create(data=input_ddf)
-            comms = Comms.get_comms()
-            client = default_client()
-            data.calculate_parts_to_sizes(comms)
-            degree_ddf = [client.submit(_degree_coo, wf[1][0], 'src', 'dst', x, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
-            wait(degree_ddf)
-            return degree_ddf[0].result()
         return _degree_coo(input_graph.edgelist.edgelist_df,
-                           'src', 'dst', x)
+                           'src', 'dst', direction)
 
     raise Exception("input_graph not COO, CSR or CSC")
 
 
 def _degrees(input_graph):
-    verts, indegrees = _degree(input_graph,1)
-    verts, outdegrees = _degree(input_graph, 2)
+    verts, indegrees = _degree(input_graph, Direction.IN)
+    verts, outdegrees = _degree(input_graph, Direction.OUT)
 
     return verts, indegrees, outdegrees
 

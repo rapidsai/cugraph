@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.link_analysis import pagerank_wrapper
-from cugraph.structure.graph import null_check
 import cugraph
 
 
@@ -67,6 +66,10 @@ def pagerank(
             Subset of vertices of graph for initial guess for pagerank values
         nstart['values'] : cudf.Series
             Pagerank values for vertices
+    weight: str
+        The attribute column to be used as edge weights if Graph is a NetworkX
+        Graph. This parameter is here for NetworkX compatibility and is ignored
+        in case of a cugraph.Graph
     dangling : dict
         This parameter is here for NetworkX compatibility and ignored
 
@@ -94,17 +97,23 @@ def pagerank(
     G, isNx = cugraph.utilities.check_nx_graph(G, weight)
 
     if personalization is not None:
-        null_check(personalization["vertex"])
-        null_check(personalization["values"])
         if G.renumbered is True:
+            if len(G.renumber_map.implementation.col_names) > 1:
+                cols = personalization.columns[:-1].to_list()
+            else:
+                cols = 'vertex'
             personalization = G.add_internal_vertex_id(
-                personalization, "vertex", "vertex"
+                personalization, "vertex", cols
             )
 
     if nstart is not None:
         if G.renumbered is True:
+            if len(G.renumber_map.implementation.col_names) > 1:
+                cols = nstart.columns[:-1].to_list()
+            else:
+                cols = 'vertex'
             nstart = G.add_internal_vertex_id(
-                nstart, "vertex", "vertex"
+                nstart, "vertex", cols
             )
 
     df = pagerank_wrapper.pagerank(

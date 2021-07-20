@@ -18,6 +18,7 @@ import pytest
 import numpy as np
 import scipy
 
+import cudf
 import cugraph
 from cugraph.tests import utils
 
@@ -148,3 +149,32 @@ def test_overlap_edge_vals(graph_file):
         else:
             diff = abs(cpu_coeff[i] - cu_coeff[i])
             assert diff < 1.0e-6
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_overlap_multi_column(graph_file):
+    gc.collect()
+
+    M = utils.read_csv_for_nx(graph_file)
+
+    cu_M = cudf.DataFrame()
+    cu_M["src_0"] = cudf.Series(M["0"])
+    cu_M["dst_0"] = cudf.Series(M["1"])
+    cu_M["src_1"] = cu_M["src_0"] + 1000
+    cu_M["dst_1"] = cu_M["dst_0"] + 1000
+    G1 = cugraph.Graph()
+    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                          destination=["dst_0", "dst_1"])
+
+    vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
+    vertex_pair = vertex_pair[:5]
+
+    df_res = cugraph.overlap(G1, vertex_pair)
+
+    G2 = cugraph.Graph()
+    G2.from_cudf_edgelist(cu_M, source="src_0",
+                          destination="dst_0")
+    df_exp = cugraph.overlap(G2, vertex_pair[["src_0", "dst_0"]])
+
+    # Calculating mismatch
+    assert df_res["overlap_coeff"].equals(df_exp["overlap_coeff"])

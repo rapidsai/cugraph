@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <algorithms.hpp>
+#include <cugraph/algorithms.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -29,25 +29,25 @@ namespace cugraph {
 namespace detail {
 
 struct TSPResults {
-  float **best_x_pos;
-  float **best_y_pos;
-  int **best_route;
-  int *best_cost;
+  float** best_x_pos;
+  float** best_y_pos;
+  int** best_route;
+  int* best_cost;
 };
 
 class TSP {
  public:
-  TSP(raft::handle_t const &handle,
-      int const *vtx_ptr,
-      float const *x_pos,
-      float const *y_pos,
+  TSP(raft::handle_t const& handle,
+      int const* vtx_ptr,
+      float const* x_pos,
+      float const* y_pos,
       int nodes,
       int restarts,
       bool beam_search,
       int k,
       int nstart,
       bool verbose,
-      int *route);
+      int* route);
 
   void setup();
   void reset_batch();
@@ -58,7 +58,7 @@ class TSP {
 
  private:
   // Config
-  raft::handle_t const &handle_;
+  raft::handle_t const& handle_;
   cudaStream_t stream_;
   int max_blocks_;
   int max_threads_;
@@ -69,10 +69,10 @@ class TSP {
   int best_thread_num_;
 
   // TSP
-  int const *vtx_ptr_;
-  int *route_;
-  float const *x_pos_;
-  float const *y_pos_;
+  int const* vtx_ptr_;
+  int* route_;
+  float const* x_pos_;
+  float const* y_pos_;
   int nodes_;
   int restarts_;
   bool beam_search_;
@@ -84,25 +84,25 @@ class TSP {
   rmm::device_scalar<int> mylock_scalar_;
   rmm::device_scalar<int> best_cost_scalar_;
 
-  int *mylock_;
-  int *best_cost_;
+  int* mylock_;
+  int* best_cost_;
 
   // Vectors
   rmm::device_uvector<int64_t> neighbors_vec_;
   rmm::device_uvector<int> work_vec_;
-  rmm::device_uvector<float *> best_x_pos_vec_;
-  rmm::device_uvector<float *> best_y_pos_vec_;
-  rmm::device_uvector<int *> best_route_vec_;
+  rmm::device_uvector<float*> best_x_pos_vec_;
+  rmm::device_uvector<float*> best_y_pos_vec_;
+  rmm::device_uvector<int*> best_route_vec_;
 
-  int64_t *neighbors_;
-  int *work_;
-  int *work_route_;
+  int64_t* neighbors_;
+  int* work_;
+  int* work_route_;
   TSPResults results_;
 };
 
 class VerboseTimer {
  public:
-  VerboseTimer(char const *name, HighResTimer &hr_timer, bool verbose)
+  VerboseTimer(char const* name, HighResTimer& hr_timer, bool verbose)
     : name_(name), hr_timer_(hr_timer), verbose_(verbose)
   {
     if (verbose_) hr_timer_.start(name_);
@@ -114,8 +114,8 @@ class VerboseTimer {
   }
 
  private:
-  const char *name_;
-  HighResTimer &hr_timer_;
+  const char* name_;
+  HighResTimer& hr_timer_;
   bool verbose_;
 };
 

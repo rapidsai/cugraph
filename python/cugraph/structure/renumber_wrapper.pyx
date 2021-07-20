@@ -112,11 +112,11 @@ def renumber(input_df,           # maybe use cpdef ?
     cdef uintptr_t shuffled_major = <uintptr_t>NULL
     cdef uintptr_t shuffled_minor = <uintptr_t>NULL
     
+    # FIXME: Fix fails when do_check = True
     cdef bool do_check = False # ? for now...
     cdef bool mg_flag = is_multi_gpu # run Single-GPU or MNMG
 
     cdef pair[unique_ptr[device_buffer], size_t] pair_original
-    cdef pair[unique_ptr[device_buffer], size_t] pair_partition
 
     # tparams: vertex_t, edge_t, weight_t:
     #
@@ -129,9 +129,9 @@ def renumber(input_df,           # maybe use cpdef ?
 
     # tparams: vertex_t, edge_t:
     #
-    cdef unique_ptr[renum_quad_t[int, int]] ptr_renum_quad_32_32
-    cdef unique_ptr[renum_quad_t[int, long]] ptr_renum_quad_32_64
-    cdef unique_ptr[renum_quad_t[long, long]] ptr_renum_quad_64_64
+    cdef unique_ptr[renum_tuple_t[int, int]] ptr_renum_tuple_32_32
+    cdef unique_ptr[renum_tuple_t[int, long]] ptr_renum_tuple_32_64
+    cdef unique_ptr[renum_tuple_t[long, long]] ptr_renum_tuple_64_64
 
     # tparam: vertex_t:
     #
@@ -142,6 +142,11 @@ def renumber(input_df,           # maybe use cpdef ?
     #
     cdef unique_ptr[vector[int]] uniq_partition_vector_32
     cdef unique_ptr[vector[long]] uniq_partition_vector_64
+
+    # tparam: vertex_t:
+    #
+    cdef unique_ptr[vector[int]] uniq_segment_vector_32
+    cdef unique_ptr[vector[long]] uniq_segment_vector_64
 
     cdef size_t rank_indx = <size_t>rank
     
@@ -171,14 +176,14 @@ def renumber(input_df,           # maybe use cpdef ?
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
 
-                ptr_renum_quad_32_32.reset(call_renumber[int, int](deref(handle_ptr),
-                                                                   <int*>shuffled_major,
-                                                                   <int*>shuffled_minor,
-                                                                   deref(edge_counts_32.get()),
-                                                                   1,
-                                                                   mg_flag).release())
+                ptr_renum_tuple_32_32.reset(call_renumber[int, int](deref(handle_ptr),
+                                                                    <int*>shuffled_major,
+                                                                    <int*>shuffled_minor,
+                                                                    deref(edge_counts_32.get()),
+                                                                    do_check,
+                                                                    mg_flag).release())
                 
-                pair_original = ptr_renum_quad_32_32.get().get_dv_wrap() # original vertices: see helper
+                pair_original = ptr_renum_tuple_32_32.get().get_dv_wrap() # original vertices: see helper
                 
 
                 original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
@@ -188,7 +193,7 @@ def renumber(input_df,           # maybe use cpdef ?
                 
                 # extract unique_ptr[partition_offsets]:
                 #
-                uniq_partition_vector_32 = move(ptr_renum_quad_32_32.get().get_partition_offsets())
+                uniq_partition_vector_32 = move(ptr_renum_tuple_32_32.get().get_partition_offsets_wrap())
 
                 # create series out of a partition range from rank to rank+1:
                 #
@@ -197,7 +202,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(0, ptr_renum_quad_32_32.get().get_num_vertices()),
+                    new_series = cudf.Series(np.arange(0, ptr_renum_tuple_32_32.get().get_num_vertices()),
                                              dtype=vertex_t)                
                 # create new cudf df
                 #
@@ -207,7 +212,12 @@ def renumber(input_df,           # maybe use cpdef ?
                 renumbered_map['original_ids'] = original_series
                 renumbered_map['new_ids'] = new_series
 
-                return renumbered_map, shuffled_df
+                uniq_segment_vector_32 = move(ptr_renum_tuple_32_32.get().get_segment_offsets_wrap())
+                segment_offsets = [None] * <Py_ssize_t>(deref(uniq_segment_vector_32).size())
+                for i in range(len(segment_offsets)):
+                  segment_offsets[i] = deref(uniq_segment_vector_32)[i]
+
+                return renumbered_map, segment_offsets, shuffled_df
 
             elif( weight_t == np.dtype("float64")):
                 if(is_multi_gpu):
@@ -234,14 +244,14 @@ def renumber(input_df,           # maybe use cpdef ?
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
                 
-                ptr_renum_quad_32_32.reset(call_renumber[int, int](deref(handle_ptr),
-                                                                   <int*>shuffled_major,
-                                                                   <int*>shuffled_minor,
-                                                                   deref(edge_counts_32.get()),
-                                                                   do_check,
-                                                                   mg_flag).release())
+                ptr_renum_tuple_32_32.reset(call_renumber[int, int](deref(handle_ptr),
+                                                                    <int*>shuffled_major,
+                                                                    <int*>shuffled_minor,
+                                                                    deref(edge_counts_32.get()),
+                                                                    do_check,
+                                                                    mg_flag).release())
                 
-                pair_original = ptr_renum_quad_32_32.get().get_dv_wrap() # original vertices: see helper
+                pair_original = ptr_renum_tuple_32_32.get().get_dv_wrap() # original vertices: see helper
                 
 
                 original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
@@ -251,7 +261,7 @@ def renumber(input_df,           # maybe use cpdef ?
                 
                 # extract unique_ptr[partition_offsets]:
                 #
-                uniq_partition_vector_32 = move(ptr_renum_quad_32_32.get().get_partition_offsets())
+                uniq_partition_vector_32 = move(ptr_renum_tuple_32_32.get().get_partition_offsets_wrap())
 
                 # create series out of a partition range from rank to rank+1:
                 #
@@ -260,7 +270,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(0, ptr_renum_quad_32_32.get().get_num_vertices()),
+                    new_series = cudf.Series(np.arange(0, ptr_renum_tuple_32_32.get().get_num_vertices()),
                                              dtype=vertex_t)
                 
                 # create new cudf df
@@ -271,7 +281,12 @@ def renumber(input_df,           # maybe use cpdef ?
                 renumbered_map['original_ids'] = original_series
                 renumbered_map['new_ids'] = new_series
 
-                return renumbered_map, shuffled_df
+                uniq_segment_vector_32 = move(ptr_renum_tuple_32_32.get().get_segment_offsets_wrap())
+                segment_offsets = [None] * <Py_ssize_t>(deref(uniq_segment_vector_32).size())
+                for i in range(len(segment_offsets)):
+                  segment_offsets[i] = deref(uniq_segment_vector_32)[i]
+
+                return renumbered_map, segment_offsets, shuffled_df
 
         elif ( edge_t == np.dtype("int64")):
             if( weight_t == np.dtype("float32")):
@@ -299,14 +314,14 @@ def renumber(input_df,           # maybe use cpdef ?
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
                 
-                ptr_renum_quad_32_64.reset(call_renumber[int, long](deref(handle_ptr),
-                                                                    <int*>shuffled_major,
-                                                                    <int*>shuffled_minor,
-                                                                    deref(edge_counts_64.get()),
-                                                                    do_check,
-                                                                    mg_flag).release())
+                ptr_renum_tuple_32_64.reset(call_renumber[int, long](deref(handle_ptr),
+                                                                     <int*>shuffled_major,
+                                                                     <int*>shuffled_minor,
+                                                                     deref(edge_counts_64.get()),
+                                                                     do_check,
+                                                                     mg_flag).release())
                 
-                pair_original = ptr_renum_quad_32_64.get().get_dv_wrap() # original vertices: see helper
+                pair_original = ptr_renum_tuple_32_64.get().get_dv_wrap() # original vertices: see helper
                 
 
                 original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
@@ -316,7 +331,7 @@ def renumber(input_df,           # maybe use cpdef ?
                 
                 # extract unique_ptr[partition_offsets]:
                 #
-                uniq_partition_vector_32 = move(ptr_renum_quad_32_64.get().get_partition_offsets())
+                uniq_partition_vector_32 = move(ptr_renum_tuple_32_64.get().get_partition_offsets_wrap())
 
                 # create series out of a partition range from rank to rank+1:
                 #
@@ -325,7 +340,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(0, ptr_renum_quad_32_64.get().get_num_vertices()),
+                    new_series = cudf.Series(np.arange(0, ptr_renum_tuple_32_64.get().get_num_vertices()),
                                              dtype=vertex_t)
                
                 # create new cudf df
@@ -336,7 +351,12 @@ def renumber(input_df,           # maybe use cpdef ?
                 renumbered_map['original_ids'] = original_series
                 renumbered_map['new_ids'] = new_series
 
-                return renumbered_map, shuffled_df
+                uniq_segment_vector_32 = move(ptr_renum_tuple_32_64.get().get_segment_offsets_wrap())
+                segment_offsets = [None] * <Py_ssize_t>(deref(uniq_segment_vector_32).size())
+                for i in range(len(segment_offsets)):
+                  segment_offsets[i] = deref(uniq_segment_vector_32)[i]
+
+                return renumbered_map, segment_offsets, shuffled_df
             elif( weight_t == np.dtype("float64")):
                 if(is_multi_gpu):
                     ptr_shuffled_32_64_64.reset(call_shuffle[int, long, double](deref(handle_ptr),
@@ -362,14 +382,14 @@ def renumber(input_df,           # maybe use cpdef ?
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
                 
-                ptr_renum_quad_32_64.reset(call_renumber[int, long](deref(handle_ptr),
-                                                                    <int*>shuffled_major,
-                                                                    <int*>shuffled_minor,
-                                                                    deref(edge_counts_64.get()),
-                                                                    do_check,
-                                                                    mg_flag).release())
+                ptr_renum_tuple_32_64.reset(call_renumber[int, long](deref(handle_ptr),
+                                                                     <int*>shuffled_major,
+                                                                     <int*>shuffled_minor,
+                                                                     deref(edge_counts_64.get()),
+                                                                     do_check,
+                                                                     mg_flag).release())
                 
-                pair_original = ptr_renum_quad_32_64.get().get_dv_wrap() # original vertices: see helper
+                pair_original = ptr_renum_tuple_32_64.get().get_dv_wrap() # original vertices: see helper
                 
 
                 original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
@@ -379,7 +399,7 @@ def renumber(input_df,           # maybe use cpdef ?
                 
                 # extract unique_ptr[partition_offsets]:
                 #
-                uniq_partition_vector_32 = move(ptr_renum_quad_32_64.get().get_partition_offsets())
+                uniq_partition_vector_32 = move(ptr_renum_tuple_32_64.get().get_partition_offsets_wrap())
 
                 # create series out of a partition range from rank to rank+1:
                 #
@@ -388,7 +408,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_32.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(0, ptr_renum_quad_32_64.get().get_num_vertices()),
+                    new_series = cudf.Series(np.arange(0, ptr_renum_tuple_32_64.get().get_num_vertices()),
                                              dtype=vertex_t)                
                 # create new cudf df
                 #
@@ -398,7 +418,12 @@ def renumber(input_df,           # maybe use cpdef ?
                 renumbered_map['original_ids'] = original_series
                 renumbered_map['new_ids'] = new_series
 
-                return renumbered_map, shuffled_df
+                uniq_segment_vector_32 = move(ptr_renum_tuple_32_64.get().get_segment_offsets_wrap())
+                segment_offsets = [None] * <Py_ssize_t>(deref(uniq_segment_vector_32).size())
+                for i in range(len(segment_offsets)):
+                  segment_offsets[i] = deref(uniq_segment_vector_32)[i]
+
+                return renumbered_map, segment_offsets, shuffled_df
 
     elif (vertex_t == np.dtype("int64")):
         if ( edge_t == np.dtype("int64")):
@@ -427,14 +452,14 @@ def renumber(input_df,           # maybe use cpdef ?
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
                 
-                ptr_renum_quad_64_64.reset(call_renumber[long, long](deref(handle_ptr),
-                                                                     <long*>shuffled_major,
-                                                                     <long*>shuffled_minor,
-                                                                     deref(edge_counts_64.get()),
-                                                                     do_check,
-                                                                     mg_flag).release())
+                ptr_renum_tuple_64_64.reset(call_renumber[long, long](deref(handle_ptr),
+                                                                      <long*>shuffled_major,
+                                                                      <long*>shuffled_minor,
+                                                                      deref(edge_counts_64.get()),
+                                                                      do_check,
+                                                                      mg_flag).release())
                 
-                pair_original = ptr_renum_quad_64_64.get().get_dv_wrap() # original vertices: see helper
+                pair_original = ptr_renum_tuple_64_64.get().get_dv_wrap() # original vertices: see helper
                 
 
                 original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
@@ -444,7 +469,7 @@ def renumber(input_df,           # maybe use cpdef ?
                 
                 # extract unique_ptr[partition_offsets]:
                 #
-                uniq_partition_vector_64 = move(ptr_renum_quad_64_64.get().get_partition_offsets())
+                uniq_partition_vector_64 = move(ptr_renum_tuple_64_64.get().get_partition_offsets_wrap())
 
                 # create series out of a partition range from rank to rank+1:
                 #
@@ -453,7 +478,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_64.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(0, ptr_renum_quad_64_64.get().get_num_vertices()),
+                    new_series = cudf.Series(np.arange(0, ptr_renum_tuple_64_64.get().get_num_vertices()),
                                              dtype=vertex_t)
                 
                 # create new cudf df
@@ -464,7 +489,12 @@ def renumber(input_df,           # maybe use cpdef ?
                 renumbered_map['original_ids'] = original_series
                 renumbered_map['new_ids'] = new_series
 
-                return renumbered_map, shuffled_df
+                uniq_segment_vector_64 = move(ptr_renum_tuple_64_64.get().get_segment_offsets_wrap())
+                segment_offsets = [None] * <Py_ssize_t>(deref(uniq_segment_vector_64).size())
+                for i in range(len(segment_offsets)):
+                  segment_offsets[i] = deref(uniq_segment_vector_64)[i]
+
+                return renumbered_map, segment_offsets, shuffled_df
 
             elif( weight_t == np.dtype("float64")):
                 if(is_multi_gpu):
@@ -491,14 +521,14 @@ def renumber(input_df,           # maybe use cpdef ?
                 shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
                 shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
                 
-                ptr_renum_quad_64_64.reset(call_renumber[long, long](deref(handle_ptr),
-                                                                     <long*>shuffled_major,
-                                                                     <long*>shuffled_minor,
-                                                                     deref(edge_counts_64.get()),
-                                                                     do_check,
-                                                                     mg_flag).release())
+                ptr_renum_tuple_64_64.reset(call_renumber[long, long](deref(handle_ptr),
+                                                                      <long*>shuffled_major,
+                                                                      <long*>shuffled_minor,
+                                                                      deref(edge_counts_64.get()),
+                                                                      do_check,
+                                                                      mg_flag).release())
                 
-                pair_original = ptr_renum_quad_64_64.get().get_dv_wrap() # original vertices: see helper
+                pair_original = ptr_renum_tuple_64_64.get().get_dv_wrap() # original vertices: see helper
                 
 
                 original_buffer = DeviceBuffer.c_from_unique_ptr(move(pair_original.first))
@@ -508,7 +538,7 @@ def renumber(input_df,           # maybe use cpdef ?
                 
                 # extract unique_ptr[partition_offsets]:
                 #
-                uniq_partition_vector_64 = move(ptr_renum_quad_64_64.get().get_partition_offsets())
+                uniq_partition_vector_64 = move(ptr_renum_tuple_64_64.get().get_partition_offsets_wrap())
 
                 # create series out of a partition range from rank to rank+1:
                 #
@@ -517,7 +547,7 @@ def renumber(input_df,           # maybe use cpdef ?
                                                        uniq_partition_vector_64.get()[0].at(rank_indx+1)),
                                              dtype=vertex_t)
                 else:
-                    new_series = cudf.Series(np.arange(0, ptr_renum_quad_64_64.get().get_num_vertices()),
+                    new_series = cudf.Series(np.arange(0, ptr_renum_tuple_64_64.get().get_num_vertices()),
                                              dtype=vertex_t)
                 
                 # create new cudf df
@@ -528,4 +558,9 @@ def renumber(input_df,           # maybe use cpdef ?
                 renumbered_map['original_ids'] = original_series
                 renumbered_map['new_ids'] = new_series
 
-                return renumbered_map, shuffled_df
+                uniq_segment_vector_64 = move(ptr_renum_tuple_64_64.get().get_segment_offsets_wrap())
+                segment_offsets = [None] * <Py_ssize_t>(deref(uniq_segment_vector_64).size())
+                for i in range(len(segment_offsets)):
+                  segment_offsets[i] = deref(uniq_segment_vector_64)[i]
+
+                return renumbered_map, segment_offsets, shuffled_df

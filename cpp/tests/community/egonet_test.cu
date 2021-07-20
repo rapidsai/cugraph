@@ -18,9 +18,9 @@
 #include <utilities/high_res_timer.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <algorithms.hpp>
-#include <experimental/graph.hpp>
-#include <experimental/graph_view.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -87,14 +87,10 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
                         configuration.ego_sources.size(),
                         handle.get_stream());
 
-    rmm::device_uvector<vertex_t> d_ego_edgelist_src(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> d_ego_edgelist_dst(0, handle.get_stream());
-    rmm::device_uvector<weight_t> d_ego_edgelist_weights(0, handle.get_stream());
-    rmm::device_uvector<size_t> d_ego_edge_offsets(0, handle.get_stream());
     HighResTimer hr_timer;
     hr_timer.start("egonet");
     cudaProfilerStart();
-    std::tie(d_ego_edgelist_src, d_ego_edgelist_dst, d_ego_edgelist_weights, d_ego_edge_offsets) =
+    auto [d_ego_edgelist_src, d_ego_edgelist_dst, d_ego_edgelist_weights, d_ego_edge_offsets] =
       cugraph::experimental::extract_ego(handle,
                                          graph_view,
                                          d_ego_sources.data(),
@@ -121,7 +117,7 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
     ASSERT_TRUE(d_ego_edge_offsets.size() == (configuration.ego_sources.size() + 1));
     ASSERT_TRUE(d_ego_edgelist_src.size() == d_ego_edgelist_dst.size());
     if (configuration.test_weighted)
-      ASSERT_TRUE(d_ego_edgelist_src.size() == d_ego_edgelist_weights.size());
+      ASSERT_TRUE(d_ego_edgelist_src.size() == (*d_ego_edgelist_weights).size());
     ASSERT_TRUE(h_cugraph_ego_edge_offsets[configuration.ego_sources.size()] ==
                 d_ego_edgelist_src.size());
     for (size_t i = 0; i < configuration.ego_sources.size(); i++)
@@ -133,33 +129,6 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
       ASSERT_TRUE(
         cugraph::experimental::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_dst[i]));
     }
-
-    /*
-    // For inspecting data
-    std::vector<weight_t> h_cugraph_ego_edgelist_weights(d_ego_edgelist_weights.size());
-    if (configuration.test_weighted) {
-      raft::update_host(h_cugraph_ego_edgelist_weights.data(),
-                        d_ego_edgelist_weights.data(),
-                        d_ego_edgelist_weights.size(),
-                        handle.get_stream());
-    }
-    raft::print_host_vector("offsets",
-                            &h_cugraph_ego_edge_offsets[0],
-                            h_cugraph_ego_edge_offsets.size(),
-                            std::cout);
-    raft::print_host_vector("src",
-                            &h_cugraph_ego_edgelist_src[0],
-                            h_cugraph_ego_edgelist_src.size(),
-                            std::cout);
-    raft::print_host_vector("dst",
-                            &h_cugraph_ego_edgelist_dst[0],
-                            h_cugraph_ego_edgelist_dst.size(),
-                            std::cout);
-    raft::print_host_vector("weights",
-                            &h_cugraph_ego_edgelist_weights[0],
-                            h_cugraph_ego_edgelist_weights.size(),
-                            std::cout);
-    */
   }
 };
 

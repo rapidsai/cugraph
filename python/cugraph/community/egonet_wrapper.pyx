@@ -55,6 +55,8 @@ def egonet(input_graph, vertices, radius=1):
         weight_t = np.dtype("float32")
         is_weighted = False
 
+    is_symmetric = not input_graph.is_directed()
+
     # Pointers for egonet
     vertices = vertices.astype('int32')
     cdef uintptr_t c_source_vertex_ptr = vertices.__cuda_array_interface__['data'][0]
@@ -71,14 +73,16 @@ def egonet(input_graph, vertices, radius=1):
                              handle_[0],
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
                              <void*>NULL,
+                             <void*>NULL,
+                             0,
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                              num_local_edges,
                              num_verts,
                              num_edges,
-                             False,
                              is_weighted,
+                             is_symmetric,
                              False, False) 
 
     if(weight_t==np.dtype("float32")):

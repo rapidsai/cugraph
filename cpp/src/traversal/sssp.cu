@@ -17,9 +17,9 @@
 // Author: Prasun Gera pgera@nvidia.com
 
 #include <algorithm>
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
-#include "graph.hpp"
+#include <cugraph/legacy/graph.hpp>
 
 #include "sssp.cuh"
 #include "sssp_kernels.cuh"
@@ -47,11 +47,11 @@ void SSSP<IndexType, DistType>::setup()
 
   // Allocate buffer for data that need to be reset every iteration
   iter_buffer_size = sizeof(int) * (edges_bmap_size + vertices_bmap_size) + sizeof(IndexType);
-  iter_buffer.resize(iter_buffer_size);
+  iter_buffer.resize(iter_buffer_size, stream);
   // ith bit of relaxed_edges_bmap <=> ith edge was relaxed
-  relaxed_edges_bmap = static_cast<int *>(iter_buffer.data());
+  relaxed_edges_bmap = static_cast<int*>(iter_buffer.data());
   // ith bit of next_frontier_bmap <=> vertex is active in the next frontier
-  next_frontier_bmap = static_cast<int *>(iter_buffer.data()) + edges_bmap_size;
+  next_frontier_bmap = static_cast<int*>(iter_buffer.data()) + edges_bmap_size;
   // num vertices in the next frontier
   d_new_frontier_cnt = next_frontier_bmap + vertices_bmap_size;
 
@@ -73,7 +73,7 @@ void SSSP<IndexType, DistType>::setup()
   exclusive_sum_frontier_vertex_buckets_offsets.resize(bucket_off_size);
 
   // Repurpose d_new_frontier_cnt temporarily
-  IndexType *d_nisolated = d_new_frontier_cnt;
+  IndexType* d_nisolated = d_new_frontier_cnt;
   cudaMemsetAsync(d_nisolated, 0, sizeof(IndexType), stream);
 
   // Computing isolated_bmap
@@ -89,9 +89,9 @@ void SSSP<IndexType, DistType>::setup()
 }
 
 template <typename IndexType, typename DistType>
-void SSSP<IndexType, DistType>::configure(DistType *_distances,
-                                          IndexType *_predecessors,
-                                          int *_edge_mask)
+void SSSP<IndexType, DistType>::configure(DistType* _distances,
+                                          IndexType* _predecessors,
+                                          int* _edge_mask)
 {
   distances    = _distances;
   predecessors = _predecessors;
@@ -242,9 +242,9 @@ void SSSP<IndexType, DistType>::clean()
  * @file sssp.cu
  * --------------------------------------------------------------------------*/
 template <typename VT, typename ET, typename WT>
-void sssp(GraphCSRView<VT, ET, WT> const &graph,
-          WT *distances,
-          VT *predecessors,
+void sssp(legacy::GraphCSRView<VT, ET, WT> const& graph,
+          WT* distances,
+          VT* predecessors,
           const VT source_vertex)
 {
   CUGRAPH_EXPECTS(distances || predecessors, "Invalid input argument, both outputs are nullptr");
@@ -257,9 +257,9 @@ void sssp(GraphCSRView<VT, ET, WT> const &graph,
   int num_vertices = graph.number_of_vertices;
   int num_edges    = graph.number_of_edges;
 
-  const ET *offsets_ptr      = graph.offsets;
-  const VT *indices_ptr      = graph.indices;
-  const WT *edge_weights_ptr = nullptr;
+  const ET* offsets_ptr      = graph.offsets;
+  const VT* indices_ptr      = graph.indices;
+  const WT* edge_weights_ptr = nullptr;
 
   // Both if / else branch operate own calls due to
   // thrust::device_vector lifetime
@@ -281,7 +281,7 @@ void sssp(GraphCSRView<VT, ET, WT> const &graph,
   } else {
     // SSSP is not defined for graphs with negative weight cycles
     // Warn user about any negative edges
-    if (graph.prop.has_negative_edges == PropType::PROP_TRUE)
+    if (graph.prop.has_negative_edges == legacy::PropType::PROP_TRUE)
       std::cerr << "WARN: The graph has negative weight edges. SSSP will not "
                    "converge if the graph has negative weight cycles\n";
     edge_weights_ptr = graph.edge_data;
@@ -293,13 +293,13 @@ void sssp(GraphCSRView<VT, ET, WT> const &graph,
 }
 
 // explicit instantiation
-template void sssp<int, int, float>(GraphCSRView<int, int, float> const &graph,
-                                    float *distances,
-                                    int *predecessors,
+template void sssp<int, int, float>(legacy::GraphCSRView<int, int, float> const& graph,
+                                    float* distances,
+                                    int* predecessors,
                                     const int source_vertex);
-template void sssp<int, int, double>(GraphCSRView<int, int, double> const &graph,
-                                     double *distances,
-                                     int *predecessors,
+template void sssp<int, int, double>(legacy::GraphCSRView<int, int, double> const& graph,
+                                     double* distances,
+                                     int* predecessors,
                                      const int source_vertex);
 
 }  // namespace cugraph

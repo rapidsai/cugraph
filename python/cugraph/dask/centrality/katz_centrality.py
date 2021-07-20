@@ -27,6 +27,7 @@ def call_katz_centrality(sID,
                          num_verts,
                          num_edges,
                          vertex_partition_offsets,
+                         aggregate_segment_offsets,
                          alpha,
                          beta,
                          max_iter,
@@ -35,12 +36,16 @@ def call_katz_centrality(sID,
                          normalized):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
+    local_size = len(aggregate_segment_offsets) // Comms.get_n_workers(sID)
+    segment_offsets = \
+        aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
     return mg_katz_centrality.mg_katz_centrality(data[0],
                                                  num_verts,
                                                  num_edges,
                                                  vertex_partition_offsets,
                                                  wid,
                                                  handle,
+                                                 segment_offsets,
                                                  alpha,
                                                  beta,
                                                  max_iter,
@@ -148,6 +153,7 @@ def katz_centrality(input_graph,
                             num_verts,
                             num_edges,
                             vertex_partition_offsets,
+                            input_graph.aggregate_segment_offsets,
                             alpha,
                             beta,
                             max_iter,

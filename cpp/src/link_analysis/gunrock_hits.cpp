@@ -19,10 +19,10 @@
  * @brief wrapper calling gunrock's HITS analytic
  * --------------------------------------------------------------------------*/
 
-#include <algorithms.hpp>
-#include <graph.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/legacy/graph.hpp>
 
-#include <utilities/error.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <gunrock/gunrock.h>
 
@@ -34,13 +34,13 @@ const int HOST{1};    // gunrock should expose the device constant at the API le
 const int DEVICE{2};  // gunrock should expose the device constant at the API level.
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void hits(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
+void hits(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
           int max_iter,
           weight_t tolerance,
-          weight_t const *starting_value,
+          weight_t const* starting_value,
           bool normalized,
-          weight_t *hubs,
-          weight_t *authorities)
+          weight_t* hubs,
+          weight_t* authorities)
 {
   CUGRAPH_EXPECTS(hubs != nullptr, "Invalid input argument: hubs array should be of size V");
   CUGRAPH_EXPECTS(authorities != nullptr,
@@ -61,13 +61,13 @@ void hits(cugraph::GraphCSRView<vertex_t, edge_t, weight_t> const &graph,
          DEVICE);
 }
 
-template void hits(cugraph::GraphCSRView<int32_t, int32_t, float> const &,
+template void hits(cugraph::legacy::GraphCSRView<int32_t, int32_t, float> const&,
                    int,
                    float,
-                   float const *,
+                   float const*,
                    bool,
-                   float *,
-                   float *);
+                   float*,
+                   float*);
 
 }  // namespace gunrock
 }  // namespace cugraph

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2021, NVIDIA CORPORATION.
 ##########################################
 # cuGraph Benchmark test script for CI   #
 ##########################################
@@ -68,13 +68,13 @@ CUGRAPH_DEPS=(cudf rmm)
 LIBCUGRAPH_DEPS=(cudf rmm)
 
 gpuci_logger "Install required packages"
-gpuci_conda_retry install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge -c defaults \
+gpuci_conda_retry install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge \
       "cudf=${MINOR_VERSION}" \
       "rmm=${MINOR_VERSION}" \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
-      "ucx-py=${MINOR_VERSION}" \
+      "ucx-py=0.21.*" \
       "ucx-proc=*=gpu" \
       "rapids-build-env=${MINOR_VERSION}" \
       rapids-pytest-benchmark

@@ -16,13 +16,14 @@
 
 #include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
-#include <algorithms.hpp>
-#include <experimental/graph.hpp>
-#include <experimental/graph_functions.hpp>
-#include <experimental/graph_view.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -45,7 +46,7 @@ static int PERF = 0;
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void katz_centrality_reference(edge_t const* offsets,
                                vertex_t const* indices,
-                               weight_t const* weights,
+                               std::optional<weight_t const*> weights,
                                result_t const* betas,
                                result_t* katz_centralities,
                                vertex_t num_vertices,
@@ -70,7 +71,7 @@ void katz_centrality_reference(edge_t const* offsets,
       katz_centralities[i] = betas != nullptr ? betas[i] : beta;
       for (auto j = *(offsets + i); j < *(offsets + i + 1); ++j) {
         auto nbr = indices[j];
-        auto w   = weights != nullptr ? weights[j] : result_t{1.0};
+        auto w   = weights ? (*weights)[j] : result_t{1.0};
         katz_centralities[i] += alpha * old_katz_centralities[nbr] * w;
       }
     }
@@ -98,7 +99,7 @@ void katz_centrality_reference(edge_t const* offsets,
 
 struct KatzCentrality_Usecase {
   bool test_weighted{false};
-  bool check_correctness{false};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
@@ -125,11 +126,10 @@ class Tests_KatzCentrality
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> graph(handle);
-    rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
-    std::tie(graph, d_renumber_map_labels) =
+
+    auto [graph, d_renumber_map_labels] =
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
-        handle, true, renumber);
+        handle, katz_usecase.test_weighted, renumber);
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -137,6 +137,7 @@ class Tests_KatzCentrality
       hr_clock.stop(&elapsed_time);
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
+
     auto graph_view = graph.view();
 
     auto degrees = graph_view.compute_in_degrees(handle);
@@ -181,25 +182,27 @@ class Tests_KatzCentrality
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
           input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            handle, true, false);
+            handle, katz_usecase.test_weighted, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
       std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
       std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
-      std::vector<weight_t> h_weights{};
+      auto h_weights = unrenumbered_graph_view.is_weighted()
+                         ? std::make_optional<std::vector<weight_t>>(
+                             unrenumbered_graph_view.get_number_of_edges(), weight_t{0.0})
+                         : std::nullopt;
       raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.offsets(),
+                        unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
                         unrenumbered_graph_view.get_number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.indices(),
+                        unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
                         unrenumbered_graph_view.get_number_of_edges(),
                         handle.get_stream());
-      if (unrenumbered_graph_view.is_weighted()) {
-        h_weights.assign(unrenumbered_graph_view.get_number_of_edges(), weight_t{0.0});
-        raft::update_host(h_weights.data(),
-                          unrenumbered_graph_view.weights(),
+      if (h_weights) {
+        raft::update_host((*h_weights).data(),
+                          *(unrenumbered_graph_view.get_matrix_partition_view().get_weights()),
                           unrenumbered_graph_view.get_number_of_edges(),
                           handle.get_stream());
       }
@@ -212,7 +215,7 @@ class Tests_KatzCentrality
       katz_centrality_reference(
         h_offsets.data(),
         h_indices.data(),
-        h_weights.size() > 0 ? h_weights.data() : static_cast<weight_t*>(nullptr),
+        h_weights ? std::optional<weight_t const*>{(*h_weights).data()} : std::nullopt,
         static_cast<result_t*>(nullptr),
         h_reference_katz_centralities.data(),
         unrenumbered_graph_view.get_number_of_vertices(),
@@ -225,11 +228,13 @@ class Tests_KatzCentrality
 
       std::vector<result_t> h_cugraph_katz_centralities(graph_view.get_number_of_vertices());
       if (renumber) {
-        auto d_unrenumbered_katz_centralities =
+        rmm::device_uvector<result_t> d_unrenumbered_katz_centralities(size_t{0},
+                                                                       handle.get_stream());
+        std::tie(std::ignore, d_unrenumbered_katz_centralities) =
           cugraph::test::sort_by_key(handle,
-                                     d_renumber_map_labels.data(),
+                                     (*d_renumber_map_labels).data(),
                                      d_katz_centralities.data(),
-                                     d_renumber_map_labels.size());
+                                     (*d_renumber_map_labels).size());
         raft::update_host(h_cugraph_katz_centralities.data(),
                           d_unrenumbered_katz_centralities.data(),
                           d_unrenumbered_katz_centralities.size(),

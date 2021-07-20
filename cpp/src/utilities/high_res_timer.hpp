@@ -18,6 +18,8 @@
 #include <ctime>
 #include <iostream>
 #include <map>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 
 //#define TIMING
@@ -52,10 +54,23 @@ class HighResTimer {
     it->second.second += stop_time.tv_sec * 1000000000 + stop_time.tv_nsec;
   }
 
+  double get_average_runtime(std::string const& label)
+  {
+    auto it = timers.find(label);
+    if (it != timers.end()) {
+      return (static_cast<double>(it->second.second) / (1000000.0 * it->second.first));
+    } else {
+      std::stringstream ss;
+      ss << "ERROR: timing label: " << label << "not found.";
+
+      throw std::runtime_error(ss.str());
+    }
+  }
+
   //
   //  Add display functions... specific label or entire structure
   //
-  void display(std::ostream &os)
+  void display(std::ostream& os)
   {
     os << "Timer Results (in ms):" << std::endl;
     for (auto it = timers.begin(); it != timers.end(); ++it) {
@@ -65,7 +80,7 @@ class HighResTimer {
     }
   }
 
-  void display(std::ostream &os, std::string label)
+  void display(std::ostream& os, std::string label)
   {
     auto it = timers.find(label);
     os << it->first << " called " << it->second.first
@@ -73,7 +88,7 @@ class HighResTimer {
        << std::endl;
   }
 
-  void display_and_clear(std::ostream &os)
+  void display_and_clear(std::ostream& os)
   {
     os << "Timer Results (in ms):" << std::endl;
     for (auto it = timers.begin(); it != timers.end(); ++it) {
