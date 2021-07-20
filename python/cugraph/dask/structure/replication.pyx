@@ -37,9 +37,7 @@ def replicate_cudf_dataframe(cudf_dataframe, client=None, comms=None):
     comms = Comms.get_comms() if comms is None else comms
     dask_cudf_df = dask_cudf.from_cudf(cudf_dataframe, npartitions=1)
     df_length = len(dask_cudf_df)
-    
-    #if input_graph!=None:
-    #    batch_enabled = input_graph.batch_enabled
+
     _df_data =  get_mg_batch_data(dask_cudf_df, batch_enabled=True)
     df_data =  mg_utils.prepare_worker_to_parts(_df_data, client)
 
@@ -92,8 +90,6 @@ def replicate_cudf_series(cudf_series, client=None, comms=None):
     dask_cudf_series =  dask_cudf.from_cudf(cudf_series,
                                             npartitions=1)
     series_length = len(dask_cudf_series)
-    #if input_graph!=None:
-    #    batch_enabled = input_graph.batch_enabled
     _series_data = get_mg_batch_data(dask_cudf_series, batch_enabled=True)
     series_data = mg_utils.prepare_worker_to_parts(_series_data)
 
