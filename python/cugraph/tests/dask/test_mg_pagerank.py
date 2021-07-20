@@ -18,6 +18,7 @@ import cugraph
 import dask_cudf
 import cudf
 from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 # The function selects personalization_perc% of accessible vertices in graph M
