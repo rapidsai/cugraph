@@ -109,6 +109,7 @@ def mg_bfs(input_df,
     cdef uintptr_t c_predecessor_ptr = df['predecessor'].__cuda_array_interface__['data'][0]
     if (return_distances):
         c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_start_ptr = start.__cuda_array_interface__['data'][0]
 
     cdef bool direction_optimizing = <bool> 0
 
@@ -121,7 +122,8 @@ def mg_bfs(input_df,
                                    <int*> c_distance_ptr,
                                    <int*> c_predecessor_ptr,
                                    <int> depth_limit,
-                                   <int> start,
+                                   <int*> c_start_ptr,
+                                   len(start),
                                    direction_optimizing)
     else:
         if depth_limit is None:
@@ -132,6 +134,7 @@ def mg_bfs(input_df,
                                    <long*> c_distance_ptr,
                                    <long*> c_predecessor_ptr,
                                    <long> depth_limit,
-                                   <long> start,
+                                   <long*> c_start_ptr,
+                                   len(start),
                                    direction_optimizing)
     return df

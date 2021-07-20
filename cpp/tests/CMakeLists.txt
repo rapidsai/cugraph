@@ -359,7 +359,7 @@ ConfigureTest(EXPERIMENTAL_BFS_TEST experimental/bfs_test.cpp)
 
 ###################################################################################################
 # - Experimental Multi-source BFS tests -----------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_MSBFS_TEST experimental/ms_bfs_test.cpp)
+ConfigureTest(EXPERIMENTAL_MSBFS_TEST experimental/ms_bfs_test.cu)
 
 ###################################################################################################
 # - Experimental SSSP tests -----------------------------------------------------------------------

@@ -72,10 +72,7 @@ extract(
   rmm::device_vector<size_t> neighbors_offsets(n_subgraphs + 1);
   rmm::device_vector<vertex_t> neighbors;
 
-  std::vector<vertex_t> h_source_vertex(n_subgraphs);
   std::vector<size_t> h_neighbors_offsets(n_subgraphs + 1);
-
-  raft::update_host(&h_source_vertex[0], source_vertex, n_subgraphs, user_stream_view.value());
 
   // Streams will allocate concurrently later
   std::vector<rmm::device_uvector<vertex_t>> reached{};
@@ -86,7 +83,6 @@ extract(
     reached.push_back(std::move(local_reach));
   }
 
-  // h_source_vertex[i] is used by other streams in the for loop
   user_stream_view.synchronize();
 #ifdef TIMING
   HighResTimer hr_timer;
@@ -113,7 +109,8 @@ extract(
                                                                   csr_view,
                                                                   reached[i].data(),
                                                                   predecessors.data(),
-                                                                  h_source_vertex[i],
+                                                                  source_vertex + i,
+                                                                  1,
                                                                   direction_optimizing,
                                                                   radius);
 

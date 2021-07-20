@@ -742,7 +742,8 @@ void call_bfs(raft::handle_t const& handle,
               vertex_t* distances,
               vertex_t* predecessors,
               vertex_t depth_limit,
-              const vertex_t start_vertex,
+              vertex_t* sources,
+              size_t n_sources,
               bool direction_optimizing)
 {
   if (graph_container.is_multi_gpu) {
@@ -753,7 +754,8 @@ void call_bfs(raft::handle_t const& handle,
                                  graph->view(),
                                  reinterpret_cast<int32_t*>(distances),
                                  reinterpret_cast<int32_t*>(predecessors),
-                                 static_cast<int32_t>(start_vertex),
+                                 reinterpret_cast<int32_t*>(sources),
+                                 static_cast<size_t>(n_sources),
                                  direction_optimizing,
                                  static_cast<int32_t>(depth_limit));
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
@@ -763,9 +765,12 @@ void call_bfs(raft::handle_t const& handle,
                                  graph->view(),
                                  reinterpret_cast<vertex_t*>(distances),
                                  reinterpret_cast<vertex_t*>(predecessors),
-                                 static_cast<vertex_t>(start_vertex),
+                                 reinterpret_cast<vertex_t*>(sources),
+                                 static_cast<size_t>(n_sources),
                                  direction_optimizing,
                                  static_cast<vertex_t>(depth_limit));
+    } else {
+      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
     }
   } else {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
@@ -775,7 +780,8 @@ void call_bfs(raft::handle_t const& handle,
                                  graph->view(),
                                  reinterpret_cast<int32_t*>(distances),
                                  reinterpret_cast<int32_t*>(predecessors),
-                                 static_cast<int32_t>(start_vertex),
+                                 reinterpret_cast<int32_t*>(sources),
+                                 static_cast<size_t>(n_sources),
                                  direction_optimizing,
                                  static_cast<int32_t>(depth_limit));
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
@@ -785,9 +791,12 @@ void call_bfs(raft::handle_t const& handle,
                                  graph->view(),
                                  reinterpret_cast<vertex_t*>(distances),
                                  reinterpret_cast<vertex_t*>(predecessors),
-                                 static_cast<vertex_t>(start_vertex),
+                                 reinterpret_cast<vertex_t*>(sources),
+                                 static_cast<size_t>(n_sources),
                                  direction_optimizing,
                                  static_cast<vertex_t>(depth_limit));
+    } else {
+      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
     }
   }
 }
@@ -1361,7 +1370,8 @@ template void call_bfs<int32_t, float>(raft::handle_t const& handle,
                                        int32_t* distances,
                                        int32_t* predecessors,
                                        int32_t depth_limit,
-                                       const int32_t start_vertex,
+                                       int32_t* sources,
+                                       size_t n_sources,
                                        bool direction_optimizing);
 
 template void call_bfs<int32_t, double>(raft::handle_t const& handle,
@@ -1370,7 +1380,8 @@ template void call_bfs<int32_t, double>(raft::handle_t const& handle,
                                         int32_t* distances,
                                         int32_t* predecessors,
                                         int32_t depth_limit,
-                                        const int32_t start_vertex,
+                                        int32_t* sources,
+                                        size_t n_sources,
                                         bool direction_optimizing);
 
 template void call_bfs<int64_t, float>(raft::handle_t const& handle,
@@ -1379,7 +1390,8 @@ template void call_bfs<int64_t, float>(raft::handle_t const& handle,
                                        int64_t* distances,
                                        int64_t* predecessors,
                                        int64_t depth_limit,
-                                       const int64_t start_vertex,
+                                       int64_t* sources,
+                                       size_t n_sources,
                                        bool direction_optimizing);
 
 template void call_bfs<int64_t, double>(raft::handle_t const& handle,
@@ -1388,7 +1400,8 @@ template void call_bfs<int64_t, double>(raft::handle_t const& handle,
                                         int64_t* distances,
                                         int64_t* predecessors,
                                         int64_t depth_limit,
-                                        const int64_t start_vertex,
+                                        int64_t* sources,
+                                        size_t n_sources,
                                         bool direction_optimizing);
 
 template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, float>(

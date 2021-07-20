@@ -63,8 +63,8 @@ def bfs(input_graph, start, depth_limit, direction_optimizing=False):
     cdef uintptr_t c_edge_weights = <uintptr_t>NULL
 
     # Step 5: Check if source index is valid
-    if not 0 <= start < num_verts:
-        raise ValueError("Starting vertex should be between 0 to number of vertices")
+    #if not 0 <= start < num_verts:
+    #    raise ValueError("Starting vertex should be between 0 to number of vertices")
 
     # Step 6: Generate the cudf.DataFrame result
     #         Current implementation expects int (signed 32-bit) for distance
@@ -77,6 +77,7 @@ def bfs(input_graph, start, depth_limit, direction_optimizing=False):
     c_identifier_ptr = df['vertex'].__cuda_array_interface__['data'][0]
     c_distance_ptr = df['distance'].__cuda_array_interface__['data'][0]
     c_predecessor_ptr = df['predecessor'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_start_ptr = start.__cuda_array_interface__['data'][0]
 
     is_symmetric = not input_graph.is_directed()
 
@@ -104,7 +105,8 @@ def bfs(input_graph, start, depth_limit, direction_optimizing=False):
                                <int*> c_distance_ptr,
                                <int*> c_predecessor_ptr,
                                <int> depth_limit,
-                               <int> start,
+                               <int*> c_start_ptr,
+                               len(start),
                                direction_optimizing)
 
     return df
