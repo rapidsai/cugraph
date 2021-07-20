@@ -9,16 +9,12 @@ The cuGraph package include both a C/C++ CUDA portion and a python portion.  Bot
 __Compiler__:
 * `gcc`         version 9.3+
 * `nvcc`        version 11.0+
-* `cmake`       version 3.18+
+* `cmake`       version 3.20.1+
 
 __CUDA:__
 * CUDA 11.0+
 * NVIDIA driver 450.80.02+
 * Pascal architecture or better
-
-__Other__
-* `git`
-
 
 
 You can obtain CUDA from [https://developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads).
@@ -50,9 +46,6 @@ __Create the conda development environment__
 # for CUDA 11.0
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.0.yml
 
-# for CUDA 11.1
-conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.1.yml
-
 # for CUDA 11.2
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.2.yml
 
@@ -70,9 +63,6 @@ conda deactivate
 
 # for CUDA 11.0
 conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.0.yml
-
-# for CUDA 11.1
-conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.1.yml
 
 # for CUDA 11.2
 conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.2.yml

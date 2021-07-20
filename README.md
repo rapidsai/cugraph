@@ -39,12 +39,12 @@ There are 3 ways to get cuGraph :
 
 ---
 # Currently Supported Features
-As of Release 0.18 - including 0.18 nightly
+As of Release 21.08 - including 21.08 nightly
 
 
 ## Supported Algorithms
 
-| Category     | Algorithm                              | Scale        |  Notes
+| Category     | Algorithm                              | Scale        |  Notes              |
 | ------------ | -------------------------------------- | ------------ | ------------------- |
 | Centrality   |                                        |              |                     |
 |              | Katz                                   | Multi-GPU    |                     |
@@ -61,7 +61,7 @@ As of Release 0.18 - including 0.18 nightly
 |              | Triangle Counting                      | Single-GPU   |                     |
 |              | K-Truss                                | Single-GPU   |                     |
 | Components   |                                        |              |                     |
-|              | Weakly Connected Components            | Single-GPU   |                     |
+|              | Weakly Connected Components            | Multi-GPU    |                     |
 |              | Strongly Connected Components          | Single-GPU   |                     |
 | Core         |                                        |              |                     |
 |              | K-Core                                 | Single-GPU   |                     |
@@ -78,17 +78,18 @@ As of Release 0.18 - including 0.18 nightly
 |              | Jaccard Similarity                     | Single-GPU   |                     |
 |              | Weighted Jaccard Similarity            | Single-GPU   |                     |
 |              | Overlap Similarity                     | Single-GPU   |                     |
+| Sampling     |                                        |              |                     |
+|              | Random Walks (RW)                      | Single-GPU   |                     |
 | Traversal    |                                        |              |                     |
 |              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
 |              | Single Source Shortest Path (SSSP)     | Multi-GPU    | [C++ README](cpp/src/traversal/README.md#SSSP) |
 |              | Traveling Salesperson Problem (TSP)    | Single-GPU   |                     |
-| Sampling     | Random Walks (RW)                      | Single-GPU   |                     |
-| Structure    |                                        |              |                     |
-|              | Renumbering                            | Single-GPU   | multiple columns, any data type  |
-|              | Symmetrize                             | Multi-GPU    |                     |
-| Other        |                                        |              |                     |
+| Tree         |                                        |              |                     |
 |              | Minimum Spanning Tree                  | Single-GPU   |                     |
 |              | Maximum Spanning Tree                  | Single-GPU   |                     |
+| Other        |                                        |              |                     |
+|              | Renumbering                            | Multi-GPU    | multiple columns, any data type  |
+|              | Symmetrize                             | Multi-GPU    |                     |
 |  |  |
 
 </br></br>
@@ -100,6 +101,9 @@ As of Release 0.18 - including 0.18 nightly
 | Multigraph      | A Graph with multiple edges between a vertex pair   |
 | MultiDigraph    | A Directed Graph with multiple edges between a vertex pair   |
 |  |  |
+
+ALL Algorithms support Graphs and MultiGraph (directed and undirected)
+
 
 </br></br>
 ## Supported Data Types
@@ -117,11 +121,8 @@ cuGraph tries to match the return type based on the input type.  So a NetworkX i
 
 
 ## cuGraph Notice
-The current version of cuGraph has some limitations:
 
-- Vertex IDs are expected to be contiguous integers starting from 0.
-
-cuGraph provides the renumber function to mitigate this problem, which is by default automatically called when data is addted to a graph.  Input vertex IDs for the renumber function can be any type, can be non-contiguous, can be multiple columns, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to 32-bit contiguous integers starting from 0. cuGraph still requires the renumbered vertex IDs to be representable in 32-bit integers. These limitations are being addressed and will be fixed soon.
+Vertex IDs are expected to be contiguous integers starting from 0.  If your data doesn't match that restriction, we have a solution.  cuGraph provides the renumber function, which is by default automatically called when data is addted to a graph.  Input vertex IDs for the renumber function can be any type, can be non-contiguous, can be multiple columns, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to either 32- or 64-bit contiguous integers starting from 0. 
 
 Additionally, when using the auto-renumbering feature, vertices are automatically un-renumbered in results.
 
@@ -153,9 +154,6 @@ Install and update cuGraph using the conda command:
 
 # CUDA 11.0
 conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.0
-
-# CUDA 11.1
-conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.1
 
 # CUDA 11.2
 conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.2
