@@ -79,7 +79,7 @@ class matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable
       major_first_(major_first),
       major_last_(major_last),
       minor_first_(minor_first),
-      minor_last_(minor_first),
+      minor_last_(minor_last),
       major_value_start_offset_(major_value_start_offset)
   {
   }

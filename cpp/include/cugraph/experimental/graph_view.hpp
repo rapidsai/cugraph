@@ -221,7 +221,7 @@ namespace detail {
 // FIXME: threshold values require tuning
 // use the hypersparse format (currently, DCSR or DCSC) for the vertices with their degrees smaller
 // than col_comm_size * hypersparse_threshold_ratio, should be less than 1.0
-double constexpr hypersparse_threshold_ratio = 0.0;
+double constexpr hypersparse_threshold_ratio = 0.5;
 size_t constexpr low_degree_threshold{raft::warp_size()};
 size_t constexpr mid_degree_threshold{1024};
 size_t constexpr num_sparse_segments_per_vertex_partition{3};
