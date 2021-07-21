@@ -86,7 +86,7 @@ create_graph_from_edgelist_impl(
   std::vector<size_t> h_edge_counts(edge_counts.size());
   raft::update_host(
     h_edge_counts.data(), edge_counts.data(), edge_counts.size(), handle.get_stream());
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   std::vector<size_t> h_displacements(h_edge_counts.size(), size_t{0});
   std::partial_sum(h_edge_counts.begin(), h_edge_counts.end() - 1, h_displacements.begin() + 1);

@@ -143,7 +143,7 @@ class Tests_KatzCentrality
     auto degrees = graph_view.compute_in_degrees(handle);
     std::vector<edge_t> h_degrees(degrees.size());
     raft::update_host(h_degrees.data(), degrees.data(), degrees.size(), handle.get_stream());
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     auto max_it = std::max_element(h_degrees.begin(), h_degrees.end());
 
     result_t const alpha = result_t{1.0} / static_cast<result_t>(*max_it + 1);
@@ -207,7 +207,7 @@ class Tests_KatzCentrality
                           handle.get_stream());
       }
 
-      handle.get_stream_view().synchronize();
+      handle.get_stream().synchronize();
 
       std::vector<result_t> h_reference_katz_centralities(
         unrenumbered_graph_view.get_number_of_vertices());
@@ -246,7 +246,7 @@ class Tests_KatzCentrality
                           handle.get_stream());
       }
 
-      handle.get_stream_view().synchronize();
+      handle.get_stream().synchronize();
 
       auto threshold_ratio = 1e-3;
       auto threshold_magnitude =

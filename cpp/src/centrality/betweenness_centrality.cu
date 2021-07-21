@@ -229,13 +229,13 @@ void BC<vertex_t, edge_t, weight_t, result_t>::compute_single_source(vertex_t so
   // the traversal, this value is avalaible within the bfs implementation and
   // there could be a way to access it directly and avoid both replace and the
   // max
-  thrust::replace(rmm::exec_policy(handle_.get_stream_view()),
+  thrust::replace(rmm::exec_policy(handle_.get_stream()),
                   distances_,
                   distances_ + number_of_vertices_,
                   std::numeric_limits<vertex_t>::max(),
                   static_cast<vertex_t>(-1));
   auto current_max_depth = thrust::max_element(
-    rmm::exec_policy(handle_.get_stream_view()), distances_, distances_ + number_of_vertices_);
+    rmm::exec_policy(handle_.get_stream()), distances_, distances_ + number_of_vertices_);
   vertex_t max_depth = 0;
   CUDA_TRY(cudaMemcpy(&max_depth, current_max_depth, sizeof(vertex_t), cudaMemcpyDeviceToHost));
   // Step 2) Dependency accumulation
@@ -265,7 +265,7 @@ void BC<vertex_t, edge_t, weight_t, result_t>::accumulate(vertex_t source_vertex
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void BC<vertex_t, edge_t, weight_t, result_t>::initialize_dependencies()
 {
-  thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
+  thrust::fill(rmm::exec_policy(handle_.get_stream()),
                deltas_,
                deltas_ + number_of_vertices_,
                static_cast<result_t>(0));
@@ -316,12 +316,12 @@ void BC<vertex_t, edge_t, weight_t, result_t>::add_reached_endpoints_to_source_b
   vertex_t source_vertex)
 {
   vertex_t number_of_unvisited_vertices = thrust::count(
-    rmm::exec_policy(handle_.get_stream_view()), distances_, distances_ + number_of_vertices_, -1);
+    rmm::exec_policy(handle_.get_stream()), distances_, distances_ + number_of_vertices_, -1);
   vertex_t number_of_visited_vertices_except_source =
     number_of_vertices_ - number_of_unvisited_vertices - 1;
   rmm::device_vector<vertex_t> buffer(1);
   buffer[0] = number_of_visited_vertices_except_source;
-  thrust::transform(rmm::exec_policy(handle_.get_stream_view()),
+  thrust::transform(rmm::exec_policy(handle_.get_stream()),
                     buffer.begin(),
                     buffer.end(),
                     betweenness_ + source_vertex,
@@ -332,7 +332,7 @@ void BC<vertex_t, edge_t, weight_t, result_t>::add_reached_endpoints_to_source_b
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void BC<vertex_t, edge_t, weight_t, result_t>::add_vertices_dependencies_to_betweenness()
 {
-  thrust::transform(rmm::exec_policy(handle_.get_stream_view()),
+  thrust::transform(rmm::exec_policy(handle_.get_stream()),
                     deltas_,
                     deltas_ + number_of_vertices_,
                     betweenness_,
@@ -417,7 +417,7 @@ void BC<vertex_t, edge_t, weight_t, result_t>::apply_rescale_factor_to_betweenne
 {
   size_t result_size = number_of_vertices_;
   if (is_edge_betweenness_) result_size = number_of_edges_;
-  thrust::transform(rmm::exec_policy(handle_.get_stream_view()),
+  thrust::transform(rmm::exec_policy(handle_.get_stream()),
                     betweenness_,
                     betweenness_ + result_size,
                     thrust::make_constant_iterator(rescale_factor),

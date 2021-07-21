@@ -53,10 +53,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   auto max_edges_to_generate_per_iteration =
     static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * 1024;
   rmm::device_uvector<float> rands(
-    std::min(num_edges, max_edges_to_generate_per_iteration) * 2 * scale, handle.get_stream_view());
+    std::min(num_edges, max_edges_to_generate_per_iteration) * 2 * scale, handle.get_stream());
 
-  rmm::device_uvector<vertex_t> srcs(num_edges, handle.get_stream_view());
-  rmm::device_uvector<vertex_t> dsts(num_edges, handle.get_stream_view());
+  rmm::device_uvector<vertex_t> srcs(num_edges, handle.get_stream());
+  rmm::device_uvector<vertex_t> dsts(num_edges, handle.get_stream());
 
   size_t num_edges_generated{0};
   while (num_edges_generated < num_edges) {
@@ -67,7 +67,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
     rng.uniform<float, size_t>(
       rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, handle.get_stream());
     thrust::transform(
-      rmm::exec_policy(handle.get_stream_view()),
+      rmm::exec_policy(handle.get_stream()),
       thrust::make_counting_iterator(size_t{0}),
       thrust::make_counting_iterator(num_edges_to_generate),
       pair_first,

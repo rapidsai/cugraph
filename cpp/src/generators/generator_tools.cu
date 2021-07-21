@@ -197,20 +197,20 @@ symmetrize_edgelist(raft::handle_t const& handle,
                     std::optional<rmm::device_uvector<weight_t>>&& optional_d_weights_v)
 {
   auto offset = d_src_v.size();
-  d_src_v.resize(offset * 2, handle.get_stream_view());
-  d_dst_v.resize(offset * 2, handle.get_stream_view());
+  d_src_v.resize(offset * 2, handle.get_stream());
+  d_dst_v.resize(offset * 2, handle.get_stream());
 
-  thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+  thrust::copy(rmm::exec_policy(handle.get_stream()),
                d_dst_v.begin(),
                d_dst_v.begin() + offset,
                d_src_v.begin() + offset);
-  thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+  thrust::copy(rmm::exec_policy(handle.get_stream()),
                d_src_v.begin(),
                d_src_v.begin() + offset,
                d_dst_v.begin() + offset);
   if (optional_d_weights_v) {
-    optional_d_weights_v->resize(d_src_v.size(), handle.get_stream_view());
-    thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+    optional_d_weights_v->resize(d_src_v.size(), handle.get_stream());
+    thrust::copy(rmm::exec_policy(handle.get_stream()),
                  optional_d_weights_v->begin(),
                  optional_d_weights_v->begin() + offset,
                  optional_d_weights_v->begin() + offset);

@@ -339,7 +339,7 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
                    d_vertices.begin(),
                    d_vertices.end(),
                    vertex_t{0});
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   if (multi_gpu) {
     auto& comm               = handle.get_comms();
@@ -405,7 +405,7 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
     }
   }
 
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
   return cugraph::experimental::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,

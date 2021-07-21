@@ -194,7 +194,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                           d_mg_aggregate_renumber_map_labels.data() + bfs_usecase.source,
                           size_t{1},
                           handle.get_stream());
-        handle.get_stream_view().synchronize();
+        handle.get_stream().synchronize();
 
         cugraph::experimental::bfs(handle,
                                    sg_graph_view,
@@ -237,7 +237,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                           d_sg_predecessors.data(),
                           d_sg_predecessors.size(),
                           handle.get_stream());
-        handle.get_stream_view().synchronize();
+        handle.get_stream().synchronize();
 
         ASSERT_TRUE(std::equal(h_mg_aggregate_distances.begin(),
                                h_mg_aggregate_distances.end(),

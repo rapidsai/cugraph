@@ -116,12 +116,12 @@ class EcgLouvain : public cugraph::Louvain<graph_type> {
 
   void initialize_dendrogram_level(vertex_t num_vertices) override
   {
-    this->dendrogram_->add_level(0, num_vertices, this->handle_.get_stream_view());
+    this->dendrogram_->add_level(0, num_vertices, this->handle_.get_stream());
 
     get_permutation_vector(num_vertices,
                            seed_,
                            this->dendrogram_->current_level_begin(),
-                           this->handle_.get_stream_view());
+                           this->handle_.get_stream());
   }
 
  private:
@@ -147,9 +147,9 @@ void ecg(raft::handle_t const& handle,
                   "Invalid input argument: clustering is NULL, should be a device pointer to "
                   "memory for storing the result");
 
-  rmm::device_uvector<weight_t> ecg_weights_v(graph.number_of_edges, handle.get_stream_view());
+  rmm::device_uvector<weight_t> ecg_weights_v(graph.number_of_edges, handle.get_stream());
 
-  thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+  thrust::copy(rmm::exec_policy(handle.get_stream()),
                graph.edge_data,
                graph.edge_data + graph.number_of_edges,
                ecg_weights_v.data());
@@ -182,7 +182,7 @@ void ecg(raft::handle_t const& handle,
 
   // Set weights = min_weight + (1 - min-weight)*sum/ensemble_size
   update_functor<weight_t> uf(min_weight, ensemble_size);
-  thrust::transform(rmm::exec_policy(handle.get_stream_view()),
+  thrust::transform(rmm::exec_policy(handle.get_stream()),
                     ecg_weights_v.begin(),
                     ecg_weights_v.end(),
                     ecg_weights_v.begin(),

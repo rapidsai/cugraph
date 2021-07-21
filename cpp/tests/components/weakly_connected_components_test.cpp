@@ -171,7 +171,7 @@ class Tests_WeaklyConnectedComponent
                         unrenumbered_graph_view.get_number_of_edges(),
                         handle.get_stream());
 
-      handle.get_stream_view().synchronize();
+      handle.get_stream().synchronize();
 
       std::vector<vertex_t> h_reference_components(
         unrenumbered_graph_view.get_number_of_vertices());
@@ -184,7 +184,7 @@ class Tests_WeaklyConnectedComponent
       std::vector<vertex_t> h_cugraph_components(graph_view.get_number_of_vertices());
       if (renumber) {
         rmm::device_uvector<vertex_t> d_unrenumbered_components(size_t{0},
-                                                                handle.get_stream_view());
+                                                                handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_components) =
           cugraph::test::sort_by_key(handle,
                                      (*d_renumber_map_labels).data(),
@@ -200,7 +200,7 @@ class Tests_WeaklyConnectedComponent
                           d_components.size(),
                           handle.get_stream());
       }
-      handle.get_stream_view().synchronize();
+      handle.get_stream().synchronize();
 
       std::unordered_map<vertex_t, vertex_t> cuda_to_reference_map{};
       for (size_t i = 0; i < h_reference_components.size(); ++i) {

@@ -29,15 +29,15 @@ template <typename vertex_t, typename value_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>> sort_by_key(
   raft::handle_t const& handle, vertex_t const* keys, value_t const* values, size_t num_pairs)
 {
-  rmm::device_uvector<vertex_t> sorted_keys(num_pairs, handle.get_stream_view());
-  rmm::device_uvector<value_t> sorted_values(num_pairs, handle.get_stream_view());
+  rmm::device_uvector<vertex_t> sorted_keys(num_pairs, handle.get_stream());
+  rmm::device_uvector<value_t> sorted_values(num_pairs, handle.get_stream());
 
   thrust::copy(
-    rmm::exec_policy(handle.get_stream_view()), keys, keys + num_pairs, sorted_keys.begin());
+    rmm::exec_policy(handle.get_stream()), keys, keys + num_pairs, sorted_keys.begin());
   thrust::copy(
-    rmm::exec_policy(handle.get_stream_view()), values, values + num_pairs, sorted_values.begin());
+    rmm::exec_policy(handle.get_stream()), values, values + num_pairs, sorted_values.begin());
 
-  thrust::sort_by_key(rmm::exec_policy(handle.get_stream_view()),
+  thrust::sort_by_key(rmm::exec_policy(handle.get_stream()),
                       sorted_keys.begin(),
                       sorted_keys.end(),
                       sorted_values.begin());

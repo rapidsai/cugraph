@@ -65,7 +65,7 @@ void serializer_t::serialize(value_t const* p_d_src, size_t size)
   auto it_end             = begin_ + byte_buff_sz;
   byte_t const* byte_buff = reinterpret_cast<byte_t const*>(p_d_src);
 
-  thrust::copy_n(rmm::exec_policy(handle_.get_stream_view()), byte_buff, byte_buff_sz, begin_);
+  thrust::copy_n(rmm::exec_policy(handle_.get_stream()), byte_buff, byte_buff_sz, begin_);
 
   begin_ = it_end;
 }
@@ -77,7 +77,7 @@ rmm::device_uvector<value_t> serializer_t::unserialize(size_t size)
   rmm::device_uvector<value_t> d_dest(size, handle_.get_stream());
   byte_t* byte_buff = reinterpret_cast<byte_t*>(d_dest.data());
 
-  thrust::copy_n(rmm::exec_policy(handle_.get_stream_view()), cbegin_, byte_buff_sz, byte_buff);
+  thrust::copy_n(rmm::exec_policy(handle_.get_stream()), cbegin_, byte_buff_sz, byte_buff);
 
   cbegin_ += byte_buff_sz;
   return d_dest;
