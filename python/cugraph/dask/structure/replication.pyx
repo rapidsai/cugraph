@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,7 +38,7 @@ def replicate_cudf_dataframe(cudf_dataframe, client=None, comms=None):
     dask_cudf_df = dask_cudf.from_cudf(cudf_dataframe, npartitions=1)
     df_length = len(dask_cudf_df)
 
-    _df_data =  get_mg_batch_data(dask_cudf_df)
+    _df_data =  get_mg_batch_data(dask_cudf_df, batch_enabled=True)
     df_data =  mg_utils.prepare_worker_to_parts(_df_data, client)
 
     workers_to_futures = {worker: client.submit(_replicate_cudf_dataframe,
@@ -90,7 +90,7 @@ def replicate_cudf_series(cudf_series, client=None, comms=None):
     dask_cudf_series =  dask_cudf.from_cudf(cudf_series,
                                             npartitions=1)
     series_length = len(dask_cudf_series)
-    _series_data = get_mg_batch_data(dask_cudf_series)
+    _series_data = get_mg_batch_data(dask_cudf_series, batch_enabled=True)
     series_data = mg_utils.prepare_worker_to_parts(_series_data)
 
     dtype = cudf_series.dtype
