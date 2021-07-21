@@ -21,13 +21,13 @@
 
 #include <converters/COOtoCSR.cuh>
 
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <raft/random/rng.cuh>
 
-#include "exact_repulsion.hpp"
-#include "fa2_kernels.hpp"
+#include "exact_repulsion.cuh"
+#include "fa2_kernels.cuh"
 #include "utils.hpp"
 
 namespace cugraph {
@@ -79,9 +79,7 @@ void exact_fa2(raft::handle_t const& handle,
   d_swinging   = swinging.data();
   d_traction   = traction.data();
 
-  int seed{0};
-  raft::random::Rng rng(seed);
-  rng.uniform<float, size_t>(pos, n * 2, -100.0f, 100.0f, handle.get_stream());
+  uniform_random_fill(handle.get_stream_view(), pos, n * 2, -100.0f, 100.0f, uint64_t{0});
 
   if (x_start && y_start) {
     raft::copy(pos, x_start, n, stream_view.value());

@@ -16,17 +16,11 @@
 
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/graph_generators.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/shuffle_comm.cuh>
-
-#include <rmm/thrust_rmm_allocator.h>
-#include <raft/random/rng.cuh>
-
-#include <thrust/sequence.h>
 
 #include <cstdint>
 
@@ -114,32 +108,33 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
           std::make_optional<rmm::device_uvector<weight_t>>(d_tmp_rows.size(), handle.get_stream());
       }
 
-      raft::random::Rng rng(base_seed + num_partitions + id);
-      rng.uniform<weight_t, size_t>(i == 0 ? (*d_edgelist_weights).data() : (*d_tmp_weights).data(),
-                                    i == 0 ? (*d_edgelist_weights).size() : (*d_tmp_weights).size(),
-                                    weight_t{0.0},
-                                    weight_t{1.0},
-                                    handle.get_stream());
+      cugraph::detail::uniform_random_fill(
+        handle.get_stream_view(),
+        i == 0 ? (*d_edgelist_weights).data() : (*d_tmp_weights).data(),
+        i == 0 ? (*d_edgelist_weights).size() : (*d_tmp_weights).size(),
+        weight_t{0.0},
+        weight_t{1.0},
+        base_seed + num_partitions + id);
     }
 
     if (i > 0) {
       auto start_offset = d_edgelist_rows.size();
       d_edgelist_rows.resize(start_offset + d_tmp_rows.size(), handle.get_stream());
       d_edgelist_cols.resize(d_edgelist_rows.size(), handle.get_stream());
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   d_tmp_rows.begin(),
-                   d_tmp_rows.end(),
-                   d_edgelist_rows.begin() + start_offset);
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   d_tmp_cols.begin(),
-                   d_tmp_cols.end(),
-                   d_edgelist_cols.begin() + start_offset);
+      raft::copy(d_edgelist_rows.begin() + start_offset,
+                 d_tmp_rows.begin(),
+                 d_tmp_rows.size(),
+                 handle.get_stream());
+      raft::copy(d_edgelist_cols.begin() + start_offset,
+                 d_tmp_cols.begin(),
+                 d_tmp_cols.size(),
+                 handle.get_stream());
       if (d_edgelist_weights) {
         (*d_edgelist_weights).resize(d_edgelist_rows.size(), handle.get_stream());
-        thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     (*d_tmp_weights).begin(),
-                     (*d_tmp_weights).end(),
-                     (*d_edgelist_weights).begin() + start_offset);
+        raft::copy(d_edgelist_weights->begin() + start_offset,
+                   d_tmp_weights->begin(),
+                   d_tmp_weights->size(),
+                   handle.get_stream());
       }
     }
   }
@@ -148,83 +143,20 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
 // FIXME: may need to undo this and handle symmetrization elsewhere once the new test graph
 // generation API gets integrated
 #if 1
-    auto offset = d_edgelist_rows.size();
-    d_edgelist_rows.resize(offset * 2, handle.get_stream());
-    d_edgelist_cols.resize(d_edgelist_rows.size(), handle.get_stream());
-    if (d_edgelist_weights) {
-      (*d_edgelist_weights).resize(d_edgelist_rows.size(), handle.get_stream());
-    }
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 d_edgelist_cols.begin(),
-                 d_edgelist_cols.begin() + offset,
-                 d_edgelist_rows.begin() + offset);
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 d_edgelist_rows.begin(),
-                 d_edgelist_rows.begin() + offset,
-                 d_edgelist_cols.begin() + offset);
-    if (d_edgelist_weights) {
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   (*d_edgelist_weights).begin(),
-                   (*d_edgelist_weights).begin() + offset,
-                   (*d_edgelist_weights).begin() + offset);
-    }
+    std::tie(d_edgelist_rows, d_edgelist_cols, d_edgelist_weights) =
+      cugraph::symmetrize_edgelist<vertex_t, weight_t>(
+        handle,
+        std::move(d_edgelist_rows),
+        std::move(d_edgelist_cols),
+        test_weighted ? std::optional<rmm::device_uvector<weight_t>>(std::move(d_edgelist_weights))
+                      : std::nullopt);
 #endif
   }
 
   if (multi_gpu) {
-    auto& comm               = handle.get_comms();
-    auto const comm_size     = comm.get_size();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_size = col_comm.get_size();
-
-    rmm::device_uvector<vertex_t> d_rx_edgelist_rows(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> d_rx_edgelist_cols(0, handle.get_stream());
-    std::optional<rmm::device_uvector<weight_t>> d_rx_edgelist_weights{std::nullopt};
-    if (d_edgelist_weights) {
-      auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(store_transposed ? d_edgelist_cols.begin() : d_edgelist_rows.begin(),
-                           store_transposed ? d_edgelist_rows.begin() : d_edgelist_cols.begin(),
-                           (*d_edgelist_weights).begin()));
-
-      std::forward_as_tuple(std::tie(store_transposed ? d_rx_edgelist_cols : d_rx_edgelist_rows,
-                                     store_transposed ? d_rx_edgelist_rows : d_rx_edgelist_cols,
-                                     d_rx_edgelist_weights),
-                            std::ignore) =
-        cugraph::experimental::groupby_gpuid_and_shuffle_values(
-          comm,  // handle.get_comms(),
-          edge_first,
-          edge_first + d_edgelist_rows.size(),
-          [key_func =
-             cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
-               comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
-            return key_func(thrust::get<0>(val), thrust::get<1>(val));
-          },
-          handle.get_stream());
-    } else {
-      auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(store_transposed ? d_edgelist_cols.begin() : d_edgelist_rows.begin(),
-                           store_transposed ? d_edgelist_rows.begin() : d_edgelist_cols.begin()));
-
-      std::forward_as_tuple(std::tie(store_transposed ? d_rx_edgelist_cols : d_rx_edgelist_rows,
-                                     store_transposed ? d_rx_edgelist_rows : d_rx_edgelist_cols),
-                            std::ignore) =
-        cugraph::experimental::groupby_gpuid_and_shuffle_values(
-          comm,  // handle.get_comms(),
-          edge_first,
-          edge_first + d_edgelist_rows.size(),
-          [key_func =
-             cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
-               comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
-            return key_func(thrust::get<0>(val), thrust::get<1>(val));
-          },
-          handle.get_stream());
-    }
-
-    d_edgelist_rows    = std::move(d_rx_edgelist_rows);
-    d_edgelist_cols    = std::move(d_rx_edgelist_cols);
-    d_edgelist_weights = std::move(d_rx_edgelist_weights);
+    std::tie(d_edgelist_rows, d_edgelist_cols, d_edgelist_weights) =
+      cugraph::detail::shuffle_edgelist_by_edge(
+        handle, d_edgelist_rows, d_edgelist_cols, d_edgelist_weights, store_transposed);
   }
 
   rmm::device_uvector<vertex_t> d_vertices(0, handle.get_stream());
@@ -234,27 +166,13 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
     auto start_offset = d_vertices.size();
     d_vertices.resize(start_offset + (partition_vertex_lasts[i] - partition_vertex_firsts[i]),
                       handle.get_stream());
-    thrust::sequence(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                     d_vertices.begin() + start_offset,
-                     d_vertices.end(),
-                     partition_vertex_firsts[i]);
+    cugraph::detail::sequence_fill(handle.get_stream_view(),
+                                   d_vertices.begin() + start_offset,
+                                   d_vertices.size() - start_offset,
+                                   partition_vertex_firsts[i]);
   }
 
-  if (multi_gpu) {
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-
-    rmm::device_uvector<vertex_t> d_rx_vertices(0, handle.get_stream());
-    std::tie(d_rx_vertices, std::ignore) = cugraph::experimental::groupby_gpuid_and_shuffle_values(
-      comm,  // handle.get_comms(),
-      d_vertices.begin(),
-      d_vertices.end(),
-      [key_func =
-         cugraph::experimental::detail::compute_gpu_id_from_vertex_t<vertex_t>{
-           comm_size}] __device__(auto val) { return key_func(val); },
-      handle.get_stream());
-    d_vertices = std::move(d_rx_vertices);
-  }
+  if (multi_gpu) { d_vertices = cugraph::detail::shuffle_vertices(handle, d_vertices); }
 
   return cugraph::experimental::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
@@ -266,7 +184,7 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
       std::move(d_edgelist_weights),
       cugraph::experimental::graph_properties_t{undirected, true},
       renumber);
-}
+}  // namespace test
 
 // explicit instantiations
 

@@ -18,8 +18,6 @@
 
 #include <raft/cudart_utils.h>
 
-#include <thrust/random.h>
-
 namespace cugraph {
 namespace detail {
 

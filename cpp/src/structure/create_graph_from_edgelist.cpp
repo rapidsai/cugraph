@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 
@@ -24,6 +25,7 @@
 #include <thrust/transform_reduce.h>
 
 #include <cstdint>
+#include <numeric>
 
 namespace cugraph {
 namespace experimental {
@@ -59,29 +61,12 @@ create_graph_from_edgelist_impl(
   auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_size = col_comm.get_size();
 
-  auto local_partition_id_op =
-    [comm_size,
-     key_func = cugraph::experimental::detail::compute_partition_id_from_edge_t<vertex_t>{
-       comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
-      return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
-             comm_size;  // global partition id to local partition id
-    };
-  auto pair_first =
-    store_transposed
-      ? thrust::make_zip_iterator(thrust::make_tuple(edgelist_cols.begin(), edgelist_rows.begin()))
-      : thrust::make_zip_iterator(thrust::make_tuple(edgelist_rows.begin(), edgelist_cols.begin()));
-  auto edge_counts = edgelist_weights
-                       ? cugraph::experimental::groupby_and_count(pair_first,
-                                                                  pair_first + edgelist_rows.size(),
-                                                                  (*edgelist_weights).begin(),
-                                                                  local_partition_id_op,
-                                                                  col_comm_size,
-                                                                  handle.get_stream())
-                       : cugraph::experimental::groupby_and_count(pair_first,
-                                                                  pair_first + edgelist_rows.size(),
-                                                                  local_partition_id_op,
-                                                                  col_comm_size,
-                                                                  handle.get_stream());
+  auto edge_counts =
+    cugraph::detail::groupby_and_count_by_edge(handle,
+                                               store_transposed ? edgelist_cols : edgelist_rows,
+                                               store_transposed ? edgelist_rows : edgelist_cols,
+                                               edgelist_weights,
+                                               col_comm_size);
 
   std::vector<size_t> h_edge_counts(edge_counts.size());
   raft::update_host(
@@ -182,17 +167,8 @@ create_graph_from_edgelist_impl(
     if (optional_vertex_span) {
       num_vertices = std::get<1>(*optional_vertex_span);
     } else {
-      auto edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(edgelist_rows.begin(), edgelist_cols.begin()));
-      num_vertices =
-        thrust::transform_reduce(
-          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-          edge_first,
-          edge_first + edgelist_rows.size(),
-          [] __device__(auto e) { return std::max(thrust::get<0>(e), thrust::get<1>(e)); },
-          vertex_t{0},
-          thrust::maximum<vertex_t>()) +
-        1;
+      num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
+                           handle.get_stream_view(), edgelist_rows, edgelist_cols);
     }
   }
 
