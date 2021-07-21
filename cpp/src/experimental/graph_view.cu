@@ -236,7 +236,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   // optional expensive checks
 
   if (do_expensive_check) {
-    auto default_stream_view = this->get_handle_ptr()->get_stream_view();
+    auto default_stream_view = this->get_handle_ptr()->get_stream();
 
     auto const row_comm_rank = this->get_handle_ptr()
                                  ->get_subcomm(cugraph::partition_2d::key_naming_t().row_name())
@@ -366,7 +366,7 @@ graph_view_t<vertex_t,
   // optional expensive checks
 
   if (do_expensive_check) {
-    auto default_stream_view = this->get_handle_ptr()->get_stream_view();
+    auto default_stream_view = this->get_handle_ptr()->get_stream();
 
     CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream_view),
                                       offsets,
@@ -572,7 +572,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 {
   auto in_degrees = compute_in_degrees(handle);
   auto it         = thrust::max_element(
-    rmm::exec_policy(handle.get_stream_view()), in_degrees.begin(), in_degrees.end());
+    rmm::exec_policy(handle.get_stream()), in_degrees.begin(), in_degrees.end());
   rmm::device_scalar<edge_t> ret(edge_t{0}, handle.get_stream());
   device_allreduce(handle.get_comms(),
                    it != in_degrees.end() ? it : ret.data(),
@@ -598,10 +598,10 @@ edge_t graph_view_t<vertex_t,
 {
   auto in_degrees = compute_in_degrees(handle);
   auto it         = thrust::max_element(
-    rmm::exec_policy(handle.get_stream_view()), in_degrees.begin(), in_degrees.end());
+    rmm::exec_policy(handle.get_stream()), in_degrees.begin(), in_degrees.end());
   edge_t ret{0};
   if (it != in_degrees.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
   return ret;
 }
 
@@ -616,7 +616,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 {
   auto out_degrees = compute_out_degrees(handle);
   auto it          = thrust::max_element(
-    rmm::exec_policy(handle.get_stream_view()), out_degrees.begin(), out_degrees.end());
+    rmm::exec_policy(handle.get_stream()), out_degrees.begin(), out_degrees.end());
   rmm::device_scalar<edge_t> ret(edge_t{0}, handle.get_stream());
   device_allreduce(handle.get_comms(),
                    it != out_degrees.end() ? it : ret.data(),
@@ -642,10 +642,10 @@ edge_t graph_view_t<vertex_t,
 {
   auto out_degrees = compute_out_degrees(handle);
   auto it          = thrust::max_element(
-    rmm::exec_policy(handle.get_stream_view()), out_degrees.begin(), out_degrees.end());
+    rmm::exec_policy(handle.get_stream()), out_degrees.begin(), out_degrees.end());
   edge_t ret{0};
   if (it != out_degrees.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
   return ret;
 }
 
@@ -660,7 +660,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 {
   auto in_weight_sums = compute_in_weight_sums(handle);
   auto it             = thrust::max_element(
-    rmm::exec_policy(handle.get_stream_view()), in_weight_sums.begin(), in_weight_sums.end());
+    rmm::exec_policy(handle.get_stream()), in_weight_sums.begin(), in_weight_sums.end());
   rmm::device_scalar<weight_t> ret(weight_t{0.0}, handle.get_stream());
   device_allreduce(handle.get_comms(),
                    it != in_weight_sums.end() ? it : ret.data(),
@@ -686,10 +686,10 @@ weight_t graph_view_t<vertex_t,
 {
   auto in_weight_sums = compute_in_weight_sums(handle);
   auto it             = thrust::max_element(
-    rmm::exec_policy(handle.get_stream_view()), in_weight_sums.begin(), in_weight_sums.end());
+    rmm::exec_policy(handle.get_stream()), in_weight_sums.begin(), in_weight_sums.end());
   weight_t ret{0.0};
   if (it != in_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
   return ret;
 }
 
@@ -704,7 +704,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 {
   auto out_weight_sums = compute_out_weight_sums(handle);
   auto it              = thrust::max_element(
-    rmm::exec_policy(handle.get_stream_view()), out_weight_sums.begin(), out_weight_sums.end());
+    rmm::exec_policy(handle.get_stream()), out_weight_sums.begin(), out_weight_sums.end());
   rmm::device_scalar<weight_t> ret(weight_t{0.0}, handle.get_stream());
   device_allreduce(handle.get_comms(),
                    it != out_weight_sums.end() ? it : ret.data(),
@@ -730,10 +730,10 @@ weight_t graph_view_t<
 {
   auto out_weight_sums = compute_out_weight_sums(handle);
   auto it              = thrust::max_element(
-    rmm::exec_policy(handle.get_stream_view()), out_weight_sums.begin(), out_weight_sums.end());
+    rmm::exec_policy(handle.get_stream()), out_weight_sums.begin(), out_weight_sums.end());
   weight_t ret{0.0};
   if (it != out_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
   return ret;
 }
 

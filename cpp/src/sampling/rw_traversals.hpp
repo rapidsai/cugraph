@@ -244,7 +244,7 @@ struct horizontal_traversal_t {
 
     // start from 1, as 0-th was initialized above:
     //
-    thrust::for_each(rmm::exec_policy(handle.get_stream_view()),
+    thrust::for_each(rmm::exec_policy(handle.get_stream()),
                      thrust::make_counting_iterator<index_t>(0),
                      thrust::make_counting_iterator<index_t>(num_paths_),
                      [max_depth            = max_depth_,

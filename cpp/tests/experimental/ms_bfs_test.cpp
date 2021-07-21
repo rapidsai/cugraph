@@ -85,12 +85,13 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
 
     d_distances.reserve(n_seeds);
     d_predecessors.reserve(n_seeds);
+    const auto& stream_pool = handle.get_stream_pool();
     for (vertex_t i = 0; i < n_seeds; i++) {
       // Allocations and operations are attached to the worker stream
       rmm::device_uvector<vertex_t> tmp_distances(graph_view.get_number_of_vertices(),
-                                                  handle.get_internal_stream_view(i));
+                                                  stream_pool.get_stream(i));
       rmm::device_uvector<vertex_t> tmp_predecessors(graph_view.get_number_of_vertices(),
-                                                     handle.get_internal_stream_view(i));
+                                                     stream_pool.get_stream(i));
 
       d_distances.push_back(std::move(tmp_distances));
       d_predecessors.push_back(std::move(tmp_predecessors));
@@ -131,7 +132,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
 #pragma omp parallel for
     for (vertex_t i = 0; i < n_seeds; i++) {
       raft::handle_t light_handle(handle, i);
-      auto worker_stream_view = light_handle.get_stream_view();
+      auto worker_stream_view = light_handle.get_stream();
       cugraph::experimental::bfs(light_handle,
                                  graph_view,
                                  d_distances[i].begin(),

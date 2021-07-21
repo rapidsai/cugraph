@@ -70,7 +70,7 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
   void run_current_test(InducedEgo_Usecase const& configuration)
   {
     int n_streams = std::min(configuration.ego_sources.size(), static_cast<std::size_t>(128));
-    raft::handle_t handle(n_streams);
+    raft::handle_t handle(rmm::cuda_stream_per_thread, rmm::cuda_stream_pool{n_streams});
 
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
       handle);

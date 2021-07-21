@@ -68,7 +68,7 @@ extract(
 {
   auto v                = csr_view.get_number_of_vertices();
   auto e                = csr_view.get_number_of_edges();
-  auto user_stream_view = handle.get_stream_view();
+  auto user_stream_view = handle.get_stream();
   rmm::device_vector<size_t> neighbors_offsets(n_subgraphs + 1);
   rmm::device_vector<vertex_t> neighbors;
 
@@ -79,10 +79,11 @@ extract(
 
   // Streams will allocate concurrently later
   std::vector<rmm::device_uvector<vertex_t>> reached{};
+  const auto& stream_pool = handle.get_stream_pool();
   reached.reserve(n_subgraphs);
   for (vertex_t i = 0; i < n_subgraphs; i++) {
     // Allocations and operations are attached to the worker stream
-    rmm::device_uvector<vertex_t> local_reach(v, handle.get_internal_stream_view(i));
+    rmm::device_uvector<vertex_t> local_reach(v, stream_pool.get_stream(i));
     reached.push_back(std::move(local_reach));
   }
 
@@ -95,8 +96,8 @@ extract(
 
   for (vertex_t i = 0; i < n_subgraphs; i++) {
     // get light handle from worker pool
-    raft::handle_t light_handle(handle, i);
-    auto worker_stream_view = light_handle.get_stream_view();
+    raft::handle_t light_handle(stream_pool.get_stream(i));
+    auto worker_stream_view = light_handle.get_stream();
 
     // BFS with cutoff
     // consider adding a device API to BFS (ie. accept source on the device)
@@ -137,7 +138,7 @@ extract(
   }
 
   // wait on every one to identify their neighboors before proceeding to concatenation
-  handle.wait_on_internal_streams();
+  handle.sync_stream_pool();
 
   // Construct neighboors offsets (just a scan on neighborhod vector sizes)
   h_neighbors_offsets[0] = 0;
@@ -153,7 +154,7 @@ extract(
 
   // Construct the neighboors list concurrently
   for (vertex_t i = 0; i < n_subgraphs; i++) {
-    auto worker_stream_view = handle.get_internal_stream_view(i);
+    auto worker_stream_view = stream_pool.get_stream(i);
     thrust::copy(rmm::exec_policy(worker_stream_view),
                  reached[i].begin(),
                  reached[i].end(),
@@ -165,7 +166,7 @@ extract(
   }
 
   // wait on every one before proceeding to grouped extraction
-  handle.wait_on_internal_streams();
+  handle.sync_stream_pool();
 
 #ifdef TIMING
   hr_timer.stop();

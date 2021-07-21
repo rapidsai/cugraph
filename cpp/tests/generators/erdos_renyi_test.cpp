@@ -59,7 +59,7 @@ void er_test(size_t num_vertices, float p)
   std::tie(d_src_v, d_dst_v) =
     cugraph::generate_erdos_renyi_graph_edgelist_gnp<vertex_t>(handle, num_vertices, p, 0);
 
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   std::vector<vertex_t> h_src_v(d_src_v.size());
   std::vector<vertex_t> h_dst_v(d_dst_v.size());
@@ -67,7 +67,7 @@ void er_test(size_t num_vertices, float p)
   raft::update_host(h_src_v.data(), d_src_v.data(), d_src_v.size(), handle.get_stream());
   raft::update_host(h_dst_v.data(), d_dst_v.data(), d_dst_v.size(), handle.get_stream());
 
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   float expected_edge_count = p * num_vertices * num_vertices;
 

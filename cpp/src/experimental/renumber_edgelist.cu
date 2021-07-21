@@ -67,9 +67,9 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     ;
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
@@ -83,16 +83,16 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
     {
       rmm::device_uvector<vertex_t> sorted_major_labels(edgelist_edge_counts[i],
                                                         handle.get_stream());
-      thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+      thrust::copy(rmm::exec_policy(handle.get_stream()),
                    edgelist_major_vertices[i],
                    edgelist_major_vertices[i] + edgelist_edge_counts[i],
                    sorted_major_labels.begin());
       // FIXME: better refactor this sort-count_if-reduce_by_key routine for reuse
-      thrust::sort(rmm::exec_policy(handle.get_stream_view()),
+      thrust::sort(rmm::exec_policy(handle.get_stream()),
                    sorted_major_labels.begin(),
                    sorted_major_labels.end());
       auto num_unique_labels =
-        thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
+        thrust::count_if(rmm::exec_policy(handle.get_stream()),
                          thrust::make_counting_iterator(size_t{0}),
                          thrust::make_counting_iterator(sorted_major_labels.size()),
                          [labels = sorted_major_labels.data()] __device__(auto i) {
@@ -100,7 +100,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                          });
       tmp_major_labels.resize(num_unique_labels, handle.get_stream());
       tmp_major_counts.resize(tmp_major_labels.size(), handle.get_stream());
-      thrust::reduce_by_key(rmm::exec_policy(handle.get_stream_view()),
+      thrust::reduce_by_key(rmm::exec_policy(handle.get_stream()),
                             sorted_major_labels.begin(),
                             sorted_major_labels.end(),
                             thrust::make_constant_iterator(edge_t{1}),
@@ -146,11 +146,11 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   }
   if (multi_gpu) {
     // FIXME: better refactor this sort-count_if-reduce_by_key routine for reuse
-    thrust::sort_by_key(rmm::exec_policy(handle.get_stream_view()),
+    thrust::sort_by_key(rmm::exec_policy(handle.get_stream()),
                         major_labels.begin(),
                         major_labels.end(),
                         major_counts.begin());
-    auto num_unique_labels = thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
+    auto num_unique_labels = thrust::count_if(rmm::exec_policy(handle.get_stream()),
                                               thrust::make_counting_iterator(size_t{0}),
                                               thrust::make_counting_iterator(major_labels.size()),
                                               [labels = major_labels.data()] __device__(auto i) {
@@ -158,7 +158,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                                               });
     rmm::device_uvector<vertex_t> tmp_major_labels(num_unique_labels, handle.get_stream());
     rmm::device_uvector<edge_t> tmp_major_counts(tmp_major_labels.size(), handle.get_stream());
-    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream_view()),
+    thrust::reduce_by_key(rmm::exec_policy(handle.get_stream()),
                           major_labels.begin(),
                           major_labels.end(),
                           major_counts.begin(),
@@ -176,15 +176,15 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   rmm::device_uvector<vertex_t> minor_labels(minor_displs.back() + edgelist_edge_counts.back(),
                                              handle.get_stream());
   for (size_t i = 0; i < edgelist_minor_vertices.size(); ++i) {
-    thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+    thrust::copy(rmm::exec_policy(handle.get_stream()),
                  edgelist_minor_vertices[i],
                  edgelist_minor_vertices[i] + edgelist_edge_counts[i],
                  minor_labels.begin() + minor_displs[i]);
   }
   thrust::sort(
-    rmm::exec_policy(handle.get_stream_view()), minor_labels.begin(), minor_labels.end());
+    rmm::exec_policy(handle.get_stream()), minor_labels.begin(), minor_labels.end());
   minor_labels.resize(thrust::distance(minor_labels.begin(),
-                                       thrust::unique(rmm::exec_policy(handle.get_stream_view()),
+                                       thrust::unique(rmm::exec_policy(handle.get_stream()),
                                                       minor_labels.begin(),
                                                       minor_labels.end())),
                       handle.get_stream());
@@ -198,9 +198,9 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -214,10 +214,10 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
           auto val) { return key_func(val); },
         handle.get_stream());
       thrust::sort(
-        rmm::exec_policy(handle.get_stream_view()), rx_minor_labels.begin(), rx_minor_labels.end());
+        rmm::exec_policy(handle.get_stream()), rx_minor_labels.begin(), rx_minor_labels.end());
       rx_minor_labels.resize(
         thrust::distance(rx_minor_labels.begin(),
-                         thrust::unique(rmm::exec_policy(handle.get_stream_view()),
+                         thrust::unique(rmm::exec_policy(handle.get_stream()),
                                         rx_minor_labels.begin(),
                                         rx_minor_labels.end())),
         handle.get_stream());
@@ -230,20 +230,20 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
     //
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   }
-  minor_labels.shrink_to_fit(handle.get_stream_view());
+  minor_labels.shrink_to_fit(handle.get_stream());
 
   // 3. merge major and minor labels and vertex labels
 
   rmm::device_uvector<vertex_t> merged_labels(major_labels.size() + minor_labels.size(),
-                                              handle.get_stream_view());
-  rmm::device_uvector<edge_t> merged_counts(merged_labels.size(), handle.get_stream_view());
-  thrust::merge_by_key(rmm::exec_policy(handle.get_stream_view()),
+                                              handle.get_stream());
+  rmm::device_uvector<edge_t> merged_counts(merged_labels.size(), handle.get_stream());
+  thrust::merge_by_key(rmm::exec_policy(handle.get_stream()),
                        major_labels.begin(),
                        major_labels.end(),
                        minor_labels.begin(),
@@ -262,7 +262,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
 
   rmm::device_uvector<vertex_t> labels(merged_labels.size(), handle.get_stream());
   rmm::device_uvector<edge_t> counts(labels.size(), handle.get_stream());
-  auto pair_it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream_view()),
+  auto pair_it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream()),
                                        merged_labels.begin(),
                                        merged_labels.end(),
                                        merged_counts.begin(),
@@ -283,14 +283,14 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   if (optional_vertex_span) {
     auto [vertices, num_vertices] = *optional_vertex_span;
     auto num_isolated_vertices    = thrust::count_if(
-      rmm::exec_policy(handle.get_stream_view()),
+      rmm::exec_policy(handle.get_stream()),
       vertices,
       vertices + num_vertices,
       [label_first = labels.begin(), label_last = labels.end()] __device__(auto v) {
         return !thrust::binary_search(thrust::seq, label_first, label_last, v);
       });
     isolated_vertices.resize(num_isolated_vertices, handle.get_stream());
-    thrust::copy_if(rmm::exec_policy(handle.get_stream_view()),
+    thrust::copy_if(rmm::exec_policy(handle.get_stream()),
                     vertices,
                     vertices + num_vertices,
                     isolated_vertices.begin(),
@@ -302,11 +302,11 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   if (isolated_vertices.size() > 0) {
     labels.resize(labels.size() + isolated_vertices.size(), handle.get_stream());
     counts.resize(labels.size(), handle.get_stream());
-    thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+    thrust::copy(rmm::exec_policy(handle.get_stream()),
                  isolated_vertices.begin(),
                  isolated_vertices.end(),
                  labels.end() - isolated_vertices.size());
-    thrust::fill(rmm::exec_policy(handle.get_stream_view()),
+    thrust::fill(rmm::exec_policy(handle.get_stream()),
                  counts.end() - isolated_vertices.size(),
                  counts.end(),
                  edge_t{0});
@@ -314,7 +314,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
 
   // 6. sort by degree
 
-  thrust::sort_by_key(rmm::exec_policy(handle.get_stream_view()),
+  thrust::sort_by_key(rmm::exec_policy(handle.get_stream()),
                       counts.begin(),
                       counts.end(),
                       labels.begin(),
@@ -372,7 +372,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                     d_segment_offsets.data(),
                     d_segment_offsets.size(),
                     handle.get_stream());
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   return std::make_tuple(std::move(labels), h_segment_offsets);
 }
@@ -389,16 +389,16 @@ void expensive_check_edgelist(
   if (optional_vertex_span) {
     auto [vertices, num_vertices] = *optional_vertex_span;
     sorted_local_vertices.resize(num_vertices, handle.get_stream());
-    thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+    thrust::copy(rmm::exec_policy(handle.get_stream()),
                  vertices,
                  vertices + num_vertices,
                  sorted_local_vertices.begin());
-    thrust::sort(rmm::exec_policy(handle.get_stream_view()),
+    thrust::sort(rmm::exec_policy(handle.get_stream()),
                  sorted_local_vertices.begin(),
                  sorted_local_vertices.end());
     CUGRAPH_EXPECTS(static_cast<size_t>(thrust::distance(
                       sorted_local_vertices.begin(),
-                      thrust::unique(rmm::exec_policy(handle.get_stream_view()),
+                      thrust::unique(rmm::exec_policy(handle.get_stream()),
                                      sorted_local_vertices.begin(),
                                      sorted_local_vertices.end()))) == sorted_local_vertices.size(),
                     "Invalid input argument: local_vertices should not have duplicates.");
@@ -423,7 +423,7 @@ void expensive_check_edgelist(
     auto [local_vertices, num_local_vertices] = *optional_vertex_span;
     CUGRAPH_EXPECTS(
       thrust::count_if(
-        rmm::exec_policy(handle.get_stream_view()),
+        rmm::exec_policy(handle.get_stream()),
         local_vertices,
         local_vertices + num_local_vertices,
         [comm_rank,
@@ -438,7 +438,7 @@ void expensive_check_edgelist(
         thrust::make_tuple(edgelist_major_vertices[i], edgelist_minor_vertices[i]));
       CUGRAPH_EXPECTS(
         thrust::count_if(
-          rmm::exec_policy(handle.get_stream_view()),
+          rmm::exec_policy(handle.get_stream()),
           edge_first,
           edge_first + edgelist_edge_counts[i],
           [comm_size,
@@ -470,9 +470,9 @@ void expensive_check_edgelist(
 #if 1
         // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
         // DASK and MPI barrier with MPI)
-        host_barrier(comm, handle.get_stream_view());
+        host_barrier(comm, handle.get_stream());
 #else
-        handle.get_stream_view().synchronize();
+        handle.get_stream().synchronize();
         comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -490,7 +490,7 @@ void expensive_check_edgelist(
                             recvcounts,
                             displacements,
                             handle.get_stream());
-          thrust::sort(rmm::exec_policy(handle.get_stream_view()),
+          thrust::sort(rmm::exec_policy(handle.get_stream()),
                        sorted_major_vertices.begin(),
                        sorted_major_vertices.end());
         }
@@ -500,9 +500,9 @@ void expensive_check_edgelist(
 #if 1
         // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
         // DASK and MPI barrier with MPI)
-        host_barrier(comm, handle.get_stream_view());
+        host_barrier(comm, handle.get_stream());
 #else
-        handle.get_stream_view().synchronize();
+        handle.get_stream().synchronize();
         comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -520,7 +520,7 @@ void expensive_check_edgelist(
                             recvcounts,
                             displacements,
                             handle.get_stream());
-          thrust::sort(rmm::exec_policy(handle.get_stream_view()),
+          thrust::sort(rmm::exec_policy(handle.get_stream()),
                        sorted_minor_vertices.begin(),
                        sorted_minor_vertices.end());
         }
@@ -530,9 +530,9 @@ void expensive_check_edgelist(
 #if 1
         // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
         // DASK and MPI barrier with MPI)
-        host_barrier(comm, handle.get_stream_view());
+        host_barrier(comm, handle.get_stream());
 #else
-        handle.get_stream_view().synchronize();
+        handle.get_stream().synchronize();
         comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -540,7 +540,7 @@ void expensive_check_edgelist(
           thrust::make_tuple(edgelist_major_vertices[i], edgelist_minor_vertices[i]));
         CUGRAPH_EXPECTS(
           thrust::count_if(
-            rmm::exec_policy(handle.get_stream_view()),
+            rmm::exec_policy(handle.get_stream()),
             edge_first,
             edge_first + edgelist_edge_counts[i],
             [num_major_vertices    = static_cast<vertex_t>(sorted_major_vertices.size()),
@@ -569,7 +569,7 @@ void expensive_check_edgelist(
         thrust::make_tuple(edgelist_major_vertices[0], edgelist_minor_vertices[0]));
       CUGRAPH_EXPECTS(
         thrust::count_if(
-          rmm::exec_policy(handle.get_stream_view()),
+          rmm::exec_policy(handle.get_stream()),
           edge_first,
           edge_first + edgelist_edge_counts[0],
           [sorted_local_vertices = sorted_local_vertices.data(),
@@ -668,9 +668,9 @@ renumber_edgelist(raft::handle_t const& handle,
 #if 1
   // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
   // MPI barrier with MPI)
-  host_barrier(comm, handle.get_stream_view());
+  host_barrier(comm, handle.get_stream());
 #else
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
   comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -715,9 +715,9 @@ renumber_edgelist(raft::handle_t const& handle,
 #if 1
   // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
   // MPI barrier with MPI)
-  host_barrier(comm, handle.get_stream_view());
+  host_barrier(comm, handle.get_stream());
 #else
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
   comm.barrier();  // currently, this is ncclAllReduce
 #endif
   {
@@ -764,9 +764,9 @@ renumber_edgelist(raft::handle_t const& handle,
 #if 1
   // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
   // MPI barrier with MPI)
-  host_barrier(comm, handle.get_stream_view());
+  host_barrier(comm, handle.get_stream());
 #else
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
   comm.barrier();  // currently, this is ncclAllReduce
 #endif
 

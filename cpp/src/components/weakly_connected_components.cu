@@ -77,7 +77,7 @@ accumulate_new_roots(raft::handle_t const& handle,
   vertex_t max_scan_size =
     static_cast<vertex_t>(handle.get_device_properties().multiProcessorCount) * vertex_t{16384};
 
-  rmm::device_uvector<vertex_t> new_roots(max_new_roots, handle.get_stream_view());
+  rmm::device_uvector<vertex_t> new_roots(max_new_roots, handle.get_stream());
   vertex_t num_new_roots{0};
   vertex_t num_scanned{0};
   edge_t degree_sum{0};
@@ -87,8 +87,8 @@ accumulate_new_roots(raft::handle_t const& handle,
       max_scan_size,
       static_cast<vertex_t>(thrust::distance(candidate_first + num_scanned, candidate_last)));
 
-    rmm::device_uvector<vertex_t> tmp_new_roots(scan_size, handle.get_stream_view());
-    rmm::device_uvector<vertex_t> tmp_indices(tmp_new_roots.size(), handle.get_stream_view());
+    rmm::device_uvector<vertex_t> tmp_new_roots(scan_size, handle.get_stream());
+    rmm::device_uvector<vertex_t> tmp_indices(tmp_new_roots.size(), handle.get_stream());
     auto input_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
       candidate_first + num_scanned, thrust::make_counting_iterator(vertex_t{0})));
     auto output_pair_first =
@@ -97,7 +97,7 @@ accumulate_new_roots(raft::handle_t const& handle,
       static_cast<vertex_t>(thrust::distance(
         output_pair_first,
         thrust::copy_if(
-          rmm::exec_policy(handle.get_stream_view()),
+          rmm::exec_policy(handle.get_stream()),
           input_pair_first,
           input_pair_first + scan_size,
           output_pair_first,
@@ -106,25 +106,25 @@ accumulate_new_roots(raft::handle_t const& handle,
             return (components[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)] ==
                     invalid_component_id<vertex_t>::value);
           }))),
-      handle.get_stream_view());
-    tmp_indices.resize(tmp_new_roots.size(), handle.get_stream_view());
+      handle.get_stream());
+    tmp_indices.resize(tmp_new_roots.size(), handle.get_stream());
 
     if (tmp_new_roots.size() > 0) {
       rmm::device_uvector<edge_t> tmp_cumulative_degrees(tmp_new_roots.size(),
-                                                         handle.get_stream_view());
+                                                         handle.get_stream());
       thrust::transform(
-        rmm::exec_policy(handle.get_stream_view()),
+        rmm::exec_policy(handle.get_stream()),
         tmp_new_roots.begin(),
         tmp_new_roots.end(),
         tmp_cumulative_degrees.begin(),
         [vertex_partition, degrees] __device__(auto v) {
           return degrees[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)];
         });
-      thrust::inclusive_scan(rmm::exec_policy(handle.get_stream_view()),
+      thrust::inclusive_scan(rmm::exec_policy(handle.get_stream()),
                              tmp_cumulative_degrees.begin(),
                              tmp_cumulative_degrees.end(),
                              tmp_cumulative_degrees.begin());
-      auto last = thrust::lower_bound(rmm::exec_policy(handle.get_stream_view()),
+      auto last = thrust::lower_bound(rmm::exec_policy(handle.get_stream()),
                                       tmp_cumulative_degrees.begin(),
                                       tmp_cumulative_degrees.end(),
                                       degree_sum_threshold - degree_sum);
@@ -133,7 +133,7 @@ accumulate_new_roots(raft::handle_t const& handle,
         std::min(static_cast<vertex_t>(thrust::distance(tmp_cumulative_degrees.begin(), last)),
                  max_new_roots - num_new_roots);
 
-      thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+      thrust::copy(rmm::exec_policy(handle.get_stream()),
                    tmp_new_roots.begin(),
                    tmp_new_roots.begin() + tmp_num_new_roots,
                    new_roots.begin() + num_new_roots);
@@ -150,7 +150,7 @@ accumulate_new_roots(raft::handle_t const& handle,
                         tmp_cumulative_degrees.data() + (tmp_num_new_roots - 1),
                         size_t{1},
                         handle.get_stream());
-      handle.get_stream_view().synchronize();
+      handle.get_stream().synchronize();
       num_scanned += tmp_num_scanned;
       degree_sum += tmp_degree_sum;
     } else {
@@ -158,8 +158,8 @@ accumulate_new_roots(raft::handle_t const& handle,
     }
   }
 
-  new_roots.resize(num_new_roots, handle.get_stream_view());
-  new_roots.shrink_to_fit(handle.get_stream_view());
+  new_roots.resize(num_new_roots, handle.get_stream());
+  new_roots.shrink_to_fit(handle.get_stream());
 
   return std::make_tuple(std::move(new_roots), num_scanned, degree_sum);
 }
@@ -262,7 +262,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           GraphViewType::is_adj_matrix_transposed,
           GraphViewType::is_multi_gpu>
     level_graph(handle);
-  rmm::device_uvector<vertex_t> level_renumber_map(0, handle.get_stream_view());
+  rmm::device_uvector<vertex_t> level_renumber_map(0, handle.get_stream());
   std::vector<rmm::device_uvector<vertex_t>> level_component_vectors{};
   // vertex ID in this level to the component ID in the previous level
   std::vector<rmm::device_uvector<vertex_t>> level_renumber_map_vectors{};
@@ -273,7 +273,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       level_graph_view.get_vertex_partition_view());
     level_component_vectors.push_back(rmm::device_uvector<vertex_t>(
       num_levels == 0 ? vertex_t{0} : level_graph_view.get_number_of_local_vertices(),
-      handle.get_stream_view()));
+      handle.get_stream()));
     level_renumber_map_vectors.push_back(std::move(level_renumber_map));
     level_local_vertex_first_vectors.push_back(level_graph_view.get_local_vertex_first());
     auto level_components =
@@ -285,7 +285,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
       thrust::make_counting_iterator(level_graph_view.get_local_vertex_first()), degrees.begin()));
-    thrust::transform(rmm::exec_policy(handle.get_stream_view()),
+    thrust::transform(rmm::exec_policy(handle.get_stream()),
                       pair_first,
                       pair_first + level_graph_view.get_number_of_local_vertices(),
                       level_components,
@@ -308,12 +308,12 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     // selected as roots in the remaining connected components.
 
     rmm::device_uvector<vertex_t> new_root_candidates(
-      level_graph_view.get_number_of_local_vertices(), handle.get_stream_view());
+      level_graph_view.get_number_of_local_vertices(), handle.get_stream());
     new_root_candidates.resize(
       thrust::distance(
         new_root_candidates.begin(),
         thrust::copy_if(
-          rmm::exec_policy(handle.get_stream_view()),
+          rmm::exec_policy(handle.get_stream()),
           thrust::make_counting_iterator(level_graph_view.get_local_vertex_first()),
           thrust::make_counting_iterator(level_graph_view.get_local_vertex_last()),
           new_root_candidates.begin(),
@@ -321,9 +321,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
             return level_components[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(
                      v)] == invalid_component_id<vertex_t>::value;
           })),
-      handle.get_stream_view());
+      handle.get_stream());
     auto high_degree_partition_last = thrust::stable_partition(
-      rmm::exec_policy(handle.get_stream_view()),
+      rmm::exec_policy(handle.get_stream()),
       new_root_candidates.begin(),
       new_root_candidates.end(),
       [vertex_partition,
@@ -333,7 +333,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         return degrees[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)] >=
                threshold;
       });
-    thrust::shuffle(rmm::exec_policy(handle.get_stream_view()),
+    thrust::shuffle(rmm::exec_policy(handle.get_stream()),
                     high_degree_partition_last,
                     new_root_candidates.end(),
                     thrust::default_random_engine());
@@ -351,7 +351,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       auto const comm_size = comm.get_size();
 
       auto first_candidate_degree = thrust::transform_reduce(
-        rmm::exec_policy(handle.get_stream_view()),
+        rmm::exec_policy(handle.get_stream()),
         new_root_candidates.begin(),
         new_root_candidates.begin() + (new_root_candidates.size() > 0 ? 1 : 0),
         [vertex_partition, degrees = degrees.data()] __device__(auto v) {
@@ -412,7 +412,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
         // FIXME: we need to add host_scalar_scatter
 #if 1
-        rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream_view());
+        rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream());
         raft::update_device(d_counts.data(),
                             init_max_new_root_counts.data(),
                             init_max_new_root_counts.size(),
@@ -428,7 +428,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       } else {
         // FIXME: we need to add host_scalar_scatter
 #if 1
-        rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream_view());
+        rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream());
         device_bcast(
           comm, d_counts.data(), d_counts.data(), d_counts.size(), int{0}, handle.get_stream());
         raft::update_host(
@@ -439,7 +439,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 #endif
       }
 
-      handle.get_stream_view().synchronize();
+      handle.get_stream().synchronize();
       init_max_new_roots = std::min(init_max_new_roots, max_new_roots);
     }
 
@@ -457,14 +457,14 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(0, handle.get_stream());
     // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this
     // requires placing the atomic variable on managed memory and this make it less attractive.
-    rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream_view());
+    rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream());
 
     rmm::device_uvector<vertex_t> col_components(
       GraphViewType::is_multi_gpu ? level_graph_view.get_number_of_local_adj_matrix_partition_cols()
                                   : vertex_t{0},
-      handle.get_stream_view());
+      handle.get_stream());
     if (GraphViewType::is_multi_gpu) {
-      thrust::fill(rmm::exec_policy(handle.get_stream_view()),
+      thrust::fill(rmm::exec_policy(handle.get_stream()),
                    col_components.begin(),
                    col_components.end(),
                    invalid_component_id<vertex_t>::value);
@@ -489,10 +489,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         edge_count += degree_sum;
 
         thrust::sort(
-          rmm::exec_policy(handle.get_stream_view()), new_roots.begin(), new_roots.end());
+          rmm::exec_policy(handle.get_stream()), new_roots.begin(), new_roots.end());
 
         thrust::for_each(
-          rmm::exec_policy(handle.get_stream_view()),
+          rmm::exec_policy(handle.get_stream()),
           new_roots.begin(),
           new_roots.end(),
           [vertex_partition, components = level_components] __device__(auto c) {
@@ -532,7 +532,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       // FIXME: if we use cuco::static_map (no duplicates, ideally we need static_set), edge_buffer
       // size cannot exceed (# roots)^2 and we can avoid additional sort & unique (but resizing the
       // buffer may be more expensive).
-      auto old_num_edge_inserts = num_edge_inserts.value(handle.get_stream_view());
+      auto old_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
       resize_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
         edge_buffer, old_num_edge_inserts + max_pushes, handle.get_stream());
 
@@ -583,12 +583,12 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           static_cast<size_t>(Bucket::conflict)});
 
       if (GraphViewType::is_multi_gpu) {
-        auto cur_num_edge_inserts = num_edge_inserts.value(handle.get_stream_view());
+        auto cur_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
         auto& conflict_bucket = vertex_frontier.get_bucket(static_cast<size_t>(Bucket::conflict));
         resize_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
           edge_buffer, cur_num_edge_inserts + conflict_bucket.size(), handle.get_stream());
         thrust::for_each(
-          rmm::exec_policy(handle.get_stream_view()),
+          rmm::exec_policy(handle.get_stream()),
           conflict_bucket.begin(),
           conflict_bucket.end(),
           [vertex_partition,
@@ -612,11 +612,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
       // maintain the list of sorted unique edges (we can avoid this if we use cuco::static_map(no
       // duplicates, ideally we need static_set)).
-      auto new_num_edge_inserts = num_edge_inserts.value(handle.get_stream_view());
+      auto new_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
       if (new_num_edge_inserts > old_num_edge_inserts) {
         auto edge_first =
           get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer);
-        thrust::sort(rmm::exec_policy(handle.get_stream_view()),
+        thrust::sort(rmm::exec_policy(handle.get_stream()),
                      edge_first + old_num_edge_inserts,
                      edge_first + new_num_edge_inserts);
         if (old_num_edge_inserts > 0) {
@@ -624,7 +624,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
             new_num_edge_inserts, handle.get_stream());
           auto tmp_edge_first =
             get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(tmp_edge_buffer);
-          thrust::merge(rmm::exec_policy(handle.get_stream_view()),
+          thrust::merge(rmm::exec_policy(handle.get_stream()),
                         edge_first,
                         edge_first + old_num_edge_inserts,
                         edge_first + old_num_edge_inserts,
@@ -633,11 +633,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           edge_buffer = std::move(tmp_edge_buffer);
         }
         edge_first = get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer);
-        auto unique_edge_last = thrust::unique(rmm::exec_policy(handle.get_stream_view()),
+        auto unique_edge_last = thrust::unique(rmm::exec_policy(handle.get_stream()),
                                                edge_first,
                                                edge_first + new_num_edge_inserts);
         auto num_unique_edges = static_cast<size_t>(thrust::distance(edge_first, unique_edge_last));
-        num_edge_inserts.set_value_async(num_unique_edges, handle.get_stream_view());
+        num_edge_inserts.set_value_async(num_unique_edges, handle.get_stream());
       }
 
       vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).clear();
@@ -645,7 +645,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       vertex_frontier.swap_buckets(static_cast<size_t>(Bucket::cur),
                                    static_cast<size_t>(Bucket::next));
       edge_count = thrust::transform_reduce(
-        rmm::exec_policy(handle.get_stream_view()),
+        rmm::exec_policy(handle.get_stream()),
         thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
                          .begin()
                          .get_iterator_tuple()),
@@ -662,7 +662,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
     // 2-5. construct the next level graph from the edges emitted on conflicts
 
-    auto num_inserts           = num_edge_inserts.value(handle.get_stream_view());
+    auto num_inserts           = num_edge_inserts.value(handle.get_stream());
     auto aggregate_num_inserts = num_inserts;
     if (GraphViewType::is_multi_gpu) {
       auto& comm            = handle.get_comms();
@@ -677,7 +677,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                             thrust::make_tuple(thrust::get<1>(input_first.get_iterator_tuple()),
                                                thrust::get<0>(input_first.get_iterator_tuple()))) +
                           num_inserts;
-      thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+      thrust::copy(rmm::exec_policy(handle.get_stream()),
                    input_first,
                    input_first + num_inserts,
                    output_first);
@@ -704,9 +704,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         auto edge_first =
           get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer);
         auto edge_last = get_dataframe_buffer_end<thrust::tuple<vertex_t, vertex_t>>(edge_buffer);
-        thrust::sort(rmm::exec_policy(handle.get_stream_view()), edge_first, edge_last);
+        thrust::sort(rmm::exec_policy(handle.get_stream()), edge_first, edge_last);
         auto unique_edge_last =
-          thrust::unique(rmm::exec_policy(handle.get_stream_view()), edge_first, edge_last);
+          thrust::unique(rmm::exec_policy(handle.get_stream()), edge_first, edge_last);
         resize_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
           edge_buffer,
           static_cast<size_t>(thrust::distance(edge_first, unique_edge_last)),
@@ -741,8 +741,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     size_t current_level = next_level - 1;
 
     rmm::device_uvector<vertex_t> next_local_vertices(level_renumber_map_vectors[next_level].size(),
-                                                      handle.get_stream_view());
-    thrust::sequence(rmm::exec_policy(handle.get_stream_view()),
+                                                      handle.get_stream());
+    thrust::sequence(rmm::exec_policy(handle.get_stream()),
                      next_local_vertices.begin(),
                      next_local_vertices.end(),
                      level_local_vertex_first_vectors[next_level]);

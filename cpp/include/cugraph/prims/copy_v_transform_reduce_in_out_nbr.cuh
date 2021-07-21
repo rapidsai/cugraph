@@ -595,9 +595,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
 #if 1
       // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
       // and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
+      host_barrier(comm, handle.get_stream());
 #else
-      handle.get_stream_view().synchronize();
+      handle.get_stream().synchronize();
       comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -614,9 +614,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
 #if 1
       // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
       // and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
+      host_barrier(comm, handle.get_stream());
 #else
-      handle.get_stream_view().synchronize();
+      handle.get_stream().synchronize();
       comm.barrier();  // currently, this is ncclAllReduce
 #endif
     }
@@ -637,9 +637,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -661,9 +661,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   }

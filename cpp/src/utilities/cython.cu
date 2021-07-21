@@ -115,7 +115,7 @@ std::vector<edge_t> compute_edge_counts(raft::handle_t const& handle,
   std::vector<edge_t> h_edge_counts(num_local_partitions, 0);
   raft::update_host(
     h_edge_counts.data(), d_edge_counts.data(), d_edge_counts.size(), handle.get_stream());
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   return h_edge_counts;
 }
@@ -818,7 +818,7 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
       std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
       std::make_unique<rmm::device_buffer>(
         std::get<2>(g) ? (*std::get<2>(g)).release()
-                       : rmm::device_buffer(size_t{0}, handle.get_stream_view())),
+                       : rmm::device_buffer(size_t{0}, handle.get_stream())),
       std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
     return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
   } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
@@ -837,7 +837,7 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
       std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
       std::make_unique<rmm::device_buffer>(
         std::get<2>(g) ? (*std::get<2>(g)).release()
-                       : rmm::device_buffer(size_t{0}, handle.get_stream_view())),
+                       : rmm::device_buffer(size_t{0}, handle.get_stream())),
       std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
     return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
   } else {
@@ -1177,7 +1177,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
   std::vector<size_t> h_edge_counts(edge_counts.size());
   raft::update_host(
     h_edge_counts.data(), edge_counts.data(), edge_counts.size(), handle.get_stream());
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   ptr_ret->get_edge_counts().resize(h_edge_counts.size());
   for (size_t i = 0; i < h_edge_counts.size(); ++i) {

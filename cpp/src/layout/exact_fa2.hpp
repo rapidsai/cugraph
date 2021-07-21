@@ -51,7 +51,7 @@ void exact_fa2(raft::handle_t const& handle,
                bool verbose                                  = false,
                internals::GraphBasedDimRedCallback* callback = nullptr)
 {
-  auto stream_view = handle.get_stream_view();
+  auto stream_view = handle.get_stream();
   const edge_t e   = graph.number_of_edges;
   const vertex_t n = graph.number_of_vertices;
 

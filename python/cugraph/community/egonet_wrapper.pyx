@@ -20,6 +20,7 @@ import cudf
 import numpy as np
 from rmm._lib.device_buffer cimport DeviceBuffer
 from cudf.core.buffer import Buffer
+from raft.common import Handle
 
 
 def egonet(input_graph, vertices, radius=1):
@@ -64,9 +65,8 @@ def egonet(input_graph, vertices, radius=1):
     n_streams = 1
     if n_subgraphs > 1 :
         n_streams = min(n_subgraphs, 32)
-    cdef unique_ptr[handle_t] handle_ptr
-    handle_ptr.reset(new handle_t(n_streams))
-    handle_ = handle_ptr.get();
+    handle = Handle(n_streams=n_streams)
+    cdef handle_t* handle_ = <handle_t*><size_t> handle.getHandle()
 
     cdef graph_container_t graph_container
     populate_graph_container(graph_container,

@@ -284,7 +284,7 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
                         handle.get_stream());
     }
 
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
 
     if (lv_ro != rv_ro) return std::make_pair(false, std::string("offsets"));
 
