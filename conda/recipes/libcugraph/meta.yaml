@@ -40,13 +40,13 @@ requirements:
     - gtest
     - gmock
     - faiss-proc=*=cuda
-    - conda-forge::libfaiss=1.7.0
+    - libfaiss 1.7.0 *cuda
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
     - nccl>=2.9.9
     - ucx-proc=*=gpu
     - faiss-proc=*=cuda
-    - conda-forge::libfaiss=1.7.0
+    - libfaiss 1.7.0 *cuda
 
 about:
   home: http://rapids.ai/
