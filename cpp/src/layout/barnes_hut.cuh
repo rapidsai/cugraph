@@ -16,18 +16,17 @@
 
 #pragma once
 
-#include "bh_kernels.hpp"
-#include "fa2_kernels.hpp"
+#include "bh_kernels.cuh"
+#include "fa2_kernels.cuh"
 #include "utils.hpp"
 
 #include <converters/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
 
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
-
-#include <raft/random/rng.cuh>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -135,8 +134,8 @@ void barnes_hut(raft::handle_t const& handle,
     raft::copy(nodes_pos, x_start, n, stream_view.value());
     raft::copy(nodes_pos + nnodes + 1, y_start, n, stream_view.value());
   } else {
-    raft::random::Rng rng(random_state);
-    rng.uniform<float, size_t>(nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, stream_view.value());
+    uniform_random_fill(
+      handle.get_stream_view(), nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, random_state);
   }
 
   // Allocate arrays for force computation

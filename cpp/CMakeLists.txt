@@ -156,6 +156,8 @@ endif()
 # - library targets -------------------------------------------------------------------------------
 
 add_library(cugraph SHARED
+    src/detail/utility_wrappers.cu
+    src/detail/shuffle_wrappers.cu
     src/utilities/spmv_1D.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
@@ -202,7 +204,7 @@ add_library(cugraph SHARED
     src/serialization/serializer.cu
     src/tree/mst.cu
     src/components/weakly_connected_components.cu
-    src/structure/create_graph_from_edgelist.cu
+    src/structure/create_graph_from_edgelist.cpp
     src/utilities/host_barrier.cpp
     src/visitors/graph_envelope.cpp
     src/visitors/visitors_factory.cpp
