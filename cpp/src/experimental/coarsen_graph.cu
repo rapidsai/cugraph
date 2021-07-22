@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/experimental/detail/graph_utils.cuh>
 #include <cugraph/experimental/graph.hpp>
 #include <cugraph/experimental/graph_functions.hpp>
@@ -22,7 +23,6 @@
 #include <cugraph/prims/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_barrier.hpp>
-#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -295,53 +295,11 @@ coarsen_graph(
         adj_matrix_minor_labels.data(),
         graph_view.get_local_adj_matrix_partition_segment_offsets(i));
 
-    // 1-2. globaly shuffle
+    // 1-2. globally shuffle
 
-    {
-      rmm::device_uvector<vertex_t> rx_edgelist_major_vertices(0, handle.get_stream());
-      rmm::device_uvector<vertex_t> rx_edgelist_minor_vertices(0, handle.get_stream());
-      auto rx_edgelist_weights =
-        edgelist_weights ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
-                         : std::nullopt;
-      if (edgelist_weights) {
-        auto edge_first =
-          thrust::make_zip_iterator(thrust::make_tuple(edgelist_major_vertices.begin(),
-                                                       edgelist_minor_vertices.begin(),
-                                                       (*edgelist_weights).begin()));
-        std::forward_as_tuple(
-          std::tie(rx_edgelist_major_vertices, rx_edgelist_minor_vertices, *rx_edgelist_weights),
-          std::ignore) =
-          groupby_gpuid_and_shuffle_values(
-            handle.get_comms(),
-            edge_first,
-            edge_first + edgelist_major_vertices.size(),
-            [key_func =
-               detail::compute_gpu_id_from_edge_t<vertex_t>{
-                 comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
-              return key_func(thrust::get<0>(val), thrust::get<1>(val));
-            },
-            handle.get_stream());
-      } else {
-        auto edge_first = thrust::make_zip_iterator(
-          thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
-        std::forward_as_tuple(std::tie(rx_edgelist_major_vertices, rx_edgelist_minor_vertices),
-                              std::ignore) =
-          groupby_gpuid_and_shuffle_values(
-            handle.get_comms(),
-            edge_first,
-            edge_first + edgelist_major_vertices.size(),
-            [key_func =
-               detail::compute_gpu_id_from_edge_t<vertex_t>{
-                 comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
-              return key_func(thrust::get<0>(val), thrust::get<1>(val));
-            },
-            handle.get_stream());
-      }
-
-      edgelist_major_vertices = std::move(rx_edgelist_major_vertices);
-      edgelist_minor_vertices = std::move(rx_edgelist_minor_vertices);
-      edgelist_weights        = std::move(rx_edgelist_weights);
-    }
+    std::tie(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights) =
+      cugraph::detail::shuffle_edgelist_by_edge(
+        handle, edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights, false);
 
     // 1-3. append data to local adjacency matrix partitions
 
@@ -349,27 +307,12 @@ coarsen_graph(
     // list based on the final matrix partition (maybe add
     // groupby_adj_matrix_partition_and_shuffle_values).
 
-    auto local_partition_id_op =
-      [comm_size,
-       key_func = detail::compute_partition_id_from_edge_t<vertex_t>{
-         comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
-        return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
-               comm_size;  // global partition id to local partition id
-      };
-    auto pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
-    auto counts = edgelist_weights
-                    ? groupby_and_count(pair_first,
-                                        pair_first + edgelist_major_vertices.size(),
-                                        (*edgelist_weights).begin(),
-                                        local_partition_id_op,
-                                        graph_view.get_number_of_local_adj_matrix_partitions(),
-                                        handle.get_stream())
-                    : groupby_and_count(pair_first,
-                                        pair_first + edgelist_major_vertices.size(),
-                                        local_partition_id_op,
-                                        graph_view.get_number_of_local_adj_matrix_partitions(),
-                                        handle.get_stream());
+    auto counts = cugraph::detail::groupby_and_count_by_edge(
+      handle,
+      edgelist_major_vertices,
+      edgelist_minor_vertices,
+      edgelist_weights,
+      graph_view.get_number_of_local_adj_matrix_partitions());
 
     std::vector<size_t> h_counts(counts.size());
     raft::update_host(h_counts.data(), counts.data(), counts.size(), handle.get_stream());
@@ -465,16 +408,7 @@ coarsen_graph(
                                     unique_labels.end())),
     handle.get_stream());
 
-  rmm::device_uvector<vertex_t> rx_unique_labels(0, handle.get_stream());
-  std::tie(rx_unique_labels, std::ignore) = groupby_gpuid_and_shuffle_values(
-    handle.get_comms(),
-    unique_labels.begin(),
-    unique_labels.end(),
-    [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm.get_size()}] __device__(
-      auto val) { return key_func(val); },
-    handle.get_stream());
-
-  unique_labels = std::move(rx_unique_labels);
+  unique_labels = cugraph::detail::shuffle_vertices(handle, unique_labels);
 
   thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                unique_labels.begin(),
