@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,13 @@
  * limitations under the License.
  */
 
+// Andrei Schaffer, aschaffer@nvidia.com
+//
+
 #pragma once
 
-#include <raft/cudart_utils.h>
-
 namespace cugraph {
-namespace detail {
-
-/** helper method to get multi-processor count parameter */
-inline int getMultiProcessorCount()
-{
-  int devId;
-  CUDA_TRY(cudaGetDevice(&devId));
-  int mpCount;
-  CUDA_TRY(cudaDeviceGetAttribute(&mpCount, cudaDevAttrMultiProcessorCount, devId));
-  return mpCount;
-}
-
-}  // namespace detail
+namespace visitors {
+enum class GTypes { GRAPH_T = 0, GRAPH_VIEW_T, NTYPES };
+}  // namespace visitors
 }  // namespace cugraph

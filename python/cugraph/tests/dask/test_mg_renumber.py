@@ -51,7 +51,8 @@ def test_mg_renumber(graph_file, dask_client):
     gdf["src"] = sources + translate
     gdf["dst"] = destinations + translate
 
-    ddf = dask.dataframe.from_pandas(gdf, npartitions=2)
+    ddf = dask.dataframe.from_pandas(
+        gdf, npartitions=len(dask_client.scheduler_info()['workers']))
 
     # preserve_order is not supported for MG
     renumbered_df, renumber_map = NumberMap.renumber(ddf,
@@ -99,7 +100,8 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
     gdf["dst"] = destinations + translate
     gdf["weight"] = gdf.index.astype(np.float)
 
-    ddf = dask.dataframe.from_pandas(gdf, npartitions=2)
+    ddf = dask.dataframe.from_pandas(
+        gdf, npartitions=len(dask_client.scheduler_info()['workers']))
 
     ren2, num2 = NumberMap.renumber(
         ddf, ["src", "src_old"], ["dst", "dst_old"]

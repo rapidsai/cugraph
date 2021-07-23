@@ -21,7 +21,7 @@
 
 add_library(cugraphtestutil STATIC
             utilities/matrix_market_file_utilities.cu
-            utilities/rmat_utilities.cu
+            utilities/rmat_utilities.cpp
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
             components/wcc_graphs.cu
@@ -402,6 +402,14 @@ set(SERIALIZATION_TEST_SRCS
 
 ConfigureTest(SERIALIZATION_TEST "${SERIALIZATION_TEST_SRCS}")
 
+
+###################################################################################################
+# - BFS Visitor tests -----------------------------------------------------------------------------
+
+set(BFS_VISITOR_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/visitors/bfs_test.cpp")
+
+ConfigureTest(BFS_VISITOR_TEST "${BFS_VISITOR_TEST_SRCS}")
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------

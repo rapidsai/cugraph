@@ -19,6 +19,10 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_view.hpp>
 
+// visitor logic:
+//
+#include <cugraph/visitors/graph_envelope.hpp>
+
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -218,19 +222,21 @@ struct graph_properties_t {
 
 namespace detail {
 
+using namespace cugraph::visitors;
+
 // FIXME: threshold values require tuning
 // use the hypersparse format (currently, DCSR or DCSC) for the vertices with their degrees smaller
 // than col_comm_size * hypersparse_threshold_ratio, should be less than 1.0
-double constexpr hypersparse_threshold_ratio = 0.0;
+double constexpr hypersparse_threshold_ratio = 0.5;
 size_t constexpr low_degree_threshold{raft::warp_size()};
 size_t constexpr mid_degree_threshold{1024};
 size_t constexpr num_sparse_segments_per_vertex_partition{3};
 
 // Common for both graph_view_t & graph_t and both single-GPU & multi-GPU versions
 template <typename vertex_t, typename edge_t, typename weight_t>
-class graph_base_t {
+class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ {
  public:
-  graph_base_t() = default;
+  graph_base_t() = default;  // Note: required by visitor logic
 
   graph_base_t(raft::handle_t const& handle,
                vertex_t number_of_vertices,
@@ -258,6 +264,11 @@ class graph_base_t {
 
   bool is_symmetric() const { return properties_.is_symmetric; }
   bool is_multigraph() const { return properties_.is_multigraph; }
+
+  void apply(visitor_t& v) const override  // <- visitor logic
+  {
+    v.visit_graph(*this);
+  }
 
  protected:
   friend class cugraph::serializer::serializer_t;
