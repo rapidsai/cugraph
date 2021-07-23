@@ -133,6 +133,12 @@ Connected Components
     :members:
     :undoc-members:
 
+Connected Components (MG)
+--------------------
+
+.. automodule:: cugraph.dask.components.connectivity
+    :members:
+    :undoc-members:
 
 Cores
 =====
@@ -292,6 +298,18 @@ Maximum Spanning Tree
     :members: maximum_spanning_tree
     :undoc-members:
     :noindex:
+
+
+Generator
+=========
+    
+    RMAT
+    ---------------------
+
+.. automodule:: cugraph.generators
+:members: rmat
+:undoc-members:
+:noindex:
 
 
 DASK MG Helper functions
