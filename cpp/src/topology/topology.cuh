@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,24 @@
  */
 #pragma once
 
-// Andrei Schaffer, 6/10/19;
+// Andrei Schaffer, 6/10/19, 7/23/21;
 //
 
+#include <thrust/binary_search.h>
+#include <thrust/copy.h>
 #include <thrust/device_vector.h>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-//#include <thrust/iterator/counting_iterator.h>//
-#include <thrust/copy.h>
+#include <thrust/tuple.h>
+
+#include <raft/handle.hpp>
+
+#include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <iostream>
 #include <iterator>
@@ -134,6 +142,91 @@ bool check_symmetry(IndexT nrows, const IndexT* ptr_r_o, IndexT nnz, const Index
     init,
     thrust::logical_and<BoolT>());
 }
+
+/**
+ * @brief Sort weights of outgoing edges for each vertex; this requires a segmented (multi-partition
+ * parallel partial) sort, rather than complete sort. Required by Biased Random Walks. Caveat: this
+ * affects edge numbering.
+ *
+ * Algorithm outline (version 1):
+ * input: num_vertices, num_edges, offsets[],indices[], weights[];
+ * output: reordered indices[], weights[];
+ *
+ * keys[] = sequence(num_edges);
+ * segment[] = vectorized-upper-bound(keys, offsets[]); // segment for each key,
+ *                                                      // to which key belongs
+ * sort-by_key(keys[], zip(indices[], weights[], [segment[], weights[]] (left_index,
+ * right_index){
+ *                // if left, right indices in the same segment then compare values:
+ *                //
+ *                if( segment[left_index] == segment[right_index] )
+ *                  return weights[left_index] < weights[right_index];
+ *                else // "do nothing"
+ *                 return (left_index < right_index); // leave things unchanged
+ *             });
+ *
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+struct segment_sorter_by_weights_t {
+  segment_sorter_by_weights_t(raft::handle_t const& handle,
+                              size_t num_v,
+                              size_t num_e,
+                              edge_t const* p_d_ro,
+                              vertex_t* p_d_ci,
+                              weight_t* p_d_vals)
+    : handle_(handle),
+      num_vertices_(num_v),
+      num_edges_(num_e),
+      ptr_d_offsets_(p_d_ro),
+      ptr_d_indices_(p_d_ci),
+      ptr_d_weights_(p_d_vals)
+  {
+  }
+
+  void operator()(void)
+  {
+    rmm::device_uvector<edge_t> d_keys(num_edges_);
+    rmm::device_uvector<edge_t> d_segs(num_edges_);
+
+    // cannot use counting iterator, because d_keys gets passed to sort-by-key()
+    //
+    thrust::sequence(
+      rmm::exec_policy(handle_.get_stream_view()), d_keys.begin(), d_keys.end(), edge_t{0});
+
+    // d_segs = map each key(i.e., edge index), to corresponding
+    // segment (i.e., partition = out-going set) index
+    //
+    thrust::upper_bound(rmm::exec_policy(handle_.get_stream_view()),
+                        ptr_d_offsets_,
+                        ptr_d_offsets_ + num_vertices_ + 1,
+                        d_keys.begin(),
+                        d_keys.end(),
+                        d_segs.begin());
+
+    thrust::sort_by_key(
+      rmm::exec_policy(handle_.get_stream_view()),
+      d_keys.begin(),
+      d_keys.end(),
+      thrust::make_zip_iterator(thrust::make_tuple(ptr_d_indices_, ptr_d_weights_)),
+      [ptr_segs = d_segs.data(), ptr_d_vals = ptr_d_weights_] __device__(auto left, auto right) {
+        // if both indices in same half compare the values:
+        //
+        if (ptr_segs[left] == ptr_segs[right]) {
+          return ptr_d_vals[left] < ptr_d_vals[right];
+        } else {  // don't compare them (leave things unchanged)
+          return (left < right);
+        }
+      });
+  }
+
+ private:
+  raft::handle_t const& handle_;
+  size_t num_vertices_;
+  size_t num_edges_;
+  edge_t const* ptr_d_offsets_;
+  vertex_t* ptr_d_indices_;
+  weight_t* ptr_d_weights_;
+};
 }  // namespace detail
 }  // namespace cugraph
 
