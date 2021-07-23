@@ -40,11 +40,12 @@ from cugraph.tests.test_betweenness_centrality import (
 DATASETS = [utils.DATASETS_UNDIRECTED[0]]
 # FIXME: Certain test running scripts assume they have control of the number of
 # GPUs available and the Dask cluster setup/teardown procedure when running
-# tests, making the use of preset device counts and the tests performing cluster
-# setup/teardown incompatible with the assumptions made by these types of test
-# running scripts. The "preset_gpu_count" marker is provided so test scripts can
-# filter these tests out. Consider a different mechanism that's compatible with
-# testing scripts that need to control GPU count and cluster setup/teardown.
+# tests, making the use of preset device counts and the tests performing
+# cluster setup/teardown incompatible with the assumptions made by these types
+# of test running scripts. The "preset_gpu_count" marker is provided so test
+# scripts can filter these tests out. Consider a different mechanism that's
+# compatible with testing scripts that need to control GPU count and cluster
+# setup/teardown.
 MG_DEVICE_COUNT_OPTIONS = [pytest.param(1, marks=pytest.mark.preset_gpu_count),
                            pytest.param(2, marks=pytest.mark.preset_gpu_count),
                            pytest.param(3, marks=pytest.mark.preset_gpu_count),

@@ -18,7 +18,6 @@ import cugraph
 import dask_cudf
 from cugraph.tests import utils
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 try:
     from rapids_pytest_benchmark import setFixtureParamNames
