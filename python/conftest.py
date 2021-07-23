@@ -39,10 +39,11 @@ def dask_client():
                    enable_nvlink=True,
                    enable_infiniband=True,
                    enable_rdmacm=True,
-                   #net_devices="mlx5_0:1",
-                  )
+                   # net_devices="mlx5_0:1",
+                   )
         client = Client(scheduler_file=dask_scheduler_file)
-        print(f"\ndask_client fixture: client created using {dask_scheduler_file}")
+        print("\ndask_client fixture: client created using "
+              f"{dask_scheduler_file}")
     else:
         # The tempdir created by tempdir_object should be cleaned up once
         # tempdir_object goes out-of-scope and is deleted.
@@ -50,7 +51,7 @@ def dask_client():
         cluster = LocalCUDACluster(local_directory=tempdir_object.name)
         client = Client(cluster)
         client.wait_for_workers(len(get_visible_devices()))
-        print(f"\ndask_client fixture: client created using LocalCUDACluster")
+        print("\ndask_client fixture: client created using LocalCUDACluster")
 
     Comms.initialize(p2p=True)
 
@@ -60,4 +61,4 @@ def dask_client():
     client.close()
     if cluster:
         cluster.close()
-    print(f"\ndask_client fixture: client.close() called")
+    print("\ndask_client fixture: client.close() called")
