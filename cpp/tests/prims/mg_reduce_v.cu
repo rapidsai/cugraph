@@ -44,15 +44,89 @@
 //
 static int PERF = 0;
 
-template <typename vertex_t, typename result_t>
-struct property_transform : public thrust::unary_function<vertex_t, result_t> {
+template <typename vertex_t, typename... T>
+struct property_transform : public thrust::unary_function<vertex_t, thrust::tuple<T...>> {
   int mod{};
   property_transform(int mod_count) : mod(mod_count) {}
-  __device__ result_t operator()(const vertex_t& val)
+  __device__ auto operator()(const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    return static_cast<result_t>(hash_func(val) % mod);
+    auto value = hash_func(val) % mod;
+    return thrust::make_tuple(static_cast<T>(value)...);
   }
+};
+template <typename vertex_t, template <typename...> typename Tuple, typename... T>
+struct property_transform<vertex_t, Tuple<T...>> : public property_transform<vertex_t, T...> {
+};
+
+template <typename Tuple, std::size_t... I>
+auto make_iterator_tuple(Tuple& data, std::index_sequence<I...>)
+{
+  return thrust::make_tuple((std::get<I>(data).begin())...);
+}
+
+template <typename... T>
+auto get_zip_iterator(std::tuple<T...>& data)
+{
+  return thrust::make_zip_iterator(make_iterator_tuple(
+    data, std::make_index_sequence<std::tuple_size<std::tuple<T...>>::value>()));
+}
+
+template <typename T>
+auto get_property_iterator(std::tuple<T>& data)
+{
+  return (std::get<0>(data)).begin();
+}
+
+template <typename T0, typename... T>
+auto get_property_iterator(std::tuple<T0, T...>& data)
+{
+  return get_zip_iterator(data);
+}
+
+template <typename... T>
+struct generate_impl {
+  static thrust::tuple<T...> initial_value(int init)
+  {
+    return thrust::make_tuple(static_cast<T>(init)...);
+  }
+  template <typename label_t>
+  static std::tuple<rmm::device_uvector<T>...> property(rmm::device_uvector<label_t>& labels,
+                                                        int hash_bin_count,
+                                                        raft::handle_t const& handle)
+  {
+    auto data = std::make_tuple(rmm::device_uvector<T>(labels.size(), handle.get_stream())...);
+    auto zip  = get_zip_iterator(data);
+    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                      labels.begin(),
+                      labels.end(),
+                      zip,
+                      property_transform<label_t, T...>(hash_bin_count));
+    return data;
+  }
+  template <typename label_t>
+  static std::tuple<rmm::device_uvector<T>...> property(thrust::counting_iterator<label_t> begin,
+                                                        thrust::counting_iterator<label_t> end,
+                                                        int hash_bin_count,
+                                                        raft::handle_t const& handle)
+  {
+    auto length = thrust::distance(begin, end);
+    auto data   = std::make_tuple(rmm::device_uvector<T>(length, handle.get_stream())...);
+    auto zip    = get_zip_iterator(data);
+    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                      begin,
+                      end,
+                      zip,
+                      property_transform<label_t, T...>(hash_bin_count));
+    return data;
+  }
+};
+template <typename T>
+struct generate : public generate_impl<T> {
+  static T initial_value(int init) { return static_cast<T>(init); }
+};
+template <typename... T>
+struct generate<std::tuple<T...>> : public generate_impl<T...> {
 };
 
 struct Prims_Usecase {
@@ -118,17 +192,13 @@ class Tests_MG_ReduceIfV
 
     // 3. run MG count if
 
-    const int hash_bin_count     = 5;
-    const result_t initial_value = 10;
+    const int hash_bin_count = 5;
+    const int initial_value  = 10;
 
-    vertex_t const* data = (*d_mg_renumber_map_labels).data();
-    rmm::device_uvector<result_t> test_property(d_mg_renumber_map_labels->size(),
-                                                handle.get_stream());
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                      data,
-                      data + test_property.size(),
-                      test_property.begin(),
-                      property_transform<vertex_t, result_t>(hash_bin_count));
+    auto property_initial_value = generate<result_t>::initial_value(initial_value);
+    auto property_data =
+      generate<result_t>::property((*d_mg_renumber_map_labels), hash_bin_count, handle);
+    auto property_iter = get_property_iterator(property_data);
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -136,8 +206,11 @@ class Tests_MG_ReduceIfV
       hr_clock.start();
     }
 
-    auto result = reduce_v(
-      handle, mg_graph_view, test_property.begin(), test_property.end(), result_t{initial_value});
+    auto result = reduce_v(handle,
+                           mg_graph_view,
+                           property_iter,
+                           property_iter + (*d_mg_renumber_map_labels).size(),
+                           property_initial_value);
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -147,7 +220,7 @@ class Tests_MG_ReduceIfV
       std::cout << "MG count if took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    // 4. compare SG & MG results
+    //// 4. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
       cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(
@@ -155,14 +228,21 @@ class Tests_MG_ReduceIfV
       std::tie(sg_graph, std::ignore) =
         input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
           handle, true, false);
-      auto sg_graph_view   = sg_graph.view();
-      auto expected_result = thrust::transform_reduce(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      auto sg_graph_view = sg_graph.view();
+
+      auto sg_property_data = generate<result_t>::property(
         thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
         thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
-        property_transform<vertex_t, result_t>(hash_bin_count),
-        initial_value,
-        thrust::plus<result_t>());
+        hash_bin_count,
+        handle);
+      auto sg_property_iter = get_property_iterator(sg_property_data);
+
+      auto expected_result =
+        thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                       sg_property_iter,
+                       sg_property_iter + sg_graph_view.get_number_of_local_vertices(),
+                       property_initial_value,
+                       cugraph::experimental::ValueAdd<result_t>());
       ASSERT_TRUE(expected_result == result);
     }
   }
@@ -170,6 +250,34 @@ class Tests_MG_ReduceIfV
 
 using Tests_MG_ReduceIfV_File = Tests_MG_ReduceIfV<cugraph::test::File_Usecase>;
 using Tests_MG_ReduceIfV_Rmat = Tests_MG_ReduceIfV<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_MG_ReduceIfV_File, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(std::get<0>(param),
+                                                                           std::get<1>(param));
+}
+
+TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(std::get<0>(param),
+                                                                           std::get<1>(param));
+}
+
+TEST_P(Tests_MG_ReduceIfV_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(std::get<0>(param),
+                                                                          std::get<1>(param));
+}
+
+TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(std::get<0>(param),
+                                                                          std::get<1>(param));
+}
 
 TEST_P(Tests_MG_ReduceIfV_File, CheckInt32Int32FloatTransposeFalse)
 {
