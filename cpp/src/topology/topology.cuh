@@ -39,7 +39,7 @@
 #include <vector>
 
 namespace cugraph {
-namespace detail {
+namespace topology {
 
 /**
  * @brief Check symmetry of CSR adjacency matrix (raw pointers version);
@@ -180,7 +180,7 @@ struct segment_sorter_by_weights_t {
   vertex_t* ptr_d_indices_;
   weight_t* ptr_d_weights_;
 };
-}  // namespace detail
+}  // namespace topology
 }  // namespace cugraph
 
 namespace {  // unnamed namespace for debugging tools:
