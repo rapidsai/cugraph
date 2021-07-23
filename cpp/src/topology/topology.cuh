@@ -20,8 +20,8 @@
 
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
-#include <thrust/device_vector.h>
 #include <thrust/distance.h>
+#include <thrust/fill.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
@@ -42,58 +42,6 @@ namespace cugraph {
 namespace detail {
 
 /**
- * @brief Check symmetry of CSR adjacency matrix;
- * Algorithm outline:
- *  flag = true;
- *  for j in rows:
- *    for k in [row_offsets[j]..row_offsets[j+1]):
- *      col_indx = col_indices[k];
- *      if col_indx > j && col_indx < n-1: # only look above the diagonal
- *         flag &= find(j,
- * [col_indices[row_offsets[col_indx]]..col_indices[row_offsets[col_indx+1]])); return flag;
- *
- * @tparam IndexT type of indices for rows and columns
- * @tparam Vector type of the container used to hold buffers
- * @param d_row_offsets CSR row ofssets array
- * @param d_col_indices CSR column indices array
- */
-template <typename IndexT, template <typename, typename...> typename Vector>
-bool check_symmetry(const Vector<IndexT>& d_row_offsets, const Vector<IndexT>& d_col_indices)
-{
-  auto nnz    = d_col_indices.size();
-  auto nrows  = d_row_offsets.size() - 1;
-  using BoolT = bool;
-  Vector<BoolT> d_flags(nrows, 1);
-
-  const IndexT* ptr_r_o = thrust::raw_pointer_cast(&d_row_offsets.front());
-  const IndexT* ptr_c_i = thrust::raw_pointer_cast(&d_col_indices.front());
-  BoolT* start_flags    = thrust::raw_pointer_cast(&d_flags.front());  // d_flags.begin();
-  BoolT* end_flags      = start_flags + nrows;
-  BoolT init{1};
-  return thrust::transform_reduce(
-    thrust::device,
-    start_flags,
-    end_flags,
-    [ptr_r_o, ptr_c_i, start_flags, nnz] __device__(BoolT & crt_flag) {
-      IndexT row_indx = thrust::distance(start_flags, &crt_flag);
-      BoolT flag{1};
-      for (auto k = ptr_r_o[row_indx]; k < ptr_r_o[row_indx + 1]; ++k) {
-        auto col_indx = ptr_c_i[k];
-        if (col_indx > row_indx) {
-          auto begin = ptr_c_i + ptr_r_o[col_indx];
-          auto end =
-            ptr_c_i + ptr_r_o[col_indx + 1];  // end is okay to point beyond last element of ptr_c_i
-          auto it = thrust::find(thrust::seq, begin, end, row_indx);
-          flag &= (it != end);
-        }
-      }
-      return crt_flag & flag;
-    },
-    init,
-    thrust::logical_and<BoolT>());
-}
-
-/**
  * @brief Check symmetry of CSR adjacency matrix (raw pointers version);
  * Algorithm outline:
  *  flag = true;
@@ -105,23 +53,28 @@ bool check_symmetry(const Vector<IndexT>& d_row_offsets, const Vector<IndexT>& d
  * [col_indices[row_offsets[col_indx]]..col_indices[row_offsets[col_indx+1]])); return flag;
  *
  * @tparam IndexT type of indices for rows and columns
+ * @param handle raft handle
  * @param nrows number of vertices
  * @param ptr_r_o CSR row ofssets array
  * @param nnz number of edges
  * @param ptr_c_i CSR column indices array
  */
 template <typename IndexT>
-bool check_symmetry(IndexT nrows, const IndexT* ptr_r_o, IndexT nnz, const IndexT* ptr_c_i)
+bool check_symmetry(raft::handle_t const& handle,
+                    IndexT nrows,
+                    const IndexT* ptr_r_o,
+                    IndexT nnz,
+                    const IndexT* ptr_c_i)
 {
-  using BoolT  = bool;
-  using Vector = thrust::device_vector<BoolT>;
-  Vector d_flags(nrows, 1);
+  using BoolT = bool;
+  rmm::device_uvector<BoolT> d_flags(nrows, handle.get_stream());
+  thrust::fill_n(rmm::exec_policy(handle.get_stream_view()), d_flags.begin(), nrows, true);
 
-  BoolT* start_flags = thrust::raw_pointer_cast(&d_flags.front());  // d_flags.begin();
+  BoolT* start_flags = d_flags.data();  // d_flags.begin();
   BoolT* end_flags   = start_flags + nrows;
   BoolT init{1};
   return thrust::transform_reduce(
-    thrust::device,
+    rmm::exec_policy(handle.get_stream_view()),
     start_flags,
     end_flags,
     [ptr_r_o, ptr_c_i, start_flags, nnz] __device__(BoolT & crt_flag) {
@@ -185,8 +138,8 @@ struct segment_sorter_by_weights_t {
 
   void operator()(void)
   {
-    rmm::device_uvector<edge_t> d_keys(num_edges_);
-    rmm::device_uvector<edge_t> d_segs(num_edges_);
+    rmm::device_uvector<edge_t> d_keys(num_edges_, handle_.get_stream());
+    rmm::device_uvector<edge_t> d_segs(num_edges_, handle_.get_stream());
 
     // cannot use counting iterator, because d_keys gets passed to sort-by-key()
     //
@@ -209,7 +162,7 @@ struct segment_sorter_by_weights_t {
       d_keys.end(),
       thrust::make_zip_iterator(thrust::make_tuple(ptr_d_indices_, ptr_d_weights_)),
       [ptr_segs = d_segs.data(), ptr_d_vals = ptr_d_weights_] __device__(auto left, auto right) {
-        // if both indices in same half compare the values:
+        // if both indices in same segment then compare the values:
         //
         if (ptr_segs[left] == ptr_segs[right]) {
           return ptr_d_vals[left] < ptr_d_vals[right];
