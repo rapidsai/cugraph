@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 #include "cuda_profiler_api.h"
 
+#include <topology/topology.cuh>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
@@ -1059,4 +1060,59 @@ TEST(RandomWalksUtility, PathsToCOO)
   EXPECT_EQ(v_src, v_src_exp);
   EXPECT_EQ(v_dst, v_dst_exp);
   EXPECT_EQ(v_offsets, v_offsets_exp);
+}
+
+TEST(BiasedRandomWalks, SegmentedSort)
+{
+  using namespace cugraph::topology;
+
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+
+  raft::handle_t handle{};
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets = graph_view.get_matrix_partition_view().get_offsets();
+
+  // for the purpose of this test, the const_cast<> is acceptable
+  // (necessary to make (indices, values) mutable for sorting purposes)
+  //
+  // for production code, a `graph_t` friend wrapper would be necessary
+  //
+  vertex_t* indices = const_cast<vertex_t*>(graph_view.get_matrix_partition_view().get_indices());
+  weight_t* values = const_cast<weight_t*>(*(graph_view.get_matrix_partition_view().get_weights()));
+
+  segment_sorter_by_weights_t<vertex_t, edge_t, weight_t> seg_sort(
+    handle, num_vertices, num_edges, offsets, indices, values);
+
+  seg_sort();
+
+  std::vector<edge_t> v_ro(num_vertices + 1);
+  std::vector<vertex_t> v_ci(num_edges);
+  std::vector<weight_t> v_vals(num_edges);
+
+  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
+  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
+  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
+
+  std::vector h_ro{0, 1, 3, 6, 7, 8, 8};  // untouched
+  std::vector h_correct_vals{0.1f, 1.1f, 2.1f, 3.1f, 4.1f, 5.1f, 7.2f, 3.2f};
+  std::vector h_correct_ci{1, 4, 3, 1, 3, 0, 5, 5};
+
+  EXPECT_EQ(v_ro, h_ro);  // expect untouched
+  EXPECT_EQ(v_ci, h_correct_ci);
+  EXPECT_EQ(v_vals, h_correct_vals);
 }
