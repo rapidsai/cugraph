@@ -17,6 +17,8 @@
 
 // Andrei Schaffer, 6/10/19, 7/23/21;
 //
+//#include <cub/device/device_segmented_radix_sort.cuh>
+#include <cub/cub.cuh>
 
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -35,6 +37,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cstddef>  // for byte_t
 #include <iostream>
 #include <iterator>
 #include <tuple>
@@ -120,7 +123,7 @@ bool check_symmetry(raft::handle_t const& handle,
  *                 return (left_index < right_index); // leave things unchanged
  *             });
  *
- * the functor has on-demand instantiation; meaning, the object is type agnostic
+ * The functor has on-demand instantiation semantics; meaning, the object is type agnostic
  * (so that it can be instantiated by the caller without access to (ro, ci, vals))
  * while operator()(...) deduces its types from arguments and is meant to be called
  * from inside `graph_t` memf's;
@@ -171,6 +174,84 @@ struct segment_sorter_by_weights_t {
       });
 
     return std::make_tuple(std::move(d_keys), std::move(d_segs));
+  }
+
+ private:
+  raft::handle_t const& handle_;
+  size_t num_vertices_;
+  size_t num_edges_;
+};
+
+/**
+ * @brief Sort weights of outgoing edges for each vertex; this requires a segmented (multi-partition
+ * parallel partial) sort, rather than complete sort. Required by Biased Random Walks. Caveat: this
+ * affects edge numbering.
+ *
+ * Algorithm outline (version 2):
+ * Uses cub::DeviceSegmentedRadixSort:
+ * https://nvlabs.github.io/cub/structcub_1_1_device_segmented_radix_sort.html
+ *
+ * The functor has on-demand instantiation semantics; meaning, the object is type agnostic
+ * (so that it can be instantiated by the caller without access to (ro, ci, vals))
+ * while operator()(...) deduces its types from arguments and is meant to be called
+ * from inside `graph_t` memf's;
+ * operator()(...) returns std::tuple rather than thrust::tuple because the later has a bug with
+ * structured bindings;
+ */
+struct cub_segment_sorter_by_weights_t {
+  cub_segment_sorter_by_weights_t(raft::handle_t const& handle, size_t num_v, size_t num_e)
+    : handle_(handle), num_vertices_(num_v), num_edges_(num_e)
+  {
+  }
+
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  std::tuple<rmm::device_uvector<weight_t>, rmm::device_uvector<edge_t>> operator()(
+    edge_t const* ptr_d_offsets_, vertex_t* ptr_d_indices_, weight_t* ptr_d_weights_) const
+  {
+    // keys are those on which sorting is done; hence, the weights:
+    //
+    rmm::device_uvector<weight_t> d_keys_out(num_edges_, handle_.get_stream());
+
+    // vals are those that get shuffled as a result of key sorting:
+    //
+    rmm::device_uvector<edge_t> d_vals_out(num_edges_, handle_.get_stream());
+
+    // Determine temporary device storage requirements
+    void* ptr_d_temp_storage{nullptr};
+    size_t temp_storage_bytes{0};
+    cub::DeviceSegmentedRadixSort::SortPairs(ptr_d_temp_storage,
+                                             temp_storage_bytes,
+                                             ptr_d_weights_,  // can it be in-place?
+                                             d_keys_out.data(),
+                                             ptr_d_indices_,  // can it be in-place?
+                                             d_vals_out.data(),
+                                             num_edges_,
+                                             num_vertices_,
+                                             ptr_d_offsets_,
+                                             ptr_d_offsets_ + num_vertices_ + 1,
+                                             0,
+                                             (sizeof(weight_t) << 3),
+                                             handle_.get_stream());
+    // Allocate temporary storage
+    rmm::device_uvector<std::byte> d_temp_storage(temp_storage_bytes, handle_.get_stream());
+    ptr_d_temp_storage = d_temp_storage.data();
+
+    // Run sorting operation
+    cub::DeviceSegmentedRadixSort::SortPairs(ptr_d_temp_storage,
+                                             temp_storage_bytes,
+                                             ptr_d_weights_,  // can it be in-place?
+                                             d_keys_out.data(),
+                                             ptr_d_indices_,  // can it be in-place?
+                                             d_vals_out.data(),
+                                             num_edges_,
+                                             num_vertices_,
+                                             ptr_d_offsets_,
+                                             ptr_d_offsets_ + num_vertices_ + 1,
+                                             0,
+                                             (sizeof(weight_t) << 3),
+                                             handle_.get_stream());
+
+    return std::make_tuple(std::move(d_keys_out), std::move(d_vals_out));
   }
 
  private:
