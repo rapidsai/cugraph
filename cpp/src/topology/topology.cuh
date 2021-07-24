@@ -36,6 +36,7 @@
 
 #include <iostream>
 #include <iterator>
+#include <tuple>
 #include <vector>
 
 namespace cugraph {
@@ -118,25 +119,22 @@ bool check_symmetry(raft::handle_t const& handle,
  *                 return (left_index < right_index); // leave things unchanged
  *             });
  *
+ * the functor has on-demand instantiation; meaning, the object is type agnostic
+ * (so that it can be instantiated by the caller without access to (ro, ci, vals))
+ * while operator()(...) deduces its types from arguments and is meant to be called
+ * from inside `graph_t` memf's;
+ * operator()(...) returns std::tuple rather than thrust::tuple because the later has a bug with
+ * structured bindings;
  */
-template <typename vertex_t, typename edge_t, typename weight_t>
 struct segment_sorter_by_weights_t {
-  segment_sorter_by_weights_t(raft::handle_t const& handle,
-                              size_t num_v,
-                              size_t num_e,
-                              edge_t const* p_d_ro,
-                              vertex_t* p_d_ci,
-                              weight_t* p_d_vals)
-    : handle_(handle),
-      num_vertices_(num_v),
-      num_edges_(num_e),
-      ptr_d_offsets_(p_d_ro),
-      ptr_d_indices_(p_d_ci),
-      ptr_d_weights_(p_d_vals)
+  segment_sorter_by_weights_t(raft::handle_t const& handle, size_t num_v, size_t num_e)
+    : handle_(handle), num_vertices_(num_v), num_edges_(num_e)
   {
   }
 
-  void operator()(void)
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_t>> operator()(
+    edge_t const* ptr_d_offsets_, vertex_t* ptr_d_indices_, weight_t* ptr_d_weights_) const
   {
     rmm::device_uvector<edge_t> d_keys(num_edges_, handle_.get_stream());
     rmm::device_uvector<edge_t> d_segs(num_edges_, handle_.get_stream());
@@ -170,15 +168,14 @@ struct segment_sorter_by_weights_t {
           return (left < right);
         }
       });
+
+    return std::make_tuple(std::move(d_keys), std::move(d_segs));
   }
 
  private:
   raft::handle_t const& handle_;
   size_t num_vertices_;
   size_t num_edges_;
-  edge_t const* ptr_d_offsets_;
-  vertex_t* ptr_d_indices_;
-  weight_t* ptr_d_weights_;
 };
 }  // namespace topology
 }  // namespace cugraph

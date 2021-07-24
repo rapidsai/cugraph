@@ -1095,10 +1095,9 @@ TEST(BiasedRandomWalks, SegmentedSort)
   vertex_t* indices = const_cast<vertex_t*>(graph_view.get_matrix_partition_view().get_indices());
   weight_t* values = const_cast<weight_t*>(*(graph_view.get_matrix_partition_view().get_weights()));
 
-  segment_sorter_by_weights_t<vertex_t, edge_t, weight_t> seg_sort(
-    handle, num_vertices, num_edges, offsets, indices, values);
+  segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
 
-  seg_sort();
+  auto [d_keys, d_segs] = seg_sort(offsets, indices, values);
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);
