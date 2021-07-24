@@ -23,6 +23,7 @@
 #include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/functional.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
@@ -177,6 +178,82 @@ struct segment_sorter_by_weights_t {
   size_t num_vertices_;
   size_t num_edges_;
 };
+
+/**
+ * @brief Check if CSR's weights are segment-sorted, assuming a segment array is given;
+ *
+ * @tparam edge_t type of edge indices;
+ * @tparam edge_t type of weights;
+ * @param handle raft handle;
+ * @param ptr_d_segs array of segment index for each edge index;
+ * @param ptr_d_weights CSR weights array;
+ * @param num_edges number of edges;
+ */
+template <typename edge_t, typename weight_t>
+bool check_segmented_sort(raft::handle_t const& handle,
+                          edge_t const* ptr_d_segs,
+                          weight_t const* ptr_d_weights,
+                          size_t num_edges)
+{
+  auto end = thrust::make_counting_iterator<size_t>(num_edges - 1);
+
+  // search for any adjacent elements in same segments
+  // that are _not_ ordered increasingly:
+  //
+  auto it = thrust::find_if(
+    rmm::exec_policy(handle.get_stream_view()),
+    thrust::make_counting_iterator<size_t>(0),
+    end,
+    [ptr_d_segs, ptr_d_weights] __device__(auto indx) {
+      if (ptr_d_segs[indx] == ptr_d_segs[indx + 1]) {  // consecutive indices in same segment
+        return (ptr_d_weights[indx] > ptr_d_weights[indx + 1]);
+      } else {  // don't compare consecutive indices in different segments
+        return false;
+      }
+    });
+
+  return it == end;
+}
+
+/**
+ * @brief Check if CSR's weights are segment-sorted, when no segment array is given;
+ *
+ * @tparam edge_t type of edge indices;
+ * @tparam edge_t type of weights;
+ * @param handle raft handle;
+ * @param ptr_d_offsets CSR offsets array;
+ * @param ptr_d_weights CSR weights array;
+ * @param num_vertices number of vertices;
+ * @param num_edges number of edges;
+ */
+template <typename edge_t, typename weight_t>
+bool check_segmented_sort(raft::handle_t const& handle,
+                          edge_t const* ptr_d_offsets,
+                          weight_t const* ptr_d_weights,
+                          size_t num_vertices,
+                          size_t num_edges)
+{
+  rmm::device_uvector<edge_t> d_keys(num_edges, handle.get_stream());
+  rmm::device_uvector<edge_t> d_segs(num_edges, handle.get_stream());
+
+  // cannot use counting iterator, because d_keys gets passed to sort-by-key()
+  //
+  thrust::sequence(
+    rmm::exec_policy(handle.get_stream_view()), d_keys.begin(), d_keys.end(), edge_t{0});
+
+  // d_segs = map each key(i.e., edge index), to corresponding
+  // segment (i.e., partition = out-going set) index
+  //
+  thrust::upper_bound(rmm::exec_policy(handle.get_stream_view()),
+                      ptr_d_offsets,
+                      ptr_d_offsets + num_vertices + 1,
+                      d_keys.begin(),
+                      d_keys.end(),
+                      d_segs.begin());
+
+  return check_segmented_sort(handle, d_segs.data(), ptr_d_weights, num_edges);
+}
+
 }  // namespace topology
 }  // namespace cugraph
 

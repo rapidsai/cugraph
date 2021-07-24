@@ -1112,6 +1112,12 @@ TEST(BiasedRandomWalks, SegmentedSort)
   std::vector h_correct_ci{1, 4, 3, 1, 3, 0, 5, 5};
 
   EXPECT_EQ(v_ro, h_ro);  // expect untouched
-  EXPECT_EQ(v_ci, h_correct_ci);
-  EXPECT_EQ(v_vals, h_correct_vals);
+
+  bool check_seg_sort = check_segmented_sort(handle, d_segs.data(), values, num_edges);
+  ASSERT_TRUE(check_seg_sort);
+
+  // check again for the case when segment array is not given:
+  //
+  check_seg_sort = check_segmented_sort(handle, offsets, values, num_vertices, num_edges);
+  ASSERT_TRUE(check_seg_sort);
 }
