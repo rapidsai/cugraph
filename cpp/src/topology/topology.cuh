@@ -217,9 +217,10 @@ struct cub_segment_sorter_by_weights_t {
     //
     rmm::device_uvector<edge_t> d_keys_out(num_edges_, handle_.get_stream());
 
-    // Might work in-place, but no way to shuffle indices accordingly...
+    // In-place does not work, and no way to shuffle indices accordingly...
     // using d_keys sequence to do a gather() later does not work either.
     // Looks like the sorting algorithm does a lexicographic ordering of the (key, value) pairs;
+    // (offsets_ + 1) also fails;
 
     // Determine temporary device storage requirements:
     //
@@ -227,10 +228,10 @@ struct cub_segment_sorter_by_weights_t {
     size_t temp_storage_bytes{0};
     cub::DeviceSegmentedRadixSort::SortPairs(ptr_d_temp_storage,
                                              temp_storage_bytes,
-                                             ptr_d_indices_,  // can it be in-place? yes
-                                             ptr_d_indices_,  // d_keys_out.data()
-                                             ptr_d_weights_,  // can it be in-place? yes
-                                             ptr_d_weights_,  // d_vals_out.data(),
+                                             ptr_d_indices_,  // can it be in-place? no
+                                             d_keys_out.data(),
+                                             ptr_d_weights_,  // can it be in-place? no
+                                             d_vals_out.data(),
                                              num_edges_,
                                              num_vertices_,
                                              ptr_d_offsets_,
@@ -247,10 +248,10 @@ struct cub_segment_sorter_by_weights_t {
     //
     cub::DeviceSegmentedRadixSort::SortPairs(ptr_d_temp_storage,
                                              temp_storage_bytes,
-                                             ptr_d_indices_,  // can it be in-place? yes
-                                             ptr_d_indices_,  // d_keys_out.data()
-                                             ptr_d_weights_,  // can it be in-place? yes
-                                             ptr_d_weights_,  // d_vals_out.data()
+                                             ptr_d_indices_,  // can it be in-place? no
+                                             d_keys_out.data(),
+                                             ptr_d_weights_,  // can it be in-place? no
+                                             d_vals_out.data(),
                                              num_edges_,
                                              num_vertices_,
                                              ptr_d_offsets_,
