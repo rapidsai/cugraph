@@ -1195,6 +1195,7 @@ TEST(BiasedRandomWalks, CUBSegmentedSort)
     std::vector h_values_in{0, 1, 2, 3, 4, 5, 6};
 
     rmm::device_uvector<int> d_offsets(num_segments, handle.get_stream());
+    raft::update_device(d_offsets.data(), h_offsets.data(), h_offsets.size(), handle.get_stream());
 
     rmm::device_uvector<int> d_keys_in(num_items, handle.get_stream());
     raft::update_device(d_keys_in.data(), h_keys_in.data(), h_keys_in.size(), handle.get_stream());
@@ -1206,6 +1207,12 @@ TEST(BiasedRandomWalks, CUBSegmentedSort)
       d_values_in.data(), h_values_in.data(), h_values_in.size(), handle.get_stream());
 
     rmm::device_uvector<int> d_values_out(num_items, handle.get_stream());
+
+    // Maybe double-buffer version would work, instead?
+    //
+    // Create a set of DoubleBuffers to wrap pairs of device pointers
+    // cub::DoubleBuffer<int> d_keys(d_key_buf, d_key_alt_buf);
+    // cub::DoubleBuffer<int> d_values(d_value_buf, d_value_alt_buf);
 
     // Determine temporary device storage requirements
     void* p_temp_storage      = nullptr;
@@ -1219,7 +1226,7 @@ TEST(BiasedRandomWalks, CUBSegmentedSort)
                                              num_items,
                                              num_segments,
                                              d_offsets.data(),
-                                             d_offsets.data() + num_segments + 1,  // +1
+                                             d_offsets.data() + 1,  // num_segments + 1,  // +1
                                              0,
                                              (sizeof(int) << 3),
                                              handle.get_stream());
@@ -1237,7 +1244,7 @@ TEST(BiasedRandomWalks, CUBSegmentedSort)
                                              num_items,
                                              num_segments,
                                              d_offsets.data(),
-                                             d_offsets.data() + num_segments + 1,  // + 1
+                                             d_offsets.data() + 1,  // num_segments + 1,  // + 1
                                              0,
                                              (sizeof(int) << 3),
                                              handle.get_stream());
