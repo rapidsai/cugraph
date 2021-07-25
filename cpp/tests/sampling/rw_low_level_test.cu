@@ -1158,7 +1158,7 @@ TEST(BiasedRandomWalks, CUBSegmentedSort)
 
   cub_segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
 
-  auto [d_weights, d_ci] = seg_sort(offsets, indices, values);
+  auto [d_ci, d_weights] = seg_sort(offsets, indices, values);
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);
@@ -1173,7 +1173,7 @@ TEST(BiasedRandomWalks, CUBSegmentedSort)
   std::vector h_correct_ci{1, 4, 3, 1, 3, 0, 5, 5};
 
   EXPECT_EQ(v_ro, h_ro);  // expect untouched
-  // EXPECT_EQ(v_ci, h_correct_ci); // fails...
+  // EXPECT_EQ(v_ci, h_correct_ci);  // fails...
 
   // check (when segment array is not given):
   //
