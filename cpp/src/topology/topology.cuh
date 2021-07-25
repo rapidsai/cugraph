@@ -235,7 +235,7 @@ struct cub_segment_sorter_by_weights_t {
                                              num_edges_,
                                              num_vertices_,
                                              ptr_d_offsets_,
-                                             ptr_d_offsets_ + num_vertices_ + 1,
+                                             ptr_d_offsets_ + 1,  // num_vertices_ + 1,
                                              0,
                                              (sizeof(weight_t) << 3),
                                              handle_.get_stream());
@@ -255,7 +255,7 @@ struct cub_segment_sorter_by_weights_t {
                                              num_edges_,
                                              num_vertices_,
                                              ptr_d_offsets_,
-                                             ptr_d_offsets_ + num_vertices_ + 1,
+                                             ptr_d_offsets_ + 1,  // num_vertices_ + 1,
                                              0,
                                              (sizeof(weight_t) << 3),
                                              handle_.get_stream());
