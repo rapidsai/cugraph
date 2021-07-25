@@ -1165,19 +1165,23 @@ TEST(BiasedRandomWalks, CUBSegmentedSort)
   std::vector<weight_t> v_vals(num_edges);
 
   raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
-  raft::update_host(v_ci.data(), d_ci.data(), v_ci.size(), handle.get_stream());
-  raft::update_host(v_vals.data(), d_weights.data(), v_vals.size(), handle.get_stream());
+  // raft::update_host(v_ci.data(), d_ci.data(), v_ci.size(), handle.get_stream());
+  // raft::update_host(v_vals.data(), d_weights.data(), v_vals.size(), handle.get_stream());
+
+  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
+  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
 
   std::vector h_ro{0, 1, 3, 6, 7, 8, 8};  // untouched
   std::vector h_correct_vals{0.1f, 1.1f, 2.1f, 3.1f, 4.1f, 5.1f, 7.2f, 3.2f};
   std::vector h_correct_ci{1, 4, 3, 1, 3, 0, 5, 5};
 
   EXPECT_EQ(v_ro, h_ro);  // expect untouched
-  // EXPECT_EQ(v_ci, h_correct_ci);  // fails...
 
   // check (when segment array is not given):
   //
   bool check_seg_sort =
     check_segmented_sort(handle, offsets, d_weights.data(), num_vertices, num_edges);
   ASSERT_TRUE(check_seg_sort);
+
+  // EXPECT_EQ(v_ci, h_correct_ci);  // fails...
 }
