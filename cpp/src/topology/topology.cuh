@@ -228,10 +228,10 @@ struct cub_segment_sorter_by_weights_t {
     size_t temp_storage_bytes{0};
     cub::DeviceSegmentedRadixSort::SortPairs(ptr_d_temp_storage,
                                              temp_storage_bytes,
-                                             ptr_d_indices_,  // can it be in-place? no
-                                             d_keys_out.data(),
                                              ptr_d_weights_,  // can it be in-place? no
                                              d_vals_out.data(),
+                                             ptr_d_indices_,  // can it be in-place? no
+                                             d_keys_out.data(),
                                              num_edges_,
                                              num_vertices_,
                                              ptr_d_offsets_,
@@ -248,10 +248,10 @@ struct cub_segment_sorter_by_weights_t {
     //
     cub::DeviceSegmentedRadixSort::SortPairs(ptr_d_temp_storage,
                                              temp_storage_bytes,
-                                             ptr_d_indices_,  // can it be in-place? no
-                                             d_keys_out.data(),
                                              ptr_d_weights_,  // can it be in-place? no
                                              d_vals_out.data(),
+                                             ptr_d_indices_,  // can it be in-place? no
+                                             d_keys_out.data(),
                                              num_edges_,
                                              num_vertices_,
                                              ptr_d_offsets_,

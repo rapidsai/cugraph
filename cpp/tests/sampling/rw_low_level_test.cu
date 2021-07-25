@@ -1124,63 +1124,136 @@ TEST(BiasedRandomWalks, ThrustSegmentedSort)
   ASSERT_TRUE(check_seg_sort);
 }
 
-TEST(BiasedRandomWalks, DISABLED_CUBSegmentedSort)
+TEST(BiasedRandomWalks, CUBSegmentedSort)
 {
   using namespace cugraph::topology;
 
-  using vertex_t = int32_t;
-  using edge_t   = vertex_t;
-  using weight_t = float;
-  using index_t  = vertex_t;
-
   raft::handle_t handle{};
 
-  edge_t num_edges      = 8;
-  vertex_t num_vertices = 6;
+  {
+    using vertex_t = int32_t;
+    using edge_t   = vertex_t;
+    using weight_t = float;
+    using index_t  = vertex_t;
 
-  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
-  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
-  std::vector<weight_t> v_w{0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+    edge_t num_edges      = 8;
+    vertex_t num_vertices = 6;
 
-  auto graph = cugraph::test::make_graph(
-    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
+    std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+    std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+    std::vector<weight_t> v_w{0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
-  auto graph_view = graph.view();
+    auto graph = cugraph::test::make_graph(
+      handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
-  edge_t const* offsets = graph_view.get_matrix_partition_view().get_offsets();
+    auto graph_view = graph.view();
 
-  // for the purpose of this test, the const_cast<> is acceptable
-  // (necessary to make (indices, values) mutable for sorting purposes)
-  //
-  // for production code, a `graph_t` friend wrapper would be necessary
-  //
-  vertex_t* indices = const_cast<vertex_t*>(graph_view.get_matrix_partition_view().get_indices());
-  weight_t* values = const_cast<weight_t*>(*(graph_view.get_matrix_partition_view().get_weights()));
+    edge_t const* offsets = graph_view.get_matrix_partition_view().get_offsets();
 
-  cub_segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
+    // for the purpose of this test, the const_cast<> is acceptable
+    // (necessary to make (indices, values) mutable for sorting purposes)
+    //
+    // for production code, a `graph_t` friend wrapper would be necessary
+    //
+    vertex_t* indices = const_cast<vertex_t*>(graph_view.get_matrix_partition_view().get_indices());
+    weight_t* values =
+      const_cast<weight_t*>(*(graph_view.get_matrix_partition_view().get_weights()));
 
-  auto [d_ci, d_weights] = seg_sort(offsets, indices, values);
+    cub_segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
 
-  std::vector<edge_t> v_ro(num_vertices + 1);
-  std::vector<vertex_t> v_ci(num_edges);
-  std::vector<weight_t> v_vals(num_edges);
+    auto [d_ci, d_weights] = seg_sort(offsets, indices, values);
 
-  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
-  raft::update_host(v_ci.data(), d_ci.data(), v_ci.size(), handle.get_stream());
-  raft::update_host(v_vals.data(), d_weights.data(), v_vals.size(), handle.get_stream());
+    std::vector<edge_t> v_ro(num_vertices + 1);
+    std::vector<vertex_t> v_ci(num_edges);
+    std::vector<weight_t> v_vals(num_edges);
 
-  std::vector h_ro{0, 1, 3, 6, 7, 8, 8};  // untouched
-  std::vector h_correct_vals{0.1f, 1.1f, 2.1f, 3.1f, 4.1f, 5.1f, 7.2f, 3.2f};
-  std::vector h_correct_ci{1, 4, 3, 1, 3, 0, 5, 5};
+    raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
+    raft::update_host(v_ci.data(), d_ci.data(), v_ci.size(), handle.get_stream());
+    raft::update_host(v_vals.data(), d_weights.data(), v_vals.size(), handle.get_stream());
 
-  EXPECT_EQ(v_ro, h_ro);  // expect untouched
+    std::vector h_ro{0, 1, 3, 6, 7, 8, 8};  // untouched
+    std::vector h_correct_vals{0.1f, 1.1f, 2.1f, 3.1f, 4.1f, 5.1f, 7.2f, 3.2f};
+    std::vector h_correct_ci{1, 4, 3, 1, 3, 0, 5, 5};
 
-  // check (when segment array is not given):
-  //
-  bool check_seg_sort =
-    check_segmented_sort(handle, offsets, d_weights.data(), num_vertices, num_edges);
-  ASSERT_TRUE(check_seg_sort);
+    EXPECT_EQ(v_ro, h_ro);  // expect untouched
 
-  EXPECT_EQ(v_vals, h_correct_vals);
-  // EXPECT_EQ(v_ci, h_correct_ci);  // fails...
+    // check (when segment array is not given):
+    //
+    bool check_seg_sort =
+      check_segmented_sort(handle, offsets, d_weights.data(), num_vertices, num_edges);
+    // ASSERT_TRUE(check_seg_sort);  // result is seg-sorted, but values are incorrect
+
+    // EXPECT_EQ(v_vals, h_correct_vals); // fails...
+    // EXPECT_EQ(v_ci, h_correct_ci);  // fails...
+  }
+  {
+    int num_items{7};     // e.g., 7
+    int num_segments{3};  // e.g., 3
+
+    std::vector h_offsets{0, 3, 3, 7};
+    std::vector h_keys_in{8, 6, 7, 5, 3, 0, 9};
+    std::vector h_values_in{0, 1, 2, 3, 4, 5, 6};
+
+    rmm::device_uvector<int> d_offsets(num_segments, handle.get_stream());
+
+    rmm::device_uvector<int> d_keys_in(num_items, handle.get_stream());
+    raft::update_device(d_keys_in.data(), h_keys_in.data(), h_keys_in.size(), handle.get_stream());
+
+    rmm::device_uvector<int> d_keys_out(num_items, handle.get_stream());
+
+    rmm::device_uvector<int> d_values_in(num_items, handle.get_stream());
+    raft::update_device(
+      d_values_in.data(), h_values_in.data(), h_values_in.size(), handle.get_stream());
+
+    rmm::device_uvector<int> d_values_out(num_items, handle.get_stream());
+
+    // Determine temporary device storage requirements
+    void* p_temp_storage      = nullptr;
+    size_t temp_storage_bytes = 0;
+    cub::DeviceSegmentedRadixSort::SortPairs(p_temp_storage,
+                                             temp_storage_bytes,
+                                             d_keys_in.data(),
+                                             d_keys_out.data(),
+                                             d_values_in.data(),
+                                             d_values_out.data(),
+                                             num_items,
+                                             num_segments,
+                                             d_offsets.data(),
+                                             d_offsets.data() + num_segments + 1,  // +1
+                                             0,
+                                             (sizeof(int) << 3),
+                                             handle.get_stream());
+    // Allocate temporary storage
+    rmm::device_uvector<unsigned char> d_temp_storage(temp_storage_bytes, handle.get_stream());
+    p_temp_storage = d_temp_storage.data();
+
+    // Run sorting operation
+    cub::DeviceSegmentedRadixSort::SortPairs(p_temp_storage,
+                                             temp_storage_bytes,
+                                             d_keys_in.data(),
+                                             d_keys_out.data(),
+                                             d_values_in.data(),
+                                             d_values_out.data(),
+                                             num_items,
+                                             num_segments,
+                                             d_offsets.data(),
+                                             d_offsets.data() + num_segments + 1,  // + 1
+                                             0,
+                                             (sizeof(int) << 3),
+                                             handle.get_stream());
+
+    std::vector<int> h_keys_out(num_items);
+    std::vector<int> h_values_out(num_items);
+
+    raft::update_host(h_keys_out.data(), d_keys_out.data(), d_keys_out.size(), handle.get_stream());
+
+    raft::update_host(
+      h_values_out.data(), d_values_out.data(), d_values_out.size(), handle.get_stream());
+
+    std::vector h_keys_correct{6, 7, 8, 0, 3, 5, 9};
+    std::vector h_vals_correct{1, 2, 0, 5, 4, 3, 6};
+
+    EXPECT_EQ(h_keys_out, h_keys_correct);
+    EXPECT_EQ(h_values_out, h_vals_correct);
+  }
 }
