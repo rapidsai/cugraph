@@ -1156,11 +1156,11 @@ namespace experimental {
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void bfs(raft::handle_t const &handle,
-         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
-         vertex_t *distances,
-         vertex_t *predecessors,
-         vertex_t *sources,
+void bfs(raft::handle_t const& handle,
+         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+         vertex_t* distances,
+         vertex_t* predecessors,
+         vertex_t* sources,
          size_t n_sources          = 1,
          bool direction_optimizing = false,
          vertex_t depth_limit      = std::numeric_limits<vertex_t>::max(),

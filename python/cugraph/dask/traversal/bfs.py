@@ -109,14 +109,15 @@ def bfs(graph,
     data = get_distributed_data(ddf)
 
     def df_merge(df, tmp_df, tmp_col_names):
-        x = df[0].merge(tmp_df, on = tmp_col_names, how='inner')
+        x = df[0].merge(tmp_df, on=tmp_col_names, how='inner')
         return x['global_id']
 
     if graph.renumbered:
         renumber_ddf = graph.renumber_map.implementation.ddf
         col_names = graph.renumber_map.implementation.col_names
-        if isinstance(start, dask_cudf.DataFrame)\
-          or isinstance(start, cudf.DataFrame):
+        if isinstance(start,
+                      dask_cudf.DataFrame) or isinstance(start,
+                                                         cudf.DataFrame):
             tmp_df = start
             tmp_col_names = start.columns
         else:
@@ -133,7 +134,9 @@ def bfs(graph,
                                tmp_ddf,
                                col_names,
                                workers=[wf[0]])
-                               for idx, wf in enumerate(renumber_data.worker_to_parts.items())]
+                 for idx, wf in enumerate(renumber_data.worker_to_parts.items()
+                                          )
+                 ]
 
     result = [client.submit(
               call_bfs,

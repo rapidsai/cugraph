@@ -54,10 +54,10 @@ def test_dask_bfs(client_connection):
         temp_df['src'] = df['src']+1000
         temp_df['dst'] = df['dst']+1000
         temp_df['value'] = df['value']
-        return cudf.concat([df,temp_df])
+        return cudf.concat([df, temp_df])
 
     meta = ddf._meta
-    ddf=ddf.map_partitions(modify_dataset, meta = meta)
+    ddf = ddf.map_partitions(modify_dataset, meta=meta)
 
     df = cudf.read_csv(
         input_data_path,

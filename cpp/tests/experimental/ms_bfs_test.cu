@@ -20,8 +20,8 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/experimental/graph.hpp>
-#include <cugraph/graph_generators.hpp>
 #include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_generators.hpp>
 
 #include <cugraph/experimental/graph.hpp>
 
@@ -51,9 +51,9 @@ struct MsBfs_Usecase {
 };
 
 template <typename vertex_t>
-void translate_vertex_ids(raft::handle_t const &handle,
-                          rmm::device_uvector<vertex_t> &d_src_v,
-                          rmm::device_uvector<vertex_t> &d_dst_v,
+void translate_vertex_ids(raft::handle_t const& handle,
+                          rmm::device_uvector<vertex_t>& d_src_v,
+                          rmm::device_uvector<vertex_t>& d_dst_v,
                           vertex_t vertex_id_offset)
 {
   thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -79,7 +79,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t>
-  void run_current_test(MsBfs_Usecase const &configuration)
+  void run_current_test(MsBfs_Usecase const& configuration)
   {
     using weight_t = float;
     raft::handle_t handle(16);
