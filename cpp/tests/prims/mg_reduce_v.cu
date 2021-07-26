@@ -121,6 +121,39 @@ struct generate_impl {
     return data;
   }
 };
+
+template <typename T>
+struct result_compare {
+  constexpr auto operator()(const T& t1, const T& t2) { return (t1 == t2); }
+};
+
+template <typename... Args>
+struct result_compare<thrust::tuple<Args...>> {
+  static constexpr double threshold_ratio{1e-3};
+
+ private:
+  template <typename T>
+  bool equal(T t1, T t2)
+  {
+    if constexpr (std::is_floating_point_v<T>) {
+      return std::abs(t1 - t2) < (std::max(t1, t2) * threshold_ratio);
+    }
+    return t1 == t2;
+  }
+  template <typename T, std::size_t... I>
+  constexpr auto equality_impl(T& t1, T& t2, std::index_sequence<I...>)
+  {
+    return (... && (equal(thrust::get<I>(t1), thrust::get<I>(t2))));
+  }
+
+ public:
+  using Type = thrust::tuple<Args...>;
+  constexpr auto operator()(const Type& t1, const Type& t2)
+  {
+    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
+  }
+};
+
 template <typename T>
 struct generate : public generate_impl<T> {
   static T initial_value(int init) { return static_cast<T>(init); }
@@ -244,7 +277,8 @@ class Tests_MG_ReduceIfV
                        sg_property_iter + sg_graph_view.get_number_of_local_vertices(),
                        property_initial_value,
                        cugraph::experimental::property_add<property_t>());
-      ASSERT_TRUE(expected_result == result);
+      result_compare<property_t> compare;
+      ASSERT_TRUE(compare(expected_result, result));
     }
   }
 };
