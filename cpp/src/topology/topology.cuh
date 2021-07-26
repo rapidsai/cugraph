@@ -101,10 +101,12 @@ bool check_symmetry(raft::handle_t const& handle,
     thrust::logical_and<BoolT>());
 }
 
+#ifdef _DEBUG_
 /**
  * @brief Sort weights of outgoing edges for each vertex; this requires a segmented (multi-partition
  * parallel partial) sort, rather than complete sort. Required by Biased Random Walks. Caveat: this
- * affects edge numbering.
+ * affects edge numbering. Naive implementation (slow) used only for debugging purposes, as it
+ * returns more information.
  *
  * Algorithm outline (version 1):
  * input: num_vertices, num_edges, offsets[],indices[], weights[];
@@ -130,8 +132,8 @@ bool check_symmetry(raft::handle_t const& handle,
  * operator()(...) returns std::tuple rather than thrust::tuple because the later has a bug with
  * structured bindings;
  */
-struct segment_sorter_by_weights_t {
-  segment_sorter_by_weights_t(raft::handle_t const& handle, size_t num_v, size_t num_e)
+struct thrust_segment_sorter_by_weights_t {
+  thrust_segment_sorter_by_weights_t(raft::handle_t const& handle, size_t num_v, size_t num_e)
     : handle_(handle), num_vertices_(num_v), num_edges_(num_e)
   {
   }
@@ -181,6 +183,7 @@ struct segment_sorter_by_weights_t {
   size_t num_vertices_;
   size_t num_edges_;
 };
+#endif
 
 /**
  * @brief Sort weights of outgoing edges for each vertex; this requires a segmented (multi-partition
@@ -198,8 +201,8 @@ struct segment_sorter_by_weights_t {
  * operator()(...) returns std::tuple rather than thrust::tuple because the later has a bug with
  * structured bindings;
  */
-struct cub_segment_sorter_by_weights_t {
-  cub_segment_sorter_by_weights_t(raft::handle_t const& handle, size_t num_v, size_t num_e)
+struct segment_sorter_by_weights_t {
+  segment_sorter_by_weights_t(raft::handle_t const& handle, size_t num_v, size_t num_e)
     : handle_(handle), num_vertices_(num_v), num_edges_(num_e)
   {
   }

@@ -38,8 +38,6 @@
 
 namespace topo = cugraph::topology;
 
-enum class seg_sort_id_t : int { THRUST = 0, CUB };
-
 struct RandomWalks_Usecase {
   std::string graph_file_full_path{};
   bool test_weighted{false};
@@ -55,8 +53,7 @@ struct RandomWalks_Usecase {
   };
 };
 
-class Tests_RWSegSort
-  : public ::testing::TestWithParam<std::tuple<seg_sort_id_t, RandomWalks_Usecase>> {
+class Tests_RWSegSort : public ::testing::TestWithParam<RandomWalks_Usecase> {
  public:
   Tests_RWSegSort() {}
   static void SetupTestCase() {}
@@ -66,16 +63,13 @@ class Tests_RWSegSort
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(std::tuple<seg_sort_id_t, RandomWalks_Usecase> const& configuration)
+  void run_current_test(RandomWalks_Usecase const& target)
   {
     raft::handle_t handle{};
 
     // debuf info:
     //
     // std::cout << "read graph file: " << configuration.graph_file_full_path << std::endl;
-
-    seg_sort_id_t seg_sort_id = std::get<0>(configuration);
-    auto const& target        = std::get<1>(configuration);
     cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
     std::tie(graph, std::ignore) =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
@@ -100,36 +94,20 @@ class Tests_RWSegSort
     HighResTimer hr_timer;
     std::string label{};
 
-    if (seg_sort_id == seg_sort_id_t::THRUST) {
-      topo::segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
+    topo::segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
 
-      label = std::string("Biased RW: Thrust Segmented Sort.");
-      hr_timer.start(label);
-      cudaProfilerStart();
+    label = std::string("Biased RW: CUB Segmented Sort.");
+    hr_timer.start(label);
+    cudaProfilerStart();
 
-      auto [d_keys, d_segs] = seg_sort(offsets, indices, values);
+    auto [d_ci, d_weights] = seg_sort(offsets, indices, values);
 
-      cudaProfilerStop();
-      hr_timer.stop();
+    cudaProfilerStop();
+    hr_timer.stop();
 
-      bool check_seg_sort = topo::check_segmented_sort(handle, d_segs.data(), values, num_edges);
-      ASSERT_TRUE(check_seg_sort);
-    } else {
-      topo::cub_segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
-
-      label = std::string("Biased RW: CUB Segmented Sort.");
-      hr_timer.start(label);
-      cudaProfilerStart();
-
-      auto [d_ci, d_weights] = seg_sort(offsets, indices, values);
-
-      cudaProfilerStop();
-      hr_timer.stop();
-
-      bool check_seg_sort =
-        topo::check_segmented_sort(handle, offsets, d_weights.data(), num_vertices, num_edges);
-      ASSERT_TRUE(check_seg_sort);
-    }
+    bool check_seg_sort =
+      topo::check_segmented_sort(handle, offsets, d_weights.data(), num_vertices, num_edges);
+    ASSERT_TRUE(check_seg_sort);
 
     try {
       auto runtime = hr_timer.get_average_runtime(label);
@@ -157,10 +135,9 @@ TEST_P(Tests_RWSegSort, Initialize_i32_i32_f)
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_RWSegSort,
-  ::testing::Combine(::testing::Values(seg_sort_id_t::THRUST, seg_sort_id_t::CUB),
-                     ::testing::Values(RandomWalks_Usecase("test/datasets/karate.mtx", true),
-                                       RandomWalks_Usecase("test/datasets/web-Google.mtx", true),
-                                       RandomWalks_Usecase("test/datasets/ljournal-2008.mtx", true),
-                                       RandomWalks_Usecase("test/datasets/webbase-1M.mtx", true))));
+  ::testing::Values(RandomWalks_Usecase("test/datasets/karate.mtx", true),
+                    RandomWalks_Usecase("test/datasets/web-Google.mtx", true),
+                    RandomWalks_Usecase("test/datasets/ljournal-2008.mtx", true),
+                    RandomWalks_Usecase("test/datasets/webbase-1M.mtx", true)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
