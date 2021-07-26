@@ -21,7 +21,7 @@
 
 add_library(cugraphtestutil STATIC
             utilities/matrix_market_file_utilities.cu
-            utilities/rmat_utilities.cu
+            utilities/rmat_utilities.cpp
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
             components/wcc_graphs.cu
@@ -404,6 +404,14 @@ ConfigureTest(SERIALIZATION_TEST "${SERIALIZATION_TEST_SRCS}")
 
 
 ###################################################################################################
+# - BFS Visitor tests -----------------------------------------------------------------------------
+
+set(BFS_VISITOR_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/visitors/bfs_test.cpp")
+
+ConfigureTest(BFS_VISITOR_TEST "${BFS_VISITOR_TEST_SRCS}")
+
+###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
@@ -451,6 +459,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG GRAPH BROADCAST tests --------------------------------------------------------------
         ConfigureTestMG(MG_GRAPH_BROADCAST_TEST bcast/mg_graph_bcast.cpp)
+
+        ###########################################################################################
+        # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
+        ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()

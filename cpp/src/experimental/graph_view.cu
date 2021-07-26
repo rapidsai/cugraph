@@ -68,8 +68,8 @@ std::vector<edge_t> update_adj_matrix_partition_edge_counts(
                       adj_matrix_partition_offsets[i] +
                         (use_dcs ? ((*adj_matrix_partition_segment_offsets)
                                       [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
-                                       detail::num_sparse_segments_per_vertex_partition] -
-                                    major_first + (*adj_matrix_partition_dcs_nzd_vertex_counts)[i])
+                                       detail::num_sparse_segments_per_vertex_partition] +
+                                    (*adj_matrix_partition_dcs_nzd_vertex_counts)[i])
                                  : (major_last - major_first)),
                       1,
                       stream);
@@ -251,9 +251,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
       auto [minor_first, minor_last] = partition.get_matrix_partition_minor_range();
       auto offset_array_size         = major_last - major_first + 1;
       if (use_dcs) {
-        auto major_hypersparse_first = (*adj_matrix_partition_segment_offsets)
-          [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
-           detail::num_sparse_segments_per_vertex_partition];
+        auto major_hypersparse_first =
+          major_first + (*adj_matrix_partition_segment_offsets)
+                          [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
+                           detail::num_sparse_segments_per_vertex_partition];
         offset_array_size = major_hypersparse_first - major_first +
                             (*adj_matrix_partition_dcs_nzd_vertex_counts)[i] + 1;
       }
@@ -284,14 +285,18 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                     "number_of_local_edges.");
 
     if (adj_matrix_partition_segment_offsets) {
-      auto degrees = detail::compute_major_degrees(handle, adj_matrix_partition_offsets, partition);
-      CUGRAPH_EXPECTS(
-        thrust::is_sorted(rmm::exec_policy(default_stream_view),
-                          degrees.begin(),
-                          degrees.end(),
-                          thrust::greater<edge_t>{}),
-        "Invalid Invalid input argument: sorted_by_global_degree_within_vertex_partition is "
-        "set to true, but degrees are not non-ascending.");
+      auto degrees = detail::compute_major_degrees(handle,
+                                                   adj_matrix_partition_offsets,
+                                                   adj_matrix_partition_dcs_nzd_vertices,
+                                                   adj_matrix_partition_dcs_nzd_vertex_counts,
+                                                   partition,
+                                                   adj_matrix_partition_segment_offsets);
+      CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream_view),
+                                        degrees.begin(),
+                                        degrees.end(),
+                                        thrust::greater<edge_t>{}),
+                      "Invalid Invalid input argument: adj_matrix_partition_segment_offsets are "
+                      "provided, but degrees are not in descending order.");
 
       auto num_segments_per_vertex_partition =
         detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 1 : 0);
@@ -377,15 +382,13 @@ graph_view_t<vertex_t,
       "Internal Error: adj_matrix_partition_indices[] have out-of-range vertex IDs.");
 
     if (segment_offsets) {
-      auto degree_first =
-        thrust::make_transform_iterator(thrust::make_counting_iterator(vertex_t{0}),
-                                        detail::degree_from_offsets_t<vertex_t, edge_t>{offsets});
-      CUGRAPH_EXPECTS(
-        thrust::is_sorted(rmm::exec_policy(default_stream_view),
-                          degree_first,
-                          degree_first + this->get_number_of_vertices(),
-                          thrust::greater<edge_t>{}),
-        "Internal Error: segment_offsets are provided, but degrees are not in descending order.");
+      auto degrees = detail::compute_major_degrees(handle, offsets, number_of_vertices);
+      CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream_view),
+                                        degrees.begin(),
+                                        degrees.end(),
+                                        thrust::greater<edge_t>{}),
+                      "Invalid Invalid input argument: segment_offsets are provided, but degrees "
+                      "are not in descending order.");
 
       CUGRAPH_EXPECTS(std::is_sorted((*segment_offsets).begin(), (*segment_offsets).end()),
                       "Internal Error: erroneous segment_offsets.");
@@ -412,8 +415,12 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   compute_in_degrees(raft::handle_t const& handle) const
 {
   if (store_transposed) {
-    return detail::compute_major_degrees(
-      handle, this->adj_matrix_partition_offsets_, this->partition_);
+    return detail::compute_major_degrees(handle,
+                                         this->adj_matrix_partition_offsets_,
+                                         this->adj_matrix_partition_dcs_nzd_vertices_,
+                                         this->adj_matrix_partition_dcs_nzd_vertex_counts_,
+                                         this->partition_,
+                                         this->adj_matrix_partition_segment_offsets_);
   } else {
     return compute_minor_degrees(handle, *this);
   }
@@ -452,8 +459,12 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   if (store_transposed) {
     return compute_minor_degrees(handle, *this);
   } else {
-    return detail::compute_major_degrees(
-      handle, this->adj_matrix_partition_offsets_, this->partition_);
+    return detail::compute_major_degrees(handle,
+                                         this->adj_matrix_partition_offsets_,
+                                         this->adj_matrix_partition_dcs_nzd_vertices_,
+                                         this->adj_matrix_partition_dcs_nzd_vertex_counts_,
+                                         this->partition_,
+                                         this->adj_matrix_partition_segment_offsets_);
   }
 }
 

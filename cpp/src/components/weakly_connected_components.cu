@@ -422,7 +422,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         raft::update_host(
           &init_max_new_roots, d_counts.data() + comm_rank, size_t{1}, handle.get_stream());
 #else
-        iinit_max_new_roots =
+        init_max_new_roots =
           host_scalar_scatter(comm, init_max_new_root_counts.data(), int{0}, handle.get_stream());
 #endif
       } else {
@@ -434,7 +434,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         raft::update_host(
           &init_max_new_roots, d_counts.data() + comm_rank, size_t{1}, handle.get_stream());
 #else
-        iinit_max_new_roots =
+        init_max_new_roots =
           host_scalar_scatter(comm, init_max_new_root_counts.data(), int{0}, handle.get_stream());
 #endif
       }

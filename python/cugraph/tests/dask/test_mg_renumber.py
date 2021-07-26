@@ -28,7 +28,8 @@ from cugraph.tests import utils
 from cugraph.structure.number_map import NumberMap
 from cugraph.dask.common.mg_utils import (is_single_gpu,
                                           setup_local_dask_cluster,
-                                          teardown_local_dask_cluster)
+                                          teardown_local_dask_cluster,
+                                          get_visible_devices)
 
 
 @pytest.fixture(scope="module")
@@ -59,7 +60,8 @@ def test_mg_renumber(graph_file, client_connection):
     gdf["src"] = sources + translate
     gdf["dst"] = destinations + translate
 
-    ddf = dask.dataframe.from_pandas(gdf, npartitions=2)
+    ddf = dask.dataframe.from_pandas(
+        gdf, npartitions=len(get_visible_devices()))
 
     # preserve_order is not supported for MG
     renumbered_df, renumber_map = NumberMap.renumber(ddf,
@@ -107,7 +109,8 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, client_connection):
     gdf["dst"] = destinations + translate
     gdf["weight"] = gdf.index.astype(np.float)
 
-    ddf = dask.dataframe.from_pandas(gdf, npartitions=2)
+    ddf = dask.dataframe.from_pandas(
+        gdf, npartitions=len(get_visible_devices()))
 
     ren2, num2 = NumberMap.renumber(
         ddf, ["src", "src_old"], ["dst", "dst_old"]
