@@ -123,18 +123,28 @@ struct cast_edge_op_bool_to_integer {
 };
 
 template <typename T>
-__host__ __device__ std::enable_if_t<std::is_arithmetic<T>::value, T> plus_edge_op_result(
-  T const& lhs, T const& rhs)
-{
-  return lhs + rhs;
-}
+struct property_add : public thrust::plus<T> {
+};
 
-template <typename T>
-__host__ __device__ std::enable_if_t<is_thrust_tuple<T>::value, T> plus_edge_op_result(T const& lhs,
-                                                                                       T const& rhs)
-{
-  return plus_thrust_tuple<T>()(lhs, rhs);
-}
+template <typename... Args>
+struct property_add<thrust::tuple<Args...>>
+  : public thrust::
+      binary_function<thrust::tuple<Args...>, thrust::tuple<Args...>, thrust::tuple<Args...>> {
+  using Type = thrust::tuple<Args...>;
+
+ private:
+  template <typename T, std::size_t... I>
+  __device__ constexpr auto sum_impl(T& t1, T& t2, std::index_sequence<I...>)
+  {
+    return thrust::make_tuple((thrust::get<I>(t1) + thrust::get<I>(t2))...);
+  }
+
+ public:
+  __device__ constexpr auto operator()(const Type& t1, const Type& t2)
+  {
+    return sum_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
+  }
+};
 
 template <typename Iterator, typename T>
 __device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value, void>

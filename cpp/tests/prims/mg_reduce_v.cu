@@ -236,13 +236,14 @@ class Tests_MG_ReduceIfV
         hash_bin_count,
         handle);
       auto sg_property_iter = get_property_iterator(sg_property_data);
+      using property_t      = decltype(property_initial_value);
 
       auto expected_result =
         thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                        sg_property_iter,
                        sg_property_iter + sg_graph_view.get_number_of_local_vertices(),
                        property_initial_value,
-                       cugraph::experimental::ValueAdd<result_t>());
+                       cugraph::experimental::property_add<property_t>());
       ASSERT_TRUE(expected_result == result);
     }
   }

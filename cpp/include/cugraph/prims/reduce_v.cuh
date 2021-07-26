@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
@@ -27,33 +28,6 @@
 namespace cugraph {
 namespace experimental {
 
-template <typename T>
-struct ValueAdd : public thrust::plus<T> {
-};
-
-template <typename... Args>
-struct ValueAdd<thrust::tuple<Args...>> : public thrust::binary_function<thrust::tuple<Args...>,
-                                                                         thrust::tuple<Args...>,
-                                                                         thrust::tuple<Args...>> {
-  using Type = thrust::tuple<Args...>;
-
- private:
-  template <typename T, std::size_t... I>
-  __device__ constexpr auto sum_impl(T& t1, T& t2, std::index_sequence<I...>)
-  {
-    return thrust::make_tuple((thrust::get<I>(t1) + thrust::get<I>(t2))...);
-  }
-
- public:
-  __device__ constexpr auto operator()(const Type& t1, const Type& t2)
-  {
-    return sum_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
-  }
-};
-
-template <typename... Args>
-struct ValueAdd<std::tuple<Args...>> : public ValueAdd<thrust::tuple<Args...>> {
-};
 /**
  * @brief Reduce the vertex properties.
  *
@@ -83,7 +57,7 @@ T reduce_v(raft::handle_t const& handle,
     vertex_value_input_first,
     vertex_value_input_first + graph_view.get_number_of_local_vertices(),
     ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
-    ValueAdd<T>());
+    property_add<T>());
   if (GraphViewType::is_multi_gpu) {
     ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
   }
@@ -120,7 +94,7 @@ T reduce_v(raft::handle_t const& handle,
     input_first,
     input_last,
     ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
-    ValueAdd<T>());
+    property_add<T>());
   if (GraphViewType::is_multi_gpu) {
     ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
   }
