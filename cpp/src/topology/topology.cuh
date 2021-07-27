@@ -208,9 +208,8 @@ struct segment_sorter_by_weights_t {
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void operator()(edge_t const* ptr_d_offsets_,
-                  vertex_t* ptr_d_indices_,
-                  weight_t* ptr_d_weights_) const
+  std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<weight_t>> operator()(
+    edge_t const* ptr_d_offsets_, vertex_t* ptr_d_indices_, weight_t* ptr_d_weights_) const
   {
     CUGRAPH_EXPECTS(ptr_d_weights_ != nullptr, "Cannot sort un-weighted graph by weights.");
     // keys are those on which sorting is done; hence, the weights:
@@ -262,14 +261,10 @@ struct segment_sorter_by_weights_t {
                                              (sizeof(weight_t) << 3),
                                              handle_.get_stream());
 
-    // copy back into the CSR structure
-    // to enforce "in-place" semantics:
+    // return sorted result(s) to help the caller
+    // to avoid copies by using move semantics:
     //
-    thrust::copy_n(
-      rmm::exec_policy(handle_.get_stream_view()),
-      thrust::make_zip_iterator(thrust::make_tuple(d_keys_out.data(), d_vals_out.data())),
-      num_edges_,
-      thrust::make_zip_iterator(thrust::make_tuple(ptr_d_indices_, ptr_d_weights_)));
+    return std::make_tuple(std::move(d_keys_out), std::move(d_vals_out));
   }
 
  private:
