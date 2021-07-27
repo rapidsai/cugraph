@@ -1,0 +1,180 @@
+/*
+ * Copyright (c) 2021, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governin_from_mtxg permissions and
+ * limitations under the License.
+ */
+
+#include <utilities/high_res_clock.h>
+#include <utilities/base_fixture.hpp>
+#include <utilities/test_graphs.hpp>
+#include <utilities/test_utilities.hpp>
+#include <utilities/thrust_wrapper.hpp>
+
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph.hpp>
+#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+
+#include <raft/cudart_utils.h>
+#include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <iterator>
+#include <limits>
+#include <numeric>
+#include <random>
+#include <vector>
+
+// do the perf measurements
+// enabled by command line parameter s'--perf'
+//
+static int PERF = 0;
+
+struct Renumbering_Usecase {
+  bool check_correctness{true};
+};
+
+template <typename input_usecase_t>
+class Tests_Renumbering
+  : public ::testing::TestWithParam<std::tuple<Renumbering_Usecase, input_usecase_t>> {
+ public:
+  Tests_Renumbering() {}
+  static void SetupTestCase() {}
+  static void TearDownTestCase() {}
+
+  virtual void SetUp() {}
+  virtual void TearDown() {}
+
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  void run_current_test(Renumbering_Usecase const& renumbering_usecase,
+                        input_usecase_t const& input_usecase)
+  {
+    raft::handle_t handle{};
+    HighResClock hr_clock{};
+
+    std::vector<vertex_t> h_original_src_v{};
+    std::vector<vertex_t> h_original_dst_v{};
+    std::vector<vertex_t> h_final_src_v{};
+    std::vector<vertex_t> h_final_dst_v{};
+
+    rmm::device_uvector<vertex_t> src_v(0, handle.get_stream_view());
+    rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream_view());
+    rmm::device_uvector<vertex_t> renumber_map_labels_v(0, handle.get_stream_view());
+    cugraph::experimental::partition_t<vertex_t> partition{};
+    vertex_t number_of_vertices{};
+    edge_t number_of_edges{};
+    bool symmetric{};
+
+    std::tie(src_v, dst_v, std::ignore, number_of_vertices, symmetric) =
+      input_usecase.template construct_edgelist<vertex_t, edge_t, weight_t, false, false>(handle,
+                                                                                          false);
+
+    if (renumbering_usecase.check_correctness) {
+      h_original_src_v.resize(src_v.size());
+      h_original_dst_v.resize(dst_v.size());
+
+      raft::update_host(h_original_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
+      raft::update_host(h_original_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+    }
+
+    if (PERF) {
+      handle.get_stream_view().synchronize();  // for consistent performance measurement
+      hr_clock.start();
+    }
+
+    std::tie(renumber_map_labels_v, std::ignore) =
+      cugraph::experimental::renumber_edgelist<vertex_t, edge_t, false>(
+        handle, std::nullopt, src_v.begin(), dst_v.begin(), src_v.size());
+
+    if (PERF) {
+      handle.get_stream_view().synchronize();  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "renumbering took " << elapsed_time * 1e-6 << " s.\n";
+    }
+
+    if (renumbering_usecase.check_correctness) {
+      cugraph::experimental::unrenumber_local_int_vertices(handle,
+                                                           src_v.data(),
+                                                           src_v.size(),
+                                                           renumber_map_labels_v.data(),
+                                                           0,
+                                                           static_cast<vertex_t>(renumber_map_labels_v.size()));
+      cugraph::experimental::unrenumber_local_int_vertices(handle,
+                                                           dst_v.data(),
+                                                           dst_v.size(),
+                                                           renumber_map_labels_v.data(),
+                                                           0,
+                                                           static_cast<vertex_t>(renumber_map_labels_v.size()));
+
+      h_final_src_v.resize(src_v.size());
+      h_final_dst_v.resize(dst_v.size());
+
+      raft::update_host(h_final_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
+      raft::update_host(h_final_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+
+      EXPECT_EQ(h_original_src_v, h_original_src_v);
+      EXPECT_EQ(h_original_dst_v, h_original_dst_v);
+    }
+  }
+};
+
+using Tests_Renumbering_File = Tests_Renumbering<cugraph::test::File_Usecase>;
+using Tests_Renumbering_Rmat = Tests_Renumbering<cugraph::test::Rmat_Usecase>;
+
+// FIXME: add tests for type combinations
+TEST_P(Tests_Renumbering_File, CheckInt32Int32FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+}
+
+// FIXME: add tests for type combinations
+TEST_P(Tests_Renumbering_Rmat, CheckInt32Int32FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+  file_test,
+  Tests_Renumbering_File,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(Renumbering_Usecase{}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_tests,
+  Tests_Renumbering_Rmat,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(Renumbering_Usecase{}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_large_tests,
+  Tests_Renumbering_Rmat,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Renumbering_Usecase{false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+
+CUGRAPH_TEST_PROGRAM_MAIN()

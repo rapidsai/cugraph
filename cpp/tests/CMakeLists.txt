@@ -219,11 +219,13 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
 
     add_test(NAME ${CMAKE_TEST_NAME}
              COMMAND ${MPIEXEC_EXECUTABLE}
+             "--noprefix"
              ${MPIEXEC_NUMPROC_FLAG}
              ${GPU_COUNT}
              ${MPIEXEC_PREFLAGS}
              ${CMAKE_TEST_NAME}
              ${MPIEXEC_POSTFLAGS})
+
 endfunction()
 
 ###################################################################################################
@@ -401,6 +403,10 @@ set(SERIALIZATION_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/serialization/un_serialize_test.cpp")
 
 ConfigureTest(SERIALIZATION_TEST "${SERIALIZATION_TEST_SRCS}")
+
+###################################################################################################
+# - Experimental renumber tests -------------------------------------------------------------------
+ConfigureTest(EXPERIMENTAL_RENUMBERING_TEST experimental/renumbering_test.cpp)
 
 
 ###################################################################################################

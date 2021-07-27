@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/experimental/graph_functions.hpp>
 #include <cugraph/graph_generators.hpp>
 
@@ -163,11 +165,127 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
              bool>
   construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
   {
-    // TODO: Tease through generate_graph_from_rmat_params
-    //       to extract the edgelist part
-    // Call cugraph::translate_vertex_ids(handle, d_src_v, d_dst_v, base_vertex_id_);
+    constexpr bool symmetric{true};
 
-    CUGRAPH_FAIL("Not implemented");
+    std::vector<size_t> partition_ids(1);
+    size_t num_partitions;
+
+    if (multi_gpu_usecase_) {
+      auto& comm           = handle.get_comms();
+      num_partitions       = comm.get_size();
+      auto const comm_rank = comm.get_rank();
+
+      partition_ids.resize(multi_gpu ? size_t{1} : static_cast<size_t>(num_partitions));
+
+      std::iota(partition_ids.begin(),
+                partition_ids.end(),
+                multi_gpu ? static_cast<size_t>(comm_rank) : size_t{0});
+    } else {
+      num_partitions   = 1;
+      partition_ids[0] = size_t{0};
+    }
+
+    vertex_t number_of_vertices = static_cast<vertex_t>(size_t{1} << scale_);
+    edge_t number_of_edges =
+      static_cast<edge_t>(static_cast<size_t>(number_of_vertices) * edge_factor_);
+
+    std::vector<edge_t> partition_edge_counts(partition_ids.size());
+    std::vector<vertex_t> partition_vertex_firsts(partition_ids.size());
+    std::vector<vertex_t> partition_vertex_lasts(partition_ids.size());
+    for (size_t i = 0; i < partition_ids.size(); ++i) {
+      auto id = partition_ids[i];
+
+      partition_edge_counts[i] = number_of_edges / num_partitions +
+                                 (id < number_of_edges % num_partitions ? edge_t{1} : edge_t{0});
+
+      partition_vertex_firsts[i] = (number_of_vertices / num_partitions) * id;
+      partition_vertex_lasts[i]  = (number_of_vertices / num_partitions) * (id + 1);
+      if (id < number_of_vertices % num_partitions) {
+        partition_vertex_firsts[i] += id;
+        partition_vertex_lasts[i] += id + 1;
+      } else {
+        partition_vertex_firsts[i] += number_of_vertices % num_partitions;
+        partition_vertex_lasts[i] += number_of_vertices % num_partitions;
+      }
+    }
+
+    rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
+    auto weights_v =
+      test_weighted ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
+                    : std::nullopt;
+    for (size_t i = 0; i < partition_ids.size(); ++i) {
+      auto id = partition_ids[i];
+
+      rmm::device_uvector<vertex_t> tmp_src_v(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> tmp_dst_v(0, handle.get_stream());
+      std::tie(i == 0 ? src_v : tmp_src_v, i == 0 ? dst_v : tmp_dst_v) =
+        cugraph::generate_rmat_edgelist<vertex_t>(handle,
+                                                  scale_,
+                                                  partition_edge_counts[i],
+                                                  a_,
+                                                  b_,
+                                                  c_,
+                                                  seed_ + id,
+                                                  undirected_ ? true : false);
+
+      std::optional<rmm::device_uvector<weight_t>> tmp_weights_v{std::nullopt};
+      if (weights_v) {
+        if (i == 0) {
+          weights_v->resize(src_v.size(), handle.get_stream());
+        } else {
+          tmp_weights_v = std::make_optional<rmm::device_uvector<weight_t>>(tmp_src_v.size(),
+                                                                            handle.get_stream());
+        }
+
+        cugraph::detail::uniform_random_fill(
+          handle.get_stream_view(),
+          i == 0 ? weights_v->data() : tmp_weights_v->data(),
+          i == 0 ? weights_v->size() : tmp_weights_v->size(),
+          weight_t{0.0},
+          weight_t{1.0},
+          seed_ + num_partitions + id);
+      }
+
+      if (i > 0) {
+        auto start_offset = src_v.size();
+        src_v.resize(start_offset + tmp_src_v.size(), handle.get_stream());
+        dst_v.resize(start_offset + tmp_dst_v.size(), handle.get_stream());
+        raft::copy(src_v.begin() + start_offset,
+                   tmp_src_v.begin(),
+                   tmp_src_v.size(),
+                   handle.get_stream());
+        raft::copy(dst_v.begin() + start_offset,
+                   tmp_dst_v.begin(),
+                   tmp_dst_v.size(),
+                   handle.get_stream());
+
+        if (weights_v) {
+          raft::copy(weights_v->begin() + start_offset,
+                     tmp_weights_v->begin(),
+                     tmp_weights_v->size(),
+                     handle.get_stream());
+        }
+      }
+    }
+
+    if (multi_gpu) {
+      std::tie(src_v, dst_v, weights_v) =
+        cugraph::detail::shuffle_edgelist_by_edge(
+          handle, src_v, dst_v, weights_v, false);
+    }
+
+    translate(handle, src_v, dst_v);
+
+    std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, weight_t>(
+      handle, std::move(src_v), std::move(dst_v), std::nullopt);
+
+    return std::make_tuple(
+      std::move(src_v),
+      std::move(dst_v),
+      std::move(weights_v),
+      static_cast<vertex_t>(detail::TranslateGraph_Usecase::base_vertex_id_) + number_of_vertices,
+      symmetric);
   }
 
   template <typename vertex_t,
@@ -478,7 +596,8 @@ class CombinedGenerator_Usecase {
       detail::combined_construct_graph_tuple_impl<generator_tuple_t, 0, tuple_size>()
         .construct_edges(handle, test_weighted, generator_tuple_);
 
-    // Need to combine
+    // Need to combine elements.  We have a vector of tuples, we want to combine
+    //  the elements of each component of the tuple
     CUGRAPH_FAIL("not implemented");
   }
 
