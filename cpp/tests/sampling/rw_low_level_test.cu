@@ -1083,29 +1083,25 @@ TEST(BiasedRandomWalks, SegmentedSort)
   auto graph = cugraph::test::make_graph(
     handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
+  segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
+
+  graph.sort(seg_sort);
+
   auto graph_view = graph.view();
 
   edge_t const* offsets = graph_view.get_matrix_partition_view().get_offsets();
 
-  // for the purpose of this test, the const_cast<> is acceptable
-  // (necessary to make (indices, values) mutable for sorting purposes)
-  //
-  // for production code, a `graph_t` friend wrapper would be necessary
-  //
-  vertex_t* indices = const_cast<vertex_t*>(graph_view.get_matrix_partition_view().get_indices());
-  weight_t* values = const_cast<weight_t*>(*(graph_view.get_matrix_partition_view().get_weights()));
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
 
-  segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
-
-  auto [d_ci, d_weights] = seg_sort(offsets, indices, values);
+  weight_t const* values = *(graph_view.get_matrix_partition_view().get_weights());
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);
   std::vector<weight_t> v_vals(num_edges);
 
   raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
-  raft::update_host(v_ci.data(), d_ci.data(), v_ci.size(), handle.get_stream());
-  raft::update_host(v_vals.data(), d_weights.data(), v_vals.size(), handle.get_stream());
+  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
+  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
 
   std::vector h_ro{0, 1, 3, 6, 7, 8, 8};  // untouched
   std::vector h_correct_vals{0.1f, 1.1f, 2.1f, 3.1f, 4.1f, 5.1f, 7.2f, 3.2f};
@@ -1115,8 +1111,7 @@ TEST(BiasedRandomWalks, SegmentedSort)
 
   // check (when segment array is not given):
   //
-  bool check_seg_sort =
-    check_segmented_sort(handle, offsets, d_weights.data(), num_vertices, num_edges);
+  bool check_seg_sort = check_segmented_sort(handle, offsets, values, num_vertices, num_edges);
   ASSERT_TRUE(check_seg_sort);  // result is seg-sorted, ...
 
   // but values could be incorrect, so verify values:

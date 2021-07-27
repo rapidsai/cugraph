@@ -75,45 +75,37 @@ class Tests_RWSegSort : public ::testing::TestWithParam<RandomWalks_Usecase> {
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
         handle, target.graph_file_full_path, target.test_weighted, false);
 
-    auto graph_view = graph.view();
+    size_t num_vertices = graph.get_number_of_vertices();
+    size_t num_edges    = graph.get_number_of_edges();
 
-    edge_t const* offsets = graph_view.get_matrix_partition_view().get_offsets();
-
-    // for the purpose of this test, the const_cast<> is acceptable
-    // (necessary to make (indices, values) mutable for sorting purposes)
-    //
-    // for production code, a `graph_t` friend wrapper would be necessary
-    //
-    vertex_t* indices = const_cast<vertex_t*>(graph_view.get_matrix_partition_view().get_indices());
-    weight_t* values =
-      const_cast<weight_t*>(*(graph_view.get_matrix_partition_view().get_weights()));
-
-    size_t num_vertices = graph_view.get_number_of_vertices();
-    size_t num_edges    = graph_view.get_number_of_edges();
+    topo::segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
 
     HighResTimer hr_timer;
     std::string label{};
-
-    topo::segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
 
     label = std::string("Biased RW: CUB Segmented Sort.");
     hr_timer.start(label);
     cudaProfilerStart();
 
-    auto [d_ci, d_weights] = seg_sort(offsets, indices, values);
+    graph.sort(seg_sort);
 
     cudaProfilerStop();
     hr_timer.stop();
 
+    auto graph_view = graph.view();
+
+    edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
+    vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+    weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
+
     bool check_seg_sort =
-      topo::check_segmented_sort(handle, offsets, d_weights.data(), num_vertices, num_edges);
+      topo::check_segmented_sort(handle, offsets, values, num_vertices, num_edges);
     ASSERT_TRUE(check_seg_sort);
 
     try {
       auto runtime = hr_timer.get_average_runtime(label);
 
-      std::cout << "Average Runtime of " << label << " Segmented Sort for Biased RW: " << runtime
-                << '\n';
+      std::cout << "Segmented Sort for Biased RW:\n";
 
     } catch (std::exception const& ex) {
       std::cerr << ex.what() << '\n';

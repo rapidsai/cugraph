@@ -17,7 +17,8 @@
 
 // Andrei Schaffer, 6/10/19, 7/23/21;
 //
-//#include <cub/device/device_segmented_radix_sort.cuh>
+#include <cugraph/utilities/error.hpp>
+
 #include <cub/cub.cuh>
 
 #include <thrust/binary_search.h>
@@ -198,8 +199,7 @@ struct thrust_segment_sorter_by_weights_t {
  * (so that it can be instantiated by the caller without access to (ro, ci, vals))
  * while operator()(...) deduces its types from arguments and is meant to be called
  * from inside `graph_t` memf's;
- * operator()(...) returns std::tuple rather than thrust::tuple because the later has a bug with
- * structured bindings;
+ * It also must provide "in-place" semantics for modyfing the CSR array arguments;
  */
 struct segment_sorter_by_weights_t {
   segment_sorter_by_weights_t(raft::handle_t const& handle, size_t num_v, size_t num_e)
@@ -208,9 +208,11 @@ struct segment_sorter_by_weights_t {
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<weight_t>> operator()(
-    edge_t const* ptr_d_offsets_, vertex_t* ptr_d_indices_, weight_t* ptr_d_weights_) const
+  void operator()(edge_t const* ptr_d_offsets_,
+                  vertex_t* ptr_d_indices_,
+                  weight_t* ptr_d_weights_) const
   {
+    CUGRAPH_EXPECTS(ptr_d_weights_ != nullptr, "Cannot sort un-weighted graph by weights.");
     // keys are those on which sorting is done; hence, the weights:
     //
     rmm::device_uvector<weight_t> d_vals_out(num_edges_, handle_.get_stream());
@@ -220,10 +222,7 @@ struct segment_sorter_by_weights_t {
     //
     rmm::device_uvector<edge_t> d_keys_out(num_edges_, handle_.get_stream());
 
-    // In-place does not work, and no way to shuffle indices accordingly...
-    // using d_keys sequence to do a gather() later does not work either.
-    // Looks like the sorting algorithm does a lexicographic ordering of the (key, value) pairs;
-    // (offsets_ + 1) also fails;
+    // Note: In-place does not work;
 
     // Determine temporary device storage requirements:
     //
@@ -231,14 +230,14 @@ struct segment_sorter_by_weights_t {
     size_t temp_storage_bytes{0};
     cub::DeviceSegmentedRadixSort::SortPairs(ptr_d_temp_storage,
                                              temp_storage_bytes,
-                                             ptr_d_weights_,  // can it be in-place? no
-                                             d_vals_out.data(),
-                                             ptr_d_indices_,  // can it be in-place? no
-                                             d_keys_out.data(),
+                                             ptr_d_weights_,
+                                             d_vals_out.data(),  // no in-place;
+                                             ptr_d_indices_,
+                                             d_keys_out.data(),  // no in-place;
                                              num_edges_,
                                              num_vertices_,
                                              ptr_d_offsets_,
-                                             ptr_d_offsets_ + 1,  // num_vertices_ + 1,
+                                             ptr_d_offsets_ + 1,
                                              0,
                                              (sizeof(weight_t) << 3),
                                              handle_.get_stream());
@@ -251,19 +250,26 @@ struct segment_sorter_by_weights_t {
     //
     cub::DeviceSegmentedRadixSort::SortPairs(ptr_d_temp_storage,
                                              temp_storage_bytes,
-                                             ptr_d_weights_,  // can it be in-place? no
-                                             d_vals_out.data(),
-                                             ptr_d_indices_,  // can it be in-place? no
-                                             d_keys_out.data(),
+                                             ptr_d_weights_,
+                                             d_vals_out.data(),  // no in-place;
+                                             ptr_d_indices_,
+                                             d_keys_out.data(),  // no in-place;
                                              num_edges_,
                                              num_vertices_,
                                              ptr_d_offsets_,
-                                             ptr_d_offsets_ + 1,  // num_vertices_ + 1,
+                                             ptr_d_offsets_ + 1,
                                              0,
                                              (sizeof(weight_t) << 3),
                                              handle_.get_stream());
 
-    return std::make_tuple(std::move(d_keys_out), std::move(d_vals_out));
+    // copy back into the CSR structure
+    // to enforce "in-place" semantics:
+    //
+    thrust::copy_n(
+      rmm::exec_policy(handle_.get_stream_view()),
+      thrust::make_zip_iterator(thrust::make_tuple(d_keys_out.data(), d_vals_out.data())),
+      num_edges_,
+      thrust::make_zip_iterator(thrust::make_tuple(ptr_d_indices_, ptr_d_weights_)));
   }
 
  private:
