@@ -75,7 +75,7 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
 
   auto dcs_nzd_vertex_count = *(matrix_partition.get_dcs_nzd_vertex_count());
 
-  property_add<T> edge_property_add;
+  property_add<T> edge_property_add{};
   while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
     auto major =
       *(matrix_partition.get_major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
@@ -170,7 +170,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   auto idx                = static_cast<size_t>(tid);
 
-  property_add<T> edge_property_add;
+  property_add<T> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
@@ -268,7 +268,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   auto idx                = static_cast<size_t>(tid / raft::warp_size());
 
-  property_add<e_op_result_t> edge_property_add;
+  property_add<e_op_result_t> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
@@ -347,7 +347,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   auto idx                = static_cast<size_t>(blockIdx.x);
 
-  property_add<e_op_result_t> edge_property_add;
+  property_add<e_op_result_t> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};

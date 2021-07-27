@@ -65,7 +65,7 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
 
   auto dcs_nzd_vertex_count = *(matrix_partition.get_dcs_nzd_vertex_count());
 
-  property_add<e_op_result_t> edge_property_add;
+  property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
     auto major =
@@ -150,7 +150,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(tid);
 
-  property_add<e_op_result_t> edge_property_add;
+  property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
@@ -237,7 +237,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(tid / raft::warp_size());
 
-  property_add<e_op_result_t> edge_property_add;
+  property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
@@ -308,7 +308,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(blockIdx.x);
 
-  property_add<e_op_result_t> edge_property_add;
+  property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
@@ -404,7 +404,7 @@ T transform_reduce_e(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  property_add<T> edge_property_add;
+  property_add<T> edge_property_add{};
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
   thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),

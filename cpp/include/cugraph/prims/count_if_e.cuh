@@ -16,7 +16,6 @@
 #pragma once
 
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
 
 #include <raft/handle.hpp>
