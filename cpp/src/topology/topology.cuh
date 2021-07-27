@@ -208,10 +208,16 @@ struct segment_sorter_by_weights_t {
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<weight_t>> operator()(
-    edge_t const* ptr_d_offsets_, vertex_t* ptr_d_indices_, weight_t* ptr_d_weights_) const
+  void operator()(rmm::device_uvector<edge_t>& offsets,
+                  rmm::device_uvector<vertex_t>& indices,
+                  std::optional<rmm::device_uvector<weight_t>>& weights) const
   {
-    CUGRAPH_EXPECTS(ptr_d_weights_ != nullptr, "Cannot sort un-weighted graph by weights.");
+    CUGRAPH_EXPECTS(weights.has_value(), "Cannot sort un-weighted graph by weights.");
+
+    auto* ptr_d_offsets_ = offsets.data();
+    auto* ptr_d_indices_ = indices.data();
+    auto* ptr_d_weights_ = weights->data();
+
     // keys are those on which sorting is done; hence, the weights:
     //
     rmm::device_uvector<weight_t> d_vals_out(num_edges_, handle_.get_stream());
@@ -261,10 +267,10 @@ struct segment_sorter_by_weights_t {
                                              (sizeof(weight_t) << 3),
                                              handle_.get_stream());
 
-    // return sorted result(s) to help the caller
-    // to avoid copies by using move semantics:
+    // move data to deliver "in-place" semantics
     //
-    return std::make_tuple(std::move(d_keys_out), std::move(d_vals_out));
+    indices  = std::move(d_keys_out);
+    *weights = std::move(d_vals_out);
   }
 
  private:

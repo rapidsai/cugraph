@@ -187,29 +187,13 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   //      to allow for sorter obejcts for which
   //      the sorting operation fills additional structures
   //      (later to be retrieved; e.g., for debugging);
-  // (2.) sorting object is _not_ responsible for updating
-  //      any of the (offsets, indices, weights) arrays,
-  //      although it _may_ do so;
-  //      it returns modified indices, weights
-  //      device_uvectors, which are then _moved_ into the
-  //      graph_t CSR structure, to avoid copies, essentially
-  //      making sort() method "in-place";
-  // (3.) offsets array is assumed to be unaffected by the sort;
-  //      (it's hard to envision a sort() operation that changes
-  //      the boolean adjacency matrix)
+  // (2.) sorting object is responsible for updating "in-place"
+  //      any of the (offsets, indices, weights) arrays;
   //
-  template <typename sorter_t>
-  void sort(sorter_t& criterion)
+  template <typename in_place_sorter_t>
+  void sort(in_place_sorter_t& criterion)
   {
-    edge_t* ptr_d_offsets   = offsets_.data();
-    vertex_t* ptr_d_indices = indices_.data();
-    weight_t* ptr_d_weights{nullptr};
-    if (weights_.has_value()) ptr_d_weights = weights_->data();
-
-    auto&& [d_indices, d_weights] = criterion(ptr_d_offsets, ptr_d_indices, ptr_d_weights);
-
-    indices_ = std::move(d_indices);
-    if (weights_.has_value()) { *weights_ = std::move(d_weights); }
+    criterion(offsets_, indices_, weights_);
   }
 
  private:
