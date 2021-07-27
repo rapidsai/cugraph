@@ -267,17 +267,17 @@ def rmat(
         (if set to 'true') or not (if set to 'false).
 
     scramble_vertex_ids : bool
-        Flag controlling whether to scramble vertex ID bits (if set to `true`) or
-        not (if set to `false`); scrambling vertx ID bits breaks correlation
+        Flag controlling whether to scramble vertex ID bits (if set to `true`)
+        or not (if set to `false`); scrambling vertx ID bits breaks correlation
         between vertex ID values and vertex degrees
 
     create_using : cugraph Graph type or None The graph type to construct
         containing the generated edges and vertices.  If None is specified, the
-        edgelist cuDF DataFrame (or dask_cudf DataFrame for MG) is returned as-is.
-        This is useful for benchmarking Graph construction steps that require raw
-        data that includes potential self-loops, isolated vertices, and duplicated
-        edges.  Default is cugraph.DiGraph.  NOTE: only the cugraph.DiGraph type is
-        supported for multi-GPU
+        edgelist cuDF DataFrame (or dask_cudf DataFrame for MG) is returned
+        as-is. This is useful for benchmarking Graph construction steps that
+        require raw data that includes potential self-loops, isolated vertices,
+        and duplicated edges.  Default is cugraph.DiGraph.
+        NOTE: only the cugraph.DiGraph type is supported for multi-GPU
 
     mg : bool
         If True, R-MAT generation occurs across multiple GPUs. If False, only a
