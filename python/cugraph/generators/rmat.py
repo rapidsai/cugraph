@@ -259,7 +259,7 @@ def rmat(
         Probability of the thrid partition
 
     seed : int
-    S   eed value for the random number generator
+        Seed value for the random number generator
 
     clip_and_flip : bool
         Flag controlling whether to generate edges only in the lower triangular
@@ -268,8 +268,8 @@ def rmat(
 
     scramble_vertex_ids : bool
         Flag controlling whether to scramble vertex ID bits (if set to `true`)
-        or not (if set to `false`); scrambling vertx ID bits breaks correlation
-        between vertex ID values and vertex degrees
+        or not (if set to `false`); scrambling vertex ID bits breaks
+        correlation between vertex ID values and vertex degrees.
 
     create_using : cugraph Graph type or None The graph type to construct
         containing the generated edges and vertices.  If None is specified, the
