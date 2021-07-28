@@ -21,6 +21,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/experimental/graph.hpp>
 
+#include <topology/topology.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>

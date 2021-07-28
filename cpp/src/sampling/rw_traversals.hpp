@@ -20,7 +20,6 @@
 
 #include <cugraph/experimental/graph.hpp>
 
-#include <topology/topology.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>
@@ -106,7 +105,8 @@ struct biased_selector_t {
   biased_selector_t(edge_t const* offsets,
                     vertex_t const* indices,
                     weight_t const* weights,
-                    weight_t const* ptr_d_sum_weights)
+                    weight_t const* ptr_d_sum_weights,
+                    real_t tag)
     : row_offsets_(offsets),
       col_indices_(indices),
       values_(weights),

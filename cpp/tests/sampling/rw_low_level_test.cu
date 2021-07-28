@@ -54,7 +54,7 @@ bool check_col_indices(raft::handle_t const& handle,
                        index_t num_paths)
 {
   bool all_indices_within_degs = thrust::all_of(
-    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    rmm::exec_policy(handle.get_stream_view()),
     thrust::make_counting_iterator<index_t>(0),
     thrust::make_counting_iterator<index_t>(num_paths),
     [p_d_col_indx     = detail::raw_const_ptr(d_col_indx),
@@ -65,6 +65,24 @@ bool check_col_indices(raft::handle_t const& handle,
         return true;
     });
   return all_indices_within_degs;
+}
+
+template <typename vertex_t, typename real_t, typename selector_t>
+void next_biased(raft::handle_t const& handle,
+                 vector_test_t<vertex_t> const& d_src_v,
+                 vector_test_t<real_t> const& d_rnd,
+                 vector_test_t<vertex_t>& d_next_v,
+                 selector_t const& selector)
+{
+  thrust::transform(rmm::exec_policy(handle.get_stream_view()),
+                    d_src_v.begin(),
+                    d_src_v.end(),
+                    d_rnd.begin(),
+                    d_next_v.begin(),
+                    [selector] __device__(auto src_v_indx, auto rnd_val) {
+                      thrust::optional<vertex_t> next_v = selector(src_v_indx, rnd_val);
+                      return (next_v.has_value() ? *next_v : src_v_indx);
+                    });
 }
 
 }  // namespace
@@ -1118,4 +1136,109 @@ TEST(BiasedRandomWalks, SegmentedSort)
   //
   EXPECT_EQ(v_vals, h_correct_vals);
   EXPECT_EQ(v_ci, h_correct_ci);
+}
+
+TEST(BiasedRandomWalks, SelectorSmallGraph)
+{
+  using namespace cugraph::experimental::detail;
+  namespace topo = cugraph::topology;
+
+  raft::handle_t handle{};
+
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+  using real_t   = weight_t;
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  /*
+    0 --(.1)--> 1 --(1.1)--> 4
+   /|\       /\ |            |
+    |       /   |            |
+   (5.1) (3.1)(2.1)        (3.2)
+    |   /       |            |
+    | /        \|/          \|/
+    2 --(4.1)-->3 --(7.2)--> 5
+   */
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
+
+  topo::segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
+
+  graph.sort(seg_sort);
+
+  std::vector<real_t> v_rnd{0.0,
+                            1.0,
+                            0.2,  // 0
+                            0.0,
+                            1.0,
+                            0.8,  // 1
+                            0.0,
+                            1.0,
+                            0.5,  // 2
+                            0.0,
+                            1.0,  // 3
+                            0.0,
+                            1.0,  // 4
+                            0.0,
+                            1.0};  // 5
+
+  std::vector<vertex_t> v_src_v{0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 5, 5};
+
+  vector_test_t<real_t> d_rnd(v_rnd.size(), handle.get_stream());
+  vector_test_t<vertex_t> d_src_v(v_src_v.size(), handle.get_stream());
+
+  EXPECT_EQ(d_rnd.size(), d_src_v.size());
+
+  raft::update_device(d_rnd.data(), v_rnd.data(), d_rnd.size(), handle.get_stream());
+  raft::update_device(d_src_v.data(), v_src_v.data(), d_src_v.size(), handle.get_stream());
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets = graph_view.get_matrix_partition_view().get_offsets();
+
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+
+  weight_t const* values = *(graph_view.get_matrix_partition_view().get_weights());
+
+  // FIXME: add visitor to extract sum weights from graph:
+  //
+  std::vector v_sum_weights{0.1f, 3.2f, 12.3f, 7.2f, 3.2f, 0.0f};
+  vector_test_t<weight_t> d_sum_weights(num_vertices, handle.get_stream());
+  raft::update_device(
+    d_sum_weights.data(), v_sum_weights.data(), d_sum_weights.size(), handle.get_stream());
+
+  biased_selector_t selector{offsets, indices, values, d_sum_weights.data(), 0.0f};
+  vector_test_t<vertex_t> d_next_v(v_src_v.size(), handle.get_stream());
+
+  next_biased(handle, d_src_v, d_rnd, d_next_v, selector);
+
+  std::vector<edge_t> v_next_v(v_src_v.size());
+
+  raft::update_host(v_next_v.data(), d_next_v.data(), v_src_v.size(), handle.get_stream());
+
+  std::vector h_next_v{1,
+                       1,
+                       1, /*<-0*/
+                       4,
+                       3,
+                       3, /*<-1*/
+                       1,
+                       0,
+                       3, /*<-2*/
+                       5,
+                       5, /*<-3*/
+                       5,
+                       5, /*<-4*/
+                       5,
+                       5}; /*<-5*/
+
+  EXPECT_EQ(v_next_v, h_next_v);
 }
