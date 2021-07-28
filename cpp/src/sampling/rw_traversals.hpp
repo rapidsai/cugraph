@@ -122,7 +122,7 @@ struct biased_selector_t {
   // 2. Sum(weights(neighborhood(src_v))) are pre-computed and
   //    stored in ptr_d_sum_weights_
   //
-  __device__ thrust::optional<vertex_t> operator()(vertex_t src_v, real_t rnd_val)
+  __device__ thrust::optional<vertex_t> operator()(vertex_t src_v, real_t rnd_val) const
   {
     weight_t run_sum_w{0};
     auto rnd_sum_weights = rnd_val * ptr_d_sum_weights_[src_v];
