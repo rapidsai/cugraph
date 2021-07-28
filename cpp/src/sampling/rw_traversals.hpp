@@ -20,6 +20,7 @@
 
 #include <cugraph/experimental/graph.hpp>
 
+#include <topology/topology.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>
@@ -96,6 +97,59 @@ value_t const* raw_const_ptr(device_const_vector_view<value_t>& dv)
 {
   return dv.begin();
 }
+
+// Biased RW selection logic:
+//
+
+template <typename vertex_t, typename edge_t, typename weight_t, typename real_t>
+struct biased_selector_t {
+  biased_selector_t(edge_t const* offsets,
+                    vertex_t const* indices,
+                    weight_t const* weights,
+                    weight_t const* ptr_d_sum_weights)
+    : row_offsets_(offsets),
+      col_indices_(indices),
+      values_(weights),
+      ptr_d_sum_weights_(ptr_d_sum_weights)
+  {
+  }
+
+  // pre-conditions:
+  //
+  // 1. (indices, weights) are assumed to be reshuflled
+  //    so that weights(neighborhood(src_v)) are ordered
+  //    increasingly; too expesnive to check this here;
+  // 2. Sum(weights(neighborhood(src_v))) are pre-computed and
+  //    stored in ptr_d_sum_weights_
+  //
+  __device__ thrust::optional<vertex_t> operator()(vertex_t src_v, real_t rnd_val)
+  {
+    weight_t run_sum_w{0};
+    auto rnd_sum_weights = rnd_val * ptr_d_sum_weights_[src_v];
+
+    auto col_indx_begin = row_offsets_[src_v];
+    auto col_indx_end   = row_offsets_[src_v + 1];
+    if (col_indx_begin == col_indx_end) return thrust::nullopt;  // src_v is a sink
+
+    auto col_indx      = col_indx_begin;
+    auto prev_col_indx = col_indx;
+
+    for (; col_indx < col_indx_end; ++col_indx) {
+      if (rnd_sum_weights < run_sum_w) break;
+
+      run_sum_w += values_[col_indx];
+      prev_col_indx = col_indx;
+    }
+    return thrust::optional<vertex_t>{col_indices_[prev_col_indx]};
+  }
+
+ private:
+  edge_t const* row_offsets_;
+  vertex_t const* col_indices_;
+  weight_t const* values_;
+
+  weight_t const* ptr_d_sum_weights_;
+};
 
 // classes abstracting the way the random walks path are generated:
 //
