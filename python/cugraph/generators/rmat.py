@@ -243,7 +243,7 @@ def rmat(
     Parameters
     ----------
     scale : int
-        Scale factor to set the number of verties in the graph Vertex IDs have
+        Scale factor to set the number of vertices in the graph Vertex IDs have
         values in [0, V), where V = 1 << 'scale'
 
     num_edges : int
