@@ -15,10 +15,10 @@
  */
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
-#include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
 #include <cugraph/utilities/error.hpp>

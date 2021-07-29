@@ -20,7 +20,7 @@
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <raft/cudart_utils.h>

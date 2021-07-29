@@ -30,12 +30,12 @@
 
 #include <cugraph/legacy/graph.hpp>
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>
 
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <utilities/high_res_timer.hpp>
 

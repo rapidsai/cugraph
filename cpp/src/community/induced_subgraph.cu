@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>

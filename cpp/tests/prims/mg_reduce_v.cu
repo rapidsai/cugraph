@@ -25,7 +25,7 @@
 #include <cugraph/partition_manager.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/reduce_v.cuh>
 
 #include <thrust/count.h>

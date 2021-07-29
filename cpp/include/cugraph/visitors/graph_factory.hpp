@@ -30,7 +30,7 @@
 // just to make happy the clang-format policy
 // of header inclusion to be order-independent...
 //
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #define _DEBUG_

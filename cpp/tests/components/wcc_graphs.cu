@@ -13,7 +13,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/detail/utility_wrappers.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/graph_functions.hpp>
 
 #include <rmm/exec_policy.hpp>
 

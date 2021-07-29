@@ -17,7 +17,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 #include <cugraph/graph_generators.hpp>
 
 #include <thrust/sort.h>

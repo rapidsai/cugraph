@@ -5,7 +5,7 @@ cuGraph Pagerank is implemented using our graph primitive library
 
 The unit test code is the best place to search for examples on calling pagerank.
 
- * [SG Implementation](../../tests/experimental/pagerank_test.cpp)
+ * [SG Implementation](../../tests/pagerank_test.cpp)
  * [MG Implementation](../../tests/pagerank/mg_pagerank_test.cpp)
 
 ## Simple pagerank

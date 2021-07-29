@@ -15,9 +15,9 @@
  */
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/partition_manager.hpp>

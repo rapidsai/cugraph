@@ -15,7 +15,7 @@
  */
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/count_if_e.cuh>
 #include <cugraph/prims/reduce_op.cuh>

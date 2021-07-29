@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <thrust/binary_search.h>

@@ -5,7 +5,7 @@ cuGraph traversal algorithms are contained in this directory
 
 The unit test code is the best place to search for examples on calling SSSP.
 
- * [SG Implementation](../../tests/experimental/sssp_test.cpp)
+ * [SG Implementation](../../tests/sssp_test.cpp)
  * MG Implementation - TBD
 
 ## Simple SSSP

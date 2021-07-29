@@ -18,7 +18,7 @@
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
 

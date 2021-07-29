@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 

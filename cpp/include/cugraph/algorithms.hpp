@@ -16,8 +16,8 @@
 #pragma once
 
 #include <cugraph/dendrogram.hpp>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>

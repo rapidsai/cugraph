@@ -16,7 +16,7 @@
 
 #include <community/flatten_dendrogram.cuh>
 #include <community/legacy/louvain.cuh>
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 #include <community/louvain.cuh>
 
 #include <rmm/device_uvector.hpp>

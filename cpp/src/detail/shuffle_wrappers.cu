@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #include <cugraph/detail/shuffle_wrappers.hpp>
-#include <cugraph/experimental/detail/graph_utils.cuh>
+#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
