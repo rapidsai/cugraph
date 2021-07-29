@@ -243,49 +243,68 @@ def rmat(
     Parameters
     ----------
     scale : int
-    Scale factor to set the number of verties in the graph Vertex IDs have
-    values in [0, V), where V = 1 << 'scale'
+        Scale factor to set the number of vertices in the graph Vertex IDs have
+        values in [0, V), where V = 1 << 'scale'
 
     num_edges : int
-    Number of edges to generate
+        Number of edges to generate
 
     a : float
-    Probability of the first partition
+        Probability of the first partition
 
     b : float
-    Probability of the second partition
+        Probability of the second partition
 
     c : float
-    Probability of the thrid partition
+        Probability of the thrid partition
 
     seed : int
-    Seed value for the random number generator
+        Seed value for the random number generator
 
     clip_and_flip : bool
-    Flag controlling whether to generate edges only in the lower triangular
-    part (including the diagonal) of the graph adjacency matrix
-    (if set to 'true') or not (if set to 'false).
+        Flag controlling whether to generate edges only in the lower triangular
+        part (including the diagonal) of the graph adjacency matrix
+        (if set to 'true') or not (if set to 'false).
 
     scramble_vertex_ids : bool
-    Flag controlling whether to scramble vertex ID bits (if set to `true`) or
-    not (if set to `false`); scrambling vertx ID bits breaks correlation
-    between vertex ID values and vertex degrees
+        Flag controlling whether to scramble vertex ID bits (if set to `true`)
+        or not (if set to `false`); scrambling vertex ID bits breaks
+        correlation between vertex ID values and vertex degrees.
 
     create_using : cugraph Graph type or None The graph type to construct
-    containing the generated edges and vertices.  If None is specified, the
-    edgelist cuDF DataFrame (or dask_cudf DataFrame for MG) is returned as-is.
-    This is useful for benchmarking Graph construction steps that require raw
-    data that includes potential self-loops, isolated vertices, and duplicated
-    edges.  Default is cugraph.DiGraph.  NOTE: only the cugraph.DiGraph type is
-    supported for multi-GPU
+        containing the generated edges and vertices.  If None is specified, the
+        edgelist cuDF DataFrame (or dask_cudf DataFrame for MG) is returned
+        as-is. This is useful for benchmarking Graph construction steps that
+        require raw data that includes potential self-loops, isolated vertices,
+        and duplicated edges.  Default is cugraph.DiGraph.
+        NOTE: only the cugraph.DiGraph type is supported for multi-GPU
 
     mg : bool
-    If True, R-MAT generation occurs across multiple GPUs. If False, only a
-    single GPU is used.  Default is False (single-GPU)
+        If True, R-MAT generation occurs across multiple GPUs. If False, only a
+        single GPU is used.  Default is False (single-GPU)
 
     Returns
     -------
     instance of cugraph.Graph
+
+    Examples
+    --------
+    import cugraph
+    from cugraph.generators import rmat
+
+    df = rmat(
+        scale,
+        (2**scale)*edgefactor,
+        0.1,
+        0.2,
+        0.3,
+        seed or 42,
+        clip_and_flip=False,
+        scramble_vertex_ids=True,
+        create_using=None,  # return edgelist instead of Graph instance
+        mg=False
+    )
+
     """
     _ensure_args_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,
                       scramble_vertex_ids, create_using, mg)
