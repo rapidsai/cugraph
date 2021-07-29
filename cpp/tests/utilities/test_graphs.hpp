@@ -211,9 +211,9 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
 
     rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
-    auto weights_v =
-      test_weighted ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
-                    : std::nullopt;
+    auto weights_v = test_weighted
+                       ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
+                       : std::nullopt;
     for (size_t i = 0; i < partition_ids.size(); ++i) {
       auto id = partition_ids[i];
 
@@ -238,27 +238,22 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                                                                             handle.get_stream());
         }
 
-        cugraph::detail::uniform_random_fill(
-          handle.get_stream_view(),
-          i == 0 ? weights_v->data() : tmp_weights_v->data(),
-          i == 0 ? weights_v->size() : tmp_weights_v->size(),
-          weight_t{0.0},
-          weight_t{1.0},
-          seed_ + num_partitions + id);
+        cugraph::detail::uniform_random_fill(handle.get_stream_view(),
+                                             i == 0 ? weights_v->data() : tmp_weights_v->data(),
+                                             i == 0 ? weights_v->size() : tmp_weights_v->size(),
+                                             weight_t{0.0},
+                                             weight_t{1.0},
+                                             seed_ + num_partitions + id);
       }
 
       if (i > 0) {
         auto start_offset = src_v.size();
         src_v.resize(start_offset + tmp_src_v.size(), handle.get_stream());
         dst_v.resize(start_offset + tmp_dst_v.size(), handle.get_stream());
-        raft::copy(src_v.begin() + start_offset,
-                   tmp_src_v.begin(),
-                   tmp_src_v.size(),
-                   handle.get_stream());
-        raft::copy(dst_v.begin() + start_offset,
-                   tmp_dst_v.begin(),
-                   tmp_dst_v.size(),
-                   handle.get_stream());
+        raft::copy(
+          src_v.begin() + start_offset, tmp_src_v.begin(), tmp_src_v.size(), handle.get_stream());
+        raft::copy(
+          dst_v.begin() + start_offset, tmp_dst_v.begin(), tmp_dst_v.size(), handle.get_stream());
 
         if (weights_v) {
           raft::copy(weights_v->begin() + start_offset,
@@ -271,8 +266,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
 
     if (multi_gpu) {
       std::tie(src_v, dst_v, weights_v) =
-        cugraph::detail::shuffle_edgelist_by_edge(
-          handle, src_v, dst_v, weights_v, false);
+        cugraph::detail::shuffle_edgelist_by_edge(handle, src_v, dst_v, weights_v, false);
     }
 
     translate(handle, src_v, dst_v);

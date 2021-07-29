@@ -108,18 +108,20 @@ class Tests_Renumbering
     }
 
     if (renumbering_usecase.check_correctness) {
-      cugraph::experimental::unrenumber_local_int_vertices(handle,
-                                                           src_v.data(),
-                                                           src_v.size(),
-                                                           renumber_map_labels_v.data(),
-                                                           0,
-                                                           static_cast<vertex_t>(renumber_map_labels_v.size()));
-      cugraph::experimental::unrenumber_local_int_vertices(handle,
-                                                           dst_v.data(),
-                                                           dst_v.size(),
-                                                           renumber_map_labels_v.data(),
-                                                           0,
-                                                           static_cast<vertex_t>(renumber_map_labels_v.size()));
+      cugraph::experimental::unrenumber_local_int_vertices(
+        handle,
+        src_v.data(),
+        src_v.size(),
+        renumber_map_labels_v.data(),
+        0,
+        static_cast<vertex_t>(renumber_map_labels_v.size()));
+      cugraph::experimental::unrenumber_local_int_vertices(
+        handle,
+        dst_v.data(),
+        dst_v.size(),
+        renumber_map_labels_v.data(),
+        0,
+        static_cast<vertex_t>(renumber_map_labels_v.size()));
 
       h_final_src_v.resize(src_v.size());
       h_final_dst_v.resize(dst_v.size());
