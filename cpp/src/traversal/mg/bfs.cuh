@@ -17,7 +17,7 @@
 #pragma once
 
 #include <raft/handle.hpp>
-#include "../traversal_common.cuh"
+#include <traversal/legacy/traversal_common.cuh>
 #include "common_utils.cuh"
 #include "frontier_expand.cuh"
 

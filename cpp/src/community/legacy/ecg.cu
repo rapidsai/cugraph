@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <community/louvain.cuh>
+#include <community/legacy/louvain.cuh>
 #include <converters/permute_graph.cuh>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/utilities/error.hpp>

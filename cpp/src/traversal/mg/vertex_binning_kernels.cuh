@@ -17,7 +17,7 @@
 #pragma once
 
 #include <rmm/thrust_rmm_allocator.h>
-#include "../traversal_common.cuh"
+#include "traversal/legacy/traversal_common.cuh"
 
 namespace cugraph {
 

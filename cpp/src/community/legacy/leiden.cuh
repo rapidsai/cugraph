@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <community/louvain.cuh>
+#include <community/legacy/louvain.cuh>
 
 #include <rmm/device_uvector.hpp>
 

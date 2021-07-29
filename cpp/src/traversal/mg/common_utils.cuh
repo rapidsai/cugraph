@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "../traversal_common.cuh"
+#include <traversal/legacy/traversal_common.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <thrust/host_vector.h>

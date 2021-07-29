@@ -1,579 +1,308 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
- * NVIDIA CORPORATION and its licensors retain all intellectual property
- * and proprietary rights in and to this software, related documentation
- * and any modifications thereto.  Any use, reproduction, disclosure or
- * distribution of this software and related documentation without an express
- * license agreement from NVIDIA CORPORATION is strictly prohibited.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-#include <algorithm>
-#include <iomanip>
-#include <limits>
-#include "bfs.cuh"
-
-#include <cugraph/legacy/graph.hpp>
-
+#include <cugraph/algorithms.hpp>
+#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <utilities/graph_utils.cuh>
-#include "bfs_kernels.cuh"
-#include "mg/bfs.cuh"
-#include "mg/common_utils.cuh"
-#include "traversal_common.cuh"
+#include <cugraph/vertex_partition_device_view.cuh>
+
+#include <rmm/thrust_rmm_allocator.h>
+#include <raft/handle.hpp>
+
+#include <thrust/fill.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/discard_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
+
+#include <limits>
+#include <type_traits>
 
 namespace cugraph {
+namespace experimental {
 namespace detail {
-enum BFS_ALGO_STATE { TOPDOWN, BOTTOMUP };
 
-template <typename IndexType>
-void BFS<IndexType>::setup()
+template <typename GraphViewType, typename PredecessorIterator>
+void bfs(raft::handle_t const& handle,
+         GraphViewType const& push_graph_view,
+         typename GraphViewType::vertex_type* distances,
+         PredecessorIterator predecessor_first,
+         typename GraphViewType::vertex_type source_vertex,
+         bool direction_optimizing,
+         typename GraphViewType::vertex_type depth_limit,
+         bool do_expensive_check)
 {
-  // Determinism flag, false by default
-  deterministic = false;
+  using vertex_t = typename GraphViewType::vertex_type;
 
-  // Working data
-  // Each vertex can be in the frontier at most once
-  // We will update frontier during the execution
-  // We need the orig to reset frontier, or ALLOC_FREE_TRY
-  original_frontier.resize(number_of_vertices);
-  frontier = original_frontier.data().get();
+  static_assert(std::is_integral<vertex_t>::value,
+                "GraphViewType::vertex_type should be integral.");
+  static_assert(!GraphViewType::is_adj_matrix_transposed,
+                "GraphViewType should support the push model.");
 
-  // size of bitmaps for vertices
-  vertices_bmap_size = (number_of_vertices / (8 * sizeof(int)) + 1);
-  // ith bit of visited_bmap is set <=> ith vertex is visited
+  auto const num_vertices = push_graph_view.get_number_of_vertices();
+  if (num_vertices == 0) { return; }
 
-  visited_bmap.resize(vertices_bmap_size);
+  // 1. check input arguments
 
-  // ith bit of isolated_bmap is set <=> degree of ith vertex = 0
-  isolated_bmap.resize(vertices_bmap_size);
+  CUGRAPH_EXPECTS(
+    push_graph_view.is_symmetric() || !direction_optimizing,
+    "Invalid input argument: input graph should be symmetric for direction optimizing BFS.");
+  CUGRAPH_EXPECTS(push_graph_view.is_valid_vertex(source_vertex),
+                  "Invalid input argument: source vertex out-of-range.");
 
-  // vertices_degree[i] = degree of vertex i
-  vertex_degree.resize(number_of_vertices);
-
-  // We will need (n+1) ints buffer for two differents things (bottom up or top down) - sharing it
-  // since those uses are mutually exclusive
-  buffer_np1_1.resize(number_of_vertices + 1);
-  buffer_np1_2.resize(number_of_vertices + 1);
-
-  // Using buffers : top down
-
-  // frontier_vertex_degree[i] is the degree of vertex frontier[i]
-  frontier_vertex_degree = buffer_np1_1.data().get();
-  // exclusive sum of frontier_vertex_degree
-  exclusive_sum_frontier_vertex_degree = buffer_np1_2.data().get();
-
-  // Using buffers : bottom up
-  // contains list of unvisited vertices
-  unvisited_queue = buffer_np1_1.data().get();
-  // size of the "last" unvisited queue : size_last_unvisited_queue
-  // refers to the size of unvisited_queue
-  // which may not be up to date (the queue may contains vertices that are now
-  // visited)
-
-  // We may leave vertices unvisited after bottom up main kernels - storing them
-  // here
-  left_unvisited_queue = buffer_np1_2.data().get();
-
-  // We use buckets of edges (32 edges per bucket for now, see exact macro in bfs_kernels).
-  // frontier_vertex_degree_buckets_offsets[i] is the index k such as frontier[k] is the source of
-  // the first edge of the bucket See top down kernels for more details
-  exclusive_sum_frontier_vertex_buckets_offsets.resize(
-    ((number_of_edges / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2));
-
-  // Init device-side counters
-  // Those counters must be/can be reset at each bfs iteration
-  // Keeping them adjacent in memory allow use call only one cudaMemset - launch latency is the
-  // current bottleneck
-  d_counters_pad.resize(4);
-
-  d_new_frontier_cnt   = d_counters_pad.data().get();
-  d_mu                 = d_counters_pad.data().get() + 1;
-  d_unvisited_cnt      = d_counters_pad.data().get() + 2;
-  d_left_unvisited_cnt = d_counters_pad.data().get() + 3;
-
-  // Lets use this int* for the next 3 lines
-  // Its dereferenced value is not initialized - so we dont care about what we
-  // put in it
-  IndexType* d_nisolated = d_new_frontier_cnt;
-  cudaMemsetAsync(d_nisolated, 0, sizeof(IndexType), stream);
-
-  // Computing isolated_bmap
-  // Only dependent on graph - not source vertex - done once
-  traversal::flag_isolated_vertices(number_of_vertices,
-                                    isolated_bmap.data().get(),
-                                    row_offsets,
-                                    vertex_degree.data().get(),
-                                    d_nisolated,
-                                    stream);
-  cudaMemcpyAsync(&nisolated, d_nisolated, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
-
-  // We need nisolated to be ready to use
-  cudaStreamSynchronize(stream);
-}
-
-template <typename IndexType>
-void BFS<IndexType>::configure(IndexType* _distances,
-                               IndexType* _predecessors,
-                               double* _sp_counters,
-                               int* _edge_mask)
-{
-  distances    = _distances;
-  predecessors = _predecessors;
-  edge_mask    = _edge_mask;
-  sp_counters  = _sp_counters;
-
-  useEdgeMask         = (edge_mask != NULL);
-  computeDistances    = (distances != NULL);
-  computePredecessors = (predecessors != NULL);
-
-  // We need distances to use bottom up
-  if (directed && !computeDistances) {
-    distances_vals.resize(number_of_vertices);
-    distances = distances_vals.data().get();
+  if (do_expensive_check) {
+    // nothing to do
   }
 
-  // In case the shortest path counters is required, previous_bmap has to be allocated
-  if (sp_counters) { previous_visited_bmap.resize(vertices_bmap_size); }
-}
+  // 2. initialize distances and predecessors
 
-template <typename IndexType>
-void BFS<IndexType>::traverse(IndexType source_vertex)
-{
-  // Init visited_bmap
-  // If the graph is undirected, we not that
-  // we will never discover isolated vertices (in degree = out degree = 0)
-  // we avoid a lot of work by flagging them now
-  // in g500 graphs they represent ~25% of total vertices
-  // more than that for wiki and twitter graphs
+  auto constexpr invalid_distance = std::numeric_limits<vertex_t>::max();
+  auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
-  if (directed) {
-    cudaMemsetAsync(visited_bmap.data().get(), 0, vertices_bmap_size * sizeof(int), stream);
-  } else {
-    cudaMemcpyAsync(visited_bmap.data().get(),
-                    isolated_bmap.data().get(),
-                    vertices_bmap_size * sizeof(int),
-                    cudaMemcpyDeviceToDevice,
-                    stream);
+  auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
+  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                    thrust::make_counting_iterator(push_graph_view.get_local_vertex_first()),
+                    thrust::make_counting_iterator(push_graph_view.get_local_vertex_last()),
+                    val_first,
+                    [source_vertex] __device__(auto val) {
+                      auto distance = invalid_distance;
+                      if (val == source_vertex) { distance = vertex_t{0}; }
+                      return thrust::make_tuple(distance, invalid_vertex);
+                    });
+
+  // 3. initialize BFS frontier
+
+  enum class Bucket { cur, next, num_buckets };
+  VertexFrontier<vertex_t,
+                 void,
+                 GraphViewType::is_multi_gpu,
+                 static_cast<size_t>(Bucket::num_buckets)>
+    vertex_frontier(handle);
+
+  if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(source_vertex);
   }
 
-  // If needed, setting all vertices as undiscovered (inf distance)
-  // We dont use computeDistances here
-  // if the graph is undirected, we may need distances even if
-  // computeDistances is false
-  if (distances)
-    traversal::fill_vec(distances, number_of_vertices, traversal::vec_t<IndexType>::max, stream);
+  // 4. BFS iteration
 
-  // If needed, setting all predecessors to non-existent (-1)
-  if (computePredecessors) {
-    cudaMemsetAsync(predecessors, -1, number_of_vertices * sizeof(IndexType), stream);
-  }
+  vertex_t depth{0};
+  while (true) {
+    if (direction_optimizing) {
+      CUGRAPH_FAIL("unimplemented.");
+    } else {
+      auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+        push_graph_view.get_vertex_partition_view());
 
-  if (sp_counters) {
-    cudaMemsetAsync(sp_counters, 0, number_of_vertices * sizeof(double), stream);
-    double value = 1;
-    cudaMemcpyAsync(sp_counters + source_vertex, &value, sizeof(double), cudaMemcpyHostToDevice);
-  }
-
-  //
-  // Initial frontier
-  //
-
-  frontier = original_frontier.data().get();
-
-  if (distances) { cudaMemsetAsync(&distances[source_vertex], 0, sizeof(IndexType), stream); }
-
-  // Setting source_vertex as visited
-  // There may be bit already set on that bmap (isolated vertices) - if the
-  // graph is undirected
-  int current_visited_bmap_source_vert = 0;
-
-  if (!directed) {
-    cudaMemcpyAsync(&current_visited_bmap_source_vert,
-                    visited_bmap.data().get() + (source_vertex / INT_SIZE),
-                    sizeof(int),
-                    cudaMemcpyDeviceToHost);
-    // We need current_visited_bmap_source_vert
-    cudaStreamSynchronize(stream);
-  }
-
-  int m = (1 << (source_vertex % INT_SIZE));
-
-  // In that case, source is isolated, done now
-  if (!directed && (m & current_visited_bmap_source_vert)) {
-    // Init distances and predecessors are done, (cf Streamsync in previous if)
-    return;
-  }
-
-  m |= current_visited_bmap_source_vert;
-
-  cudaMemcpyAsync(visited_bmap.data().get() + (source_vertex / INT_SIZE),
-                  &m,
-                  sizeof(int),
-                  cudaMemcpyHostToDevice,
-                  stream);
-
-  // Adding source_vertex to init frontier
-  cudaMemcpyAsync(&frontier[0], &source_vertex, sizeof(IndexType), cudaMemcpyHostToDevice, stream);
-
-  // mf : edges in frontier
-  // nf : vertices in frontier
-  // mu : edges undiscovered
-  // nu : nodes undiscovered
-  // lvl : current frontier's depth
-  IndexType mf, nf, mu, nu;
-  bool growing;
-  IndexType lvl = 1;
-
-  // Frontier has one vertex
-  nf = 1;
-
-  // all edges are undiscovered (by def isolated vertices have 0 edges)
-  mu = number_of_edges;
-
-  // all non isolated vertices are undiscovered (excepted source vertex, which is in frontier)
-  // That number is wrong if source_vertex is also isolated - but it's not important
-  nu = number_of_vertices - nisolated - nf;
-
-  // Last frontier was 0, now it is 1
-  growing = true;
-
-  IndexType size_last_left_unvisited_queue = number_of_vertices;  // we just need value > 0
-  IndexType size_last_unvisited_queue      = 0;                   // queue empty
-
-  // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
-  traversal::set_frontier_degree(
-    frontier_vertex_degree, frontier, vertex_degree.data().get(), nf, stream);
-  traversal::exclusive_sum(
-    frontier_vertex_degree, exclusive_sum_frontier_vertex_degree, nf + 1, stream);
-
-  cudaMemcpyAsync(&mf,
-                  &exclusive_sum_frontier_vertex_degree[nf],
-                  sizeof(IndexType),
-                  cudaMemcpyDeviceToHost,
-                  stream);
-
-  // We need mf
-  cudaStreamSynchronize(stream);
-
-  // At first we know we have to use top down
-  BFS_ALGO_STATE algo_state = TOPDOWN;
-
-  // useDistances : we check if a vertex is a parent using distances in bottom up - distances become
-  // working data undirected g : need parents to be in children's neighbors
-
-  // In case the shortest path counters need to be computeed, the bottom_up approach cannot be used
-  // bool can_use_bottom_up = (!sp_counters && !directed && distances);
-  bool can_use_bottom_up = false;
-
-  while (nf > 0) {
-    new_frontier     = frontier + nf;
-    IndexType old_nf = nf;
-    resetDevicePointers();
-
-    if (can_use_bottom_up) {
-      // Choosing algo
-      // Finite machine described in http://parlab.eecs.berkeley.edu/sites/all/parlab/files/main.pdf
-
-      switch (algo_state) {
-        case TOPDOWN:
-          if (mf > mu / alpha) algo_state = BOTTOMUP;
-          break;
-        case BOTTOMUP:
-          if (!growing && nf < number_of_vertices / beta) {
-            // We need to prepare the switch back to top down
-            // We couldnt keep track of mu during bottom up - because we dont know what mf is.
-            // Computing mu here
-            bfs_kernels::count_unvisited_edges(unvisited_queue,
-                                               size_last_unvisited_queue,
-                                               visited_bmap.data().get(),
-                                               vertex_degree.data().get(),
-                                               d_mu,
-                                               stream);
-
-            // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
-            traversal::set_frontier_degree(
-              frontier_vertex_degree, frontier, vertex_degree.data().get(), nf, stream);
-            traversal::exclusive_sum(
-              frontier_vertex_degree, exclusive_sum_frontier_vertex_degree, nf + 1, stream);
-
-            cudaMemcpyAsync(&mf,
-                            &exclusive_sum_frontier_vertex_degree[nf],
-                            sizeof(IndexType),
-                            cudaMemcpyDeviceToHost,
-                            stream);
-
-            cudaMemcpyAsync(&mu, d_mu, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
-
-            // We will need mf and mu
-            cudaStreamSynchronize(stream);
-            algo_state = TOPDOWN;
+      update_frontier_v_push_if_out_nbr(
+        handle,
+        push_graph_view,
+        vertex_frontier,
+        static_cast<size_t>(Bucket::cur),
+        std::vector<size_t>{static_cast<size_t>(Bucket::next)},
+        thrust::make_constant_iterator(0) /* dummy */,
+        thrust::make_constant_iterator(0) /* dummy */,
+        [vertex_partition, distances] __device__(
+          vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
+          auto push = true;
+          if (vertex_partition.is_local_vertex_nocheck(dst)) {
+            auto distance =
+              *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(dst));
+            if (distance != invalid_distance) { push = false; }
           }
-          break;
+          return push ? thrust::optional<vertex_t>{src} : thrust::nullopt;
+        },
+        reduce_op::any<vertex_t>(),
+        distances,
+        thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
+        [depth] __device__(auto v, auto v_val, auto pushed_val) {
+          return (v_val == invalid_distance)
+                   ? thrust::optional<
+                       thrust::tuple<size_t, thrust::tuple<vertex_t, vertex_t>>>{thrust::make_tuple(
+                       static_cast<size_t>(Bucket::next),
+                       thrust::make_tuple(depth + 1, pushed_val))}
+                   : thrust::nullopt;
+        });
+
+      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).clear();
+      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).shrink_to_fit();
+      vertex_frontier.swap_buckets(static_cast<size_t>(Bucket::cur),
+                                   static_cast<size_t>(Bucket::next));
+      if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() == 0) {
+        break;
       }
     }
 
-    // Executing algo
-
-    switch (algo_state) {
-      case TOPDOWN:
-        // This step is only required if sp_counters is not nullptr
-        if (sp_counters) {
-          cudaMemcpyAsync(previous_visited_bmap.data().get(),
-                          visited_bmap.data().get(),
-                          vertices_bmap_size * sizeof(int),
-                          cudaMemcpyDeviceToDevice,
-                          stream);
-          // We need to copy the visited_bmap before doing the traversal
-          cudaStreamSynchronize(stream);
-        }
-        traversal::compute_bucket_offsets(
-          exclusive_sum_frontier_vertex_degree,
-          exclusive_sum_frontier_vertex_buckets_offsets.data().get(),
-          nf,
-          mf,
-          stream);
-        bfs_kernels::frontier_expand(row_offsets,
-                                     col_indices,
-                                     frontier,
-                                     nf,
-                                     mf,
-                                     lvl,
-                                     new_frontier,
-                                     d_new_frontier_cnt,
-                                     exclusive_sum_frontier_vertex_degree,
-                                     exclusive_sum_frontier_vertex_buckets_offsets.data().get(),
-                                     previous_visited_bmap.data().get(),
-                                     visited_bmap.data().get(),
-                                     distances,
-                                     predecessors,
-                                     sp_counters,
-                                     edge_mask,
-                                     isolated_bmap.data().get(),
-                                     directed,
-                                     stream,
-                                     deterministic);
-
-        mu -= mf;
-
-        cudaMemcpyAsync(&nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
-        CHECK_CUDA(stream);
-
-        // We need nf
-        cudaStreamSynchronize(stream);
-
-        if (nf) {
-          // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
-          traversal::set_frontier_degree(
-            frontier_vertex_degree, new_frontier, vertex_degree.data().get(), nf, stream);
-          traversal::exclusive_sum(
-            frontier_vertex_degree, exclusive_sum_frontier_vertex_degree, nf + 1, stream);
-          cudaMemcpyAsync(&mf,
-                          &exclusive_sum_frontier_vertex_degree[nf],
-                          sizeof(IndexType),
-                          cudaMemcpyDeviceToHost,
-                          stream);
-
-          // We need mf
-          cudaStreamSynchronize(stream);
-        }
-        break;
-
-      case BOTTOMUP:
-        bfs_kernels::fill_unvisited_queue(visited_bmap.data().get(),
-                                          vertices_bmap_size,
-                                          number_of_vertices,
-                                          unvisited_queue,
-                                          d_unvisited_cnt,
-                                          stream,
-                                          deterministic);
-
-        size_last_unvisited_queue = nu;
-
-        bfs_kernels::bottom_up_main(unvisited_queue,
-                                    size_last_unvisited_queue,
-                                    left_unvisited_queue,
-                                    d_left_unvisited_cnt,
-                                    visited_bmap.data().get(),
-                                    row_offsets,
-                                    col_indices,
-                                    lvl,
-                                    new_frontier,
-                                    d_new_frontier_cnt,
-                                    distances,
-                                    predecessors,
-                                    edge_mask,
-                                    stream,
-                                    deterministic);
-
-        // The number of vertices left unvisited decreases
-        // If it wasnt necessary last time, it wont be this time
-        if (size_last_left_unvisited_queue) {
-          cudaMemcpyAsync(&size_last_left_unvisited_queue,
-                          d_left_unvisited_cnt,
-                          sizeof(IndexType),
-                          cudaMemcpyDeviceToHost,
-                          stream);
-          CHECK_CUDA(stream);
-          // We need last_left_unvisited_size
-          cudaStreamSynchronize(stream);
-          bfs_kernels::bottom_up_large(left_unvisited_queue,
-                                       size_last_left_unvisited_queue,
-                                       visited_bmap.data().get(),
-                                       row_offsets,
-                                       col_indices,
-                                       lvl,
-                                       new_frontier,
-                                       d_new_frontier_cnt,
-                                       distances,
-                                       predecessors,
-                                       edge_mask,
-                                       stream,
-                                       deterministic);
-        }
-        cudaMemcpyAsync(&nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
-        CHECK_CUDA(stream);
-
-        // We will need nf
-        cudaStreamSynchronize(stream);
-        break;
-    }
-
-    // Updating undiscovered edges count
-    nu -= nf;
-
-    // Using new frontier
-    frontier = new_frontier;
-    growing  = (nf > old_nf);
-
-    ++lvl;
+    depth++;
+    if (depth >= depth_limit) { break; }
   }
-}
 
-template <typename IndexType>
-void BFS<IndexType>::resetDevicePointers()
-{
-  cudaMemsetAsync(d_counters_pad.data().get(), 0, 4 * sizeof(IndexType), stream);
+  CUDA_TRY(cudaStreamSynchronize(
+    handle.get_stream()));  // this is as necessary vertex_frontier will become out-of-scope once
+                            // this function returns (FIXME: should I stream sync in VertexFrontier
+                            // destructor?)
 }
-
-template <typename IndexType>
-void BFS<IndexType>::clean()
-{
-  // the vectors have a destructor that takes care of cleaning
-}
-
-// Explicit Instantiation
-template class BFS<uint32_t>;
-template class BFS<int>;
-template class BFS<int64_t>;
 
 }  // namespace detail
 
-// NOTE: SP counter increase extremely fast on large graph
-//       It can easily reach 1e40~1e70 on GAP-road.mtx
-template <typename VT, typename ET, typename WT>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void bfs(raft::handle_t const& handle,
-         legacy::GraphCSRView<VT, ET, WT> const& graph,
-         VT* distances,
-         VT* predecessors,
-         double* sp_counters,
-         const VT start_vertex,
-         bool directed,
-         bool mg_batch)
+         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+         vertex_t* distances,
+         vertex_t* predecessors,
+         vertex_t source_vertex,
+         bool direction_optimizing,
+         vertex_t depth_limit,
+         bool do_expensive_check)
 {
-  static_assert(std::is_integral<VT>::value && sizeof(VT) >= sizeof(int32_t),
-                "Unsupported vertex id data type. Use integral types of size >= sizeof(int32_t)");
-  static_assert(std::is_same<VT, ET>::value,
-                "VT and ET should be the same time for the current BFS implementation");
-  static_assert(std::is_floating_point<WT>::value,
-                "Unsupported edge weight type. Use floating point types");  // actually, this is
-                                                                            // unnecessary for BFS
-  if (handle.comms_initialized() && !mg_batch) {
-    CUGRAPH_EXPECTS(sp_counters == nullptr,
-                    "BFS Traversal shortest path is not supported in MG path");
-    mg::bfs<VT, ET, WT>(handle, graph, distances, predecessors, start_vertex);
+  if (predecessors != nullptr) {
+    detail::bfs(handle,
+                graph_view,
+                distances,
+                predecessors,
+                source_vertex,
+                direction_optimizing,
+                depth_limit,
+                do_expensive_check);
   } else {
-    VT number_of_vertices = graph.number_of_vertices;
-    ET number_of_edges    = graph.number_of_edges;
-
-    const VT* indices_ptr = graph.indices;
-    const ET* offsets_ptr = graph.offsets;
-
-    int alpha = 15;
-    int beta  = 18;
-    // FIXME: Use VT and ET in the BFS detail
-    cugraph::detail::BFS<VT> bfs(
-      number_of_vertices, number_of_edges, offsets_ptr, indices_ptr, directed, alpha, beta);
-    bfs.configure(distances, predecessors, sp_counters, nullptr);
-    bfs.traverse(start_vertex);
+    detail::bfs(handle,
+                graph_view,
+                distances,
+                thrust::make_discard_iterator(),
+                source_vertex,
+                direction_optimizing,
+                depth_limit,
+                do_expensive_check);
   }
 }
 
-// Explicit Instantiation
-template void bfs<uint32_t, uint32_t, float>(
-  raft::handle_t const& handle,
-  legacy::GraphCSRView<uint32_t, uint32_t, float> const& graph,
-  uint32_t* distances,
-  uint32_t* predecessors,
-  double* sp_counters,
-  const uint32_t source_vertex,
-  bool directed,
-  bool mg_batch);
+// explicit instantiation
 
-// Explicit Instantiation
-template void bfs<uint32_t, uint32_t, double>(
-  raft::handle_t const& handle,
-  legacy::GraphCSRView<uint32_t, uint32_t, double> const& graph,
-  uint32_t* distances,
-  uint32_t* predecessors,
-  double* sp_counters,
-  const uint32_t source_vertex,
-  bool directed,
-  bool mg_batch);
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
+                  int32_t source_vertex,
+                  bool direction_optimizing,
+                  int32_t depth_limit,
+                  bool do_expensive_check);
 
-// Explicit Instantiation
-template void bfs<int32_t, int32_t, float>(
-  raft::handle_t const& handle,
-  legacy::GraphCSRView<int32_t, int32_t, float> const& graph,
-  int32_t* distances,
-  int32_t* predecessors,
-  double* sp_counters,
-  const int32_t source_vertex,
-  bool directed,
-  bool mg_batch);
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
+                  int32_t source_vertex,
+                  bool direction_optimizing,
+                  int32_t depth_limit,
+                  bool do_expensive_check);
 
-// Explicit Instantiation
-template void bfs<int32_t, int32_t, double>(
-  raft::handle_t const& handle,
-  legacy::GraphCSRView<int32_t, int32_t, double> const& graph,
-  int32_t* distances,
-  int32_t* predecessors,
-  double* sp_counters,
-  const int32_t source_vertex,
-  bool directed,
-  bool mg_batch);
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
+                  int32_t source_vertex,
+                  bool direction_optimizing,
+                  int32_t depth_limit,
+                  bool do_expensive_check);
 
-// Explicit Instantiation
-template void bfs<int64_t, int64_t, float>(
-  raft::handle_t const& handle,
-  legacy::GraphCSRView<int64_t, int64_t, float> const& graph,
-  int64_t* distances,
-  int64_t* predecessors,
-  double* sp_counters,
-  const int64_t source_vertex,
-  bool directed,
-  bool mg_batch);
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
+                  int32_t source_vertex,
+                  bool direction_optimizing,
+                  int32_t depth_limit,
+                  bool do_expensive_check);
 
-// Explicit Instantiation
-template void bfs<int64_t, int64_t, double>(
-  raft::handle_t const& handle,
-  legacy::GraphCSRView<int64_t, int64_t, double> const& graph,
-  int64_t* distances,
-  int64_t* predecessors,
-  double* sp_counters,
-  const int64_t source_vertex,
-  bool directed,
-  bool mg_batch);
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+                  int64_t* distances,
+                  int64_t* predecessors,
+                  int64_t source_vertex,
+                  bool direction_optimizing,
+                  int64_t depth_limit,
+                  bool do_expensive_check);
 
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+                  int64_t* distances,
+                  int64_t* predecessors,
+                  int64_t source_vertex,
+                  bool direction_optimizing,
+                  int64_t depth_limit,
+                  bool do_expensive_check);
+
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
+                  int32_t source_vertex,
+                  bool direction_optimizing,
+                  int32_t depth_limit,
+                  bool do_expensive_check);
+
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
+                  int32_t source_vertex,
+                  bool direction_optimizing,
+                  int32_t depth_limit,
+                  bool do_expensive_check);
+
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
+                  int32_t source_vertex,
+                  bool direction_optimizing,
+                  int32_t depth_limit,
+                  bool do_expensive_check);
+
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
+                  int32_t source_vertex,
+                  bool direction_optimizing,
+                  int32_t depth_limit,
+                  bool do_expensive_check);
+
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+                  int64_t* distances,
+                  int64_t* predecessors,
+                  int64_t source_vertex,
+                  bool direction_optimizing,
+                  int64_t depth_limit,
+                  bool do_expensive_check);
+
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+                  int64_t* distances,
+                  int64_t* predecessors,
+                  int64_t source_vertex,
+                  bool direction_optimizing,
+                  int64_t depth_limit,
+                  bool do_expensive_check);
+
+}  // namespace experimental
 }  // namespace cugraph

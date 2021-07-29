@@ -16,7 +16,7 @@
 
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <experimental/scramble.cuh>
+#include <generators/scramble.cuh>
 
 #include <raft/cuda_utils.cuh>
 
