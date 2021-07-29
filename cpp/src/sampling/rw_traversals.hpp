@@ -19,6 +19,8 @@
 #pragma once
 
 #include <cugraph/experimental/graph.hpp>
+#include <cugraph/visitors/graph_envelope.hpp>
+#include <cugraph/visitors/ret_terased.hpp>
 
 #include <utilities/graph_utils.cuh>
 
@@ -30,6 +32,8 @@
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/for_each.h>
+#include <thrust/functional.h>
+#include <thrust/reduce.h>
 
 #include <algorithm>
 #include <future>
@@ -149,6 +153,65 @@ struct biased_selector_t {
   weight_t const* values_;
 
   weight_t const* ptr_d_sum_weights_;
+};
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename binary_op_t = thrust::plus<weight_t>>
+struct visitor_aggregate_weights_t : visitors::visitor_t {
+  visitor_aggregate_weights_t(raft::handle_t const& handle,
+                              size_t num_vertices,
+                              binary_op_t aggregate_op = thrust::plus<weight_t>{})
+    : handle_(handle),
+      d_aggregate_weights_(num_vertices, handle_.get_stream()),
+      aggregator_(aggregate_op)
+  {
+  }
+
+  void visit_graph(graph_envelope_t::base_graph_t const& graph) override
+  {
+    auto const& graph_ =
+      static_cast<graph_t<vertex_t, edge_t, weight_t, false, false> const&>(graph);
+
+    auto graph_view = graph_.view();  // FIXME: make view() virtual, to avoid above cast
+
+    auto opt_weights = graph_view.get_matrix_partition_view().get_weights();
+    CUGRAPH_EXPECTS(opt_weights.has_value(), "Cannot aggregate weights for  un-weighted graph.");
+
+    size_t num_vertices = d_aggregate_weights_.size();
+
+    edge_t const* offsets = graph_view.get_matrix_partition_view().get_offsets();
+
+    weight_t const* values = *opt_weights;
+
+    thrust::for_each(
+      rmm::exec_policy(handle_.get_stream_view()),
+      thrust::make_counting_iterator<size_t>(0),
+      thrust::make_counting_iterator<size_t>(num_vertices),
+      [agg_op = aggregator_, offsets, values, ptr_d_agg_w = d_aggregate_weights_.data()] __device__(
+        auto v_index) {
+        auto begin = values + offsets[v_index];
+        auto end   = values + offsets[v_index + 1];
+
+        ptr_d_agg_w[v_index] = thrust::reduce(thrust::seq, begin, end, weight_t{0}, agg_op);
+      });
+  }
+
+  // no need for type-erasure, as this is only used internally:
+  //
+  visitors::return_t const& get_result(void) const override { return ret_unused_; }
+
+  rmm::device_uvector<weight_t>&& get_aggregated_weights(void)
+  {
+    return std::move(d_aggregate_weights_);
+  }
+
+ private:
+  raft::handle_t const& handle_;
+  rmm::device_uvector<weight_t> d_aggregate_weights_;
+  binary_op_t aggregator_;
+  visitors::return_t ret_unused_{};  // necessary to silence a concerning warning
 };
 
 // classes abstracting the way the random walks path are generated:

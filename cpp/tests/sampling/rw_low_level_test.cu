@@ -33,6 +33,7 @@
 #include "random_walks_utils.cuh"
 
 #include <algorithm>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <limits>
@@ -83,6 +84,21 @@ void next_biased(raft::handle_t const& handle,
                       thrust::optional<vertex_t> next_v = selector(src_v_indx, rnd_val);
                       return (next_v.has_value() ? *next_v : src_v_indx);
                     });
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+vector_test_t<weight_t> sum_weights(raft::handle_t const& handle,
+                                    graph_t<vertex_t, edge_t, weight_t, false, false> const& graph)
+{
+  size_t num_vertices = graph.get_number_of_vertices();
+
+  detail::visitor_aggregate_weights_t<vertex_t, edge_t, weight_t> sum_visitor(handle, num_vertices);
+
+  graph.apply(sum_visitor);
+  // auto& d_sum_weights = sum_visitor.get_aggregated_weights();
+
+  // auto d_w = std::move(d_sum_weights);
+  return sum_visitor.get_aggregated_weights();
 }
 
 }  // namespace
@@ -1208,12 +1224,27 @@ TEST(BiasedRandomWalks, SelectorSmallGraph)
 
   weight_t const* values = *(graph_view.get_matrix_partition_view().get_weights());
 
-  // FIXME: add visitor to extract sum weights from graph:
+  std::vector<weight_t> h_correct_sum_w{0.1f, 3.2f, 12.3f, 7.2f, 3.2f, 0.0f};
+  std::vector<weight_t> v_sum_weights(num_vertices);
+
+  auto d_sum_weights = sum_weights(handle, graph);
+
+  raft::update_host(
+    v_sum_weights.data(), d_sum_weights.data(), d_sum_weights.size(), handle.get_stream());
+
+  // test floating point equality between vectors:
   //
-  std::vector v_sum_weights{0.1f, 3.2f, 12.3f, 7.2f, 3.2f, 0.0f};
-  vector_test_t<weight_t> d_sum_weights(num_vertices, handle.get_stream());
-  raft::update_device(
-    d_sum_weights.data(), v_sum_weights.data(), d_sum_weights.size(), handle.get_stream());
+  weight_t eps = 1.0e-6f;
+
+  auto end =
+    thrust::make_zip_iterator(thrust::make_tuple(v_sum_weights.end(), h_correct_sum_w.end()));
+  auto it = thrust::find_if(
+    thrust::host,
+    thrust::make_zip_iterator(thrust::make_tuple(v_sum_weights.begin(), h_correct_sum_w.begin())),
+    end,
+    [eps](auto const& tpl) { return std::abs(thrust::get<0>(tpl) - thrust::get<1>(tpl)) > eps; });
+
+  EXPECT_EQ(it, end);
 
   biased_selector_t selector{offsets, indices, values, d_sum_weights.data(), 0.0f};
   vector_test_t<vertex_t> d_next_v(v_src_v.size(), handle.get_stream());
