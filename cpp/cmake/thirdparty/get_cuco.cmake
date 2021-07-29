@@ -16,6 +16,10 @@
 
 function(find_and_configure_cuco VERSION)
 
+    if(TARGET cuco::cuco)
+      return()
+    endif()
+
     rapids_cpm_find(cuco ${VERSION}
       GLOBAL_TARGETS cuco cuco::cuco
       CPM_ARGS
@@ -26,9 +30,7 @@ function(find_and_configure_cuco VERSION)
                        "BUILD_EXAMPLES OFF"
     )
 
-    if(NOT TARGET cuco::cuco)
-      add_library(cuco::cuco ALIAS cuco)
-    endif()
+    add_library(cuco::cuco ALIAS cuco)
 
 endfunction()
 
