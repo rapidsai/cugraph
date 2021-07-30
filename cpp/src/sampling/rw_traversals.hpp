@@ -103,9 +103,51 @@ value_t const* raw_const_ptr(device_const_vector_view<value_t>& dv)
   return dv.begin();
 }
 
+// Uniform RW selector logic:
+//
+template <typename vertex_t, typename edge_t, typename weight_t, typename real_t>
+struct uniform_selector_t {
+  uniform_selector_t(edge_t const* offsets,
+                     vertex_t const* indices,
+                     weight_t const* weights,
+                     edge_t const* ptr_d_cache_out_degs,
+                     real_t tag)
+    : row_offsets_(offsets),
+      col_indices_(indices),
+      values_(weights),
+      ptr_d_cache_out_degs_(ptr_d_cache_out_degs)
+  {
+  }
+
+  __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(vertex_t src_v,
+                                                                            real_t rnd_val) const
+  {
+    auto crt_out_deg = ptr_d_cache_out_degs_[src_v];
+    if (crt_out_deg == 0) return thrust::nullopt;  // src_v is a sink
+
+    real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
+    auto interp_vindx = rnd_val * max_ub + real_t{.5};
+    vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
+
+    auto col_indx  = v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx;
+    auto start_row = row_offsets_[src_v];
+
+    auto weight_value =
+      (values_ == nullptr ? weight_t{1}
+                          : values_[start_row + col_indx]);  // account for un-weighted graphs
+    return thrust::optional{thrust::make_tuple(col_indices_[start_row + col_indx], weight_value)};
+  }
+
+ private:
+  edge_t const* row_offsets_;
+  vertex_t const* col_indices_;
+  weight_t const* values_;
+
+  edge_t const* ptr_d_cache_out_degs_;
+};
+
 // Biased RW selection logic:
 //
-
 template <typename vertex_t, typename edge_t, typename weight_t, typename real_t>
 struct biased_selector_t {
   biased_selector_t(edge_t const* offsets,
@@ -354,55 +396,38 @@ struct horizontal_traversal_t {
 
     random_engine_t::generate_random(handle, ptr_d_random, d_random.size(), seed0);
 
-    auto const* col_indices       = graph.get_matrix_partition_view().get_indices();
-    auto const* row_offsets       = graph.get_matrix_partition_view().get_offsets();
-    auto const* values            = graph.get_matrix_partition_view().get_weights()
-                                      ? *(graph.get_matrix_partition_view().get_weights())
-                                      : static_cast<weight_t*>(nullptr);
-    auto* ptr_d_sizes             = raw_ptr(d_paths_sz);
+    auto const* col_indices = graph.get_matrix_partition_view().get_indices();
+    auto const* row_offsets = graph.get_matrix_partition_view().get_offsets();
+    auto const* values      = graph.get_matrix_partition_view().get_weights()
+                                ? *(graph.get_matrix_partition_view().get_weights())
+                                : static_cast<weight_t*>(nullptr);
+    auto* ptr_d_sizes       = raw_ptr(d_paths_sz);
+
+    // FIXME: 1. make get_out_degs() lazzy;
+    //
     auto const& d_cached_out_degs = rand_walker.get_out_degs();
 
-    auto rnd_to_indx_convertor = [] __device__(real_t rnd_vindx, edge_t crt_out_deg) {
-      real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
-      auto interp_vindx = rnd_vindx * max_ub + real_t{.5};
-      vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
-      return (v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx);
-    };
-
-    auto next_vw =
-      [row_offsets,
-       col_indices,
-       values] __device__(auto v_indx,      // src vertex to find dst from
-                          auto col_indx) {  // column index, in {0,...,out_deg(v_indx)-1},
-        // extracted from random value in [0..1]
-        auto start_row = row_offsets[v_indx];
-
-        auto weight_value =
-          (values == nullptr ? weight_t{1}
-                             : values[start_row + col_indx]);  // account for un-weighted graphs
-        return thrust::make_tuple(col_indices[start_row + col_indx], weight_value);
-      };
+    // selector:
+    // FIXME: to be passed as argument;
+    //
+    uniform_selector_t selector{
+      row_offsets, col_indices, values, raw_const_ptr(d_cached_out_degs), real_t{0}};
 
     // start from 1, as 0-th was initialized above:
     //
     thrust::for_each(rmm::exec_policy(handle.get_stream_view()),
                      thrust::make_counting_iterator<index_t>(0),
                      thrust::make_counting_iterator<index_t>(num_paths_),
-                     [max_depth            = max_depth_,
-                      ptr_d_cache_out_degs = raw_const_ptr(d_cached_out_degs),
-                      ptr_coalesced_v      = raw_ptr(d_coalesced_v),
-                      ptr_coalesced_w      = raw_ptr(d_coalesced_w),
+                     [max_depth       = max_depth_,
+                      ptr_coalesced_v = raw_ptr(d_coalesced_v),
+                      ptr_coalesced_w = raw_ptr(d_coalesced_w),
                       ptr_d_random,
                       ptr_d_sizes,
-                      rnd_to_indx_convertor,
-                      next_vw] __device__(auto path_index) {
+                      selector] __device__(auto path_index) {
                        auto chunk_offset   = path_index * max_depth;
                        vertex_t src_vertex = ptr_coalesced_v[chunk_offset];
 
                        for (index_t step_indx = 1; step_indx < max_depth; ++step_indx) {
-                         auto crt_out_deg = ptr_d_cache_out_degs[src_vertex];
-                         if (crt_out_deg == 0) break;
-
                          // indexing into coalesced arrays of size num_paths x (max_depth -1):
                          // (d_random, d_coalesced_w)
                          //
@@ -410,11 +435,11 @@ struct horizontal_traversal_t {
 
                          auto real_rnd_indx = ptr_d_random[stepping_index];
 
-                         auto col_indx = rnd_to_indx_convertor(real_rnd_indx, crt_out_deg);
-                         auto pair_vw  = next_vw(src_vertex, col_indx);
+                         auto opt_tpl_vn_wn = selector(src_vertex, real_rnd_indx);
+                         if (!opt_tpl_vn_wn.has_value()) break;
 
-                         src_vertex      = thrust::get<0>(pair_vw);
-                         auto crt_weight = thrust::get<1>(pair_vw);
+                         src_vertex      = thrust::get<0>(*opt_tpl_vn_wn);
+                         auto crt_weight = thrust::get<1>(*opt_tpl_vn_wn);
 
                          ptr_coalesced_v[chunk_offset + step_indx] = src_vertex;
                          ptr_coalesced_w[stepping_index]           = crt_weight;
