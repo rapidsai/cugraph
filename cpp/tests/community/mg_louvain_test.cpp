@@ -98,8 +98,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
                           weight_t mg_modularity)
   {
     auto sg_graph =
-      std::make_unique<cugraph::graph_t<vertex_t, edge_t, weight_t, false, false>>(
-        handle);
+      std::make_unique<cugraph::graph_t<vertex_t, edge_t, weight_t, false, false>>(handle);
     rmm::device_uvector<vertex_t> d_clustering_v(0, handle.get_stream());
     weight_t sg_modularity{-1.0};
 

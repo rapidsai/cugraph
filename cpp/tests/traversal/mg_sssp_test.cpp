@@ -117,11 +117,11 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
     }
 
     cugraph::sssp(handle,
-                                mg_graph_view,
-                                d_mg_distances.data(),
-                                d_mg_predecessors.data(),
-                                static_cast<vertex_t>(sssp_usecase.source),
-                                std::numeric_limits<weight_t>::max());
+                  mg_graph_view,
+                  d_mg_distances.data(),
+                  d_mg_predecessors.data(),
+                  static_cast<vertex_t>(sssp_usecase.source),
+                  std::numeric_limits<weight_t>::max());
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -192,11 +192,11 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
         handle.get_stream_view().synchronize();
 
         cugraph::sssp(handle,
-                                    sg_graph_view,
-                                    d_sg_distances.data(),
-                                    d_sg_predecessors.data(),
-                                    unrenumbered_source,
-                                    std::numeric_limits<weight_t>::max());
+                      sg_graph_view,
+                      d_sg_distances.data(),
+                      d_sg_predecessors.data(),
+                      unrenumbered_source,
+                      std::numeric_limits<weight_t>::max());
 
         // 4-5. compare
 
@@ -250,8 +250,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
                                nearly_equal));
 
         for (size_t i = 0; i < h_mg_aggregate_predecessors.size(); ++i) {
-          if (h_mg_aggregate_predecessors[i] ==
-              cugraph::invalid_vertex_id<vertex_t>::value) {
+          if (h_mg_aggregate_predecessors[i] == cugraph::invalid_vertex_id<vertex_t>::value) {
             ASSERT_TRUE(h_sg_predecessors[i] == h_mg_aggregate_predecessors[i])
               << "vertex reachability does not match with the SG result.";
           } else {

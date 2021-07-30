@@ -49,9 +49,7 @@ void weakly_connected_components_reference(edge_t const* offsets,
 {
   vertex_t depth{0};
 
-  std::fill(components,
-            components + num_vertices,
-            cugraph::invalid_component_id<vertex_t>::value);
+  std::fill(components, components + num_vertices, cugraph::invalid_component_id<vertex_t>::value);
 
   vertex_t num_scanned{0};
   while (true) {
@@ -151,8 +149,7 @@ class Tests_WeaklyConnectedComponent
     }
 
     if (weakly_connected_components_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(
-        handle);
+      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
           input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(

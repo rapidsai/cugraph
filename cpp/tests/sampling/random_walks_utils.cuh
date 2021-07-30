@@ -124,10 +124,8 @@ bool host_check_rw_paths(
                     handle.get_stream());
 
   if (v_sizes.size() > 0) {  // coalesced case
-    raft::update_host(v_sizes.data(),
-                      cugraph::detail::raw_const_ptr(d_sizes),
-                      d_sizes.size(),
-                      handle.get_stream());
+    raft::update_host(
+      v_sizes.data(), cugraph::detail::raw_const_ptr(d_sizes), d_sizes.size(), handle.get_stream());
   } else {  // padded case
     if (num_paths == 0) {
       std::cerr << "ERROR: padded case requires `num_paths` info.\n";
@@ -195,25 +193,17 @@ bool host_check_query_rw(raft::handle_t const& handle,
   std::vector<index_t> w_sizes(num_paths);
   std::vector<index_t> w_offsets(num_paths);
 
-  raft::update_host(v_sizes.data(),
-                    cugraph::detail::raw_const_ptr(d_v_sizes),
-                    num_paths,
-                    handle.get_stream());
+  raft::update_host(
+    v_sizes.data(), cugraph::detail::raw_const_ptr(d_v_sizes), num_paths, handle.get_stream());
 
-  raft::update_host(v_offsets.data(),
-                    cugraph::detail::raw_const_ptr(d_v_offsets),
-                    num_paths,
-                    handle.get_stream());
+  raft::update_host(
+    v_offsets.data(), cugraph::detail::raw_const_ptr(d_v_offsets), num_paths, handle.get_stream());
 
-  raft::update_host(w_sizes.data(),
-                    cugraph::detail::raw_const_ptr(d_w_sizes),
-                    num_paths,
-                    handle.get_stream());
+  raft::update_host(
+    w_sizes.data(), cugraph::detail::raw_const_ptr(d_w_sizes), num_paths, handle.get_stream());
 
-  raft::update_host(w_offsets.data(),
-                    cugraph::detail::raw_const_ptr(d_w_offsets),
-                    num_paths,
-                    handle.get_stream());
+  raft::update_host(
+    w_offsets.data(), cugraph::detail::raw_const_ptr(d_w_offsets), num_paths, handle.get_stream());
 
   index_t crt_v_offset = 0;
   index_t crt_w_offset = 0;

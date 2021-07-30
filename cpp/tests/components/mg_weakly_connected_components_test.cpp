@@ -114,8 +114,7 @@ class Tests_MGWeaklyConnectedComponents
       hr_clock.start();
     }
 
-    cugraph::weakly_connected_components(
-      handle, mg_graph_view, d_mg_components.data());
+    cugraph::weakly_connected_components(handle, mg_graph_view, d_mg_components.data());
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -161,8 +160,7 @@ class Tests_MGWeaklyConnectedComponents
         rmm::device_uvector<vertex_t> d_sg_components(sg_graph_view.get_number_of_vertices(),
                                                       handle.get_stream());
 
-        cugraph::weakly_connected_components(
-          handle, sg_graph_view, d_sg_components.data());
+        cugraph::weakly_connected_components(handle, sg_graph_view, d_sg_components.data());
 
         // 4-5. compare
 

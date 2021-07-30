@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>

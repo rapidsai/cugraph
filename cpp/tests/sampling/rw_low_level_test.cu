@@ -812,7 +812,8 @@ TEST(RandomWalksQuery, GraphRWQueryOffsets)
   auto& d_v_sizes = std::get<2>(quad);
   auto seed0      = std::get<3>(quad);
 
-  auto triplet = cugraph::query_rw_sizes_offsets(handle, num_paths, cugraph::detail::raw_const_ptr(d_v_sizes));
+  auto triplet =
+    cugraph::query_rw_sizes_offsets(handle, num_paths, cugraph::detail::raw_const_ptr(d_v_sizes));
 
   auto& d_v_offsets = std::get<0>(triplet);
   auto& d_w_sizes   = std::get<1>(triplet);
@@ -868,7 +869,8 @@ TEST(RandomWalksSpecialCase, SingleRandomWalk)
 
   // 0-copy const device view:
   //
-  cugraph::detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
+  cugraph::detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(),
+                                                                            num_paths};
   auto quad = cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
 
   auto& d_coalesced_v = std::get<0>(quad);
@@ -923,7 +925,8 @@ TEST(RandomWalksSpecialCase, UnweightedGraph)
 
   // 0-copy const device view:
   //
-  cugraph::detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
+  cugraph::detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(),
+                                                                            num_paths};
   auto quad = cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
 
   auto& d_coalesced_v = std::get<0>(quad);
@@ -981,9 +984,11 @@ TEST(RandomWalksPadded, SimpleGraph)
 
   // 0-copy const device view:
   //
-  cugraph::detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
+  cugraph::detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(),
+                                                                            num_paths};
   bool use_padding{true};
-  auto quad = cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, use_padding);
+  auto quad =
+    cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, use_padding);
 
   auto& d_coalesced_v = std::get<0>(quad);
   auto& d_coalesced_w = std::get<1>(quad);
@@ -1031,10 +1036,10 @@ TEST(RandomWalksUtility, PathsToCOO)
   index_t coalesced_v_sz = d_coalesced_v.size();
 
   auto tpl_coo_offsets = cugraph::convert_paths_to_coo<vertex_t>(handle,
-                                                        coalesced_v_sz,
-                                                        static_cast<index_t>(num_paths),
-                                                        d_coalesced_v.release(),
-                                                        d_sizes.release());
+                                                                 coalesced_v_sz,
+                                                                 static_cast<index_t>(num_paths),
+                                                                 d_coalesced_v.release(),
+                                                                 d_sizes.release());
 
   auto&& d_src     = std::move(std::get<0>(tpl_coo_offsets));
   auto&& d_dst     = std::move(std::get<1>(tpl_coo_offsets));

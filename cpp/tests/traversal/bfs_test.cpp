@@ -54,9 +54,7 @@ void bfs_reference(edge_t const* offsets,
   vertex_t depth{0};
 
   std::fill(distances, distances + num_vertices, std::numeric_limits<vertex_t>::max());
-  std::fill(predecessors,
-            predecessors + num_vertices,
-            cugraph::invalid_vertex_id<vertex_t>::value);
+  std::fill(predecessors, predecessors + num_vertices, cugraph::invalid_vertex_id<vertex_t>::value);
 
   *(distances + source) = depth;
   std::vector<vertex_t> cur_frontier_rows{source};
@@ -141,12 +139,12 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
     }
 
     cugraph::bfs(handle,
-                               graph_view,
-                               d_distances.data(),
-                               d_predecessors.data(),
-                               static_cast<vertex_t>(bfs_usecase.source),
-                               false,
-                               std::numeric_limits<vertex_t>::max());
+                 graph_view,
+                 d_distances.data(),
+                 d_predecessors.data(),
+                 static_cast<vertex_t>(bfs_usecase.source),
+                 false,
+                 std::numeric_limits<vertex_t>::max());
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -156,8 +154,7 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
     }
 
     if (bfs_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(
-        handle);
+      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
           input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
@@ -207,12 +204,12 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
       std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
       if (renumber) {
         cugraph::unrenumber_local_int_vertices(handle,
-                                                             d_predecessors.data(),
-                                                             d_predecessors.size(),
-                                                             (*d_renumber_map_labels).data(),
-                                                             vertex_t{0},
-                                                             graph_view.get_number_of_vertices(),
-                                                             true);
+                                               d_predecessors.data(),
+                                               d_predecessors.size(),
+                                               (*d_renumber_map_labels).data(),
+                                               vertex_t{0},
+                                               graph_view.get_number_of_vertices(),
+                                               true);
 
         rmm::device_uvector<vertex_t> d_unrenumbered_distances(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_distances) =

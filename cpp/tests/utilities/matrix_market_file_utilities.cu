@@ -17,8 +17,8 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/detail/graph_utils.cuh>
-#include <cugraph/graph_functions.hpp>
 #include <cugraph/functions.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -350,8 +350,7 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
     auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     auto const col_comm_size = col_comm.get_size();
 
-    auto vertex_key_func =
-      cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
+    auto vertex_key_func = cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
     d_vertices.resize(
       thrust::distance(
         d_vertices.begin(),

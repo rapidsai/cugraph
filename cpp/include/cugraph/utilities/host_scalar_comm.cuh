@@ -131,8 +131,8 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_allreduce(
 }
 
 template <typename T>
-std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T>
-host_scalar_allreduce(raft::comms::comms_t const& comm, T input, cudaStream_t stream)
+std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scalar_allreduce(
+  raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
   std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
@@ -172,8 +172,8 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_reduce(
 
 // Return value is valid only in root (return value may better be std::optional in C++17 or later)
 template <typename T>
-std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T>
-host_scalar_reduce(raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scalar_reduce(
+  raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
   std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
@@ -215,8 +215,8 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_bcast(
 }
 
 template <typename T>
-std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T>
-host_scalar_bcast(raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scalar_bcast(
+  raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
   std::vector<int64_t> h_tuple_scalar_elements(tuple_size);

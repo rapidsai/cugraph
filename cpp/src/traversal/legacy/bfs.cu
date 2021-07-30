@@ -17,10 +17,10 @@
 #include <cugraph/legacy/graph.hpp>
 
 #include <cugraph/utilities/error.hpp>
-#include <utilities/graph_utils.cuh>
-#include "bfs_kernels.cuh"
 #include <traversal/mg/bfs.cuh>
 #include <traversal/mg/common_utils.cuh>
+#include <utilities/graph_utils.cuh>
+#include "bfs_kernels.cuh"
 #include "traversal_common.cuh"
 
 namespace cugraph {

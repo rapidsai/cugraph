@@ -38,9 +38,8 @@ template <typename vertex_t,
           bool multi_gpu>
 std::enable_if_t<
   multi_gpu,
-  std::tuple<
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-    std::optional<rmm::device_uvector<vertex_t>>>>
+  std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+             std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(
   raft::handle_t const& handle,
   std::optional<std::tuple<vertex_t const*, vertex_t>> optional_local_vertex_span,
@@ -101,8 +100,7 @@ create_graph_from_edgelist_impl(
 
   // 4. create a graph
 
-  std::vector<cugraph::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(
-    h_edge_counts.size());
+  std::vector<cugraph::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(h_edge_counts.size());
   for (size_t i = 0; i < h_edge_counts.size(); ++i) {
     edgelists[i] = cugraph::edgelist_t<vertex_t, edge_t, weight_t>{
       edgelist_rows.data() + h_displacements[i],
@@ -132,9 +130,8 @@ template <typename vertex_t,
           bool multi_gpu>
 std::enable_if_t<
   !multi_gpu,
-  std::tuple<
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-    std::optional<rmm::device_uvector<vertex_t>>>>
+  std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+             std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(
   raft::handle_t const& handle,
   std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,

@@ -55,9 +55,7 @@ void bfs_reference(edge_t* offsets,
   vertex_t depth{0};
 
   std::fill(distances, distances + num_vertices, std::numeric_limits<vertex_t>::max());
-  std::fill(predecessors,
-            predecessors + num_vertices,
-            cugraph::invalid_vertex_id<vertex_t>::value);
+  std::fill(predecessors, predecessors + num_vertices, cugraph::invalid_vertex_id<vertex_t>::value);
 
   *(distances + source) = depth;
   std::vector<vertex_t> cur_frontier_rows{source};
@@ -149,8 +147,9 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     graph_envelope_t graph_envelope{vertex_tid, edge_tid, weight_tid, st, mg, graph_tid, ep_graph};
 
-    auto const* p_graph = dynamic_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> const*>(
-      graph_envelope.graph().get());
+    auto const* p_graph =
+      dynamic_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> const*>(
+        graph_envelope.graph().get());
 
     auto graph_view = p_graph->view();
 

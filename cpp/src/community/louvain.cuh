@@ -47,10 +47,10 @@ class Louvain {
   using edge_t       = typename graph_view_t::edge_type;
   using weight_t     = typename graph_view_t::weight_type;
   using graph_t      = graph_t<vertex_t,
-                                        edge_t,
-                                        weight_t,
-                                        graph_view_t::is_adj_matrix_transposed,
-                                        graph_view_t::is_multi_gpu>;
+                          edge_t,
+                          weight_t,
+                          graph_view_t::is_adj_matrix_transposed,
+                          graph_view_t::is_multi_gpu>;
 
   Louvain(raft::handle_t const& handle, graph_view_t const& graph_view)
     :
@@ -314,9 +314,8 @@ class Louvain {
   void compute_cluster_sum_and_subtract(rmm::device_uvector<weight_t>& old_cluster_sum_v,
                                         rmm::device_uvector<weight_t>& cluster_subtract_v)
   {
-    auto output_buffer =
-      cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
-        current_graph_view_.get_number_of_local_vertices(), handle_.get_stream_view());
+    auto output_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
+      current_graph_view_.get_number_of_local_vertices(), handle_.get_stream_view());
 
     copy_v_transform_reduce_out_nbr(
       handle_,
@@ -335,25 +334,20 @@ class Louvain {
         return thrust::make_tuple(subtract, sum);
       },
       thrust::make_tuple(weight_t{0}, weight_t{0}),
-      cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(
-        output_buffer));
+      cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(output_buffer));
 
     thrust::transform(
       rmm::exec_policy(handle_.get_stream_view()),
-      cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(
-        output_buffer),
-      cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(
-        output_buffer) +
+      cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(output_buffer),
+      cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(output_buffer) +
         current_graph_view_.get_number_of_local_vertices(),
       old_cluster_sum_v.begin(),
       [] __device__(auto p) { return thrust::get<1>(p); });
 
     thrust::transform(
       rmm::exec_policy(handle_.get_stream_view()),
-      cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(
-        output_buffer),
-      cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(
-        output_buffer) +
+      cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(output_buffer),
+      cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(output_buffer) +
         current_graph_view_.get_number_of_local_vertices(),
       cluster_subtract_v.begin(),
       [] __device__(auto p) { return thrust::get<0>(p); });
@@ -373,9 +367,8 @@ class Louvain {
 
     compute_cluster_sum_and_subtract(old_cluster_sum_v, cluster_subtract_v);
 
-    auto output_buffer =
-      cugraph::allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
-        current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
+    auto output_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
+      current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
 
     vertex_t* map_key_first;
     vertex_t* map_key_last;
@@ -385,15 +378,15 @@ class Louvain {
       cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t> vertex_to_gpu_id_op{
         handle_.get_comms().get_size()};
 
-      src_cluster_weights_v = cugraph::collect_values_for_keys(
-        handle_.get_comms(),
-        cluster_keys_v_.begin(),
-        cluster_keys_v_.end(),
-        cluster_weights_v_.data(),
-        d_src_cluster_cache_,
-        d_src_cluster_cache_ + src_cluster_cache_v_.size(),
-        vertex_to_gpu_id_op,
-        handle_.get_stream());
+      src_cluster_weights_v =
+        cugraph::collect_values_for_keys(handle_.get_comms(),
+                                         cluster_keys_v_.begin(),
+                                         cluster_keys_v_.end(),
+                                         cluster_weights_v_.data(),
+                                         d_src_cluster_cache_,
+                                         d_src_cluster_cache_ + src_cluster_cache_v_.size(),
+                                         vertex_to_gpu_id_op,
+                                         handle_.get_stream());
 
       map_key_first   = cluster_keys_v_.begin();
       map_key_last    = cluster_keys_v_.end();
@@ -468,15 +461,13 @@ class Louvain {
         return (wt1 < wt2) ? p2 : ((wt1 > wt2) ? p1 : ((id1 < id2) ? p1 : p2));
       },
       thrust::make_tuple(vertex_t{-1}, weight_t{0}),
-      cugraph::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(
-        output_buffer));
+      cugraph::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(output_buffer));
 
     thrust::transform(
       rmm::exec_policy(handle_.get_stream_view()),
       next_cluster_v.begin(),
       next_cluster_v.end(),
-      cugraph::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(
-        output_buffer),
+      cugraph::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(output_buffer),
       next_cluster_v.begin(),
       [up_down] __device__(vertex_t old_cluster, auto p) {
         vertex_t new_cluster      = thrust::get<0>(p);

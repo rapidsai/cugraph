@@ -119,14 +119,14 @@ class Tests_MGKatzCentrality
     }
 
     cugraph::katz_centrality(handle,
-                                           mg_graph_view,
-                                           static_cast<result_t*>(nullptr),
-                                           d_mg_katz_centralities.data(),
-                                           alpha,
-                                           beta,
-                                           epsilon,
-                                           std::numeric_limits<size_t>::max(),
-                                           false);
+                             mg_graph_view,
+                             static_cast<result_t*>(nullptr),
+                             d_mg_katz_centralities.data(),
+                             alpha,
+                             beta,
+                             epsilon,
+                             std::numeric_limits<size_t>::max(),
+                             false);
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -172,16 +172,15 @@ class Tests_MGKatzCentrality
         rmm::device_uvector<result_t> d_sg_katz_centralities(sg_graph_view.get_number_of_vertices(),
                                                              handle.get_stream());
 
-        cugraph::katz_centrality(
-          handle,
-          sg_graph_view,
-          static_cast<result_t*>(nullptr),
-          d_sg_katz_centralities.data(),
-          alpha,
-          beta,
-          epsilon,
-          std::numeric_limits<size_t>::max(),  // max_iterations
-          false);
+        cugraph::katz_centrality(handle,
+                                 sg_graph_view,
+                                 static_cast<result_t*>(nullptr),
+                                 d_sg_katz_centralities.data(),
+                                 alpha,
+                                 beta,
+                                 epsilon,
+                                 std::numeric_limits<size_t>::max(),  // max_iterations
+                                 false);
 
         // 5-5. compare
 

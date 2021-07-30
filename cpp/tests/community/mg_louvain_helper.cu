@@ -218,8 +218,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool store_tran
 std::unique_ptr<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
 coarsen_graph(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, false> const&
-    graph_view,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, false> const& graph_view,
   vertex_t const* labels)
 {
   auto [coarsened_edgelist_major_vertices,
@@ -254,8 +253,7 @@ coarsen_graph(
                        vertex_t{0},
                        thrust::maximum<vertex_t>());
 
-  return std::make_unique<
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>(
+  return std::make_unique<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>(
     handle,
     edgelist,
     new_number_of_vertices,
@@ -271,8 +269,7 @@ template void single_gpu_renumber_edgelist_given_number_map(
   rmm::device_uvector<int>& d_edgelist_cols,
   rmm::device_uvector<int>& d_renumber_map_gathered_v);
 
-template std::unique_ptr<cugraph::graph_t<int32_t, int32_t, float, false, false>>
-coarsen_graph(
+template std::unique_ptr<cugraph::graph_t<int32_t, int32_t, float, false, false>> coarsen_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
   int32_t const* labels);

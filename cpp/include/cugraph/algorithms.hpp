@@ -1120,7 +1120,6 @@ weight_t hungarian(raft::handle_t const& handle,
 
 }  // namespace dense
 
-
 /**
  * @brief Run breadth-first search to find the distances (and predecessors) from the source
  * vertex.

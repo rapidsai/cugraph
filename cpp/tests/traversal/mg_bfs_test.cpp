@@ -120,12 +120,12 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
     }
 
     cugraph::bfs(handle,
-                               mg_graph_view,
-                               d_mg_distances.data(),
-                               d_mg_predecessors.data(),
-                               static_cast<vertex_t>(bfs_usecase.source),
-                               false,
-                               std::numeric_limits<vertex_t>::max());
+                 mg_graph_view,
+                 d_mg_distances.data(),
+                 d_mg_predecessors.data(),
+                 static_cast<vertex_t>(bfs_usecase.source),
+                 false,
+                 std::numeric_limits<vertex_t>::max());
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -197,12 +197,12 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
         handle.get_stream_view().synchronize();
 
         cugraph::bfs(handle,
-                                   sg_graph_view,
-                                   d_sg_distances.data(),
-                                   d_sg_predecessors.data(),
-                                   unrenumbered_source,
-                                   false,
-                                   std::numeric_limits<vertex_t>::max());
+                     sg_graph_view,
+                     d_sg_distances.data(),
+                     d_sg_predecessors.data(),
+                     unrenumbered_source,
+                     false,
+                     std::numeric_limits<vertex_t>::max());
         // 4-5. compare
 
         std::vector<edge_t> h_sg_offsets(sg_graph_view.get_number_of_vertices() + 1);
@@ -243,8 +243,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                                h_mg_aggregate_distances.end(),
                                h_sg_distances.begin()));
         for (size_t i = 0; i < h_mg_aggregate_predecessors.size(); ++i) {
-          if (h_mg_aggregate_predecessors[i] ==
-              cugraph::invalid_vertex_id<vertex_t>::value) {
+          if (h_mg_aggregate_predecessors[i] == cugraph::invalid_vertex_id<vertex_t>::value) {
             ASSERT_TRUE(h_sg_predecessors[i] == h_mg_aggregate_predecessors[i])
               << "vertex reachability does not match with the SG result.";
           } else {

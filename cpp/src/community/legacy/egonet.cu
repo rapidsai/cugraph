@@ -59,12 +59,11 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
-extract(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& csr_view,
-  vertex_t* source_vertex,
-  vertex_t n_subgraphs,
-  vertex_t radius)
+extract(raft::handle_t const& handle,
+        cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& csr_view,
+        vertex_t* source_vertex,
+        vertex_t n_subgraphs,
+        vertex_t radius)
 {
   auto v                = csr_view.get_number_of_vertices();
   auto e                = csr_view.get_number_of_edges();
@@ -110,12 +109,12 @@ extract(
       rmm::exec_policy(worker_stream_view), reached[i].begin(), reached[i].begin() + 100, 1.0);
 
     cugraph::bfs<vertex_t, edge_t, weight_t, false>(light_handle,
-                                                                  csr_view,
-                                                                  reached[i].data(),
-                                                                  predecessors.data(),
-                                                                  h_source_vertex[i],
-                                                                  direction_optimizing,
-                                                                  radius);
+                                                    csr_view,
+                                                    reached[i].data(),
+                                                    predecessors.data(),
+                                                    h_source_vertex[i],
+                                                    direction_optimizing,
+                                                    radius);
 
     // identify reached vertex ids from distance array
     thrust::transform(rmm::exec_policy(worker_stream_view),

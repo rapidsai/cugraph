@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -140,9 +140,8 @@ rmm::device_uvector<vertex_t> shuffle_vertices(raft::handle_t const& handle,
     comm,  // handle.get_comms(),
     d_vertices.begin(),
     d_vertices.end(),
-    [key_func =
-       cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{
-         comm_size}] __device__(auto val) { return key_func(val); },
+    [key_func = cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(
+      auto val) { return key_func(val); },
     handle.get_stream());
 
   return d_rx_vertices;
@@ -183,18 +182,17 @@ rmm::device_uvector<size_t> groupby_and_count_by_edge(
   auto pair_first =
     thrust::make_zip_iterator(thrust::make_tuple(d_edgelist_rows.begin(), d_edgelist_cols.begin()));
 
-  return d_edgelist_weights
-           ? cugraph::groupby_and_count(pair_first,
-                                                      pair_first + d_edgelist_rows.size(),
-                                                      d_edgelist_weights->begin(),
-                                                      local_partition_id_op,
-                                                      number_of_local_adj_matrix_partitions,
-                                                      handle.get_stream())
-           : cugraph::groupby_and_count(pair_first,
-                                                      pair_first + d_edgelist_rows.size(),
-                                                      local_partition_id_op,
-                                                      number_of_local_adj_matrix_partitions,
-                                                      handle.get_stream());
+  return d_edgelist_weights ? cugraph::groupby_and_count(pair_first,
+                                                         pair_first + d_edgelist_rows.size(),
+                                                         d_edgelist_weights->begin(),
+                                                         local_partition_id_op,
+                                                         number_of_local_adj_matrix_partitions,
+                                                         handle.get_stream())
+                            : cugraph::groupby_and_count(pair_first,
+                                                         pair_first + d_edgelist_rows.size(),
+                                                         local_partition_id_op,
+                                                         number_of_local_adj_matrix_partitions,
+                                                         handle.get_stream());
 }
 
 template rmm::device_uvector<size_t> groupby_and_count_by_edge(

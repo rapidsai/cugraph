@@ -60,8 +60,7 @@ void check_coarsened_graph_results(edge_t* org_offsets,
   ASSERT_TRUE(std::count_if(coarse_indices,
                             coarse_indices + coarse_offsets[num_coarse_vertices],
                             [num_coarse_vertices](auto nbr) {
-                              return !cugraph::is_valid_vertex(num_coarse_vertices,
-                                                                             nbr);
+                              return !cugraph::is_valid_vertex(num_coarse_vertices, nbr);
                             }) == 0);
   ASSERT_TRUE(num_coarse_vertices <= num_org_vertices);
 
@@ -108,18 +107,18 @@ void check_coarsened_graph_results(edge_t* org_offsets,
           threshold_ratio;
 
   for (size_t i = 0; i < org_unique_labels.size(); ++i) {  // for each vertex in the coarse graph
-    auto lb = std::lower_bound(
-      label_org_vertex_pairs.begin(),
-      label_org_vertex_pairs.end(),
-      std::make_tuple(org_unique_labels[i],
-                      cugraph::invalid_vertex_id<vertex_t>::value /* dummy */),
-      [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
-    auto ub = std::upper_bound(
-      label_org_vertex_pairs.begin(),
-      label_org_vertex_pairs.end(),
-      std::make_tuple(org_unique_labels[i],
-                      cugraph::invalid_vertex_id<vertex_t>::value /* dummy */),
-      [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
+    auto lb =
+      std::lower_bound(label_org_vertex_pairs.begin(),
+                       label_org_vertex_pairs.end(),
+                       std::make_tuple(org_unique_labels[i],
+                                       cugraph::invalid_vertex_id<vertex_t>::value /* dummy */),
+                       [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
+    auto ub =
+      std::upper_bound(label_org_vertex_pairs.begin(),
+                       label_org_vertex_pairs.end(),
+                       std::make_tuple(org_unique_labels[i],
+                                       cugraph::invalid_vertex_id<vertex_t>::value /* dummy */),
+                       [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
     auto count  = std::distance(lb, ub);
     auto offset = std::distance(label_org_vertex_pairs.begin(), lb);
     if (org_weights == nullptr) {
@@ -186,12 +185,10 @@ void check_coarsened_graph_results(edge_t* org_offsets,
           }
         }
         coarse_nbr_weight_pairs0.erase(
-          std::remove_if(coarse_nbr_weight_pairs0.begin(),
-                         coarse_nbr_weight_pairs0.end(),
-                         [](auto t) {
-                           return std::get<0>(t) ==
-                                  cugraph::invalid_vertex_id<vertex_t>::value;
-                         }),
+          std::remove_if(
+            coarse_nbr_weight_pairs0.begin(),
+            coarse_nbr_weight_pairs0.end(),
+            [](auto t) { return std::get<0>(t) == cugraph::invalid_vertex_id<vertex_t>::value; }),
           coarse_nbr_weight_pairs0.end());
       }
 
@@ -260,8 +257,7 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
       return;
     }
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
-      handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
     std::tie(graph, std::ignore) = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);
@@ -285,8 +281,7 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
 
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
-    std::unique_ptr<
-      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
+    std::unique_ptr<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
       coarse_graph{};
     rmm::device_uvector<vertex_t> coarse_vertices_to_labels(0, handle.get_stream());
 

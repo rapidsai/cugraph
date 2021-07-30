@@ -45,8 +45,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool store_tran
 std::unique_ptr<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
 coarsen_graph(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, false> const&
-    graph_view,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, false> const& graph_view,
   vertex_t const* labels);
 
 }  // namespace test

@@ -27,9 +27,8 @@ class LineGraph_Usecase {
             typename weight_t,
             bool store_transposed,
             bool multi_gpu>
-  std::tuple<
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-    std::optional<rmm::device_uvector<vertex_t>>>
+  std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+             std::optional<rmm::device_uvector<vertex_t>>>
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const;
 
  private:
