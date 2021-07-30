@@ -162,12 +162,15 @@ template <typename vertex_t,
           typename weight_t,
           typename binary_op_t = thrust::plus<weight_t>>
 struct visitor_aggregate_weights_t : visitors::visitor_t {
-  visitor_aggregate_weights_t(raft::handle_t const& handle,
-                              size_t num_vertices,
-                              binary_op_t aggregate_op = thrust::plus<weight_t>{})
+  visitor_aggregate_weights_t(
+    raft::handle_t const& handle,
+    size_t num_vertices,
+    binary_op_t aggregate_op = thrust::plus<weight_t>{},
+    weight_t initial_value   = 0)  // different aggregation ops require different initial values;
     : handle_(handle),
       d_aggregate_weights_(num_vertices, handle_.get_stream()),
-      aggregator_(aggregate_op)
+      aggregator_(aggregate_op),
+      initial_value_(initial_value)
   {
   }
 
@@ -199,7 +202,7 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
                                        offsets,
                                        offsets + 1,
                                        aggregator_,
-                                       weight_t{0},
+                                       initial_value_,
                                        handle_.get_stream());
     // Allocate temporary storage
     //
@@ -216,7 +219,7 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
                                        offsets,
                                        offsets + 1,
                                        aggregator_,
-                                       weight_t{0},
+                                       initial_value_,
                                        handle_.get_stream());
   }
 
@@ -233,6 +236,7 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
   raft::handle_t const& handle_;
   rmm::device_uvector<weight_t> d_aggregate_weights_;
   binary_op_t aggregator_;
+  weight_t initial_value_{0};
   visitors::return_t ret_unused_{};  // necessary to silence a concerning warning
 };
 
