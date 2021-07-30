@@ -302,14 +302,13 @@ Maximum Spanning Tree
 
 Generator
 =========
-    
-    RMAT
-    ---------------------
+
+RMAT
+---------------------
 
 .. automodule:: cugraph.generators
-:members: rmat
-:undoc-members:
-:noindex:
+    :members: rmat
+    :undoc-members:
 
 
 DASK MG Helper functions
