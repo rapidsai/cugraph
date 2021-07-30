@@ -29,27 +29,27 @@ gpu configuration and edgefactor
 _**NOTE: Some algos require the graph to be symmetrize (Louvain, WCC) or unweighted.**_
 * Run all the benchmarks with a generated datasets of scale=23
 ```
-(rapids) user@machine:/cugraph/benchmarks/SNMG_nightly> python nightly/main.py --scale=23
+(rapids) user@machine:/cugraph/benchmarks/end_to_end> python nightly/main.py --scale=23
 ```
 
 * Run all the benchmarks with a generated unweighted dataset of scale=23
 ```
-(rapids) user@machine:/cugraph/benchmarks/SNMG_nightly> python nightly/main.py --scale=23 --unweighted
+(rapids) user@machine:/cugraph/benchmarks/end_to_end> python nightly/main.py --scale=23 --unweighted
 ```
 
 * Symmetrize the generated dataset of scale=23 and run all the benchmarks
 ```
-(rapids) user@machine:/cugraph/benchmarks/SNMG_nightly> python nightly/main.py --scale=23 --symmetric-graph
+(rapids) user@machine:/cugraph/benchmarks/end_to_end> python nightly/main.py --scale=23 --symmetric-graph
 ```
 
 * Create a graph from a csv file an run all the benchmarks
 ```
-(rapids) user@machine:/cugraph/benchmarks/SNMG_nightly> python nightly/main.py --csv='karate.csv'
+(rapids) user@machine:/cugraph/benchmarks/end_to_end> python nightly/main.py --csv='karate.csv'
 ```
 
 * Run unweighted algos(Pagerank, Katz) with multiple scales(23~30) and gpus configuration(1, 2, 4 and 8 GPUs)
 ```
-(rapids) user@machine:/cugraph/benchmarks/SNMG_nightly> bash ./run_all_nightly_benches.sh
+(rapids) user@machine:/cugraph/benchmarks/end_to_end> bash ./run_all_nightly_benches.sh
 ```
 
 
