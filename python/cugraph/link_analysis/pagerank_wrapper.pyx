@@ -46,7 +46,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
-    df['pagerank'] = cudf.Series(np.zeros(num_verts, dtype=np.float32))
+    df['pagerank'] = cudf.Series(np.zeros(num_verts, dtype=weights.dtype))
 
     cdef bool has_guess = <bool> 0
     if nstart is not None:
