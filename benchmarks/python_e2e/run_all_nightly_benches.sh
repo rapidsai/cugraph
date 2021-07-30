@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-THIS_SCRIPT_DIR=${BASH_SOURCE%/*}
+THIS_SCRIPT_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
 
 #WEIGHTED_ALGOS="--algo=bfs --algo=sssp"
 #UNWEIGHTED_ALGOS="--algo=wcc"

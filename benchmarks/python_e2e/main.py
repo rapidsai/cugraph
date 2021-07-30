@@ -16,12 +16,12 @@ import sys
 from cugraph.dask.common.mg_utils import get_visible_devices
 
 from reporting import (generate_console_report,
-                                 update_csv_report,
-                                )
+                       update_csv_report,
+                       )
 
 import cugraph_funcs
 import cugraph_dask_funcs
-from benchmark_run import BenchmarkRun
+from benchmark import BenchmarkRun
 
 
 def log(s, end="\n"):

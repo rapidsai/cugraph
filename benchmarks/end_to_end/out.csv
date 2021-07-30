@@ -1,4 +1,0 @@
-name,ngpus_1
-pagerank,0.950047
-from_cudf_edgelist,0.514354
-katz,0.155097
