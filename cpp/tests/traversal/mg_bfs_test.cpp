@@ -119,7 +119,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
       hr_clock.start();
     }
 
-    cugraph::experimental::bfs(handle,
+    cugraph::bfs(handle,
                                mg_graph_view,
                                d_mg_distances.data(),
                                d_mg_predecessors.data(),
@@ -150,7 +150,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
       if (handle.get_comms().get_rank() == int{0}) {
         // 4-2. unrenumbr MG results
 
-        cugraph::experimental::unrenumber_int_vertices<vertex_t, false>(
+        cugraph::unrenumber_int_vertices<vertex_t, false>(
           handle,
           d_mg_aggregate_predecessors.data(),
           d_mg_aggregate_predecessors.size(),
@@ -172,7 +172,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
 
         // 4-3. create SG graph
 
-        cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
+        cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
         std::tie(sg_graph, std::ignore) =
           input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
             handle, false, false);
@@ -196,7 +196,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                           handle.get_stream());
         handle.get_stream_view().synchronize();
 
-        cugraph::experimental::bfs(handle,
+        cugraph::bfs(handle,
                                    sg_graph_view,
                                    d_sg_distances.data(),
                                    d_sg_predecessors.data(),
@@ -244,7 +244,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                                h_sg_distances.begin()));
         for (size_t i = 0; i < h_mg_aggregate_predecessors.size(); ++i) {
           if (h_mg_aggregate_predecessors[i] ==
-              cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
+              cugraph::invalid_vertex_id<vertex_t>::value) {
             ASSERT_TRUE(h_sg_predecessors[i] == h_mg_aggregate_predecessors[i])
               << "vertex reachability does not match with the SG result.";
           } else {

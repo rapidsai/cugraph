@@ -137,7 +137,7 @@ class Tests_MG_CountIfV
     // 4. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(
+      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(
         handle);
       std::tie(sg_graph, std::ignore) =
         input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(

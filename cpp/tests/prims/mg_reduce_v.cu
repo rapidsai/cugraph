@@ -256,7 +256,7 @@ class Tests_MG_ReduceIfV
     //// 4. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(
+      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(
         handle);
       std::tie(sg_graph, std::ignore) =
         input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
@@ -276,7 +276,7 @@ class Tests_MG_ReduceIfV
                        sg_property_iter,
                        sg_property_iter + sg_graph_view.get_number_of_local_vertices(),
                        property_initial_value,
-                       cugraph::experimental::property_add<property_t>());
+                       cugraph::property_add<property_t>());
       result_compare<property_t> compare;
       ASSERT_TRUE(compare(expected_result, result));
     }

@@ -98,7 +98,7 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
             bool store_transposed,
             bool multi_gpu>
   std::tuple<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     std::optional<rmm::device_uvector<vertex_t>>>
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const
   {
@@ -176,7 +176,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
             bool store_transposed,
             bool multi_gpu>
   std::tuple<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     std::optional<rmm::device_uvector<vertex_t>>>
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const
   {
@@ -280,7 +280,7 @@ class PathGraph_Usecase {
             bool store_transposed,
             bool multi_gpu>
   std::tuple<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     std::optional<rmm::device_uvector<vertex_t>>>
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const
   {
@@ -322,7 +322,7 @@ class Mesh2DGraph_Usecase {
             bool store_transposed,
             bool multi_gpu>
   std::tuple<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     std::optional<rmm::device_uvector<vertex_t>>>
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const;
 
@@ -359,7 +359,7 @@ class Mesh3DGraph_Usecase {
             bool store_transposed,
             bool multi_gpu>
   std::tuple<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     std::optional<rmm::device_uvector<vertex_t>>>
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const;
 
@@ -395,7 +395,7 @@ class CompleteGraph_Usecase {
             bool store_transposed,
             bool multi_gpu>
   std::tuple<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     std::optional<rmm::device_uvector<vertex_t>>>
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const;
 
@@ -488,7 +488,7 @@ class CombinedGenerator_Usecase {
             bool store_transposed,
             bool multi_gpu>
   std::tuple<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     std::optional<rmm::device_uvector<vertex_t>>>
   construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const
   {
@@ -507,7 +507,7 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu,
           typename input_usecase_t>
-std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 construct_graph(raft::handle_t const& handle,
                 input_usecase_t const& input_usecase,
@@ -519,14 +519,14 @@ construct_graph(raft::handle_t const& handle,
       .template construct_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
         handle, test_weighted);
 
-  return cugraph::experimental::
+  return cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
       std::nullopt,
       std::move(d_src_v),
       std::move(d_dst_v),
       std::move(d_weights_v),
-      cugraph::experimental::graph_properties_t{is_symmetric, false},
+      cugraph::graph_properties_t{is_symmetric, false},
       renumber);
 }
 

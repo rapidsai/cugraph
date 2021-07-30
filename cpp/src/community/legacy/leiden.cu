@@ -34,7 +34,7 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const& handle,
                   "Invalid input argument: clustering is null, should be a device pointer to "
                   "memory for storing the result");
 
-  Leiden<legacy::GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph);
+  legacy::Leiden<legacy::GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph);
   weight_t wt = runner(max_level, resolution);
 
   rmm::device_uvector<vertex_t> vertex_ids_v(graph.number_of_vertices, handle.get_stream());

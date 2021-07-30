@@ -42,8 +42,6 @@
 namespace cugraph {
 namespace visitors {
 
-using namespace cugraph::experimental;
-
 struct graph_factory_base_t {
   virtual ~graph_factory_base_t(void) {}
 

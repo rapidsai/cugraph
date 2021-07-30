@@ -25,7 +25,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -132,7 +131,7 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_allreduce(
 }
 
 template <typename T>
-std::enable_if_t<cugraph::experimental::is_thrust_tuple_of_arithmetic<T>::value, T>
+std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T>
 host_scalar_allreduce(raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
@@ -173,7 +172,7 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_reduce(
 
 // Return value is valid only in root (return value may better be std::optional in C++17 or later)
 template <typename T>
-std::enable_if_t<cugraph::experimental::is_thrust_tuple_of_arithmetic<T>::value, T>
+std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T>
 host_scalar_reduce(raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
@@ -216,7 +215,7 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_bcast(
 }
 
 template <typename T>
-std::enable_if_t<cugraph::experimental::is_thrust_tuple_of_arithmetic<T>::value, T>
+std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T>
 host_scalar_bcast(raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
@@ -268,7 +267,7 @@ std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allga
 }
 
 template <typename T>
-std::enable_if_t<cugraph::experimental::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T>>
+std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T>>
 host_scalar_allgather(raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
@@ -340,7 +339,7 @@ std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_gathe
 
 // Return value is valid only in root (return value may better be std::optional in C++17 or later)
 template <typename T>
-std::enable_if_t<cugraph::experimental::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T>>
+std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T>>
 host_scalar_gather(raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
@@ -388,5 +387,4 @@ host_scalar_gather(raft::comms::comms_t const& comm, T input, int root, cudaStre
   return ret;
 }
 
-}  // namespace experimental
 }  // namespace cugraph

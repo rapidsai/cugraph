@@ -77,7 +77,7 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
   void run_test(const GraphBcast_Usecase& param)
   {
     using namespace cugraph::broadcast;
-    using sg_graph_t = cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false>;
+    using sg_graph_t = cugraph::graph_t<vertex_t, edge_t, weight_t, false, false>;
 
     raft::handle_t handle;
 

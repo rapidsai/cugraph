@@ -40,7 +40,7 @@ class Tests_WCC : public ::testing::TestWithParam<std::tuple<WCC_Usecase, input_
   {
     raft::handle_t handle{};
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
 
     std::cout << "calling construct_graph" << std::endl;
 

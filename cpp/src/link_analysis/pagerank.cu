@@ -35,7 +35,6 @@
 #include <thrust/tuple.h>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 // FIXME: personalization_vector_size is confusing in OPG (local or aggregate?)
@@ -466,5 +465,4 @@ template void pagerank(raft::handle_t const& handle,
                        bool has_initial_guess,
                        bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

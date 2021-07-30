@@ -29,7 +29,7 @@ template <typename T>
 rmm::device_uvector<T> device_gatherv(raft::handle_t const& handle, T const* d_input, size_t size)
 {
   bool is_root  = handle.get_comms().get_rank() == int{0};
-  auto rx_sizes = cugraph::experimental::host_scalar_gather(
+  auto rx_sizes = cugraph::host_scalar_gather(
     handle.get_comms(), size, int{0}, handle.get_stream());
   std::vector<size_t> rx_displs(is_root ? static_cast<size_t>(handle.get_comms().get_size())
                                         : size_t{0});
@@ -38,7 +38,7 @@ rmm::device_uvector<T> device_gatherv(raft::handle_t const& handle, T const* d_i
   rmm::device_uvector<T> gathered_v(
     is_root ? std::reduce(rx_sizes.begin(), rx_sizes.end()) : size_t{0}, handle.get_stream());
 
-  cugraph::experimental::device_gatherv(handle.get_comms(),
+  cugraph::device_gatherv(handle.get_comms(),
                                         d_input,
                                         gathered_v.data(),
                                         size,

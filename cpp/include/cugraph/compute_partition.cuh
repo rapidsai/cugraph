@@ -22,14 +22,13 @@
 #include <rmm/thrust_rmm_allocator.h>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 /**
  * @brief  Class to help compute what partition a vertex id or edge id belongs to
  *
  *
- *   FIXME:  This should probably be part of the experimental::partition_t class
+ *   FIXME:  This should probably be part of the partition_t class
  *           rather than having to copy things out of it
  *
  */
@@ -192,5 +191,4 @@ class compute_partition_t {
 };
 
 }  // namespace detail
-}  // namespace experimental
 }  // namespace cugraph

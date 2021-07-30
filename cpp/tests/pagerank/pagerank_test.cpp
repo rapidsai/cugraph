@@ -239,7 +239,7 @@ class Tests_PageRank
       hr_clock.start();
     }
 
-    cugraph::experimental::pagerank<vertex_t, edge_t, weight_t>(
+    cugraph::pagerank<vertex_t, edge_t, weight_t>(
       handle,
       graph_view,
       std::nullopt,
@@ -265,7 +265,7 @@ class Tests_PageRank
     }
 
     if (pagerank_usecase.check_correctness) {
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(
+      cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(
         handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
@@ -317,7 +317,7 @@ class Tests_PageRank
                            (*d_personalization_values).data(),
                            (*d_personalization_values).size(),
                            handle.get_stream());
-          cugraph::experimental::unrenumber_local_int_vertices(
+          cugraph::unrenumber_local_int_vertices(
             handle,
             d_unrenumbered_personalization_vertices.data(),
             d_unrenumbered_personalization_vertices.size(),

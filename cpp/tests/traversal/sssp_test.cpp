@@ -60,7 +60,7 @@ void sssp_reference(edge_t const* offsets,
   std::fill(distances, distances + num_vertices, std::numeric_limits<weight_t>::max());
   std::fill(predecessors,
             predecessors + num_vertices,
-            cugraph::experimental::invalid_vertex_id<vertex_t>::value);
+            cugraph::invalid_vertex_id<vertex_t>::value);
 
   *(distances + source) = weight_t{0.0};
   std::priority_queue<queue_item_t, std::vector<queue_item_t>, std::greater<queue_item_t>> queue{};
@@ -143,7 +143,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
       hr_clock.start();
     }
 
-    cugraph::experimental::sssp(handle,
+    cugraph::sssp(handle,
                                 graph_view,
                                 d_distances.data(),
                                 d_predecessors.data(),
@@ -159,7 +159,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     }
 
     if (sssp_usecase.check_correctness) {
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(
+      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(
         handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
@@ -215,7 +215,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
       std::vector<weight_t> h_cugraph_distances(graph_view.get_number_of_vertices());
       std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
       if (renumber) {
-        cugraph::experimental::unrenumber_local_int_vertices(handle,
+        cugraph::unrenumber_local_int_vertices(handle,
                                                              d_predecessors.data(),
                                                              d_predecessors.size(),
                                                              (*d_renumber_map_labels).data(),
@@ -269,7 +269,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
 
       for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
         auto i = std::distance(h_cugraph_predecessors.begin(), it);
-        if (*it == cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
+        if (*it == cugraph::invalid_vertex_id<vertex_t>::value) {
           ASSERT_TRUE(h_reference_predecessors[i] == *it)
             << "vertex reachability do not match with the reference.";
         } else {

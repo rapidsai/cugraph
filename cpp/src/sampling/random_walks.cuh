@@ -56,7 +56,6 @@
 #include "rw_traversals.hpp"
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -1247,5 +1246,4 @@ query_rw_sizes_offsets(raft::handle_t const& handle, index_t num_paths, index_t 
     std::move(d_vertex_offsets), std::move(d_weight_sizes), std::move(d_weight_offsets));
 }
 
-}  // namespace experimental
 }  // namespace cugraph

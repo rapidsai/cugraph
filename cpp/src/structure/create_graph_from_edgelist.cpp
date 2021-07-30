@@ -28,7 +28,6 @@
 #include <numeric>
 
 namespace cugraph {
-namespace experimental {
 
 namespace {
 
@@ -40,7 +39,7 @@ template <typename vertex_t,
 std::enable_if_t<
   multi_gpu,
   std::tuple<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(
   raft::handle_t const& handle,
@@ -79,7 +78,7 @@ create_graph_from_edgelist_impl(
   // 3. renumber
 
   rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
-  cugraph::experimental::partition_t<vertex_t> partition{};
+  cugraph::partition_t<vertex_t> partition{};
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
   auto segment_offsets = std::make_optional<std::vector<vertex_t>>(0);
@@ -96,16 +95,16 @@ create_graph_from_edgelist_impl(
     }
     std::tie(
       renumber_map_labels, partition, number_of_vertices, number_of_edges, *segment_offsets) =
-      cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+      cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle, optional_local_vertex_span, major_ptrs, minor_ptrs, counts);
   }
 
   // 4. create a graph
 
-  std::vector<cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(
+  std::vector<cugraph::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(
     h_edge_counts.size());
   for (size_t i = 0; i < h_edge_counts.size(); ++i) {
-    edgelists[i] = cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>{
+    edgelists[i] = cugraph::edgelist_t<vertex_t, edge_t, weight_t>{
       edgelist_rows.data() + h_displacements[i],
       edgelist_cols.data() + h_displacements[i],
       edgelist_weights
@@ -115,7 +114,7 @@ create_graph_from_edgelist_impl(
   }
 
   return std::make_tuple(
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
       edgelists,
       partition,
@@ -134,7 +133,7 @@ template <typename vertex_t,
 std::enable_if_t<
   !multi_gpu,
   std::tuple<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
     std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(
   raft::handle_t const& handle,
@@ -152,7 +151,7 @@ create_graph_from_edgelist_impl(
   if (renumber) {
     segment_offsets = std::vector<vertex_t>{};
     std::tie(*renumber_map_labels, *segment_offsets) =
-      cugraph::experimental::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+      cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle,
         optional_vertex_span,
         store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
@@ -173,9 +172,9 @@ create_graph_from_edgelist_impl(
   }
 
   return std::make_tuple(
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
-      cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>{
+      cugraph::edgelist_t<vertex_t, edge_t, weight_t>{
         edgelist_rows.data(),
         edgelist_cols.data(),
         edgelist_weights ? std::optional<weight_t const*>{(*edgelist_weights).data()}
@@ -194,7 +193,7 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(
   raft::handle_t const& handle,
@@ -217,7 +216,7 @@ create_graph_from_edgelist(
 
 // explicit instantiations
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, false, false>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, float, false, false>(
   raft::handle_t const& handle,
@@ -228,7 +227,7 @@ create_graph_from_edgelist<int32_t, int32_t, float, false, false>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, false, true>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, float, false, true>(
   raft::handle_t const& handle,
@@ -239,7 +238,7 @@ create_graph_from_edgelist<int32_t, int32_t, float, false, true>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, true, false>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, true, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, float, true, false>(
   raft::handle_t const& handle,
@@ -250,7 +249,7 @@ create_graph_from_edgelist<int32_t, int32_t, float, true, false>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, true, true>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, true, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, float, true, true>(
   raft::handle_t const& handle,
@@ -261,7 +260,7 @@ create_graph_from_edgelist<int32_t, int32_t, float, true, true>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, false, false>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, double, false, false>(
   raft::handle_t const& handle,
@@ -272,7 +271,7 @@ create_graph_from_edgelist<int32_t, int32_t, double, false, false>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, false, true>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, double, false, true>(
   raft::handle_t const& handle,
@@ -283,7 +282,7 @@ create_graph_from_edgelist<int32_t, int32_t, double, false, true>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, true, false>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, true, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, double, true, false>(
   raft::handle_t const& handle,
@@ -294,7 +293,7 @@ create_graph_from_edgelist<int32_t, int32_t, double, true, false>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, true, true>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, true, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, double, true, true>(
   raft::handle_t const& handle,
@@ -305,7 +304,7 @@ create_graph_from_edgelist<int32_t, int32_t, double, true, true>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, false, false>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, float, false, false>(
   raft::handle_t const& handle,
@@ -316,7 +315,7 @@ create_graph_from_edgelist<int32_t, int64_t, float, false, false>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, false, true>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
@@ -327,7 +326,7 @@ create_graph_from_edgelist<int32_t, int64_t, float, false, true>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, true, false>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, true, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, float, true, false>(
   raft::handle_t const& handle,
@@ -338,7 +337,7 @@ create_graph_from_edgelist<int32_t, int64_t, float, true, false>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, true, true>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, true, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
@@ -349,7 +348,7 @@ create_graph_from_edgelist<int32_t, int64_t, float, true, true>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, false, false>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
@@ -360,7 +359,7 @@ create_graph_from_edgelist<int32_t, int64_t, double, false, false>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, false, true>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
@@ -371,7 +370,7 @@ create_graph_from_edgelist<int32_t, int64_t, double, false, true>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, true, false>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, true, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, double, true, false>(
   raft::handle_t const& handle,
@@ -382,7 +381,7 @@ create_graph_from_edgelist<int32_t, int64_t, double, true, false>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, true, true>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, true, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
@@ -393,7 +392,7 @@ create_graph_from_edgelist<int32_t, int64_t, double, true, true>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, false, false>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, false, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, float, false, false>(
   raft::handle_t const& handle,
@@ -404,7 +403,7 @@ create_graph_from_edgelist<int64_t, int64_t, float, false, false>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, false, true>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, false, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
@@ -415,7 +414,7 @@ create_graph_from_edgelist<int64_t, int64_t, float, false, true>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, true, false>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, true, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, float, true, false>(
   raft::handle_t const& handle,
@@ -426,7 +425,7 @@ create_graph_from_edgelist<int64_t, int64_t, float, true, false>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, true, true>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, true, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
@@ -437,7 +436,7 @@ create_graph_from_edgelist<int64_t, int64_t, float, true, true>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, false, false>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, false, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
@@ -448,7 +447,7 @@ create_graph_from_edgelist<int64_t, int64_t, double, false, false>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, false, true>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, false, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
@@ -459,7 +458,7 @@ create_graph_from_edgelist<int64_t, int64_t, double, false, true>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, true, false>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, true, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, double, true, false>(
   raft::handle_t const& handle,
@@ -470,7 +469,7 @@ create_graph_from_edgelist<int64_t, int64_t, double, true, false>(
   graph_properties_t graph_properties,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, true, true>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, true, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
@@ -481,5 +480,4 @@ create_graph_from_edgelist<int64_t, int64_t, double, true, true>(
   graph_properties_t graph_properties,
   bool renumber);
 
-}  // namespace experimental
 }  // namespace cugraph

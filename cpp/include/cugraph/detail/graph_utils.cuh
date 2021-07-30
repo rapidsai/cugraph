@@ -34,7 +34,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 // compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
@@ -173,5 +172,4 @@ struct compute_partition_id_from_edge_t {
 };
 
 }  // namespace detail
-}  // namespace experimental
 }  // namespace cugraph

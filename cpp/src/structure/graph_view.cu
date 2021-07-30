@@ -37,7 +37,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
 
 namespace {
 
@@ -773,5 +772,4 @@ template class graph_view_t<int64_t, int32_t, float, false, false>;
 template class graph_view_t<int64_t, int32_t, double, true, false>;
 template class graph_view_t<int64_t, int32_t, double, false, false>;
 
-}  // namespace experimental
 }  // namespace cugraph

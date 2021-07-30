@@ -41,7 +41,6 @@
 #include <utility>
 
 namespace cugraph {
-namespace experimental {
 
 // FIXME: think about requiring old_new_label_pairs to be pre-shuffled
 template <typename vertex_t, bool multi_gpu>
@@ -276,5 +275,4 @@ template void relabel<int64_t, false>(
   bool skip_missing_labels,
   bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

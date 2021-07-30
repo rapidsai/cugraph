@@ -116,7 +116,7 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
   {
     raft::handle_t handle{};
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
       handle);
     std::tie(graph, std::ignore) = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
@@ -149,7 +149,7 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
                      configuration.subgraph_sizes.end(),
                      h_subgraph_offsets.begin() + 1);
     std::vector<vertex_t> h_subgraph_vertices(
-      h_subgraph_offsets.back(), cugraph::experimental::invalid_vertex_id<vertex_t>::value);
+      h_subgraph_offsets.back(), cugraph::invalid_vertex_id<vertex_t>::value);
     std::default_random_engine generator{};
     std::uniform_int_distribution<vertex_t> distribution{0,
                                                          graph_view.get_number_of_vertices() - 1};
@@ -201,7 +201,7 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
           d_subgraph_edgelist_minors,
           d_subgraph_edgelist_weights,
           d_subgraph_edge_offsets] =
-      cugraph::experimental::extract_induced_subgraphs(handle,
+      cugraph::extract_induced_subgraphs(handle,
                                                        graph_view,
                                                        d_subgraph_offsets.data(),
                                                        d_subgraph_vertices.data(),

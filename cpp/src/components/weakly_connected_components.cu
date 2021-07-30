@@ -46,7 +46,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
 
 namespace {
 
@@ -691,12 +690,12 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         auto const col_comm_size = col_comm.get_size();
 
         std::tie(edge_buffer, std::ignore) =
-          cugraph::experimental::groupby_gpuid_and_shuffle_values(
+          cugraph::groupby_gpuid_and_shuffle_values(
             comm,
             get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
             get_dataframe_buffer_end<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
             [key_func =
-               cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
+               cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
                  comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
               return key_func(thrust::get<0>(val), thrust::get<1>(val));
             },
@@ -851,5 +850,4 @@ template void weakly_connected_components(
   int64_t* components,
   bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

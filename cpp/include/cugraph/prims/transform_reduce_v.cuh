@@ -25,7 +25,6 @@
 #include <thrust/transform_reduce.h>
 
 namespace cugraph {
-namespace experimental {
 
 /**
  * @brief Apply an operator to the vertex properties and reduce.
@@ -111,5 +110,4 @@ T transform_reduce_v(raft::handle_t const& handle,
   return ret;
 }
 
-}  // namespace experimental
 }  // namespace cugraph

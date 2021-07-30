@@ -1120,7 +1120,6 @@ weight_t hungarian(raft::handle_t const& handle,
 
 }  // namespace dense
 
-namespace experimental {
 
 /**
  * @brief Run breadth-first search to find the distances (and predecessors) from the source
@@ -1390,5 +1389,4 @@ void weakly_connected_components(
   vertex_t* components,
   bool do_expensive_check = false);
 
-}  // namespace experimental
 }  // namespace cugraph

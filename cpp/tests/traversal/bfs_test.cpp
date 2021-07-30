@@ -56,7 +56,7 @@ void bfs_reference(edge_t const* offsets,
   std::fill(distances, distances + num_vertices, std::numeric_limits<vertex_t>::max());
   std::fill(predecessors,
             predecessors + num_vertices,
-            cugraph::experimental::invalid_vertex_id<vertex_t>::value);
+            cugraph::invalid_vertex_id<vertex_t>::value);
 
   *(distances + source) = depth;
   std::vector<vertex_t> cur_frontier_rows{source};
@@ -140,7 +140,7 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
       hr_clock.start();
     }
 
-    cugraph::experimental::bfs(handle,
+    cugraph::bfs(handle,
                                graph_view,
                                d_distances.data(),
                                d_predecessors.data(),
@@ -156,7 +156,7 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
     }
 
     if (bfs_usecase.check_correctness) {
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(
+      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(
         handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
@@ -206,7 +206,7 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
       std::vector<vertex_t> h_cugraph_distances(graph_view.get_number_of_vertices());
       std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
       if (renumber) {
-        cugraph::experimental::unrenumber_local_int_vertices(handle,
+        cugraph::unrenumber_local_int_vertices(handle,
                                                              d_predecessors.data(),
                                                              d_predecessors.size(),
                                                              (*d_renumber_map_labels).data(),
@@ -253,7 +253,7 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
 
       for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
         auto i = std::distance(h_cugraph_predecessors.begin(), it);
-        if (*it == cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
+        if (*it == cugraph::invalid_vertex_id<vertex_t>::value) {
           ASSERT_TRUE(h_reference_predecessors[i] == *it)
             << "vertex reachability does not match with the reference.";
         } else {

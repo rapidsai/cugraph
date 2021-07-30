@@ -85,7 +85,7 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
   {
     raft::handle_t handle{};
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
       handle);
     std::tie(graph, std::ignore) = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(

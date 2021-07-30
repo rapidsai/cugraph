@@ -38,7 +38,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   CUGRAPH_EXPECTS(graph_view.edge_data != nullptr,
                   "Invalid input argument: louvain expects a weighted graph");
 
-  Louvain<legacy::GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph_view);
+  legacy::Louvain<legacy::GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph_view);
   weight_t wt = runner(max_level, resolution);
 
   return std::make_pair(runner.move_dendrogram(), wt);
@@ -47,11 +47,11 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const& handle,
-  experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
   size_t max_level,
   weight_t resolution)
 {
-  experimental::Louvain<experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
+  Louvain<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>>
     runner(handle, graph_view);
 
   weight_t wt = runner(max_level, resolution);
@@ -79,7 +79,7 @@ void flatten_dendrogram(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void flatten_dendrogram(
   raft::handle_t const& handle,
-  experimental::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
   Dendrogram<vertex_t> const& dendrogram,
   vertex_t* clustering)
 {
@@ -143,62 +143,62 @@ std::pair<size_t, typename graph_view_t::weight_type> louvain(
 // Explicit template instantations
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int32_t, float, false, false> const&,
+  graph_view_t<int32_t, int32_t, float, false, false> const&,
   size_t,
   float);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int64_t, float, false, false> const&,
+  graph_view_t<int32_t, int64_t, float, false, false> const&,
   size_t,
   float);
 template std::pair<std::unique_ptr<Dendrogram<int64_t>>, float> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int64_t, int64_t, float, false, false> const&,
+  graph_view_t<int64_t, int64_t, float, false, false> const&,
   size_t,
   float);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int32_t, double, false, false> const&,
+  graph_view_t<int32_t, int32_t, double, false, false> const&,
   size_t,
   double);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int64_t, double, false, false> const&,
+  graph_view_t<int32_t, int64_t, double, false, false> const&,
   size_t,
   double);
 template std::pair<std::unique_ptr<Dendrogram<int64_t>>, double> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int64_t, int64_t, double, false, false> const&,
+  graph_view_t<int64_t, int64_t, double, false, false> const&,
   size_t,
   double);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int32_t, float, false, true> const&,
+  graph_view_t<int32_t, int32_t, float, false, true> const&,
   size_t,
   float);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int64_t, float, false, true> const&,
+  graph_view_t<int32_t, int64_t, float, false, true> const&,
   size_t,
   float);
 template std::pair<std::unique_ptr<Dendrogram<int64_t>>, float> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int64_t, int64_t, float, false, true> const&,
+  graph_view_t<int64_t, int64_t, float, false, true> const&,
   size_t,
   float);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int32_t, double, false, true> const&,
+  graph_view_t<int32_t, int32_t, double, false, true> const&,
   size_t,
   double);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int64_t, double, false, true> const&,
+  graph_view_t<int32_t, int64_t, double, false, true> const&,
   size_t,
   double);
 template std::pair<std::unique_ptr<Dendrogram<int64_t>>, double> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int64_t, int64_t, double, false, true> const&,
+  graph_view_t<int64_t, int64_t, double, false, true> const&,
   size_t,
   double);
 
@@ -214,37 +214,37 @@ template std::pair<size_t, double> louvain(raft::handle_t const&,
                                            double);
 template std::pair<size_t, float> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int32_t, float, false, false> const&,
+  graph_view_t<int32_t, int32_t, float, false, false> const&,
   int32_t*,
   size_t,
   float);
 template std::pair<size_t, double> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int32_t, double, false, false> const&,
+  graph_view_t<int32_t, int32_t, double, false, false> const&,
   int32_t*,
   size_t,
   double);
 template std::pair<size_t, float> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int64_t, float, false, false> const&,
+  graph_view_t<int32_t, int64_t, float, false, false> const&,
   int32_t*,
   size_t,
   float);
 template std::pair<size_t, double> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int64_t, double, false, false> const&,
+  graph_view_t<int32_t, int64_t, double, false, false> const&,
   int32_t*,
   size_t,
   double);
 template std::pair<size_t, float> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int64_t, int64_t, float, false, false> const&,
+  graph_view_t<int64_t, int64_t, float, false, false> const&,
   int64_t*,
   size_t,
   float);
 template std::pair<size_t, double> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int64_t, int64_t, double, false, false> const&,
+  graph_view_t<int64_t, int64_t, double, false, false> const&,
   int64_t*,
   size_t,
   double);
@@ -252,38 +252,38 @@ template std::pair<size_t, double> louvain(
 // instantations with multi_gpu = true
 template std::pair<size_t, float> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int32_t, float, false, true> const&,
+  graph_view_t<int32_t, int32_t, float, false, true> const&,
   int32_t*,
   size_t,
   float);
 template std::pair<size_t, double> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int32_t, double, false, true> const&,
+  graph_view_t<int32_t, int32_t, double, false, true> const&,
   int32_t*,
   size_t,
   double);
 
 template std::pair<size_t, float> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int64_t, float, false, true> const&,
+  graph_view_t<int32_t, int64_t, float, false, true> const&,
   int32_t*,
   size_t,
   float);
 template std::pair<size_t, double> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int32_t, int64_t, double, false, true> const&,
+  graph_view_t<int32_t, int64_t, double, false, true> const&,
   int32_t*,
   size_t,
   double);
 template std::pair<size_t, float> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int64_t, int64_t, float, false, true> const&,
+  graph_view_t<int64_t, int64_t, float, false, true> const&,
   int64_t*,
   size_t,
   float);
 template std::pair<size_t, double> louvain(
   raft::handle_t const&,
-  experimental::graph_view_t<int64_t, int64_t, double, false, true> const&,
+  graph_view_t<int64_t, int64_t, double, false, true> const&,
   int64_t*,
   size_t,
   double);

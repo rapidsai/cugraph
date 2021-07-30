@@ -41,7 +41,6 @@
 #include <utility>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -743,5 +742,4 @@ coarsen_graph(raft::handle_t const& handle,
               int64_t const* labels,
               bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

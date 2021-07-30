@@ -28,7 +28,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct edgelist_t {
@@ -250,7 +249,6 @@ __host__ __device__ std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is
   return v < num_vertices;
 }
 
-}  // namespace experimental
 }  // namespace cugraph
 
 #include "eidecl_graph.hpp"

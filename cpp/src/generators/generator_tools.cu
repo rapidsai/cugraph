@@ -77,8 +77,8 @@ void scramble_vertex_ids(raft::handle_t const& handle,
                     pair_first,
                     [scale] __device__(auto pair) {
                       return thrust::make_tuple(
-                        experimental::detail::scramble(thrust::get<0>(pair), scale),
-                        experimental::detail::scramble(thrust::get<1>(pair), scale));
+                        detail::scramble(thrust::get<0>(pair), scale),
+                        detail::scramble(thrust::get<1>(pair), scale));
                     });
 }
 

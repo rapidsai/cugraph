@@ -24,7 +24,6 @@
 #include <cstdint>
 
 namespace cugraph {
-namespace experimental {
 
 /**
  * @brief Count the number of edges that satisfies the given predicate.
@@ -82,5 +81,4 @@ typename GraphViewType::edge_type count_if_e(
                             edge_t{0});
 }
 
-}  // namespace experimental
 }  // namespace cugraph

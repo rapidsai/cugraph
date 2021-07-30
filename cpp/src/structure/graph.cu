@@ -37,7 +37,6 @@
 #include <tuple>
 
 namespace cugraph {
-namespace experimental {
 
 namespace {
 
@@ -473,7 +472,6 @@ template class graph_t<int64_t, int64_t, float, false, false>;
 template class graph_t<int64_t, int64_t, double, true, false>;
 template class graph_t<int64_t, int64_t, double, false, false>;
 
-}  // namespace experimental
 }  // namespace cugraph
 
 #include <cugraph/eidir_graph.hpp>

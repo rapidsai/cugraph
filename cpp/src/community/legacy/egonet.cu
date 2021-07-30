@@ -61,7 +61,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<size_t>>
 extract(
   raft::handle_t const& handle,
-  cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& csr_view,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& csr_view,
   vertex_t* source_vertex,
   vertex_t n_subgraphs,
   vertex_t radius)
@@ -109,7 +109,7 @@ extract(
     thrust::fill(
       rmm::exec_policy(worker_stream_view), reached[i].begin(), reached[i].begin() + 100, 1.0);
 
-    cugraph::experimental::bfs<vertex_t, edge_t, weight_t, false>(light_handle,
+    cugraph::bfs<vertex_t, edge_t, weight_t, false>(light_handle,
                                                                   csr_view,
                                                                   reached[i].data(),
                                                                   predecessors.data(),
@@ -173,14 +173,13 @@ extract(
 #endif
 
   // extract
-  return cugraph::experimental::extract_induced_subgraphs(
+  return cugraph::extract_induced_subgraphs(
     handle, csr_view, neighbors_offsets.data().get(), neighbors.data().get(), n_subgraphs);
 }
 
 }  // namespace
 
 namespace cugraph {
-namespace experimental {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -268,5 +267,4 @@ extract_ego(raft::handle_t const&,
             int64_t*,
             int64_t,
             int64_t);
-}  // namespace experimental
 }  // namespace cugraph

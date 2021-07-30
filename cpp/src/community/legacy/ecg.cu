@@ -102,7 +102,7 @@ void get_permutation_vector(T size, T seed, T* permutation, rmm::cuda_stream_vie
 }
 
 template <typename graph_type>
-class EcgLouvain : public cugraph::Louvain<graph_type> {
+class EcgLouvain : public cugraph::legacy::Louvain<graph_type> {
  public:
   using graph_t  = graph_type;
   using vertex_t = typename graph_type::vertex_type;
@@ -110,7 +110,7 @@ class EcgLouvain : public cugraph::Louvain<graph_type> {
   using weight_t = typename graph_type::weight_type;
 
   EcgLouvain(raft::handle_t const& handle, graph_type const& graph, vertex_t seed)
-    : cugraph::Louvain<graph_type>(handle, graph), seed_(seed)
+    : cugraph::legacy::Louvain<graph_type>(handle, graph), seed_(seed)
   {
   }
 

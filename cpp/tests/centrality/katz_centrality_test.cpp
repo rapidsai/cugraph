@@ -158,7 +158,7 @@ class Tests_KatzCentrality
       hr_clock.start();
     }
 
-    cugraph::experimental::katz_centrality(handle,
+    cugraph::katz_centrality(handle,
                                            graph_view,
                                            static_cast<result_t*>(nullptr),
                                            d_katz_centralities.data(),
@@ -177,7 +177,7 @@ class Tests_KatzCentrality
     }
 
     if (katz_usecase.check_correctness) {
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(
+      cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(
         handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
