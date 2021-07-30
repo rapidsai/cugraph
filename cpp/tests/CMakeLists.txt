@@ -258,20 +258,20 @@ set(ERDOS_RENYI_GENERATOR_TEST_SRC
 
 ###################################################################################################
 # - katz centrality tests -------------------------------------------------------------------------
-ConfigureTest(KATZ_TEST centrality/katz_centrality_test.cu)
+ConfigureTest(KATZ_TEST centrality/legacy/katz_centrality_test.cu)
 
 ###################################################################################################
 # - betweenness centrality tests ------------------------------------------------------------------
-ConfigureTest(BETWEENNESS_TEST centrality/betweenness_centrality_test.cu)
-ConfigureTest(EDGE_BETWEENNESS_TEST centrality/edge_betweenness_centrality_test.cu)
+ConfigureTest(BETWEENNESS_TEST centrality/legacy/betweenness_centrality_test.cu)
+ConfigureTest(EDGE_BETWEENNESS_TEST centrality/legacy/edge_betweenness_centrality_test.cu)
 
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
-ConfigureTest(SSSP_TEST traversal/sssp_test.cu)
+ConfigureTest(SSSP_TEST traversal/legacy/sssp_test.cu)
 
 ###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
-ConfigureTest(BFS_TEST traversal/bfs_test.cu)
+ConfigureTest(BFS_TEST traversal/legacy/bfs_test.cu)
 
 ###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
@@ -327,51 +327,51 @@ ConfigureTest(MST_TEST tree/mst_test.cu)
 
 ###################################################################################################
 # - Experimental stream tests -----------------------------------------------------
-ConfigureTest(EXPERIMENTAL_STREAM experimental/streams.cu)
+ConfigureTest(EXPERIMENTAL_STREAM structure/streams.cu)
 
 ###################################################################################################
 # - Experimental R-mat graph generation tests -----------------------------------------------------
-ConfigureTest(EXPERIMENTAL_GENERATE_RMAT_TEST experimental/generate_rmat_test.cpp)
+ConfigureTest(EXPERIMENTAL_GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 
 ###################################################################################################
 # - Experimental Graph tests ----------------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_GRAPH_TEST experimental/graph_test.cpp)
+ConfigureTest(EXPERIMENTAL_GRAPH_TEST structure/graph_test.cpp)
 
 ###################################################################################################
 # - Experimental weight-sum tests -----------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_WEIGHT_SUM_TEST experimental/weight_sum_test.cpp)
+ConfigureTest(EXPERIMENTAL_WEIGHT_SUM_TEST structure/weight_sum_test.cpp)
 
 ###################################################################################################
 # - Experimental degree tests ---------------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_DEGREE_TEST experimental/degree_test.cpp)
+ConfigureTest(EXPERIMENTAL_DEGREE_TEST structure/degree_test.cpp)
 
 ###################################################################################################
 # - Experimental coarsening tests -----------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_COARSEN_GRAPH_TEST experimental/coarsen_graph_test.cpp)
+ConfigureTest(EXPERIMENTAL_COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 
 ###################################################################################################
 # - Experimental induced subgraph tests -----------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST experimental/induced_subgraph_test.cpp)
+ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST community/induced_subgraph_test.cpp)
 
 ###################################################################################################
 # - Experimental BFS tests ------------------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_BFS_TEST experimental/bfs_test.cpp)
+ConfigureTest(EXPERIMENTAL_BFS_TEST traversal/bfs_test.cpp)
 
 ###################################################################################################
 # - Experimental Multi-source BFS tests -----------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_MSBFS_TEST experimental/ms_bfs_test.cpp)
+ConfigureTest(EXPERIMENTAL_MSBFS_TEST traversal/ms_bfs_test.cpp)
 
 ###################################################################################################
 # - Experimental SSSP tests -----------------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_SSSP_TEST experimental/sssp_test.cpp)
+ConfigureTest(EXPERIMENTAL_SSSP_TEST traversal/sssp_test.cpp)
 
 ###################################################################################################
 # - Experimental PAGERANK tests -------------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_PAGERANK_TEST experimental/pagerank_test.cpp)
+ConfigureTest(EXPERIMENTAL_PAGERANK_TEST pagerank/pagerank_test.cpp)
 
 ###################################################################################################
 # - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST experimental/katz_centrality_test.cpp)
+ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp)
 
 ###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
@@ -435,15 +435,15 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
         ###########################################################################################
         # - MG KATZ CENTRALITY tests --------------------------------------------------------------
-        ConfigureTestMG(MG_KATZ_CENTRALITY_TEST experimental/mg_katz_centrality_test.cpp)
+        ConfigureTestMG(MG_KATZ_CENTRALITY_TEST centrality/mg_katz_centrality_test.cpp)
 
         ###########################################################################################
         # - MG BFS tests --------------------------------------------------------------------------
-        ConfigureTestMG(MG_BFS_TEST experimental/mg_bfs_test.cpp)
+        ConfigureTestMG(MG_BFS_TEST traversal/mg_bfs_test.cpp)
 
         ###########################################################################################
         # - MG SSSP tests -------------------------------------------------------------------------
-        ConfigureTestMG(MG_SSSP_TEST experimental/mg_sssp_test.cpp)
+        ConfigureTestMG(MG_SSSP_TEST traversal/mg_sssp_test.cpp)
 
         ###########################################################################################
         # - MG LOUVAIN tests ----------------------------------------------------------------------
