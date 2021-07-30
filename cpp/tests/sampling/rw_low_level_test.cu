@@ -87,14 +87,15 @@ void next_biased(raft::handle_t const& handle,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-vector_test_t<weight_t> sum_weights(raft::handle_t const& handle,
-                                    graph_t<vertex_t, edge_t, weight_t, false, false> const& graph)
+vector_test_t<weight_t> sum_weights(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, false> const& graph_v)
 {
-  size_t num_vertices = graph.get_number_of_vertices();
+  size_t num_vertices = graph_v.get_number_of_vertices();
 
   detail::visitor_aggregate_weights_t<vertex_t, edge_t, weight_t> sum_visitor(handle, num_vertices);
 
-  graph.apply(sum_visitor);
+  graph_v.apply(sum_visitor);
   // auto& d_sum_weights = sum_visitor.get_aggregated_weights();
 
   // auto d_w = std::move(d_sum_weights);
@@ -1227,7 +1228,7 @@ TEST(BiasedRandomWalks, SelectorSmallGraph)
   std::vector<weight_t> h_correct_sum_w{0.1f, 3.2f, 12.3f, 7.2f, 3.2f, 0.0f};
   std::vector<weight_t> v_sum_weights(num_vertices);
 
-  auto d_sum_weights = sum_weights(handle, graph);
+  auto d_sum_weights = sum_weights(handle, graph_view);
 
   raft::update_host(
     v_sum_weights.data(), d_sum_weights.data(), d_sum_weights.size(), handle.get_stream());
