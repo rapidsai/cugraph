@@ -24,6 +24,8 @@
 
 #include <utilities/graph_utils.cuh>
 
+#include <cub/cub.cuh>
+
 #include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
 #include <raft/random/rng.cuh>
@@ -177,7 +179,7 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
     auto graph_view = graph_.view();  // FIXME: make view() virtual, to avoid above cast
 
     auto opt_weights = graph_view.get_matrix_partition_view().get_weights();
-    CUGRAPH_EXPECTS(opt_weights.has_value(), "Cannot aggregate weights for  un-weighted graph.");
+    CUGRAPH_EXPECTS(opt_weights.has_value(), "Cannot aggregate weights of un-weighted graph.");
 
     size_t num_vertices = d_aggregate_weights_.size();
 
@@ -185,17 +187,37 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
 
     weight_t const* values = *opt_weights;
 
-    thrust::for_each(
-      rmm::exec_policy(handle_.get_stream_view()),
-      thrust::make_counting_iterator<size_t>(0),
-      thrust::make_counting_iterator<size_t>(num_vertices),
-      [agg_op = aggregator_, offsets, values, ptr_d_agg_w = d_aggregate_weights_.data()] __device__(
-        auto v_index) {
-        auto begin = values + offsets[v_index];
-        auto end   = values + offsets[v_index + 1];
+    // Determine temporary device storage requirements:
+    //
+    void* ptr_d_temp_storage{nullptr};
+    size_t temp_storage_bytes = 0;
+    cub::DeviceSegmentedReduce::Reduce(ptr_d_temp_storage,
+                                       temp_storage_bytes,
+                                       values,
+                                       d_aggregate_weights_.data(),
+                                       num_vertices,
+                                       offsets,
+                                       offsets + 1,
+                                       aggregator_,
+                                       weight_t{0},
+                                       handle_.get_stream());
+    // Allocate temporary storage
+    //
+    rmm::device_uvector<std::byte> d_temp_storage(temp_storage_bytes, handle_.get_stream());
+    ptr_d_temp_storage = d_temp_storage.data();
 
-        ptr_d_agg_w[v_index] = thrust::reduce(thrust::seq, begin, end, weight_t{0}, agg_op);
-      });
+    // Run reduction:
+    //
+    cub::DeviceSegmentedReduce::Reduce(ptr_d_temp_storage,
+                                       temp_storage_bytes,
+                                       values,
+                                       d_aggregate_weights_.data(),
+                                       num_vertices,
+                                       offsets,
+                                       offsets + 1,
+                                       aggregator_,
+                                       weight_t{0},
+                                       handle_.get_stream());
   }
 
   // no need for type-erasure, as this is only used internally:
