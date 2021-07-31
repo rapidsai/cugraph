@@ -105,6 +105,10 @@ value_t const* raw_const_ptr(device_const_vector_view<value_t>& dv)
 
 // Uniform RW selector logic:
 //
+// FIXME:
+// 1. move cached degree calculation into selector;
+// 2. pass graph_view to constructor;
+//
 template <typename vertex_t, typename edge_t, typename weight_t, typename real_t>
 struct uniform_selector_t {
   uniform_selector_t(edge_t const* offsets,
@@ -148,6 +152,10 @@ struct uniform_selector_t {
 
 // Biased RW selection logic:
 //
+// FIXME:
+// 1. move sum weights calculation into selector;
+// 2. pass graph_view to constructor;
+//
 template <typename vertex_t, typename edge_t, typename weight_t, typename real_t>
 struct biased_selector_t {
   biased_selector_t(edge_t const* offsets,
@@ -170,7 +178,8 @@ struct biased_selector_t {
   // 2. Sum(weights(neighborhood(src_v))) are pre-computed and
   //    stored in ptr_d_sum_weights_
   //
-  __device__ thrust::optional<vertex_t> operator()(vertex_t src_v, real_t rnd_val) const
+  __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(vertex_t src_v,
+                                                                            real_t rnd_val) const
   {
     weight_t run_sum_w{0};
     auto rnd_sum_weights = rnd_val * ptr_d_sum_weights_[src_v];
@@ -188,7 +197,8 @@ struct biased_selector_t {
       run_sum_w += values_[col_indx];
       prev_col_indx = col_indx;
     }
-    return thrust::optional<vertex_t>{col_indices_[prev_col_indx]};
+    return thrust::optional{
+      thrust::make_tuple(col_indices_[prev_col_indx], values_[prev_col_indx])};
   }
 
  private:

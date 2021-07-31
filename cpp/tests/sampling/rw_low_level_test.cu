@@ -81,8 +81,8 @@ void next_biased(raft::handle_t const& handle,
                     d_rnd.begin(),
                     d_next_v.begin(),
                     [selector] __device__(auto src_v_indx, auto rnd_val) {
-                      thrust::optional<vertex_t> next_v = selector(src_v_indx, rnd_val);
-                      return (next_v.has_value() ? *next_v : src_v_indx);
+                      auto next_vw = selector(src_v_indx, rnd_val);
+                      return (next_vw.has_value() ? thrust::get<0>(*next_vw) : src_v_indx);
                     });
 }
 
