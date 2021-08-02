@@ -109,16 +109,18 @@ value_t const* raw_const_ptr(device_const_vector_view<value_t>& dv)
 // 1. move cached degree calculation into selector;
 // 2. pass graph_view to constructor;
 //
-template <typename vertex_t, typename edge_t, typename weight_t, typename real_t>
+template <typename graph_type, typename real_t>
 struct uniform_selector_t {
-  uniform_selector_t(edge_t const* offsets,
-                     vertex_t const* indices,
-                     weight_t const* weights,
-                     edge_t const* ptr_d_cache_out_degs,
-                     real_t tag)
-    : row_offsets_(offsets),
-      col_indices_(indices),
-      values_(weights),
+  using vertex_t = typename graph_type::vertex_type;
+  using edge_t   = typename graph_type::edge_type;
+  using weight_t = typename graph_type::weight_type;
+
+  uniform_selector_t(graph_type const& graph, edge_t const* ptr_d_cache_out_degs, real_t tag)
+    : row_offsets_(graph.get_matrix_partition_view().get_offsets()),
+      col_indices_(graph.get_matrix_partition_view().get_indices()),
+      values_(graph.get_matrix_partition_view().get_weights()
+                ? *(graph.get_matrix_partition_view().get_weights())
+                : static_cast<weight_t*>(nullptr)),
       ptr_d_cache_out_degs_(ptr_d_cache_out_degs)
   {
   }
@@ -406,12 +408,7 @@ struct horizontal_traversal_t {
 
     random_engine_t::generate_random(handle, ptr_d_random, d_random.size(), seed0);
 
-    auto const* col_indices = graph.get_matrix_partition_view().get_indices();
-    auto const* row_offsets = graph.get_matrix_partition_view().get_offsets();
-    auto const* values      = graph.get_matrix_partition_view().get_weights()
-                                ? *(graph.get_matrix_partition_view().get_weights())
-                                : static_cast<weight_t*>(nullptr);
-    auto* ptr_d_sizes       = raw_ptr(d_paths_sz);
+    auto* ptr_d_sizes = raw_ptr(d_paths_sz);
 
     // FIXME: 1. make get_out_degs() lazzy;
     //
@@ -420,8 +417,7 @@ struct horizontal_traversal_t {
     // selector:
     // FIXME: to be passed as argument;
     //
-    uniform_selector_t selector{
-      row_offsets, col_indices, values, raw_const_ptr(d_cached_out_degs), real_t{0}};
+    uniform_selector_t selector{graph, raw_const_ptr(d_cached_out_degs), real_t{0}};
 
     // start from 1, as 0-th was initialized above:
     //
