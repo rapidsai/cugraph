@@ -74,7 +74,6 @@ class Tests_Renumbering
     rmm::device_uvector<vertex_t> src_v(0, handle.get_stream_view());
     rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream_view());
     rmm::device_uvector<vertex_t> renumber_map_labels_v(0, handle.get_stream_view());
-    cugraph::experimental::partition_t<vertex_t> partition{};
     vertex_t number_of_vertices{};
     edge_t number_of_edges{};
     bool symmetric{};
