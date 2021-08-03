@@ -19,6 +19,7 @@ from cugraph.dask.common.input_utils import (get_distributed_data,
 from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
 import dask_cudf
+import cudf
 
 
 def call_pagerank(sID,
@@ -139,6 +140,11 @@ def pagerank(input_graph,
     data = get_distributed_data(ddf)
 
     if personalization is not None:
+        if not isinstance(personalization, cudf.DataFrame):
+            raise NotImplementedError(
+                "personalization other than a cudf dataframe "
+                "currently not supported"
+            )
         null_check(personalization["vertex"])
         null_check(personalization["values"])
         if input_graph.renumbered is True:
