@@ -106,8 +106,8 @@ value_t const* raw_const_ptr(device_const_vector_view<value_t>& dv)
 // Uniform RW selector logic:
 //
 // FIXME:
-// 1. move cached degree calculation into selector;
-// 2. pass graph_view to constructor;
+// 1. move cached degree calculation into selector; Done.
+// 2. pass graph_view to constructor; Done.
 //
 template <typename graph_type, typename real_t>
 struct uniform_selector_t {
@@ -115,41 +115,62 @@ struct uniform_selector_t {
   using edge_t   = typename graph_type::edge_type;
   using weight_t = typename graph_type::weight_type;
 
-  uniform_selector_t(graph_type const& graph, edge_t const* ptr_d_cache_out_degs, real_t tag)
-    : row_offsets_(graph.get_matrix_partition_view().get_offsets()),
-      col_indices_(graph.get_matrix_partition_view().get_indices()),
-      values_(graph.get_matrix_partition_view().get_weights()
-                ? *(graph.get_matrix_partition_view().get_weights())
-                : static_cast<weight_t*>(nullptr)),
-      ptr_d_cache_out_degs_(ptr_d_cache_out_degs)
+  struct sampler_t {
+    sampler_t(edge_t const* ro,
+              vertex_t const* ci,
+              weight_t const* w,
+              edge_t const* ptr_d_cache_out_degs)
+      : row_offsets_(ro), col_indices_(ci), values_(w), ptr_d_cache_out_degs_(ptr_d_cache_out_degs)
+    {
+    }
+
+    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(vertex_t src_v,
+                                                                              real_t rnd_val) const
+    {
+      auto crt_out_deg = ptr_d_cache_out_degs_[src_v];
+      if (crt_out_deg == 0) return thrust::nullopt;  // src_v is a sink
+
+      real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
+      auto interp_vindx = rnd_val * max_ub + real_t{.5};
+      vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
+
+      auto col_indx  = v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx;
+      auto start_row = row_offsets_[src_v];
+
+      auto weight_value =
+        (values_ == nullptr ? weight_t{1}
+                            : values_[start_row + col_indx]);  // account for un-weighted graphs
+      return thrust::optional{thrust::make_tuple(col_indices_[start_row + col_indx], weight_value)};
+    }
+
+   private:
+    edge_t const* row_offsets_;
+    vertex_t const* col_indices_;
+    weight_t const* values_;
+
+    edge_t const* ptr_d_cache_out_degs_;
+  };
+
+  uniform_selector_t(raft::handle_t const& handle, graph_type const& graph, real_t tag)
+    : d_cache_out_degs_(graph.compute_out_degrees(handle)),
+      sampler_{graph.get_matrix_partition_view().get_offsets(),
+               graph.get_matrix_partition_view().get_indices(),
+               graph.get_matrix_partition_view().get_weights()
+                 ? *(graph.get_matrix_partition_view().get_weights())
+                 : static_cast<weight_t*>(nullptr),
+               d_cache_out_degs_.data()}
   {
   }
 
-  __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(vertex_t src_v,
-                                                                            real_t rnd_val) const
-  {
-    auto crt_out_deg = ptr_d_cache_out_degs_[src_v];
-    if (crt_out_deg == 0) return thrust::nullopt;  // src_v is a sink
+  device_vec_t<edge_t> const& get_cached_out_degs(void) const { return d_cache_out_degs_; }
 
-    real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
-    auto interp_vindx = rnd_val * max_ub + real_t{.5};
-    vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
-
-    auto col_indx  = v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx;
-    auto start_row = row_offsets_[src_v];
-
-    auto weight_value =
-      (values_ == nullptr ? weight_t{1}
-                          : values_[start_row + col_indx]);  // account for un-weighted graphs
-    return thrust::optional{thrust::make_tuple(col_indices_[start_row + col_indx], weight_value)};
-  }
+  sampler_t const& get_strategy(void) const { return sampler_; }
 
  private:
-  edge_t const* row_offsets_;
-  vertex_t const* col_indices_;
-  weight_t const* values_;
-
-  edge_t const* ptr_d_cache_out_degs_;
+  device_vec_t<edge_t> d_cache_out_degs_;  // selector-specific: selector must own this resource
+  sampler_t sampler_;  // which is why the sampling must be separated into a separate object:
+  // it must captured by device lambda, which is not possible for selector object, because it ows a
+  // device_vec;
 };
 
 // Biased RW selection logic:
@@ -330,12 +351,20 @@ struct vertical_traversal_t {
       d_next_w)  // set of weights between src and destination vertices, for next step
     const
   {
+    auto const& handle = rand_walker.get_handle();
+
+    // selector:
+    // FIXME: to be passed as argument;
+    //
+    uniform_selector_t selector{handle, graph, real_t{0}};
+
     // start from 1, as 0-th was initialized above:
     //
     for (decltype(max_depth_) step_indx = 1; step_indx < max_depth_; ++step_indx) {
       // take one-step in-sync for each path in parallel:
       //
       rand_walker.step(graph,
+                       selector,
                        seed0 + static_cast<seed_t>(step_indx),
                        d_coalesced_v,
                        d_coalesced_w,
@@ -410,14 +439,14 @@ struct horizontal_traversal_t {
 
     auto* ptr_d_sizes = raw_ptr(d_paths_sz);
 
-    // FIXME: 1. make get_out_degs() lazzy;
-    //
-    auto const& d_cached_out_degs = rand_walker.get_out_degs();
-
     // selector:
     // FIXME: to be passed as argument;
     //
-    uniform_selector_t selector{graph, raw_const_ptr(d_cached_out_degs), real_t{0}};
+    uniform_selector_t selector{handle, graph, real_t{0}};
+
+    // next step sampler functor:
+    //
+    auto const& sampler = selector.get_strategy();
 
     // start from 1, as 0-th was initialized above:
     //
@@ -429,7 +458,7 @@ struct horizontal_traversal_t {
                       ptr_coalesced_w = raw_ptr(d_coalesced_w),
                       ptr_d_random,
                       ptr_d_sizes,
-                      selector] __device__(auto path_index) {
+                      sampler] __device__(auto path_index) {
                        auto chunk_offset   = path_index * max_depth;
                        vertex_t src_vertex = ptr_coalesced_v[chunk_offset];
 
@@ -441,7 +470,7 @@ struct horizontal_traversal_t {
 
                          auto real_rnd_indx = ptr_d_random[stepping_index];
 
-                         auto opt_tpl_vn_wn = selector(src_vertex, real_rnd_indx);
+                         auto opt_tpl_vn_wn = sampler(src_vertex, real_rnd_indx);
                          if (!opt_tpl_vn_wn.has_value()) break;
 
                          src_vertex      = thrust::get<0>(*opt_tpl_vn_wn);

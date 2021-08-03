@@ -243,7 +243,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceExperiments)
 
   random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
 
-  auto const& d_out_degs = rand_walker.get_out_degs();
+  auto d_out_degs = rand_walker.get_out_degs(graph_view);
   EXPECT_EQ(static_cast<size_t>(num_vertices), d_out_degs.size());
 
   std::vector<edge_t> v_out_degs(num_vertices);
@@ -320,7 +320,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
 
   random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
 
-  auto const& d_out_degs = rand_walker.get_out_degs();
+  auto d_out_degs = rand_walker.get_out_degs(graph_view);
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
@@ -417,7 +417,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
 
   random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
 
-  auto const& d_out_degs = rand_walker.get_out_degs();
+  auto d_out_degs = rand_walker.get_out_degs(graph_view);
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
@@ -496,7 +496,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
 
   random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
 
-  auto const& d_out_degs = rand_walker.get_out_degs();
+  auto d_out_degs = rand_walker.get_out_degs(graph_view);
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
@@ -569,7 +569,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
 
   random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
 
-  auto const& d_out_degs = rand_walker.get_out_degs();
+  auto d_out_degs = rand_walker.get_out_degs(graph_view);
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
