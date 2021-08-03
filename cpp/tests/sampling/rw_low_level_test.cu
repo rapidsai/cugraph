@@ -176,7 +176,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRWStart)
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
@@ -241,7 +241,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceExperiments)
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
   auto d_out_degs = rand_walker.get_out_degs(graph_view);
   EXPECT_EQ(static_cast<size_t>(num_vertices), d_out_degs.size());
@@ -318,7 +318,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
   auto d_out_degs = rand_walker.get_out_degs(graph_view);
 
@@ -415,7 +415,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
   auto d_out_degs = rand_walker.get_out_degs(graph_view);
 
@@ -494,7 +494,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
   auto d_out_degs = rand_walker.get_out_degs(graph_view);
 
@@ -567,7 +567,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
   auto d_out_degs = rand_walker.get_out_degs(graph_view);
 
@@ -719,7 +719,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceDefragment)
   raft::update_device(
     d_coalesced_w.data(), w_coalesced.data(), d_coalesced_w.size(), handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
   rand_walker.stop(d_coalesced_v, d_coalesced_w, d_sizes);
 

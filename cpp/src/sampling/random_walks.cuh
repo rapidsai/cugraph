@@ -362,7 +362,7 @@ struct random_walker_t {
   using rnd_engine_t = random_engine_t;
 
   random_walker_t(raft::handle_t const& handle,
-                  graph_t const& graph,  // FIXME: remove
+                  vertex_t num_vertices,
                   index_t num_paths,
                   index_t max_depth,
                   vertex_t v_padding_val = 0,
@@ -370,8 +370,7 @@ struct random_walker_t {
     : handle_(handle),
       num_paths_(num_paths),
       max_depth_(max_depth),
-      /// d_cached_out_degs_(graph.compute_out_degrees(handle_)),
-      vertex_padding_value_(v_padding_val != 0 ? v_padding_val : graph.get_number_of_vertices()),
+      vertex_padding_value_(v_padding_val != 0 ? v_padding_val : num_vertices),
       weight_padding_value_(w_padding_val)
   {
   }
@@ -703,7 +702,6 @@ struct random_walker_t {
   raft::handle_t const& handle_;
   index_t num_paths_;
   index_t max_depth_;
-  /// device_vec_t<edge_t> d_cached_out_degs_;
   vertex_t const vertex_padding_value_;
   weight_t const weight_padding_value_;
 };
@@ -780,8 +778,10 @@ random_walks_impl(raft::handle_t const& handle,
   auto num_paths = d_v_start.size();
   auto stream    = handle.get_stream();
 
-  random_walker_t<graph_t, random_engine_t> rand_walker{
-    handle, graph, static_cast<index_t>(num_paths), static_cast<index_t>(max_depth)};
+  random_walker_t<graph_t, random_engine_t> rand_walker{handle,
+                                                        graph.get_number_of_vertices(),
+                                                        static_cast<index_t>(num_paths),
+                                                        static_cast<index_t>(max_depth)};
 
   // pre-allocate num_paths * max_depth;
   //
