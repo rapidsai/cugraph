@@ -320,6 +320,30 @@ TEST_P(Tests_MGPageRank_Rmat, CheckInt32Int32FloatFloat)
   run_current_test<int32_t, int32_t, float, float>(pagerank_usecase, rmat_usecase);
 }
 
+TEST_P(Tests_MGPageRank_Rmat, CheckInt32Int64FloatFloat)
+{
+  auto param            = GetParam();
+  auto pagerank_usecase = std::get<0>(param);
+  auto rmat_usecase     = std::get<1>(param);
+  if (cugraph::test::g_rmat_scale) { rmat_usecase.set_scale(*cugraph::test::g_rmat_scale); }
+  if (cugraph::test::g_rmat_edge_factor) {
+    rmat_usecase.set_edge_factor(*cugraph::test::g_rmat_edge_factor);
+  }
+  run_current_test<int32_t, int64_t, float, float>(pagerank_usecase, rmat_usecase);
+}
+
+TEST_P(Tests_MGPageRank_Rmat, CheckInt64Int64FloatFloat)
+{
+  auto param            = GetParam();
+  auto pagerank_usecase = std::get<0>(param);
+  auto rmat_usecase     = std::get<1>(param);
+  if (cugraph::test::g_rmat_scale) { rmat_usecase.set_scale(*cugraph::test::g_rmat_scale); }
+  if (cugraph::test::g_rmat_edge_factor) {
+    rmat_usecase.set_edge_factor(*cugraph::test::g_rmat_edge_factor);
+  }
+  run_current_test<int64_t, int64_t, float, float>(pagerank_usecase, rmat_usecase);
+}
+
 INSTANTIATE_TEST_SUITE_P(
   file_tests,
   Tests_MGPageRank_File,
