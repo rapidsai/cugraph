@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/legacy/graph.hpp>
 
 #include <thrust/iterator/zip_iterator.h>

@@ -17,8 +17,8 @@
 
 #include <cugraph/dendrogram.hpp>
 
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>

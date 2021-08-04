@@ -18,7 +18,7 @@
 //
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 
 #include <utilities/graph_utils.cuh>
 

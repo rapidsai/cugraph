@@ -17,7 +17,7 @@
 
 #include <thrust/binary_search.h>
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 

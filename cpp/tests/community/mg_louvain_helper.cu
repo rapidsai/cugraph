@@ -16,7 +16,7 @@
 
 #include "mg_louvain_helper.hpp"
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>

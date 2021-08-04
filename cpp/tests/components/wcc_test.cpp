@@ -14,7 +14,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 
 #include <raft/cudart_utils.h>
 #include <rmm/device_uvector.hpp>

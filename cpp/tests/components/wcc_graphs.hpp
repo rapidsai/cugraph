@@ -9,7 +9,7 @@
  *
  */
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 
 #include <rmm/device_uvector.hpp>
 
