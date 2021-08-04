@@ -19,14 +19,14 @@ ARGS=$*
 REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 
-VALIDARGS="clean uninstall libcugraph cugraph cpp-mgtests docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn -h --help"
+VALIDARGS="clean uninstall libcugraph cugraph cpp-mgtests docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn --skip_cpp_tests -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
    uninstall        - uninstall libcugraph and cugraph from a prior build/install (see also -n)
-   libcugraph       - build the cugraph C++ code
+   libcugraph       - build libcugraph.so and SG test binaries
    cugraph          - build the cugraph Python package
-   cpp-mgtests      - build libcugraph mnmg tests. Builds MPI communicator, adding MPI as a dependency.
+   cpp-mgtests      - build libcugraph MG tests. Builds MPI communicator, adding MPI as a dependency.
    docs             - build the docs
  and <flag> is:
    -v               - verbose build mode
@@ -35,6 +35,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --allgpuarch     - build for all supported GPU architectures
    --buildfaiss     - build faiss statically into cugraph
    --show_depr_warn - show cmake deprecation warnings
+   --skip_cpp_tests - do not build the SG test binaries as part of the libcugraph target
    -h               - print this text
 
  default action (no args) is to build and install 'libcugraph' then 'cugraph' then 'docs' targets
@@ -51,6 +52,7 @@ VERBOSE_FLAG=""
 BUILD_TYPE=Release
 INSTALL_TARGET=install
 BUILD_DISABLE_DEPRECATION_WARNING=ON
+BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_STATIC_FAISS=OFF
 BUILD_ALL_GPU_ARCH=0
@@ -103,6 +105,9 @@ if hasArg --buildfaiss; then
 fi
 if hasArg --show_depr_warn; then
     BUILD_DISABLE_DEPRECATION_WARNING=OFF
+fi
+if hasArg --skip_cpp_tests; then
+    BUILD_CPP_TESTS=OFF
 fi
 if hasArg cpp-mgtests; then
     BUILD_CPP_MG_TESTS=ON
@@ -168,6 +173,7 @@ if buildAll || hasArg libcugraph; then
           -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DBUILD_STATIC_FAISS=${BUILD_STATIC_FAISS} \
+          -DBUILD_TESTS=${BUILD_CPP_TESTS} \
           -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
           ${REPODIR}/cpp
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}

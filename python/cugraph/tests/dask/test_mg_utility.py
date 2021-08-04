@@ -19,9 +19,9 @@ import dask_cudf
 import pytest
 from cugraph.dask.common.part_utils import concat_within_workers
 from cugraph.dask.common.read_utils import get_n_workers
-from cugraph.dask.common.mg_utils import (is_single_gpu,
-                                          setup_local_dask_cluster,
-                                          teardown_local_dask_cluster)
+from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+
 import os
 import time
 import numpy as np
@@ -35,20 +35,12 @@ def setup_function():
     gc.collect()
 
 
-@pytest.fixture(scope="module")
-def client_connection():
-    (cluster, client) = setup_local_dask_cluster(p2p=True)
-    yield client
-    teardown_local_dask_cluster(cluster, client)
-
-
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_from_edgelist(client_connection):
-    # FIXME: update this to allow dataset to be parameterized and have dataset
-    # part of test param id (see other tests)
-    input_data_path = r"../datasets/karate.csv"
+def test_from_edgelist(dask_client):
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
@@ -75,7 +67,7 @@ def test_from_edgelist(client_connection):
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.skip(reason="MG not supported on CI")
-def test_parquet_concat_within_workers(client_connection):
+def test_parquet_concat_within_workers(dask_client):
     if not os.path.exists("test_files_parquet"):
         print("Generate data... ")
         os.mkdir("test_files_parquet")
