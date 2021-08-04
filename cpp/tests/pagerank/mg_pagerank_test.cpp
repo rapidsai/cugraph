@@ -37,11 +37,6 @@
 
 #include <random>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 struct PageRank_Usecase {
   double personalization_ratio{0.0};
   bool test_weighted{false};
@@ -82,7 +77,7 @@ class Tests_MGPageRank
 
     // 2. create MG graph
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -92,7 +87,7 @@ class Tests_MGPageRank
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, true>(
         handle, pagerank_usecase.test_weighted, true);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -157,7 +152,7 @@ class Tests_MGPageRank
     rmm::device_uvector<result_t> d_mg_pageranks(mg_graph_view.get_number_of_local_vertices(),
                                                  handle.get_stream());
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -182,7 +177,7 @@ class Tests_MGPageRank
       std::numeric_limits<size_t>::max(),
       false);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -315,8 +310,14 @@ TEST_P(Tests_MGPageRank_File, CheckInt32Int32FloatFloat)
 
 TEST_P(Tests_MGPageRank_Rmat, CheckInt32Int32FloatFloat)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
+  auto param            = GetParam();
+  auto pagerank_usecase = std::get<0>(param);
+  auto rmat_usecase     = std::get<1>(param);
+  if (cugraph::test::g_rmat_scale) { rmat_usecase.set_scale(*cugraph::test::g_rmat_scale); }
+  if (cugraph::test::g_rmat_edge_factor) {
+    rmat_usecase.set_edge_factor(*cugraph::test::g_rmat_edge_factor);
+  }
+  run_current_test<int32_t, int32_t, float, float>(pagerank_usecase, rmat_usecase);
 }
 
 INSTANTIATE_TEST_SUITE_P(
