@@ -15,7 +15,7 @@
  */
 
 #include <community/flatten_dendrogram.cuh>
-#include <community/leiden.cuh>
+#include <community/legacy/leiden.cuh>
 
 #include <rmm/device_uvector.hpp>
 
