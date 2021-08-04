@@ -108,8 +108,19 @@ inline std::shared_ptr<rmm::mr::device_memory_resource> create_memory_resource(
 /**
  * @brief Parses the cuGraph test command line options.
  *
- * Currently only supports 'rmm_mode' string paramater, which set the rmm allocation mode. The
- * default value of the parameter is 'pool'.
+ * Currently supports 'rmm_mode', 'perf', 'rmat_scale', and 'rmat_edge_factor'.
+ * 'rmm_mode` string paramater sets the rmm allocation mode. The default value of the parameter is
+ * 'pool'.
+ * `perf` boolean parameter enables performance measurements. The default value of the
+ * parameter is 'false' (if this option is not provided).
+ * 'rmat_scale' integer parameter overrides the hardcoded R-mat scale if provided.
+ * 'rmat_edge_factor' integer parameter overrides the hardcoded R-mat edge factor if provided.
+ *
+ * 'perf', 'rmat_scale', 'rmat_edge_factor' are added mainly to support C++ benchmarking (to
+ * override the input graph size through command line interface).
+ *
+ * Example: ./tests/PAGERANK_TEST --gtest_filter=rmat_large_tests/Tests_PageRankRmat*
+ * --rmm_mode=pool --perf --rmat_scale=27 --rmat_edge_factor=16
  *
  * @return Parsing results in the form of cxxopts::ParseResult
  */
