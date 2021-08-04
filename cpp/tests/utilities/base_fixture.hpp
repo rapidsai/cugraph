@@ -102,6 +102,11 @@ inline std::shared_ptr<rmm::mr::device_memory_resource> create_memory_resource(
   CUGRAPH_FAIL("Invalid RMM allocation mode");
 }
 
+// these variables are updated by command line arguments
+static bool g_perf{false};
+static std::optional<size_t> g_rmat_scale{std::nullopt};
+static std::optional<size_t> g_rmat_edge_factor{std::nullopt};
+
 }  // namespace test
 }  // namespace cugraph
 
@@ -140,6 +145,9 @@ inline auto parse_test_options(int argc, char** argv)
   }
 }
 
+namespace {
+}  // namespace
+
 /**
  * @brief Macro that defines main function for gtest programs that use rmm
  *
@@ -149,52 +157,54 @@ inline auto parse_test_options(int argc, char** argv)
  * function parses the command line to customize test behavior, like the allocation mode used for
  * creating the default memory resource.
  */
-#define CUGRAPH_TEST_PROGRAM_MAIN()                                                             \
-  int main(int argc, char** argv)                                                               \
-  {                                                                                             \
-    ::testing::InitGoogleTest(&argc, argv);                                                     \
-    auto const cmd_opts   = parse_test_options(argc, argv);                                     \
-    auto const rmm_mode   = cmd_opts["rmm_mode"].as<std::string>();                             \
-    auto const perf       = cmd_opts["perf"].as<bool>();                                        \
-    auto const rmat_scale = (cmd_opts.count("rmat_scale") > 0)                                  \
-                              ? std::make_optional<size_t>(cmd_opts["rmat_scale"].as<size_t>()) \
-                              : std::nullopt;                                                   \
-    auto const rmat_edge_factor =                                                               \
-      (cmd_opts.count("rmat_edge_factor") > 0)                                                  \
-        ? std::make_optional<size_t>(cmd_opts["rmat_edge_factor"].as<size_t>())                 \
-        : std::nullopt;                                                                         \
-    auto resource = cugraph::test::create_memory_resource(rmm_mode);                            \
-    rmm::mr::set_current_device_resource(resource.get());                                       \
-    return RUN_ALL_TESTS();                                                                     \
+#define CUGRAPH_TEST_PROGRAM_MAIN()                                             \
+  int main(int argc, char** argv)                                               \
+  {                                                                             \
+    ::testing::InitGoogleTest(&argc, argv);                                     \
+    auto const cmd_opts = parse_test_options(argc, argv);                       \
+    auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();               \
+    auto resource       = cugraph::test::create_memory_resource(rmm_mode);      \
+    rmm::mr::set_current_device_resource(resource.get());                       \
+    cugraph::test::g_perf = cmd_opts["perf"].as<bool>();                        \
+    cugraph::test::g_rmat_scale =                                               \
+      (cmd_opts.count("rmat_scale") > 0)                                        \
+        ? std::make_optional<size_t>(cmd_opts["rmat_scale"].as<size_t>())       \
+        : std::nullopt;                                                         \
+    cugraph::test::g_rmat_edge_factor =                                         \
+      (cmd_opts.count("rmat_edge_factor") > 0)                                  \
+        ? std::make_optional<size_t>(cmd_opts["rmat_edge_factor"].as<size_t>()) \
+        : std::nullopt;                                                         \
+    return RUN_ALL_TESTS();                                                     \
   }
 
-#define CUGRAPH_MG_TEST_PROGRAM_MAIN()                                                          \
-  int main(int argc, char** argv)                                                               \
-  {                                                                                             \
-    MPI_TRY(MPI_Init(&argc, &argv));                                                            \
-    int comm_rank{};                                                                            \
-    int comm_size{};                                                                            \
-    MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));                                         \
-    MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));                                         \
-    int num_gpus{};                                                                             \
-    CUDA_TRY(cudaGetDeviceCount(&num_gpus));                                                    \
-    CUGRAPH_EXPECTS(                                                                            \
-      comm_size <= num_gpus, "# MPI ranks (%d) > # GPUs (%d).", comm_size, num_gpus);           \
-    CUDA_TRY(cudaSetDevice(comm_rank));                                                         \
-    ::testing::InitGoogleTest(&argc, argv);                                                     \
-    auto const cmd_opts   = parse_test_options(argc, argv);                                     \
-    auto const rmm_mode   = cmd_opts["rmm_mode"].as<std::string>();                             \
-    auto const perf       = cmd_opts["perf"].as<bool>();                                        \
-    auto const rmat_scale = (cmd_opts.count("rmat_scale") > 0)                                  \
-                              ? std::make_optional<size_t>(cmd_opts["rmat_scale"].as<size_t>()) \
-                              : std::nullopt;                                                   \
-    auto const rmat_edge_factor =                                                               \
-      (cmd_opts.count("rmat_edge_factor") > 0)                                                  \
-        ? std::make_optional<size_t>(cmd_opts["rmat_edge_factor"].as<size_t>())                 \
-        : std::nullopt;                                                                         \
-    auto resource = cugraph::test::create_memory_resource(rmm_mode);                            \
-    rmm::mr::set_current_device_resource(resource.get());                                       \
-    auto ret = RUN_ALL_TESTS();                                                                 \
-    MPI_TRY(MPI_Finalize());                                                                    \
-    return ret;                                                                                 \
+#define CUGRAPH_MG_TEST_PROGRAM_MAIN()                                                \
+  int main(int argc, char** argv)                                                     \
+  {                                                                                   \
+    MPI_TRY(MPI_Init(&argc, &argv));                                                  \
+    int comm_rank{};                                                                  \
+    int comm_size{};                                                                  \
+    MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));                               \
+    MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));                               \
+    int num_gpus{};                                                                   \
+    CUDA_TRY(cudaGetDeviceCount(&num_gpus));                                          \
+    CUGRAPH_EXPECTS(                                                                  \
+      comm_size <= num_gpus, "# MPI ranks (%d) > # GPUs (%d).", comm_size, num_gpus); \
+    CUDA_TRY(cudaSetDevice(comm_rank));                                               \
+    ::testing::InitGoogleTest(&argc, argv);                                           \
+    auto const cmd_opts = parse_test_options(argc, argv);                             \
+    auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                     \
+    auto resource       = cugraph::test::create_memory_resource(rmm_mode);            \
+    rmm::mr::set_current_device_resource(resource.get());                             \
+    cugraph::test::g_perf = cmd_opts["perf"].as<bool>();                              \
+    cugraph::test::g_rmat_scale =                                                     \
+      (cmd_opts.count("rmat_scale") > 0)                                              \
+        ? std::make_optional<size_t>(cmd_opts["rmat_scale"].as<size_t>())             \
+        : std::nullopt;                                                               \
+    cugraph::test::g_rmat_edge_factor =                                               \
+      (cmd_opts.count("rmat_edge_factor") > 0)                                        \
+        ? std::make_optional<size_t>(cmd_opts["rmat_edge_factor"].as<size_t>())       \
+        : std::nullopt;                                                               \
+    auto ret = RUN_ALL_TESTS();                                                       \
+    MPI_TRY(MPI_Finalize());                                                          \
+    return ret;                                                                       \
   }
