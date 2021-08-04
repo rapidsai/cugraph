@@ -132,8 +132,11 @@ inline Rmat_Usecase override_Rmat_Usecase_with_cmd_line_arguments(Rmat_Usecase u
  * 'perf', 'rmat_scale', 'rmat_edge_factor' are added mainly to support C++ benchmarking (to
  * override the input graph size through command line interface).
  *
- * Example: ./tests/PAGERANK_TEST --gtest_filter=rmat_large_tests/Tests_PageRankRmat*
- * --rmm_mode=pool --perf --rmat_scale=27 --rmat_edge_factor=16
+ * Example:
+ * ```
+ * ./tests/PAGERANK_TEST --gtest_filter=rmat_large_tests/Tests_PageRank_Rmat.CheckInt32Int32*
+ * --rmm_mode=pool --perf --rmat_scale=25 --rmat_edge_factor=16
+ * ```
  *
  * @return Parsing results in the form of cxxopts::ParseResult
  */
