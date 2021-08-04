@@ -18,6 +18,7 @@
 
 #include <cugraph/utilities/error.hpp>
 #include <utilities/cxxopts.hpp>
+#include <utilities/test_graphs.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm/mr/device/binning_memory_resource.hpp>
@@ -106,6 +107,13 @@ inline std::shared_ptr<rmm::mr::device_memory_resource> create_memory_resource(
 static bool g_perf{false};
 static std::optional<size_t> g_rmat_scale{std::nullopt};
 static std::optional<size_t> g_rmat_edge_factor{std::nullopt};
+
+inline Rmat_Usecase override_Rmat_Usecase_with_cmd_line_arguments(Rmat_Usecase usecase)
+{
+  if (g_rmat_scale) { usecase.set_scale(*g_rmat_scale); }
+  if (g_rmat_edge_factor) { usecase.set_edge_factor(*g_rmat_edge_factor); }
+  return usecase;
+}
 
 }  // namespace test
 }  // namespace cugraph
