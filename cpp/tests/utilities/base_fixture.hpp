@@ -138,15 +138,23 @@ inline auto parse_test_options(int argc, char** argv)
  * function parses the command line to customize test behavior, like the allocation mode used for
  * creating the default memory resource.
  */
-#define CUGRAPH_TEST_PROGRAM_MAIN()                                        \
-  int main(int argc, char** argv)                                          \
-  {                                                                        \
-    ::testing::InitGoogleTest(&argc, argv);                                \
-    auto const cmd_opts = parse_test_options(argc, argv);                  \
-    auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();          \
-    auto resource       = cugraph::test::create_memory_resource(rmm_mode); \
-    rmm::mr::set_current_device_resource(resource.get());                  \
-    return RUN_ALL_TESTS();                                                \
+#define CUGRAPH_TEST_PROGRAM_MAIN()                                                             \
+  int main(int argc, char** argv)                                                               \
+  {                                                                                             \
+    ::testing::InitGoogleTest(&argc, argv);                                                     \
+    auto const cmd_opts   = parse_test_options(argc, argv);                                     \
+    auto const rmm_mode   = cmd_opts["rmm_mode"].as<std::string>();                             \
+    auto const perf       = cmd_opts["perf"].as<bool>();                                        \
+    auto const rmat_scale = (cmd_opts.count("rmat_scale") > 0)                                  \
+                              ? std::make_optional<size_t>(cmd_opts["rmat_scale"].as<size_t>()) \
+                              : std::nullopt;                                                   \
+    auto const rmat_edge_factor =                                                               \
+      (cmd_opts.count("rmat_edge_factor") > 0)                                                  \
+        ? std::make_optional<size_t>(cmd_opts["rmat_edge_factor"].as<size_t>())                 \
+        : std::nullopt;                                                                         \
+    auto resource = cugraph::test::create_memory_resource(rmm_mode);                            \
+    rmm::mr::set_current_device_resource(resource.get());                                       \
+    return RUN_ALL_TESTS();                                                                     \
   }
 
 #define CUGRAPH_MG_TEST_PROGRAM_MAIN()                                                          \
