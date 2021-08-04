@@ -199,8 +199,8 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
 
   col_indx_extract_t(raft::handle_t const& handle,
                      graph_t const& graph,
-                     edge_t const* p_d_crt_out_degs,
-                     index_t const* p_d_sizes,
+                     edge_t* p_d_crt_out_degs,
+                     index_t* p_d_sizes,
                      index_t num_paths,
                      index_t max_depth)
     : handle_(handle),
@@ -266,36 +266,46 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
   // Version with selector (sampling strategy):
   //
   template <typename selector_t, typename real_t>
-  void operator()(
-    selector_t const& selector,
-    device_vec_t<vertex_t> const& d_coalesced_src_v,  // in: coalesced vector of vertices
-    device_vec_t<real_t> const& d_rnd_val,            // in: random engine values
-    device_vec_t<vertex_t>& d_v_next_vertices,  // out: set of destination vertices, for next step
-    device_vec_t<weight_t>&
-      d_v_next_weights)  // out: set of weights between src and destination vertices, for next step
-    const
+  void operator()(selector_t const& selector,
+                  device_vec_t<real_t> const& d_rnd_val,  // in: random values, one per path
+                  device_vec_t<vertex_t>& d_coalesced_v,  // out: set of coalesced vertices
+                  device_vec_t<weight_t>& d_coalesced_w,  // out: set of coalesced weights
+                  real_t tag)  // otherwise. ambiguity with the other operator()
   {
-    thrust::transform_if(
-      rmm::exec_policy(handle_.get_stream_view()),
-      thrust::make_counting_iterator<index_t>(0),
-      thrust::make_counting_iterator<index_t>(num_paths_),  // input1
-      d_rnd_val.begin(),                                    // input2
-      out_degs_,                                            // stencil
-      thrust::make_zip_iterator(
-        thrust::make_tuple(d_v_next_vertices.begin(), d_v_next_weights.begin())),  // output
-      [sampler           = selector.get_strategy(),
-       max_depth         = max_depth_,
-       ptr_d_sizes       = sizes_,
-       ptr_d_coalesced_v = raw_const_ptr(d_coalesced_src_v)] __device__(index_t v_indx,
-                                                                        real_t rnd_val) {
-        auto delta = ptr_d_sizes[v_indx] - 1;
-        auto src_v = ptr_d_coalesced_v[v_indx * max_depth + delta];
+    thrust::for_each(rmm::exec_policy(handle_.get_stream_view()),
+                     thrust::make_counting_iterator<index_t>(0),
+                     thrust::make_counting_iterator<index_t>(num_paths_),  // input1
+                     [max_depth        = max_depth_,
+                      row_offsets      = row_offsets_,
+                      ptr_coalesced_v  = raw_ptr(d_coalesced_v),
+                      ptr_coalesced_w  = raw_ptr(d_coalesced_w),
+                      ptr_d_random     = raw_const_ptr(d_rnd_val),
+                      ptr_d_sizes      = sizes_,
+                      ptr_crt_out_degs = out_degs_,
+                      sampler = selector.get_strategy()] __device__(index_t path_indx) mutable {
+                       auto chunk_offset = path_indx * max_depth;
+                       auto delta        = ptr_d_sizes[path_indx] - 1;
+                       auto start_v_pos  = chunk_offset + delta;
+                       auto start_w_pos  = chunk_offset - path_indx + delta;
 
-        auto opt_tpl_vn_wn = sampler(src_v, rnd_val);
+                       auto src_v         = ptr_coalesced_v[start_v_pos];
+                       auto rnd_val       = ptr_d_random[path_indx];
+                       auto opt_tpl_vn_wn = sampler(src_v, rnd_val);
 
-        return *opt_tpl_vn_wn;  // _must_ have value, the stencil insures that
-      },
-      [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
+                       if (opt_tpl_vn_wn.has_value()) {
+                         auto src_vertex = thrust::get<0>(*opt_tpl_vn_wn);
+                         auto crt_weight = thrust::get<1>(*opt_tpl_vn_wn);
+
+                         ptr_coalesced_v[start_v_pos + 1] = src_vertex;
+                         ptr_coalesced_w[start_w_pos]     = crt_weight;
+
+                         ptr_d_sizes[path_indx]++;
+                         ptr_crt_out_degs[path_indx] =
+                           row_offsets[src_vertex + 1] - row_offsets[src_vertex];
+                       } else {
+                         ptr_crt_out_degs[path_indx] = 0;
+                       }
+                     });
   }
 
  private:
@@ -304,8 +314,8 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
   edge_t const* row_offsets_;
   std::optional<weight_t const*> values_;
 
-  edge_t const* out_degs_;
-  index_t const* sizes_;
+  edge_t* out_degs_;
+  index_t* sizes_;
   index_t num_paths_;
   index_t max_depth_;
 };
@@ -445,27 +455,30 @@ struct random_walker_t {
     // from cached out degs, using
     // latest vertex in each path as source:
     //
-    gather_from_coalesced(d_coalesced_v,
-                          selector.get_cached_out_degs(),
-                          d_paths_sz,
-                          d_crt_out_degs,
-                          max_depth_,
-                          num_paths_);
+    // FIXME: remove; see below;
+    //
+    // gather_from_coalesced(d_coalesced_v,
+    //                       selector.get_cached_out_degs(),
+    //                       d_paths_sz,
+    //                       d_crt_out_degs,
+    //                       max_depth_,
+    //                       num_paths_);
 
     // generate random destination indices:
     //
+    // FIXME: rgen has no need for d_crt_out_degs
+    //
     random_engine_t rgen(handle_, num_paths_, d_random, d_crt_out_degs, seed);
 
-    rgen.generate_col_indices(d_col_indx);
+    // FIXME: remove:
+    //
+    // rgen.generate_col_indices(d_col_indx);
 
     // dst extraction from dst indices:
+    // (d_crt_out_degs to be maintained internally by col_extractor)
     //
-    col_indx_extract_t<graph_t> col_extractor(handle_,
-                                              graph,
-                                              raw_const_ptr(d_crt_out_degs),
-                                              raw_const_ptr(d_paths_sz),
-                                              num_paths_,
-                                              max_depth_);
+    col_indx_extract_t<graph_t> col_extractor(
+      handle_, graph, raw_ptr(d_crt_out_degs), raw_ptr(d_paths_sz), num_paths_, max_depth_);
 
     // The following steps update the next entry in each path,
     // except the paths that reached sinks;
@@ -483,16 +496,27 @@ struct random_walker_t {
     //
     // (1) generate actual vertex destinations:
     //
-    col_extractor(d_coalesced_v, d_col_indx, d_next_v, d_next_w);
+    // FIXME: pass sampler, update d_crt_out_degs internally,
+    // using row_offsets info; also update sizes and coalesced vectors;
+    // hence, performs steps (1) + (2) + (3) in one pass;
+    //
+    // col_extractor(d_coalesced_v, d_col_indx, d_next_v, d_next_w);
+    //
+    col_extractor(selector, d_random, d_coalesced_v, d_coalesced_w, real_t{0});
 
     // (2) update path sizes:
     //
-    update_path_sizes(d_crt_out_degs, d_paths_sz);
+    // FIXME: remove it (to be done above);
+    //
+    // update_path_sizes(d_crt_out_degs, d_paths_sz);
 
     // (3) actual coalesced updates:
     //
-    scatter_vertices(d_next_v, d_coalesced_v, d_crt_out_degs, d_paths_sz);
-    scatter_weights(d_next_w, d_coalesced_w, d_crt_out_degs, d_paths_sz);
+    // FIXME: remove; no need to scatter as col_extractor acts
+    //        directly on coalesced vectors;
+    //
+    // scatter_vertices(d_next_v, d_coalesced_v, d_crt_out_degs, d_paths_sz);
+    // scatter_weights(d_next_w, d_coalesced_w, d_crt_out_degs, d_paths_sz);
   }
 
   // returns true if all paths reached sinks:

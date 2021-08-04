@@ -314,12 +314,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   rand_walker.gather_from_coalesced(
     d_coalesced_v, d_out_degs, d_sizes, d_crt_out_degs, max_depth, num_paths);
 
-  col_indx_extract_t<decltype(graph_view), index_t> col_extractor{handle,
-                                                                  graph_view,
-                                                                  raw_const_ptr(d_crt_out_degs),
-                                                                  raw_const_ptr(d_sizes),
-                                                                  num_paths,
-                                                                  max_depth};
+  col_indx_extract_t<decltype(graph_view), index_t> col_extractor{
+    handle, graph_view, raw_ptr(d_crt_out_degs), raw_ptr(d_sizes), num_paths, max_depth};
 
   // typically given by random engine:
   //
@@ -563,12 +559,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
   rand_walker.gather_from_coalesced(
     d_coalesced_v, d_out_degs, d_sizes, d_crt_out_degs, max_depth, num_paths);
 
-  col_indx_extract_t<decltype(graph_view), index_t> col_extractor{handle,
-                                                                  graph_view,
-                                                                  raw_const_ptr(d_crt_out_degs),
-                                                                  raw_const_ptr(d_sizes),
-                                                                  num_paths,
-                                                                  max_depth};
+  col_indx_extract_t<decltype(graph_view), index_t> col_extractor{
+    handle, graph_view, raw_ptr(d_crt_out_degs), raw_ptr(d_sizes), num_paths, max_depth};
 
   // typically given by random engine:
   //
