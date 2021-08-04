@@ -30,6 +30,7 @@ def mg_katz_centrality(input_df,
                        vertex_partition_offsets,
                        rank,
                        handle,
+                       segment_offsets,
                        alpha=None,
                        beta=None,
                        max_iter=100,
@@ -48,7 +49,7 @@ def mg_katz_centrality(input_df,
     if num_global_edges > (2**31 - 1):
         edge_t = np.dtype("int64")
     else:
-        edge_t = np.dtype("int32")
+        edge_t = vertex_t
     if "value" in input_df.columns:
         weights = input_df['value']
         weight_t = weights.dtype
@@ -83,17 +84,29 @@ def mg_katz_centrality(input_df,
     vertex_partition_offsets_host = vertex_partition_offsets.values_host
     cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets_host.__array_interface__['data'][0]
 
+    cdef vector[int] v_segment_offsets_32
+    cdef vector[long] v_segment_offsets_64
+    cdef uintptr_t c_segment_offsets
+    if (vertex_t == np.dtype("int32")):
+        v_segment_offsets_32 = segment_offsets
+        c_segment_offsets = <uintptr_t>v_segment_offsets_32.data()
+    else:
+        v_segment_offsets_64 = segment_offsets
+        c_segment_offsets = <uintptr_t>v_segment_offsets_64.data()
+
     cdef graph_container_t graph_container
+
     populate_graph_container(graph_container,
                              handle_[0],
                              <void*>c_src_vertices, <void*>c_dst_vertices, <void*>c_edge_weights,
                              <void*>c_vertex_partition_offsets,
+                             <void*>c_segment_offsets,
+                             len(segment_offsets) - 1,
                              <numberTypeEnum>(<int>(numberTypeMap[vertex_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[edge_t])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                              num_local_edges,
                              num_global_verts, num_global_edges,
-                             True,
                              is_weighted,
                              False,
                              True, True) 
@@ -105,11 +118,18 @@ def mg_katz_centrality(input_df,
     cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_katz_centralities = df['katz_centrality'].__cuda_array_interface__['data'][0]
 
-    if (df['katz_centrality'].dtype == np.float32):
-        c_katz_centrality.call_katz_centrality[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_katz_centralities,
-                                               alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
+    if vertex_t == np.int32:
+        if (df['katz_centrality'].dtype == np.float32):
+            c_katz_centrality.call_katz_centrality[int, float](handle_[0], graph_container, <int*>c_identifier, <float*> c_katz_centralities,
+                                                   alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
+        else:
+            c_katz_centrality.call_katz_centrality[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_katz_centralities,
+                                                   alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
     else:
-        c_katz_centrality.call_katz_centrality[int, double](handle_[0], graph_container, <int*>c_identifier, <double*> c_katz_centralities,
-                                               alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
-    
+        if (df['katz_centrality'].dtype == np.float32):
+            c_katz_centrality.call_katz_centrality[long, float](handle_[0], graph_container, <long*>c_identifier, <float*> c_katz_centralities,
+                                                   alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
+        else:
+            c_katz_centrality.call_katz_centrality[long, double](handle_[0], graph_container, <long*>c_identifier, <double*> c_katz_centralities,
+                                                   alpha, beta, tol, max_iter, <bool>0, <bool> normalize)
     return df

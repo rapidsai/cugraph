@@ -66,7 +66,7 @@ class DistributedDataHandler:
     """ Class methods for initalization """
 
     @classmethod
-    def create(cls, data, client=None):
+    def create(cls, data, client=None, batch_enabled=False):
         """
         Creates a distributed data handler instance with the given
         distributed data set(s).
@@ -90,7 +90,8 @@ class DistributedDataHandler:
         else:
             raise Exception("Graph data must be dask-cudf dataframe")
 
-        gpu_futures = client.sync(_extract_partitions, data, client)
+        gpu_futures = client.sync(
+            _extract_partitions, data, client, batch_enabled=batch_enabled)
         workers = tuple(OrderedDict.fromkeys(map(lambda x: x[0], gpu_futures)))
         return DistributedDataHandler(gpu_futures=gpu_futures, workers=workers,
                                       datatype=datatype, multiple=multiple,
@@ -191,11 +192,14 @@ def _workers_to_parts(futures):
     :param futures: list of (worker, part) tuples
     :return:
     """
-    w_to_p_map = OrderedDict()
+    w_to_p_map = OrderedDict.fromkeys(Comms.get_workers())
     for w, p in futures:
-        if w not in w_to_p_map:
+        if w_to_p_map[w] is None:
             w_to_p_map[w] = []
         w_to_p_map[w].append(p)
+    keys_to_delete = [w for (w, p) in w_to_p_map.items() if p is None]
+    for k in keys_to_delete:
+        del w_to_p_map[k]
     return w_to_p_map
 
 
@@ -205,8 +209,9 @@ def _get_rows(objs, multiple):
     return total, reduce(lambda a, b: a + b, total)
 
 
-def get_mg_batch_data(dask_cudf_data):
-    data = DistributedDataHandler.create(data=dask_cudf_data)
+def get_mg_batch_data(dask_cudf_data, batch_enabled=False):
+    data = DistributedDataHandler.create(
+        data=dask_cudf_data, batch_enabled=batch_enabled)
     return data
 
 

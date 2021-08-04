@@ -16,7 +16,6 @@
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure import renumber_wrapper as c_renumber
-from cugraph.utilities.utils import is_device_version_less_than
 import cugraph.comms.comms as Comms
 import dask_cudf
 import numpy as np
@@ -469,14 +468,14 @@ class NumberMap:
 
         return output_df
 
-    def renumber(df, src_col_names, dst_col_names, preserve_order=False,
-                 store_transposed=False):
+    def renumber_and_segment(
+        df, src_col_names, dst_col_names, preserve_order=False,
+        store_transposed=False
+    ):
         if isinstance(src_col_names, list):
             renumber_type = 'legacy'
         elif not (df[src_col_names].dtype == np.int32 or
                   df[src_col_names].dtype == np.int64):
-            renumber_type = 'legacy'
-        elif is_device_version_less_than((7, 0)):
             renumber_type = 'legacy'
         else:
             renumber_type = 'experimental'
@@ -538,14 +537,27 @@ class NumberMap:
             def get_renumber_map(data):
                 return data[0]
 
-            def get_renumbered_df(data):
+            def get_segment_offsets(data):
                 return data[1]
+
+            def get_renumbered_df(data):
+                return data[2]
 
             renumbering_map = dask_cudf.from_delayed(
                                  [client.submit(get_renumber_map,
                                                 data,
                                                 workers=[wf])
                                      for (data, wf) in result])
+
+            list_of_segment_offsets = client.gather(
+                                          [client.submit(get_segment_offsets,
+                                                         data,
+                                                         workers=[wf])
+                                              for (data, wf) in result])
+            aggregate_segment_offsets = []
+            for segment_offsets in list_of_segment_offsets:
+                aggregate_segment_offsets.extend(segment_offsets)
+
             renumbered_df = dask_cudf.from_delayed(
                                [client.submit(get_renumbered_df,
                                               data,
@@ -562,22 +574,16 @@ class NumberMap:
                 renumber_map.implementation.ddf = renumbering_map.rename(
                     columns={'original_ids': '0', 'new_ids': 'global_id'})
             renumber_map.implementation.numbered = True
-            return renumbered_df, renumber_map
+            return renumbered_df, renumber_map, aggregate_segment_offsets
 
         else:
-            if is_device_version_less_than((7, 0)):
-                renumbered_df = df
-                renumber_map.implementation.df = indirection_map
-                renumber_map.implementation.numbered = True
-                return renumbered_df, renumber_map
-
-            renumbering_map, renumbered_df = c_renumber.renumber(
-                                             df,
-                                             num_edges,
-                                             0,
-                                             Comms.get_default_handle(),
-                                             is_mnmg,
-                                             store_transposed)
+            renumbering_map, segment_offsets, renumbered_df = \
+                c_renumber.renumber(df,
+                                    num_edges,
+                                    0,
+                                    Comms.get_default_handle(),
+                                    is_mnmg,
+                                    store_transposed)
             if renumber_type == 'legacy':
                 renumber_map.implementation.df = indirection_map.\
                     merge(renumbering_map,
@@ -589,7 +595,13 @@ class NumberMap:
                     columns={'original_ids': '0', 'new_ids': 'id'}, copy=False)
 
             renumber_map.implementation.numbered = True
-            return renumbered_df, renumber_map
+            return renumbered_df, renumber_map, segment_offsets
+
+    def renumber(df, src_col_names, dst_col_names, preserve_order=False,
+                 store_transposed=False):
+        return NumberMap.renumber_and_segment(
+            df, src_col_names, dst_col_names,
+            preserve_order, store_transposed)[0:2]
 
     def unrenumber(self, df, column_name, preserve_order=False,
                    get_column_names=False):

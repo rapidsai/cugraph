@@ -16,11 +16,11 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/patterns/reduce_op.cuh>
-#include <cugraph/patterns/update_frontier_v_push_if_out_nbr.cuh>
-#include <cugraph/patterns/vertex_frontier.cuh>
+#include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/vertex_partition_device.cuh>
+#include <cugraph/vertex_partition_device_view.cuh>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
@@ -42,9 +42,9 @@ namespace experimental {
 namespace detail {
 
 template <typename GraphViewType, typename PredecessorIterator>
-void bfs(raft::handle_t const &handle,
-         GraphViewType const &push_graph_view,
-         typename GraphViewType::vertex_type *distances,
+void bfs(raft::handle_t const& handle,
+         GraphViewType const& push_graph_view,
+         typename GraphViewType::vertex_type* distances,
          PredecessorIterator predecessor_first,
          typename GraphViewType::vertex_type source_vertex,
          bool direction_optimizing,
@@ -109,7 +109,8 @@ void bfs(raft::handle_t const &handle,
     if (direction_optimizing) {
       CUGRAPH_FAIL("unimplemented.");
     } else {
-      vertex_partition_device_t<GraphViewType> vertex_partition(push_graph_view);
+      auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+        push_graph_view.get_vertex_partition_view());
 
       update_frontier_v_push_if_out_nbr(
         handle,
@@ -163,10 +164,10 @@ void bfs(raft::handle_t const &handle,
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void bfs(raft::handle_t const &handle,
-         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
-         vertex_t *distances,
-         vertex_t *predecessors,
+void bfs(raft::handle_t const& handle,
+         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+         vertex_t* distances,
+         vertex_t* predecessors,
          vertex_t source_vertex,
          bool direction_optimizing,
          vertex_t depth_limit,
@@ -195,109 +196,109 @@ void bfs(raft::handle_t const &handle,
 
 // explicit instantiation
 
-template void bfs(raft::handle_t const &handle,
-                  graph_view_t<int32_t, int32_t, float, false, true> const &graph_view,
-                  int32_t *distances,
-                  int32_t *predecessors,
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
                   int32_t source_vertex,
                   bool direction_optimizing,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t const &handle,
-                  graph_view_t<int32_t, int32_t, double, false, true> const &graph_view,
-                  int32_t *distances,
-                  int32_t *predecessors,
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
                   int32_t source_vertex,
                   bool direction_optimizing,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t const &handle,
-                  graph_view_t<int32_t, int64_t, float, false, true> const &graph_view,
-                  int32_t *distances,
-                  int32_t *predecessors,
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
                   int32_t source_vertex,
                   bool direction_optimizing,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t const &handle,
-                  graph_view_t<int32_t, int64_t, double, false, true> const &graph_view,
-                  int32_t *distances,
-                  int32_t *predecessors,
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
                   int32_t source_vertex,
                   bool direction_optimizing,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t const &handle,
-                  graph_view_t<int64_t, int64_t, float, false, true> const &graph_view,
-                  int64_t *distances,
-                  int64_t *predecessors,
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+                  int64_t* distances,
+                  int64_t* predecessors,
                   int64_t source_vertex,
                   bool direction_optimizing,
                   int64_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t const &handle,
-                  graph_view_t<int64_t, int64_t, double, false, true> const &graph_view,
-                  int64_t *distances,
-                  int64_t *predecessors,
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+                  int64_t* distances,
+                  int64_t* predecessors,
                   int64_t source_vertex,
                   bool direction_optimizing,
                   int64_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t const &handle,
-                  graph_view_t<int32_t, int32_t, float, false, false> const &graph_view,
-                  int32_t *distances,
-                  int32_t *predecessors,
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
                   int32_t source_vertex,
                   bool direction_optimizing,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t const &handle,
-                  graph_view_t<int32_t, int32_t, double, false, false> const &graph_view,
-                  int32_t *distances,
-                  int32_t *predecessors,
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
                   int32_t source_vertex,
                   bool direction_optimizing,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t const &handle,
-                  graph_view_t<int32_t, int64_t, float, false, false> const &graph_view,
-                  int32_t *distances,
-                  int32_t *predecessors,
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
                   int32_t source_vertex,
                   bool direction_optimizing,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t const &handle,
-                  graph_view_t<int32_t, int64_t, double, false, false> const &graph_view,
-                  int32_t *distances,
-                  int32_t *predecessors,
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+                  int32_t* distances,
+                  int32_t* predecessors,
                   int32_t source_vertex,
                   bool direction_optimizing,
                   int32_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t const &handle,
-                  graph_view_t<int64_t, int64_t, float, false, false> const &graph_view,
-                  int64_t *distances,
-                  int64_t *predecessors,
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+                  int64_t* distances,
+                  int64_t* predecessors,
                   int64_t source_vertex,
                   bool direction_optimizing,
                   int64_t depth_limit,
                   bool do_expensive_check);
 
-template void bfs(raft::handle_t const &handle,
-                  graph_view_t<int64_t, int64_t, double, false, false> const &graph_view,
-                  int64_t *distances,
-                  int64_t *predecessors,
+template void bfs(raft::handle_t const& handle,
+                  graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+                  int64_t* distances,
+                  int64_t* predecessors,
                   int64_t source_vertex,
                   bool direction_optimizing,
                   int64_t depth_limit,

@@ -18,7 +18,7 @@
 
 #include <layout/trust_worthiness.h>
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 #include <raft/error.hpp>
@@ -144,7 +144,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
     CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
-    cugraph::GraphCOOView<int, int, T> G(srcs, dests, weights, m, nnz);
+    cugraph::legacy::GraphCOOView<int, int, T> G(srcs, dests, weights, m, nnz);
 
     const int max_iter                    = 500;
     float* x_start                        = nullptr;
@@ -215,7 +215,8 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     // Transpose the data
     std::vector<std::vector<double>> C_contiguous_embedding(m, std::vector<double>(2));
     for (int i = 0; i < m; i++) {
-      for (int j = 0; j < 2; j++) C_contiguous_embedding[i][j] = h_pos[j * m + i];
+      for (int j = 0; j < 2; j++)
+        C_contiguous_embedding[i][j] = h_pos[j * m + i];
     }
 
     // Test trustworthiness

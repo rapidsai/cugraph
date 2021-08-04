@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,13 +25,13 @@ namespace detail {
 //        Should look into forAllEdge type primitive for different
 //        load balancing
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-__global__ void edges_accumulation_kernel(result_t *betweenness,
+__global__ void edges_accumulation_kernel(result_t* betweenness,
                                           vertex_t number_vertices,
-                                          vertex_t const *indices,
-                                          edge_t const *offsets,
-                                          vertex_t *distances,
-                                          double *sp_counters,
-                                          double *deltas,
+                                          vertex_t const* indices,
+                                          edge_t const* offsets,
+                                          vertex_t* distances,
+                                          double* sp_counters,
+                                          double* deltas,
                                           vertex_t depth)
 {
   for (int thread_idx = blockIdx.x * blockDim.x + threadIdx.x; thread_idx < number_vertices;
@@ -58,13 +58,13 @@ __global__ void edges_accumulation_kernel(result_t *betweenness,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-__global__ void endpoints_accumulation_kernel(result_t *betweenness,
+__global__ void endpoints_accumulation_kernel(result_t* betweenness,
                                               vertex_t number_vertices,
-                                              vertex_t const *indices,
-                                              edge_t const *offsets,
-                                              vertex_t *distances,
-                                              double *sp_counters,
-                                              double *deltas,
+                                              vertex_t const* indices,
+                                              edge_t const* offsets,
+                                              vertex_t* distances,
+                                              double* sp_counters,
+                                              double* deltas,
                                               vertex_t depth)
 {
   for (int thread_idx = blockIdx.x * blockDim.x + threadIdx.x; thread_idx < number_vertices;
@@ -88,13 +88,13 @@ __global__ void endpoints_accumulation_kernel(result_t *betweenness,
   }
 }
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-__global__ void accumulation_kernel(result_t *betweenness,
+__global__ void accumulation_kernel(result_t* betweenness,
                                     vertex_t number_vertices,
-                                    vertex_t const *indices,
-                                    edge_t const *offsets,
-                                    vertex_t *distances,
-                                    double *sp_counters,
-                                    double *deltas,
+                                    vertex_t const* indices,
+                                    edge_t const* offsets,
+                                    vertex_t* distances,
+                                    double* sp_counters,
+                                    double* deltas,
                                     vertex_t depth)
 {
   for (int thread_idx = blockIdx.x * blockDim.x + threadIdx.x; thread_idx < number_vertices;

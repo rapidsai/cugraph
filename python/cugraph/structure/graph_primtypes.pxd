@@ -23,17 +23,17 @@ from libcpp.vector cimport vector
 from cugraph.raft.common.handle cimport *
 from rmm._lib.device_buffer cimport device_buffer
 
-cdef extern from "cugraph/graph.hpp" namespace "cugraph":
+cdef extern from "cugraph/legacy/graph.hpp" namespace "cugraph::legacy":
 
     ctypedef enum PropType:
-        PROP_UNDEF "cugraph::PROP_UNDEF"
-        PROP_FALSE "cugraph::PROP_FALSE"
-        PROP_TRUE "cugraph::PROP_TRUE"
+        PROP_UNDEF "cugraph::legacy::PROP_UNDEF"
+        PROP_FALSE "cugraph::legacy::PROP_FALSE"
+        PROP_TRUE "cugraph::legacy::PROP_TRUE"
 
     ctypedef enum DegreeDirection:
-        DIRECTION_IN_PLUS_OUT "cugraph::DegreeDirection::IN_PLUS_OUT"
-        DIRECTION_IN "cugraph::DegreeDirection::IN"
-        DIRECTION_OUT "cugraph::DegreeDirection::OUT"
+        DIRECTION_IN_PLUS_OUT "cugraph::legacy::DegreeDirection::IN_PLUS_OUT"
+        DIRECTION_IN "cugraph::legacy::DegreeDirection::IN"
+        DIRECTION_OUT "cugraph::legacy::DegreeDirection::OUT"
 
     struct GraphProperties:
         bool directed
@@ -127,16 +127,6 @@ cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
     cdef unique_ptr[GraphCOO[VT, ET, WT]] get_two_hop_neighbors[VT,ET,WT](
         const GraphCSRView[VT, ET, WT] &graph) except +
-
-cdef extern from "cugraph/functions.hpp" namespace "cugraph":
-
-    cdef unique_ptr[device_buffer] renumber_vertices[VT_IN,VT_OUT,ET](
-        ET number_of_edges,
-        const VT_IN *src,
-        const VT_IN *dst,
-        VT_OUT *src_renumbered,
-        VT_OUT *dst_renumbered,
-        ET *map_size) except +
 
 
 cdef extern from "<utility>" namespace "std" nogil:

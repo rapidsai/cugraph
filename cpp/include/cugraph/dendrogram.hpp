@@ -27,10 +27,11 @@ class Dendrogram {
  public:
   void add_level(vertex_t first_index,
                  vertex_t num_verts,
-                 cudaStream_t stream,
-                 rmm::mr::device_memory_resource *mr = rmm::mr::get_current_device_resource())
+                 rmm::cuda_stream_view stream_view,
+                 rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource())
   {
-    level_ptr_.push_back(std::make_unique<rmm::device_uvector<vertex_t>>(num_verts, stream, mr));
+    level_ptr_.push_back(
+      std::make_unique<rmm::device_uvector<vertex_t>>(num_verts, stream_view, mr));
     level_first_index_.push_back(first_index);
   }
 
@@ -38,21 +39,21 @@ class Dendrogram {
 
   size_t num_levels() const { return level_ptr_.size(); }
 
-  vertex_t const *get_level_ptr_nocheck(size_t level) const { return level_ptr_[level]->data(); }
+  vertex_t const* get_level_ptr_nocheck(size_t level) const { return level_ptr_[level]->data(); }
 
-  vertex_t *get_level_ptr_nocheck(size_t level) { return level_ptr_[level]->data(); }
+  vertex_t* get_level_ptr_nocheck(size_t level) { return level_ptr_[level]->data(); }
 
   size_t get_level_size_nocheck(size_t level) const { return level_ptr_[level]->size(); }
 
   vertex_t get_level_first_index_nocheck(size_t level) const { return level_first_index_[level]; }
 
-  vertex_t const *current_level_begin() const { return get_level_ptr_nocheck(current_level()); }
+  vertex_t const* current_level_begin() const { return get_level_ptr_nocheck(current_level()); }
 
-  vertex_t const *current_level_end() const { return current_level_begin() + current_level_size(); }
+  vertex_t const* current_level_end() const { return current_level_begin() + current_level_size(); }
 
-  vertex_t *current_level_begin() { return get_level_ptr_nocheck(current_level()); }
+  vertex_t* current_level_begin() { return get_level_ptr_nocheck(current_level()); }
 
-  vertex_t *current_level_end() { return current_level_begin() + current_level_size(); }
+  vertex_t* current_level_end() { return current_level_begin() + current_level_size(); }
 
   size_t current_level_size() const { return get_level_size_nocheck(current_level()); }
 

@@ -20,7 +20,7 @@
  * ---------------------------------------------------------------------------**/
 
 #include <rmm/thrust_rmm_allocator.h>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>
 
@@ -31,7 +31,7 @@ namespace detail {
 // TODO: Identical kernel to jaccard_row_sum!!
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 __global__ void overlap_row_sum(
-  vertex_t n, edge_t const *csrPtr, vertex_t const *csrInd, weight_t const *v, weight_t *work)
+  vertex_t n, edge_t const* csrPtr, vertex_t const* csrInd, weight_t const* v, weight_t* work)
 {
   vertex_t row;
   edge_t start, end, length;
@@ -56,12 +56,12 @@ __global__ void overlap_row_sum(
 // TODO: Identical kernel to jaccard_row_sum!!
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 __global__ void overlap_is(vertex_t n,
-                           edge_t const *csrPtr,
-                           vertex_t const *csrInd,
-                           weight_t const *v,
-                           weight_t *work,
-                           weight_t *weight_i,
-                           weight_t *weight_s)
+                           edge_t const* csrPtr,
+                           vertex_t const* csrInd,
+                           weight_t const* v,
+                           weight_t* work,
+                           weight_t* weight_i,
+                           weight_t* weight_s)
 {
   edge_t i, j, Ni, Nj;
   vertex_t row, col;
@@ -121,14 +121,14 @@ __global__ void overlap_is(vertex_t n,
 // NOTE:  NOT the same as jaccard
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 __global__ void overlap_is_pairs(edge_t num_pairs,
-                                 edge_t const *csrPtr,
-                                 vertex_t const *csrInd,
-                                 vertex_t const *first_pair,
-                                 vertex_t const *second_pair,
-                                 weight_t const *v,
-                                 weight_t *work,
-                                 weight_t *weight_i,
-                                 weight_t *weight_s)
+                                 edge_t const* csrPtr,
+                                 vertex_t const* csrInd,
+                                 vertex_t const* first_pair,
+                                 vertex_t const* second_pair,
+                                 weight_t const* v,
+                                 weight_t* work,
+                                 weight_t* weight_i,
+                                 weight_t* weight_s)
 {
   edge_t i, idx, Ni, Nj, match;
   vertex_t row, col, ref, cur, ref_col, cur_col;
@@ -185,11 +185,11 @@ __global__ void overlap_is_pairs(edge_t num_pairs,
 // Overlap  weights (*weight)
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 __global__ void overlap_jw(edge_t e,
-                           edge_t const *csrPtr,
-                           vertex_t const *csrInd,
-                           weight_t *weight_i,
-                           weight_t *weight_s,
-                           weight_t *weight_j)
+                           edge_t const* csrPtr,
+                           vertex_t const* csrInd,
+                           weight_t* weight_i,
+                           weight_t* weight_s,
+                           weight_t* weight_j)
 {
   edge_t j;
   weight_t Wi, Wu;
@@ -204,13 +204,13 @@ __global__ void overlap_jw(edge_t e,
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 int overlap(vertex_t n,
             edge_t e,
-            edge_t const *csrPtr,
-            vertex_t const *csrInd,
-            weight_t const *weight_in,
-            weight_t *work,
-            weight_t *weight_i,
-            weight_t *weight_s,
-            weight_t *weight_j)
+            edge_t const* csrPtr,
+            vertex_t const* csrInd,
+            weight_t const* weight_in,
+            weight_t* work,
+            weight_t* weight_i,
+            weight_t* weight_s,
+            weight_t* weight_j)
 {
   dim3 nthreads, nblocks;
   int y = 4;
@@ -259,15 +259,15 @@ int overlap(vertex_t n,
 template <bool weighted, typename vertex_t, typename edge_t, typename weight_t>
 int overlap_pairs(vertex_t n,
                   edge_t num_pairs,
-                  edge_t const *csrPtr,
-                  vertex_t const *csrInd,
-                  vertex_t const *first_pair,
-                  vertex_t const *second_pair,
-                  weight_t const *weight_in,
-                  weight_t *work,
-                  weight_t *weight_i,
-                  weight_t *weight_s,
-                  weight_t *weight_j)
+                  edge_t const* csrPtr,
+                  vertex_t const* csrInd,
+                  vertex_t const* first_pair,
+                  vertex_t const* second_pair,
+                  weight_t const* weight_in,
+                  weight_t* work,
+                  weight_t* weight_i,
+                  weight_t* weight_s,
+                  weight_t* weight_j)
 {
   dim3 nthreads, nblocks;
   int y = 4;
@@ -314,7 +314,7 @@ int overlap_pairs(vertex_t n,
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void overlap(GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *result)
+void overlap(legacy::GraphCSRView<VT, ET, WT> const& graph, WT const* weights, WT* result)
 {
   CUGRAPH_EXPECTS(result != nullptr, "Invalid input argument: result pointer is NULL");
 
@@ -346,12 +346,12 @@ void overlap(GraphCSRView<VT, ET, WT> const &graph, WT const *weights, WT *resul
 }
 
 template <typename VT, typename ET, typename WT>
-void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
-                  WT const *weights,
+void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
+                  WT const* weights,
                   ET num_pairs,
-                  VT const *first,
-                  VT const *second,
-                  WT *result)
+                  VT const* first,
+                  VT const* second,
+                  WT* result)
 {
   CUGRAPH_EXPECTS(result != nullptr, "Invalid input argument: result pointer is NULL");
   CUGRAPH_EXPECTS(first != nullptr, "Invalid input argument: first column is NULL");
@@ -388,41 +388,43 @@ void overlap_list(GraphCSRView<VT, ET, WT> const &graph,
   }
 }
 
-template void overlap<int32_t, int32_t, float>(GraphCSRView<int32_t, int32_t, float> const &,
-                                               float const *,
-                                               float *);
-template void overlap<int32_t, int32_t, double>(GraphCSRView<int32_t, int32_t, double> const &,
-                                                double const *,
-                                                double *);
-template void overlap<int64_t, int64_t, float>(GraphCSRView<int64_t, int64_t, float> const &,
-                                               float const *,
-                                               float *);
-template void overlap<int64_t, int64_t, double>(GraphCSRView<int64_t, int64_t, double> const &,
-                                                double const *,
-                                                double *);
-template void overlap_list<int32_t, int32_t, float>(GraphCSRView<int32_t, int32_t, float> const &,
-                                                    float const *,
-                                                    int32_t,
-                                                    int32_t const *,
-                                                    int32_t const *,
-                                                    float *);
-template void overlap_list<int32_t, int32_t, double>(GraphCSRView<int32_t, int32_t, double> const &,
-                                                     double const *,
-                                                     int32_t,
-                                                     int32_t const *,
-                                                     int32_t const *,
-                                                     double *);
-template void overlap_list<int64_t, int64_t, float>(GraphCSRView<int64_t, int64_t, float> const &,
-                                                    float const *,
-                                                    int64_t,
-                                                    int64_t const *,
-                                                    int64_t const *,
-                                                    float *);
-template void overlap_list<int64_t, int64_t, double>(GraphCSRView<int64_t, int64_t, double> const &,
-                                                     double const *,
-                                                     int64_t,
-                                                     int64_t const *,
-                                                     int64_t const *,
-                                                     double *);
+template void overlap<int32_t, int32_t, float>(legacy::GraphCSRView<int32_t, int32_t, float> const&,
+                                               float const*,
+                                               float*);
+template void overlap<int32_t, int32_t, double>(
+  legacy::GraphCSRView<int32_t, int32_t, double> const&, double const*, double*);
+template void overlap<int64_t, int64_t, float>(legacy::GraphCSRView<int64_t, int64_t, float> const&,
+                                               float const*,
+                                               float*);
+template void overlap<int64_t, int64_t, double>(
+  legacy::GraphCSRView<int64_t, int64_t, double> const&, double const*, double*);
+template void overlap_list<int32_t, int32_t, float>(
+  legacy::GraphCSRView<int32_t, int32_t, float> const&,
+  float const*,
+  int32_t,
+  int32_t const*,
+  int32_t const*,
+  float*);
+template void overlap_list<int32_t, int32_t, double>(
+  legacy::GraphCSRView<int32_t, int32_t, double> const&,
+  double const*,
+  int32_t,
+  int32_t const*,
+  int32_t const*,
+  double*);
+template void overlap_list<int64_t, int64_t, float>(
+  legacy::GraphCSRView<int64_t, int64_t, float> const&,
+  float const*,
+  int64_t,
+  int64_t const*,
+  int64_t const*,
+  float*);
+template void overlap_list<int64_t, int64_t, double>(
+  legacy::GraphCSRView<int64_t, int64_t, double> const&,
+  double const*,
+  int64_t,
+  int64_t const*,
+  int64_t const*,
+  double*);
 
 }  // namespace cugraph

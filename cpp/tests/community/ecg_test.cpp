@@ -11,7 +11,7 @@
 #include <utilities/base_fixture.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
+#include <cugraph/legacy/graph.hpp>
 
 #include <rmm/thrust_rmm_allocator.h>
 
@@ -47,7 +47,7 @@ TEST(ecg, success)
   rmm::device_vector<float> weights_v(w_h);
   rmm::device_vector<int> result_v(cluster_id);
 
-  cugraph::GraphCSRView<int, int, float> graph_csr(
+  cugraph::legacy::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
 
   raft::handle_t handle;
@@ -118,7 +118,7 @@ TEST(ecg, dolphin)
   raft::update_device(indices_v.data(), ind_h.data(), ind_h.size(), stream);
   raft::update_device(weights_v.data(), w_h.data(), w_h.size(), stream);
 
-  cugraph::GraphCSRView<int, int, float> graph_csr(
+  cugraph::legacy::GraphCSRView<int, int, float> graph_csr(
     offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
 
   // "FIXME": remove this check once we drop support for Pascal
@@ -143,7 +143,9 @@ TEST(ecg, dolphin)
     ASSERT_EQ((min >= 0), 1);
 
     std::set<int> cluster_ids;
-    for (auto c : cluster_id) { cluster_ids.insert(c); }
+    for (auto c : cluster_id) {
+      cluster_ids.insert(c);
+    }
 
     ASSERT_EQ(cluster_ids.size(), size_t(max + 1));
 

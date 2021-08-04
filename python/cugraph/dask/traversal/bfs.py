@@ -27,17 +27,22 @@ def call_bfs(sID,
              num_verts,
              num_edges,
              vertex_partition_offsets,
+             aggregate_segment_offsets,
              start,
              depth_limit,
              return_distances):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
+    local_size = len(aggregate_segment_offsets) // Comms.get_n_workers(sID)
+    segment_offsets = \
+        aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
     return mg_bfs.mg_bfs(data[0],
                          num_verts,
                          num_edges,
                          vertex_partition_offsets,
                          wid,
                          handle,
+                         segment_offsets,
                          start,
                          depth_limit,
                          return_distances)
@@ -110,8 +115,8 @@ def bfs(graph,
                     compute()
             start = start.iloc[0]
         else:
-            start = graph.lookup_internal_vertex_id(cudf.Series([start],
-                                                    dtype='int32')).compute()
+            start = graph.lookup_internal_vertex_id(cudf.Series([start])
+                                                    ).compute()
             start = start.iloc[0]
 
     result = [client.submit(
@@ -121,6 +126,7 @@ def bfs(graph,
               num_verts,
               num_edges,
               vertex_partition_offsets,
+              graph.aggregate_segment_offsets,
               start,
               depth_limit,
               return_distances,
