@@ -257,10 +257,6 @@ set(ERDOS_RENYI_GENERATOR_TEST_SRC
   ConfigureTest(ERDOS_RENYI_GENERATOR_TEST "${ERDOS_RENYI_GENERATOR_TEST_SRC}")
 
 ###################################################################################################
-# - katz centrality tests -------------------------------------------------------------------------
-ConfigureTest(LEGACY_KATZ_TEST centrality/legacy/katz_centrality_test.cu)
-
-###################################################################################################
 # - betweenness centrality tests ------------------------------------------------------------------
 ConfigureTest(LEGACY_BETWEENNESS_TEST centrality/legacy/betweenness_centrality_test.cu)
 ConfigureTest(LEGACY_EDGE_BETWEENNESS_TEST centrality/legacy/edge_betweenness_centrality_test.cu)
