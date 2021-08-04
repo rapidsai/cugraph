@@ -49,7 +49,7 @@ def test_enable_batch_no_dask_client(graph_file, directed):
                               for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_no_dask_client_view_adj(
-    graph_file, directed, dask_client
+    graph_file, directed
 ):
     gc.collect()
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
