@@ -438,10 +438,8 @@ struct random_walker_t {
     device_vec_t<index_t>& d_paths_sz,      // crt paths sizes
     device_vec_t<edge_t>& d_crt_out_degs,   // crt out-degs for current set of vertices
     device_vec_t<real_t>& d_random,         // crt set of random real values
-    device_vec_t<vertex_t>& d_col_indx,  // crt col col indices to be used for retrieving next step
-    device_vec_t<vertex_t>& d_next_v,    // crt set of destination vertices, for next step
-    device_vec_t<weight_t>& d_next_w)
-    const  // set of weights between src and destination vertices, for next step
+    device_vec_t<vertex_t>& d_col_indx)  // crt col col indices to be used for retrieving next step
+    const
   {
     // generate random destination indices:
     //
@@ -779,8 +777,6 @@ random_walks_impl(raft::handle_t const& handle,
 
   device_vec_t<edge_t> d_crt_out_degs(tmp_buff_sz, stream);  // crt vertex set out-degs
   device_vec_t<vertex_t> d_col_indx(tmp_buff_sz, stream);    // \in {0,..,out-deg(v)}
-  device_vec_t<vertex_t> d_next_v(tmp_buff_sz, stream);      // crt set of next vertices
-  device_vec_t<weight_t> d_next_w(tmp_buff_sz, stream);      // crt set of next weights
 
   // random data handling:
   //
@@ -808,9 +804,7 @@ random_walks_impl(raft::handle_t const& handle,
             d_paths_sz,
             d_crt_out_degs,
             d_random,
-            d_col_indx,
-            d_next_v,
-            d_next_w);
+            d_col_indx);
 
   // wrap-up, post-process:
   // truncate v_set, w_set to actual space used

@@ -367,11 +367,7 @@ struct vertical_traversal_t {
       d_crt_out_degs,                // crt out-degs for current set of vertices
     device_vec_t<real_t>& d_random,  // crt set of random real values
     device_vec_t<typename graph_t::vertex_type>&
-      d_col_indx,  // crt col col indices to be used for retrieving next step
-    device_vec_t<typename graph_t::vertex_type>&
-      d_next_v,  // crt set of destination vertices, for next step
-    device_vec_t<typename graph_t::weight_type>&
-      d_next_w)  // set of weights between src and destination vertices, for next step
+      d_col_indx)  // crt col col indices to be used for retrieving next step
     const
   {
     auto const& handle = rand_walker.get_handle();
@@ -394,9 +390,7 @@ struct vertical_traversal_t {
                        d_paths_sz,
                        d_crt_out_degs,
                        d_random,
-                       d_col_indx,
-                       d_next_v,
-                       d_next_w);
+                       d_col_indx);
 
       // early exit: all paths have reached sinks:
       //
@@ -441,13 +435,8 @@ struct horizontal_traversal_t {
       d_crt_out_degs,                // ignored: out-degs for the current set of vertices
     device_vec_t<real_t>& d_random,  // _entire_ set of random real values
     device_vec_t<typename graph_t::vertex_type>&
-      d_col_indx,  // ignored: crt col indices to be used for retrieving next step
-    device_vec_t<typename graph_t::vertex_type>&
-      d_next_v,  // ignored: crt set of destination vertices, for next step (coalesced set
-                 // updated directly, instead)
-    device_vec_t<typename graph_t::weight_type>&
-      d_next_w)  // ignored: set of weights between src and destination vertices, for next step
-                 // (coalesced set updated directly, instead)
+      d_col_indx)  // ignored: crt col indices to be used for retrieving next step
+                   // (Note: coalesced set updated on-the-go)
     const
   {
     using vertex_t        = typename graph_t::vertex_type;
