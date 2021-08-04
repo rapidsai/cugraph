@@ -162,29 +162,29 @@ add_library(cugraph SHARED
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
     src/utilities/graph_bcast.cu
-    src/structure/graph.cu
+    src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
     src/link_analysis/gunrock_hits.cpp
-    src/traversal/bfs.cu
-    src/traversal/sssp.cu
+    src/traversal/legacy/bfs.cu
+    src/traversal/legacy/sssp.cu
     src/traversal/tsp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
     src/layout/force_atlas2.cu
     src/converters/COOtoCSR.cu
-    src/community/spectral_clustering.cu
+    src/community/legacy/spectral_clustering.cu
     src/community/louvain.cu
-    src/community/leiden.cu
-    src/community/ktruss.cu
-    src/community/ecg.cu
-    src/community/triangles_counting.cu
-    src/community/extract_subgraph_by_vertex.cu
-    src/community/egonet.cu
+    src/community/legacy/leiden.cu
+    src/community/legacy/ktruss.cu
+    src/community/legacy/ecg.cu
+    src/community/legacy/triangles_counting.cu
+    src/community/legacy/extract_subgraph_by_vertex.cu
+    src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu
-    src/centrality/katz_centrality.cu
+    src/centrality/legacy/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generator_tools.cu
