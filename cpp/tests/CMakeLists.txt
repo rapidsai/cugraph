@@ -258,20 +258,20 @@ set(ERDOS_RENYI_GENERATOR_TEST_SRC
 
 ###################################################################################################
 # - katz centrality tests -------------------------------------------------------------------------
-ConfigureTest(KATZ_TEST centrality/katz_centrality_test.cu)
+ConfigureTest(LEGACY_KATZ_TEST centrality/legacy/katz_centrality_test.cu)
 
 ###################################################################################################
 # - betweenness centrality tests ------------------------------------------------------------------
-ConfigureTest(BETWEENNESS_TEST centrality/betweenness_centrality_test.cu)
-ConfigureTest(EDGE_BETWEENNESS_TEST centrality/edge_betweenness_centrality_test.cu)
+ConfigureTest(LEGACY_BETWEENNESS_TEST centrality/legacy/betweenness_centrality_test.cu)
+ConfigureTest(LEGACY_EDGE_BETWEENNESS_TEST centrality/legacy/edge_betweenness_centrality_test.cu)
 
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
-ConfigureTest(SSSP_TEST traversal/sssp_test.cu)
+ConfigureTest(LEGACY_SSSP_TEST traversal/legacy/sssp_test.cu)
 
 ###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
-ConfigureTest(BFS_TEST traversal/bfs_test.cu)
+ConfigureTest(LEGACY_BFS_TEST traversal/legacy/bfs_test.cu)
 
 ###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
