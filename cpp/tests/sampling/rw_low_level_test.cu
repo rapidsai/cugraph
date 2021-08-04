@@ -80,26 +80,10 @@ void next_biased(raft::handle_t const& handle,
                     d_src_v.end(),
                     d_rnd.begin(),
                     d_next_v.begin(),
-                    [selector] __device__(auto src_v_indx, auto rnd_val) {
-                      auto next_vw = selector(src_v_indx, rnd_val);
+                    [sampler = selector.get_strategy()] __device__(auto src_v_indx, auto rnd_val) {
+                      auto next_vw = sampler(src_v_indx, rnd_val);
                       return (next_vw.has_value() ? thrust::get<0>(*next_vw) : src_v_indx);
                     });
-}
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-vector_test_t<weight_t> sum_weights(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, false> const& graph_v)
-{
-  size_t num_vertices = graph_v.get_number_of_vertices();
-
-  detail::visitor_aggregate_weights_t<vertex_t, edge_t, weight_t> sum_visitor(handle, num_vertices);
-
-  graph_v.apply(sum_visitor);
-  // auto& d_sum_weights = sum_visitor.get_aggregated_weights();
-
-  // auto d_w = std::move(d_sum_weights);
-  return sum_visitor.get_aggregated_weights();
 }
 
 }  // namespace
@@ -1225,10 +1209,12 @@ TEST(BiasedRandomWalks, SelectorSmallGraph)
 
   weight_t const* values = *(graph_view.get_matrix_partition_view().get_weights());
 
+  biased_selector_t selector{handle, graph_view, 0.0f};
+
   std::vector<weight_t> h_correct_sum_w{0.1f, 3.2f, 12.3f, 7.2f, 3.2f, 0.0f};
   std::vector<weight_t> v_sum_weights(num_vertices);
 
-  auto d_sum_weights = sum_weights(handle, graph_view);
+  auto const& d_sum_weights = selector.get_sum_weights();
 
   raft::update_host(
     v_sum_weights.data(), d_sum_weights.data(), d_sum_weights.size(), handle.get_stream());
@@ -1247,7 +1233,6 @@ TEST(BiasedRandomWalks, SelectorSmallGraph)
 
   EXPECT_EQ(it, end);
 
-  biased_selector_t selector{offsets, indices, values, d_sum_weights.data(), 0.0f};
   vector_test_t<vertex_t> d_next_v(v_src_v.size(), handle.get_stream());
 
   next_biased(handle, d_src_v, d_rnd, d_next_v, selector);

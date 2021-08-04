@@ -105,10 +105,6 @@ value_t const* raw_const_ptr(device_const_vector_view<value_t>& dv)
 
 // Uniform RW selector logic:
 //
-// FIXME:
-// 1. move cached degree calculation into selector; Done.
-// 2. pass graph_view to constructor; Done.
-//
 template <typename graph_type, typename real_t>
 struct uniform_selector_t {
   using vertex_t = typename graph_type::vertex_type;
@@ -169,67 +165,8 @@ struct uniform_selector_t {
  private:
   device_vec_t<edge_t> d_cache_out_degs_;  // selector-specific: selector must own this resource
   sampler_t sampler_;  // which is why the sampling must be separated into a separate object:
-  // it must captured by device lambda, which is not possible for selector object, because it ows a
-  // device_vec;
-};
-
-// Biased RW selection logic:
-//
-// FIXME:
-// 1. move sum weights calculation into selector;
-// 2. pass graph_view to constructor;
-//
-template <typename vertex_t, typename edge_t, typename weight_t, typename real_t>
-struct biased_selector_t {
-  biased_selector_t(edge_t const* offsets,
-                    vertex_t const* indices,
-                    weight_t const* weights,
-                    weight_t const* ptr_d_sum_weights,
-                    real_t tag)
-    : row_offsets_(offsets),
-      col_indices_(indices),
-      values_(weights),
-      ptr_d_sum_weights_(ptr_d_sum_weights)
-  {
-  }
-
-  // pre-conditions:
-  //
-  // 1. (indices, weights) are assumed to be reshuflled
-  //    so that weights(neighborhood(src_v)) are ordered
-  //    increasingly; too expesnive to check this here;
-  // 2. Sum(weights(neighborhood(src_v))) are pre-computed and
-  //    stored in ptr_d_sum_weights_
-  //
-  __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(vertex_t src_v,
-                                                                            real_t rnd_val) const
-  {
-    weight_t run_sum_w{0};
-    auto rnd_sum_weights = rnd_val * ptr_d_sum_weights_[src_v];
-
-    auto col_indx_begin = row_offsets_[src_v];
-    auto col_indx_end   = row_offsets_[src_v + 1];
-    if (col_indx_begin == col_indx_end) return thrust::nullopt;  // src_v is a sink
-
-    auto col_indx      = col_indx_begin;
-    auto prev_col_indx = col_indx;
-
-    for (; col_indx < col_indx_end; ++col_indx) {
-      if (rnd_sum_weights < run_sum_w) break;
-
-      run_sum_w += values_[col_indx];
-      prev_col_indx = col_indx;
-    }
-    return thrust::optional{
-      thrust::make_tuple(col_indices_[prev_col_indx], values_[prev_col_indx])};
-  }
-
- private:
-  edge_t const* row_offsets_;
-  vertex_t const* col_indices_;
-  weight_t const* values_;
-
-  weight_t const* ptr_d_sum_weights_;
+  // it must be captured by device a calling lambda, which is not possible for selector object,
+  // because it ows a device_vec;
 };
 
 template <typename vertex_t,
@@ -305,12 +242,98 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
     return std::move(d_aggregate_weights_);
   }
 
+  rmm::device_uvector<weight_t> const& get_aggregated_weights(void) const
+  {
+    return d_aggregate_weights_;
+  }
+
  private:
   raft::handle_t const& handle_;
   rmm::device_uvector<weight_t> d_aggregate_weights_;
   binary_op_t aggregator_;
   weight_t initial_value_{0};
   visitors::return_t ret_unused_{};  // necessary to silence a concerning warning
+};
+
+// Biased RW selection logic:
+//
+// FIXME:
+// 1. move sum weights calculation into selector;
+// 2. pass graph_view to constructor;
+//
+template <typename graph_type, typename real_t>
+struct biased_selector_t {
+  using vertex_t = typename graph_type::vertex_type;
+  using edge_t   = typename graph_type::edge_type;
+  using weight_t = typename graph_type::weight_type;
+
+  struct sampler_t {
+    sampler_t(edge_t const* ro,
+              vertex_t const* ci,
+              weight_t const* w,
+              weight_t const* ptr_d_sum_weights)
+      : row_offsets_(ro), col_indices_(ci), values_(w), ptr_d_sum_weights_(ptr_d_sum_weights)
+    {
+    }
+
+    // pre-conditions:
+    //
+    // 1. (indices, weights) are assumed to be reshuflled
+    //    so that weights(neighborhood(src_v)) are ordered
+    //    increasingly; too expesnive to check this here;
+    // 2. Sum(weights(neighborhood(src_v))) are pre-computed and
+    //    stored in ptr_d_sum_weights_
+    //
+    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(vertex_t src_v,
+                                                                              real_t rnd_val) const
+    {
+      weight_t run_sum_w{0};
+      auto rnd_sum_weights = rnd_val * ptr_d_sum_weights_[src_v];
+
+      auto col_indx_begin = row_offsets_[src_v];
+      auto col_indx_end   = row_offsets_[src_v + 1];
+      if (col_indx_begin == col_indx_end) return thrust::nullopt;  // src_v is a sink
+
+      auto col_indx      = col_indx_begin;
+      auto prev_col_indx = col_indx;
+
+      for (; col_indx < col_indx_end; ++col_indx) {
+        if (rnd_sum_weights < run_sum_w) break;
+
+        run_sum_w += values_[col_indx];
+        prev_col_indx = col_indx;
+      }
+      return thrust::optional{
+        thrust::make_tuple(col_indices_[prev_col_indx], values_[prev_col_indx])};
+    }
+
+   private:
+    edge_t const* row_offsets_;
+    vertex_t const* col_indices_;
+    weight_t const* values_;
+
+    weight_t const* ptr_d_sum_weights_;
+  };
+
+  biased_selector_t(raft::handle_t const& handle, graph_type const& graph, real_t tag)
+    : sum_calculator_(handle, graph.get_number_of_vertices()),
+      sampler_{graph.get_matrix_partition_view().get_offsets(),
+               graph.get_matrix_partition_view().get_indices(),
+               graph.get_matrix_partition_view().get_weights()
+                 ? *(graph.get_matrix_partition_view().get_weights())
+                 : static_cast<weight_t*>(nullptr),
+               sum_calculator_.get_aggregated_weights().data()}
+  {
+    graph.apply(sum_calculator_);
+  }
+
+  sampler_t const& get_strategy(void) const { return sampler_; }
+
+  decltype(auto) get_sum_weights(void) const { return sum_calculator_.get_aggregated_weights(); }
+
+ private:
+  visitor_aggregate_weights_t<vertex_t, edge_t, weight_t> sum_calculator_;
+  sampler_t sampler_;
 };
 
 // classes abstracting the way the random walks path are generated:
