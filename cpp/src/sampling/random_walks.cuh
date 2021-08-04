@@ -81,14 +81,9 @@ struct rrandom_gen_t {
   //
   rrandom_gen_t(raft::handle_t const& handle,
                 index_t num_paths,
-                device_vec_t<real_t>& d_random,             // scratch-pad, non-coalesced
-                device_vec_t<edge_t> const& d_crt_out_deg,  // non-coalesced
+                device_vec_t<real_t>& d_random,  // scratch-pad, non-coalesced
                 seed_t seed = seed_t{})
-    : handle_(handle),
-      seed_(seed),
-      num_paths_(num_paths),
-      d_ptr_out_degs_(raw_const_ptr(d_crt_out_deg)),
-      d_ptr_random_(raw_ptr(d_random))
+    : handle_(handle), seed_(seed), num_paths_(num_paths), d_ptr_random_(raw_ptr(d_random))
   {
     auto rnd_sz = d_random.size();
 
@@ -107,14 +102,9 @@ struct rrandom_gen_t {
   //
   rrandom_gen_t(raft::handle_t const& handle,
                 index_t num_paths,
-                real_t* ptr_d_rnd,                          // supplied
-                device_vec_t<edge_t> const& d_crt_out_deg,  // non-coalesced
+                real_t* ptr_d_rnd,  // supplied
                 seed_t seed = seed_t{})
-    : handle_(handle),
-      seed_(seed),
-      num_paths_(num_paths),
-      d_ptr_out_degs_(raw_const_ptr(d_crt_out_deg)),
-      d_ptr_random_(ptr_d_rnd)
+    : handle_(handle), seed_(seed), num_paths_(num_paths), d_ptr_random_(ptr_d_rnd)
   {
   }
 
@@ -123,8 +113,12 @@ struct rrandom_gen_t {
   // if out_deg(v) > 0
   //   d_col_indx[v] = random index in [0, out_deg(v))
   //}
-  void generate_col_indices(device_vec_t<vertex_t>& d_col_indx) const
+  // d_crt_out_deg is non-coalesced;
+  //
+  void generate_col_indices(device_vec_t<edge_t> const& d_crt_out_deg,
+                            device_vec_t<vertex_t>& d_col_indx) const
   {
+    auto const* d_ptr_out_degs_ = d_crt_out_deg.data();
     thrust::transform_if(
       rmm::exec_policy(handle_.get_stream_view()),
       d_ptr_random_,
@@ -152,10 +146,8 @@ struct rrandom_gen_t {
  private:
   raft::handle_t const& handle_;
   index_t num_paths_;
-  edge_t const* d_ptr_out_degs_;  // device buffer with out-deg of current set of vertices (most
-                                  // recent vertex in each path); size = num_paths_
-  real_t* d_ptr_random_;          // device buffer with real random values; size = num_paths_
-  seed_t seed_;                   // seed to be used for current batch
+  real_t* d_ptr_random_;  // device buffer with real random values; size = num_paths_
+  seed_t seed_;           // seed to be used for current batch
 };
 
 // seeding policy: time (clock) dependent,
@@ -451,28 +443,9 @@ struct random_walker_t {
     device_vec_t<weight_t>& d_next_w)
     const  // set of weights between src and destination vertices, for next step
   {
-    // update crt snapshot of out-degs,
-    // from cached out degs, using
-    // latest vertex in each path as source:
-    //
-    // FIXME: remove; see below;
-    //
-    // gather_from_coalesced(d_coalesced_v,
-    //                       selector.get_cached_out_degs(),
-    //                       d_paths_sz,
-    //                       d_crt_out_degs,
-    //                       max_depth_,
-    //                       num_paths_);
-
     // generate random destination indices:
     //
-    // FIXME: rgen has no need for d_crt_out_degs
-    //
-    random_engine_t rgen(handle_, num_paths_, d_random, d_crt_out_degs, seed);
-
-    // FIXME: remove:
-    //
-    // rgen.generate_col_indices(d_col_indx);
+    random_engine_t rgen(handle_, num_paths_, d_random, seed);
 
     // dst extraction from dst indices:
     // (d_crt_out_degs to be maintained internally by col_extractor)
@@ -489,34 +462,18 @@ struct random_walker_t {
     //   -- get the `v_indx`-th out-vertex of d_v_paths_v_set[indx] vertex:
     //   -- also, note the size deltas increased by 1 in dst (d_sizes[]):
     //
-    //   d_coalesced_v[indx*num_paths + d_sizes[indx]] =
-    //       get_out_vertex(graph, d_coalesced_v[indx*num_paths + d_sizes[indx] -1)], v_indx);
-    //   d_coalesced_w[indx*(num_paths-1) + d_sizes[indx] - 1] =
-    //       get_out_edge_weight(graph, d_coalesced_v[indx*num_paths + d_sizes[indx]-2], v_indx);
+    //   d_coalesced_v[indx*max_depth + d_sizes[indx]] =
+    //       get_out_vertex(graph, d_coalesced_v[indx*max_depth + d_sizes[indx]-1)], v_indx);
+    //   d_coalesced_w[indx*(max_depth-1) + d_sizes[indx] - 1] =
+    //       get_out_edge_weight(graph, d_coalesced_v[indx*max_depth + d_sizes[indx]-1], v_indx);
     //
-    // (1) generate actual vertex destinations:
+    // (1) generate actual vertex destinations;
+    // (2) update path sizes;
+    // (3) actual coalesced updates;
     //
-    // FIXME: pass sampler, update d_crt_out_degs internally,
-    // using row_offsets info; also update sizes and coalesced vectors;
-    // hence, performs steps (1) + (2) + (3) in one pass;
-    //
-    // col_extractor(d_coalesced_v, d_col_indx, d_next_v, d_next_w);
+    // performs steps (1) + (2) + (3) in one pass;
     //
     col_extractor(selector, d_random, d_coalesced_v, d_coalesced_w, real_t{0});
-
-    // (2) update path sizes:
-    //
-    // FIXME: remove it (to be done above);
-    //
-    // update_path_sizes(d_crt_out_degs, d_paths_sz);
-
-    // (3) actual coalesced updates:
-    //
-    // FIXME: remove; no need to scatter as col_extractor acts
-    //        directly on coalesced vectors;
-    //
-    // scatter_vertices(d_next_v, d_coalesced_v, d_crt_out_degs, d_paths_sz);
-    // scatter_weights(d_next_w, d_coalesced_w, d_crt_out_degs, d_paths_sz);
   }
 
   // returns true if all paths reached sinks:

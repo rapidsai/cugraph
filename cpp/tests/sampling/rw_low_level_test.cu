@@ -413,8 +413,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
   vector_test_t<real_t> d_random(num_paths, handle.get_stream());
 
   seed_t seed = static_cast<seed_t>(std::time(nullptr));
-  random_engine_t rgen(handle, num_paths, d_random, d_crt_out_degs, seed);
-  rgen.generate_col_indices(d_col_indx);
+  random_engine_t rgen(handle, num_paths, d_random, seed);
+  rgen.generate_col_indices(d_crt_out_degs, d_col_indx);
 
   bool all_indices_within_degs = check_col_indices(handle, d_crt_out_degs, d_col_indx, num_paths);
 
@@ -431,8 +431,6 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
   using index_t  = vertex_t;
   using real_t   = float;
   using seed_t   = long;
-
-  using random_engine_t = rrandom_gen_t<vertex_t, edge_t>;
 
   raft::handle_t handle{};
 
