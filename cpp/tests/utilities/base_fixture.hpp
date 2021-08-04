@@ -145,9 +145,6 @@ inline auto parse_test_options(int argc, char** argv)
   }
 }
 
-namespace {
-}  // namespace
-
 /**
  * @brief Macro that defines main function for gtest programs that use rmm
  *
