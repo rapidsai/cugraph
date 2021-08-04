@@ -217,13 +217,9 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       comm_size);
   }
 
-  void set_scale(size_t scale) {
-    scale_ = scale;
-  }
+  void set_scale(size_t scale) { scale_ = scale; }
 
-  void set_edge_factor(size_t edge_factor) {
-    edge_factor_ = edge_factor;
-  }
+  void set_edge_factor(size_t edge_factor) { edge_factor_ = edge_factor; }
 
  private:
   size_t scale_{};
