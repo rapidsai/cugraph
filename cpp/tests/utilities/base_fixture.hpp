@@ -19,8 +19,6 @@
 #include <cugraph/utilities/error.hpp>
 #include <utilities/cxxopts.hpp>
 
-#include <gtest/gtest.h>
-
 #include <rmm/thrust_rmm_allocator.h>
 #include <rmm/mr/device/binning_memory_resource.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
@@ -28,6 +26,11 @@
 #include <rmm/mr/device/owning_wrapper.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/pool_memory_resource.hpp>
+
+#include <gtest/gtest.h>
+
+#include <limits>
+#include <optional>
 
 namespace cugraph {
 namespace test {
@@ -115,7 +118,10 @@ inline auto parse_test_options(int argc, char** argv)
   try {
     cxxopts::Options options(argv[0], " - cuGraph tests command line options");
     options.allow_unrecognised_options().add_options()(
-      "rmm_mode", "RMM allocation mode", cxxopts::value<std::string>()->default_value("pool"));
+      "rmm_mode", "RMM allocation mode", cxxopts::value<std::string>()->default_value("pool"))(
+      "perf", "enalbe performance measurements", cxxopts::value<bool>()->default_value("false"))(
+      "rmat_scale", "override the hardcoded R-mat scale", cxxopts::value<size_t>())(
+      "rmat_edge_factor", "override the hardcoded R-mat edge factor", cxxopts::value<size_t>());
 
     return options.parse(argc, argv);
   } catch (const cxxopts::OptionException& e) {
@@ -143,25 +149,33 @@ inline auto parse_test_options(int argc, char** argv)
     return RUN_ALL_TESTS();                                                \
   }
 
-#define CUGRAPH_MG_TEST_PROGRAM_MAIN()                                                \
-  int main(int argc, char** argv)                                                     \
-  {                                                                                   \
-    MPI_TRY(MPI_Init(&argc, &argv));                                                  \
-    int comm_rank{};                                                                  \
-    int comm_size{};                                                                  \
-    MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));                               \
-    MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));                               \
-    int num_gpus{};                                                                   \
-    CUDA_TRY(cudaGetDeviceCount(&num_gpus));                                          \
-    CUGRAPH_EXPECTS(                                                                  \
-      comm_size <= num_gpus, "# MPI ranks (%d) > # GPUs (%d).", comm_size, num_gpus); \
-    CUDA_TRY(cudaSetDevice(comm_rank));                                               \
-    ::testing::InitGoogleTest(&argc, argv);                                           \
-    auto const cmd_opts = parse_test_options(argc, argv);                             \
-    auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                     \
-    auto resource       = cugraph::test::create_memory_resource(rmm_mode);            \
-    rmm::mr::set_current_device_resource(resource.get());                             \
-    auto ret = RUN_ALL_TESTS();                                                       \
-    MPI_TRY(MPI_Finalize());                                                          \
-    return ret;                                                                       \
+#define CUGRAPH_MG_TEST_PROGRAM_MAIN()                                                          \
+  int main(int argc, char** argv)                                                               \
+  {                                                                                             \
+    MPI_TRY(MPI_Init(&argc, &argv));                                                            \
+    int comm_rank{};                                                                            \
+    int comm_size{};                                                                            \
+    MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));                                         \
+    MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));                                         \
+    int num_gpus{};                                                                             \
+    CUDA_TRY(cudaGetDeviceCount(&num_gpus));                                                    \
+    CUGRAPH_EXPECTS(                                                                            \
+      comm_size <= num_gpus, "# MPI ranks (%d) > # GPUs (%d).", comm_size, num_gpus);           \
+    CUDA_TRY(cudaSetDevice(comm_rank));                                                         \
+    ::testing::InitGoogleTest(&argc, argv);                                                     \
+    auto const cmd_opts   = parse_test_options(argc, argv);                                     \
+    auto const rmm_mode   = cmd_opts["rmm_mode"].as<std::string>();                             \
+    auto const perf       = cmd_opts["perf"].as<bool>();                                        \
+    auto const rmat_scale = (cmd_opts.count("rmat_scale") > 0)                                  \
+                              ? std::make_optional<size_t>(cmd_opts["rmat_scale"].as<size_t>()) \
+                              : std::nullopt;                                                   \
+    auto const rmat_edge_factor =                                                               \
+      (cmd_opts.count("rmat_edge_factor") > 0)                                                  \
+        ? std::make_optional<size_t>(cmd_opts["rmat_edge_factor"].as<size_t>())                 \
+        : std::nullopt;                                                                         \
+    auto resource = cugraph::test::create_memory_resource(rmm_mode);                            \
+    rmm::mr::set_current_device_resource(resource.get());                                       \
+    auto ret = RUN_ALL_TESTS();                                                                 \
+    MPI_TRY(MPI_Finalize());                                                                    \
+    return ret;                                                                                 \
   }
