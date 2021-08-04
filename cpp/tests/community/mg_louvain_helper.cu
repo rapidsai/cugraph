@@ -215,11 +215,10 @@ compressed_sparse_to_relabeled_and_sorted_and_coarsened_edgelist(
 // FIXME: better add "bool renumber" (which must be false in MG) to the coarsen_grpah function
 // instead of replicating the code here. single-GPU version
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-std::unique_ptr<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
+std::unique_ptr<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
 coarsen_graph(
   raft::handle_t const& handle,
-  cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, false> const&
-    graph_view,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, false> const& graph_view,
   vertex_t const* labels)
 {
   auto [coarsened_edgelist_major_vertices,
@@ -237,7 +236,7 @@ coarsen_graph(
       graph_view.get_number_of_vertices(),
       handle.get_stream());
 
-  cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{};
+  cugraph::edgelist_t<vertex_t, edge_t, weight_t> edgelist{};
   edgelist.p_src_vertices  = store_transposed ? coarsened_edgelist_minor_vertices.data()
                                               : coarsened_edgelist_major_vertices.data();
   edgelist.p_dst_vertices  = store_transposed ? coarsened_edgelist_major_vertices.data()
@@ -254,12 +253,11 @@ coarsen_graph(
                        vertex_t{0},
                        thrust::maximum<vertex_t>());
 
-  return std::make_unique<
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>(
+  return std::make_unique<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>(
     handle,
     edgelist,
     new_number_of_vertices,
-    cugraph::experimental::graph_properties_t{graph_view.is_symmetric(), false},
+    cugraph::graph_properties_t{graph_view.is_symmetric(), false},
     std::nullopt);
 }
 
@@ -271,10 +269,9 @@ template void single_gpu_renumber_edgelist_given_number_map(
   rmm::device_uvector<int>& d_edgelist_cols,
   rmm::device_uvector<int>& d_renumber_map_gathered_v);
 
-template std::unique_ptr<cugraph::experimental::graph_t<int32_t, int32_t, float, false, false>>
-coarsen_graph(
+template std::unique_ptr<cugraph::graph_t<int32_t, int32_t, float, false, false>> coarsen_graph(
   raft::handle_t const& handle,
-  cugraph::experimental::graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+  cugraph::graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
   int32_t const* labels);
 
 }  // namespace test

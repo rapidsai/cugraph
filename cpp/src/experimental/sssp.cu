@@ -39,7 +39,6 @@
 #include <limits>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 template <typename GraphViewType, typename PredecessorIterator>
@@ -381,5 +380,4 @@ template void sssp(raft::handle_t const& handle,
                    double cutoff,
                    bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

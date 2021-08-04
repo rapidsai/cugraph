@@ -30,8 +30,6 @@
 namespace cugraph {
 namespace serializer {
 
-using namespace cugraph::experimental;
-
 class serializer_t {
  public:
   using byte_t = uint8_t;

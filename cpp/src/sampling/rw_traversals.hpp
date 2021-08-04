@@ -36,7 +36,6 @@
 #include <thread>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -295,5 +294,4 @@ struct horizontal_traversal_t {
 };  // namespace detail
 
 }  // namespace detail
-}  // namespace experimental
 }  // namespace cugraph

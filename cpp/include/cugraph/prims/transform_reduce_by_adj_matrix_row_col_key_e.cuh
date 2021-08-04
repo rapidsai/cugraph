@@ -28,7 +28,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -695,5 +694,4 @@ auto transform_reduce_by_adj_matrix_col_key_e(
     init);
 }
 
-}  // namespace experimental
 }  // namespace cugraph

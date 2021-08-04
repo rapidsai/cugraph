@@ -43,7 +43,6 @@
 #include <utility>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -936,5 +935,4 @@ renumber_edgelist<int64_t, int64_t, false>(
   int64_t num_edgelist_edges,
   bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

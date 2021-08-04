@@ -33,7 +33,7 @@ namespace cugraph {
 namespace test {
 
 template <typename value_t>
-using vector_test_t = cugraph::experimental::detail::device_vec_t<value_t>;  // for debug purposes
+using vector_test_t = cugraph::detail::device_vec_t<value_t>;  // for debug purposes
 
 // host side utility to check a if a sequence of vertices is connected:
 //
@@ -87,7 +87,7 @@ bool host_check_path(std::vector<edge_t> const& row_offsets,
 template <typename vertex_t, typename edge_t, typename weight_t, typename index_t = edge_t>
 bool host_check_rw_paths(
   raft::handle_t const& handle,
-  cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& graph_view,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& graph_view,
   vector_test_t<vertex_t> const& d_coalesced_v,
   vector_test_t<weight_t> const& d_coalesced_w,
   vector_test_t<index_t> const& d_sizes,
@@ -115,19 +115,17 @@ bool host_check_rw_paths(
   std::vector<index_t> v_sizes(d_sizes.size());
 
   raft::update_host(v_coalesced.data(),
-                    cugraph::experimental::detail::raw_const_ptr(d_coalesced_v),
+                    cugraph::detail::raw_const_ptr(d_coalesced_v),
                     d_coalesced_v.size(),
                     handle.get_stream());
   raft::update_host(w_coalesced.data(),
-                    cugraph::experimental::detail::raw_const_ptr(d_coalesced_w),
+                    cugraph::detail::raw_const_ptr(d_coalesced_w),
                     d_coalesced_w.size(),
                     handle.get_stream());
 
   if (v_sizes.size() > 0) {  // coalesced case
-    raft::update_host(v_sizes.data(),
-                      cugraph::experimental::detail::raw_const_ptr(d_sizes),
-                      d_sizes.size(),
-                      handle.get_stream());
+    raft::update_host(
+      v_sizes.data(), cugraph::detail::raw_const_ptr(d_sizes), d_sizes.size(), handle.get_stream());
   } else {  // padded case
     if (num_paths == 0) {
       std::cerr << "ERROR: padded case requires `num_paths` info.\n";
@@ -195,25 +193,17 @@ bool host_check_query_rw(raft::handle_t const& handle,
   std::vector<index_t> w_sizes(num_paths);
   std::vector<index_t> w_offsets(num_paths);
 
-  raft::update_host(v_sizes.data(),
-                    cugraph::experimental::detail::raw_const_ptr(d_v_sizes),
-                    num_paths,
-                    handle.get_stream());
+  raft::update_host(
+    v_sizes.data(), cugraph::detail::raw_const_ptr(d_v_sizes), num_paths, handle.get_stream());
 
-  raft::update_host(v_offsets.data(),
-                    cugraph::experimental::detail::raw_const_ptr(d_v_offsets),
-                    num_paths,
-                    handle.get_stream());
+  raft::update_host(
+    v_offsets.data(), cugraph::detail::raw_const_ptr(d_v_offsets), num_paths, handle.get_stream());
 
-  raft::update_host(w_sizes.data(),
-                    cugraph::experimental::detail::raw_const_ptr(d_w_sizes),
-                    num_paths,
-                    handle.get_stream());
+  raft::update_host(
+    w_sizes.data(), cugraph::detail::raw_const_ptr(d_w_sizes), num_paths, handle.get_stream());
 
-  raft::update_host(w_offsets.data(),
-                    cugraph::experimental::detail::raw_const_ptr(d_w_offsets),
-                    num_paths,
-                    handle.get_stream());
+  raft::update_host(
+    w_offsets.data(), cugraph::detail::raw_const_ptr(d_w_offsets), num_paths, handle.get_stream());
 
   index_t crt_v_offset = 0;
   index_t crt_w_offset = 0;

@@ -54,14 +54,13 @@ void check_coarsened_graph_results(edge_t* org_offsets,
   ASSERT_TRUE(std::count_if(org_indices,
                             org_indices + org_offsets[num_org_vertices],
                             [num_org_vertices](auto nbr) {
-                              return !cugraph::experimental::is_valid_vertex(num_org_vertices, nbr);
+                              return !cugraph::is_valid_vertex(num_org_vertices, nbr);
                             }) == 0);
   ASSERT_TRUE(std::is_sorted(coarse_offsets, coarse_offsets + num_coarse_vertices));
   ASSERT_TRUE(std::count_if(coarse_indices,
                             coarse_indices + coarse_offsets[num_coarse_vertices],
                             [num_coarse_vertices](auto nbr) {
-                              return !cugraph::experimental::is_valid_vertex(num_coarse_vertices,
-                                                                             nbr);
+                              return !cugraph::is_valid_vertex(num_coarse_vertices, nbr);
                             }) == 0);
   ASSERT_TRUE(num_coarse_vertices <= num_org_vertices);
 
@@ -108,18 +107,18 @@ void check_coarsened_graph_results(edge_t* org_offsets,
           threshold_ratio;
 
   for (size_t i = 0; i < org_unique_labels.size(); ++i) {  // for each vertex in the coarse graph
-    auto lb = std::lower_bound(
-      label_org_vertex_pairs.begin(),
-      label_org_vertex_pairs.end(),
-      std::make_tuple(org_unique_labels[i],
-                      cugraph::experimental::invalid_vertex_id<vertex_t>::value /* dummy */),
-      [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
-    auto ub = std::upper_bound(
-      label_org_vertex_pairs.begin(),
-      label_org_vertex_pairs.end(),
-      std::make_tuple(org_unique_labels[i],
-                      cugraph::experimental::invalid_vertex_id<vertex_t>::value /* dummy */),
-      [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
+    auto lb =
+      std::lower_bound(label_org_vertex_pairs.begin(),
+                       label_org_vertex_pairs.end(),
+                       std::make_tuple(org_unique_labels[i],
+                                       cugraph::invalid_vertex_id<vertex_t>::value /* dummy */),
+                       [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
+    auto ub =
+      std::upper_bound(label_org_vertex_pairs.begin(),
+                       label_org_vertex_pairs.end(),
+                       std::make_tuple(org_unique_labels[i],
+                                       cugraph::invalid_vertex_id<vertex_t>::value /* dummy */),
+                       [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
     auto count  = std::distance(lb, ub);
     auto offset = std::distance(label_org_vertex_pairs.begin(), lb);
     if (org_weights == nullptr) {
@@ -180,18 +179,16 @@ void check_coarsened_graph_results(edge_t* org_offsets,
           auto& cur   = coarse_nbr_weight_pairs0[j];
           if (std::get<0>(start) == std::get<0>(cur)) {
             std::get<1>(start) += std::get<1>(cur);
-            std::get<0>(cur) = cugraph::experimental::invalid_vertex_id<vertex_t>::value;
+            std::get<0>(cur) = cugraph::invalid_vertex_id<vertex_t>::value;
           } else {
             run_start_idx = j;
           }
         }
         coarse_nbr_weight_pairs0.erase(
-          std::remove_if(coarse_nbr_weight_pairs0.begin(),
-                         coarse_nbr_weight_pairs0.end(),
-                         [](auto t) {
-                           return std::get<0>(t) ==
-                                  cugraph::experimental::invalid_vertex_id<vertex_t>::value;
-                         }),
+          std::remove_if(
+            coarse_nbr_weight_pairs0.begin(),
+            coarse_nbr_weight_pairs0.end(),
+            [](auto t) { return std::get<0>(t) == cugraph::invalid_vertex_id<vertex_t>::value; }),
           coarse_nbr_weight_pairs0.end());
       }
 
@@ -260,8 +257,7 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
       return;
     }
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
-      handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
     std::tie(graph, std::ignore) = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);
@@ -285,15 +281,14 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
 
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
-    std::unique_ptr<
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
+    std::unique_ptr<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
       coarse_graph{};
     rmm::device_uvector<vertex_t> coarse_vertices_to_labels(0, handle.get_stream());
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     std::tie(coarse_graph, coarse_vertices_to_labels) =
-      cugraph::experimental::coarsen_graph(handle, graph_view, d_labels.begin());
+      cugraph::coarsen_graph(handle, graph_view, d_labels.begin());
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 

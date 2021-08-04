@@ -39,7 +39,6 @@
 #include <utility>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -615,5 +614,4 @@ void copy_to_adj_matrix_col(raft::handle_t const& handle,
   }
 }
 
-}  // namespace experimental
 }  // namespace cugraph

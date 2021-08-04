@@ -73,8 +73,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     int n_streams = std::min(n_seeds, static_cast<std::size_t>(128));
     raft::handle_t handle(n_streams);
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
-      handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
     std::tie(graph, std::ignore) = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);
@@ -100,26 +99,26 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     std::generate(radius.begin(), radius.end(), [n = 0]() mutable { return (n++ % 12 + 1); });
 
     // warm up
-    cugraph::experimental::bfs(handle,
-                               graph_view,
-                               d_distances[0].begin(),
-                               d_predecessors[0].begin(),
-                               static_cast<vertex_t>(configuration.sources[0]),
-                               false,
-                               radius[0]);
+    cugraph::bfs(handle,
+                 graph_view,
+                 d_distances[0].begin(),
+                 d_predecessors[0].begin(),
+                 static_cast<vertex_t>(configuration.sources[0]),
+                 false,
+                 radius[0]);
 
     // one by one
     HighResTimer hr_timer;
     hr_timer.start("bfs");
     cudaProfilerStart();
     for (vertex_t i = 0; i < n_seeds; i++) {
-      cugraph::experimental::bfs(handle,
-                                 graph_view,
-                                 d_distances[i].begin(),
-                                 d_predecessors[i].begin(),
-                                 static_cast<vertex_t>(configuration.sources[i]),
-                                 false,
-                                 radius[i]);
+      cugraph::bfs(handle,
+                   graph_view,
+                   d_distances[i].begin(),
+                   d_predecessors[i].begin(),
+                   static_cast<vertex_t>(configuration.sources[i]),
+                   false,
+                   radius[i]);
     }
     cudaProfilerStop();
     hr_timer.stop();
@@ -132,13 +131,13 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     for (vertex_t i = 0; i < n_seeds; i++) {
       raft::handle_t light_handle(handle, i);
       auto worker_stream_view = light_handle.get_stream_view();
-      cugraph::experimental::bfs(light_handle,
-                                 graph_view,
-                                 d_distances[i].begin(),
-                                 d_predecessors[i].begin(),
-                                 static_cast<vertex_t>(configuration.sources[i]),
-                                 false,
-                                 radius[i]);
+      cugraph::bfs(light_handle,
+                   graph_view,
+                   d_distances[i].begin(),
+                   d_predecessors[i].begin(),
+                   static_cast<vertex_t>(configuration.sources[i]),
+                   false,
+                   radius[i]);
     }
 
     cudaProfilerStop();

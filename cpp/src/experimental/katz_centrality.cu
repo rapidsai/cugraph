@@ -32,7 +32,6 @@
 #include <thrust/tuple.h>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 template <typename GraphViewType, typename result_t>
@@ -342,5 +341,4 @@ template void katz_centrality(raft::handle_t const& handle,
                               bool normalize,
                               bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

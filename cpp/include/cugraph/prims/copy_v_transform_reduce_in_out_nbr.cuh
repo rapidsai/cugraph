@@ -39,7 +39,6 @@
 #include <utility>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -796,5 +795,4 @@ void copy_v_transform_reduce_out_nbr(
                                              vertex_value_output_first);
 }
 
-}  // namespace experimental
 }  // namespace cugraph

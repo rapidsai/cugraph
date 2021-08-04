@@ -49,15 +49,13 @@ void weakly_connected_components_reference(edge_t const* offsets,
 {
   vertex_t depth{0};
 
-  std::fill(components,
-            components + num_vertices,
-            cugraph::experimental::invalid_component_id<vertex_t>::value);
+  std::fill(components, components + num_vertices, cugraph::invalid_component_id<vertex_t>::value);
 
   vertex_t num_scanned{0};
   while (true) {
     auto it = std::find(components + num_scanned,
                         components + num_vertices,
-                        cugraph::experimental::invalid_component_id<vertex_t>::value);
+                        cugraph::invalid_component_id<vertex_t>::value);
     if (it == components + num_vertices) { break; }
     num_scanned += static_cast<vertex_t>(std::distance(components + num_scanned, it));
     auto source            = num_scanned;
@@ -71,7 +69,7 @@ void weakly_connected_components_reference(edge_t const* offsets,
         auto nbr_offset_last  = *(offsets + row + 1);
         for (auto nbr_offset = nbr_offset_first; nbr_offset != nbr_offset_last; ++nbr_offset) {
           auto nbr = *(indices + nbr_offset);
-          if (*(components + nbr) == cugraph::experimental::invalid_component_id<vertex_t>::value) {
+          if (*(components + nbr) == cugraph::invalid_component_id<vertex_t>::value) {
             *(components + nbr) = source;
             new_frontier_rows.push_back(nbr);
           }
@@ -141,7 +139,7 @@ class Tests_WeaklyConnectedComponent
       hr_clock.start();
     }
 
-    cugraph::experimental::weakly_connected_components(handle, graph_view, d_components.data());
+    cugraph::weakly_connected_components(handle, graph_view, d_components.data());
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -151,8 +149,7 @@ class Tests_WeaklyConnectedComponent
     }
 
     if (weakly_connected_components_usecase.check_correctness) {
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(
-        handle);
+      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
           input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(

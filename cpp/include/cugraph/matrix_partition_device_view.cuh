@@ -29,7 +29,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -301,5 +300,4 @@ class matrix_partition_device_view_t<vertex_t,
   vertex_t number_of_vertices_;
 };
 
-}  // namespace experimental
 }  // namespace cugraph

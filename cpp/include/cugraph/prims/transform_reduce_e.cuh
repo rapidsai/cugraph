@@ -30,7 +30,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -517,5 +516,4 @@ T transform_reduce_e(raft::handle_t const& handle,
   return edge_property_add(init, result);
 }
 
-}  // namespace experimental
 }  // namespace cugraph

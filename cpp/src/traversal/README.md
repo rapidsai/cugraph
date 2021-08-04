@@ -5,8 +5,8 @@ cuGraph traversal algorithms are contained in this directory
 
 The unit test code is the best place to search for examples on calling SSSP.
 
- * [SG Implementation](../../tests/experimental/sssp_test.cpp)
- * MG Implementation - TBD
+ * [SG Implementation](../../tests/traversal/sssp_test.cpp)
+ * [MG Implementation](../../tests/traversal/mg_sssp_test.cpp)
 
 ## Simple SSSP
 
@@ -25,15 +25,15 @@ vertex_t source;                // Initialized by user
 rmm::device_uvector<weight_t> distances_v(graph_view.get_number_of_vertices(), handle.get_stream());
 rmm::device_uvector<vertex_t> predecessors_v(graph_view.get_number_of_vertices(), handle.get_stream());
 
-cugraph::experimental::sssp(handle, graph_view, distances_v.begin(), predecessors_v.begin(), source, std::numeric_limits<weight_t>::max(), false);
+cugraph::sssp(handle, graph_view, distances_v.begin(), predecessors_v.begin(), source, std::numeric_limits<weight_t>::max(), false);
 ```
 
 ## BFS
 
 The unit test code is the best place to search for examples on calling BFS.
 
- * [SG Implementation](../../tests/experimental/bfs_test.cpp)
- * MG Implementation - TBD
+ * [SG Implementation](../../tests/traversal/bfs_test.cpp)
+ * [MG Implementation](../../tests/traversal/mg_bfs_test.cpp)
 
 ## Simple BFS
 
@@ -52,5 +52,5 @@ vertex_t source;                // Initialized by user
 rmm::device_uvector<weight_t> distances_v(graph_view.get_number_of_vertices(), handle.get_stream());
 rmm::device_uvector<vertex_t> predecessors_v(graph_view.get_number_of_vertices(), handle.get_stream());
 
-cugraph::experimental::bfs(handle, graph_view, d_distances.begin(), d_predecessors.begin(), source, false, std::numeric_limits<vertex_t>::max(), false);
+cugraph::bfs(handle, graph_view, d_distances.begin(), d_predecessors.begin(), source, false, std::numeric_limits<vertex_t>::max(), false);
 ```

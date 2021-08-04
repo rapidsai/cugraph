@@ -21,7 +21,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 template <typename vertex_t>
 class vertex_partition_device_base_t {
@@ -108,5 +107,4 @@ class vertex_partition_device_t<GraphViewType, std::enable_if_t<!GraphViewType::
   }
 };
 
-}  // namespace experimental
 }  // namespace cugraph

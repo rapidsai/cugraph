@@ -121,7 +121,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
         number_of_vertices,
         number_of_edges);
 
-    cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
+    cugraph::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
       d_rows.data(),
       d_cols.data(),
       d_weights ? std::optional<weight_t const*>{(*d_weights).data()} : std::nullopt,
@@ -129,14 +129,13 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    auto graph =
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>(
-        handle,
-        edgelist,
-        number_of_vertices,
-        cugraph::experimental::graph_properties_t{is_symmetric, false},
-        std::nullopt,
-        true);
+    auto graph = cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>(
+      handle,
+      edgelist,
+      number_of_vertices,
+      cugraph::graph_properties_t{is_symmetric, false},
+      std::nullopt,
+      true);
 
     auto graph_view = graph.view();
 

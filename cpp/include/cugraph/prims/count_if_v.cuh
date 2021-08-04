@@ -26,7 +26,6 @@
 #include <thrust/execution_policy.h>
 
 namespace cugraph {
-namespace experimental {
 
 /**
  * @brief Count the number of vertices that satisfies the given predicate.
@@ -101,5 +100,4 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
   return count;
 }
 
-}  // namespace experimental
 }  // namespace cugraph

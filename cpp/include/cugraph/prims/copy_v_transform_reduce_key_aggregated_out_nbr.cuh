@@ -34,7 +34,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -232,7 +231,7 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
  * graph_view.get_number_of_local_adj_matrix_partition_cols().
  * @param map_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
  * (assigned to this process in multi-GPU,
- * `cugraph::experimental::detail::compute_gpu_id_from_vertex_t` is used to map keys to processes).
+ * `cugraph::detail::compute_gpu_id_from_vertex_t` is used to map keys to processes).
  * (Key, value) pairs may be provided by transform_reduce_by_adj_matrix_row_key_e() or
  * transform_reduce_by_adj_matrix_col_key_e().
  * @param map_key_last Iterator pointing to the last (exclusive) key in (key, value) pairs (assigned
@@ -691,5 +690,4 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                     [reduce_op, init] __device__(auto val) { return reduce_op(val, init); });
 }
 
-}  // namespace experimental
 }  // namespace cugraph

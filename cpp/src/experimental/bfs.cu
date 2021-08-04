@@ -38,7 +38,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 template <typename GraphViewType, typename PredecessorIterator>
@@ -304,5 +303,4 @@ template void bfs(raft::handle_t const& handle,
                   int64_t depth_limit,
                   bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

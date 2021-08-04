@@ -28,7 +28,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -1091,5 +1090,4 @@ device_gatherv(raft::comms::comms_t const& comm,
     .run(comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream_view);
 }
 
-}  // namespace experimental
 }  // namespace cugraph

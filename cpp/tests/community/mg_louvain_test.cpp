@@ -98,8 +98,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
                           weight_t mg_modularity)
   {
     auto sg_graph =
-      std::make_unique<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false>>(
-        handle);
+      std::make_unique<cugraph::graph_t<vertex_t, edge_t, weight_t, false, false>>(handle);
     rmm::device_uvector<vertex_t> d_clustering_v(0, handle.get_stream());
     weight_t sg_modularity{-1.0};
 
@@ -128,14 +127,14 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
         handle, d_edgelist_rows, d_edgelist_cols, d_renumber_map_gathered_v);
 
       std::tie(*sg_graph, std::ignore) =
-        cugraph::experimental::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+        cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
           handle,
           std::optional<std::tuple<vertex_t const*, vertex_t>>{
             std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},
           std::move(d_edgelist_rows),
           std::move(d_edgelist_cols),
           std::move(d_edgelist_weights),
-          cugraph::experimental::graph_properties_t{is_symmetric, false},
+          cugraph::graph_properties_t{is_symmetric, false},
           false);
     }
 

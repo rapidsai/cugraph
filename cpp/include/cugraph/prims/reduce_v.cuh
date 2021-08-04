@@ -26,7 +26,6 @@
 #include <thrust/reduce.h>
 
 namespace cugraph {
-namespace experimental {
 
 /**
  * @brief Reduce the vertex properties.
@@ -101,5 +100,4 @@ T reduce_v(raft::handle_t const& handle,
   return ret;
 }
 
-}  // namespace experimental
 }  // namespace cugraph

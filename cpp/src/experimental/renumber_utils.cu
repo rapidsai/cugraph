@@ -35,7 +35,6 @@
 #include <thrust/tuple.h>
 
 namespace cugraph {
-namespace experimental {
 
 template <typename vertex_t, bool multi_gpu>
 void renumber_ext_vertices(raft::handle_t const& handle,
@@ -409,5 +408,4 @@ template void unrenumber_int_vertices<int64_t, true>(
   std::vector<int64_t> const& vertex_partition_lasts,
   bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph
