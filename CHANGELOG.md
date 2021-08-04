@@ -1,6 +1,68 @@
-# cuGraph 21.08.00 (Date TBD)
+# cuGraph 21.08.00 (4 Aug 2021)
 
-Please see https://github.com/rapidsai/cugraph/releases/tag/v21.08.00a for the latest changes to this development branch.
+## 🚨 Breaking Changes
+
+- Removed depricated code ([#1705](https://github.com/rapidsai/cugraph/pull/1705)) [@BradReesWork](https://github.com/BradReesWork)
+- Delete legacy renumbering implementation ([#1681](https://github.com/rapidsai/cugraph/pull/1681)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Migrate old graph to legacy directory/namespace ([#1675](https://github.com/rapidsai/cugraph/pull/1675)) [@ChuckHastings](https://github.com/ChuckHastings)
+
+## 🐛 Bug Fixes
+
+- Changed cuco cmake function to return early if cuco has already been added as a target ([#1746](https://github.com/rapidsai/cugraph/pull/1746)) [@rlratzel](https://github.com/rlratzel)
+- revert cuco to latest dev branch, issues should be fixed ([#1721](https://github.com/rapidsai/cugraph/pull/1721)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Fix `conda` uploads ([#1712](https://github.com/rapidsai/cugraph/pull/1712)) [@ajschmidt8](https://github.com/ajschmidt8)
+- Updated for CUDA-specific py packages ([#1709](https://github.com/rapidsai/cugraph/pull/1709)) [@rlratzel](https://github.com/rlratzel)
+- Use `library_dirs` for cython linking, link cudatoolkit libs, allow setting UCX install location ([#1698](https://github.com/rapidsai/cugraph/pull/1698)) [@trxcllnt](https://github.com/trxcllnt)
+- Fix the Louvain failure with 64 bit vertex IDs ([#1696](https://github.com/rapidsai/cugraph/pull/1696)) [@seunghwak](https://github.com/seunghwak)
+- Use nested include in destination of install headers to avoid docker permission issues ([#1656](https://github.com/rapidsai/cugraph/pull/1656)) [@dantegd](https://github.com/dantegd)
+- Added accidentally-removed cpp-mgtests target back to the valid args list ([#1652](https://github.com/rapidsai/cugraph/pull/1652)) [@rlratzel](https://github.com/rlratzel)
+- Update UCX-Py version to 0.21 ([#1650](https://github.com/rapidsai/cugraph/pull/1650)) [@pentschev](https://github.com/pentschev)
+
+## 📖 Documentation
+
+- Docs for RMAT ([#1735](https://github.com/rapidsai/cugraph/pull/1735)) [@BradReesWork](https://github.com/BradReesWork)
+- Doc updates ([#1719](https://github.com/rapidsai/cugraph/pull/1719)) [@BradReesWork](https://github.com/BradReesWork)
+
+## 🚀 New Features
+
+- Fea cleanup stream part1 ([#1653](https://github.com/rapidsai/cugraph/pull/1653)) [@ChuckHastings](https://github.com/ChuckHastings)
+
+## 🛠️ Improvements
+
+- Pinning cuco to a specific commit hash for release ([#1741](https://github.com/rapidsai/cugraph/pull/1741)) [@rlratzel](https://github.com/rlratzel)
+- Pin max version for `dask` &amp; `distributed` ([#1736](https://github.com/rapidsai/cugraph/pull/1736)) [@galipremsagar](https://github.com/galipremsagar)
+- Fix libfaiss dependency to not expressly depend on conda-forge ([#1728](https://github.com/rapidsai/cugraph/pull/1728)) [@Ethyling](https://github.com/Ethyling)
+- Fix MG_test bug ([#1718](https://github.com/rapidsai/cugraph/pull/1718)) [@jnke2016](https://github.com/jnke2016)
+- Cascaded dispatch for type-erased API ([#1711](https://github.com/rapidsai/cugraph/pull/1711)) [@aschaffer](https://github.com/aschaffer)
+- ReduceV test ([#1710](https://github.com/rapidsai/cugraph/pull/1710)) [@kaatish](https://github.com/kaatish)
+- Removed depricated code ([#1705](https://github.com/rapidsai/cugraph/pull/1705)) [@BradReesWork](https://github.com/BradReesWork)
+- Delete unused/out-dated primitives ([#1704](https://github.com/rapidsai/cugraph/pull/1704)) [@seunghwak](https://github.com/seunghwak)
+- Update primitives to support DCSR (DCSC) segments (Part 2/2) ([#1703](https://github.com/rapidsai/cugraph/pull/1703)) [@seunghwak](https://github.com/seunghwak)
+- Fea speedup compile ([#1702](https://github.com/rapidsai/cugraph/pull/1702)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Update `conda` environment name for CI ([#1699](https://github.com/rapidsai/cugraph/pull/1699)) [@ajschmidt8](https://github.com/ajschmidt8)
+- Count if test ([#1697](https://github.com/rapidsai/cugraph/pull/1697)) [@kaatish](https://github.com/kaatish)
+- replace cudf assert_eq ([#1693](https://github.com/rapidsai/cugraph/pull/1693)) [@jnke2016](https://github.com/jnke2016)
+- Fix int64 vertex_t ([#1691](https://github.com/rapidsai/cugraph/pull/1691)) [@Iroy30](https://github.com/Iroy30)
+- Update primitives to support DCSR (DCSC) segments (Part 1) ([#1690](https://github.com/rapidsai/cugraph/pull/1690)) [@seunghwak](https://github.com/seunghwak)
+- remove hardcoded dtype ([#1689](https://github.com/rapidsai/cugraph/pull/1689)) [@Iroy30](https://github.com/Iroy30)
+- Updating Clang Version to 11.0.0 ([#1688](https://github.com/rapidsai/cugraph/pull/1688)) [@codereport](https://github.com/codereport)
+- `CHECK_CUDA` macros in debug builds ([#1687](https://github.com/rapidsai/cugraph/pull/1687)) [@trxcllnt](https://github.com/trxcllnt)
+- fixing symmetrize_ddf ([#1686](https://github.com/rapidsai/cugraph/pull/1686)) [@jnke2016](https://github.com/jnke2016)
+- Improve Random Walks performance ([#1685](https://github.com/rapidsai/cugraph/pull/1685)) [@aschaffer](https://github.com/aschaffer)
+- Use the 21.08 branch of rapids-cmake as rmm requires it ([#1683](https://github.com/rapidsai/cugraph/pull/1683)) [@robertmaynard](https://github.com/robertmaynard)
+- Delete legacy renumbering implementation ([#1681](https://github.com/rapidsai/cugraph/pull/1681)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Fix vertex partition offsets ([#1680](https://github.com/rapidsai/cugraph/pull/1680)) [@Iroy30](https://github.com/Iroy30)
+- Ues std::optional (or thrust::optional) for optional parameters &amp; first part of DCSR (DCSC) implementation. ([#1676](https://github.com/rapidsai/cugraph/pull/1676)) [@seunghwak](https://github.com/seunghwak)
+- Migrate old graph to legacy directory/namespace ([#1675](https://github.com/rapidsai/cugraph/pull/1675)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Expose epsilon parameter (precision) through python layer ([#1674](https://github.com/rapidsai/cugraph/pull/1674)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Fea hungarian expose precision ([#1673](https://github.com/rapidsai/cugraph/pull/1673)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Branch 21.08 merge 21.06 ([#1672](https://github.com/rapidsai/cugraph/pull/1672)) [@BradReesWork](https://github.com/BradReesWork)
+- Update pins to Dask/Distributed &gt;= 2021.6.0 ([#1666](https://github.com/rapidsai/cugraph/pull/1666)) [@pentschev](https://github.com/pentschev)
+- Fix conflicts in `1643` ([#1651](https://github.com/rapidsai/cugraph/pull/1651)) [@ajschmidt8](https://github.com/ajschmidt8)
+- Rename include/cugraph/patterns to include/cugraph/prims ([#1644](https://github.com/rapidsai/cugraph/pull/1644)) [@seunghwak](https://github.com/seunghwak)
+- Fix merge conflicts in 1631 ([#1639](https://github.com/rapidsai/cugraph/pull/1639)) [@ajschmidt8](https://github.com/ajschmidt8)
+- Update to changed `rmm::device_scalar` API ([#1637](https://github.com/rapidsai/cugraph/pull/1637)) [@harrism](https://github.com/harrism)
+- Fix merge conflicts ([#1614](https://github.com/rapidsai/cugraph/pull/1614)) [@ajschmidt8](https://github.com/ajschmidt8)
 
 # cuGraph 21.06.00 (9 Jun 2021)
 
