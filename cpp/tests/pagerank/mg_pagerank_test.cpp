@@ -37,11 +37,6 @@
 
 #include <random>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 struct PageRank_Usecase {
   double personalization_ratio{0.0};
   bool test_weighted{false};
@@ -82,7 +77,7 @@ class Tests_MGPageRank
 
     // 2. create MG graph
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -92,7 +87,7 @@ class Tests_MGPageRank
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, true>(
         handle, pagerank_usecase.test_weighted, true);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -157,7 +152,7 @@ class Tests_MGPageRank
     rmm::device_uvector<result_t> d_mg_pageranks(mg_graph_view.get_number_of_local_vertices(),
                                                  handle.get_stream());
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -182,7 +177,7 @@ class Tests_MGPageRank
       std::numeric_limits<size_t>::max(),
       false);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -316,7 +311,22 @@ TEST_P(Tests_MGPageRank_File, CheckInt32Int32FloatFloat)
 TEST_P(Tests_MGPageRank_Rmat, CheckInt32Int32FloatFloat)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, float>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGPageRank_Rmat, CheckInt32Int64FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, float>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGPageRank_Rmat, CheckInt64Int64FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, float>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 INSTANTIATE_TEST_SUITE_P(
