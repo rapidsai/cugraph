@@ -17,9 +17,7 @@ import cugraph.dask as dcg
 import cugraph
 import dask_cudf
 from cugraph.tests import utils
-from cugraph.dask.common.mg_utils import (is_single_gpu,
-                                          setup_local_dask_cluster,
-                                          teardown_local_dask_cluster)
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 try:
     from rapids_pytest_benchmark import setFixtureParamNames
@@ -41,13 +39,6 @@ except ImportError:
 
 ###############################################################################
 # Fixtures
-@pytest.fixture(scope="module")
-def client_connection():
-    (cluster, client) = setup_local_dask_cluster(p2p=True)
-    yield client
-    teardown_local_dask_cluster(cluster, client)
-
-
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
@@ -55,7 +46,7 @@ def client_connection():
                 params=utils.DATASETS_UNDIRECTED,
                 ids=[f"dataset={d.as_posix()}"
                      for d in utils.DATASETS_UNDIRECTED])
-def daskGraphFromDataset(request, client_connection):
+def daskGraphFromDataset(request, dask_client):
     """
     Returns a new dask dataframe created from the dataset file param.
     """

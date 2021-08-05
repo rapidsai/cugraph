@@ -16,27 +16,18 @@ import pytest
 import cudf
 import cugraph
 import dask_cudf
-from cugraph.dask.common.mg_utils import (is_single_gpu,
-                                          setup_local_dask_cluster,
-                                          teardown_local_dask_cluster)
-
-
-@pytest.fixture(scope="module")
-def client_connection():
-    (cluster, client) = setup_local_dask_cluster(p2p=True)
-    yield client
-    teardown_local_dask_cluster(cluster, client)
+from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_dask_mg_degree(client_connection):
+def test_dask_mg_degree(dask_client):
     gc.collect()
 
-    # FIXME: update this to allow dataset to be parameterized and have dataset
-    # part of test param id (see other tests)
-    input_data_path = r"../datasets/karate-asymmetric.csv"
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate-asymmetric.csv").as_posix()
     print(f"dataset={input_data_path}")
 
     chunksize = cugraph.dask.get_chunksize(input_data_path)
