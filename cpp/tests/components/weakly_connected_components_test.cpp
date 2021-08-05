@@ -255,7 +255,10 @@ INSTANTIATE_TEST_SUITE_P(
                     cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_large_test,
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking by command
+                          line arguments and do not include more than one Rmat_Usecase that differ
+                          only in scale or edge factor (to avoid running same benchmarks more than
+                          once) */
   Tests_WeaklyConnectedComponents_Rmat,
   ::testing::Values(
     // disable correctness checks

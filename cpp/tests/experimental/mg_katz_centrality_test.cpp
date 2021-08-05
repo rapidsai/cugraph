@@ -253,13 +253,16 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                            ::testing::Values(cugraph::test::Rmat_Usecase(
                              10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_large_test,
-                         Tests_MGKatzCentrality_Rmat,
-                         ::testing::Combine(
-                           // disable correctness checks for large graphs
-                           ::testing::Values(KatzCentrality_Usecase{false, false},
-                                             KatzCentrality_Usecase{true, false}),
-                           ::testing::Values(cugraph::test::Rmat_Usecase(
-                             20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking by command
+                          line arguments and do not include more than one Rmat_Usecase that differ
+                          only in scale or edge factor (to avoid running same benchmarks more than
+                          once) */
+  Tests_MGKatzCentrality_Rmat,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(KatzCentrality_Usecase{false, false}, KatzCentrality_Usecase{true, false}),
+    ::testing::Values(
+      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

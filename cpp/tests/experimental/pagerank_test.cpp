@@ -442,7 +442,7 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_small_tests,
+  rmat_small_test,
   Tests_PageRank_Rmat,
   ::testing::Combine(
     // enable correctness checks
@@ -453,7 +453,10 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_large_tests,
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking by command
+                          line arguments and do not include more than one Rmat_Usecase that differ
+                          only in scale or edge factor (to avoid running same benchmarks more than
+                          once) */
   Tests_PageRank_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs

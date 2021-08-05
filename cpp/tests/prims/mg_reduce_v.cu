@@ -355,7 +355,10 @@ INSTANTIATE_TEST_SUITE_P(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_large_test,
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking by command
+                          line arguments and do not include more than one Rmat_Usecase that differ
+                          only in scale or edge factor (to avoid running same benchmarks more than
+                          once) */
   Tests_MG_ReduceIfV_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(

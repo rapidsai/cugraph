@@ -134,7 +134,7 @@ inline Rmat_Usecase override_Rmat_Usecase_with_cmd_line_arguments(Rmat_Usecase u
  *
  * Example:
  * ```
- * ./tests/PAGERANK_TEST --gtest_filter=rmat_large_tests/Tests_PageRank_Rmat.CheckInt32Int32*
+ * ./tests/PAGERANK_TEST --gtest_filter=rmat_benchmark_test/Tests_PageRank_Rmat.CheckInt32Int32*
  * --rmm_mode=pool --perf --rmat_scale=25 --rmat_edge_factor=16
  * ```
  *
