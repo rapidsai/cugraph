@@ -688,7 +688,15 @@ void call_katz_centrality(raft::handle_t const& handle,
                           bool normalize)
 {
   if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
-    CUGRAPH_FAIL("legacy graph no longer supported for katz_centrality");
+    cugraph::katz_centrality(*(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
+                             reinterpret_cast<double*>(katz_centrality),
+                             alpha,
+                             static_cast<int32_t>(max_iter),
+                             tolerance,
+                             has_guess,
+                             normalize);
+    graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
+      reinterpret_cast<int32_t*>(identifiers));
   } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
