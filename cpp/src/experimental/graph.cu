@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
@@ -37,7 +37,6 @@
 #include <tuple>
 
 namespace cugraph {
-namespace experimental {
 
 namespace {
 
@@ -473,7 +472,6 @@ template class graph_t<int64_t, int64_t, float, false, false>;
 template class graph_t<int64_t, int64_t, double, true, false>;
 template class graph_t<int64_t, int64_t, double, false, false>;
 
-}  // namespace experimental
 }  // namespace cugraph
 
-#include <cugraph/experimental/eidir_graph.hpp>
+#include <cugraph/eidir_graph.hpp>

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 
@@ -35,7 +35,6 @@
 #include <thrust/tuple.h>
 
 namespace cugraph {
-namespace experimental {
 
 template <typename vertex_t, bool multi_gpu>
 void renumber_ext_vertices(raft::handle_t const& handle,
@@ -409,5 +408,4 @@ template void unrenumber_int_vertices<int64_t, true>(
   std::vector<int64_t> const& vertex_partition_lasts,
   bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

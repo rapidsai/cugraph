@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.cuh>
@@ -39,7 +39,6 @@
 #include <utility>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -615,5 +614,4 @@ void copy_to_adj_matrix_col(raft::handle_t const& handle,
   }
 }
 
-}  // namespace experimental
 }  // namespace cugraph

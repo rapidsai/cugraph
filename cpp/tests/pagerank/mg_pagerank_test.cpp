@@ -22,9 +22,9 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <raft/comms/comms.hpp>
@@ -158,7 +158,7 @@ class Tests_MGPageRank
       hr_clock.start();
     }
 
-    cugraph::experimental::pagerank<vertex_t, edge_t, weight_t>(
+    cugraph::pagerank<vertex_t, edge_t, weight_t>(
       handle,
       mg_graph_view,
       std::nullopt,
@@ -211,7 +211,7 @@ class Tests_MGPageRank
         // 5-2. unrenumbr MG results
 
         if (d_mg_aggregate_personalization_vertices) {
-          cugraph::experimental::unrenumber_int_vertices<vertex_t, false>(
+          cugraph::unrenumber_int_vertices<vertex_t, false>(
             handle,
             (*d_mg_aggregate_personalization_vertices).data(),
             (*d_mg_aggregate_personalization_vertices).size(),
@@ -233,7 +233,7 @@ class Tests_MGPageRank
 
         // 5-3. create SG graph
 
-        cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(handle);
+        cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(handle);
         std::tie(sg_graph, std::ignore) =
           input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
             handle, pagerank_usecase.test_weighted, false);
@@ -247,7 +247,7 @@ class Tests_MGPageRank
         rmm::device_uvector<result_t> d_sg_pageranks(sg_graph_view.get_number_of_vertices(),
                                                      handle.get_stream());
 
-        cugraph::experimental::pagerank<vertex_t, edge_t, weight_t>(
+        cugraph::pagerank<vertex_t, edge_t, weight_t>(
           handle,
           sg_graph_view,
           std::nullopt,

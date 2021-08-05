@@ -38,7 +38,6 @@ namespace cugraph {
 namespace serializer {
 class serializer_t;  // forward...
 }
-namespace experimental {
 
 /**
  * @brief store vertex partitioning map
@@ -758,5 +757,4 @@ class graph_view_t<vertex_t,
   std::optional<std::vector<vertex_t>> segment_offsets_{std::nullopt};
 };
 
-}  // namespace experimental
 }  // namespace cugraph

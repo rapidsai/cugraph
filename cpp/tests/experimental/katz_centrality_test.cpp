@@ -21,9 +21,9 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -158,16 +158,16 @@ class Tests_KatzCentrality
       hr_clock.start();
     }
 
-    cugraph::experimental::katz_centrality(handle,
-                                           graph_view,
-                                           static_cast<result_t*>(nullptr),
-                                           d_katz_centralities.data(),
-                                           alpha,
-                                           beta,
-                                           epsilon,
-                                           std::numeric_limits<size_t>::max(),
-                                           false,
-                                           true);
+    cugraph::katz_centrality(handle,
+                             graph_view,
+                             static_cast<result_t*>(nullptr),
+                             d_katz_centralities.data(),
+                             alpha,
+                             beta,
+                             epsilon,
+                             std::numeric_limits<size_t>::max(),
+                             false,
+                             true);
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -177,8 +177,7 @@ class Tests_KatzCentrality
     }
 
     if (katz_usecase.check_correctness) {
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(
-        handle);
+      cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
           input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(

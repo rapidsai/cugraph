@@ -30,12 +30,12 @@
 
 #include <cugraph/legacy/graph.hpp>
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>
 
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <utilities/high_res_timer.hpp>
 
@@ -59,12 +59,11 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
-extract(
-  raft::handle_t const& handle,
-  cugraph::experimental::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& csr_view,
-  vertex_t* source_vertex,
-  vertex_t n_subgraphs,
-  vertex_t radius)
+extract(raft::handle_t const& handle,
+        cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& csr_view,
+        vertex_t* source_vertex,
+        vertex_t n_subgraphs,
+        vertex_t radius)
 {
   auto v                = csr_view.get_number_of_vertices();
   auto e                = csr_view.get_number_of_edges();
@@ -109,13 +108,13 @@ extract(
     thrust::fill(
       rmm::exec_policy(worker_stream_view), reached[i].begin(), reached[i].begin() + 100, 1.0);
 
-    cugraph::experimental::bfs<vertex_t, edge_t, weight_t, false>(light_handle,
-                                                                  csr_view,
-                                                                  reached[i].data(),
-                                                                  predecessors.data(),
-                                                                  h_source_vertex[i],
-                                                                  direction_optimizing,
-                                                                  radius);
+    cugraph::bfs<vertex_t, edge_t, weight_t, false>(light_handle,
+                                                    csr_view,
+                                                    reached[i].data(),
+                                                    predecessors.data(),
+                                                    h_source_vertex[i],
+                                                    direction_optimizing,
+                                                    radius);
 
     // identify reached vertex ids from distance array
     thrust::transform(rmm::exec_policy(worker_stream_view),
@@ -173,14 +172,13 @@ extract(
 #endif
 
   // extract
-  return cugraph::experimental::extract_induced_subgraphs(
+  return cugraph::extract_induced_subgraphs(
     handle, csr_view, neighbors_offsets.data().get(), neighbors.data().get(), n_subgraphs);
 }
 
 }  // namespace
 
 namespace cugraph {
-namespace experimental {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -268,5 +266,4 @@ extract_ego(raft::handle_t const&,
             int64_t*,
             int64_t,
             int64_t);
-}  // namespace experimental
 }  // namespace cugraph

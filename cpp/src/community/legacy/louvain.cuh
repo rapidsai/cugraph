@@ -32,6 +32,7 @@
 #endif
 
 namespace cugraph {
+namespace legacy {
 
 template <typename graph_type>
 class Louvain {
@@ -659,4 +660,5 @@ class Louvain {
 #endif
 };
 
+}  // namespace legacy
 }  // namespace cugraph

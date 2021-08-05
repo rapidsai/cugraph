@@ -18,8 +18,8 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -85,8 +85,7 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
   {
     raft::handle_t handle{};
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
-      handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
     std::tie(graph, std::ignore) = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, configuration.graph_file_full_path, true, false);

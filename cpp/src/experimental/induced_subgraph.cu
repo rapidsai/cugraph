@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
@@ -35,7 +35,6 @@
 #include <utilities/high_res_timer.hpp>
 
 namespace cugraph {
-namespace experimental {
 
 template <typename vertex_t,
           typename edge_t,
@@ -397,5 +396,4 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           size_t num_subgraphs,
                           bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

@@ -5,7 +5,7 @@ cuGraph Pagerank is implemented using our graph primitive library
 
 The unit test code is the best place to search for examples on calling pagerank.
 
- * [SG Implementation](../../tests/experimental/pagerank_test.cpp)
+ * [SG Implementation](../../tests/pagerank/pagerank_test.cpp)
  * [MG Implementation](../../tests/pagerank/mg_pagerank_test.cpp)
 
 ## Simple pagerank
@@ -37,7 +37,7 @@ rmm::device_uvector<result_t> pageranks_v(graph_view.get_number_of_vertices(), h
 //     do_expensive_check - perform extensive validation of the input data before
 //                          executing algorithm.  Off by default.  Note: turning this on
 //                          is expensive
-cugraph::experimental::pagerank(handle, graph_view, nullptr, nullptr, nullptr, vertex_t{0},
+cugraph::pagerank(handle, graph_view, nullptr, nullptr, nullptr, vertex_t{0},
                                 pageranks_v.data(), alpha, epsilon);
 ```
 
@@ -75,7 +75,7 @@ rmm::device_uvector<result_t> personalization_values(number_of_personalization_v
 //     do_expensive_check - perform extensive validation of the input data before
 //                          executing algorithm.  Off by default.  Note: turning this on
 //                          is expensive
-cugraph::experimental::pagerank(handle, graph_view, nullptr, personalization_vertices.data(),
+cugraph::pagerank(handle, graph_view, nullptr, personalization_vertices.data(),
                                 personalization_values.data(), number_of_personalization_vertices,
                                 pageranks_v.data(), alpha, epsilon);
 ```

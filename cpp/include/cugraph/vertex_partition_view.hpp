@@ -18,7 +18,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -77,5 +76,4 @@ class vertex_partition_view_t<vertex_t, multi_gpu, std::enable_if_t<!multi_gpu>>
   vertex_t get_local_vertex_last() const { return this->get_number_of_vertices(); }
 };
 
-}  // namespace experimental
 }  // namespace cugraph

@@ -21,9 +21,9 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <raft/comms/comms.hpp>
@@ -114,8 +114,7 @@ class Tests_MGWeaklyConnectedComponents
       hr_clock.start();
     }
 
-    cugraph::experimental::weakly_connected_components(
-      handle, mg_graph_view, d_mg_components.data());
+    cugraph::weakly_connected_components(handle, mg_graph_view, d_mg_components.data());
 
     if (PERF) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -146,7 +145,7 @@ class Tests_MGWeaklyConnectedComponents
 
         // 4-3. create SG graph
 
-        cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
+        cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
         std::tie(sg_graph, std::ignore) =
           input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
             handle, false, false);
@@ -161,8 +160,7 @@ class Tests_MGWeaklyConnectedComponents
         rmm::device_uvector<vertex_t> d_sg_components(sg_graph_view.get_number_of_vertices(),
                                                       handle.get_stream());
 
-        cugraph::experimental::weakly_connected_components(
-          handle, sg_graph_view, d_sg_components.data());
+        cugraph::weakly_connected_components(handle, sg_graph_view, d_sg_components.data());
 
         // 4-5. compare
 

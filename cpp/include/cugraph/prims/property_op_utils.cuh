@@ -28,7 +28,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 template <typename InvokeResultEdgeOp, typename Enable = void>
 struct is_valid_edge_op {
@@ -212,5 +211,4 @@ struct block_reduce_edge_op_result {
   }
 };
 
-}  // namespace experimental
 }  // namespace cugraph
