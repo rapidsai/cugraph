@@ -31,7 +31,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 21.08.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 21.10.00 LANGUAGES C CXX CUDA)
 
 # Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
 # cuhornet currently doesn't support
@@ -156,33 +156,35 @@ endif()
 # - library targets -------------------------------------------------------------------------------
 
 add_library(cugraph SHARED
+    src/detail/utility_wrappers.cu
+    src/detail/shuffle_wrappers.cu
     src/utilities/spmv_1D.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
     src/utilities/graph_bcast.cu
-    src/structure/graph.cu
+    src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
     src/link_analysis/gunrock_hits.cpp
-    src/traversal/bfs.cu
-    src/traversal/sssp.cu
+    src/traversal/legacy/bfs.cu
+    src/traversal/legacy/sssp.cu
     src/traversal/tsp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
     src/layout/force_atlas2.cu
     src/converters/COOtoCSR.cu
-    src/community/spectral_clustering.cu
+    src/community/legacy/spectral_clustering.cu
     src/community/louvain.cu
-    src/community/leiden.cu
-    src/community/ktruss.cu
-    src/community/ecg.cu
-    src/community/triangles_counting.cu
-    src/community/extract_subgraph_by_vertex.cu
-    src/community/egonet.cu
+    src/community/legacy/leiden.cu
+    src/community/legacy/ktruss.cu
+    src/community/legacy/ecg.cu
+    src/community/legacy/triangles_counting.cu
+    src/community/legacy/extract_subgraph_by_vertex.cu
+    src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu
-    src/centrality/katz_centrality.cu
+    src/centrality/legacy/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generator_tools.cu
@@ -202,8 +204,11 @@ add_library(cugraph SHARED
     src/serialization/serializer.cu
     src/tree/mst.cu
     src/components/weakly_connected_components.cu
-    src/structure/create_graph_from_edgelist.cu
+    src/structure/create_graph_from_edgelist.cpp
     src/utilities/host_barrier.cpp
+    src/visitors/graph_envelope.cpp
+    src/visitors/visitors_factory.cpp
+    src/visitors/bfs_visitor.cpp
 )
 
 set_target_properties(cugraph

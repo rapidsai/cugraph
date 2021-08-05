@@ -61,20 +61,6 @@ struct compute_thrust_tuple_element_sizes_impl<TupleType, I, I> {
   void compute(std::array<size_t, thrust::tuple_size<TupleType>::value>& arr) const {}
 };
 
-template <typename TupleType, size_t I, size_t N>
-struct plus_thrust_tuple_impl {
-  __host__ __device__ constexpr void compute(TupleType& lhs, TupleType const& rhs) const
-  {
-    thrust::get<I>(lhs) += thrust::get<I>(rhs);
-    plus_thrust_tuple_impl<TupleType, I + 1, N>().compute(lhs, rhs);
-  }
-};
-
-template <typename TupleType, size_t I>
-struct plus_thrust_tuple_impl<TupleType, I, I> {
-  __host__ __device__ constexpr void compute(TupleType& lhs, TupleType const& rhs) const {}
-};
-
 template <typename T>
 __device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(
   thrust::detail::any_assign& /* dereferencing thrust::discard_iterator results in this type */ lhs,
@@ -189,18 +175,6 @@ struct compute_thrust_tuple_element_sizes {
     std::array<size_t, tuple_size> ret;
     detail::compute_thrust_tuple_element_sizes_impl<TupleType, size_t{0}, tuple_size>().compute(
       ret);
-    return ret;
-  }
-};
-
-template <typename TupleType>
-struct plus_thrust_tuple {
-  __host__ __device__ constexpr TupleType operator()(TupleType const& lhs,
-                                                     TupleType const& rhs) const
-  {
-    size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
-    auto ret                    = lhs;
-    detail::plus_thrust_tuple_impl<TupleType, size_t{0}, tuple_size>().compute(ret, rhs);
     return ret;
   }
 };

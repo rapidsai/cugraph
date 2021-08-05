@@ -21,7 +21,7 @@
 
 add_library(cugraphtestutil STATIC
             utilities/matrix_market_file_utilities.cu
-            utilities/rmat_utilities.cu
+            utilities/rmat_utilities.cpp
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
             components/wcc_graphs.cu
@@ -258,20 +258,20 @@ set(ERDOS_RENYI_GENERATOR_TEST_SRC
 
 ###################################################################################################
 # - katz centrality tests -------------------------------------------------------------------------
-ConfigureTest(KATZ_TEST centrality/katz_centrality_test.cu)
+ConfigureTest(LEGACY_KATZ_TEST centrality/legacy/katz_centrality_test.cu)
 
 ###################################################################################################
 # - betweenness centrality tests ------------------------------------------------------------------
-ConfigureTest(BETWEENNESS_TEST centrality/betweenness_centrality_test.cu)
-ConfigureTest(EDGE_BETWEENNESS_TEST centrality/edge_betweenness_centrality_test.cu)
+ConfigureTest(LEGACY_BETWEENNESS_TEST centrality/legacy/betweenness_centrality_test.cu)
+ConfigureTest(LEGACY_EDGE_BETWEENNESS_TEST centrality/legacy/edge_betweenness_centrality_test.cu)
 
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
-ConfigureTest(SSSP_TEST traversal/sssp_test.cu)
+ConfigureTest(LEGACY_SSSP_TEST traversal/legacy/sssp_test.cu)
 
 ###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
-ConfigureTest(BFS_TEST traversal/bfs_test.cu)
+ConfigureTest(LEGACY_BFS_TEST traversal/legacy/bfs_test.cu)
 
 ###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
@@ -404,6 +404,14 @@ ConfigureTest(SERIALIZATION_TEST "${SERIALIZATION_TEST_SRCS}")
 
 
 ###################################################################################################
+# - BFS Visitor tests -----------------------------------------------------------------------------
+
+set(BFS_VISITOR_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/visitors/bfs_test.cpp")
+
+ConfigureTest(BFS_VISITOR_TEST "${BFS_VISITOR_TEST_SRCS}")
+
+###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
@@ -455,6 +463,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
+
+        ###########################################################################################
+        # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
+        ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()

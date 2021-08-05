@@ -30,7 +30,7 @@ function(find_and_configure_raft)
             OPTIONS "BUILD_TESTS OFF"
     )
 
-    message(VERBOSE "CUML: Using RAFT located in ${raft_SOURCE_DIR}")
+    message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_SOURCE_DIR}")
 
 endfunction()
 
@@ -45,4 +45,3 @@ find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         FORK       rapidsai
                         PINNED_TAG branch-${CUGRAPH_BRANCH_VERSION_raft}
                         )
-
