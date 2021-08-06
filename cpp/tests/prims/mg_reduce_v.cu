@@ -28,7 +28,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/reduce_v.cuh>
 
-#include <thrust/count.h>
+#include <thrust/reduce.h>
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
@@ -218,7 +218,7 @@ class Tests_MG_ReduceIfV
 
     auto mg_graph_view = mg_graph.view();
 
-    // 3. run MG count if
+    // 3. run MG reduce
 
     const int hash_bin_count = 5;
     const int initial_value  = 10;
@@ -245,7 +245,7 @@ class Tests_MG_ReduceIfV
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG count if took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG reduce took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     //// 4. compare SG & MG results
