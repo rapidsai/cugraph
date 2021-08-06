@@ -118,7 +118,6 @@ class MGContext:
                   f"{self.dask_scheduler_file}")
         else:
             self._client = Client(self._cluster)
-            print("the client is ", self._client)
             self._client.wait_for_workers(self._number_of_devices)
             print(
                 "\ndask_client fixture: client created using LocalCUDACluster")
