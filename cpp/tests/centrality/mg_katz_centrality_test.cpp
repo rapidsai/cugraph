@@ -34,11 +34,6 @@
 
 #include <random>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 struct KatzCentrality_Usecase {
   bool test_weighted{false};
   bool check_correctness{true};
@@ -79,7 +74,7 @@ class Tests_MGKatzCentrality
 
     // 2. create MG graph
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -89,7 +84,7 @@ class Tests_MGKatzCentrality
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, true>(
         handle, katz_usecase.test_weighted, true);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -112,7 +107,7 @@ class Tests_MGKatzCentrality
     rmm::device_uvector<result_t> d_mg_katz_centralities(
       mg_graph_view.get_number_of_local_vertices(), handle.get_stream());
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -128,7 +123,7 @@ class Tests_MGKatzCentrality
                              std::numeric_limits<size_t>::max(),
                              false);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -230,7 +225,22 @@ TEST_P(Tests_MGKatzCentrality_File, CheckInt32Int32FloatFloat)
 TEST_P(Tests_MGKatzCentrality_Rmat, CheckInt32Int32FloatFloat)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, float>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGKatzCentrality_Rmat, CheckInt32Int64FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, float>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGKatzCentrality_Rmat, CheckInt64Int64FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, float>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -253,13 +263,17 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                            ::testing::Values(cugraph::test::Rmat_Usecase(
                              10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_large_test,
-                         Tests_MGKatzCentrality_Rmat,
-                         ::testing::Combine(
-                           // disable correctness checks for large graphs
-                           ::testing::Values(KatzCentrality_Usecase{false, false},
-                                             KatzCentrality_Usecase{true, false}),
-                           ::testing::Values(cugraph::test::Rmat_Usecase(
-                             20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
+  Tests_MGKatzCentrality_Rmat,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(KatzCentrality_Usecase{false, false}, KatzCentrality_Usecase{true, false}),
+    ::testing::Values(
+      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
