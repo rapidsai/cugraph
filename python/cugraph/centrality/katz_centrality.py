@@ -26,9 +26,19 @@ def katz_centrality(
     version of Katz defined by Foster with a reduced computational complexity
     of O(n+m)
 
+    On a directed graph, cuGraph computes the out-edge Katz centrality score.  This
+    is opposite of NetworkX which compute the in-edge Katz centrality score
+    by default.  You can flip the NetworkX edges, using G.reverse, so that
+    the results match cuGraph.
+
+    References
+    ----------
     Foster, K.C., Muth, S.Q., Potterat, J.J. et al.
     Computational & Mathematical Organization Theory (2001) 7: 275.
     https://doi.org/10.1023/A:1013470632383
+
+    Katz, L. (1953). A new status index derived from sociometric analysis.
+    Psychometrika, 18(1), 39-43.
 
     Parameters
     ----------
