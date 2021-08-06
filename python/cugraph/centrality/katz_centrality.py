@@ -26,10 +26,10 @@ def katz_centrality(
     version of Katz defined by Foster with a reduced computational complexity
     of O(n+m)
 
-    On a directed graph, cuGraph computes the out-edge Katz centrality score.  This
-    is opposite of NetworkX which compute the in-edge Katz centrality score
-    by default.  You can flip the NetworkX edges, using G.reverse, so that
-    the results match cuGraph.
+    On a directed graph, cuGraph computes the out-edge Katz centrality score.
+    This is opposite of NetworkX which compute the in-edge Katz centrality
+    score by default.  You can flip the NetworkX edges, using G.reverse,
+    so that the results match cuGraph.
 
     References
     ----------
