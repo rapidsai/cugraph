@@ -241,10 +241,11 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                                              10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking by command
-                          line arguments and do not include more than one Rmat_Usecase that differ
-                          only in scale or edge factor (to avoid running same benchmarks more than
-                          once) */
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
   Tests_MGWeaklyConnectedComponents_Rmat,
   ::testing::Values(
     // disable correctness checks
