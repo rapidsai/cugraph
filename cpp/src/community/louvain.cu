@@ -28,6 +28,22 @@ namespace cugraph {
 
 namespace detail {
 
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void check_clustering(
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  vertex_t* clustering)
+{
+  if (graph_view.get_number_of_local_vertices() > 0)
+    CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void check_clustering(legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph_view,
+                      vertex_t* clustering)
+{
+  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
+}
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const& handle,
@@ -127,7 +143,7 @@ std::pair<size_t, typename graph_view_t::weight_type> louvain(
   using vertex_t = typename graph_view_t::vertex_type;
   using weight_t = typename graph_view_t::weight_type;
 
-  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
+  detail::check_clustering(graph_view, clustering);
 
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram;
   weight_t modularity;
