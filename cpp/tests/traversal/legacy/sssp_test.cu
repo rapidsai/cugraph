@@ -109,8 +109,6 @@ void ref_sssp(const std::vector<MaxEType>& rowPtr,
 }
 
 // iterations for perf tests
-
-// enabled by command line parameter '--perf-iters"
 static int PERF_MULTIPLIER = 5;
 
 typedef struct SSSP_Usecase_t {

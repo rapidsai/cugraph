@@ -29,7 +29,6 @@
 #include <iostream>
 
 // iterations for perf tests
-// enabled by command line parameter '--perf-iters"
 static int PERF_MULTIPLIER = 5;
 
 typedef struct Force_Atlas2_Usecase_t {
