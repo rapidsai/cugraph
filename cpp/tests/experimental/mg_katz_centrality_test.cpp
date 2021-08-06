@@ -228,6 +228,18 @@ TEST_P(Tests_MGKatzCentrality_Rmat, CheckInt32Int32FloatFloat)
   run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
 }
 
+TEST_P(Tests_MGKatzCentrality_Rmat, CheckInt32Int64FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, float>(std::get<0>(param), std::get<1>(param));
+}
+
+TEST_P(Tests_MGKatzCentrality_Rmat, CheckInt64Int64FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, float>(std::get<0>(param), std::get<1>(param));
+}
+
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGKatzCentrality_File,

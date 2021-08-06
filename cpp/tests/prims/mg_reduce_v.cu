@@ -317,7 +317,22 @@ TEST_P(Tests_MG_ReduceIfV_File, CheckInt32Int32FloatTransposeFalse)
 TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int, false>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, int, false>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt32Int64FloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, int, false>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt64Int64FloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, int, false>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 TEST_P(Tests_MG_ReduceIfV_File, CheckInt32Int32FloatTransposeTrue)
@@ -329,7 +344,22 @@ TEST_P(Tests_MG_ReduceIfV_File, CheckInt32Int32FloatTransposeTrue)
 TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int, true>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, int, true>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt32Int64FloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, int, true>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt64Int64FloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, int, true>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 INSTANTIATE_TEST_SUITE_P(
