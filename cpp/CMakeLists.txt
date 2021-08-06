@@ -186,17 +186,17 @@ add_library(cugraph SHARED
     src/generators/generator_tools.cu
     src/generators/simple_generators.cu
     src/generators/erdos_renyi_generator.cu
-    src/experimental/graph.cu
-    src/experimental/graph_view.cu
-    src/experimental/coarsen_graph.cu
-    src/experimental/renumber_edgelist.cu
-    src/experimental/renumber_utils.cu
-    src/experimental/relabel.cu
-    src/experimental/induced_subgraph.cu
-    src/experimental/bfs.cu
-    src/experimental/sssp.cu
-    src/experimental/pagerank.cu
-    src/experimental/katz_centrality.cu
+    src/structure/graph.cu
+    src/structure/graph_view.cu
+    src/structure/coarsen_graph.cu
+    src/structure/renumber_edgelist.cu
+    src/structure/renumber_utils.cu
+    src/structure/relabel.cu
+    src/structure/induced_subgraph.cu
+    src/traversal/bfs.cu
+    src/traversal/sssp.cu
+    src/link_analysis/pagerank.cu
+    src/centrality/katz_centrality.cu
     src/serialization/serializer.cu
     src/tree/mst.cu
     src/components/weakly_connected_components.cu
