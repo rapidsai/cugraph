@@ -39,11 +39,6 @@
 
 #include <random>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 template <typename vertex_t>
 struct test_predicate {
   int mod{};
@@ -93,7 +88,7 @@ class Tests_MG_CountIfV
 
     // 2. create MG graph
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -102,7 +97,7 @@ class Tests_MG_CountIfV
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         handle, true, true);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -116,7 +111,7 @@ class Tests_MG_CountIfV
 
     // 3. run MG count if
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -126,7 +121,7 @@ class Tests_MG_CountIfV
     auto vertex_count =
       count_if_v(handle, mg_graph_view, data, test_predicate<vertex_t>(hash_bin_count));
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};

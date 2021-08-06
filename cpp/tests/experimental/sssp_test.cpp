@@ -39,11 +39,6 @@
 #include <tuple>
 #include <vector>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 // Dijkstra's algorithm
 template <typename vertex_t, typename edge_t, typename weight_t>
 void sssp_reference(edge_t const* offsets,
@@ -110,7 +105,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     raft::handle_t handle{};
     HighResClock hr_clock{};
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
@@ -119,7 +114,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, true, renumber);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -136,7 +131,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     rmm::device_uvector<vertex_t> d_predecessors(graph_view.get_number_of_vertices(),
                                                  handle.get_stream());
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
@@ -149,7 +144,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
                   std::numeric_limits<weight_t>::max(),
                   false);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);

@@ -38,11 +38,6 @@
 #include <numeric>
 #include <vector>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void katz_centrality_reference(edge_t const* offsets,
                                vertex_t const* indices,
@@ -122,7 +117,7 @@ class Tests_KatzCentrality
     raft::handle_t handle{};
     HighResClock hr_clock{};
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
@@ -131,7 +126,7 @@ class Tests_KatzCentrality
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
         handle, katz_usecase.test_weighted, renumber);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -153,7 +148,7 @@ class Tests_KatzCentrality
     rmm::device_uvector<result_t> d_katz_centralities(graph_view.get_number_of_vertices(),
                                                       handle.get_stream());
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
@@ -169,7 +164,7 @@ class Tests_KatzCentrality
                              false,
                              true);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);

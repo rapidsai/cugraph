@@ -39,11 +39,6 @@
 #include <random>
 #include <vector>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void pagerank_reference(edge_t const* offsets,
                         vertex_t const* indices,
@@ -160,7 +155,7 @@ class Tests_PageRank
     raft::handle_t handle{};
     HighResClock hr_clock{};
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
@@ -169,7 +164,7 @@ class Tests_PageRank
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
         handle, pagerank_usecase.test_weighted, renumber);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -234,7 +229,7 @@ class Tests_PageRank
     rmm::device_uvector<result_t> d_pageranks(graph_view.get_number_of_vertices(),
                                               handle.get_stream());
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
@@ -257,7 +252,7 @@ class Tests_PageRank
       false,
       false);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);

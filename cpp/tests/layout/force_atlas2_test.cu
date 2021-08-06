@@ -28,10 +28,6 @@
 #include <fstream>
 #include <iostream>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-static int PERF = 0;
-
 // iterations for perf tests
 // enabled by command line parameter '--perf-iters"
 static int PERF_MULTIPLIER = 5;
@@ -64,7 +60,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
   static void SetupTestCase() {}
   static void TearDownTestCase()
   {
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       for (unsigned int i = 0; i < force_atlas2_time.size(); ++i) {
         std::cout << force_atlas2_time[i] / PERF_MULTIPLIER << std::endl;
       }
@@ -161,7 +157,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     const float gravity                   = 1.0;
     bool verbose                          = false;
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       hr_clock.start();
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
         cugraph::force_atlas2<int, int, T>(handle,

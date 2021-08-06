@@ -34,11 +34,6 @@
 
 #include <random>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 struct KatzCentrality_Usecase {
   bool test_weighted{false};
   bool check_correctness{true};
@@ -79,7 +74,7 @@ class Tests_MGKatzCentrality
 
     // 2. create MG graph
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -89,7 +84,7 @@ class Tests_MGKatzCentrality
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, true>(
         handle, katz_usecase.test_weighted, true);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -112,7 +107,7 @@ class Tests_MGKatzCentrality
     rmm::device_uvector<result_t> d_mg_katz_centralities(
       mg_graph_view.get_number_of_local_vertices(), handle.get_stream());
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -128,7 +123,7 @@ class Tests_MGKatzCentrality
                              std::numeric_limits<size_t>::max(),
                              false);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};

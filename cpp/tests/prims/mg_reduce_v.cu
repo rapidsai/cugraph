@@ -39,11 +39,6 @@
 
 #include <random>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 template <typename vertex_t, typename... T>
 struct property_transform : public thrust::unary_function<vertex_t, thrust::tuple<T...>> {
   int mod{};
@@ -204,7 +199,7 @@ class Tests_MG_ReduceIfV
 
     // 2. create MG graph
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -213,7 +208,7 @@ class Tests_MG_ReduceIfV
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         handle, true, true);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -233,7 +228,7 @@ class Tests_MG_ReduceIfV
       generate<result_t>::property((*d_mg_renumber_map_labels), hash_bin_count, handle);
     auto property_iter = get_property_iterator(property_data);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -245,7 +240,7 @@ class Tests_MG_ReduceIfV
                            property_iter + (*d_mg_renumber_map_labels).size(),
                            property_initial_value);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};

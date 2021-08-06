@@ -34,11 +34,6 @@
 
 #include <gtest/gtest.h>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 struct WeaklyConnectedComponents_Usecase {
   bool check_correctness{true};
 };
@@ -83,7 +78,7 @@ class Tests_MGWeaklyConnectedComponents
 
     // 2. create MG graph
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -93,7 +88,7 @@ class Tests_MGWeaklyConnectedComponents
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, true>(
         handle, false, true);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -108,7 +103,7 @@ class Tests_MGWeaklyConnectedComponents
     rmm::device_uvector<vertex_t> d_mg_components(mg_graph_view.get_number_of_local_vertices(),
                                                   handle.get_stream());
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -116,7 +111,7 @@ class Tests_MGWeaklyConnectedComponents
 
     cugraph::weakly_connected_components(handle, mg_graph_view, d_mg_components.data());
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
