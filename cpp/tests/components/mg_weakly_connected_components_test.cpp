@@ -34,11 +34,6 @@
 
 #include <gtest/gtest.h>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 struct WeaklyConnectedComponents_Usecase {
   bool check_correctness{true};
 };
@@ -83,7 +78,7 @@ class Tests_MGWeaklyConnectedComponents
 
     // 2. create MG graph
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -93,7 +88,7 @@ class Tests_MGWeaklyConnectedComponents
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, true>(
         handle, false, true);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -108,7 +103,7 @@ class Tests_MGWeaklyConnectedComponents
     rmm::device_uvector<vertex_t> d_mg_components(mg_graph_view.get_number_of_local_vertices(),
                                                   handle.get_stream());
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -116,7 +111,7 @@ class Tests_MGWeaklyConnectedComponents
 
     cugraph::weakly_connected_components(handle, mg_graph_view, d_mg_components.data());
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -209,7 +204,22 @@ TEST_P(Tests_MGWeaklyConnectedComponents_File, CheckInt32Int32)
 TEST_P(Tests_MGWeaklyConnectedComponents_Rmat, CheckInt32Int32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGWeaklyConnectedComponents_Rmat, CheckInt32Int64)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGWeaklyConnectedComponents_Rmat, CheckInt64Int64)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -230,12 +240,17 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                                            cugraph::test::Rmat_Usecase(
                                              10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_large_test,
-                         Tests_MGWeaklyConnectedComponents_Rmat,
-                         ::testing::Values(
-                           // disable correctness checks
-                           std::make_tuple(WeaklyConnectedComponents_Usecase{false},
-                                           cugraph::test::Rmat_Usecase(
-                                             20, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
+  Tests_MGWeaklyConnectedComponents_Rmat,
+  ::testing::Values(
+    // disable correctness checks
+    std::make_tuple(
+      WeaklyConnectedComponents_Usecase{false},
+      cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
