@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,30 +14,30 @@
 import pytest
 import numpy as np
 
+from cugraph.tests.dask.mg_context import MGContext, skip_if_not_enough_devices
 from cugraph.dask.common.mg_utils import is_single_gpu
-
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.tests import utils
 
 # Get parameters from standard betwenness_centrality_test
-from cugraph.tests.test_edge_betweenness_centrality import (
+from cugraph.tests.test_betweenness_centrality import (
     DIRECTED_GRAPH_OPTIONS,
+    ENDPOINTS_OPTIONS,
     NORMALIZED_OPTIONS,
     DEFAULT_EPSILON,
     SUBSET_SIZE_OPTIONS,
     SUBSET_SEED_OPTIONS,
 )
 
-from cugraph.tests.test_edge_betweenness_centrality import (
+from cugraph.tests.test_betweenness_centrality import (
     prepare_test,
-    calc_edge_betweenness_centrality,
+    calc_betweenness_centrality,
     compare_scores,
 )
 
 # =============================================================================
 # Parameters
 # =============================================================================
-DATASETS = [(RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()]
-
+DATASETS = [utils.DATASETS_UNDIRECTED[0]]
 # FIXME: Certain test running scripts assume they have control of the number of
 # GPUs available and the Dask cluster setup/teardown procedure when running
 # tests, making the use of preset device counts and the tests performing
@@ -46,6 +46,11 @@ DATASETS = [(RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()]
 # scripts can filter these tests out. Consider a different mechanism that's
 # compatible with testing scripts that need to control GPU count and cluster
 # setup/teardown.
+MG_DEVICE_COUNT_OPTIONS = [pytest.param(1, marks=pytest.mark.preset_gpu_count),
+                           pytest.param(2, marks=pytest.mark.preset_gpu_count),
+                           pytest.param(3, marks=pytest.mark.preset_gpu_count),
+                           pytest.param(4, marks=pytest.mark.preset_gpu_count),
+                           None]
 RESULT_DTYPE_OPTIONS = [np.float64]
 
 
@@ -53,34 +58,41 @@ RESULT_DTYPE_OPTIONS = [np.float64]
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("graph_file", DATASETS,
-                         ids=[f"dataset={d}" for d in DATASETS])
+                         ids=[f"dataset={d.as_posix()}" for d in DATASETS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
+@pytest.mark.parametrize("endpoints", ENDPOINTS_OPTIONS)
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
-def test_mg_edge_betweenness_centrality(
+@pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
+def test_mg_betweenness_centrality(
     graph_file,
     directed,
     subset_size,
     normalized,
     weight,
+    endpoints,
     subset_seed,
     result_dtype,
-    dask_client,
+    mg_device_count,
 ):
     prepare_test()
-    sorted_df = calc_edge_betweenness_centrality(
-        graph_file,
-        directed=directed,
-        normalized=normalized,
-        k=subset_size,
-        weight=weight,
-        seed=subset_seed,
-        result_dtype=result_dtype,
-        multi_gpu_batch=True,
-    )
+    skip_if_not_enough_devices(mg_device_count)
+    with MGContext(number_of_devices=mg_device_count,
+                   p2p=True):
+        sorted_df = calc_betweenness_centrality(
+            graph_file,
+            directed=directed,
+            normalized=normalized,
+            k=subset_size,
+            weight=weight,
+            endpoints=endpoints,
+            seed=subset_seed,
+            result_dtype=result_dtype,
+            multi_gpu_batch=True,
+        )
     compare_scores(
         sorted_df,
         first_key="cu_bc",
