@@ -85,6 +85,7 @@ class MGContext:
             # The tempdir created by tempdir_object should be cleaned up once
             # tempdir_object goes out-of-scope and is deleted.
             tempdir_object = tempfile.TemporaryDirectory()
+            # FIXME: Might remove this condition because it is not necessary
             if self._number_of_devices is None:
                 self._cluster = LocalCUDACluster(
                     local_directory=tempdir_object.name,
