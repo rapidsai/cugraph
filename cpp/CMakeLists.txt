@@ -337,6 +337,8 @@ endif(BUILD_TESTS)
 ###################################################################################################
 # - install targets -------------------------------------------------------------------------------
 
+include(CPack)
+
 install(TARGETS cugraph
         DESTINATION lib
         EXPORT cugraph-exports)
