@@ -48,8 +48,6 @@ constructs.
 namespace cugraph {
 namespace visitors {
 
-using namespace cugraph::experimental;
-
 class erased_pack_t;  // forward...
 class return_t;       // forward...
 

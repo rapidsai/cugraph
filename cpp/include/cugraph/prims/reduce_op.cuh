@@ -17,7 +17,6 @@
 #pragma once
 
 namespace cugraph {
-namespace experimental {
 namespace reduce_op {
 
 // in case there is no payload to reduce
@@ -57,5 +56,4 @@ struct min {
 };
 
 }  // namespace reduce_op
-}  // namespace experimental
 }  // namespace cugraph

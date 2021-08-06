@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
@@ -27,7 +27,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
 
 /**
  * @brief renumber edgelist (multi-GPU)
@@ -124,7 +123,7 @@ renumber_edgelist(raft::handle_t const& handle,
  * @brief Renumber external vertices to internal vertices based on the provoided @p
  * renumber_map_labels.
  *
- * Note cugraph::experimental::invalid_id<vertex_t>::value remains unchanged.
+ * Note cugraph::invalid_id<vertex_t>::value remains unchanged.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -155,7 +154,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
  * @brief Unrenumber local internal vertices to external vertices based on the providied @p
  * renumber_map_labels.
  *
- * Note cugraph::experimental::invalid_id<vertex_t>::value remains unchanged.
+ * Note cugraph::invalid_id<vertex_t>::value remains unchanged.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -188,7 +187,7 @@ void unrenumber_local_int_vertices(
  * @brief Unrenumber (possibly non-local) internal vertices to external vertices based on the
  * providied @p renumber_map_labels.
  *
- * Note cugraph::experimental::invalid_id<vertex_t>::value remains unchanged.
+ * Note cugraph::invalid_id<vertex_t>::value remains unchanged.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -352,7 +351,7 @@ extract_induced_subgraphs(
  * @param graph_properties Properties of the graph represented by the input (optional vertex list
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not.
- * @return std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed,
+ * @return std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed,
  * multi_gpu>, rmm::device_uvector<vertex_t>> Pair of the generated graph and the renumber map (if
  * @p renumber is true) or std::nullopt (if @p renumber is false).
  */
@@ -361,7 +360,7 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(
   raft::handle_t const& handle,
@@ -372,5 +371,4 @@ create_graph_from_edgelist(
   graph_properties_t graph_properties,
   bool renumber);
 
-}  // namespace experimental
 }  // namespace cugraph

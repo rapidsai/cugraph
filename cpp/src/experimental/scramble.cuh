@@ -28,7 +28,6 @@
 #include <cstdint>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 template <typename uvertex_t>
@@ -78,5 +77,4 @@ __device__ vertex_t scramble(vertex_t value, size_t lgN)
 }
 
 }  // namespace detail
-}  // namespace experimental
 }  // namespace cugraph

@@ -19,7 +19,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -135,5 +134,4 @@ class matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable
   vertex_t number_of_vertices_{0};
 };
 
-}  // namespace experimental
 }  // namespace cugraph

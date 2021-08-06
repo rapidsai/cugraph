@@ -37,7 +37,6 @@
 namespace cugraph {
 namespace visitors {
 
-using namespace cugraph::experimental;
 using pair_uniques_t = graph_envelope_t::pair_uniques_t;
 
 // dummy-out non-candidate paths:

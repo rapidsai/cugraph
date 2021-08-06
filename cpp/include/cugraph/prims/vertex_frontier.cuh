@@ -36,7 +36,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
 
 // stores unique key objects in the sorted (non-descending) order; key type is either vertex_t
 // (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
@@ -466,5 +465,4 @@ class VertexFrontier {
   std::vector<SortedUniqueKeyBucket<vertex_t, tag_t, is_multi_gpu>> buckets_{};
 };
 
-}  // namespace experimental
 }  // namespace cugraph

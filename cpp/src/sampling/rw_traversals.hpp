@@ -18,7 +18,7 @@
 //
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 #include <cugraph/visitors/graph_envelope.hpp>
 #include <cugraph/visitors/ret_terased.hpp>
 
@@ -42,7 +42,6 @@
 #include <thread>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -509,5 +508,4 @@ struct horizontal_traversal_t {
 };  // namespace detail
 
 }  // namespace detail
-}  // namespace experimental
 }  // namespace cugraph
