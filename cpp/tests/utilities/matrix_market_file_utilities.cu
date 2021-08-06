@@ -16,9 +16,9 @@
 
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/functions.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -323,7 +323,7 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    std::string const& graph_file_full_path,
@@ -350,8 +350,7 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
     auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     auto const col_comm_size = col_comm.get_size();
 
-    auto vertex_key_func =
-      cugraph::experimental::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
+    auto vertex_key_func = cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
     d_vertices.resize(
       thrust::distance(
         d_vertices.begin(),
@@ -364,7 +363,7 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
       handle.get_stream());
     d_vertices.shrink_to_fit(handle.get_stream());
 
-    auto edge_key_func = cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
+    auto edge_key_func = cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
       comm_size, row_comm_size, col_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
@@ -406,7 +405,7 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
   }
 
   handle.get_stream_view().synchronize();
-  return cugraph::experimental::
+  return cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
       std::optional<std::tuple<vertex_t const*, vertex_t>>{
@@ -414,7 +413,7 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
       std::move(d_edgelist_rows),
       std::move(d_edgelist_cols),
       std::move(d_edgelist_weights),
-      cugraph::experimental::graph_properties_t{is_symmetric, false},
+      cugraph::graph_properties_t{is_symmetric, false},
       renumber);
 }
 
@@ -456,7 +455,7 @@ generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 template std::unique_ptr<cugraph::legacy::GraphCSR<int64_t, int64_t, float>>
 generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, false, false>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int32_t, float, false, false>(
   raft::handle_t const& handle,
@@ -464,7 +463,7 @@ read_graph_from_matrix_market_file<int32_t, int32_t, float, false, false>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, false, true>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int32_t, float, false, true>(
   raft::handle_t const& handle,
@@ -472,7 +471,7 @@ read_graph_from_matrix_market_file<int32_t, int32_t, float, false, true>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, true, false>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, true, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int32_t, float, true, false>(
   raft::handle_t const& handle,
@@ -480,7 +479,7 @@ read_graph_from_matrix_market_file<int32_t, int32_t, float, true, false>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, float, true, true>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, true, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int32_t, float, true, true>(
   raft::handle_t const& handle,
@@ -488,7 +487,7 @@ read_graph_from_matrix_market_file<int32_t, int32_t, float, true, true>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, false, false>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int32_t, double, false, false>(
   raft::handle_t const& handle,
@@ -496,7 +495,7 @@ read_graph_from_matrix_market_file<int32_t, int32_t, double, false, false>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, false, true>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int32_t, double, false, true>(
   raft::handle_t const& handle,
@@ -504,7 +503,7 @@ read_graph_from_matrix_market_file<int32_t, int32_t, double, false, true>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, true, false>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, true, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int32_t, double, true, false>(
   raft::handle_t const& handle,
@@ -512,7 +511,7 @@ read_graph_from_matrix_market_file<int32_t, int32_t, double, true, false>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int32_t, double, true, true>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, true, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int32_t, double, true, true>(
   raft::handle_t const& handle,
@@ -520,7 +519,7 @@ read_graph_from_matrix_market_file<int32_t, int32_t, double, true, true>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, false, false>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int64_t, float, false, false>(
   raft::handle_t const& handle,
@@ -528,7 +527,7 @@ read_graph_from_matrix_market_file<int32_t, int64_t, float, false, false>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, false, true>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
@@ -536,7 +535,7 @@ read_graph_from_matrix_market_file<int32_t, int64_t, float, false, true>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, true, false>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, true, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int64_t, float, true, false>(
   raft::handle_t const& handle,
@@ -544,7 +543,7 @@ read_graph_from_matrix_market_file<int32_t, int64_t, float, true, false>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, float, true, true>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, true, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
@@ -552,7 +551,7 @@ read_graph_from_matrix_market_file<int32_t, int64_t, float, true, true>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, false, false>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
@@ -560,7 +559,7 @@ read_graph_from_matrix_market_file<int32_t, int64_t, double, false, false>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, false, true>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
@@ -568,7 +567,7 @@ read_graph_from_matrix_market_file<int32_t, int64_t, double, false, true>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, true, false>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, true, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int64_t, double, true, false>(
   raft::handle_t const& handle,
@@ -576,7 +575,7 @@ read_graph_from_matrix_market_file<int32_t, int64_t, double, true, false>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int32_t, int64_t, double, true, true>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, true, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 read_graph_from_matrix_market_file<int32_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
@@ -584,7 +583,7 @@ read_graph_from_matrix_market_file<int32_t, int64_t, double, true, true>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, false, false>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, false, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
 read_graph_from_matrix_market_file<int64_t, int64_t, float, false, false>(
   raft::handle_t const& handle,
@@ -592,7 +591,7 @@ read_graph_from_matrix_market_file<int64_t, int64_t, float, false, false>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, false, true>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, false, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
 read_graph_from_matrix_market_file<int64_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
@@ -600,7 +599,7 @@ read_graph_from_matrix_market_file<int64_t, int64_t, float, false, true>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, true, false>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, true, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
 read_graph_from_matrix_market_file<int64_t, int64_t, float, true, false>(
   raft::handle_t const& handle,
@@ -608,7 +607,7 @@ read_graph_from_matrix_market_file<int64_t, int64_t, float, true, false>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, float, true, true>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, true, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
 read_graph_from_matrix_market_file<int64_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
@@ -616,7 +615,7 @@ read_graph_from_matrix_market_file<int64_t, int64_t, float, true, true>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, false, false>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, false, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
 read_graph_from_matrix_market_file<int64_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
@@ -624,7 +623,7 @@ read_graph_from_matrix_market_file<int64_t, int64_t, double, false, false>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, false, true>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, false, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
 read_graph_from_matrix_market_file<int64_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
@@ -632,7 +631,7 @@ read_graph_from_matrix_market_file<int64_t, int64_t, double, false, true>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, true, false>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, true, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
 read_graph_from_matrix_market_file<int64_t, int64_t, double, true, false>(
   raft::handle_t const& handle,
@@ -640,7 +639,7 @@ read_graph_from_matrix_market_file<int64_t, int64_t, double, true, false>(
   bool test_weighted,
   bool renumber);
 
-template std::tuple<cugraph::experimental::graph_t<int64_t, int64_t, double, true, true>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, true, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
 read_graph_from_matrix_market_file<int64_t, int64_t, double, true, true>(
   raft::handle_t const& handle,

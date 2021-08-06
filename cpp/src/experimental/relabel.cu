@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-#include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -41,7 +41,6 @@
 #include <utility>
 
 namespace cugraph {
-namespace experimental {
 
 // FIXME: think about requiring old_new_label_pairs to be pre-shuffled
 template <typename vertex_t, bool multi_gpu>
@@ -276,5 +275,4 @@ template void relabel<int64_t, false>(
   bool skip_missing_labels,
   bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

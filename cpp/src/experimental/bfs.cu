@@ -15,7 +15,7 @@
  */
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
@@ -38,7 +38,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 template <typename GraphViewType, typename PredecessorIterator>
@@ -304,5 +303,4 @@ template void bfs(raft::handle_t const& handle,
                   int64_t depth_limit,
                   bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

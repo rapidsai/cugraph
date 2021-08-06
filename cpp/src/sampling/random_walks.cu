@@ -20,7 +20,6 @@
 #include "random_walks.cuh"
 
 namespace cugraph {
-namespace experimental {
 // template explicit instantiation directives (EIDir's):
 //
 // SG FP32{
@@ -115,5 +114,4 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>>
 query_rw_sizes_offsets(raft::handle_t const& handle, int64_t num_paths, int64_t const* ptr_d_sizes);
 
-}  // namespace experimental
 }  // namespace cugraph

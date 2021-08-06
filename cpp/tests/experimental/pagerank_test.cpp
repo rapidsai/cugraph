@@ -21,9 +21,9 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -239,7 +239,7 @@ class Tests_PageRank
       hr_clock.start();
     }
 
-    cugraph::experimental::pagerank<vertex_t, edge_t, weight_t>(
+    cugraph::pagerank<vertex_t, edge_t, weight_t>(
       handle,
       graph_view,
       std::nullopt,
@@ -265,8 +265,7 @@ class Tests_PageRank
     }
 
     if (pagerank_usecase.check_correctness) {
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(
-        handle);
+      cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
           input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
@@ -317,13 +316,12 @@ class Tests_PageRank
                            (*d_personalization_values).data(),
                            (*d_personalization_values).size(),
                            handle.get_stream());
-          cugraph::experimental::unrenumber_local_int_vertices(
-            handle,
-            d_unrenumbered_personalization_vertices.data(),
-            d_unrenumbered_personalization_vertices.size(),
-            (*d_renumber_map_labels).data(),
-            vertex_t{0},
-            graph_view.get_number_of_vertices());
+          cugraph::unrenumber_local_int_vertices(handle,
+                                                 d_unrenumbered_personalization_vertices.data(),
+                                                 d_unrenumbered_personalization_vertices.size(),
+                                                 (*d_renumber_map_labels).data(),
+                                                 vertex_t{0},
+                                                 graph_view.get_number_of_vertices());
           std::tie(d_unrenumbered_personalization_vertices, d_unrenumbered_personalization_values) =
             cugraph::test::sort_by_key(handle,
                                        d_unrenumbered_personalization_vertices.data(),

@@ -15,7 +15,7 @@
  */
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/count_if_v.cuh>
@@ -32,7 +32,6 @@
 #include <thrust/tuple.h>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 template <typename GraphViewType, typename result_t>
@@ -342,5 +341,4 @@ template void katz_centrality(raft::handle_t const& handle,
                               bool normalize,
                               bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

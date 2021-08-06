@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
-#include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -41,7 +41,6 @@
 #include <utility>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -743,5 +742,4 @@ coarsen_graph(raft::handle_t const& handle,
               int64_t const* labels,
               bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

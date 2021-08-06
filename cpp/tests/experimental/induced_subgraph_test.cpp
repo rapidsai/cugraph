@@ -17,9 +17,9 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -116,8 +116,7 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
   {
     raft::handle_t handle{};
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
-      handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
     std::tie(graph, std::ignore) = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);
@@ -148,8 +147,8 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
     std::partial_sum(configuration.subgraph_sizes.begin(),
                      configuration.subgraph_sizes.end(),
                      h_subgraph_offsets.begin() + 1);
-    std::vector<vertex_t> h_subgraph_vertices(
-      h_subgraph_offsets.back(), cugraph::experimental::invalid_vertex_id<vertex_t>::value);
+    std::vector<vertex_t> h_subgraph_vertices(h_subgraph_offsets.back(),
+                                              cugraph::invalid_vertex_id<vertex_t>::value);
     std::default_random_engine generator{};
     std::uniform_int_distribution<vertex_t> distribution{0,
                                                          graph_view.get_number_of_vertices() - 1};
@@ -201,12 +200,12 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
           d_subgraph_edgelist_minors,
           d_subgraph_edgelist_weights,
           d_subgraph_edge_offsets] =
-      cugraph::experimental::extract_induced_subgraphs(handle,
-                                                       graph_view,
-                                                       d_subgraph_offsets.data(),
-                                                       d_subgraph_vertices.data(),
-                                                       configuration.subgraph_sizes.size(),
-                                                       true);
+      cugraph::extract_induced_subgraphs(handle,
+                                         graph_view,
+                                         d_subgraph_offsets.data(),
+                                         d_subgraph_vertices.data(),
+                                         configuration.subgraph_sizes.size(),
+                                         true);
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 

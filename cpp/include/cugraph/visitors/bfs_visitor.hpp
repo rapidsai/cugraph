@@ -25,8 +25,6 @@
 namespace cugraph {
 namespace visitors {
 
-using namespace cugraph::experimental;
-
 // macro option: MAKE_VISITOR(bfs)
 
 // primary empty template:

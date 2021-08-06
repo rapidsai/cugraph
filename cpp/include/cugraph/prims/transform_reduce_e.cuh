@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
@@ -30,7 +30,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -517,5 +516,4 @@ T transform_reduce_e(raft::handle_t const& handle,
   return edge_property_add(init, result);
 }
 
-}  // namespace experimental
 }  // namespace cugraph

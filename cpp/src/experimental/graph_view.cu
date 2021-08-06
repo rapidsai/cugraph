@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -37,7 +37,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
 
 namespace {
 
@@ -773,5 +772,4 @@ template class graph_view_t<int64_t, int32_t, float, false, false>;
 template class graph_view_t<int64_t, int32_t, double, true, false>;
 template class graph_view_t<int64_t, int32_t, double, false, false>;
 
-}  // namespace experimental
 }  // namespace cugraph
