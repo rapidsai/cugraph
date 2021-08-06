@@ -367,7 +367,7 @@ ConfigureTest(SSSP_TEST traversal/sssp_test.cpp)
 
 ###################################################################################################
 # - Experimental PAGERANK tests -------------------------------------------------------------------
-ConfigureTest(PAGERANK_TEST pagerank/pagerank_test.cpp)
+ConfigureTest(PAGERANK_TEST link_analysis/pagerank_test.cpp)
 
 ###################################################################################################
 # - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------
@@ -431,7 +431,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     if(MPI_CXX_FOUND)
         ###########################################################################################
         # - MG PAGERANK tests ---------------------------------------------------------------------
-        ConfigureTestMG(MG_PAGERANK_TEST pagerank/mg_pagerank_test.cpp)
+        ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
 
         ###########################################################################################
         # - MG KATZ CENTRALITY tests --------------------------------------------------------------
