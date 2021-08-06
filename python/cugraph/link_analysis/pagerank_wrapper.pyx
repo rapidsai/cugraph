@@ -34,7 +34,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
     handle_ptr.reset(new handle_t())
     handle_ = handle_ptr.get();
 
-    [src, dst] = graph_primtypes_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
+    [src, dst] = graph_primtypes_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32, np.int64])
     weights = None
     if input_graph.edgelist.weights:
         [weights] = graph_primtypes_wrapper.datatype_cast([input_graph.edgelist.edgelist_df['weights']], [np.float32, np.float64])
@@ -53,7 +53,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
         is_weighted = False
 
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
+    df['vertex'] = cudf.Series(np.arange(num_verts, dtype=src.dtype))
     df['pagerank'] = cudf.Series(np.zeros(num_verts, dtype=weight_t))
 
     cdef bool has_guess = <bool> 0
@@ -86,7 +86,7 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
 
     if personalization is not None:
         sz = personalization['vertex'].shape[0]
-        personalization['vertex'] = personalization['vertex'].astype(np.int32)
+        personalization['vertex'] = personalization['vertex'].astype(src.dtype)
         personalization['values'] = personalization['values'].astype(df['pagerank'].dtype)
         c_pers_vtx = personalization['vertex'].__cuda_array_interface__['data'][0]
         c_pers_val = personalization['values'].__cuda_array_interface__['data'][0]
@@ -98,8 +98,8 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
                              <void*>NULL,
                              <void*>NULL,
                              0,
-                             <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
-                             <numberTypeEnum>(<int>(numberTypeEnum.int32Type)),
+                             <numberTypeEnum>(<int>(numberTypeMap[src.dtype])),
+                             <numberTypeEnum>(<int>(numberTypeMap[src.dtype])),
                              <numberTypeEnum>(<int>(numberTypeMap[weight_t])),
                              num_local_edges,
                              num_verts, num_edges,
@@ -109,18 +109,34 @@ def pagerank(input_graph, alpha=0.85, personalization=None, max_iter=100, tol=1.
                              False)
 
     if (df['pagerank'].dtype == np.float32):
-        call_pagerank[int, float](handle_[0], graph_container,
-                                  <int*>c_identifier,
-                                  <float*> c_pagerank_val, sz,
-                                  <int*> c_pers_vtx, <float*> c_pers_val,
-                                  <float> alpha, <float> tol,
-                                  <int> max_iter, has_guess)
+        if (df['vertex'].dtype == np.int32):
+            call_pagerank[int, float](handle_[0], graph_container,
+                                    <int*>c_identifier,
+                                    <float*> c_pagerank_val, sz,
+                                    <int*> c_pers_vtx, <float*> c_pers_val,
+                                    <float> alpha, <float> tol,
+                                    <int> max_iter, has_guess)
+        else:
+            call_pagerank[long, float](handle_[0], graph_container,
+                                    <long*>c_identifier,
+                                    <float*> c_pagerank_val, sz,
+                                    <long*> c_pers_vtx, <float*> c_pers_val,
+                                    <float> alpha, <float> tol,
+                                    <int> max_iter, has_guess)
 
     else:
-        call_pagerank[int, double](handle_[0], graph_container,
-                                   <int*>c_identifier,
-                                   <double*> c_pagerank_val, sz,
-                                   <int*> c_pers_vtx, <double*> c_pers_val,
-                                   <float> alpha, <float> tol,
-                                   <int> max_iter, has_guess)
+        if (df['vertex'].dtype == np.int32):
+            call_pagerank[int, double](handle_[0], graph_container,
+                                    <int*>c_identifier,
+                                    <double*> c_pagerank_val, sz,
+                                    <int*> c_pers_vtx, <double*> c_pers_val,
+                                    <float> alpha, <float> tol,
+                                    <int> max_iter, has_guess)
+        else:
+            call_pagerank[long, double](handle_[0], graph_container,
+                                    <long*>c_identifier,
+                                    <double*> c_pagerank_val, sz,
+                                    <long*> c_pers_vtx, <double*> c_pers_val,
+                                    <float> alpha, <float> tol,
+                                    <int> max_iter, has_guess)
     return df
