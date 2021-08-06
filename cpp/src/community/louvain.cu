@@ -29,9 +29,8 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void check_clustering(
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  vertex_t* clustering)
+void check_clustering(graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                      vertex_t* clustering)
 {
   if (graph_view.get_number_of_local_vertices() > 0)
     CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
