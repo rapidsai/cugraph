@@ -20,6 +20,7 @@ from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
 import dask_cudf
 import cudf
+from dask.dataframe.shuffle import rearrange_by_column
 
 
 def call_pagerank(sID,
@@ -38,6 +39,8 @@ def call_pagerank(sID,
     local_size = len(aggregate_segment_offsets) // Comms.get_n_workers(sID)
     segment_offsets = \
         aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
+    print(wid, personalization)
+    print(vertex_partition_offsets)
     return mg_pagerank.mg_pagerank(data[0],
                                    num_verts,
                                    num_edges,
@@ -140,18 +143,37 @@ def pagerank(input_graph,
     data = get_distributed_data(ddf)
 
     if personalization is not None:
-        if not isinstance(personalization, cudf.DataFrame):
-            raise NotImplementedError(
-                "personalization other than a cudf dataframe "
-                "currently not supported"
-            )
-        null_check(personalization["vertex"])
-        null_check(personalization["values"])
         if input_graph.renumbered is True:
             personalization = input_graph.add_internal_vertex_id(
                 personalization, "vertex", "vertex"
             )
-        p_data = get_distributed_data(personalization)
+
+        def _set_partitions_pre(s, divisions):
+            partitions = divisions.searchsorted(s, side="right") - 1
+            partitions[
+                divisions.tail(1).searchsorted(s, side="right").astype("bool")
+            ] = (len(divisions) - 2)
+            return partitions
+
+        df = personalization
+        by = ['vertex']
+        meta = df._meta._constructor_sliced([0])
+        divisions = vertex_partition_offsets
+        partitions = df[by].map_partitions(
+            _set_partitions_pre, divisions=divisions, meta=meta
+        )
+
+        df2 = df.assign(_partitions=partitions)
+        df3 = rearrange_by_column(
+            df2,
+            "_partitions",
+            max_branch=None,
+            npartitions=len(divisions) - 1,
+            shuffle="tasks",
+            ignore_index=False,
+        ).drop(columns=["_partitions"])
+
+        p_data = get_distributed_data(df3)
 
         result = [client.submit(call_pagerank,
                                 Comms.get_session_id(),
