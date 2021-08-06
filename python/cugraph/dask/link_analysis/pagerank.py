@@ -19,7 +19,6 @@ from cugraph.dask.common.input_utils import (get_distributed_data,
 from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
 import dask_cudf
-import cudf
 from dask.dataframe.shuffle import rearrange_by_column
 
 
@@ -39,8 +38,6 @@ def call_pagerank(sID,
     local_size = len(aggregate_segment_offsets) // Comms.get_n_workers(sID)
     segment_offsets = \
         aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
-    print(wid, personalization)
-    print(vertex_partition_offsets)
     return mg_pagerank.mg_pagerank(data[0],
                                    num_verts,
                                    num_edges,
@@ -128,8 +125,6 @@ def pagerank(input_graph,
                                    edge_attr='value')
     >>> pr = dcg.pagerank(dg)
     """
-    from cugraph.structure.graph_classes import null_check
-
     nstart = None
 
     client = default_client()
