@@ -31,7 +31,8 @@ template std::
                int32_t const* ptr_d_start,
                int32_t num_paths,
                int32_t max_depth,
-               bool use_padding);
+               bool use_padding,
+               int selector_type);
 
 template std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>, rmm::device_uvector<int64_t>>
@@ -40,7 +41,8 @@ template std::
                int32_t const* ptr_d_start,
                int64_t num_paths,
                int64_t max_depth,
-               bool use_padding);
+               bool use_padding,
+               int selector_type);
 
 template std::
   tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>, rmm::device_uvector<int64_t>>
@@ -49,7 +51,8 @@ template std::
                int64_t const* ptr_d_start,
                int64_t num_paths,
                int64_t max_depth,
-               bool use_padding);
+               bool use_padding,
+               int selector_type);
 //}
 //
 // SG FP64{
@@ -60,7 +63,8 @@ template std::
                int32_t const* ptr_d_start,
                int32_t num_paths,
                int32_t max_depth,
-               bool use_padding);
+               bool use_padding,
+               int selector_type);
 
 template std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>, rmm::device_uvector<int64_t>>
@@ -69,7 +73,8 @@ template std::
                int32_t const* ptr_d_start,
                int64_t num_paths,
                int64_t max_depth,
-               bool use_padding);
+               bool use_padding,
+               int selector_type);
 
 template std::
   tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>, rmm::device_uvector<int64_t>>
@@ -78,7 +83,8 @@ template std::
                int64_t const* ptr_d_start,
                int64_t num_paths,
                int64_t max_depth,
-               bool use_padding);
+               bool use_padding,
+               int selector_type);
 //}
 
 template std::

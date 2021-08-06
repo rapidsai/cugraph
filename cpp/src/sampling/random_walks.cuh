@@ -719,6 +719,7 @@ struct random_walker_t {
  * entries;
  */
 template <typename graph_t,
+          typename selector_t,
           typename traversal_t = horizontal_traversal_t,
           typename random_engine_t =
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
@@ -733,6 +734,7 @@ random_walks_impl(raft::handle_t const& handle,
                   graph_t const& graph,
                   device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
                   index_t max_depth,
+                  selector_t const& selector,
                   bool use_padding        = false,
                   seeding_policy_t seeder = clock_seeding_t<typename random_engine_t::seed_type>{})
 {
@@ -798,6 +800,7 @@ random_walks_impl(raft::handle_t const& handle,
   //
   traversor(graph,
             rand_walker,
+            selector,
             seed0,
             d_coalesced_v,
             d_coalesced_w,
@@ -863,6 +866,7 @@ random_walks_impl(raft::handle_t const& handle,
  * entries;
  */
 template <typename graph_t,
+          typename selector_t,
           typename traversal_t = horizontal_traversal_t,
           typename random_engine_t =
             rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
@@ -877,6 +881,7 @@ random_walks_impl(raft::handle_t const& handle,
                   graph_t const& graph,
                   device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
                   index_t max_depth,
+                  selector_t const& selector,
                   bool use_padding        = false,
                   seeding_policy_t seeder = clock_seeding_t<typename random_engine_t::seed_type>{})
 {
@@ -1067,12 +1072,14 @@ random_walks(raft::handle_t const& handle,
              typename graph_t::vertex_type const* ptr_d_start,
              index_t num_paths,
              index_t max_depth,
-             bool use_padding)
+             bool use_padding,
+             int selector_type)
 {
-  using vertex_t     = typename graph_t::vertex_type;
-  using edge_t       = typename graph_t::edge_type;
-  using weight_t     = typename graph_t::weight_type;
-  using rnd_engine_t = float;
+  using vertex_t = typename graph_t::vertex_type;
+  using edge_t   = typename graph_t::edge_type;
+  using weight_t = typename graph_t::weight_type;
+  using real_t   = float;  // random engine type;
+  // FIXME: this should not be hardcoded; at least tag-dispatched
 
   // 0-copy const device view:
   //
@@ -1092,11 +1099,10 @@ random_walks(raft::handle_t const& handle,
                           sizeof(weight_t) * coalesced_e_count +  // coalesced_v + coalesced_w
                           (sizeof(vertex_t) + sizeof(index_t)) * num_paths;  // start_v + sizes
 
-  size_t req_mem_horizontal =
-    req_mem_common + sizeof(rnd_engine_t) * coalesced_e_count;  // + rnd_buff
-  size_t req_mem_vertical = req_mem_common + (sizeof(edge_t) + 2 * sizeof(vertex_t) +
-                                              sizeof(weight_t) + sizeof(rnd_engine_t)) *
-                                               num_paths;  // + smaller_rnd_buff + tmp_buffs
+  size_t req_mem_horizontal = req_mem_common + sizeof(real_t) * coalesced_e_count;  // + rnd_buff
+  size_t req_mem_vertical =
+    req_mem_common + (sizeof(edge_t) + 2 * sizeof(vertex_t) + sizeof(weight_t) + sizeof(real_t)) *
+                       num_paths;  // + smaller_rnd_buff + tmp_buffs
 
   bool use_vertical_strategy{false};
   if (req_mem_horizontal > req_mem_vertical && req_mem_horizontal > free_mem_sp_bytes) {
@@ -1106,22 +1112,55 @@ random_walks(raft::handle_t const& handle,
   }
 
   if (use_vertical_strategy) {
-    auto quad_tuple = detail::random_walks_impl<graph_t, detail::vertical_traversal_t>(
-      handle, graph, d_v_start, max_depth, use_padding);
-    // ignore last element of the quad, seed,
-    // since it's meant for testing / debugging, only:
-    //
-    return std::make_tuple(std::move(std::get<0>(quad_tuple)),
-                           std::move(std::get<1>(quad_tuple)),
-                           std::move(std::get<2>(quad_tuple)));
+    if (selector_type == static_cast<int>(detail::sampling_t::BIASED)) {
+      detail::biased_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
+
+      auto quad_tuple =
+        detail::random_walks_impl<graph_t, decltype(selector), detail::vertical_traversal_t>(
+          handle, graph, d_v_start, max_depth, selector, use_padding);
+      // ignore last element of the quad, seed,
+      // since it's meant for testing / debugging, only:
+      //
+      return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                             std::move(std::get<1>(quad_tuple)),
+                             std::move(std::get<2>(quad_tuple)));
+    } else {
+      detail::uniform_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
+
+      auto quad_tuple =
+        detail::random_walks_impl<graph_t, decltype(selector), detail::vertical_traversal_t>(
+          handle, graph, d_v_start, max_depth, selector, use_padding);
+      // ignore last element of the quad, seed,
+      // since it's meant for testing / debugging, only:
+      //
+      return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                             std::move(std::get<1>(quad_tuple)),
+                             std::move(std::get<2>(quad_tuple)));
+    }
   } else {
-    auto quad_tuple = detail::random_walks_impl(handle, graph, d_v_start, max_depth, use_padding);
-    // ignore last element of the quad, seed,
-    // since it's meant for testing / debugging, only:
-    //
-    return std::make_tuple(std::move(std::get<0>(quad_tuple)),
-                           std::move(std::get<1>(quad_tuple)),
-                           std::move(std::get<2>(quad_tuple)));
+    if (selector_type == static_cast<int>(detail::sampling_t::BIASED)) {
+      detail::biased_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
+
+      auto quad_tuple =
+        detail::random_walks_impl(handle, graph, d_v_start, max_depth, selector, use_padding);
+      // ignore last element of the quad, seed,
+      // since it's meant for testing / debugging, only:
+      //
+      return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                             std::move(std::get<1>(quad_tuple)),
+                             std::move(std::get<2>(quad_tuple)));
+    } else {
+      detail::uniform_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
+
+      auto quad_tuple =
+        detail::random_walks_impl(handle, graph, d_v_start, max_depth, selector, use_padding);
+      // ignore last element of the quad, seed,
+      // since it's meant for testing / debugging, only:
+      //
+      return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                             std::move(std::get<1>(quad_tuple)),
+                             std::move(std::get<2>(quad_tuple)));
+    }
   }
 }
 

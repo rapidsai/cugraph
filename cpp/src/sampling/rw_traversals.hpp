@@ -46,6 +46,8 @@ namespace experimental {
 
 namespace detail {
 
+enum class sampling_t : int { UNIFORM = 0, BIASED };  // sampling strategy; others: NODE2VEC
+
 template <typename T>
 using device_vec_t = rmm::device_uvector<T>;
 
@@ -146,6 +148,8 @@ struct uniform_selector_t {
 
     edge_t const* ptr_d_cache_out_degs_;
   };
+
+  using sampler_type = sampler_t;
 
   uniform_selector_t(raft::handle_t const& handle, graph_type const& graph, real_t tag)
     : d_cache_out_degs_(graph.compute_out_degrees(handle)),
@@ -315,6 +319,8 @@ struct biased_selector_t {
     weight_t const* ptr_d_sum_weights_;
   };
 
+  using sampler_type = sampler_t;
+
   biased_selector_t(raft::handle_t const& handle, graph_type const& graph, real_t tag)
     : sum_calculator_(handle, graph.get_number_of_vertices()),
       sampler_{graph.get_matrix_partition_view().get_offsets(),
@@ -353,12 +359,14 @@ struct vertical_traversal_t {
 
   template <typename graph_t,
             typename random_walker_t,
+            typename selector_t,
             typename index_t,
             typename real_t,
             typename seed_t>
   void operator()(
     graph_t const& graph,                // graph being traversed
     random_walker_t const& rand_walker,  // random walker object for which traversal is driven
+    selector_t const& selector,          // sampling type (uniform, biased, etc.)
     seed_t seed0,                        // initial seed value
     device_vec_t<typename graph_t::vertex_type>& d_coalesced_v,  // crt coalesced vertex set
     device_vec_t<typename graph_t::weight_type>& d_coalesced_w,  // crt coalesced weight set
@@ -371,11 +379,6 @@ struct vertical_traversal_t {
     const
   {
     auto const& handle = rand_walker.get_handle();
-
-    // selector:
-    // FIXME: to be passed as argument;
-    //
-    uniform_selector_t selector{handle, graph, real_t{0}};
 
     // start from 1, as 0-th was initialized above:
     //
@@ -421,12 +424,14 @@ struct horizontal_traversal_t {
 
   template <typename graph_t,
             typename random_walker_t,
+            typename selector_t,
             typename index_t,
             typename real_t,
             typename seed_t>
   void operator()(
     graph_t const& graph,                // graph being traversed
     random_walker_t const& rand_walker,  // random walker object for which traversal is driven
+    selector_t const& selector,          // sampling type (uniform, biased, etc.)
     seed_t seed0,                        // initial seed value
     device_vec_t<typename graph_t::vertex_type>& d_coalesced_v,  // crt coalesced vertex set
     device_vec_t<typename graph_t::weight_type>& d_coalesced_w,  // crt coalesced weight set
@@ -443,6 +448,7 @@ struct horizontal_traversal_t {
     using edge_t          = typename graph_t::edge_type;
     using weight_t        = typename graph_t::weight_type;
     using random_engine_t = typename random_walker_t::rnd_engine_t;
+    using sampler_t       = typename selector_t::sampler_type;
 
     auto const& handle = rand_walker.get_handle();
     auto* ptr_d_random = raw_ptr(d_random);
@@ -451,14 +457,9 @@ struct horizontal_traversal_t {
 
     auto* ptr_d_sizes = raw_ptr(d_paths_sz);
 
-    // selector:
-    // FIXME: to be passed as argument;
-    //
-    uniform_selector_t selector{handle, graph, real_t{0}};
-
     // next step sampler functor:
     //
-    auto const& sampler = selector.get_strategy();
+    sampler_t const& sampler = selector.get_strategy();
 
     // start from 1, as 0-th was initialized above:
     //

@@ -72,6 +72,7 @@ void output_random_walks_time(graph_vt const& graph_view,
   using vertex_t = typename graph_vt::vertex_type;
   using edge_t   = typename graph_vt::edge_type;
   using weight_t = typename graph_vt::weight_type;
+  using real_t   = float;
 
   raft::handle_t handle{};
   rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
@@ -88,21 +89,38 @@ void output_random_walks_time(graph_vt const& graph_view,
   HighResTimer hr_timer;
   std::string label{};
 
+  impl_details::uniform_selector_t<graph_vt, real_t> selector{handle, graph_view, real_t{0}};
+
   if (trv_id == traversal_id_t::HORIZONTAL) {
     label = std::string("RandomWalks; Horizontal traversal");
     hr_timer.start(label);
     cudaProfilerStart();
-    auto ret_tuple =
-      impl_details::random_walks_impl<graph_vt, impl_details::horizontal_traversal_t>(
-        handle, graph_view, d_start_view, max_depth);
+
+    auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+                                                     decltype(selector),
+                                                     impl_details::horizontal_traversal_t>(
+      handle,  // prevent clang-format to separate function name from its namespace
+      graph_view,
+      d_start_view,
+      max_depth,
+      selector);
+
     cudaProfilerStop();
     hr_timer.stop();
   } else {
     label = std::string("RandomWalks; Vertical traversal");
     hr_timer.start(label);
     cudaProfilerStart();
-    auto ret_tuple = impl_details::random_walks_impl<graph_vt, impl_details::vertical_traversal_t>(
-      handle, graph_view, d_start_view, max_depth);
+
+    auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+                                                     decltype(selector),
+                                                     impl_details::vertical_traversal_t>(
+      handle,  // prevent clang-format to separate function name from its namespace
+      graph_view,
+      d_start_view,
+      max_depth,
+      selector);
+
     cudaProfilerStop();
     hr_timer.stop();
   }

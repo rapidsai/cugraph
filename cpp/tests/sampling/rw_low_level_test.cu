@@ -722,6 +722,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   using edge_t   = vertex_t;
   using weight_t = float;
   using index_t  = vertex_t;
+  using real_t   = float;
 
   raft::handle_t handle{};
 
@@ -759,7 +760,11 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   // 0-copy const device view:
   //
   detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
-  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+  using graph_t = decltype(graph_view);
+
+  detail::uniform_selector_t<graph_t, real_t> selector{handle, graph_view, real_t{0}};
+
+  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, selector);
 
   auto& d_coalesced_v = std::get<0>(quad);
   auto& d_coalesced_w = std::get<1>(quad);
@@ -817,7 +822,11 @@ TEST(RandomWalksQuery, GraphRWQueryOffsets)
   // 0-copy const device view:
   //
   detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
-  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+  using graph_t = decltype(graph_view);
+  using real_t  = float;
+  detail::uniform_selector_t<graph_t, real_t> selector{handle, graph_view, real_t{0}};
+
+  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, selector);
 
   auto& d_v_sizes = std::get<2>(quad);
   auto seed0      = std::get<3>(quad);
@@ -879,7 +888,11 @@ TEST(RandomWalksSpecialCase, SingleRandomWalk)
   // 0-copy const device view:
   //
   detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
-  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+  using graph_t = decltype(graph_view);
+  using real_t  = float;
+  detail::uniform_selector_t<graph_t, real_t> selector{handle, graph_view, real_t{0}};
+
+  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, selector);
 
   auto& d_coalesced_v = std::get<0>(quad);
   auto& d_coalesced_w = std::get<1>(quad);
@@ -934,7 +947,11 @@ TEST(RandomWalksSpecialCase, UnweightedGraph)
   // 0-copy const device view:
   //
   detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
-  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+  using graph_t = decltype(graph_view);
+  using real_t  = float;
+  detail::uniform_selector_t<graph_t, real_t> selector{handle, graph_view, real_t{0}};
+
+  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, selector);
 
   auto& d_coalesced_v = std::get<0>(quad);
   auto& d_coalesced_w = std::get<1>(quad);
@@ -993,7 +1010,13 @@ TEST(RandomWalksPadded, SimpleGraph)
   //
   detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(), num_paths};
   bool use_padding{true};
-  auto quad = detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, use_padding);
+
+  using graph_t = decltype(graph_view);
+  using real_t  = float;
+  detail::uniform_selector_t<graph_t, real_t> selector{handle, graph_view, real_t{0}};
+
+  auto quad =
+    detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, selector, use_padding);
 
   auto& d_coalesced_v = std::get<0>(quad);
   auto& d_coalesced_w = std::get<1>(quad);
