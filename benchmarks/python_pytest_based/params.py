@@ -14,25 +14,27 @@
 import pytest
 
 from cugraph.tests.utils import genFixtureParamsProduct
-
+from cugraph.tests import utils
+from pathlib import PurePath
 
 # FIXME: write and use mechanism described here for specifying datasets:
 #        https://docs.rapids.ai/maintainers/datasets
 # FIXME: rlr: soc-twitter-2010.csv crashes with OOM error on my RTX-8000
 UNDIRECTED_DATASETS = [
-    pytest.param("../datasets/karate.csv",
+    pytest.param(PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"karate.csv",
                  marks=[pytest.mark.tiny, pytest.mark.undirected]),
-    pytest.param("../datasets/csv/undirected/hollywood.csv",
+    pytest.param(PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"csv/undirected/hollywood.csv",
                  marks=[pytest.mark.small, pytest.mark.undirected]),
-    pytest.param("../datasets/csv/undirected/europe_osm.csv",
+    pytest.param(PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"csv/undirected/europe_osm.csv",
                  marks=[pytest.mark.undirected]),
     # pytest.param("../datasets/csv/undirected/soc-twitter-2010.csv",
     #              marks=[pytest.mark.undirected]),
 ]
 DIRECTED_DATASETS = [
-    pytest.param("../datasets/csv/directed/cit-Patents.csv",
+    pytest.param(PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"csv/directed/cit-Patents.csv",
                  marks=[pytest.mark.small, pytest.mark.directed]),
-    pytest.param("../datasets/csv/directed/soc-LiveJournal1.csv",
+    pytest.param(PurePath(
+        utils.RAPIDS_DATASET_ROOT_DIR)/"csv/directed/soc-LiveJournal1.csv",
                  marks=[pytest.mark.directed]),
 ]
 
