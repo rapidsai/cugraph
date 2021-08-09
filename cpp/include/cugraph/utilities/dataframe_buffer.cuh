@@ -27,7 +27,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -219,5 +218,4 @@ auto get_dataframe_buffer_end(BufferType& buffer)
     detail::get_dataframe_buffer_end_tuple_impl<T>(std::make_index_sequence<tuple_size>(), buffer));
 }
 
-}  // namespace experimental
 }  // namespace cugraph

@@ -25,10 +25,10 @@
 #include <cugraph/partition_manager.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/reduce_v.cuh>
 
-#include <thrust/count.h>
+#include <thrust/reduce.h>
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
@@ -38,11 +38,6 @@
 #include <gtest/gtest.h>
 
 #include <random>
-
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
 
 template <typename vertex_t, typename... T>
 struct property_transform : public thrust::unary_function<vertex_t, thrust::tuple<T...>> {
@@ -204,7 +199,7 @@ class Tests_MG_ReduceIfV
 
     // 2. create MG graph
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -213,7 +208,7 @@ class Tests_MG_ReduceIfV
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         handle, true, true);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -223,7 +218,7 @@ class Tests_MG_ReduceIfV
 
     auto mg_graph_view = mg_graph.view();
 
-    // 3. run MG count if
+    // 3. run MG reduce
 
     const int hash_bin_count = 5;
     const int initial_value  = 10;
@@ -233,7 +228,7 @@ class Tests_MG_ReduceIfV
       generate<result_t>::property((*d_mg_renumber_map_labels), hash_bin_count, handle);
     auto property_iter = get_property_iterator(property_data);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -245,19 +240,18 @@ class Tests_MG_ReduceIfV
                            property_iter + (*d_mg_renumber_map_labels).size(),
                            property_initial_value);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG count if took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG reduce took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     //// 4. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(
-        handle);
+      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
       std::tie(sg_graph, std::ignore) =
         input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
           handle, true, false);
@@ -276,7 +270,7 @@ class Tests_MG_ReduceIfV
                        sg_property_iter,
                        sg_property_iter + sg_graph_view.get_number_of_local_vertices(),
                        property_initial_value,
-                       cugraph::experimental::property_add<property_t>());
+                       cugraph::property_add<property_t>());
       result_compare<property_t> compare;
       ASSERT_TRUE(compare(expected_result, result));
     }
@@ -323,7 +317,22 @@ TEST_P(Tests_MG_ReduceIfV_File, CheckInt32Int32FloatTransposeFalse)
 TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int, false>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, int, false>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt32Int64FloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, int, false>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt64Int64FloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, int, false>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 TEST_P(Tests_MG_ReduceIfV_File, CheckInt32Int32FloatTransposeTrue)
@@ -335,7 +344,22 @@ TEST_P(Tests_MG_ReduceIfV_File, CheckInt32Int32FloatTransposeTrue)
 TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int, true>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, int, true>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt32Int64FloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, int, true>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_ReduceIfV_Rmat, CheckInt64Int64FloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, int, true>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -356,7 +380,11 @@ INSTANTIATE_TEST_SUITE_P(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_large_test,
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
   Tests_MG_ReduceIfV_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(

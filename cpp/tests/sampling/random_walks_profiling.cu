@@ -55,7 +55,7 @@ void fill_start(raft::handle_t const& handle,
                     [num_vertices] __device__(auto indx) { return indx % num_vertices; });
 }
 
-namespace impl_details = cugraph::experimental::detail;
+namespace impl_details = cugraph::detail;
 
 enum class traversal_id_t : int { HORIZONTAL = 0, VERTICAL };
 
@@ -171,7 +171,7 @@ void run(RandomWalks_Usecase const& configuration, traversal_id_t trv_id)
 {
   raft::handle_t handle{};
 
-  cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+  cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
   std::tie(graph, std::ignore) =
     cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
       handle, configuration.graph_file_full_path, configuration.test_weighted, false);

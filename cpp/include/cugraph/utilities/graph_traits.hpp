@@ -19,7 +19,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 // primary template:
 //
@@ -57,5 +56,4 @@ struct is_candidate {
     is_vertex_edge_combo<vertex_t, edge_t>::value && is_one_of<weight_t, float, double>::value;
 };
 
-}  // namespace experimental
 }  // namespace cugraph

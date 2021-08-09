@@ -17,9 +17,8 @@ import gc
 import cugraph
 import dask_cudf
 import cudf
-from cugraph.dask.common.mg_utils import (is_single_gpu,
-                                          setup_local_dask_cluster,
-                                          teardown_local_dask_cluster)
+from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 # The function selects personalization_perc% of accessible vertices in graph M
@@ -51,23 +50,15 @@ def personalize(vertices, personalization_perc):
 PERSONALIZATION_PERC = [0, 10, 50]
 
 
-@pytest.fixture(scope="module")
-def client_connection():
-    (cluster, client) = setup_local_dask_cluster(p2p=True)
-    yield client
-    teardown_local_dask_cluster(cluster, client)
-
-
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
-def test_dask_pagerank(client_connection, personalization_perc):
+def test_dask_pagerank(dask_client, personalization_perc):
     gc.collect()
 
-    # FIXME: update this to allow dataset to be parameterized and have dataset
-    # part of test param id (see other tests)
-    input_data_path = r"../datasets/karate.csv"
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
