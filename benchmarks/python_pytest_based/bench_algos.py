@@ -50,7 +50,7 @@ def createGraph(csvFileName, graphType=None):
         # not include those combinations to keep benchmark runtime and
         # complexity lower, and assume tests have coverage to verify
         # correctness for those combinations.
-        if "/directed/" in csvFileName:
+        if "directed" in csvFileName.parts:
             graphType = cugraph.structure.graph_classes.DiGraph
         else:
             graphType = cugraph.structure.graph_classes.Graph
