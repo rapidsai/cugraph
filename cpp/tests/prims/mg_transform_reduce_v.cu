@@ -43,7 +43,7 @@ template <typename vertex_t, typename T>
 struct property_transform : public thrust::unary_function<vertex_t, T> {
   int mod{};
   property_transform(int mod_count) : mod(mod_count) {}
-  __device__ auto operator()(const vertex_t& val)
+  constexpr __device__ auto operator()(const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto value = hash_func(val) % mod;
@@ -51,16 +51,16 @@ struct property_transform : public thrust::unary_function<vertex_t, T> {
   }
 };
 
-template <typename vertex_t, typename... T>
-struct property_transform<vertex_t, std::tuple<T...>>
-  : public thrust::unary_function<vertex_t, thrust::tuple<T...>> {
+template <typename vertex_t, typename... Args>
+struct property_transform<vertex_t, std::tuple<Args...>>
+  : public thrust::unary_function<vertex_t, thrust::tuple<Args...>> {
   int mod{};
   property_transform(int mod_count) : mod(mod_count) {}
-  __device__ auto operator()(const vertex_t& val)
+  constexpr __device__ auto operator()(const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto value = hash_func(val) % mod;
-    return thrust::make_tuple(static_cast<T>(value)...);
+    return thrust::make_tuple(static_cast<Args>(value)...);
   }
 };
 
@@ -80,6 +80,12 @@ template <typename... Args>
 struct result_compare<thrust::tuple<Args...>> {
   static constexpr double threshold_ratio{1e-3};
 
+  using Type = thrust::tuple<Args...>;
+  constexpr auto operator()(const Type& t1, const Type& t2)
+  {
+    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
+  }
+
  private:
   template <typename T>
   constexpr bool equal(T t1, T t2)
@@ -94,24 +100,17 @@ struct result_compare<thrust::tuple<Args...>> {
   {
     return (... && (equal(thrust::get<I>(t1), thrust::get<I>(t2))));
   }
-
- public:
-  using Type = thrust::tuple<Args...>;
-  constexpr auto operator()(const Type& t1, const Type& t2)
-  {
-    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
-  }
 };
 
 template <typename T>
 struct generate {
   static T initial_value(int init) { return static_cast<T>(init); }
 };
-template <typename... T>
-struct generate<std::tuple<T...>> {
-  static thrust::tuple<T...> initial_value(int init)
+template <typename... Args>
+struct generate<std::tuple<Args...>> {
+  static thrust::tuple<Args...> initial_value(int init)
   {
-    return thrust::make_tuple(static_cast<T>(init)...);
+    return thrust::make_tuple(static_cast<Args>(init)...);
   }
 };
 
@@ -218,7 +217,7 @@ class Tests_MG_TransformReduceV
         prop,
         property_initial_value,
         cugraph::property_add<property_t>());
-      result_compare<property_t> compare;
+      result_compare<property_t> compare{};
       ASSERT_TRUE(compare(expected_result, result));
     }
   }

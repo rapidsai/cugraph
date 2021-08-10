@@ -39,19 +39,19 @@
 
 #include <random>
 
-template <typename vertex_t, typename... T>
-struct property_transform : public thrust::unary_function<vertex_t, thrust::tuple<T...>> {
+template <typename vertex_t, typename... Args>
+struct property_transform : public thrust::unary_function<vertex_t, thrust::tuple<Args...>> {
   int mod{};
   property_transform(int mod_count) : mod(mod_count) {}
-  __device__ auto operator()(const vertex_t& val)
+  constexpr __device__ auto operator()(const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto value = hash_func(val) % mod;
-    return thrust::make_tuple(static_cast<T>(value)...);
+    return thrust::make_tuple(static_cast<Args>(value)...);
   }
 };
-template <typename vertex_t, template <typename...> typename Tuple, typename... T>
-struct property_transform<vertex_t, Tuple<T...>> : public property_transform<vertex_t, T...> {
+template <typename vertex_t, template <typename...> typename Tuple, typename... Args>
+struct property_transform<vertex_t, Tuple<Args...>> : public property_transform<vertex_t, Args...> {
 };
 
 template <typename Tuple, std::size_t... I>
@@ -60,11 +60,11 @@ auto make_iterator_tuple(Tuple& data, std::index_sequence<I...>)
   return thrust::make_tuple((std::get<I>(data).begin())...);
 }
 
-template <typename... T>
-auto get_zip_iterator(std::tuple<T...>& data)
+template <typename... Args>
+auto get_zip_iterator(std::tuple<Args...>& data)
 {
   return thrust::make_zip_iterator(make_iterator_tuple(
-    data, std::make_index_sequence<std::tuple_size<std::tuple<T...>>::value>()));
+    data, std::make_index_sequence<std::tuple_size<std::tuple<Args...>>::value>()));
 }
 
 template <typename T>
@@ -73,46 +73,46 @@ auto get_property_iterator(std::tuple<T>& data)
   return (std::get<0>(data)).begin();
 }
 
-template <typename T0, typename... T>
-auto get_property_iterator(std::tuple<T0, T...>& data)
+template <typename T0, typename... Args>
+auto get_property_iterator(std::tuple<T0, Args...>& data)
 {
   return get_zip_iterator(data);
 }
 
-template <typename... T>
+template <typename... Args>
 struct generate_impl {
-  static thrust::tuple<T...> initial_value(int init)
+  static thrust::tuple<Args...> initial_value(int init)
   {
-    return thrust::make_tuple(static_cast<T>(init)...);
+    return thrust::make_tuple(static_cast<Args>(init)...);
   }
   template <typename label_t>
-  static std::tuple<rmm::device_uvector<T>...> property(rmm::device_uvector<label_t>& labels,
-                                                        int hash_bin_count,
-                                                        raft::handle_t const& handle)
+  static std::tuple<rmm::device_uvector<Args>...> property(rmm::device_uvector<label_t>& labels,
+                                                           int hash_bin_count,
+                                                           raft::handle_t const& handle)
   {
-    auto data = std::make_tuple(rmm::device_uvector<T>(labels.size(), handle.get_stream())...);
+    auto data = std::make_tuple(rmm::device_uvector<Args>(labels.size(), handle.get_stream())...);
     auto zip  = get_zip_iterator(data);
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       labels.begin(),
                       labels.end(),
                       zip,
-                      property_transform<label_t, T...>(hash_bin_count));
+                      property_transform<label_t, Args...>(hash_bin_count));
     return data;
   }
   template <typename label_t>
-  static std::tuple<rmm::device_uvector<T>...> property(thrust::counting_iterator<label_t> begin,
-                                                        thrust::counting_iterator<label_t> end,
-                                                        int hash_bin_count,
-                                                        raft::handle_t const& handle)
+  static std::tuple<rmm::device_uvector<Args>...> property(thrust::counting_iterator<label_t> begin,
+                                                           thrust::counting_iterator<label_t> end,
+                                                           int hash_bin_count,
+                                                           raft::handle_t const& handle)
   {
     auto length = thrust::distance(begin, end);
-    auto data   = std::make_tuple(rmm::device_uvector<T>(length, handle.get_stream())...);
+    auto data   = std::make_tuple(rmm::device_uvector<Args>(length, handle.get_stream())...);
     auto zip    = get_zip_iterator(data);
     thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                       begin,
                       end,
                       zip,
-                      property_transform<label_t, T...>(hash_bin_count));
+                      property_transform<label_t, Args...>(hash_bin_count));
     return data;
   }
 };
@@ -160,8 +160,8 @@ template <typename T>
 struct generate : public generate_impl<T> {
   static T initial_value(int init) { return static_cast<T>(init); }
 };
-template <typename... T>
-struct generate<std::tuple<T...>> : public generate_impl<T...> {
+template <typename... Args>
+struct generate<std::tuple<Args...>> : public generate_impl<Args...> {
 };
 
 struct Prims_Usecase {
@@ -278,7 +278,7 @@ class Tests_MG_ReduceV
                        sg_property_iter + sg_graph_view.get_number_of_local_vertices(),
                        property_initial_value,
                        cugraph::property_add<property_t>());
-      result_compare<property_t> compare;
+      result_compare<property_t> compare{};
       ASSERT_TRUE(compare(expected_result, result));
     }
   }
