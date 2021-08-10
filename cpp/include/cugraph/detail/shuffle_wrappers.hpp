@@ -71,26 +71,27 @@ rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(raft::handle_t const& h
                                                          rmm::device_uvector<vertex_t>& d_vertices);
 
 /**
- * @brief    Groupby and count edgelist using the edge key function which returns the target local
- * partition ID.
+ * @brief Groupby and count edgelist using the key function which returns the target local partition
+ * ID for an edge.
  *
- * NOTE:  d_edgelist_rows, d_edgelist_cols and d_edgelist_weights
- *        are modified within this function (data is sorted)
- *        But the actual output is returned. The exact contents
- *        of d_edgelist_rows, d_edgelist_cols and d_edgelist_weights
- *        after the function is undefined.
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  *
- * @tparam         vertex_t             vertex type
- * @tparam         weight_t             weight type
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in/out] d_edgelist_majors Vertex IDs for rows (if the graph adjacency matrix is stored as is)
+ * or columns (if the graph adjacency matrix is stored transposed)
+ * @param[in/out] d_edgelist_minors Vertex IDs for columns (if the graph adjacency matrix is stored as
+ * is) or rows (if the graph adjacency matrix is stored transposed)
+ * @param[in/out] d_edgelist_weights Optional edge weights
+ * @param[in] groupby_and_count_local_partition If set to true, groupby and count edges based on
+ * (local partition ID, GPU ID) pairs (where GPU IDs are computed by applying the
+ * compute_gpu_id_from_vertex_t function to the minor vertex ID). If set to false, groupby and count
+ * edges by just local partition ID.
  *
- * @param[in]      handle               raft handle
- * @param[in/out]  d_edgelist_majors    vertex IDs for rows (if the graph adjacency matrix is stored
- * as is) or columns (if the graph adjacency matrix is stored transposed)
- * @param[in/out]  d_edgelist_minors    vertex IDs for columns (if the graph adjacency matrix is
- * stored as is) or rows (if the graph adjacency matrix is stored transposed)
- * @param[in/out]  d_edgelist_weights   optional edge weights
- *
- * @return tuple of shuffled rows, columns and optional weights
+ * @return A vector containing the number of edges in each local partition (if
+ * groupby_and_count_local_partition is false) or in each segment with the same (local partition ID,
+ * GPU ID) pair.
  */
 template <typename vertex_t, typename weight_t>
 rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
@@ -98,7 +99,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   rmm::device_uvector<vertex_t>& d_edgelist_majors,
   rmm::device_uvector<vertex_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
-  size_t number_of_local_adj_matrix_partitions);
+  bool groupby_and_count_local_partition = false);
 
 }  // namespace detail
 }  // namespace cugraph

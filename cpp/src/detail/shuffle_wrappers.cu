@@ -149,7 +149,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   rmm::device_uvector<vertex_t>& d_edgelist_majors,
   rmm::device_uvector<vertex_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
-  size_t number_of_local_adj_matrix_partitions)
+  bool groupby_and_count_local_partition)
 {
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
@@ -161,28 +161,57 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   auto const col_comm_size = col_comm.get_size();
   auto const col_comm_rank = col_comm.get_rank();
 
-  auto local_partition_id_op =
-    [comm_size,
-     key_func = cugraph::detail::compute_partition_id_from_edge_t<vertex_t>{
-       comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
-      return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
-             comm_size;  // global partition id to local partition id
-    };
-
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
 
-  return d_edgelist_weights ? cugraph::groupby_and_count(pair_first,
-                                                         pair_first + d_edgelist_majors.size(),
-                                                         d_edgelist_weights->begin(),
-                                                         local_partition_id_op,
-                                                         number_of_local_adj_matrix_partitions,
-                                                         handle.get_stream())
-                            : cugraph::groupby_and_count(pair_first,
-                                                         pair_first + d_edgelist_majors.size(),
-                                                         local_partition_id_op,
-                                                         number_of_local_adj_matrix_partitions,
-                                                         handle.get_stream());
+  if (groupby_and_count_local_partition) {
+    auto local_partition_id_gpu_id_pair_op =
+      [comm_size,
+       row_comm_size,
+       partition_id_key_func =
+         cugraph::detail::compute_partition_id_from_edge_t<vertex_t>{
+           comm_size, row_comm_size, col_comm_size},
+       gpu_id_key_func =
+         cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(auto pair) {
+        auto local_partition_id =
+          partition_id_key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
+          comm_size;  // global partition id to local partition id
+        return local_partition_id * row_comm_size +
+               (gpu_id_key_func(thrust::get<1>(pair)) % row_comm_size);
+      };
+
+    return d_edgelist_weights ? cugraph::groupby_and_count(pair_first,
+                                                           pair_first + d_edgelist_majors.size(),
+                                                           d_edgelist_weights->begin(),
+                                                           local_partition_id_gpu_id_pair_op,
+                                                           comm_size,
+                                                           handle.get_stream())
+                              : cugraph::groupby_and_count(pair_first,
+                                                           pair_first + d_edgelist_majors.size(),
+                                                           local_partition_id_gpu_id_pair_op,
+                                                           comm_size,
+                                                           handle.get_stream());
+  } else {
+    auto local_partition_id_op =
+      [comm_size,
+       key_func = cugraph::detail::compute_partition_id_from_edge_t<vertex_t>{
+         comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
+        return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
+               comm_size;  // global partition id to local partition id
+      };
+
+    return d_edgelist_weights ? cugraph::groupby_and_count(pair_first,
+                                                           pair_first + d_edgelist_majors.size(),
+                                                           d_edgelist_weights->begin(),
+                                                           local_partition_id_op,
+                                                           col_comm_size,
+                                                           handle.get_stream())
+                              : cugraph::groupby_and_count(pair_first,
+                                                           pair_first + d_edgelist_majors.size(),
+                                                           local_partition_id_op,
+                                                           col_comm_size,
+                                                           handle.get_stream());
+  }
 }
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
@@ -190,28 +219,28 @@ template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partiti
   rmm::device_uvector<int32_t>& d_edgelist_majors,
   rmm::device_uvector<int32_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
-  size_t number_of_local_adj_matrix_partitions);
+  bool groupby_and_counts_local_partition);
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>& d_edgelist_majors,
   rmm::device_uvector<int32_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
-  size_t number_of_local_adj_matrix_partitions);
+  bool groupby_and_counts_local_partition);
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>& d_edgelist_majors,
   rmm::device_uvector<int64_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
-  size_t number_of_local_adj_matrix_partitions);
+  bool groupby_and_counts_local_partition);
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>& d_edgelist_majors,
   rmm::device_uvector<int64_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
-  size_t number_of_local_adj_matrix_partitions);
+  bool groupby_and_counts_local_partition);
 
 }  // namespace detail
 }  // namespace cugraph

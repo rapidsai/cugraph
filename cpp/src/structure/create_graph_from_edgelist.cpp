@@ -66,8 +66,7 @@ create_graph_from_edgelist_impl(
     handle,
     store_transposed ? edgelist_cols : edgelist_rows,
     store_transposed ? edgelist_rows : edgelist_cols,
-    edgelist_weights,
-    col_comm_size);
+    edgelist_weights);
 
   std::vector<size_t> h_edge_counts(edge_counts.size());
   raft::update_host(

@@ -307,11 +307,7 @@ coarsen_graph(
     // groupby_adj_matrix_partition_and_shuffle_values).
 
     auto counts = cugraph::detail::groupby_and_count_edgelist_by_local_partition_id(
-      handle,
-      edgelist_major_vertices,
-      edgelist_minor_vertices,
-      edgelist_weights,
-      graph_view.get_number_of_local_adj_matrix_partitions());
+      handle, edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights);
 
     std::vector<size_t> h_counts(counts.size());
     raft::update_host(h_counts.data(), counts.data(), counts.size(), handle.get_stream());
