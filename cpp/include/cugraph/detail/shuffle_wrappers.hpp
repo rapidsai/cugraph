@@ -22,53 +22,43 @@ namespace cugraph {
 namespace detail {
 
 /**
- * @brief    Shuffle edgelist using the edge key function which returns the target GPU ID.
+ * @brief Shuffle edgelist using the edge key function which returns the target GPU ID.
  *
- * NOTE:  d_edgelist_rows, d_edgelist_cols and d_edgelist_weights
- *        are modified within this function (data is sorted)
- *        But the actual output is returned. The exact contents
- *        of d_edgelist_rows, d_edgelist_cols and d_edgelist_weights
- *        after the function is undefined.
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  *
- * @tparam         vertex_t             vertex type
- * @tparam         weight_t             weight type
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] d_edgelist_majors Vertex IDs for rows (if the graph adjacency matrix is stored as is)
+ * or columns (if the graph adjacency matrix is stored transposed)
+ * @param[in] d_edgelist_minors Vertex IDs for columns (if the graph adjacency matrix is stored as
+ * is) or rows (if the graph adjacency matrix is stored transposed)
+ * @param[in] d_edgelist_weights Optional edge weights
  *
- * @param[in]      handle               raft handle
- * @param[in/out]  d_edgelist_majors    vertex IDs for rows (if the graph adjacency matrix is stored
- * as is) or columns (if the graph adjacency matrix is stored transposed)
- * @param[in/out]  d_edgelist_minors    vertex IDs for columns (if the graph adjacency matrix is
- * stored as is) or rows (if the graph adjacency matrix is stored transposed)
- * @param[in/out]  d_edgelist_weights   optional edge weights
- *
- * @return tuple of shuffled major vertices, minor vertices and optional weights
+ * @return Tuple of shuffled major vertices, minor vertices and optional weights
  */
 template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                           rmm::device_uvector<vertex_t>& d_edgelist_majors,
-                           rmm::device_uvector<vertex_t>& d_edgelist_minors,
-                           std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights);
+                           rmm::device_uvector<vertex_t>&& d_edgelist_majors,
+                           rmm::device_uvector<vertex_t>&& d_edgelist_minors,
+                           std::optional<rmm::device_uvector<weight_t>>&& d_edgelist_weights);
 
 /**
- * @brief    Shuffle vertices using the vertex key function which returns the target GPU ID.
+ * @brief Shuffle vertices using the vertex key function which returns the target GPU ID.
  *
- * NOTE:  d_value is modified within this function
- *        (data is sorted).  But the actual output is returned.
- *        The exact contents of d_value after the function is
- *        undefined.
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  *
- * @tparam         vertex_t      vertex type
- *
- * @param[in]      handle        raft handle
- * @param[in/out]  d_vertices    vertex ids to shuffle
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * @param[in] d_vertices Vertex IDs to shuffle
  *
  * @return device vector of shuffled vertices
  */
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(raft::handle_t const& handle,
-                                                         rmm::device_uvector<vertex_t>& d_vertices);
+rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(
+  raft::handle_t const& handle, rmm::device_uvector<vertex_t>&& d_vertices);
 
 /**
  * @brief Groupby and count edgelist using the key function which returns the target local partition
@@ -79,10 +69,10 @@ rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(raft::handle_t const& h
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
- * @param[in/out] d_edgelist_majors Vertex IDs for rows (if the graph adjacency matrix is stored as is)
- * or columns (if the graph adjacency matrix is stored transposed)
- * @param[in/out] d_edgelist_minors Vertex IDs for columns (if the graph adjacency matrix is stored as
- * is) or rows (if the graph adjacency matrix is stored transposed)
+ * @param[in/out] d_edgelist_majors Vertex IDs for rows (if the graph adjacency matrix is stored as
+ * is) or columns (if the graph adjacency matrix is stored transposed)
+ * @param[in/out] d_edgelist_minors Vertex IDs for columns (if the graph adjacency matrix is stored
+ * as is) or rows (if the graph adjacency matrix is stored transposed)
  * @param[in/out] d_edgelist_weights Optional edge weights
  * @param[in] groupby_and_count_local_partition If set to true, groupby and count edges based on
  * (local partition ID, GPU ID) pairs (where GPU IDs are computed by applying the

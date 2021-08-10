@@ -32,9 +32,9 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                           rmm::device_uvector<vertex_t>& d_edgelist_majors,
-                           rmm::device_uvector<vertex_t>& d_edgelist_minors,
-                           std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights)
+                           rmm::device_uvector<vertex_t>&& d_edgelist_majors,
+                           rmm::device_uvector<vertex_t>&& d_edgelist_minors,
+                           std::optional<rmm::device_uvector<weight_t>>&& d_edgelist_weights)
 {
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
@@ -90,37 +90,37 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
 shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                           rmm::device_uvector<int32_t>& d_edgelist_majors,
-                           rmm::device_uvector<int32_t>& d_edgelist_minors,
-                           std::optional<rmm::device_uvector<float>>& d_edgelist_weights);
+                           rmm::device_uvector<int32_t>&& d_edgelist_majors,
+                           rmm::device_uvector<int32_t>&& d_edgelist_minors,
+                           std::optional<rmm::device_uvector<float>>&& d_edgelist_weights);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
 shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                           rmm::device_uvector<int32_t>& d_edgelist_majors,
-                           rmm::device_uvector<int32_t>& d_edgelist_minors,
-                           std::optional<rmm::device_uvector<double>>& d_edgelist_weights);
+                           rmm::device_uvector<int32_t>&& d_edgelist_majors,
+                           rmm::device_uvector<int32_t>&& d_edgelist_minors,
+                           std::optional<rmm::device_uvector<double>>&& d_edgelist_weights);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
 shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                           rmm::device_uvector<int64_t>& d_edgelist_majors,
-                           rmm::device_uvector<int64_t>& d_edgelist_minors,
-                           std::optional<rmm::device_uvector<float>>& d_edgelist_weights);
+                           rmm::device_uvector<int64_t>&& d_edgelist_majors,
+                           rmm::device_uvector<int64_t>&& d_edgelist_minors,
+                           std::optional<rmm::device_uvector<float>>&& d_edgelist_weights);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
 shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                           rmm::device_uvector<int64_t>& d_edgelist_majors,
-                           rmm::device_uvector<int64_t>& d_edgelist_minors,
-                           std::optional<rmm::device_uvector<double>>& d_edgelist_weights);
+                           rmm::device_uvector<int64_t>&& d_edgelist_majors,
+                           rmm::device_uvector<int64_t>&& d_edgelist_minors,
+                           std::optional<rmm::device_uvector<double>>&& d_edgelist_weights);
 
 template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(raft::handle_t const& handle,
-                                                         rmm::device_uvector<vertex_t>& d_vertices)
+                                                         rmm::device_uvector<vertex_t>&& d_vertices)
 {
   auto& comm           = handle.get_comms();
   auto const comm_size = comm.get_size();
@@ -138,10 +138,10 @@ rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(raft::handle_t const& h
 }
 
 template rmm::device_uvector<int32_t> shuffle_vertices_by_gpu_id(
-  raft::handle_t const& handle, rmm::device_uvector<int32_t>& d_vertices);
+  raft::handle_t const& handle, rmm::device_uvector<int32_t>&& d_vertices);
 
 template rmm::device_uvector<int64_t> shuffle_vertices_by_gpu_id(
-  raft::handle_t const& handle, rmm::device_uvector<int64_t>& d_vertices);
+  raft::handle_t const& handle, rmm::device_uvector<int64_t>&& d_vertices);
 
 template <typename vertex_t, typename weight_t>
 rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(

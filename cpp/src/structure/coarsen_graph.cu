@@ -297,8 +297,10 @@ coarsen_graph(
     // 1-2. globally shuffle
 
     std::tie(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights) =
-      cugraph::detail::shuffle_edgelist_by_gpu_id(
-        handle, edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights);
+      cugraph::detail::shuffle_edgelist_by_gpu_id(handle,
+                                                  std::move(edgelist_major_vertices),
+                                                  std::move(edgelist_minor_vertices),
+                                                  std::move(edgelist_weights));
 
     // 1-3. append data to local adjacency matrix partitions
 
@@ -403,7 +405,7 @@ coarsen_graph(
                                     unique_labels.end())),
     handle.get_stream());
 
-  unique_labels = cugraph::detail::shuffle_vertices_by_gpu_id(handle, unique_labels);
+  unique_labels = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(unique_labels));
 
   thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                unique_labels.begin(),
