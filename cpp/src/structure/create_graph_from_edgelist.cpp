@@ -60,14 +60,14 @@ create_graph_from_edgelist_impl(
   auto const col_comm_size = col_comm.get_size();
 
   // 1. groupby edges to their target local adjacency matrix partition
-std::cout << "create_graph_from_edgelist_impl 1. groupby" << std::endl;
+  std::cout << "create_graph_from_edgelist_impl 1. groupby" << std::endl;
 
-  auto edge_counts =
-    cugraph::detail::groupby_and_count_edgelist_by_local_partition_id(handle,
-                                               store_transposed ? edgelist_cols : edgelist_rows,
-                                               store_transposed ? edgelist_rows : edgelist_cols,
-                                               edgelist_weights,
-                                               col_comm_size);
+  auto edge_counts = cugraph::detail::groupby_and_count_edgelist_by_local_partition_id(
+    handle,
+    store_transposed ? edgelist_cols : edgelist_rows,
+    store_transposed ? edgelist_rows : edgelist_cols,
+    edgelist_weights,
+    col_comm_size);
 
   std::vector<size_t> h_edge_counts(edge_counts.size());
   raft::update_host(
@@ -78,7 +78,7 @@ std::cout << "create_graph_from_edgelist_impl 1. groupby" << std::endl;
   std::partial_sum(h_edge_counts.begin(), h_edge_counts.end() - 1, h_displacements.begin() + 1);
 
   // 2. renumber
-std::cout << "create_graph_from_edgelist_impl 2. renumber" << std::endl;
+  std::cout << "create_graph_from_edgelist_impl 2. renumber" << std::endl;
 
   rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
   cugraph::partition_t<vertex_t> partition{};
@@ -103,7 +103,7 @@ std::cout << "create_graph_from_edgelist_impl 2. renumber" << std::endl;
   }
 
   // 3. create a graph
-std::cout << "create_graph_from_edgelist_impl 3. create graph" << std::endl;
+  std::cout << "create_graph_from_edgelist_impl 3. create graph" << std::endl;
 
   std::vector<cugraph::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(h_edge_counts.size());
   for (size_t i = 0; i < h_edge_counts.size(); ++i) {

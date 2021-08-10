@@ -298,7 +298,7 @@ coarsen_graph(
 
     std::tie(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights) =
       cugraph::detail::shuffle_edgelist_by_gpu_id(
-        handle, edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights, false);
+        handle, edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights);
 
     // 1-3. append data to local adjacency matrix partitions
 

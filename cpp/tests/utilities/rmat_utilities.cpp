@@ -156,7 +156,10 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
   if (multi_gpu) {
     std::tie(d_edgelist_rows, d_edgelist_cols, d_edgelist_weights) =
       cugraph::detail::shuffle_edgelist_by_gpu_id(
-        handle, d_edgelist_rows, d_edgelist_cols, d_edgelist_weights, store_transposed);
+        handle,
+        store_transposed ? d_edgelist_cols : d_edgelist_rows,
+        store_transposed ? d_edgelist_cols : d_edgelist_rows,
+        d_edgelist_weights);
   }
 
   rmm::device_uvector<vertex_t> d_vertices(0, handle.get_stream());

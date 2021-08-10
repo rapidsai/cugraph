@@ -32,10 +32,9 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                         rmm::device_uvector<vertex_t>& d_edgelist_rows,
-                         rmm::device_uvector<vertex_t>& d_edgelist_cols,
-                         std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
-                         bool store_transposed)
+                           rmm::device_uvector<vertex_t>& d_edgelist_majors,
+                           rmm::device_uvector<vertex_t>& d_edgelist_minors,
+                           std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights)
 {
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
@@ -44,24 +43,20 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
   auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_size = col_comm.get_size();
 
-  // TODO:  Make a shuffle_edges and shuffle_vertices out of these...
-  rmm::device_uvector<vertex_t> d_rx_edgelist_rows(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> d_rx_edgelist_cols(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_rx_edgelist_majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_rx_edgelist_minors(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_rx_edgelist_weights{std::nullopt};
   if (d_edgelist_weights) {
-    auto edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(store_transposed ? d_edgelist_cols.begin() : d_edgelist_rows.begin(),
-                         store_transposed ? d_edgelist_rows.begin() : d_edgelist_cols.begin(),
-                         (*d_edgelist_weights).begin()));
+    auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
+      d_edgelist_majors.begin(), d_edgelist_minors.begin(), (*d_edgelist_weights).begin()));
 
-    std::forward_as_tuple(std::tie(store_transposed ? d_rx_edgelist_cols : d_rx_edgelist_rows,
-                                   store_transposed ? d_rx_edgelist_rows : d_rx_edgelist_cols,
-                                   d_rx_edgelist_weights),
-                          std::ignore) =
+    std::forward_as_tuple(
+      std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors, d_rx_edgelist_weights),
+      std::ignore) =
       cugraph::groupby_gpuid_and_shuffle_values(
         comm,  // handle.get_comms(),
         edge_first,
-        edge_first + d_edgelist_rows.size(),
+        edge_first + d_edgelist_majors.size(),
         [key_func =
            cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
              comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
@@ -70,16 +65,14 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
         handle.get_stream());
   } else {
     auto edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(store_transposed ? d_edgelist_cols.begin() : d_edgelist_rows.begin(),
-                         store_transposed ? d_edgelist_rows.begin() : d_edgelist_cols.begin()));
+      thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
 
-    std::forward_as_tuple(std::tie(store_transposed ? d_rx_edgelist_cols : d_rx_edgelist_rows,
-                                   store_transposed ? d_rx_edgelist_rows : d_rx_edgelist_cols),
+    std::forward_as_tuple(std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors),
                           std::ignore) =
       cugraph::groupby_gpuid_and_shuffle_values(
         comm,  // handle.get_comms(),
         edge_first,
-        edge_first + d_edgelist_rows.size(),
+        edge_first + d_edgelist_majors.size(),
         [key_func =
            cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
              comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
@@ -88,49 +81,46 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
         handle.get_stream());
   }
 
-  return std::make_tuple(
-    std::move(d_rx_edgelist_rows), std::move(d_rx_edgelist_cols), std::move(d_rx_edgelist_weights));
+  return std::make_tuple(std::move(d_rx_edgelist_majors),
+                         std::move(d_rx_edgelist_minors),
+                         std::move(d_rx_edgelist_weights));
 }
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
 shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                         rmm::device_uvector<int32_t>& d_edgelist_rows,
-                         rmm::device_uvector<int32_t>& d_edgelist_cols,
-                         std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
-                         bool store_transposed);
+                           rmm::device_uvector<int32_t>& d_edgelist_majors,
+                           rmm::device_uvector<int32_t>& d_edgelist_minors,
+                           std::optional<rmm::device_uvector<float>>& d_edgelist_weights);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
 shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                         rmm::device_uvector<int32_t>& d_edgelist_rows,
-                         rmm::device_uvector<int32_t>& d_edgelist_cols,
-                         std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
-                         bool store_transposed);
+                           rmm::device_uvector<int32_t>& d_edgelist_majors,
+                           rmm::device_uvector<int32_t>& d_edgelist_minors,
+                           std::optional<rmm::device_uvector<double>>& d_edgelist_weights);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
 shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                         rmm::device_uvector<int64_t>& d_edgelist_rows,
-                         rmm::device_uvector<int64_t>& d_edgelist_cols,
-                         std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
-                         bool store_transposed);
+                           rmm::device_uvector<int64_t>& d_edgelist_majors,
+                           rmm::device_uvector<int64_t>& d_edgelist_minors,
+                           std::optional<rmm::device_uvector<float>>& d_edgelist_weights);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
 shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                         rmm::device_uvector<int64_t>& d_edgelist_rows,
-                         rmm::device_uvector<int64_t>& d_edgelist_cols,
-                         std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
-                         bool store_transposed);
+                           rmm::device_uvector<int64_t>& d_edgelist_majors,
+                           rmm::device_uvector<int64_t>& d_edgelist_minors,
+                           std::optional<rmm::device_uvector<double>>& d_edgelist_weights);
 
 template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(raft::handle_t const& handle,
-                                               rmm::device_uvector<vertex_t>& d_vertices)
+                                                         rmm::device_uvector<vertex_t>& d_vertices)
 {
   auto& comm           = handle.get_comms();
   auto const comm_size = comm.get_size();
@@ -147,17 +137,17 @@ rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(raft::handle_t const& h
   return d_rx_vertices;
 }
 
-template rmm::device_uvector<int32_t> shuffle_vertices_by_gpu_id(raft::handle_t const& handle,
-                                                       rmm::device_uvector<int32_t>& d_vertices);
+template rmm::device_uvector<int32_t> shuffle_vertices_by_gpu_id(
+  raft::handle_t const& handle, rmm::device_uvector<int32_t>& d_vertices);
 
-template rmm::device_uvector<int64_t> shuffle_vertices_by_gpu_id(raft::handle_t const& handle,
-                                                       rmm::device_uvector<int64_t>& d_vertices);
+template rmm::device_uvector<int64_t> shuffle_vertices_by_gpu_id(
+  raft::handle_t const& handle, rmm::device_uvector<int64_t>& d_vertices);
 
 template <typename vertex_t, typename weight_t>
 rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>& d_edgelist_rows,
-  rmm::device_uvector<vertex_t>& d_edgelist_cols,
+  rmm::device_uvector<vertex_t>& d_edgelist_majors,
+  rmm::device_uvector<vertex_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
   size_t number_of_local_adj_matrix_partitions)
 {
@@ -179,17 +169,17 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
              comm_size;  // global partition id to local partition id
     };
 
-  auto pair_first =
-    thrust::make_zip_iterator(thrust::make_tuple(d_edgelist_rows.begin(), d_edgelist_cols.begin()));
+  auto pair_first = thrust::make_zip_iterator(
+    thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
 
   return d_edgelist_weights ? cugraph::groupby_and_count(pair_first,
-                                                         pair_first + d_edgelist_rows.size(),
+                                                         pair_first + d_edgelist_majors.size(),
                                                          d_edgelist_weights->begin(),
                                                          local_partition_id_op,
                                                          number_of_local_adj_matrix_partitions,
                                                          handle.get_stream())
                             : cugraph::groupby_and_count(pair_first,
-                                                         pair_first + d_edgelist_rows.size(),
+                                                         pair_first + d_edgelist_majors.size(),
                                                          local_partition_id_op,
                                                          number_of_local_adj_matrix_partitions,
                                                          handle.get_stream());
@@ -197,29 +187,29 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>& d_edgelist_rows,
-  rmm::device_uvector<int32_t>& d_edgelist_cols,
+  rmm::device_uvector<int32_t>& d_edgelist_majors,
+  rmm::device_uvector<int32_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
   size_t number_of_local_adj_matrix_partitions);
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>& d_edgelist_rows,
-  rmm::device_uvector<int32_t>& d_edgelist_cols,
+  rmm::device_uvector<int32_t>& d_edgelist_majors,
+  rmm::device_uvector<int32_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
   size_t number_of_local_adj_matrix_partitions);
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>& d_edgelist_rows,
-  rmm::device_uvector<int64_t>& d_edgelist_cols,
+  rmm::device_uvector<int64_t>& d_edgelist_majors,
+  rmm::device_uvector<int64_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
   size_t number_of_local_adj_matrix_partitions);
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>& d_edgelist_rows,
-  rmm::device_uvector<int64_t>& d_edgelist_cols,
+  rmm::device_uvector<int64_t>& d_edgelist_majors,
+  rmm::device_uvector<int64_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
   size_t number_of_local_adj_matrix_partitions);
 
