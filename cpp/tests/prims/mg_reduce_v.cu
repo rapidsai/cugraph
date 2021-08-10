@@ -135,7 +135,7 @@ struct result_compare<thrust::tuple<Args...>> {
 
  private:
   template <typename T>
-  bool equal(T t1, T t2)
+  constexpr bool equal(T t1, T t2)
   {
     if constexpr (std::is_floating_point_v<T>) {
       return std::abs(t1 - t2) < (std::max(t1, t2) * threshold_ratio);
