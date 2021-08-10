@@ -1052,6 +1052,8 @@ struct coo_convertor_t {
  * (compressed) format; when padding is used the output is a matrix of vertex paths and a matrix of
  * edges paths (weights); in this case the matrices are stored in row major order; the vertex path
  * matrix is padded with `num_vertices` values and the weight matrix is padded with `0` values;
+ * @param selector_type identifier for sampling strategy: uniform, biased, etc.; defaults to
+ * uniform = 0;
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
  * rmm::device_uvector<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced
  * case (default), the return consists of corresponding vertex and edge weights for each, and
