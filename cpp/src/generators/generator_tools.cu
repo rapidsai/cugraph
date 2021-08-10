@@ -16,7 +16,7 @@
 
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <experimental/scramble.cuh>
+#include <generators/scramble.cuh>
 
 #include <raft/cuda_utils.cuh>
 
@@ -76,9 +76,8 @@ void scramble_vertex_ids(raft::handle_t const& handle,
                     pair_first + d_src_v.size(),
                     pair_first,
                     [scale] __device__(auto pair) {
-                      return thrust::make_tuple(
-                        experimental::detail::scramble(thrust::get<0>(pair), scale),
-                        experimental::detail::scramble(thrust::get<1>(pair), scale));
+                      return thrust::make_tuple(detail::scramble(thrust::get<0>(pair), scale),
+                                                detail::scramble(thrust::get<1>(pair), scale));
                     });
 }
 

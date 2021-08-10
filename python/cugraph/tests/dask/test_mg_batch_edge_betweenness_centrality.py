@@ -17,6 +17,7 @@ import numpy as np
 from cugraph.dask.common.mg_utils import is_single_gpu
 
 from cugraph.tests.dask.mg_context import MGContext, skip_if_not_enough_devices
+from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 # Get parameters from standard betwenness_centrality_test
 from cugraph.tests.test_edge_betweenness_centrality import (
@@ -36,7 +37,16 @@ from cugraph.tests.test_edge_betweenness_centrality import (
 # =============================================================================
 # Parameters
 # =============================================================================
-DATASETS = ["../datasets/karate.csv"]
+DATASETS = [(RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()]
+
+# FIXME: Certain test running scripts assume they have control of the number of
+# GPUs available and the Dask cluster setup/teardown procedure when running
+# tests, making the use of preset device counts and the tests performing
+# cluster setup/teardown incompatible with the assumptions made by these types
+# of test running scripts. The "preset_gpu_count" marker is provided so test
+# scripts can filter these tests out. Consider a different mechanism that's
+# compatible with testing scripts that need to control GPU count and cluster
+# setup/teardown.
 MG_DEVICE_COUNT_OPTIONS = [pytest.param(1, marks=pytest.mark.preset_gpu_count),
                            pytest.param(2, marks=pytest.mark.preset_gpu_count),
                            pytest.param(3, marks=pytest.mark.preset_gpu_count),

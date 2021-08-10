@@ -26,17 +26,8 @@ import dask
 import cudf
 from cugraph.tests import utils
 from cugraph.structure.number_map import NumberMap
-from cugraph.dask.common.mg_utils import (is_single_gpu,
-                                          setup_local_dask_cluster,
-                                          teardown_local_dask_cluster,
-                                          get_visible_devices)
-
-
-@pytest.fixture(scope="module")
-def client_connection():
-    (cluster, client) = setup_local_dask_cluster(p2p=True)
-    yield client
-    teardown_local_dask_cluster(cluster, client)
+from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 @pytest.mark.skipif(
@@ -45,7 +36,7 @@ def client_connection():
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED,
                          ids=[f"dataset={d.as_posix()}"
                               for d in utils.DATASETS_UNRENUMBERED])
-def test_mg_renumber(graph_file, client_connection):
+def test_mg_renumber(graph_file, dask_client):
     gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
@@ -61,7 +52,7 @@ def test_mg_renumber(graph_file, client_connection):
     gdf["dst"] = destinations + translate
 
     ddf = dask.dataframe.from_pandas(
-        gdf, npartitions=len(get_visible_devices()))
+        gdf, npartitions=len(dask_client.scheduler_info()['workers']))
 
     # preserve_order is not supported for MG
     renumbered_df, renumber_map = NumberMap.renumber(ddf,
@@ -93,7 +84,7 @@ def test_mg_renumber(graph_file, client_connection):
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED,
                          ids=[f"dataset={d.as_posix()}"
                               for d in utils.DATASETS_UNRENUMBERED])
-def test_mg_renumber_add_internal_vertex_id(graph_file, client_connection):
+def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
     gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
@@ -110,7 +101,7 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, client_connection):
     gdf["weight"] = gdf.index.astype(np.float)
 
     ddf = dask.dataframe.from_pandas(
-        gdf, npartitions=len(get_visible_devices()))
+        gdf, npartitions=len(dask_client.scheduler_info()['workers']))
 
     ren2, num2 = NumberMap.renumber(
         ddf, ["src", "src_old"], ["dst", "dst_old"]
@@ -129,12 +120,13 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, client_connection):
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_dask_pagerank(client_connection):
+def test_dask_pagerank(dask_client):
     gc.collect()
 
     pandas.set_option("display.max_rows", 10000)
 
-    input_data_path = r"../datasets/karate.csv"
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(

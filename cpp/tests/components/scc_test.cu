@@ -33,11 +33,6 @@
 #include <algorithm>
 #include <iterator>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 template <typename T>
 using DVector = rmm::device_vector<T>;
 
@@ -109,7 +104,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
   static void SetupTestCase() {}
   static void TearDownTestCase()
   {
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       for (unsigned int i = 0; i < strongly_cc_time.size(); ++i) {
         std::cout << strongly_cc_time[i] << std::endl;
       }
@@ -186,7 +181,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
 
     size_t count = 0;
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       hr_clock.start();
       cugraph::connected_components(
         G, cugraph::cugraph_cc_t::CUGRAPH_STRONG, d_labels.data().get());

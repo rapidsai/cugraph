@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <thrust/binary_search.h>
@@ -29,7 +29,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -301,5 +300,4 @@ class matrix_partition_device_view_t<vertex_t,
   vertex_t number_of_vertices_;
 };
 
-}  // namespace experimental
 }  // namespace cugraph

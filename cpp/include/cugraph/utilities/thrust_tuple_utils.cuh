@@ -26,7 +26,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -215,5 +214,4 @@ struct block_reduce_thrust_tuple {
   }
 };
 
-}  // namespace experimental
 }  // namespace cugraph

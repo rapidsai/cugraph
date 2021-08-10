@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/prims/reduce_op.cuh>
@@ -39,7 +39,6 @@
 #include <utility>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -796,5 +795,4 @@ void copy_v_transform_reduce_out_nbr(
                                              vertex_value_output_first);
 }
 
-}  // namespace experimental
 }  // namespace cugraph

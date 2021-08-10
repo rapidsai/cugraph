@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
@@ -26,7 +26,6 @@
 #include <thrust/reduce.h>
 
 namespace cugraph {
-namespace experimental {
 
 /**
  * @brief Reduce the vertex properties.
@@ -101,5 +100,4 @@ T reduce_v(raft::handle_t const& handle,
   return ret;
 }
 
-}  // namespace experimental
 }  // namespace cugraph
