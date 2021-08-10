@@ -133,6 +133,12 @@ template <typename... Args>
 struct result_compare<thrust::tuple<Args...>> {
   static constexpr double threshold_ratio{1e-3};
 
+  using Type = thrust::tuple<Args...>;
+  constexpr auto operator()(const Type& t1, const Type& t2)
+  {
+    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
+  }
+
  private:
   template <typename T>
   constexpr bool equal(T t1, T t2)
@@ -146,13 +152,6 @@ struct result_compare<thrust::tuple<Args...>> {
   constexpr auto equality_impl(T& t1, T& t2, std::index_sequence<I...>)
   {
     return (... && (equal(thrust::get<I>(t1), thrust::get<I>(t2))));
-  }
-
- public:
-  using Type = thrust::tuple<Args...>;
-  constexpr auto operator()(const Type& t1, const Type& t2)
-  {
-    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
   }
 };
 
