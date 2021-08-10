@@ -155,7 +155,7 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
 
   if (multi_gpu) {
     std::tie(d_edgelist_rows, d_edgelist_cols, d_edgelist_weights) =
-      cugraph::detail::shuffle_edgelist_by_edge(
+      cugraph::detail::shuffle_edgelist_by_gpu_id(
         handle, d_edgelist_rows, d_edgelist_cols, d_edgelist_weights, store_transposed);
   }
 
@@ -172,7 +172,7 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
                                    partition_vertex_firsts[i]);
   }
 
-  if (multi_gpu) { d_vertices = cugraph::detail::shuffle_vertices(handle, d_vertices); }
+  if (multi_gpu) { d_vertices = cugraph::detail::shuffle_vertices_by_gpu_id(handle, d_vertices); }
 
   return cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(

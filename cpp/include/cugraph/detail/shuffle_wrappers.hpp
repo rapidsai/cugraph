@@ -22,7 +22,7 @@ namespace cugraph {
 namespace detail {
 
 /**
- * @brief    Shuffle edgelist using the edge key function
+ * @brief    Shuffle edgelist using the edge key function which returns the target GPU ID.
  *
  * NOTE:  d_edgelist_rows, d_edgelist_cols and d_edgelist_weights
  *        are modified within this function (data is sorted)
@@ -46,14 +46,14 @@ template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-shuffle_edgelist_by_edge(raft::handle_t const& handle,
+shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>& d_edgelist_rows,
                          rmm::device_uvector<vertex_t>& d_edgelist_cols,
                          std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
                          bool store_transposed);
 
 /**
- * @brief    Shuffle vertices using the vertex key function
+ * @brief    Shuffle vertices using the vertex key function which returns the target GPU ID.
  *
  * NOTE:  d_value is modified within this function
  *        (data is sorted).  But the actual output is returned.
@@ -68,11 +68,11 @@ shuffle_edgelist_by_edge(raft::handle_t const& handle,
  * @return device vector of shuffled vertices
  */
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_vertices(raft::handle_t const& handle,
+rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(raft::handle_t const& handle,
                                                rmm::device_uvector<vertex_t>& d_vertices);
 
 /**
- * @brief    Groupby and count edgelist using the edge key function
+ * @brief    Groupby and count edgelist using the edge key function which returns the target local partition ID.
  *
  * NOTE:  d_edgelist_rows, d_edgelist_cols and d_edgelist_weights
  *        are modified within this function (data is sorted)
@@ -91,7 +91,7 @@ rmm::device_uvector<vertex_t> shuffle_vertices(raft::handle_t const& handle,
  * @return tuple of shuffled rows, columns and optional weights
  */
 template <typename vertex_t, typename weight_t>
-rmm::device_uvector<size_t> groupby_and_count_by_edge(
+rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>& d_edgelist_rows,
   rmm::device_uvector<vertex_t>& d_edgelist_cols,
