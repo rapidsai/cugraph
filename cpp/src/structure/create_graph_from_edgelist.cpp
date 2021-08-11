@@ -42,7 +42,7 @@ std::enable_if_t<
              std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(
   raft::handle_t const& handle,
-  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_local_vertex_span,
+  std::optional<std::tuple<vertex_t const*, vertex_t>> local_vertex_span,
   rmm::device_uvector<vertex_t>&& edgelist_rows,
   rmm::device_uvector<vertex_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
@@ -98,7 +98,7 @@ create_graph_from_edgelist_impl(
     std::tie(
       renumber_map_labels, partition, number_of_vertices, number_of_edges, *segment_offsets) =
       cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-        handle, optional_local_vertex_span, major_ptrs, minor_ptrs, counts);
+        handle, local_vertex_span, major_ptrs, minor_ptrs, counts, std::nullopt);
   }
 
   // 3. create a graph
@@ -136,14 +136,13 @@ std::enable_if_t<
   !multi_gpu,
   std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
              std::optional<rmm::device_uvector<vertex_t>>>>
-create_graph_from_edgelist_impl(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
-  rmm::device_uvector<vertex_t>&& edgelist_rows,
-  rmm::device_uvector<vertex_t>&& edgelist_cols,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  graph_properties_t graph_properties,
-  bool renumber)
+create_graph_from_edgelist_impl(raft::handle_t const& handle,
+                                std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
+                                rmm::device_uvector<vertex_t>&& edgelist_rows,
+                                rmm::device_uvector<vertex_t>&& edgelist_cols,
+                                std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                                graph_properties_t graph_properties,
+                                bool renumber)
 {
   auto renumber_map_labels =
     renumber ? std::make_optional<rmm::device_uvector<vertex_t>>(0, handle.get_stream())
@@ -154,7 +153,7 @@ create_graph_from_edgelist_impl(
     std::tie(*renumber_map_labels, *segment_offsets) =
       cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle,
-        optional_vertex_span,
+        vertex_span,
         store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
         store_transposed ? edgelist_rows.data() : edgelist_cols.data(),
         static_cast<edge_t>(edgelist_rows.size()));
@@ -164,8 +163,8 @@ create_graph_from_edgelist_impl(
   if (renumber) {
     num_vertices = static_cast<vertex_t>((*renumber_map_labels).size());
   } else {
-    if (optional_vertex_span) {
-      num_vertices = std::get<1>(*optional_vertex_span);
+    if (vertex_span) {
+      num_vertices = std::get<1>(*vertex_span);
     } else {
       num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
                            handle.get_stream_view(), edgelist_rows, edgelist_cols);
@@ -196,18 +195,17 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
-create_graph_from_edgelist(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
-  rmm::device_uvector<vertex_t>&& edgelist_rows,
-  rmm::device_uvector<vertex_t>&& edgelist_cols,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  graph_properties_t graph_properties,
-  bool renumber)
+create_graph_from_edgelist(raft::handle_t const& handle,
+                           std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
+                           rmm::device_uvector<vertex_t>&& edgelist_rows,
+                           rmm::device_uvector<vertex_t>&& edgelist_cols,
+                           std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                           graph_properties_t graph_properties,
+                           bool renumber)
 {
   return create_graph_from_edgelist_impl<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
     handle,
-    optional_vertex_span,
+    vertex_span,
     std::move(edgelist_rows),
     std::move(edgelist_cols),
     std::move(edgelist_weights),
@@ -221,7 +219,7 @@ template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, float, false, false>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -232,7 +230,7 @@ template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, float, false, true>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -243,7 +241,7 @@ template std::tuple<cugraph::graph_t<int32_t, int32_t, float, true, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, float, true, false>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -254,7 +252,7 @@ template std::tuple<cugraph::graph_t<int32_t, int32_t, float, true, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, float, true, true>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -265,7 +263,7 @@ template std::tuple<cugraph::graph_t<int32_t, int32_t, double, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, double, false, false>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
@@ -276,7 +274,7 @@ template std::tuple<cugraph::graph_t<int32_t, int32_t, double, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, double, false, true>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
@@ -287,7 +285,7 @@ template std::tuple<cugraph::graph_t<int32_t, int32_t, double, true, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, double, true, false>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
@@ -298,7 +296,7 @@ template std::tuple<cugraph::graph_t<int32_t, int32_t, double, true, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, double, true, true>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
@@ -309,7 +307,7 @@ template std::tuple<cugraph::graph_t<int32_t, int64_t, float, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, float, false, false>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -320,7 +318,7 @@ template std::tuple<cugraph::graph_t<int32_t, int64_t, float, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -331,7 +329,7 @@ template std::tuple<cugraph::graph_t<int32_t, int64_t, float, true, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, float, true, false>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -342,7 +340,7 @@ template std::tuple<cugraph::graph_t<int32_t, int64_t, float, true, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -353,7 +351,7 @@ template std::tuple<cugraph::graph_t<int32_t, int64_t, double, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
@@ -364,7 +362,7 @@ template std::tuple<cugraph::graph_t<int32_t, int64_t, double, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
@@ -375,7 +373,7 @@ template std::tuple<cugraph::graph_t<int32_t, int64_t, double, true, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, double, true, false>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
@@ -386,7 +384,7 @@ template std::tuple<cugraph::graph_t<int32_t, int64_t, double, true, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
+  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
   rmm::device_uvector<int32_t>&& edgelist_rows,
   rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
@@ -397,7 +395,7 @@ template std::tuple<cugraph::graph_t<int64_t, int64_t, float, false, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, float, false, false>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
+  std::optional<std::tuple<int64_t const*, int64_t>> vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -408,7 +406,7 @@ template std::tuple<cugraph::graph_t<int64_t, int64_t, float, false, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
+  std::optional<std::tuple<int64_t const*, int64_t>> vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -419,7 +417,7 @@ template std::tuple<cugraph::graph_t<int64_t, int64_t, float, true, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, float, true, false>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
+  std::optional<std::tuple<int64_t const*, int64_t>> vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -430,7 +428,7 @@ template std::tuple<cugraph::graph_t<int64_t, int64_t, float, true, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
+  std::optional<std::tuple<int64_t const*, int64_t>> vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
@@ -441,7 +439,7 @@ template std::tuple<cugraph::graph_t<int64_t, int64_t, double, false, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
+  std::optional<std::tuple<int64_t const*, int64_t>> vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
@@ -452,7 +450,7 @@ template std::tuple<cugraph::graph_t<int64_t, int64_t, double, false, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
+  std::optional<std::tuple<int64_t const*, int64_t>> vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
@@ -463,7 +461,7 @@ template std::tuple<cugraph::graph_t<int64_t, int64_t, double, true, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, double, true, false>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
+  std::optional<std::tuple<int64_t const*, int64_t>> vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
@@ -474,7 +472,7 @@ template std::tuple<cugraph::graph_t<int64_t, int64_t, double, true, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
 create_graph_from_edgelist<int64_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
-  std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,
+  std::optional<std::tuple<int64_t const*, int64_t>> vertex_span,
   rmm::device_uvector<int64_t>&& edgelist_rows,
   rmm::device_uvector<int64_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,

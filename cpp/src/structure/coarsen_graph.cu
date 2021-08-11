@@ -445,6 +445,7 @@ coarsen_graph(
         major_ptrs,
         minor_ptrs,
         counts,
+        std::nullopt,
         do_expensive_check);
   }
 
