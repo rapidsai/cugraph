@@ -143,6 +143,7 @@ def pagerank(input_graph,
                 personalization, "vertex", "vertex"
             )
 
+        # Function to assign partition id to personalization dataframe
         def _set_partitions_pre(s, divisions):
             partitions = divisions.searchsorted(s, side="right") - 1
             partitions[
@@ -150,6 +151,7 @@ def pagerank(input_graph,
             ] = (len(divisions) - 2)
             return partitions
 
+        # Assign partition id column as per vertex_partition_offsets
         df = personalization
         by = ['vertex']
         meta = df._meta._constructor_sliced([0])
@@ -159,6 +161,8 @@ def pagerank(input_graph,
         )
 
         df2 = df.assign(_partitions=partitions)
+        
+        # Shuffle personalization values according to the partition id
         df3 = rearrange_by_column(
             df2,
             "_partitions",
