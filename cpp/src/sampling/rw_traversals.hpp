@@ -279,13 +279,10 @@ struct biased_selector_t {
     {
     }
 
-    // pre-conditions:
+    // pre-condition:
     //
-    // 1. (indices, weights) are assumed to be reshuflled
-    //    so that weights(neighborhood(src_v)) are ordered
-    //    increasingly; too expesnive to check this here;
-    // 2. Sum(weights(neighborhood(src_v))) are pre-computed and
-    //    stored in ptr_d_sum_weights_
+    // Sum(weights(neighborhood(src_v))) are pre-computed and
+    // stored in ptr_d_sum_weights_ (too expensive to check, here);
     //
     __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(vertex_t src_v,
                                                                               real_t rnd_val) const
