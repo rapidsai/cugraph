@@ -80,6 +80,19 @@ class Tests_RWSegSort : public ::testing::TestWithParam<RandomWalks_Usecase> {
 
     topo::segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
 
+    auto graph_view = graph.view();
+
+    // NOTE: barring a graph.sort() method,
+    // this const_cast<> is the only way to test
+    // segmented weight sort for a graph;
+    //
+
+    edge_t* offsets = const_cast<edge_t*>(graph_view.get_matrix_partition_view().get_offsets());
+
+    vertex_t* indices = const_cast<vertex_t*>(graph_view.get_matrix_partition_view().get_indices());
+    weight_t* values =
+      const_cast<weight_t*>(*(graph_view.get_matrix_partition_view().get_weights()));
+
     HighResTimer hr_timer;
     std::string label{};
 
@@ -87,19 +100,13 @@ class Tests_RWSegSort : public ::testing::TestWithParam<RandomWalks_Usecase> {
     hr_timer.start(label);
     cudaProfilerStart();
 
-    graph.sort(seg_sort);
+    auto [d_srt_indices, d_srt_weights] = seg_sort(offsets, indices, values);
 
     cudaProfilerStop();
     hr_timer.stop();
 
-    auto graph_view = graph.view();
-
-    edge_t const* offsets   = graph_view.get_matrix_partition_view().get_offsets();
-    vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
-    weight_t const* values  = *(graph_view.get_matrix_partition_view().get_weights());
-
     bool check_seg_sort =
-      topo::check_segmented_sort(handle, offsets, values, num_vertices, num_edges);
+      topo::check_segmented_sort(handle, offsets, d_srt_weights.data(), num_vertices, num_edges);
     ASSERT_TRUE(check_seg_sort);
 
     try {

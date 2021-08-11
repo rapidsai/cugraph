@@ -208,16 +208,9 @@ struct segment_sorter_by_weights_t {
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void operator()(rmm::device_uvector<edge_t>& offsets,
-                  rmm::device_uvector<vertex_t>& indices,
-                  std::optional<rmm::device_uvector<weight_t>>& weights) const
+  std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> operator()(
+    edge_t* ptr_d_offsets, vertex_t* ptr_d_indices, weight_t* ptr_d_weights) const
   {
-    CUGRAPH_EXPECTS(weights.has_value(), "Cannot sort un-weighted graph by weights.");
-
-    auto* ptr_d_offsets_ = offsets.data();
-    auto* ptr_d_indices_ = indices.data();
-    auto* ptr_d_weights_ = weights->data();
-
     // keys are those on which sorting is done; hence, the weights:
     //
     rmm::device_uvector<weight_t> d_vals_out(num_edges_, handle_.get_stream());
@@ -235,14 +228,14 @@ struct segment_sorter_by_weights_t {
     size_t temp_storage_bytes{0};
     cub::DeviceSegmentedRadixSort::SortPairs(ptr_d_temp_storage,
                                              temp_storage_bytes,
-                                             ptr_d_weights_,
+                                             ptr_d_weights,
                                              d_vals_out.data(),  // no in-place;
-                                             ptr_d_indices_,
+                                             ptr_d_indices,
                                              d_keys_out.data(),  // no in-place;
                                              num_edges_,
                                              num_vertices_,
-                                             ptr_d_offsets_,
-                                             ptr_d_offsets_ + 1,
+                                             ptr_d_offsets,
+                                             ptr_d_offsets + 1,
                                              0,
                                              (sizeof(weight_t) << 3),
                                              handle_.get_stream());
@@ -255,17 +248,35 @@ struct segment_sorter_by_weights_t {
     //
     cub::DeviceSegmentedRadixSort::SortPairs(ptr_d_temp_storage,
                                              temp_storage_bytes,
-                                             ptr_d_weights_,
+                                             ptr_d_weights,
                                              d_vals_out.data(),  // no in-place;
-                                             ptr_d_indices_,
+                                             ptr_d_indices,
                                              d_keys_out.data(),  // no in-place;
                                              num_edges_,
                                              num_vertices_,
-                                             ptr_d_offsets_,
-                                             ptr_d_offsets_ + 1,
+                                             ptr_d_offsets,
+                                             ptr_d_offsets + 1,
                                              0,
                                              (sizeof(weight_t) << 3),
                                              handle_.get_stream());
+
+    // move data to deliver "in-place" semantics
+    //
+    return std::make_tuple(std::move(d_keys_out), std::move(d_vals_out));
+  }
+
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  void operator()(rmm::device_uvector<edge_t>& offsets,
+                  rmm::device_uvector<vertex_t>& indices,
+                  std::optional<rmm::device_uvector<weight_t>>& weights) const
+  {
+    CUGRAPH_EXPECTS(weights.has_value(), "Cannot sort un-weighted graph by weights.");
+
+    auto* ptr_d_offsets = offsets.data();
+    auto* ptr_d_indices = indices.data();
+    auto* ptr_d_weights = weights->data();
+
+    auto [d_keys_out, d_vals_out] = operator()(ptr_d_offsets, ptr_d_indices, ptr_d_weights);
 
     // move data to deliver "in-place" semantics
     //

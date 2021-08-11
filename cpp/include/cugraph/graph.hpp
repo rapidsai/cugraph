@@ -176,6 +176,10 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       false);
   }
 
+  // FIXME: possibley to be added later;
+  // for now it's unnecessary;
+  // (commented out, per reviewer request)
+  //
   // generic in-place sorter on CSR structure;
   // this is specifically targetting
   // segmented-sort by weigths; but
@@ -189,11 +193,11 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   // (2.) sorting object is responsible for updating "in-place"
   //      any of the (offsets, indices, weights) arrays;
   //
-  template <typename in_place_sorter_t>
-  void sort(in_place_sorter_t& criterion)
-  {
-    criterion(offsets_, indices_, weights_);
-  }
+  // template <typename in_place_sorter_t>
+  // void sort(in_place_sorter_t& criterion)
+  // {
+  //   criterion(offsets_, indices_, weights_);
+  // }
 
  private:
   friend class cugraph::serializer::serializer_t;
