@@ -127,7 +127,7 @@ struct rrandom_gen_t {
       d_col_indx.begin(),
       [] __device__(real_t rnd_vindx, edge_t crt_out_deg) {
         real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
-        auto interp_vindx = rnd_vindx * max_ub + real_t{.5};
+        auto interp_vindx = rnd_vindx * max_ub;
         vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
         return (v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx);
       },

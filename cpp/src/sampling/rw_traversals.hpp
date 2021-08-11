@@ -128,7 +128,7 @@ struct uniform_selector_t {
       if (crt_out_deg == 0) return thrust::nullopt;  // src_v is a sink
 
       real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
-      auto interp_vindx = rnd_val * max_ub + real_t{.5};
+      auto interp_vindx = rnd_val * max_ub;
       vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
 
       auto col_indx  = v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx;
