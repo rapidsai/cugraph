@@ -47,7 +47,7 @@ void fill_start(raft::handle_t const& handle,
 {
   index_t num_paths = d_start.size();
 
-  thrust::transform(rmm::exec_policy(handle.get_stream()),
+  thrust::transform(handle.get_thrust_policy(),
                     thrust::make_counting_iterator<index_t>(0),
                     thrust::make_counting_iterator<index_t>(num_paths),
 
@@ -56,7 +56,7 @@ void fill_start(raft::handle_t const& handle,
 }
 }  // namespace
 
-namespace impl_details = cugraph::experimental::detail;
+namespace impl_details = cugraph::detail;
 
 enum class traversal_id_t : int { HORIZONTAL = 0, VERTICAL };
 
@@ -96,7 +96,7 @@ class Tests_RandomWalks
 
     traversal_id_t trv_id = std::get<0>(configuration);
     auto const& target    = std::get<1>(configuration);
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
     std::tie(graph, std::ignore) =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
         handle, target.graph_file_full_path, target.test_weighted, false);

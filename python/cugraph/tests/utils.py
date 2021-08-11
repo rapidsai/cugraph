@@ -26,7 +26,7 @@ from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
 from scipy.sparse.coo import coo_matrix as sp_coo_matrix
 from scipy.sparse.csr import csr_matrix as sp_csr_matrix
 from scipy.sparse.csc import csc_matrix as sp_csc_matrix
-from pathlib import PurePath
+from pathlib import Path
 import cudf
 import dask_cudf
 
@@ -37,41 +37,40 @@ from cugraph.dask.common.mg_utils import get_client
 CUPY_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
 SCIPY_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
 
+RAPIDS_DATASET_ROOT_DIR = os.getenv("RAPIDS_DATASET_ROOT_DIR", "../datasets")
+RAPIDS_DATASET_ROOT_DIR_PATH = Path(RAPIDS_DATASET_ROOT_DIR)
+
 #
 # Datasets
 #
-
-
-RAPIDS_DATASET_ROOT_DIR = os.getenv("RAPIDS_DATASET_ROOT_DIR", "../datasets")
-
-DATASETS_UNDIRECTED = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for
+DATASETS_UNDIRECTED = [RAPIDS_DATASET_ROOT_DIR_PATH/f for
                        f in ["karate.csv", "dolphins.csv"]]
 
 DATASETS_UNDIRECTED_WEIGHTS = [
-    PurePath(RAPIDS_DATASET_ROOT_DIR)/"netscience.csv"
+    RAPIDS_DATASET_ROOT_DIR_PATH/"netscience.csv"
 ]
 
-DATASETS_UNRENUMBERED = [PurePath(
+DATASETS_UNRENUMBERED = [Path(
     RAPIDS_DATASET_ROOT_DIR)/"karate-disjoint.csv"
 ]
 
-DATASETS = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+DATASETS = [RAPIDS_DATASET_ROOT_DIR_PATH/f for f in [
     "karate-disjoint.csv",
     "dolphins.csv",
     "netscience.csv"]
 ]
 
-DATASETS_MULTI_EDGES = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+DATASETS_MULTI_EDGES = [RAPIDS_DATASET_ROOT_DIR_PATH/f for f in [
     "karate_multi_edge.csv",
     "dolphins_multi_edge.csv"]
 ]
 
-DATASETS_STR_ISLT_V = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+DATASETS_STR_ISLT_V = [RAPIDS_DATASET_ROOT_DIR_PATH/f for f in [
     "karate_mod.mtx",
     "karate_str.mtx"]
 ]
 
-DATASETS_SELF_LOOPS = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+DATASETS_SELF_LOOPS = [RAPIDS_DATASET_ROOT_DIR_PATH/f for f in [
     "karate_s_loop.csv",
     "dolphins_s_loop.csv"]
 ]
@@ -80,7 +79,7 @@ DATASETS_SELF_LOOPS = [PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
 #            '../datasets/email-Eu-core.csv']
 
 STRONGDATASETS = [
-    PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+    RAPIDS_DATASET_ROOT_DIR_PATH/f for f in [
         "dolphins.csv",
         "netscience.csv",
         "email-Eu-core.csv"]
@@ -88,12 +87,12 @@ STRONGDATASETS = [
 
 
 DATASETS_KTRUSS = [(
-    PurePath(RAPIDS_DATASET_ROOT_DIR)/"polbooks.csv",
-    PurePath(RAPIDS_DATASET_ROOT_DIR)/"ref/ktruss/polbooks.csv")
+    RAPIDS_DATASET_ROOT_DIR_PATH/"polbooks.csv",
+    RAPIDS_DATASET_ROOT_DIR_PATH/"ref/ktruss/polbooks.csv")
 ]
 
 DATASETS_TSPLIB = [
-        (PurePath(RAPIDS_DATASET_ROOT_DIR)/f,) + (d,) for (f, d) in [
+        (RAPIDS_DATASET_ROOT_DIR_PATH/f,) + (d,) for (f, d) in [
             ("gil262.tsp", 2378),
             ("eil51.tsp", 426),
             ("kroA100.tsp", 21282),
@@ -101,7 +100,7 @@ DATASETS_TSPLIB = [
 ]
 
 DATASETS_SMALL = [
-    PurePath(RAPIDS_DATASET_ROOT_DIR)/f for f in [
+    RAPIDS_DATASET_ROOT_DIR_PATH/f for f in [
         "karate.csv",
         "dolphins.csv",
         "polbooks.csv"]

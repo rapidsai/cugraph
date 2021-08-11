@@ -20,7 +20,7 @@
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <raft/cudart_utils.h>
@@ -77,7 +77,7 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
   void run_test(const GraphBcast_Usecase& param)
   {
     using namespace cugraph::broadcast;
-    using sg_graph_t = cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false>;
+    using sg_graph_t = cugraph::graph_t<vertex_t, edge_t, weight_t, false, false>;
 
     raft::handle_t handle;
 

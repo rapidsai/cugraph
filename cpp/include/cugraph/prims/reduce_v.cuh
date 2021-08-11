@@ -15,7 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
@@ -25,7 +26,6 @@
 #include <thrust/reduce.h>
 
 namespace cugraph {
-namespace experimental {
 
 /**
  * @brief Reduce the vertex properties.
@@ -51,10 +51,13 @@ T reduce_v(raft::handle_t const& handle,
            VertexValueInputIterator vertex_value_input_first,
            T init)
 {
-  auto ret = thrust::reduce(rmm::exec_policy(handle.get_stream()),
-                            vertex_value_input_first,
-                            vertex_value_input_first + graph_view.get_number_of_local_vertices(),
-                            init);
+  rmm::exec_policy execution_policy = handle.get_thrust_policy();
+  auto ret                          = thrust::reduce(
+    execution_policy,
+    vertex_value_input_first,
+    vertex_value_input_first + graph_view.get_number_of_local_vertices(),
+    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
+    property_add<T>());
   if (GraphViewType::is_multi_gpu) {
     ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
   }
@@ -86,12 +89,17 @@ T reduce_v(raft::handle_t const& handle,
            InputIterator input_last,
            T init)
 {
-  auto ret = thrust::reduce(rmm::exec_policy(handle.get_stream()), input_first, input_last, init);
+  rmm::exec_policy execution_policy = handle.get_thrust_policy();
+  auto ret                          = thrust::reduce(
+    execution_policy,
+    input_first,
+    input_last,
+    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
+    property_add<T>());
   if (GraphViewType::is_multi_gpu) {
     ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
   }
   return ret;
 }
 
-}  // namespace experimental
 }  // namespace cugraph

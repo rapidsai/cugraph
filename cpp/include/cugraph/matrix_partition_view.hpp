@@ -19,7 +19,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -79,7 +78,7 @@ class matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable
       major_first_(major_first),
       major_last_(major_last),
       minor_first_(minor_first),
-      minor_last_(minor_first),
+      minor_last_(minor_last),
       major_value_start_offset_(major_value_start_offset)
   {
   }
@@ -123,6 +122,9 @@ class matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable
   {
   }
 
+  std::optional<vertex_t const*> get_dcs_nzd_vertices() const { return std::nullopt; }
+  std::optional<vertex_t> get_dcs_nzd_vertex_count() const { return std::nullopt; }
+
   vertex_t get_major_first() const { return vertex_t{0}; }
   vertex_t get_major_last() const { return number_of_vertices_; }
   vertex_t get_minor_first() const { return vertex_t{0}; }
@@ -132,5 +134,4 @@ class matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable
   vertex_t number_of_vertices_{0};
 };
 
-}  // namespace experimental
 }  // namespace cugraph

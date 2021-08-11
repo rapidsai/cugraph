@@ -16,7 +16,7 @@
 #pragma once
 
 #include <cugraph/dendrogram.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/graph_functions.hpp>
 
 #include <raft/handle.hpp>
 
@@ -44,7 +44,7 @@ void partition_at_level(raft::handle_t const& handle,
                        local_vertex_ids_v.begin() + dendrogram.get_level_size_nocheck(l),
                        dendrogram.get_level_first_index_nocheck(l));
 
-      cugraph::experimental::relabel<vertex_t, multi_gpu>(
+      cugraph::relabel<vertex_t, multi_gpu>(
         handle,
         std::tuple<vertex_t const*, vertex_t const*>(local_vertex_ids_v.data(),
                                                      dendrogram.get_level_ptr_nocheck(l)),

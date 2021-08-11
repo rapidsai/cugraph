@@ -18,13 +18,13 @@
 //
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/graph.hpp>
 
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
-#include <raft/random/rng.cuh>
 
 #include <rmm/device_uvector.hpp>
 
@@ -55,7 +55,6 @@
 #include "rw_traversals.hpp"
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -143,8 +142,8 @@ struct rrandom_gen_t {
   //
   static void generate_random(raft::handle_t const& handle, real_t* p_d_rnd, size_t sz, seed_t seed)
   {
-    raft::random::Rng rng(seed);
-    rng.uniform<real_t, index_t>(p_d_rnd, sz, real_t{0.0}, real_t{1.0}, handle.get_stream());
+    cugraph::detail::uniform_random_fill(
+      handle.get_stream_view(), p_d_rnd, sz, real_t{0.0}, real_t{1.0}, seed);
   }
 
  private:
@@ -1244,5 +1243,4 @@ query_rw_sizes_offsets(raft::handle_t const& handle, index_t num_paths, index_t 
     std::move(d_vertex_offsets), std::move(d_weight_sizes), std::move(d_weight_offsets));
 }
 
-}  // namespace experimental
 }  // namespace cugraph

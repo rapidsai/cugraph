@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <Hornet.hpp>
 #include <Static/CoreNumber/CoreNumber.cuh>
 #include <cugraph/legacy/graph.hpp>

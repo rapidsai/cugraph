@@ -16,8 +16,8 @@
 #pragma once
 
 #include <cugraph/dendrogram.hpp>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
@@ -1120,8 +1120,6 @@ weight_t hungarian(raft::handle_t const& handle,
 
 }  // namespace dense
 
-namespace experimental {
-
 /**
  * @brief Run breadth-first search to find the distances (and predecessors) from the source
  * vertex.
@@ -1390,5 +1388,4 @@ void weakly_connected_components(
   vertex_t* components,
   bool do_expensive_check = false);
 
-}  // namespace experimental
 }  // namespace cugraph

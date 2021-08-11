@@ -19,8 +19,8 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -72,8 +72,7 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
     int n_streams = std::min(configuration.ego_sources.size(), static_cast<std::size_t>(128));
     raft::handle_t handle(n_streams);
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(
-      handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
     std::tie(graph, std::ignore) = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);
@@ -91,11 +90,11 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
     hr_timer.start("egonet");
     cudaProfilerStart();
     auto [d_ego_edgelist_src, d_ego_edgelist_dst, d_ego_edgelist_weights, d_ego_edge_offsets] =
-      cugraph::experimental::extract_ego(handle,
-                                         graph_view,
-                                         d_ego_sources.data(),
-                                         static_cast<vertex_t>(configuration.ego_sources.size()),
-                                         configuration.radius);
+      cugraph::extract_ego(handle,
+                           graph_view,
+                           d_ego_sources.data(),
+                           static_cast<vertex_t>(configuration.ego_sources.size()),
+                           configuration.radius);
     cudaProfilerStop();
     hr_timer.stop();
     hr_timer.display(std::cout);
@@ -124,10 +123,8 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
       ASSERT_TRUE(h_cugraph_ego_edge_offsets[i] <= h_cugraph_ego_edge_offsets[i + 1]);
     auto n_vertices = graph_view.get_number_of_vertices();
     for (size_t i = 0; i < d_ego_edgelist_src.size(); i++) {
-      ASSERT_TRUE(
-        cugraph::experimental::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_src[i]));
-      ASSERT_TRUE(
-        cugraph::experimental::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_dst[i]));
+      ASSERT_TRUE(cugraph::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_src[i]));
+      ASSERT_TRUE(cugraph::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_dst[i]));
     }
   }
 };

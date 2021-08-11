@@ -43,7 +43,6 @@ void get_traversed_cost(raft::handle_t const& handle,
                         vertex_t stop_vertex,
                         vertex_t num_vertices);
 
-namespace experimental {
 /**
  * @brief returns the COO format (src_vector, dst_vector) from the random walks (RW)
  * paths.
@@ -83,7 +82,6 @@ std::
 template <typename index_t>
 std::tuple<rmm::device_uvector<index_t>, rmm::device_uvector<index_t>, rmm::device_uvector<index_t>>
 query_rw_sizes_offsets(raft::handle_t const& handle, index_t num_paths, index_t const* ptr_d_sizes);
-}  // namespace experimental
 
 namespace broadcast {
 /**

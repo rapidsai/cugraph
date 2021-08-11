@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/prims/edge_op_utils.cuh>
+#include <cugraph/graph_view.hpp>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
 
 #include <raft/handle.hpp>
@@ -24,7 +24,6 @@
 #include <cstdint>
 
 namespace cugraph {
-namespace experimental {
 
 /**
  * @brief Count the number of edges that satisfies the given predicate.
@@ -82,5 +81,4 @@ typename GraphViewType::edge_type count_if_e(
                             edge_t{0});
 }
 
-}  // namespace experimental
 }  // namespace cugraph

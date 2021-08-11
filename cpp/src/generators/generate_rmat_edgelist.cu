@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
-#include <raft/random/rng.cuh>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/iterator/zip_iterator.h>
@@ -47,7 +47,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
                   "Invalid input argument: a, b, c should be non-negative and a + b + c should not "
                   "be larger than 1.0.");
 
-  raft::random::Rng rng(seed);
   // to limit memory footprint (1024 is a tuning parameter)
   auto max_edges_to_generate_per_iteration =
     static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * 1024;
@@ -63,8 +62,11 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
       std::min(num_edges - num_edges_generated, max_edges_to_generate_per_iteration);
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(srcs.begin(), dsts.begin())) +
                       num_edges_generated;
-    rng.uniform<float, size_t>(
-      rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, handle.get_stream());
+
+    detail::uniform_random_fill(
+      handle.get_stream_view(), rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, seed);
+    seed += num_edges_to_generate * 2 * scale;
+
     thrust::transform(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
