@@ -66,15 +66,30 @@ create_graph_from_edgelist_impl(
     handle,
     store_transposed ? edgelist_cols : edgelist_rows,
     store_transposed ? edgelist_rows : edgelist_cols,
-    edgelist_weights);
+    edgelist_weights,
+    true);
 
   std::vector<size_t> h_edge_counts(edge_counts.size());
   raft::update_host(
     h_edge_counts.data(), edge_counts.data(), edge_counts.size(), handle.get_stream());
   handle.get_stream_view().synchronize();
 
-  std::vector<size_t> h_displacements(h_edge_counts.size(), size_t{0});
-  std::partial_sum(h_edge_counts.begin(), h_edge_counts.end() - 1, h_displacements.begin() + 1);
+  std::vector<edge_t> edgelist_edge_counts(col_comm_size, edge_t{0});
+  auto edgelist_intra_partition_segment_offsets =
+    std::make_optional<std::vector<std::vector<edge_t>>>(
+      col_comm_size, std::vector<edge_t>(row_comm_size + 1, edge_t{0}));
+  for (int i = 0; i < col_comm_size; ++i) {
+    edgelist_edge_counts[i] = std::accumulate(h_edge_counts.begin() + row_comm_size * i,
+                                              h_edge_counts.begin() + row_comm_size * (i + 1),
+                                              edge_t{0});
+    std::partial_sum(h_edge_counts.begin() + row_comm_size * i,
+                     h_edge_counts.begin() + row_comm_size * (i + 1),
+                     (*edgelist_intra_partition_segment_offsets)[i].begin() + 1);
+  }
+  std::vector<edge_t> edgelist_displacements(col_comm_size, edge_t{0});
+  std::partial_sum(edgelist_edge_counts.begin(),
+                   edgelist_edge_counts.end() - 1,
+                   edgelist_displacements.begin() + 1);
 
   // 2. renumber
   std::cout << "create_graph_from_edgelist_impl 2. renumber" << std::endl;
@@ -83,36 +98,42 @@ create_graph_from_edgelist_impl(
   cugraph::partition_t<vertex_t> partition{};
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
-  auto segment_offsets = std::make_optional<std::vector<vertex_t>>(0);
+  auto vertex_partition_segment_offsets = std::make_optional<std::vector<vertex_t>>(0);
   {
-    std::vector<vertex_t*> major_ptrs(h_edge_counts.size());
+    std::vector<vertex_t*> major_ptrs(col_comm_size);
     std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
-    std::vector<edge_t> counts(major_ptrs.size());
-    for (size_t i = 0; i < h_edge_counts.size(); ++i) {
-      major_ptrs[i] =
-        (store_transposed ? edgelist_cols.begin() : edgelist_rows.begin()) + h_displacements[i];
-      minor_ptrs[i] =
-        (store_transposed ? edgelist_rows.begin() : edgelist_cols.begin()) + h_displacements[i];
-      counts[i] = static_cast<edge_t>(h_edge_counts[i]);
+    for (int i = 0; i < col_comm_size; ++i) {
+      major_ptrs[i] = (store_transposed ? edgelist_cols.begin() : edgelist_rows.begin()) +
+                      edgelist_displacements[i];
+      minor_ptrs[i] = (store_transposed ? edgelist_rows.begin() : edgelist_cols.begin()) +
+                      edgelist_displacements[i];
     }
-    std::tie(
-      renumber_map_labels, partition, number_of_vertices, number_of_edges, *segment_offsets) =
+    std::tie(renumber_map_labels,
+             partition,
+             number_of_vertices,
+             number_of_edges,
+             *vertex_partition_segment_offsets) =
       cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-        handle, local_vertex_span, major_ptrs, minor_ptrs, counts, std::nullopt);
+        handle,
+        local_vertex_span,
+        major_ptrs,
+        minor_ptrs,
+        edgelist_edge_counts,
+        edgelist_intra_partition_segment_offsets);
   }
 
   // 3. create a graph
   std::cout << "create_graph_from_edgelist_impl 3. create graph" << std::endl;
 
-  std::vector<cugraph::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(h_edge_counts.size());
-  for (size_t i = 0; i < h_edge_counts.size(); ++i) {
+  std::vector<cugraph::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(col_comm_size);
+  for (int i = 0; i < col_comm_size; ++i) {
     edgelists[i] = cugraph::edgelist_t<vertex_t, edge_t, weight_t>{
-      edgelist_rows.data() + h_displacements[i],
-      edgelist_cols.data() + h_displacements[i],
+      edgelist_rows.data() + edgelist_displacements[i],
+      edgelist_cols.data() + edgelist_displacements[i],
       edgelist_weights
-        ? std::optional<weight_t const*>{(*edgelist_weights).data() + h_displacements[i]}
+        ? std::optional<weight_t const*>{(*edgelist_weights).data() + edgelist_displacements[i]}
         : std::nullopt,
-      static_cast<edge_t>(h_edge_counts[i])};
+      static_cast<edge_t>(edgelist_edge_counts[i])};
   }
 
   return std::make_tuple(
@@ -123,7 +144,7 @@ create_graph_from_edgelist_impl(
       number_of_vertices,
       number_of_edges,
       graph_properties,
-      std::optional<std::vector<vertex_t>>{segment_offsets}),
+      vertex_partition_segment_offsets),
     std::optional<rmm::device_uvector<vertex_t>>{std::move(renumber_map_labels)});
 }
 

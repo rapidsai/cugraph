@@ -751,13 +751,14 @@ renumber_edgelist(
   handle.get_stream_view().synchronize();
   comm.barrier();  // currently, this is ncclAllReduce
 #endif
+  std::cout << "renumber_edgelist mnior start" << std::endl;
   if ((partition.get_matrix_partition_minor_size() >= number_of_edges / comm_size) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
     for (int i = 0; i < row_comm_size; ++i) {
       auto segment_size = partition.get_vertex_partition_size(col_comm_rank * row_comm_size + i);
       rmm::device_uvector<vertex_t> renumber_map_minor_labels(
-        row_comm_rank == static_cast<int>(i) ? vertex_t{0} : segment_size, handle.get_stream());
+        row_comm_rank == i ? vertex_t{0} : segment_size, handle.get_stream());
       device_bcast(row_comm,
                    renumber_map_labels.data(),
                    renumber_map_minor_labels.data(),
@@ -780,8 +781,7 @@ renumber_edgelist(
                      invalid_vertex_id<vertex_t>::value,
                      stream_adapter};
       auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-        row_comm_rank == static_cast<int>(i) ? renumber_map_labels.begin()
-                                             : renumber_map_minor_labels.begin(),
+        row_comm_rank == i ? renumber_map_labels.begin() : renumber_map_minor_labels.begin(),
         thrust::make_counting_iterator(
           partition.get_vertex_partition_first(col_comm_rank * row_comm_size + i))));
       renumber_map.insert(pair_first, pair_first + segment_size);
@@ -825,12 +825,13 @@ renumber_edgelist(
       renumber_map_minor_labels.begin(),
       thrust::make_counting_iterator(partition.get_matrix_partition_minor_first())));
     renumber_map.insert(pair_first, pair_first + renumber_map_minor_labels.size());
-    for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
+    for (size_t i = 0; i < edgelist_minor_vertices.size(); ++i) {
       renumber_map.find(edgelist_minor_vertices[i],
                         edgelist_minor_vertices[i] + edgelist_edge_counts[i],
                         edgelist_minor_vertices[i]);
     }
   }
+  std::cout << "renumber_edgelist mnior end" << std::endl;
   // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
   // different communicators (end of row_comm)
 #if 1
