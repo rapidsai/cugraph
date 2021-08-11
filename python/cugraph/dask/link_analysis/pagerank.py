@@ -161,7 +161,7 @@ def pagerank(input_graph,
         )
 
         df2 = df.assign(_partitions=partitions)
-        
+
         # Shuffle personalization values according to the partition id
         df3 = rearrange_by_column(
             df2,
