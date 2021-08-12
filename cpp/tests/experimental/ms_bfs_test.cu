@@ -90,8 +90,8 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
       configuration.min_scale,
       configuration.max_scale,
       configuration.edge_factor,
-      cugraph::experimental::generator_distribution_t::POWER_LAW,
-      cugraph::experimental::generator_distribution_t::UNIFORM,
+      cugraph::generator_distribution_t::POWER_LAW,
+      cugraph::generator_distribution_t::UNIFORM,
       uint64_t{0});
     // form aggregated edge list
     vertex_t n_edges = 0, offset = 0, n_vertices = 0;
@@ -151,15 +151,15 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
                      d_vertices.end(),
                      vertex_t{0});
 
-    std::tie(graph, d_renumber_map_labels) =
-      cugraph::test::generate_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+    std::tie(graph, std::ignore) =
+      cugraph::experimental::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
         handle,
-        std::move(d_vertices),
+        std::optional<std::tuple<vertex_t const*, vertex_t>>{
+          std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},
         std::move(d_srcs),
         std::move(d_dst),
-        std::move(d_weights),
-        false,
-        false,
+        std::nullopt,
+        cugraph::experimental::graph_properties_t{false, false},
         false);
 
     auto graph_view = graph.view();
