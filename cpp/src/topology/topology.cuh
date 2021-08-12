@@ -54,9 +54,8 @@ namespace topology {
  *  for j in rows:
  *    for k in [row_offsets[j]..row_offsets[j+1]):
  *      col_indx = col_indices[k];
- *      if col_indx > j && col_indx < n-1: # only look above the diagonal
- *         flag &= find(j,
- * [col_indices[row_offsets[col_indx]]..col_indices[row_offsets[col_indx+1]])); return flag;
+ *      flag &= find(j, [col_indices[row_offsets[col_indx]]..col_indices[row_offsets[col_indx+1]]);
+ * return flag;
  *
  * @tparam IndexT type of indices for rows and columns
  * @param handle raft handle
@@ -88,13 +87,11 @@ bool check_symmetry(raft::handle_t const& handle,
       BoolT flag{1};
       for (auto k = ptr_r_o[row_indx]; k < ptr_r_o[row_indx + 1]; ++k) {
         auto col_indx = ptr_c_i[k];
-        if (col_indx > row_indx) {
-          auto begin = ptr_c_i + ptr_r_o[col_indx];
-          auto end =
-            ptr_c_i + ptr_r_o[col_indx + 1];  // end is okay to point beyond last element of ptr_c_i
-          auto it = thrust::find(thrust::seq, begin, end, row_indx);
-          flag &= (it != end);
-        }
+        auto begin    = ptr_c_i + ptr_r_o[col_indx];
+        auto end =
+          ptr_c_i + ptr_r_o[col_indx + 1];  // end is okay to point beyond last element of ptr_c_i
+        auto it = thrust::find(thrust::seq, begin, end, row_indx);
+        flag &= (it != end);
       }
       return crt_flag & flag;
     },

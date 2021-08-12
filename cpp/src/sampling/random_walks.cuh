@@ -117,13 +117,13 @@ struct rrandom_gen_t {
   void generate_col_indices(device_vec_t<edge_t> const& d_crt_out_deg,
                             device_vec_t<vertex_t>& d_col_indx) const
   {
-    auto const* d_ptr_out_degs_ = d_crt_out_deg.data();
+    auto const* d_ptr_out_degs = d_crt_out_deg.data();
     thrust::transform_if(
       rmm::exec_policy(handle_.get_stream_view()),
       d_ptr_random_,
       d_ptr_random_ + num_paths_,  // input1
-      d_ptr_out_degs_,             // input2
-      d_ptr_out_degs_,             // also stencil
+      d_ptr_out_degs,              // input2
+      d_ptr_out_degs,              // also stencil
       d_col_indx.begin(),
       [] __device__(real_t rnd_vindx, edge_t crt_out_deg) {
         real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
