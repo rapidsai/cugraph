@@ -751,7 +751,6 @@ renumber_edgelist(
   handle.get_stream_view().synchronize();
   comm.barrier();  // currently, this is ncclAllReduce
 #endif
-  std::cout << "renumber_edgelist mnior start" << std::endl;
   if ((partition.get_matrix_partition_minor_size() >= number_of_edges / comm_size) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
@@ -831,7 +830,6 @@ renumber_edgelist(
                         edgelist_minor_vertices[i]);
     }
   }
-  std::cout << "renumber_edgelist mnior end" << std::endl;
   // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
   // different communicators (end of row_comm)
 #if 1
