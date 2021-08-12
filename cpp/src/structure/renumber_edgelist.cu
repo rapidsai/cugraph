@@ -276,7 +276,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   labels.shrink_to_fit(handle.get_stream());
   counts.shrink_to_fit(handle.get_stream());
 
-  // 4. if vertices != nullptr, add isolated vertices
+  // 4. if vertex_span.has_value() == true, add isolated vertices
 
   rmm::device_uvector<vertex_t> isolated_vertices(0, handle.get_stream());
   if (vertex_span) {
@@ -311,7 +311,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                  edge_t{0});
   }
 
-  // 6. sort by degree
+  // 5. sort by degree
 
   thrust::sort_by_key(rmm::exec_policy(handle.get_stream_view()),
                       counts.begin(),
@@ -319,7 +319,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                       labels.begin(),
                       thrust::greater<edge_t>());
 
-  // 7. compute segment_offsets
+  // 6. compute segment_offsets
 
   static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
   static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
