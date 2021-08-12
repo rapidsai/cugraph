@@ -1,5 +1,4 @@
-﻿#=============================================================================
-#
+﻿#
 # Copyright (c) 2019-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -467,6 +466,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
         ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
+
+        ###########################################################################################
+        # - MG PRIMS TRANSFORM_REDUCE_V tests -----------------------------------------------------
+        ConfigureTestMG(MG_TRANSFORM_REDUCE_V_TEST prims/mg_transform_reduce_v.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()
