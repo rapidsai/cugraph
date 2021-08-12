@@ -549,10 +549,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
          col_first      = level_graph_view.get_local_adj_matrix_partition_col_first(),
          edge_buffer_first =
            get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
-         num_edge_inserts = num_edge_inserts.data()] __device__(auto tagged_src,
-                                                                vertex_t dst,
-                                                                auto src_val,
-                                                                auto dst_val) {
+         num_edge_inserts =
+           num_edge_inserts.data()] __device__(auto tagged_src, vertex_t dst, auto, auto) {
           auto tag        = thrust::get<1>(tagged_src);
           auto col_offset = dst - col_first;
           // FIXME: better switch to atomic_ref after
