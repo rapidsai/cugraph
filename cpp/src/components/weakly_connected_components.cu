@@ -183,7 +183,7 @@ struct v_op_t {
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
   __device__ std::enable_if_t<multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
-  operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int v_val /* dummy */) const
+  operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int /* v_val */) const
   {
     auto tag = thrust::get<1>(tagged_v);
     auto v_offset =
@@ -205,7 +205,7 @@ struct v_op_t {
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
   __device__ std::enable_if_t<!multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
-  operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int v_val /* dummy */) const
+  operator()(thrust::tuple<vertex_type, vertex_type> /* tagged_v */, int /* v_val */) const
   {
     return thrust::optional<thrust::tuple<size_t, std::byte>>{
       thrust::make_tuple(next_bucket_idx, std::byte{0} /* dummy */)};
