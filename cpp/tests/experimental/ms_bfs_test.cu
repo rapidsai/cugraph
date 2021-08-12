@@ -84,7 +84,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     using weight_t = float;
     raft::handle_t handle(16);
 
-    auto edgelists = cugraph::experimental::generate_rmat_edgelists<vertex_t>(
+    auto edgelists = cugraph::generate_rmat_edgelists<vertex_t>(
       handle,
       configuration.n_edgelists,
       configuration.min_scale,
