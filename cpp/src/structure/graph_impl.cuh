@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/graph.hpp>
@@ -443,34 +444,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     if (!this->is_multigraph()) {}
   }
 }
-
-// explicit instantiation
-
-template class graph_t<int32_t, int32_t, float, true, true>;
-template class graph_t<int32_t, int32_t, float, false, true>;
-template class graph_t<int32_t, int32_t, double, true, true>;
-template class graph_t<int32_t, int32_t, double, false, true>;
-template class graph_t<int32_t, int64_t, float, true, true>;
-template class graph_t<int32_t, int64_t, float, false, true>;
-template class graph_t<int32_t, int64_t, double, true, true>;
-template class graph_t<int32_t, int64_t, double, false, true>;
-template class graph_t<int64_t, int64_t, float, true, true>;
-template class graph_t<int64_t, int64_t, float, false, true>;
-template class graph_t<int64_t, int64_t, double, true, true>;
-template class graph_t<int64_t, int64_t, double, false, true>;
-//
-template class graph_t<int32_t, int32_t, float, true, false>;
-template class graph_t<int32_t, int32_t, float, false, false>;
-template class graph_t<int32_t, int32_t, double, true, false>;
-template class graph_t<int32_t, int32_t, double, false, false>;
-template class graph_t<int32_t, int64_t, float, true, false>;
-template class graph_t<int32_t, int64_t, float, false, false>;
-template class graph_t<int32_t, int64_t, double, true, false>;
-template class graph_t<int32_t, int64_t, double, false, false>;
-template class graph_t<int64_t, int64_t, float, true, false>;
-template class graph_t<int64_t, int64_t, float, false, false>;
-template class graph_t<int64_t, int64_t, double, true, false>;
-template class graph_t<int64_t, int64_t, double, false, false>;
 
 }  // namespace cugraph
 

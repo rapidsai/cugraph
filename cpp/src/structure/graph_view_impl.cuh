@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/graph_view.hpp>
@@ -735,41 +736,5 @@ weight_t graph_view_t<
   handle.get_stream_view().synchronize();
   return ret;
 }
-
-// explicit instantiation
-
-template class graph_view_t<int32_t, int32_t, float, true, true>;
-template class graph_view_t<int32_t, int32_t, float, false, true>;
-template class graph_view_t<int32_t, int32_t, double, true, true>;
-template class graph_view_t<int32_t, int32_t, double, false, true>;
-template class graph_view_t<int32_t, int64_t, float, true, true>;
-template class graph_view_t<int32_t, int64_t, float, false, true>;
-template class graph_view_t<int32_t, int64_t, double, true, true>;
-template class graph_view_t<int32_t, int64_t, double, false, true>;
-template class graph_view_t<int64_t, int64_t, float, true, true>;
-template class graph_view_t<int64_t, int64_t, float, false, true>;
-template class graph_view_t<int64_t, int64_t, double, true, true>;
-template class graph_view_t<int64_t, int64_t, double, false, true>;
-template class graph_view_t<int64_t, int32_t, float, true, true>;
-template class graph_view_t<int64_t, int32_t, float, false, true>;
-template class graph_view_t<int64_t, int32_t, double, true, true>;
-template class graph_view_t<int64_t, int32_t, double, false, true>;
-
-template class graph_view_t<int32_t, int32_t, float, true, false>;
-template class graph_view_t<int32_t, int32_t, float, false, false>;
-template class graph_view_t<int32_t, int32_t, double, true, false>;
-template class graph_view_t<int32_t, int32_t, double, false, false>;
-template class graph_view_t<int32_t, int64_t, float, true, false>;
-template class graph_view_t<int32_t, int64_t, float, false, false>;
-template class graph_view_t<int32_t, int64_t, double, true, false>;
-template class graph_view_t<int32_t, int64_t, double, false, false>;
-template class graph_view_t<int64_t, int64_t, float, true, false>;
-template class graph_view_t<int64_t, int64_t, float, false, false>;
-template class graph_view_t<int64_t, int64_t, double, true, false>;
-template class graph_view_t<int64_t, int64_t, double, false, false>;
-template class graph_view_t<int64_t, int32_t, float, true, false>;
-template class graph_view_t<int64_t, int32_t, float, false, false>;
-template class graph_view_t<int64_t, int32_t, double, true, false>;
-template class graph_view_t<int64_t, int32_t, double, false, false>;
 
 }  // namespace cugraph

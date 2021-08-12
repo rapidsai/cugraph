@@ -169,7 +169,9 @@ add_library(cugraph SHARED
     src/layout/force_atlas2.cu
     src/converters/COOtoCSR.cu
     src/community/legacy/spectral_clustering.cu
-    src/community/louvain.cu
+    src/community/louvain_sg.cu
+    src/community/louvain_mg.cu
+    src/community/legacy/louvain.cu
     src/community/legacy/leiden.cu
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
@@ -186,21 +188,31 @@ add_library(cugraph SHARED
     src/generators/generator_tools.cu
     src/generators/simple_generators.cu
     src/generators/erdos_renyi_generator.cu
-    src/structure/graph.cu
-    src/structure/graph_view.cu
-    src/structure/coarsen_graph.cu
+    src/structure/graph_sg.cu
+    src/structure/graph_mg.cu
+    src/structure/graph_view_sg.cu
+    src/structure/graph_view_mg.cu
+    src/structure/coarsen_graph_sg.cu
+    src/structure/coarsen_graph_mg.cu
     src/structure/renumber_edgelist.cu
     src/structure/renumber_utils.cu
-    src/structure/relabel.cu
+    src/structure/relabel_sg.cu
+    src/structure/relabel_mg.cu
     src/structure/induced_subgraph.cu
-    src/traversal/bfs.cu
-    src/traversal/sssp.cu
-    src/link_analysis/pagerank.cu
-    src/centrality/katz_centrality.cu
+    src/traversal/bfs_sg.cu
+    src/traversal/bfs_mg.cu
+    src/traversal/sssp_sg.cu
+    src/traversal/sssp_mg.cu
+    src/link_analysis/pagerank_sg.cu
+    src/link_analysis/pagerank_mg.cu
+    src/centrality/katz_centrality_sg.cu
+    src/centrality/katz_centrality_mg.cu
     src/serialization/serializer.cu
     src/tree/mst.cu
-    src/components/weakly_connected_components.cu
-    src/structure/create_graph_from_edgelist.cpp
+    src/components/weakly_connected_components_sg.cu
+    src/components/weakly_connected_components_mg.cu
+    src/structure/create_graph_from_edgelist_sg.cpp
+    src/structure/create_graph_from_edgelist_mg.cpp
     src/utilities/host_barrier.cpp
     src/visitors/graph_envelope.cpp
     src/visitors/visitors_factory.cpp
