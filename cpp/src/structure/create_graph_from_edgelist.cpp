@@ -59,7 +59,8 @@ create_graph_from_edgelist_impl(
   auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_size = col_comm.get_size();
 
-  // 1. groupby edges to their target local adjacency matrix partition
+  // 1. groupby edges to their target local adjacency matrix partition (and further groupby within
+  // the local partition by applying the compute_gpu_id_from_vertex_t to minor vertex IDs).
 
   auto edge_counts = cugraph::detail::groupby_and_count_edgelist_by_local_partition_id(
     handle,
