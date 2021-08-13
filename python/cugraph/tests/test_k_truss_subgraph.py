@@ -73,8 +73,10 @@ def compare_k_truss(k_truss_cugraph, k, ground_truth_file):
         assert has_edge or has_opp_edge
     return True
 
+
 __cuda_version = cuda.runtime.get_version()
 __unsupported_cuda_version = (11, 4)
+
 
 # FIXME: remove when ktruss is supported on CUDA 11.4
 def test_unsupported_cuda_version():
@@ -94,9 +96,9 @@ def test_unsupported_cuda_version():
         cugraph.k_truss(G, k)
 
 
-@pytest.mark.skipif( (__cuda_version == __unsupported_cuda_version),
-                     reason="skipping on unsupported CUDA "
-                     f"{__unsupported_cuda_version} environment.")
+@pytest.mark.skipif((__cuda_version == __unsupported_cuda_version),
+                    reason="skipping on unsupported CUDA "
+                    f"{__unsupported_cuda_version} environment.")
 @pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     gc.collect()
@@ -110,9 +112,9 @@ def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     compare_k_truss(k_subgraph, k, nx_ground_truth)
 
 
-@pytest.mark.skipif( (__cuda_version == __unsupported_cuda_version),
-                     reason="skipping on unsupported CUDA "
-                     f"{__unsupported_cuda_version} environment.")
+@pytest.mark.skipif((__cuda_version == __unsupported_cuda_version),
+                    reason="skipping on unsupported CUDA "
+                    f"{__unsupported_cuda_version} environment.")
 @pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
     gc.collect()
