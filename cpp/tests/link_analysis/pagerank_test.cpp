@@ -39,11 +39,6 @@
 #include <random>
 #include <vector>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
 void pagerank_reference(edge_t const* offsets,
                         vertex_t const* indices,
@@ -160,7 +155,7 @@ class Tests_PageRank
     raft::handle_t handle{};
     HighResClock hr_clock{};
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
@@ -169,7 +164,7 @@ class Tests_PageRank
       input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
         handle, pagerank_usecase.test_weighted, renumber);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -234,7 +229,7 @@ class Tests_PageRank
     rmm::device_uvector<result_t> d_pageranks(graph_view.get_number_of_vertices(),
                                               handle.get_stream());
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
@@ -257,7 +252,7 @@ class Tests_PageRank
       false,
       false);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -420,11 +415,25 @@ TEST_P(Tests_PageRank_File, CheckInt32Int32FloatFloat)
   run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
 }
 
-// FIXME: add tests for type combinations
 TEST_P(Tests_PageRank_Rmat, CheckInt32Int32FloatFloat)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, float>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_PageRank_Rmat, CheckInt32Int64FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, float>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_PageRank_Rmat, CheckInt64Int64FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, float>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -442,7 +451,7 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_small_tests,
+  rmat_small_test,
   Tests_PageRank_Rmat,
   ::testing::Combine(
     // enable correctness checks
@@ -453,7 +462,11 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_large_tests,
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
   Tests_PageRank_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
