@@ -108,12 +108,7 @@ void ref_sssp(const std::vector<MaxEType>& rowPtr,
   }
 }
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-static int PERF = 0;
-
 // iterations for perf tests
-// enabled by command line parameter '--perf-iters"
 static int PERF_MULTIPLIER = 5;
 
 typedef struct SSSP_Usecase_t {
@@ -143,7 +138,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
   static void SetupTestCase() {}
   static void TearDownTestCase()
   {
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       for (size_t i = 0; i < SSSP_time.size(); ++i) {
         std::cout << SSSP_time[i] / PERF_MULTIPLIER << std::endl;
       }
@@ -288,7 +283,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
     double time_tmp;
 
     cudaDeviceSynchronize();
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       hr_clock.start();
       for (auto i = 0; i < PERF_MULTIPLIER; ++i) {
         cugraph::sssp(G, distances, preds, src);

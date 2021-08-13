@@ -16,7 +16,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 
 #include <cugraph/algorithms.hpp>
 
@@ -101,7 +101,7 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
   {
     raft::handle_t handle{};
 
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
     std::tie(graph, std::ignore) =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
         handle, configuration.graph_file_full_path_, configuration.test_weighted_, false);

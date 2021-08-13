@@ -88,7 +88,9 @@ async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
         if batch_enabled:
             persisted = client.persist(dask_obj, workers=worker_list[0])
         else:
-            persisted = client.persist(dask_obj)
+            persisted = [client.persist(
+                dask_obj.get_partition(p), workers=w) for p, w in enumerate(
+                    worker_list)]
         parts = futures_of(persisted)
     # iterable of dask collections (need to colocate them)
     elif isinstance(dask_obj, collections.Sequence):

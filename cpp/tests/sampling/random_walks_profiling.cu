@@ -55,7 +55,7 @@ void fill_start(raft::handle_t const& handle,
                     [num_vertices] __device__(auto indx) { return indx % num_vertices; });
 }
 
-namespace impl_details = cugraph::experimental::detail;
+namespace impl_details = cugraph::detail;
 
 enum class traversal_id_t : int { HORIZONTAL = 0, VERTICAL };
 
@@ -67,11 +67,13 @@ enum class traversal_id_t : int { HORIZONTAL = 0, VERTICAL };
 template <typename graph_vt>
 void output_random_walks_time(graph_vt const& graph_view,
                               typename graph_vt::edge_type num_paths,
-                              traversal_id_t trv_id)
+                              traversal_id_t trv_id,
+                              int sampling_id)
 {
   using vertex_t = typename graph_vt::vertex_type;
   using edge_t   = typename graph_vt::edge_type;
   using weight_t = typename graph_vt::weight_type;
+  using real_t   = float;
 
   raft::handle_t handle{};
   rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
@@ -89,22 +91,79 @@ void output_random_walks_time(graph_vt const& graph_view,
   std::string label{};
 
   if (trv_id == traversal_id_t::HORIZONTAL) {
-    label = std::string("RandomWalks; Horizontal traversal");
-    hr_timer.start(label);
-    cudaProfilerStart();
-    auto ret_tuple =
-      impl_details::random_walks_impl<graph_vt, impl_details::horizontal_traversal_t>(
-        handle, graph_view, d_start_view, max_depth);
-    cudaProfilerStop();
-    hr_timer.stop();
+    if (sampling_id == 0) {
+      label = std::string("RandomWalks; Horizontal traversal; uniform sampling - ");
+      impl_details::uniform_selector_t<graph_vt, real_t> selector{handle, graph_view, real_t{0}};
+
+      hr_timer.start(label);
+      cudaProfilerStart();
+
+      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+                                                       decltype(selector),
+                                                       impl_details::horizontal_traversal_t>(
+        handle,  // prevent clang-format to separate function name from its namespace
+        graph_view,
+        d_start_view,
+        max_depth,
+        selector);
+
+      cudaProfilerStop();
+      hr_timer.stop();
+    } else {
+      label = std::string("RandomWalks; Horizontal traversal; biased sampling - ");
+      impl_details::biased_selector_t<graph_vt, real_t> selector{handle, graph_view, real_t{0}};
+
+      hr_timer.start(label);
+      cudaProfilerStart();
+
+      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+                                                       decltype(selector),
+                                                       impl_details::horizontal_traversal_t>(
+        handle,  // prevent clang-format to separate function name from its namespace
+        graph_view,
+        d_start_view,
+        max_depth,
+        selector);
+
+      cudaProfilerStop();
+      hr_timer.stop();
+    }
   } else {
-    label = std::string("RandomWalks; Vertical traversal");
-    hr_timer.start(label);
-    cudaProfilerStart();
-    auto ret_tuple = impl_details::random_walks_impl<graph_vt, impl_details::vertical_traversal_t>(
-      handle, graph_view, d_start_view, max_depth);
-    cudaProfilerStop();
-    hr_timer.stop();
+    if (sampling_id == 0) {
+      label = std::string("RandomWalks; Vertical traversal; uniform sampling - ");
+      impl_details::uniform_selector_t<graph_vt, real_t> selector{handle, graph_view, real_t{0}};
+      hr_timer.start(label);
+      cudaProfilerStart();
+
+      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+                                                       decltype(selector),
+                                                       impl_details::vertical_traversal_t>(
+        handle,  // prevent clang-format to separate function name from its namespace
+        graph_view,
+        d_start_view,
+        max_depth,
+        selector);
+
+      cudaProfilerStop();
+      hr_timer.stop();
+    } else {
+      label = std::string("RandomWalks; Vertical traversal; biased sampling - ");
+      impl_details::biased_selector_t<graph_vt, real_t> selector{handle, graph_view, real_t{0}};
+      hr_timer.start(label);
+      cudaProfilerStart();
+
+      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+                                                       decltype(selector),
+                                                       impl_details::vertical_traversal_t>(
+        handle,  // prevent clang-format to separate function name from its namespace
+        graph_view,
+        d_start_view,
+        max_depth,
+        selector);
+
+      cudaProfilerStop();
+      hr_timer.stop();
+    }
   }
   try {
     auto runtime = hr_timer.get_average_runtime(label);
@@ -167,11 +226,11 @@ struct RandomWalks_Usecase {
  * @param[in] trv_id traversal strategy.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-void run(RandomWalks_Usecase const& configuration, traversal_id_t trv_id)
+void run(RandomWalks_Usecase const& configuration, traversal_id_t trv_id, int sampling_id)
 {
   raft::handle_t handle{};
 
-  cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+  cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
   std::tie(graph, std::ignore) =
     cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
       handle, configuration.graph_file_full_path, configuration.test_weighted, false);
@@ -182,7 +241,7 @@ void run(RandomWalks_Usecase const& configuration, traversal_id_t trv_id)
   // configuration input instead of hardcoding here.
   std::vector<edge_t> v_np{1, 10, 100};
   for (auto&& num_paths : v_np) {
-    output_random_walks_time(graph_view, num_paths, trv_id);
+    output_random_walks_time(graph_view, num_paths, trv_id, sampling_id);
   }
 }
 
@@ -228,11 +287,21 @@ int main(int argc, char** argv)
   // Run benchmarks
   std::cout << "Using dataset: " << dataset << std::endl;
 
-  std::cout << "Horizontal traversal strategy:\n";
-  run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true), traversal_id_t::HORIZONTAL);
+  std::cout << "# Horizontal traversal strategy:\n";
 
-  std::cout << "Vertical traversal strategy:\n";
-  run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true), traversal_id_t::VERTICAL);
+  std::cout << "## Uniform sampling strategy:\n";
+  run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true), traversal_id_t::HORIZONTAL, 0);
+
+  std::cout << "## Biased sampling strategy:\n";
+  run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true), traversal_id_t::HORIZONTAL, 1);
+
+  std::cout << "# Vertical traversal strategy:\n";
+
+  std::cout << "## Uniform sampling strategy:\n";
+  run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true), traversal_id_t::VERTICAL, 0);
+
+  std::cout << "## Biased sampling strategy:\n";
+  run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true), traversal_id_t::VERTICAL, 1);
 
   // FIXME: consider returning non-zero for situations that warrant it (eg. if
   // the algo ran but the results are invalid, if a benchmark threshold is

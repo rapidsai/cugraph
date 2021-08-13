@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
@@ -28,7 +28,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -695,5 +694,4 @@ auto transform_reduce_by_adj_matrix_col_key_e(
     init);
 }
 
-}  // namespace experimental
 }  // namespace cugraph

@@ -115,7 +115,7 @@ cdef extern from "<utility>" namespace "std" nogil:
 #
 # 1. `cdef extern partition_t`:
 #
-cdef extern from "cugraph/experimental/graph_view.hpp" namespace "cugraph::experimental":
+cdef extern from "cugraph/graph_view.hpp" namespace "cugraph":
 
     cdef cppclass partition_t[vertex_t]:
         pass

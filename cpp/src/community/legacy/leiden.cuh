@@ -15,11 +15,12 @@
  */
 #pragma once
 
-#include <community/louvain.cuh>
+#include <community/legacy/louvain.cuh>
 
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
+namespace legacy {
 
 template <typename graph_type>
 class Leiden : public Louvain<graph_type> {
@@ -165,4 +166,5 @@ class Leiden : public Louvain<graph_type> {
   rmm::device_uvector<vertex_t> constraint_v_;
 };
 
+}  // namespace legacy
 }  // namespace cugraph
