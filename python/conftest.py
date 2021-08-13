@@ -19,6 +19,5 @@ from cugraph.tests.dask.mg_context import MGContext
 # module-wide fixtures
 @pytest.fixture(scope="module")
 def dask_client():
-    dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
-    with MGContext(dask_scheduler_file, p2p=True) as context:
+    with MGContext(p2p=True) as context:
         yield context.client
