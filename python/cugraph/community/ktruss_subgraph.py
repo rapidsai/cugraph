@@ -22,8 +22,8 @@ from cugraph.utilities import cugraph_to_nx
 from numba import cuda
 __cuda_version = cuda.runtime.get_version()
 __ktruss_unsupported_cuda_version = (11, 4)
-__kuvs = ".".join([str(n) for n in __ktruss_unsupported_cuda_version])
 if __cuda_version == __ktruss_unsupported_cuda_version:
+    __kuvs = ".".join([str(n) for n in __ktruss_unsupported_cuda_version])
     raise NotImplementedError("k_truss is not currently supported in CUDA"
                               f" {__kuvs} environments.")
 

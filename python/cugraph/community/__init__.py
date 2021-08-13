@@ -36,13 +36,13 @@ __ktruss_unsupported_cuda_version = (11, 4)
 
 class __UnsupportedModule:
     def __init__(self, exception):
-        self.__excexption = exception
+        self.__exception = exception
 
     def __getattr__(self, attr):
-        raise self.__excexption
+        raise self.__exception
 
     def __call__(self, *args, **kwargs):
-        raise self.__excexption
+        raise self.__exception
 
 
 if __cuda_version != __ktruss_unsupported_cuda_version:
