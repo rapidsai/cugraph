@@ -20,6 +20,7 @@ from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
 from dask_cuda.initialize import initialize
 from cugraph.dask.common.mg_utils import get_visible_devices
+import os
 
 import time
 import cugraph.comms as Comms
@@ -60,12 +61,12 @@ class MGContext:
     def __init__(self,
                  number_of_devices=None,
                  rmm_managed_memory=False,
-                 p2p=False,
-                 dask_scheduler_file=None):
+                 p2p=False):
 
-        self.dask_scheduler_file = dask_scheduler_file
+        self.dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
         self._rmm_managed_memory = rmm_managed_memory
         self._client = None
+        self._cluster = None
         self._p2p = p2p
 
         if number_of_devices is None:
@@ -73,7 +74,7 @@ class MGContext:
         else:
             self._number_of_devices = number_of_devices
 
-        if dask_scheduler_file:
+        if self.dask_scheduler_file:
             # Env var UCX_MAX_RNDV_RAILS=1 must be set too.
             initialize(enable_tcp_over_ucx=True,
                        enable_nvlink=True,
@@ -85,16 +86,10 @@ class MGContext:
             # The tempdir created by tempdir_object should be cleaned up once
             # tempdir_object goes out-of-scope and is deleted.
             tempdir_object = tempfile.TemporaryDirectory()
-            # FIXME: Might remove this condition because it is not necessary
-            if self._number_of_devices is None:
-                self._cluster = LocalCUDACluster(
-                    local_directory=tempdir_object.name,
-                    rmm_managed_memory=self._rmm_managed_memory)
-            else:
-                self._cluster = LocalCUDACluster(
-                    local_directory=tempdir_object.name,
-                    n_workers=self._number_of_devices,
-                    rmm_managed_memory=self._rmm_managed_memory)
+            self._cluster = LocalCUDACluster(
+                local_directory=tempdir_object.name,
+                n_workers=self._number_of_devices,
+                rmm_managed_memory=self._rmm_managed_memory)
 
     @property
     def client(self):

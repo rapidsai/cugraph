@@ -42,7 +42,8 @@ def test_replicate_cudf_dataframe_with_weights(
     input_data_path, mg_device_count
 ):
     gc.collect()
-    skip_if_not_enough_devices(mg_device_count)
+    if mg_device_count is not None:
+        skip_if_not_enough_devices(mg_device_count)
     df = cudf.read_csv(
         input_data_path,
         delimiter=" ",
@@ -68,7 +69,8 @@ def test_replicate_cudf_dataframe_with_weights(
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_replicate_cudf_dataframe_no_weights(input_data_path, mg_device_count):
     gc.collect()
-    skip_if_not_enough_devices(mg_device_count)
+    if mg_device_count is not None:
+        skip_if_not_enough_devices(mg_device_count)
     df = cudf.read_csv(
         input_data_path,
         delimiter=" ",
@@ -94,7 +96,8 @@ def test_replicate_cudf_dataframe_no_weights(input_data_path, mg_device_count):
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_replicate_cudf_series(input_data_path, mg_device_count):
     gc.collect()
-    skip_if_not_enough_devices(mg_device_count)
+    if mg_device_count is not None:
+        skip_if_not_enough_devices(mg_device_count)
     df = cudf.read_csv(
         input_data_path,
         delimiter=" ",
@@ -127,7 +130,8 @@ def test_replicate_cudf_series(input_data_path, mg_device_count):
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_no_context(graph_file, directed, mg_device_count):
     gc.collect()
-    skip_if_not_enough_devices(mg_device_count)
+    if mg_device_count is not None:
+        skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     assert G.batch_enabled is False, "Internal property should be False"
     with pytest.raises(Exception):
@@ -146,7 +150,8 @@ def test_enable_batch_no_context_view_adj(
     graph_file, directed, mg_device_count
 ):
     gc.collect()
-    skip_if_not_enough_devices(mg_device_count)
+    if mg_device_count is not None:
+        skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     assert G.batch_enabled is False, "Internal property should be False"
     G.view_adj_list()
@@ -164,7 +169,8 @@ def test_enable_batch_context_then_views(
     graph_file, directed, mg_device_count
 ):
     gc.collect()
-    skip_if_not_enough_devices(mg_device_count)
+    if mg_device_count is not None:
+        skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     with MGContext(number_of_devices=mg_device_count,
                    p2p=True):
@@ -193,7 +199,8 @@ def test_enable_batch_context_then_views(
 @pytest.mark.parametrize("mg_device_count", MG_DEVICE_COUNT_OPTIONS)
 def test_enable_batch_view_then_context(graph_file, directed, mg_device_count):
     gc.collect()
-    skip_if_not_enough_devices(mg_device_count)
+    if mg_device_count is not None:
+        skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
 
     assert G.batch_adjlists is None
@@ -228,7 +235,8 @@ def test_enable_batch_context_no_context_views(
     graph_file, directed, mg_device_count
 ):
     gc.collect()
-    skip_if_not_enough_devices(mg_device_count)
+    if mg_device_count is not None:
+        skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     with MGContext(number_of_devices=mg_device_count,
                    p2p=True):
@@ -255,7 +263,8 @@ def test_enable_batch_edgelist_replication(
     graph_file, directed, mg_device_count
 ):
     gc.collect()
-    skip_if_not_enough_devices(mg_device_count)
+    if mg_device_count is not None:
+        skip_if_not_enough_devices(mg_device_count)
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
     with MGContext(number_of_devices=mg_device_count,
                    p2p=True):
@@ -278,7 +287,8 @@ def test_enable_batch_adjlist_replication_weights(
     graph_file, directed, mg_device_count
 ):
     gc.collect()
-    skip_if_not_enough_devices(mg_device_count)
+    if mg_device_count is not None:
+        skip_if_not_enough_devices(mg_device_count)
     df = cudf.read_csv(
         graph_file,
         delimiter=" ",
@@ -322,7 +332,8 @@ def test_enable_batch_adjlist_replication_no_weights(
     graph_file, directed, mg_device_count
 ):
     gc.collect()
-    skip_if_not_enough_devices(mg_device_count)
+    if mg_device_count is not None:
+        skip_if_not_enough_devices(mg_device_count)
     df = cudf.read_csv(
         graph_file,
         delimiter=" ",
