@@ -23,7 +23,38 @@ from cugraph.community.spectral_clustering import (
 )
 from cugraph.community.subgraph_extraction import subgraph
 from cugraph.community.triangle_count import triangles
-from cugraph.community.ktruss_subgraph import ktruss_subgraph
-from cugraph.community.ktruss_subgraph import k_truss
 from cugraph.community.egonet import ego_graph
 from cugraph.community.egonet import batched_ego_graphs
+
+# FIXME: special case for ktruss on CUDA 11.4: an 11.4 bug causes ktruss to
+# crash in that environment. Allow ktruss to import on non-11.4 systems, but
+# replace ktruss with a __UnsupportedModule instance, which lazily raises an
+# exception when referenced.
+from numba import cuda
+__cuda_version = cuda.runtime.get_version()
+__ktruss_unsupported_cuda_version = (11, 4)
+
+class __UnsupportedModule:
+    def __init__(self, exception):
+        self.__excexption = exception
+
+    def __getattr__(self, attr):
+        raise self.__excexption
+
+    def __call__(self, *args, **kwargs):
+        raise self.__excexption
+
+
+if __cuda_version != __ktruss_unsupported_cuda_version:
+    from cugraph.community.ktruss_subgraph import ktruss_subgraph
+    from cugraph.community.ktruss_subgraph import k_truss
+else:
+    __kuvs = ".".join([str(n) for n in __ktruss_unsupported_cuda_version])
+    k_truss = __UnsupportedModule(
+        NotImplementedError("k_truss is not currently supported in CUDA"
+                            f" {__kuvs} environments.")
+        )
+    ktruss_subgraph = __UnsupportedModule(
+        NotImplementedError("ktruss_subgraph is not currently supported in CUDA"
+                            f" {__kuvs} environments.")
+        )
