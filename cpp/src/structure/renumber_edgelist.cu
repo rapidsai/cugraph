@@ -276,10 +276,13 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   labels.shrink_to_fit(handle.get_stream());
   counts.shrink_to_fit(handle.get_stream());
 
-  // 4. if vertex_span.has_value() == true, add isolated vertices
+  auto num_non_isolated_vertices = static_cast<vertex_t>(labels.size());
 
-  rmm::device_uvector<vertex_t> isolated_vertices(0, handle.get_stream());
+  // 4. if vertex_span.has_value() == true, append isolated vertices
+
   if (vertex_span) {
+    rmm::device_uvector<vertex_t> isolated_vertices(0, handle.get_stream());
+
     auto [vertices, num_vertices] = *vertex_span;
     auto num_isolated_vertices    = thrust::count_if(
       rmm::exec_policy(handle.get_stream_view()),
@@ -296,26 +299,26 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                     [label_first = labels.begin(), label_last = labels.end()] __device__(auto v) {
                       return !thrust::binary_search(thrust::seq, label_first, label_last, v);
                     });
+
+    if (isolated_vertices.size() > 0) {
+      labels.resize(labels.size() + isolated_vertices.size(), handle.get_stream());
+      counts.resize(labels.size(), handle.get_stream());
+      thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+                   isolated_vertices.begin(),
+                   isolated_vertices.end(),
+                   labels.end() - isolated_vertices.size());
+      thrust::fill(rmm::exec_policy(handle.get_stream_view()),
+                   counts.end() - isolated_vertices.size(),
+                   counts.end(),
+                   edge_t{0});
+    }
   }
 
-  if (isolated_vertices.size() > 0) {
-    labels.resize(labels.size() + isolated_vertices.size(), handle.get_stream());
-    counts.resize(labels.size(), handle.get_stream());
-    thrust::copy(rmm::exec_policy(handle.get_stream_view()),
-                 isolated_vertices.begin(),
-                 isolated_vertices.end(),
-                 labels.end() - isolated_vertices.size());
-    thrust::fill(rmm::exec_policy(handle.get_stream_view()),
-                 counts.end() - isolated_vertices.size(),
-                 counts.end(),
-                 edge_t{0});
-  }
-
-  // 5. sort by degree
+  // 5. sort non-isolated vertices by degree
 
   thrust::sort_by_key(rmm::exec_policy(handle.get_stream_view()),
                       counts.begin(),
-                      counts.end(),
+                      counts.begin() + num_non_isolated_vertices,
                       labels.begin(),
                       thrust::greater<edge_t>());
 
@@ -668,6 +671,7 @@ renumber_edgelist(
                                                               edgelist_const_major_vertices,
                                                               edgelist_const_minor_vertices,
                                                               edgelist_edge_counts);
+
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges for the coarsened
   // graph
 
