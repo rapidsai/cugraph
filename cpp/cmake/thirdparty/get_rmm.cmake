@@ -32,8 +32,8 @@ function(find_and_configure_rmm VERSION)
         INSTALL_EXPORT_SET  cugraph-exports
         CPM_ARGS
             GIT_REPOSITORY  https://github.com/rapidsai/rmm.git
-            GIT_TAG         branch-${MAJOR_AND_MINOR}
-            GIT_SHALLOW     TRUE
+            GIT_TAG         23bbe745af1d988224b5498f7b8e3fe3720532d4
+            GIT_SHALLOW     FALSE
             OPTIONS         "BUILD_TESTS OFF"
                             "BUILD_BENCHMARKS OFF"
                             "CUDA_STATIC_RUNTIME ${CUDA_STATIC_RUNTIME}"
