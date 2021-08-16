@@ -26,6 +26,8 @@ function(find_and_configure_rmm VERSION)
         return()
     endif()
 
+    # FIXME: turn GIT_SHALLOW back to TRUE when changing GIT_TAG back
+    # to branch-${MAJOR_AND_MINOR}
     rapids_cpm_find(rmm ${VERSION}
         GLOBAL_TARGETS      rmm::rmm
         BUILD_EXPORT_SET    cugraph-exports
