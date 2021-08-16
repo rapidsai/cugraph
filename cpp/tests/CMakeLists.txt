@@ -1,5 +1,4 @@
-﻿#=============================================================================
-#
+﻿#
 # Copyright (c) 2019-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -386,6 +385,10 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST "${WEAKLY_CONNECTED_COMPONENTS_TE
 ConfigureTest(RANDOM_WALKS_TEST sampling/random_walks_test.cu)
 
 ###################################################################################################
+# - Experimental RANDOM_WALKS Segmented Sort tests ------------------------------------------------
+ConfigureTest(RANDOM_WALKS_SEG_SORT_TEST sampling/rw_biased_seg_sort.cu)
+
+###################################################################################################
 ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
 
 ###################################################################################################
@@ -467,6 +470,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
         ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
+
+        ###########################################################################################
+        # - MG PRIMS TRANSFORM_REDUCE_V tests -----------------------------------------------------
+        ConfigureTestMG(MG_TRANSFORM_REDUCE_V_TEST prims/mg_transform_reduce_v.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()

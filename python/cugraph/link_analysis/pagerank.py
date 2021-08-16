@@ -13,6 +13,7 @@
 
 from cugraph.link_analysis import pagerank_wrapper
 import cugraph
+import cudf
 
 
 def pagerank(
@@ -97,6 +98,11 @@ def pagerank(
     G, isNx = cugraph.utilities.check_nx_graph(G, weight)
 
     if personalization is not None:
+        if not isinstance(personalization, cudf.DataFrame):
+            raise NotImplementedError(
+                "personalization other than a cudf dataframe "
+                "currently not supported"
+            )
         if G.renumbered is True:
             if len(G.renumber_map.implementation.col_names) > 1:
                 cols = personalization.columns[:-1].to_list()

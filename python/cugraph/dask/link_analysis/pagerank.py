@@ -19,6 +19,7 @@ from cugraph.dask.common.input_utils import (get_distributed_data,
 from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
 import cugraph.comms.comms as Comms
 import dask_cudf
+from dask.dataframe.shuffle import rearrange_by_column
 
 
 def call_pagerank(sID,
@@ -124,8 +125,6 @@ def pagerank(input_graph,
                                    edge_attr='value')
     >>> pr = dcg.pagerank(dg)
     """
-    from cugraph.structure.graph_classes import null_check
-
     nstart = None
 
     client = default_client()
@@ -139,13 +138,41 @@ def pagerank(input_graph,
     data = get_distributed_data(ddf)
 
     if personalization is not None:
-        null_check(personalization["vertex"])
-        null_check(personalization["values"])
         if input_graph.renumbered is True:
             personalization = input_graph.add_internal_vertex_id(
                 personalization, "vertex", "vertex"
             )
-        p_data = get_distributed_data(personalization)
+
+        # Function to assign partition id to personalization dataframe
+        def _set_partitions_pre(s, divisions):
+            partitions = divisions.searchsorted(s, side="right") - 1
+            partitions[
+                divisions.tail(1).searchsorted(s, side="right").astype("bool")
+            ] = (len(divisions) - 2)
+            return partitions
+
+        # Assign partition id column as per vertex_partition_offsets
+        df = personalization
+        by = ['vertex']
+        meta = df._meta._constructor_sliced([0])
+        divisions = vertex_partition_offsets
+        partitions = df[by].map_partitions(
+            _set_partitions_pre, divisions=divisions, meta=meta
+        )
+
+        df2 = df.assign(_partitions=partitions)
+
+        # Shuffle personalization values according to the partition id
+        df3 = rearrange_by_column(
+            df2,
+            "_partitions",
+            max_branch=None,
+            npartitions=len(divisions) - 1,
+            shuffle="tasks",
+            ignore_index=False,
+        ).drop(columns=["_partitions"])
+
+        p_data = get_distributed_data(df3)
 
         result = [client.submit(call_pagerank,
                                 Comms.get_session_id(),

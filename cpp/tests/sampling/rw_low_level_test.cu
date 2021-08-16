@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 #include "cuda_profiler_api.h"
 
+#include <topology/topology.cuh>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
@@ -32,6 +33,7 @@
 #include "random_walks_utils.cuh"
 
 #include <algorithm>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <limits>
@@ -62,6 +64,24 @@ bool check_col_indices(raft::handle_t const& handle,
         return true;
     });
   return all_indices_within_degs;
+}
+
+template <typename vertex_t, typename real_t, typename selector_t>
+void next_biased(raft::handle_t const& handle,
+                 vector_test_t<vertex_t> const& d_src_v,
+                 vector_test_t<real_t> const& d_rnd,
+                 vector_test_t<vertex_t>& d_next_v,
+                 selector_t const& selector)
+{
+  thrust::transform(rmm::exec_policy(handle.get_stream_view()),
+                    d_src_v.begin(),
+                    d_src_v.end(),
+                    d_rnd.begin(),
+                    d_next_v.begin(),
+                    [sampler = selector.get_strategy()] __device__(auto src_v_indx, auto rnd_val) {
+                      auto next_vw = sampler(src_v_indx, rnd_val);
+                      return (next_vw.has_value() ? thrust::get<0>(*next_vw) : src_v_indx);
+                    });
 }
 
 }  // namespace
@@ -138,7 +158,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRWStart)
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
@@ -203,9 +223,9 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceExperiments)
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
-  auto const& d_out_degs = rand_walker.get_out_degs();
+  auto d_out_degs = rand_walker.get_out_degs(graph_view);
   EXPECT_EQ(static_cast<size_t>(num_vertices), d_out_degs.size());
 
   std::vector<edge_t> v_out_degs(num_vertices);
@@ -280,9 +300,9 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
-  auto const& d_out_degs = rand_walker.get_out_degs();
+  auto d_out_degs = rand_walker.get_out_degs(graph_view);
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
@@ -292,12 +312,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
   rand_walker.gather_from_coalesced(
     d_coalesced_v, d_out_degs, d_sizes, d_crt_out_degs, max_depth, num_paths);
 
-  col_indx_extract_t<decltype(graph_view), index_t> col_extractor{handle,
-                                                                  graph_view,
-                                                                  raw_const_ptr(d_crt_out_degs),
-                                                                  raw_const_ptr(d_sizes),
-                                                                  num_paths,
-                                                                  max_depth};
+  col_indx_extract_t<decltype(graph_view), index_t> col_extractor{
+    handle, graph_view, raw_ptr(d_crt_out_degs), raw_ptr(d_sizes), num_paths, max_depth};
 
   // typically given by random engine:
   //
@@ -377,9 +393,9 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
-  auto const& d_out_degs = rand_walker.get_out_degs();
+  auto d_out_degs = rand_walker.get_out_degs(graph_view);
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
@@ -395,8 +411,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
   vector_test_t<real_t> d_random(num_paths, handle.get_stream());
 
   seed_t seed = static_cast<seed_t>(std::time(nullptr));
-  random_engine_t rgen(handle, num_paths, d_random, d_crt_out_degs, seed);
-  rgen.generate_col_indices(d_col_indx);
+  random_engine_t rgen(handle, num_paths, d_random, seed);
+  rgen.generate_col_indices(d_crt_out_degs, d_col_indx);
 
   bool all_indices_within_degs = check_col_indices(handle, d_crt_out_degs, d_col_indx, num_paths);
 
@@ -413,8 +429,6 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
   using index_t  = vertex_t;
   using real_t   = float;
   using seed_t   = long;
-
-  using random_engine_t = rrandom_gen_t<vertex_t, edge_t>;
 
   raft::handle_t handle{};
 
@@ -456,9 +470,9 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
-  auto const& d_out_degs = rand_walker.get_out_degs();
+  auto d_out_degs = rand_walker.get_out_degs(graph_view);
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
@@ -529,9 +543,9 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
 
   vector_test_t<index_t> d_sizes(num_paths, handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
-  auto const& d_out_degs = rand_walker.get_out_degs();
+  auto d_out_degs = rand_walker.get_out_degs(graph_view);
 
   rand_walker.start(d_start, d_coalesced_v, d_sizes);
 
@@ -541,12 +555,8 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
   rand_walker.gather_from_coalesced(
     d_coalesced_v, d_out_degs, d_sizes, d_crt_out_degs, max_depth, num_paths);
 
-  col_indx_extract_t<decltype(graph_view), index_t> col_extractor{handle,
-                                                                  graph_view,
-                                                                  raw_const_ptr(d_crt_out_degs),
-                                                                  raw_const_ptr(d_sizes),
-                                                                  num_paths,
-                                                                  max_depth};
+  col_indx_extract_t<decltype(graph_view), index_t> col_extractor{
+    handle, graph_view, raw_ptr(d_crt_out_degs), raw_ptr(d_sizes), num_paths, max_depth};
 
   // typically given by random engine:
   //
@@ -681,7 +691,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceDefragment)
   raft::update_device(
     d_coalesced_w.data(), w_coalesced.data(), d_coalesced_w.size(), handle.get_stream());
 
-  random_walker_t<decltype(graph_view)> rand_walker{handle, graph_view, num_paths, max_depth};
+  random_walker_t<decltype(graph_view)> rand_walker{handle, num_vertices, num_paths, max_depth};
 
   rand_walker.stop(d_coalesced_v, d_coalesced_w, d_sizes);
 
@@ -710,6 +720,7 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   using edge_t   = vertex_t;
   using weight_t = float;
   using index_t  = vertex_t;
+  using real_t   = float;
 
   raft::handle_t handle{};
 
@@ -748,7 +759,12 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
   //
   cugraph::detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(),
                                                                             num_paths};
-  auto quad = cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+  using graph_t = decltype(graph_view);
+
+  cugraph::detail::uniform_selector_t<graph_t, real_t> selector{handle, graph_view, real_t{0}};
+
+  auto quad =
+    cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, selector);
 
   auto& d_coalesced_v = std::get<0>(quad);
   auto& d_coalesced_w = std::get<1>(quad);
@@ -807,7 +823,12 @@ TEST(RandomWalksQuery, GraphRWQueryOffsets)
   //
   cugraph::detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(),
                                                                             num_paths};
-  auto quad = cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+  using graph_t = decltype(graph_view);
+  using real_t  = float;
+  cugraph::detail::uniform_selector_t<graph_t, real_t> selector{handle, graph_view, real_t{0}};
+
+  auto quad =
+    cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, selector);
 
   auto& d_v_sizes = std::get<2>(quad);
   auto seed0      = std::get<3>(quad);
@@ -871,7 +892,12 @@ TEST(RandomWalksSpecialCase, SingleRandomWalk)
   //
   cugraph::detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(),
                                                                             num_paths};
-  auto quad = cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+  using graph_t = decltype(graph_view);
+  using real_t  = float;
+  cugraph::detail::uniform_selector_t<graph_t, real_t> selector{handle, graph_view, real_t{0}};
+
+  auto quad =
+    cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, selector);
 
   auto& d_coalesced_v = std::get<0>(quad);
   auto& d_coalesced_w = std::get<1>(quad);
@@ -927,7 +953,12 @@ TEST(RandomWalksSpecialCase, UnweightedGraph)
   //
   cugraph::detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(),
                                                                             num_paths};
-  auto quad = cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth);
+  using graph_t = decltype(graph_view);
+  using real_t  = float;
+  cugraph::detail::uniform_selector_t<graph_t, real_t> selector{handle, graph_view, real_t{0}};
+
+  auto quad =
+    cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, selector);
 
   auto& d_coalesced_v = std::get<0>(quad);
   auto& d_coalesced_w = std::get<1>(quad);
@@ -987,8 +1018,13 @@ TEST(RandomWalksPadded, SimpleGraph)
   cugraph::detail::device_const_vector_view<vertex_t, index_t> d_start_view{d_v_start.data(),
                                                                             num_paths};
   bool use_padding{true};
-  auto quad =
-    cugraph::detail::random_walks_impl(handle, graph_view, d_start_view, max_depth, use_padding);
+
+  using graph_t = decltype(graph_view);
+  using real_t  = float;
+  cugraph::detail::uniform_selector_t<graph_t, real_t> selector{handle, graph_view, real_t{0}};
+
+  auto quad = cugraph::detail::random_walks_impl(
+    handle, graph_view, d_start_view, max_depth, selector, use_padding);
 
   auto& d_coalesced_v = std::get<0>(quad);
   auto& d_coalesced_w = std::get<1>(quad);
@@ -1064,4 +1100,120 @@ TEST(RandomWalksUtility, PathsToCOO)
   EXPECT_EQ(v_src, v_src_exp);
   EXPECT_EQ(v_dst, v_dst_exp);
   EXPECT_EQ(v_offsets, v_offsets_exp);
+}
+
+TEST(BiasedRandomWalks, SelectorSmallGraph)
+{
+  namespace topo = cugraph::topology;
+
+  raft::handle_t handle{};
+
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+  using real_t   = weight_t;
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  /*
+    0 --(.1)--> 1 --(1.1)--> 4
+   /|\       /\ |            |
+    |       /   |            |
+   (5.1) (3.1)(2.1)        (3.2)
+    |   /       |            |
+    | /        \|/          \|/
+    2 --(4.1)-->3 --(7.2)--> 5
+   */
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
+
+  std::vector<real_t> v_rnd{0.0,
+                            1.0,
+                            0.2,  // 0
+                            0.0,
+                            1.0,
+                            0.8,  // 1
+                            0.0,
+                            1.0,
+                            0.5,  // 2
+                            0.0,
+                            1.0,  // 3
+                            0.0,
+                            1.0,  // 4
+                            0.0,
+                            1.0};  // 5
+
+  std::vector<vertex_t> v_src_v{0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 5, 5};
+
+  vector_test_t<real_t> d_rnd(v_rnd.size(), handle.get_stream());
+  vector_test_t<vertex_t> d_src_v(v_src_v.size(), handle.get_stream());
+
+  EXPECT_EQ(d_rnd.size(), d_src_v.size());
+
+  raft::update_device(d_rnd.data(), v_rnd.data(), d_rnd.size(), handle.get_stream());
+  raft::update_device(d_src_v.data(), v_src_v.data(), d_src_v.size(), handle.get_stream());
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets = graph_view.get_matrix_partition_view().get_offsets();
+
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+
+  weight_t const* values = *(graph_view.get_matrix_partition_view().get_weights());
+
+  cugraph::detail::biased_selector_t selector{handle, graph_view, 0.0f};
+
+  std::vector<weight_t> h_correct_sum_w{0.1f, 3.2f, 12.3f, 7.2f, 3.2f, 0.0f};
+  std::vector<weight_t> v_sum_weights(num_vertices);
+
+  auto const& d_sum_weights = selector.get_sum_weights();
+
+  raft::update_host(
+    v_sum_weights.data(), d_sum_weights.data(), d_sum_weights.size(), handle.get_stream());
+
+  // test floating point equality between vectors:
+  //
+  weight_t eps = 1.0e-6f;
+
+  auto end =
+    thrust::make_zip_iterator(thrust::make_tuple(v_sum_weights.end(), h_correct_sum_w.end()));
+  auto it = thrust::find_if(
+    thrust::host,
+    thrust::make_zip_iterator(thrust::make_tuple(v_sum_weights.begin(), h_correct_sum_w.begin())),
+    end,
+    [eps](auto const& tpl) { return std::abs(thrust::get<0>(tpl) - thrust::get<1>(tpl)) > eps; });
+
+  EXPECT_EQ(it, end);
+
+  vector_test_t<vertex_t> d_next_v(v_src_v.size(), handle.get_stream());
+
+  next_biased(handle, d_src_v, d_rnd, d_next_v, selector);
+
+  std::vector<edge_t> v_next_v(v_src_v.size());
+
+  raft::update_host(v_next_v.data(), d_next_v.data(), v_src_v.size(), handle.get_stream());
+
+  std::vector h_next_v{1,
+                       1,
+                       1, /*<-0*/
+                       3,
+                       4,
+                       4, /*<-1*/
+                       0,
+                       3,
+                       1, /*<-2*/
+                       5,
+                       5, /*<-3*/
+                       5,
+                       5, /*<-4*/
+                       5,
+                       5}; /*<-5*/
+
+  EXPECT_EQ(v_next_v, h_next_v);
 }
