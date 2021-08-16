@@ -19,6 +19,7 @@ import cugraph
 from cugraph.tests import utils
 
 import numpy as np
+from numba import cuda
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -73,6 +74,31 @@ def compare_k_truss(k_truss_cugraph, k, ground_truth_file):
     return True
 
 
+__cuda_version = cuda.runtime.get_version()
+__unsupported_cuda_version = (11, 4)
+
+
+# FIXME: remove when ktruss is supported on CUDA 11.4
+def test_unsupported_cuda_version():
+    """
+    Ensures the proper exception is raised when ktruss is called in an
+    unsupported env, and not when called in a supported env.
+    """
+    k = 5
+    cu_M = utils.read_csv_file(utils.DATASETS_KTRUSS[0][0])
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+
+    if __cuda_version == __unsupported_cuda_version:
+        with pytest.raises(NotImplementedError):
+            cugraph.k_truss(G, k)
+    else:
+        cugraph.k_truss(G, k)
+
+
+@pytest.mark.skipif((__cuda_version == __unsupported_cuda_version),
+                    reason="skipping on unsupported CUDA "
+                    f"{__unsupported_cuda_version} environment.")
 @pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     gc.collect()
@@ -86,6 +112,9 @@ def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     compare_k_truss(k_subgraph, k, nx_ground_truth)
 
 
+@pytest.mark.skipif((__cuda_version == __unsupported_cuda_version),
+                    reason="skipping on unsupported CUDA "
+                    f"{__unsupported_cuda_version} environment.")
 @pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
     gc.collect()
