@@ -32,7 +32,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>> sort_by_
   rmm::device_uvector<vertex_t> sorted_keys(num_pairs, handle.get_stream_view());
   rmm::device_uvector<value_t> sorted_values(num_pairs, handle.get_stream_view());
 
-  rmm::exec_policy execution_policy = handle.get_thrust_policy();
+  auto execution_policy = handle.get_thrust_policy();
   thrust::copy(execution_policy, keys, keys + num_pairs, sorted_keys.begin());
   thrust::copy(execution_policy, values, values + num_pairs, sorted_values.begin());
 
@@ -84,7 +84,7 @@ void translate_vertex_ids(raft::handle_t const& handle,
                           rmm::device_uvector<vertex_t>& d_dst_v,
                           vertex_t vertex_id_offset)
 {
-  rmm::exec_policy execution_policy = handle.get_thrust_policy();
+  auto execution_policy = handle.get_thrust_policy();
   thrust::transform(execution_policy,
                     d_src_v.begin(),
                     d_src_v.end(),

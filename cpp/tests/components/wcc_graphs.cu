@@ -42,7 +42,7 @@ LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> dst_v(num_edges, handle.get_stream());
   rmm::device_uvector<double> order_v(num_vertices_, handle.get_stream());
 
-  rmm::exec_policy execution_policy = handle.get_thrust_policy();
+  auto execution_policy = handle.get_thrust_policy();
   thrust::sequence(execution_policy, vertices_v.begin(), vertices_v.end(), vertex_t{0});
 
   cugraph::detail::uniform_random_fill(

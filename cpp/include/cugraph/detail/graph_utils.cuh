@@ -78,7 +78,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                                 [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
                                  detail::num_sparse_segments_per_vertex_partition]
               : major_last;
-    rmm::exec_policy execution_policy = handle.get_thrust_policy();
+    auto execution_policy = handle.get_thrust_policy();
     thrust::transform(execution_policy,
                       thrust::make_counting_iterator(vertex_t{0}),
                       thrust::make_counting_iterator(major_hypersparse_first - major_first),
@@ -124,10 +124,10 @@ rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const& handle,
                                                   vertex_t number_of_vertices)
 {
   rmm::device_uvector<edge_t> degrees(number_of_vertices, handle.get_stream());
-  thrust::tabulate(rmm::exec_policy(handle.get_stream()),
-                   degrees.begin(),
-                   degrees.end(),
-                   [offsets] __device__(auto i) { return offsets[i + 1] - offsets[i]; });
+  thrust::tabulate(
+    handle.get_thrust_policy(), degrees.begin(), degrees.end(), [offsets] __device__(auto i) {
+      return offsets[i + 1] - offsets[i];
+    });
   return degrees;
 }
 

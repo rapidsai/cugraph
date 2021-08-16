@@ -335,7 +335,7 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
       handle, graph_file_full_path, test_weighted);
 
   rmm::device_uvector<vertex_t> d_vertices(number_of_vertices, handle.get_stream());
-  rmm::exec_policy execution_policy = handle.get_thrust_policy();
+  auto execution_policy = handle.get_thrust_policy();
   thrust::sequence(execution_policy, d_vertices.begin(), d_vertices.end(), vertex_t{0});
   handle.get_stream_view().synchronize();
 

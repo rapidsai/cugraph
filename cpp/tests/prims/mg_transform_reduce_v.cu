@@ -211,7 +211,7 @@ class Tests_MG_TransformReduceV
       using property_t   = decltype(property_initial_value);
 
       auto expected_result = thrust::transform_reduce(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        handle.get_thrust_policy(),
         thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
         thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
         prop,

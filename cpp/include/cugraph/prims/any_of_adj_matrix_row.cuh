@@ -59,7 +59,7 @@ bool any_of_adj_matrix_row(raft::handle_t const& handle,
 {
   // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
   auto count = thrust::count_if(
-    rmm::exec_policy(handle.get_stream()),
+    handle.get_thrust_policy(),
     adj_matrix_row_value_input_first,
     adj_matrix_row_value_input_first + graph_view.get_number_of_local_adj_matrix_partition_rows(),
     row_op);

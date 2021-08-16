@@ -99,7 +99,7 @@ T transform_reduce_v_with_adj_matrix_row(
       auto v_op_wrapper = [v_op] __device__(auto v_and_row_val) {
         return v_op(thrust::get<0>(v_and_row_val), thrust::get<1>(v_and_row_val));
       };
-      ret += thrust::transform_reduce(rmm::exec_policy(handle.get_stream()),
+      ret += thrust::transform_reduce(handle.get_thrust_policy(),
                                       input_first,
                                       input_first + (range_last - range_first),
                                       v_op_wrapper,

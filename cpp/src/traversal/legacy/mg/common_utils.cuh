@@ -478,7 +478,7 @@ vertex_t get_global_vertex_count(
 {
   rmm::device_vector<vertex_t> id(1);
   id[0] = *thrust::max_element(
-    rmm::exec_policy(handle.get_stream()), graph.indices, graph.indices + graph.number_of_edges);
+    handle.get_thrust_policy(), graph.indices, graph.indices + graph.number_of_edges);
   handle.get_comms().allreduce(
     id.data().get(), id.data().get(), 1, raft::comms::op_t::MAX, handle.get_stream());
   vertex_t max_vertex_id = id[0];

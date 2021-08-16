@@ -92,7 +92,8 @@ std::vector<edge_t> compute_edge_counts(raft::handle_t const& handle,
     major_vertices, compute_local_partition_id_t<vertex_t>{d_lasts.data(), num_local_partitions});
   rmm::device_uvector<size_t> d_local_partition_ids(num_local_partitions, handle.get_stream());
   rmm::device_uvector<edge_t> d_edge_counts(d_local_partition_ids.size(), handle.get_stream());
-  auto it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream()),
+  auto execution_policy = handle.get_thrust_policy();
+  auto it               = thrust::reduce_by_key(execution_policy,
                                   key_first,
                                   key_first + graph_container.num_local_edges,
                                   thrust::make_constant_iterator(edge_t{1}),
@@ -101,9 +102,8 @@ std::vector<edge_t> compute_edge_counts(raft::handle_t const& handle,
   if (static_cast<size_t>(thrust::distance(d_local_partition_ids.begin(), thrust::get<0>(it))) <
       num_local_partitions) {
     rmm::device_uvector<edge_t> d_counts(num_local_partitions, handle.get_stream());
-    thrust::fill(
-      rmm::exec_policy(handle.get_stream()), d_counts.begin(), d_counts.end(), edge_t{0});
-    thrust::scatter(rmm::exec_policy(handle.get_stream()),
+    thrust::fill(execution_policy, d_counts.begin(), d_counts.end(), edge_t{0});
+    thrust::scatter(execution_policy,
                     d_edge_counts.begin(),
                     thrust::get<1>(it),
                     d_local_partition_ids.begin(),
@@ -508,7 +508,7 @@ class louvain_functor {
   std::pair<size_t, weight_t> operator()(raft::handle_t const& handle,
                                          graph_view_t const& graph_view)
   {
-    thrust::copy(rmm::exec_policy(handle.get_stream()),
+    thrust::copy(handle.get_thrust_policy(),
                  thrust::make_counting_iterator(graph_view.get_local_vertex_first()),
                  thrust::make_counting_iterator(graph_view.get_local_vertex_last()),
                  reinterpret_cast<typename graph_view_t::vertex_type*>(identifiers_));

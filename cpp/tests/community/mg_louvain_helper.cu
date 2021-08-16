@@ -39,7 +39,7 @@ void single_gpu_renumber_edgelist_given_number_map(raft::handle_t const& handle,
 {
   rmm::device_uvector<T> index_v(renumber_map_gathered_v.size(), handle.get_stream());
 
-  rmm::exec_policy execution_policy = handle.get_thrust_policy();
+  auto execution_policy = handle.get_thrust_policy();
   thrust::for_each(
     execution_policy,
     thrust::make_counting_iterator<size_t>(0),
@@ -85,7 +85,7 @@ compressed_sparse_to_edgelist(edge_t const* compressed_sparse_offsets,
   // FIXME: this is highly inefficient for very high-degree vertices, for better performance, we can
   // fill high-degree vertices using one CUDA block per vertex, mid-degree vertices using one CUDA
   // warp per vertex, and low-degree vertices using one CUDA thread per block
-  rmm::exec_policy execution_policy = handle.get_thrust_policy();
+  auto execution_policy = handle.get_thrust_policy();
   thrust::for_each(execution_policy,
                    thrust::make_counting_iterator(major_first),
                    thrust::make_counting_iterator(major_last),
@@ -124,7 +124,7 @@ void sort_and_coarsen_edgelist(
 
   size_t number_of_edges{0};
 
-  rmm::exec_policy execution_policy = handle.get_thrust_policy();
+  auto execution_policy = handle.get_thrust_policy();
   if (edgelist_weights) {
     thrust::sort_by_key(execution_policy,
                         pair_first,

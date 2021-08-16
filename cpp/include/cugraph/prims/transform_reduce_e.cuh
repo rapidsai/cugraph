@@ -406,7 +406,7 @@ T transform_reduce_e(raft::handle_t const& handle,
   property_add<T> edge_property_add{};
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
-  thrust::fill(rmm::exec_policy(handle.get_stream()),
+  thrust::fill(handle.get_thrust_policy(),
                get_dataframe_buffer_begin<T>(result_buffer),
                get_dataframe_buffer_begin<T>(result_buffer) + 1,
                T{});
@@ -503,8 +503,7 @@ T transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
-  rmm::exec_policy execution_policy = handle.get_thrust_policy();
-  auto result                       = thrust::reduce(execution_policy,
+  auto result = thrust::reduce(handle.get_thrust_policy(),
                                get_dataframe_buffer_begin<T>(result_buffer),
                                get_dataframe_buffer_begin<T>(result_buffer) + 1,
                                T{},

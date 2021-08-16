@@ -51,9 +51,8 @@ T reduce_v(raft::handle_t const& handle,
            VertexValueInputIterator vertex_value_input_first,
            T init)
 {
-  rmm::exec_policy execution_policy = handle.get_thrust_policy();
-  auto ret                          = thrust::reduce(
-    execution_policy,
+  auto ret = thrust::reduce(
+    handle.get_thrust_policy(),
     vertex_value_input_first,
     vertex_value_input_first + graph_view.get_number_of_local_vertices(),
     ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
@@ -89,9 +88,8 @@ T reduce_v(raft::handle_t const& handle,
            InputIterator input_last,
            T init)
 {
-  rmm::exec_policy execution_policy = handle.get_thrust_policy();
-  auto ret                          = thrust::reduce(
-    execution_policy,
+  auto ret = thrust::reduce(
+    handle.get_thrust_policy(),
     input_first,
     input_last,
     ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
