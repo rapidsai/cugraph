@@ -62,4 +62,3 @@ def dask_client():
     if cluster:
         cluster.close()
     print("\ndask_client fixture: client.close() called")
-    

@@ -20,7 +20,6 @@ import cugraph
 import cugraph.dask.structure.replication as replication
 from cugraph.dask.common.mg_utils import is_single_gpu
 import cugraph.tests.utils as utils
-import os
 
 DATASETS_OPTIONS = utils.DATASETS_SMALL
 DIRECTED_GRAPH_OPTIONS = [False, True]
@@ -58,8 +57,7 @@ def test_replicate_cudf_dataframe_with_weights(
 @pytest.mark.parametrize("input_data_path", DATASETS_OPTIONS,
                          ids=[f"dataset={d.as_posix()}"
                               for d in DATASETS_OPTIONS])
-def test_replicate_cudf_dataframe_no_weights(
-    input_data_path, dask_client):
+def test_replicate_cudf_dataframe_no_weights(input_data_path, dask_client):
     gc.collect()
     df = cudf.read_csv(
         input_data_path,
@@ -81,8 +79,7 @@ def test_replicate_cudf_dataframe_no_weights(
 @pytest.mark.parametrize("input_data_path", DATASETS_OPTIONS,
                          ids=[f"dataset={d.as_posix()}"
                               for d in DATASETS_OPTIONS])
-def test_replicate_cudf_series(
-    input_data_path, dask_client):
+def test_replicate_cudf_series(input_data_path, dask_client):
     gc.collect()
     df = cudf.read_csv(
         input_data_path,
@@ -102,7 +99,6 @@ def test_replicate_cudf_series(
         # results for the 2nd column, one of the workers still
         # has a value from the 1st column
         worker_to_futures = {}
-
 
 
 @pytest.mark.skip(reason="no way of currently testing this")
@@ -168,8 +164,7 @@ def test_enable_batch_context_then_views(
                          ids=[f"dataset={d.as_posix()}"
                               for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_enable_batch_view_then_context(
-    graph_file, directed, dask_client):
+def test_enable_batch_view_then_context(graph_file, directed, dask_client):
     gc.collect()
     G = utils.generate_cugraph_graph_from_file(graph_file, directed)
 

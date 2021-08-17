@@ -15,8 +15,6 @@ import pytest
 import numpy as np
 
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.tests import utils
-import cugraph.comms as Comms
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 # Get parameters from standard betwenness_centrality_test
@@ -39,9 +37,8 @@ from cugraph.tests.test_betweenness_centrality import (
 # Parameters
 # =============================================================================
 DATASETS = [(RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()]
-# FIXME: The "preset_gpu_count" from 21.08 and below are currently not 
+# FIXME: The "preset_gpu_count" from 21.08 and below are currently not
 # supported and have been removed
-
 
 RESULT_DTYPE_OPTIONS = [np.float64]
 
