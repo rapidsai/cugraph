@@ -1215,8 +1215,13 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
              p_ret->get_num_vertices(),
              p_ret->get_num_edges(),
              p_ret->get_segment_offsets()) =
-      cugraph::renumber_edgelist<vertex_t, edge_t, true>(
-        handle, std::nullopt, major_ptrs, minor_ptrs, edge_counts, do_expensive_check);
+      cugraph::renumber_edgelist<vertex_t, edge_t, true>(handle,
+                                                         std::nullopt,
+                                                         major_ptrs,
+                                                         minor_ptrs,
+                                                         edge_counts,
+                                                         std::nullopt,
+                                                         do_expensive_check);
   } else {
     std::tie(p_ret->get_dv(), p_ret->get_segment_offsets()) =
       cugraph::renumber_edgelist<vertex_t, edge_t, false>(handle,
