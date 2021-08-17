@@ -297,8 +297,10 @@ coarsen_graph(
     // 1-2. globally shuffle
 
     std::tie(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights) =
-      cugraph::detail::shuffle_edgelist_by_edge(
-        handle, edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights, false);
+      cugraph::detail::shuffle_edgelist_by_gpu_id(handle,
+                                                  std::move(edgelist_major_vertices),
+                                                  std::move(edgelist_minor_vertices),
+                                                  std::move(edgelist_weights));
 
     // 1-3. append data to local adjacency matrix partitions
 
@@ -306,12 +308,8 @@ coarsen_graph(
     // list based on the final matrix partition (maybe add
     // groupby_adj_matrix_partition_and_shuffle_values).
 
-    auto counts = cugraph::detail::groupby_and_count_by_edge(
-      handle,
-      edgelist_major_vertices,
-      edgelist_minor_vertices,
-      edgelist_weights,
-      graph_view.get_number_of_local_adj_matrix_partitions());
+    auto counts = cugraph::detail::groupby_and_count_edgelist_by_local_partition_id(
+      handle, edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights);
 
     std::vector<size_t> h_counts(counts.size());
     raft::update_host(h_counts.data(), counts.data(), counts.size(), handle.get_stream());
@@ -407,7 +405,7 @@ coarsen_graph(
                                     unique_labels.end())),
     handle.get_stream());
 
-  unique_labels = cugraph::detail::shuffle_vertices(handle, unique_labels);
+  unique_labels = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(unique_labels));
 
   thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
                unique_labels.begin(),
@@ -447,6 +445,7 @@ coarsen_graph(
         major_ptrs,
         minor_ptrs,
         counts,
+        std::nullopt,
         do_expensive_check);
   }
 
