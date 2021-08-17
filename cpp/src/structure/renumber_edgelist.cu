@@ -302,15 +302,10 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
 
     if (isolated_vertices.size() > 0) {
       labels.resize(labels.size() + isolated_vertices.size(), handle.get_stream());
-      counts.resize(labels.size(), handle.get_stream());
       thrust::copy(rmm::exec_policy(handle.get_stream_view()),
                    isolated_vertices.begin(),
                    isolated_vertices.end(),
                    labels.end() - isolated_vertices.size());
-      thrust::fill(rmm::exec_policy(handle.get_stream_view()),
-                   counts.end() - isolated_vertices.size(),
-                   counts.end(),
-                   edge_t{0});
     }
   }
 
@@ -356,7 +351,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                                                   handle.get_stream());
 
   auto zero_vertex  = vertex_t{0};
-  auto vertex_count = static_cast<vertex_t>(counts.size());
+  auto vertex_count = static_cast<vertex_t>(labels.size());
   d_segment_offsets.set_element_async(0, zero_vertex, handle.get_stream());
   d_segment_offsets.set_element_async(
     num_segments_per_vertex_partition, vertex_count, handle.get_stream());
