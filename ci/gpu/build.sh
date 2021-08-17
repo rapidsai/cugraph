@@ -58,7 +58,7 @@ gpuci_logger "Install dependencies"
 gpuci_mamba_retry install -y \
       "libcudf=${MINOR_VERSION}" \
       "cudf=${MINOR_VERSION}" \
-      "librmm=21.10.00a210813" \
+      "librmm=21.10.00a210812" \
       "rmm=21.10.00a210813" \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
