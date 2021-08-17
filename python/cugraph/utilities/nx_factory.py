@@ -37,6 +37,7 @@ def convert_from_nx(nxG, weight=None):
 
     pdf = nx.to_pandas_edgelist(nxG)
     # Convert vertex columns to strings if they are not integers
+    # This allows support for any vertex input type
     if pdf["source"].dtype not in [np.int32, np.int64] or \
             pdf["target"].dtype not in [np.int32, np.int64]:
         pdf['source'] = pdf['source'].astype(str)
