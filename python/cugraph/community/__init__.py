@@ -31,7 +31,11 @@ from cugraph.community.egonet import batched_ego_graphs
 # replace ktruss with a __UnsupportedModule instance, which lazily raises an
 # exception when referenced.
 from numba import cuda
-__cuda_version = cuda.runtime.get_version()
+try:
+    __cuda_version = cuda.runtime.get_version()
+except cuda.cudadrv.runtime.CudaRuntimeAPIError:
+    __cuda_version = "n/a"
+
 __ktruss_unsupported_cuda_version = (11, 4)
 
 class __UnsupportedModule:

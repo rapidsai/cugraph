@@ -20,8 +20,13 @@ from cugraph.utilities import cugraph_to_nx
 # crash in that environment. Allow ktruss to import on non-11.4 systems, but
 # raise an exception if ktruss is directly imported on 11.4.
 from numba import cuda
-__cuda_version = cuda.runtime.get_version()
+try:
+    __cuda_version = cuda.runtime.get_version()
+except cuda.cudadrv.runtime.CudaRuntimeAPIError:
+    __cuda_version = "n/a"
+
 __ktruss_unsupported_cuda_version = (11, 4)
+
 if __cuda_version == __ktruss_unsupported_cuda_version:
     __kuvs = ".".join([str(n) for n in __ktruss_unsupported_cuda_version])
     raise NotImplementedError("k_truss is not currently supported in CUDA"
