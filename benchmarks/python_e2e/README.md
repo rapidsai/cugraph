@@ -56,9 +56,8 @@ sssp(start:73496080)          1.48114
 calling teardown...done.
 ```
 
-* See [run_all_nightly_benches.sh](run_all_nightly_benches.sh) for for an
-  example of multiple SNMG runs over different scales, gpu configurations and
-  edgefactors
+* See [run_all_nightly_benches.sh](run_all_nightly_benches.sh) for an example of
+  multiple SNMG runs over different scales, gpu configurations and edgefactors
 
 ## Multi-node multi-GPU runs (MNMG)
 
