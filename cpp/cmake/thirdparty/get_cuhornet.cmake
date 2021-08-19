@@ -20,8 +20,8 @@ function(find_and_configure_cuhornet)
     # or to use CPM
     FetchContent_Declare(
         cuhornet
-        GIT_REPOSITORY    https://github.com/viclafargue/cuhornet.git
-        GIT_TAG           004aa8a75ad131558c158bd4311dee1987e793c3
+        GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
+        GIT_TAG           4a1daa18405c0242370e16ce302dfa7eb5d9e857
         SOURCE_SUBDIR     hornet
     )
     FetchContent_GetProperties(cuhornet)
