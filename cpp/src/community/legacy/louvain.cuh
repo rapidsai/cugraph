@@ -65,17 +65,17 @@ class Louvain {
       number_of_vertices_(graph.number_of_vertices),
       number_of_edges_(graph.number_of_edges)
   {
-    thrust::copy(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::copy(handle.get_thrust_policy(),
                  graph.offsets,
                  graph.offsets + graph.number_of_vertices + 1,
                  offsets_v_.begin());
 
-    thrust::copy(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::copy(handle.get_thrust_policy(),
                  graph.indices,
                  graph.indices + graph.number_of_edges,
                  indices_v_.begin());
 
-    thrust::copy(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::copy(handle.get_thrust_policy(),
                  graph.edge_data,
                  graph.edge_data + graph.number_of_edges,
                  weights_v_.begin());
@@ -93,16 +93,14 @@ class Louvain {
     rmm::device_uvector<weight_t> inc(n_verts, handle_.get_stream_view());
     rmm::device_uvector<weight_t> deg(n_verts, handle_.get_stream_view());
 
-    thrust::fill(
-      rmm::exec_policy(handle_.get_stream_view()), inc.begin(), inc.end(), weight_t{0.0});
-    thrust::fill(
-      rmm::exec_policy(handle_.get_stream_view()), deg.begin(), deg.end(), weight_t{0.0});
+    thrust::fill(handle_.get_thrust_policy(), inc.begin(), inc.end(), weight_t{0.0});
+    thrust::fill(handle_.get_thrust_policy(), deg.begin(), deg.end(), weight_t{0.0});
 
     // FIXME:  Already have weighted degree computed in main loop,
     //         could pass that in rather than computing d_deg... which
     //         would save an atomicAdd (synchronization)
     //
-    thrust::for_each(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::for_each(handle_.get_thrust_policy(),
                      thrust::make_counting_iterator(0),
                      thrust::make_counting_iterator(graph.number_of_vertices),
                      [d_inc     = inc.data(),
@@ -126,7 +124,7 @@ class Louvain {
                      });
 
     weight_t Q = thrust::transform_reduce(
-      rmm::exec_policy(handle_.get_stream_view()),
+      handle_.get_thrust_policy(),
       thrust::make_counting_iterator(0),
       thrust::make_counting_iterator(graph.number_of_vertices),
       [d_deg = deg.data(), d_inc = inc.data(), total_edge_weight, resolution] __device__(
@@ -149,8 +147,8 @@ class Louvain {
 
   virtual weight_t operator()(size_t max_level, weight_t resolution)
   {
-    weight_t total_edge_weight = thrust::reduce(
-      rmm::exec_policy(handle_.get_stream_view()), weights_v_.begin(), weights_v_.end());
+    weight_t total_edge_weight =
+      thrust::reduce(handle_.get_thrust_policy(), weights_v_.begin(), weights_v_.end());
 
     weight_t best_modularity = weight_t{-1};
 
@@ -215,7 +213,7 @@ class Louvain {
   {
     dendrogram_->add_level(0, num_vertices, handle_.get_stream_view());
 
-    thrust::sequence(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::sequence(handle_.get_thrust_policy(),
                      dendrogram_->current_level_begin(),
                      dendrogram_->current_level_end());
   }
@@ -235,7 +233,7 @@ class Louvain {
     // MNMG:  copy_v_transform_reduce_out_nbr, then copy
     //
     thrust::for_each(
-      rmm::exec_policy(handle_.get_stream_view()),
+      handle_.get_thrust_policy(),
       thrust::make_counting_iterator<edge_t>(0),
       thrust::make_counting_iterator<edge_t>(graph.number_of_vertices),
       [d_offsets, d_indices, d_weights, d_vertex_weights, d_cluster_weights] __device__(
@@ -268,7 +266,7 @@ class Louvain {
     weight_t* d_cluster_weights      = cluster_weights_v_.data();
     weight_t* d_delta_Q              = delta_Q_v.data();
 
-    thrust::copy(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::copy(handle_.get_thrust_policy(),
                  dendrogram_->current_level_begin(),
                  dendrogram_->current_level_end(),
                  next_cluster_v.data());
@@ -296,7 +294,7 @@ class Louvain {
       new_Q = modularity(total_edge_weight, resolution, graph, next_cluster_v.data());
 
       if (new_Q > cur_Q) {
-        thrust::copy(rmm::exec_policy(handle_.get_stream_view()),
+        thrust::copy(handle_.get_thrust_policy(),
                      next_cluster_v.begin(),
                      next_cluster_v.end(),
                      dendrogram_->current_level_begin());
@@ -325,20 +323,15 @@ class Louvain {
     weight_t* d_old_cluster_sum = old_cluster_sum_v.data();
     weight_t* d_new_cluster_sum = d_delta_Q;
 
-    thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
-                 cluster_hash_v.begin(),
-                 cluster_hash_v.end(),
-                 vertex_t{-1});
-    thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
-                 delta_Q_v.begin(),
-                 delta_Q_v.end(),
-                 weight_t{0.0});
-    thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::fill(
+      handle_.get_thrust_policy(), cluster_hash_v.begin(), cluster_hash_v.end(), vertex_t{-1});
+    thrust::fill(handle_.get_thrust_policy(), delta_Q_v.begin(), delta_Q_v.end(), weight_t{0.0});
+    thrust::fill(handle_.get_thrust_policy(),
                  old_cluster_sum_v.begin(),
                  old_cluster_sum_v.end(),
                  weight_t{0.0});
 
-    thrust::for_each(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::for_each(handle_.get_thrust_policy(),
                      thrust::make_counting_iterator<edge_t>(0),
                      thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
                      [d_src_indices = src_indices_v_.data(),
@@ -377,7 +370,7 @@ class Louvain {
                      });
 
     thrust::for_each(
-      rmm::exec_policy(handle_.get_stream_view()),
+      handle_.get_thrust_policy(),
       thrust::make_counting_iterator<edge_t>(0),
       thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
       [total_edge_weight,
@@ -423,15 +416,11 @@ class Louvain {
     rmm::device_uvector<weight_t> temp_delta_Q_v(graph.number_of_vertices,
                                                  handle_.get_stream_view());
 
-    thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
-                 temp_cluster_v.begin(),
-                 temp_cluster_v.end(),
-                 vertex_t{-1});
+    thrust::fill(
+      handle_.get_thrust_policy(), temp_cluster_v.begin(), temp_cluster_v.end(), vertex_t{-1});
 
-    thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
-                 temp_delta_Q_v.begin(),
-                 temp_delta_Q_v.end(),
-                 weight_t{0});
+    thrust::fill(
+      handle_.get_thrust_policy(), temp_delta_Q_v.begin(), temp_delta_Q_v.end(), weight_t{0});
 
     auto cluster_reduce_iterator =
       thrust::make_zip_iterator(thrust::make_tuple(cluster_hash_v.begin(), delta_Q_v.begin()));
@@ -440,7 +429,7 @@ class Louvain {
       thrust::make_zip_iterator(thrust::make_tuple(temp_cluster_v.begin(), temp_delta_Q_v.begin()));
 
     auto cluster_reduce_end =
-      thrust::reduce_by_key(rmm::exec_policy(handle_.get_stream_view()),
+      thrust::reduce_by_key(handle_.get_thrust_policy(),
                             src_indices_v_.begin(),
                             src_indices_v_.end(),
                             cluster_reduce_iterator,
@@ -459,7 +448,7 @@ class Louvain {
 
     vertex_t final_size = thrust::distance(temp_vertices_v.data(), cluster_reduce_end.first);
 
-    thrust::for_each(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::for_each(handle_.get_thrust_policy(),
                      thrust::make_counting_iterator<vertex_t>(0),
                      thrust::make_counting_iterator<vertex_t>(final_size),
                      [up_down,
@@ -509,7 +498,7 @@ class Louvain {
     //
     //  New technique.  Initialize cluster_inverse_v_ to 0
     //
-    thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::fill(handle_.get_thrust_policy(),
                  cluster_inverse_v_.begin(),
                  cluster_inverse_v_.end(),
                  vertex_t{0});
@@ -520,7 +509,7 @@ class Louvain {
     auto first_1 = thrust::make_constant_iterator<vertex_t>(1);
     auto last_1  = first_1 + old_num_clusters;
 
-    thrust::scatter(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::scatter(handle_.get_thrust_policy(),
                     first_1,
                     last_1,
                     dendrogram_->current_level_begin(),
@@ -530,7 +519,7 @@ class Louvain {
     // Now we'll copy all of the clusters that have a value of 1 into a temporary array
     //
     auto copy_end = thrust::copy_if(
-      rmm::exec_policy(handle_.get_stream_view()),
+      handle_.get_thrust_policy(),
       thrust::make_counting_iterator<vertex_t>(0),
       thrust::make_counting_iterator<vertex_t>(old_num_clusters),
       tmp_arr_v_.begin(),
@@ -542,14 +531,14 @@ class Louvain {
     //
     // Now we can set each value in cluster_inverse of a cluster to its index
     //
-    thrust::for_each(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::for_each(handle_.get_thrust_policy(),
                      thrust::make_counting_iterator<vertex_t>(0),
                      thrust::make_counting_iterator<vertex_t>(new_num_clusters),
                      [d_cluster_inverse, d_tmp_array] __device__(const vertex_t idx) {
                        d_cluster_inverse[d_tmp_array[idx]] = idx;
                      });
 
-    thrust::for_each(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::for_each(handle_.get_thrust_policy(),
                      thrust::make_counting_iterator<vertex_t>(0),
                      thrust::make_counting_iterator<vertex_t>(old_num_clusters),
                      [d_cluster, d_cluster_inverse] __device__(vertex_t i) {
@@ -570,7 +559,7 @@ class Louvain {
     //
     //  Renumber the COO
     //
-    thrust::for_each(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::for_each(handle_.get_thrust_policy(),
                      thrust::make_counting_iterator<edge_t>(0),
                      thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
                      [d_old_src    = src_indices_v_.data(),
@@ -586,12 +575,12 @@ class Louvain {
                      });
 
     thrust::stable_sort_by_key(
-      rmm::exec_policy(handle_.get_stream_view()),
+      handle_.get_thrust_policy(),
       new_dst_v.begin(),
       new_dst_v.end(),
       thrust::make_zip_iterator(thrust::make_tuple(new_src_v.begin(), new_weight_v.begin())));
     thrust::stable_sort_by_key(
-      rmm::exec_policy(handle_.get_stream_view()),
+      handle_.get_thrust_policy(),
       new_src_v.begin(),
       new_src_v.end(),
       thrust::make_zip_iterator(thrust::make_tuple(new_dst_v.begin(), new_weight_v.begin())));
@@ -604,7 +593,7 @@ class Louvain {
       thrust::make_zip_iterator(thrust::make_tuple(new_src_v.begin(), new_dst_v.begin()));
     auto new_start =
       thrust::make_zip_iterator(thrust::make_tuple(src_indices_v_.data(), graph.indices));
-    auto new_end = thrust::reduce_by_key(rmm::exec_policy(handle_.get_stream_view()),
+    auto new_end = thrust::reduce_by_key(handle_.get_thrust_policy(),
                                          start,
                                          start + graph.number_of_edges,
                                          new_weight_v.begin(),

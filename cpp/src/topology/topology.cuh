@@ -145,13 +145,12 @@ struct thrust_segment_sorter_by_weights_t {
 
     // cannot use counting iterator, because d_keys gets passed to sort-by-key()
     //
-    auto execution_policy = handle.get_thrust_policy();
-    thrust::sequence(execution_policy, d_keys.begin(), d_keys.end(), edge_t{0});
+    thrust::sequence(handle.get_thrust_policy(), d_keys.begin(), d_keys.end(), edge_t{0});
 
     // d_segs = map each key(i.e., edge index), to corresponding
     // segment (i.e., partition = out-going set) index
     //
-    thrust::upper_bound(execution_policy,
+    thrust::upper_bound(handle.get_thrust_policy(),
                         ptr_d_offsets_,
                         ptr_d_offsets_ + num_vertices_ + 1,
                         d_keys.begin(),
@@ -159,7 +158,7 @@ struct thrust_segment_sorter_by_weights_t {
                         d_segs.begin());
 
     thrust::sort_by_key(
-      execution_policy,
+      handle.get_thrust_policy(),
       d_keys.begin(),
       d_keys.end(),
       thrust::make_zip_iterator(thrust::make_tuple(ptr_d_indices_, ptr_d_weights_)),

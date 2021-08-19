@@ -22,7 +22,6 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
 
 #include <numeric>

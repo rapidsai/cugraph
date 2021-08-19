@@ -83,7 +83,7 @@ void bfs_traverse(raft::handle_t const& handle,
     input_frontier.swap(output_frontier);
 
     // Clear output frontier bitmap
-    thrust::fill(rmm::exec_policy(stream),
+    thrust::fill(handle.get_thrust_policy(),
                  output_frontier_bmap.begin(),
                  output_frontier_bmap.end(),
                  static_cast<uint32_t>(0));
@@ -129,7 +129,7 @@ void bfs(raft::handle_t const& handle,
   cudaStream_t stream = handle.get_stream();
 
   // Set all predecessors to be invalid vertex ids
-  thrust::fill(rmm::exec_policy(stream),
+  thrust::fill(handle.get_thrust_policy(),
                predecessors,
                predecessors + global_number_of_vertices,
                cugraph::legacy::invalid_idx<vertex_t>::value);

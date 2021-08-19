@@ -262,7 +262,7 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
                   device_vec_t<weight_t>& d_coalesced_w,  // out: set of coalesced weights
                   real_t tag)  // otherwise. ambiguity with the other operator()
   {
-    thrust::for_each(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::for_each(handle_.get_thrust_policy(),
                      thrust::make_counting_iterator<index_t>(0),
                      thrust::make_counting_iterator<index_t>(num_paths_),  // input1
                      [max_depth        = max_depth_,

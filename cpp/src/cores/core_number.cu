@@ -59,7 +59,6 @@ void extract_edges(legacy::GraphCOOView<VT, ET, WT> const& i_graph,
                    int k)
 {
   cudaStream_t stream{nullptr};
-  class rmm::exec_policy execution_policy(stream);
 
   // If an edge satisfies k-core conditions i.e. core_num[src] and core_num[dst]
   // are both greater than or equal to k, copy it to the output graph
@@ -68,8 +67,11 @@ void extract_edges(legacy::GraphCOOView<VT, ET, WT> const& i_graph,
       thrust::make_tuple(i_graph.src_indices, i_graph.dst_indices, i_graph.edge_data));
     auto outEdge = thrust::make_zip_iterator(
       thrust::make_tuple(o_graph.src_indices, o_graph.dst_indices, o_graph.edge_data));
-    auto ptr = thrust::copy_if(
-      execution_policy, inEdge, inEdge + i_graph.number_of_edges, outEdge, FilterEdges(k, d_core));
+    auto ptr = thrust::copy_if(rmm::exec_policy(stream),
+                               inEdge,
+                               inEdge + i_graph.number_of_edges,
+                               outEdge,
+                               FilterEdges(k, d_core));
     if (thrust::distance(outEdge, ptr) != o_graph.number_of_edges) {
       CUGRAPH_FAIL("Edge extraction failed");
     }
@@ -78,8 +80,11 @@ void extract_edges(legacy::GraphCOOView<VT, ET, WT> const& i_graph,
       thrust::make_zip_iterator(thrust::make_tuple(i_graph.src_indices, i_graph.dst_indices));
     auto outEdge =
       thrust::make_zip_iterator(thrust::make_tuple(o_graph.src_indices, o_graph.dst_indices));
-    auto ptr = thrust::copy_if(
-      execution_policy, inEdge, inEdge + i_graph.number_of_edges, outEdge, FilterEdges(k, d_core));
+    auto ptr = thrust::copy_if(rmm::exec_policy(stream),
+                               inEdge,
+                               inEdge + i_graph.number_of_edges,
+                               outEdge,
+                               FilterEdges(k, d_core));
     if (thrust::distance(outEdge, ptr) != o_graph.number_of_edges) {
       CUGRAPH_FAIL("Edge extraction failed");
     }
@@ -102,11 +107,10 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph(
 
 {
   cudaStream_t stream{nullptr};
-  class rmm::exec_policy execution_policy(stream);
 
   rmm::device_vector<VT> sorted_core_num(in_graph.number_of_vertices);
 
-  thrust::scatter(execution_policy, core_num, core_num + len, vid, sorted_core_num.begin());
+  thrust::scatter(rmm::exec_policy(stream), core_num, core_num + len, vid, sorted_core_num.begin());
 
   VT* d_sorted_core_num = sorted_core_num.data().get();
 
@@ -117,7 +121,7 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph(
 
   auto out_graph = std::make_unique<legacy::GraphCOO<VT, ET, WT>>(
     in_graph.number_of_vertices,
-    thrust::count_if(execution_policy,
+    thrust::count_if(rmm::exec_policy(stream),
                      edge,
                      edge + in_graph.number_of_edges,
                      detail::FilterEdges(k, d_sorted_core_num)),
