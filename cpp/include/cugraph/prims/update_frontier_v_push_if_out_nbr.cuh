@@ -647,6 +647,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.get_matrix_partition_view(i));
 
+    auto execution_policy = handle.get_thrust_policy();
     if (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
@@ -655,7 +656,6 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
                                                       handle.get_stream_view());
       // FIXME: this copy is unnecessary, better fix RAFT comm's bcast to take const iterators for
       // input
-      auto execution_policy = handle.get_thrust_policy();
       if (col_comm_rank == static_cast<int>(i)) {
         thrust::copy(execution_policy,
                      local_frontier_vertex_first,
@@ -715,7 +715,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
     } else {
       assert(i == 0);
       ret += thrust::transform_reduce(
-        handle.get_thrust_policy(),
+        execution_policy,
         local_frontier_vertex_first,
         local_frontier_vertex_last,
         [matrix_partition] __device__(auto major) {
