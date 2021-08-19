@@ -66,7 +66,7 @@ void edge_betweenness_centrality_impl(raft::handle_t const& handle,
                                       weight_t const* weight,
                                       vertex_t number_of_sources,
                                       vertex_t const* sources,
-                                      vertex_t total_number_of_sources)
+                                      vertex_t /* total_number_of_sources */)
 {
   // Current Implementation relies on BFS
   // FIXME: For SSSP version

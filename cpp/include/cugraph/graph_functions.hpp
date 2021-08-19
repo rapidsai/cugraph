@@ -40,7 +40,7 @@ namespace cugraph {
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param optional_local_vertex_span If valid, part of the entire set of vertices in the graph to be
+ * @param local_vertex_span If valid, part of the entire set of vertices in the graph to be
  * renumbered. The first tuple element is the pointer to the array and the second tuple element is
  * the size of the array. This parameter can be used to include isolated vertices. Applying the
  * compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function to
@@ -63,6 +63,10 @@ namespace cugraph {
  * should return the partition ID of the corresponding matrix partition.
  * @param edgelist_edge_counts Edge counts (one count per local graph adjacency matrix partition
  * assigned to this process).
+ * @param edgelist_intra_partition_segment_offsets If valid, store segment offsets within a local
+ * graph adjacency matrix partition; a local partition can be further segmented by applying the
+ * compute_gpu_id_from_vertex_t function to edge minor vertex IDs. This optinoal information is used
+ * for further memory footprint optimization if provided.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t,
  * std::vector<vertex_t>> Tuple of labels (vertex IDs before renumbering) for the entire set of
@@ -77,12 +81,14 @@ std::enable_if_t<multi_gpu,
                             vertex_t,
                             edge_t,
                             std::vector<vertex_t>>>
-renumber_edgelist(raft::handle_t const& handle,
-                  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_local_vertex_span,
-                  std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
-                  std::vector<vertex_t*> const& edgelist_minor_vertices /* [INOUT] */,
-                  std::vector<edge_t> const& edgelist_edge_counts,
-                  bool do_expensive_check = false);
+renumber_edgelist(
+  raft::handle_t const& handle,
+  std::optional<std::tuple<vertex_t const*, vertex_t>> local_vertex_span,
+  std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_minor_vertices /* [INOUT] */,
+  std::vector<edge_t> const& edgelist_edge_counts,
+  std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
+  bool do_expensive_check = false);
 
 /**
  * @brief renumber edgelist (single-GPU)
@@ -93,9 +99,9 @@ renumber_edgelist(raft::handle_t const& handle,
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param optional_local_vertex_span If valid, vertices in the graph to be renumbered. The first
- * tuple element is the pointer to the array and the second tuple element is the size of the array.
- * This parameter can be used to include isolated vertices.
+ * @param vertex_span If valid, vertices in the graph to be renumbered. The first tuple element is
+ * the pointer to the array and the second tuple element is the size of the array. This parameter
+ * can be used to include isolated vertices.
  * @param vertices The entire set of vertices in the graph to be renumbered.
  * @param num_vertices Number of vertices.
  * @param edgelist_major_vertices Edge source vertex IDs (if the graph adjacency matrix is stored as
@@ -113,7 +119,7 @@ renumber_edgelist(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<!multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>>>
 renumber_edgelist(raft::handle_t const& handle,
-                  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
+                  std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
                   vertex_t* edgelist_major_vertices /* [INOUT] */,
                   vertex_t* edgelist_minor_vertices /* [INOUT] */,
                   edge_t num_edgelist_edges,
@@ -340,11 +346,11 @@ extract_induced_subgraphs(
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param optional_vertex_span  If valid, part of the entire set of vertices in the graph to be
- * renumbered. The first tuple element is the pointer to the array and the second tuple element is
- * the size of the array. This parameter can be used to include isolated vertices. If multi-GPU,
- * applying the compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this
- * function to work (vertices should be pre-shuffled).
+ * @param vertex_span  If valid, part of the entire set of vertices in the graph to be renumbered.
+ * The first tuple element is the pointer to the array and the second tuple element is the size of
+ * the array. This parameter can be used to include isolated vertices. If multi-GPU, applying the
+ * compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function to
+ * work (vertices should be pre-shuffled).
  * @param edgelist_rows Vector of edge row (source) vertex IDs.
  * @param edgelist_cols Vector of edge column (destination) vertex IDs.
  * @param edgelist_weights Vector of edge weights.
@@ -362,13 +368,12 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
-create_graph_from_edgelist(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<vertex_t const*, vertex_t>> optional_vertex_span,
-  rmm::device_uvector<vertex_t>&& edgelist_rows,
-  rmm::device_uvector<vertex_t>&& edgelist_cols,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  graph_properties_t graph_properties,
-  bool renumber);
+create_graph_from_edgelist(raft::handle_t const& handle,
+                           std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
+                           rmm::device_uvector<vertex_t>&& edgelist_rows,
+                           rmm::device_uvector<vertex_t>&& edgelist_cols,
+                           std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                           graph_properties_t graph_properties,
+                           bool renumber);
 
 }  // namespace cugraph

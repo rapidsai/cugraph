@@ -182,7 +182,7 @@ struct v_op_t {
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
   __device__ std::enable_if_t<multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
-  operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int v_val /* dummy */) const
+  operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int /* v_val */) const
   {
     auto tag = thrust::get<1>(tagged_v);
     auto v_offset =
@@ -204,7 +204,7 @@ struct v_op_t {
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
   __device__ std::enable_if_t<!multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
-  operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int v_val /* dummy */) const
+  operator()(thrust::tuple<vertex_type, vertex_type> /* tagged_v */, int /* v_val */) const
   {
     return thrust::optional<thrust::tuple<size_t, std::byte>>{
       thrust::make_tuple(next_bucket_idx, std::byte{0} /* dummy */)};
@@ -547,10 +547,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
          col_first      = level_graph_view.get_local_adj_matrix_partition_col_first(),
          edge_buffer_first =
            get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
-         num_edge_inserts = num_edge_inserts.data()] __device__(auto tagged_src,
-                                                                vertex_t dst,
-                                                                auto src_val,
-                                                                auto dst_val) {
+         num_edge_inserts =
+           num_edge_inserts.data()] __device__(auto tagged_src, vertex_t dst, auto, auto) {
           auto tag        = thrust::get<1>(tagged_src);
           auto col_offset = dst - col_first;
           // FIXME: better switch to atomic_ref after

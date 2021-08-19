@@ -65,7 +65,6 @@ extract(raft::handle_t const& handle,
         vertex_t radius)
 {
   auto v                = csr_view.get_number_of_vertices();
-  auto e                = csr_view.get_number_of_edges();
   auto user_stream_view = handle.get_stream_view();
   rmm::device_vector<size_t> neighbors_offsets(n_subgraphs + 1);
   rmm::device_vector<vertex_t> neighbors;

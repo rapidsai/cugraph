@@ -94,9 +94,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
       graph_view,
       thrust::make_constant_iterator(0) /* dummy */,
       thrust::make_constant_iterator(0) /* dummy */,
-      [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
-        return edge_t{1};
-      },
+      [] __device__(vertex_t, vertex_t, weight_t, auto, auto) { return edge_t{1}; },
       edge_t{0},
       minor_degrees.data());
   } else {
@@ -105,9 +103,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
       graph_view,
       thrust::make_constant_iterator(0) /* dummy */,
       thrust::make_constant_iterator(0) /* dummy */,
-      [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
-        return edge_t{1};
-      },
+      [] __device__(vertex_t, vertex_t, weight_t, auto, auto) { return edge_t{1}; },
       edge_t{0},
       minor_degrees.data());
   }
@@ -133,9 +129,7 @@ rmm::device_uvector<weight_t> compute_weight_sums(
       graph_view,
       thrust::make_constant_iterator(0) /* dummy */,
       thrust::make_constant_iterator(0) /* dummy */,
-      [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
-        return w;
-      },
+      [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w; },
       weight_t{0.0},
       weight_sums.data());
   } else {
@@ -144,9 +138,7 @@ rmm::device_uvector<weight_t> compute_weight_sums(
       graph_view,
       thrust::make_constant_iterator(0) /* dummy */,
       thrust::make_constant_iterator(0) /* dummy */,
-      [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
-        return w;
-      },
+      [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w; },
       weight_t{0.0},
       weight_sums.data());
   }

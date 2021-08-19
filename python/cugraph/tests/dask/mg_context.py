@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,6 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 
 import time
 
@@ -40,10 +41,8 @@ def skip_if_not_enough_devices(required_devices):
 
 class MGContext:
     """Utility Context Manager to start a multi GPU context using dask_cuda
-
     Parameters:
     -----------
-
     number_of_devices : int
         Number of devices to use, verification must be done prior to call to
         ensure that there are enough devices available. If not specified, the
