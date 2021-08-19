@@ -20,6 +20,8 @@ from setuptools import setup, find_packages, Command
 from setuptools.extension import Extension
 from setuputils import use_raft_package, get_environment_option
 
+from Cython.Build import cythonize
+
 try:
     from Cython.Distutils.build_ext import new_build_ext as build_ext
 except ImportError:
@@ -107,10 +109,23 @@ class CleanCommand(Command):
 
 cmdclass = dict()
 cmdclass.update(versioneer.get_cmdclass())
-cmdclass["build_ext"] = build_ext
+
+class build_ext_no_debug(build_ext):
+    def build_extensions(self):
+        try:
+            # Don't compile debug symbols
+            self.compiler.compiler_so.remove("-g")
+            # Silence the '-Wstrict-prototypes' warning
+            self.compiler.compiler_so.remove("-Wstrict-prototypes")
+        except Exception:
+            pass
+        build_ext.build_extensions(self)
+
+
+cmdclass["build_ext"] = build_ext_no_debug
 cmdclass["clean"] = CleanCommand
 
-EXTENSIONS = [
+extensions = [
     Extension("*",
               sources=CYTHON_FILES,
               include_dirs=[
@@ -136,10 +151,10 @@ EXTENSIONS = [
               extra_compile_args=['-std=c++17'])
 ]
 
-for e in EXTENSIONS:
-    e.cython_directives = dict(
-        profile=False, language_level=3, embedsignature=True
-    )
+try:
+    nthreads = int(os.environ.get("PARALLEL_LEVEL", "0") or "0")
+except Exception:
+    nthreads = 0
 
 setup(name='cugraph',
       description="cuGraph - GPU Graph Analytics",
@@ -155,7 +170,13 @@ setup(name='cugraph',
       # Include the separately-compiled shared library
       author="NVIDIA Corporation",
       setup_requires=['cython'],
-      ext_modules=EXTENSIONS,
+      ext_modules=cythonize(
+          extensions,
+          nthreads=nthreads,
+          compiler_directives=dict(
+              profile=False, language_level=3, embedsignature=True
+          ),
+      ),
       packages=find_packages(include=['cugraph', 'cugraph.*']),
       install_requires=INSTALL_REQUIRES,
       license="Apache",
