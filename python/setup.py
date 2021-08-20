@@ -16,19 +16,26 @@ import sys
 import sysconfig
 import shutil
 
-from setuptools import setup, find_packages, Command
-from setuptools.extension import Extension
-from setuputils import use_raft_package, get_environment_option
-
-from Cython.Build import cythonize
+# Must import in this order:
+#   setuptools -> Cython.Distutils.build_ext -> setuptools.command.build_ext
+# Otherwise, setuptools.command.build_ext ends up inheriting from
+# Cython.Distutils.old_build_ext which we do not want
+import setuptools
 
 try:
-    from Cython.Distutils.build_ext import new_build_ext as build_ext
+    from Cython.Distutils.build_ext import new_build_ext as _build_ext
 except ImportError:
-    from setuptools.command.build_ext import build_ext
+    from setuptools.command.build_ext import build_ext as _build_ext
+
+from distutils.sysconfig import get_python_lib
+
+import setuptools.command.build_ext
+from setuptools import find_packages, setup, Command
+from setuptools.extension import Extension
+
+from setuputils import use_raft_package, get_environment_option
 
 import versioneer
-from distutils.sysconfig import get_python_lib
 
 
 INSTALL_REQUIRES = ['numba', 'cython']
@@ -83,49 +90,6 @@ raft_include_dir = use_raft_package(raft_path, libcugraph_path)
 if not libcugraph_path:
     libcugraph_path = conda_lib_dir
 
-
-class CleanCommand(Command):
-    """Custom clean command to tidy up the project root."""
-    user_options = [('all', None, None), ]
-
-    def initialize_options(self):
-        self.all = None
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        setupFileDir = os.path.dirname(os.path.abspath(__file__))
-        os.chdir(setupFileDir)
-        os.system('rm -rf build')
-        os.system('rm -rf dist')
-        os.system('rm -rf dask-worker-space')
-        os.system('rm -f cugraph/raft')
-        os.system('find . -name "__pycache__" -type d -exec rm -rf {} +')
-        os.system('rm -rf *.egg-info')
-        os.system('find . -name "*.cpp" -type f -delete')
-        os.system('find . -name "*.cpython*.so" -type f -delete')
-
-
-cmdclass = dict()
-cmdclass.update(versioneer.get_cmdclass())
-
-
-class build_ext_no_debug(build_ext):
-    def build_extensions(self):
-        try:
-            # Don't compile debug symbols
-            self.compiler.compiler_so.remove("-g")
-            # Silence the '-Wstrict-prototypes' warning
-            self.compiler.compiler_so.remove("-Wstrict-prototypes")
-        except Exception:
-            pass
-        build_ext.build_extensions(self)
-
-
-cmdclass["build_ext"] = build_ext_no_debug
-cmdclass["clean"] = CleanCommand
-
 extensions = [
     Extension("*",
               sources=CYTHON_FILES,
@@ -152,10 +116,73 @@ extensions = [
               extra_compile_args=['-std=c++17'])
 ]
 
-try:
-    nthreads = int(os.environ.get("PARALLEL_LEVEL", "0") or "0")
-except Exception:
-    nthreads = 0
+
+class CleanCommand(Command):
+    """Custom clean command to tidy up the project root."""
+    user_options = [('all', None, None), ]
+
+    def initialize_options(self):
+        self.all = None
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        setupFileDir = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(setupFileDir)
+        os.system('rm -rf build')
+        os.system('rm -rf dist')
+        os.system('rm -rf dask-worker-space')
+        os.system('rm -f cugraph/raft')
+        os.system('find . -name "__pycache__" -type d -exec rm -rf {} +')
+        os.system('rm -rf *.egg-info')
+        os.system('find . -name "*.cpp" -type f -delete')
+        os.system('find . -name "*.cpython*.so" -type f -delete')
+
+
+class build_ext_no_debug(_build_ext):
+
+    def build_extensions(self):
+        def remove_flags(compiler, *flags):
+            for flag in flags:
+                try:
+                    compiler.compiler_so = list(
+                        filter((flag).__ne__, compiler.compiler_so)
+                    )
+                except Exception:
+                    pass
+        # Full optimization
+        self.compiler.compiler_so.append("-O3")
+        # No debug symbols, full optimization, no '-Wstrict-prototypes' warning
+        remove_flags(
+            self.compiler, "-g", "-G", "-O1", "-O2", "-Wstrict-prototypes"
+        )
+        super().build_extensions()
+
+    def finalize_options(self):
+        if self.distribution.ext_modules:
+            # Delay import this to allow for Cython-less installs
+            from Cython.Build.Dependencies import cythonize
+
+            nthreads = getattr(self, "parallel", None)  # -j option in Py3.5+
+            nthreads = int(nthreads) if nthreads else None
+            self.distribution.ext_modules = cythonize(
+                self.distribution.ext_modules,
+                nthreads=nthreads,
+                force=self.force,
+                gdb_debug=False,
+                compiler_directives=dict(
+                    profile=False, language_level=3, embedsignature=True
+                ),
+            )
+        # Skip calling super() and jump straight to setuptools
+        setuptools.command.build_ext.build_ext.finalize_options(self)
+
+
+cmdclass = dict()
+cmdclass.update(versioneer.get_cmdclass())
+cmdclass["build_ext"] = build_ext_no_debug
+cmdclass["clean"] = CleanCommand
 
 setup(name='cugraph',
       description="cuGraph - GPU Graph Analytics",
@@ -170,14 +197,8 @@ setup(name='cugraph',
       ],
       # Include the separately-compiled shared library
       author="NVIDIA Corporation",
-      setup_requires=['cython'],
-      ext_modules=cythonize(
-          extensions,
-          nthreads=nthreads,
-          compiler_directives=dict(
-              profile=False, language_level=3, embedsignature=True
-          ),
-      ),
+      setup_requires=['Cython>=0.29,<0.30'],
+      ext_modules=extensions,
       packages=find_packages(include=['cugraph', 'cugraph.*']),
       install_requires=INSTALL_REQUIRES,
       license="Apache",
