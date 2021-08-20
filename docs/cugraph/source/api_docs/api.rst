@@ -134,7 +134,7 @@ Connected Components
     :undoc-members:
 
 Connected Components (MG)
---------------------
+-------------------------
 
 .. automodule:: cugraph.dask.components.connectivity
     :members:
