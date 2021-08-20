@@ -33,7 +33,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -361,5 +360,4 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
   return std::make_tuple(std::move(rx_keys), std::move(rx_value_buffer), rx_counts);
 }
 
-}  // namespace experimental
 }  // namespace cugraph

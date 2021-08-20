@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@
 import cugraph
 from .utils import import_optional
 from cudf import from_pandas
+import numpy as np
 
 nx = import_optional("networkx")
 
@@ -35,6 +36,13 @@ def convert_from_nx(nxG, weight=None):
         raise ValueError("nxG does not appear to be a NetworkX graph type")
 
     pdf = nx.to_pandas_edgelist(nxG)
+    # Convert vertex columns to strings if they are not integers
+    # This allows support for any vertex input type
+    if pdf["source"].dtype not in [np.int32, np.int64] or \
+            pdf["target"].dtype not in [np.int32, np.int64]:
+        pdf['source'] = pdf['source'].astype(str)
+        pdf['target'] = pdf['target'].astype(str)
+
     num_col = len(pdf.columns)
 
     if num_col < 2:

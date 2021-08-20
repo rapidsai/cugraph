@@ -15,9 +15,9 @@
  */
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
@@ -46,7 +46,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
 
 namespace {
 
@@ -184,7 +183,7 @@ struct v_op_t {
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
   __device__ std::enable_if_t<multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
-  operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int v_val /* dummy */) const
+  operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int /* v_val */) const
   {
     auto tag = thrust::get<1>(tagged_v);
     auto v_offset =
@@ -206,7 +205,7 @@ struct v_op_t {
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
   __device__ std::enable_if_t<!multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
-  operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int v_val /* dummy */) const
+  operator()(thrust::tuple<vertex_type, vertex_type> /* tagged_v */, int /* v_val */) const
   {
     return thrust::optional<thrust::tuple<size_t, std::byte>>{
       thrust::make_tuple(next_bucket_idx, std::byte{0} /* dummy */)};
@@ -550,10 +549,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
          col_first      = level_graph_view.get_local_adj_matrix_partition_col_first(),
          edge_buffer_first =
            get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
-         num_edge_inserts = num_edge_inserts.data()] __device__(auto tagged_src,
-                                                                vertex_t dst,
-                                                                auto src_val,
-                                                                auto dst_val) {
+         num_edge_inserts =
+           num_edge_inserts.data()] __device__(auto tagged_src, vertex_t dst, auto, auto) {
           auto tag        = thrust::get<1>(tagged_src);
           auto col_offset = dst - col_first;
           // FIXME: better switch to atomic_ref after
@@ -690,17 +687,16 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
         auto const col_comm_size = col_comm.get_size();
 
-        std::tie(edge_buffer, std::ignore) =
-          cugraph::experimental::groupby_gpuid_and_shuffle_values(
-            comm,
-            get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
-            get_dataframe_buffer_end<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
-            [key_func =
-               cugraph::experimental::detail::compute_gpu_id_from_edge_t<vertex_t>{
-                 comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
-              return key_func(thrust::get<0>(val), thrust::get<1>(val));
-            },
-            handle.get_stream());
+        std::tie(edge_buffer, std::ignore) = cugraph::groupby_gpuid_and_shuffle_values(
+          comm,
+          get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
+          get_dataframe_buffer_end<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
+          [key_func =
+             cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
+               comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
+            return key_func(thrust::get<0>(val), thrust::get<1>(val));
+          },
+          handle.get_stream());
         auto edge_first =
           get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer);
         auto edge_last = get_dataframe_buffer_end<thrust::tuple<vertex_t, vertex_t>>(edge_buffer);
@@ -851,5 +847,4 @@ template void weakly_connected_components(
   int64_t* components,
   bool do_expensive_check);
 
-}  // namespace experimental
 }  // namespace cugraph

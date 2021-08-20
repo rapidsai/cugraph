@@ -19,11 +19,9 @@
 #include <rmm/cuda_stream_view.hpp>
 
 namespace cugraph {
-namespace experimental {
 
 // FIXME: a temporary hack till UCC is integrated into RAFT (so we can use UCC barrier for DASK and
 // MPI barrier for MPI)
 void host_barrier(raft::comms::comms_t const& comm, rmm::cuda_stream_view stream_view);
 
-}  // namespace experimental
 }  // namespace cugraph

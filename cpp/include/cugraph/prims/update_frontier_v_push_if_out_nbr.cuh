@@ -15,10 +15,10 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/prims/edge_op_utils.cuh>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
@@ -53,7 +53,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -981,7 +980,7 @@ void update_frontier_v_push_if_out_nbr(
     // https://devblogs.nvidia.com/introducing-low-level-gpu-virtual-memory-management/), we can
     // start with a smaller buffer size (especially when the frontier size is large).
     // for special cases when we can assure that there is no more than one push per destination
-    // (e.g. if cugraph::experimental::reduce_op::any is used), we can limit the buffer size to
+    // (e.g. if cugraph::reduce_op::any is used), we can limit the buffer size to
     // std::min(max_pushes, matrix_partition.get_minor_size()).
     // For Volta+, we can limit the buffer size to std::min(max_pushes,
     // matrix_partition.get_minor_size()) if the reduction operation is a pure function if we use
@@ -1304,5 +1303,4 @@ void update_frontier_v_push_if_out_nbr(
   }
 }
 
-}  // namespace experimental
 }  // namespace cugraph

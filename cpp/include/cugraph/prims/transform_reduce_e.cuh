@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
-#include <cugraph/prims/edge_op_utils.cuh>
+#include <cugraph/graph_view.hpp>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
@@ -30,7 +30,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -65,6 +64,7 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
 
   auto dcs_nzd_vertex_count = *(matrix_partition.get_dcs_nzd_vertex_count());
 
+  property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
     auto major =
@@ -111,9 +111,9 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
                    e_op);
       },
       e_op_result_t{},
-      [] __device__(auto lhs, auto rhs) { return plus_edge_op_result(lhs, rhs); });
+      edge_property_add);
 
-    e_op_result_sum = plus_edge_op_result(e_op_result_sum, sum);
+    e_op_result_sum = edge_property_add(e_op_result_sum, sum);
     idx += gridDim.x * blockDim.x;
   }
 
@@ -149,6 +149,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(tid);
 
+  property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
@@ -195,9 +196,9 @@ __global__ void for_all_major_for_all_nbr_low_degree(
                    e_op);
       },
       e_op_result_t{},
-      [] __device__(auto lhs, auto rhs) { return plus_edge_op_result(lhs, rhs); });
+      edge_property_add);
 
-    e_op_result_sum = plus_edge_op_result(e_op_result_sum, sum);
+    e_op_result_sum = edge_property_add(e_op_result_sum, sum);
     idx += gridDim.x * blockDim.x;
   }
 
@@ -235,6 +236,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(tid / raft::warp_size());
 
+  property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
@@ -269,7 +271,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
                                     *(adj_matrix_row_value_input_first + row_offset),
                                     *(adj_matrix_col_value_input_first + col_offset),
                                     e_op);
-      e_op_result_sum = plus_edge_op_result<e_op_result_t>(e_op_result_sum, e_op_result);
+      e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
     }
     idx += gridDim.x * (blockDim.x / raft::warp_size());
   }
@@ -305,6 +307,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(blockIdx.x);
 
+  property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
@@ -339,7 +342,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
                                     *(adj_matrix_row_value_input_first + row_offset),
                                     *(adj_matrix_col_value_input_first + col_offset),
                                     e_op);
-      e_op_result_sum = plus_edge_op_result(e_op_result_sum, e_op_result);
+      e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
     }
     idx += gridDim.x;
   }
@@ -399,6 +402,8 @@ T transform_reduce_e(raft::handle_t const& handle,
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
+
+  property_add<T> edge_property_add{};
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
   thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
@@ -498,19 +503,17 @@ T transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
-  auto result =
-    thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   get_dataframe_buffer_begin<T>(result_buffer),
-                   get_dataframe_buffer_begin<T>(result_buffer) + 1,
-                   T{},
-                   [] __device__(T lhs, T rhs) { return plus_edge_op_result(lhs, rhs); });
+  auto result = thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                               get_dataframe_buffer_begin<T>(result_buffer),
+                               get_dataframe_buffer_begin<T>(result_buffer) + 1,
+                               T{},
+                               edge_property_add);
 
   if (GraphViewType::is_multi_gpu) {
     result = host_scalar_allreduce(handle.get_comms(), result, handle.get_stream());
   }
 
-  return plus_edge_op_result(init, result);
+  return edge_property_add(init, result);
 }
 
-}  // namespace experimental
 }  // namespace cugraph

@@ -17,27 +17,19 @@ import pytest
 import cugraph
 import dask_cudf
 import cudf
-from cugraph.dask.common.mg_utils import (is_single_gpu,
-                                          setup_local_dask_cluster,
-                                          teardown_local_dask_cluster)
-
-
-@pytest.fixture(scope="module")
-def client_connection():
-    (cluster, client) = setup_local_dask_cluster(p2p=True)
-    yield client
-    teardown_local_dask_cluster(cluster, client)
+from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_dask_bfs(client_connection):
+def test_dask_bfs(dask_client):
     gc.collect()
 
-    # FIXME: update this to allow dataset to be parameterized and have dataset
-    # part of test param id (see other tests)
-    input_data_path = r"../datasets/karate.csv"
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "netscience.csv").as_posix()
+
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -96,12 +88,11 @@ def test_dask_bfs(client_connection):
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_dask_bfs_multi_column_depthlimit(client_connection):
+def test_dask_bfs_multi_column_depthlimit(dask_client):
     gc.collect()
 
-    # FIXME: update this to allow dataset to be parameterized and have dataset
-    # part of test param id (see other tests)
-    input_data_path = r"../datasets/netscience.csv"
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "netscience.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
