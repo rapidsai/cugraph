@@ -347,8 +347,7 @@ extract_induced_subgraphs(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param vertex_span  If valid, part of the entire set of vertices in the graph to be renumbered.
- * The first tuple element is the pointer to the array and the second tuple element is the size of
- * the array. This parameter can be used to include isolated vertices. If multi-GPU, applying the
+ * This parameter can be used to include isolated vertices. If multi-GPU, applying the
  * compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function to
  * work (vertices should be pre-shuffled).
  * @param edgelist_rows Vector of edge row (source) vertex IDs.
@@ -369,7 +368,7 @@ template <typename vertex_t,
 std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(raft::handle_t const& handle,
-                           std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
+                           std::optional<rmm::device_uvector<vertex_t>>&& vertex_span,
                            rmm::device_uvector<vertex_t>&& edgelist_rows,
                            rmm::device_uvector<vertex_t>&& edgelist_cols,
                            std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
