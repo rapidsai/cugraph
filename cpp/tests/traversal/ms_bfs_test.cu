@@ -84,15 +84,15 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     using weight_t = float;
     raft::handle_t handle(16);
 
-    auto edgelists = cugraph::generate_rmat_edgelists<vertex_t>(
-      handle,
-      configuration.n_edgelists,
-      configuration.min_scale,
-      configuration.max_scale,
-      configuration.edge_factor,
-      cugraph::generator_distribution_t::POWER_LAW,
-      cugraph::generator_distribution_t::UNIFORM,
-      uint64_t{0});
+    auto edgelists =
+      cugraph::generate_rmat_edgelists<vertex_t>(handle,
+                                                 configuration.n_edgelists,
+                                                 configuration.min_scale,
+                                                 configuration.max_scale,
+                                                 configuration.edge_factor,
+                                                 cugraph::generator_distribution_t::POWER_LAW,
+                                                 cugraph::generator_distribution_t::UNIFORM,
+                                                 uint64_t{0});
     // form aggregated edge list
     vertex_t n_edges = 0, offset = 0, n_vertices = 0;
     std::vector<vertex_t> h_sources;

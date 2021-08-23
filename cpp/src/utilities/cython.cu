@@ -747,7 +747,7 @@ void call_bfs(raft::handle_t const& handle,
   if (graph_container.is_multi_gpu) {
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);              
+        detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
       cugraph::bfs(handle,
                    graph->view(),
                    reinterpret_cast<int32_t*>(distances),
