@@ -53,6 +53,7 @@ extensions = [
     "IPython.sphinxext.ipython_directive",
     "nbsphinx",
     "recommonmark",
+    "sphinx_copybutton",
 ]
 
 
@@ -72,7 +73,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'cugraph'
-copyright = '2019-2020, NVIDIA'
+copyright = '2019-2021, NVIDIA'
 author = 'NVIDIA'
 
 # The version info for the project you're documenting, acts as replacement for
