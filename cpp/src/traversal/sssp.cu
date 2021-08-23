@@ -15,7 +15,7 @@
  */
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/count_if_e.cuh>
 #include <cugraph/prims/reduce_op.cuh>
@@ -38,7 +38,6 @@
 #include <limits>
 
 namespace cugraph {
-namespace experimental {
 namespace detail {
 
 template <typename GraphViewType, typename PredecessorIterator>
@@ -379,6 +378,4 @@ template void sssp(raft::handle_t const& handle,
                    int64_t source_vertex,
                    double cutoff,
                    bool do_expensive_check);
-
-}  // namespace experimental
 }  // namespace cugraph
