@@ -83,4 +83,4 @@ python/_external_repositories/
 python/dask-worker-space
 
 # Sphinx docs & build artifacts
-docs/cudf/source/api_docs/api/*
+docs/cugraph/source/api_docs/api/*
