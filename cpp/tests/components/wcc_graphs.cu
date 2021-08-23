@@ -69,8 +69,7 @@ LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
   return cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
-      std::optional<std::tuple<vertex_t const*, vertex_t>>{
-        std::make_tuple(vertices_v.data(), static_cast<vertex_t>(vertices_v.size()))},
+      std::move(vertices_v),
       std::move(src_v),
       std::move(dst_v),
       std::nullopt,

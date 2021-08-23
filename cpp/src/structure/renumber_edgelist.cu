@@ -269,10 +269,13 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   labels.shrink_to_fit(handle.get_stream());
   counts.shrink_to_fit(handle.get_stream());
 
-  // 4. if vertices != nullptr, add isolated vertices
+  auto num_non_isolated_vertices = static_cast<vertex_t>(labels.size());
 
-  rmm::device_uvector<vertex_t> isolated_vertices(0, handle.get_stream());
+  // 4. if vertex_span.has_value() == true, append isolated vertices
+
   if (vertex_span) {
+    rmm::device_uvector<vertex_t> isolated_vertices(0, handle.get_stream());
+
     auto [vertices, num_vertices] = *vertex_span;
     auto num_isolated_vertices    = thrust::count_if(
       handle.get_thrust_policy(),
@@ -289,28 +292,25 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                     [label_first = labels.begin(), label_last = labels.end()] __device__(auto v) {
                       return !thrust::binary_search(thrust::seq, label_first, label_last, v);
                     });
+
+    if (isolated_vertices.size() > 0) {
+      labels.resize(labels.size() + isolated_vertices.size(), handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   isolated_vertices.begin(),
+                   isolated_vertices.end(),
+                   labels.end() - isolated_vertices.size());
+    }
   }
 
-  if (isolated_vertices.size() > 0) {
-    labels.resize(labels.size() + isolated_vertices.size(), handle.get_stream());
-    counts.resize(labels.size(), handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 isolated_vertices.begin(),
-                 isolated_vertices.end(),
-                 labels.end() - isolated_vertices.size());
-    thrust::fill(
-      handle.get_thrust_policy(), counts.end() - isolated_vertices.size(), counts.end(), edge_t{0});
-  }
-
-  // 6. sort by degree
+  // 5. sort non-isolated vertices by degree
 
   thrust::sort_by_key(handle.get_thrust_policy(),
                       counts.begin(),
-                      counts.end(),
+                      counts.begin() + num_non_isolated_vertices,
                       labels.begin(),
                       thrust::greater<edge_t>());
 
-  // 7. compute segment_offsets
+  // 6. compute segment_offsets
 
   static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
   static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
@@ -344,7 +344,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                                                   handle.get_stream());
 
   auto zero_vertex  = vertex_t{0};
-  auto vertex_count = static_cast<vertex_t>(counts.size());
+  auto vertex_count = static_cast<vertex_t>(labels.size());
   d_segment_offsets.set_element_async(0, zero_vertex, handle.get_stream());
   d_segment_offsets.set_element_async(
     num_segments_per_vertex_partition, vertex_count, handle.get_stream());
@@ -654,6 +654,7 @@ renumber_edgelist(
                                                               edgelist_const_major_vertices,
                                                               edgelist_const_minor_vertices,
                                                               edgelist_edge_counts);
+
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges for the coarsened
   // graph
 

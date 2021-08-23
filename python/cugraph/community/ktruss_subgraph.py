@@ -16,10 +16,28 @@ from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import check_nx_graph
 from cugraph.utilities import cugraph_to_nx
 
+# FIXME: special case for ktruss on CUDA 11.4: an 11.4 bug causes ktruss to
+# crash in that environment. Allow ktruss to import on non-11.4 systems, but
+# raise an exception if ktruss is directly imported on 11.4.
+from numba import cuda
+try:
+    __cuda_version = cuda.runtime.get_version()
+except cuda.cudadrv.runtime.CudaRuntimeAPIError:
+    __cuda_version = "n/a"
+
+__ktruss_unsupported_cuda_version = (11, 4)
+
+if __cuda_version == __ktruss_unsupported_cuda_version:
+    __kuvs = ".".join([str(n) for n in __ktruss_unsupported_cuda_version])
+    raise NotImplementedError("k_truss is not currently supported in CUDA"
+                              f" {__kuvs} environments.")
+
 
 def k_truss(G, k):
     """
     Returns the K-Truss subgraph of a graph for a specific k.
+
+    NOTE: this function is currently not available on CUDA 11.4 systems.
 
     The k-truss of a graph is a subgraph where each edge is part of at least
     (k−2) triangles. K-trusses are used for finding tighlty knit groups of
@@ -59,6 +77,8 @@ def k_truss(G, k):
 def ktruss_subgraph(G, k, use_weights=True):
     """
     Returns the K-Truss subgraph of a graph for a specific k.
+
+    NOTE: this function is currently not available on CUDA 11.4 systems.
 
     The k-truss of a graph is a subgraph where each edge is part of at least
     (k−2) triangles. K-trusses are used for finding tighlty knit groups of
