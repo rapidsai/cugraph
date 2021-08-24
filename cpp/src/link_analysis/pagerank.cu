@@ -24,8 +24,8 @@
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/utilities/error.hpp>
 
-#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/for_each.h>

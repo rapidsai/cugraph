@@ -13,8 +13,8 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 
-#include <rmm/exec_policy.hpp>
 #include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 
 TEST(triangle, dolphin)
 {

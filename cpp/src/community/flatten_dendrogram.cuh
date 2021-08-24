@@ -18,8 +18,8 @@
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/graph_functions.hpp>
 
-#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 namespace cugraph {
 

@@ -452,28 +452,26 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                             input_key_first,
                             input_key_first + tmp_major_vertices.size(),
                             tmp_key_aggregated_edge_weights.begin());
-        reduced_size =
-          thrust::distance(output_key_first,
-                           thrust::get<0>(thrust::reduce_by_key(
-                             rmm::exec_policy(handle.get_stream()),
-                             input_key_first,
-                             input_key_first + tmp_major_vertices.size(),
-                             tmp_key_aggregated_edge_weights.begin(),
-                             output_key_first,
-                             reduced_key_aggregated_edge_weights.begin())));
+        reduced_size = thrust::distance(
+          output_key_first,
+          thrust::get<0>(thrust::reduce_by_key(rmm::exec_policy(handle.get_stream()),
+                                               input_key_first,
+                                               input_key_first + tmp_major_vertices.size(),
+                                               tmp_key_aggregated_edge_weights.begin(),
+                                               output_key_first,
+                                               reduced_key_aggregated_edge_weights.begin())));
       } else {
         thrust::sort(rmm::exec_policy(handle.get_stream()),
                      input_key_first,
                      input_key_first + tmp_major_vertices.size());
-        reduced_size =
-          thrust::distance(output_key_first,
-                           thrust::get<0>(thrust::reduce_by_key(
-                             rmm::exec_policy(handle.get_stream()),
-                             input_key_first,
-                             input_key_first + tmp_major_vertices.size(),
-                             thrust::make_constant_iterator(weight_t{1.0}),
-                             output_key_first,
-                             reduced_key_aggregated_edge_weights.begin())));
+        reduced_size = thrust::distance(
+          output_key_first,
+          thrust::get<0>(thrust::reduce_by_key(rmm::exec_policy(handle.get_stream()),
+                                               input_key_first,
+                                               input_key_first + tmp_major_vertices.size(),
+                                               thrust::make_constant_iterator(weight_t{1.0}),
+                                               output_key_first,
+                                               reduced_key_aggregated_edge_weights.begin())));
       }
       tmp_major_vertices              = std::move(reduced_major_vertices);
       tmp_minor_keys                  = std::move(reduced_minor_keys);
@@ -524,14 +522,13 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       tmp_major_vertices.resize(rx_major_vertices.size(), handle.get_stream());
       tmp_minor_keys.resize(tmp_major_vertices.size(), handle.get_stream());
       tmp_key_aggregated_edge_weights.resize(tmp_major_vertices.size(), handle.get_stream());
-      auto pair_it =
-        thrust::reduce_by_key(rmm::exec_policy(handle.get_stream()),
-                              pair_first,
-                              pair_first + rx_major_vertices.size(),
-                              rx_key_aggregated_edge_weights.begin(),
-                              thrust::make_zip_iterator(thrust::make_tuple(
-                                tmp_major_vertices.begin(), tmp_minor_keys.begin())),
-                              tmp_key_aggregated_edge_weights.begin());
+      auto pair_it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream()),
+                                           pair_first,
+                                           pair_first + rx_major_vertices.size(),
+                                           rx_key_aggregated_edge_weights.begin(),
+                                           thrust::make_zip_iterator(thrust::make_tuple(
+                                             tmp_major_vertices.begin(), tmp_minor_keys.begin())),
+                                           tmp_key_aggregated_edge_weights.begin());
       tmp_major_vertices.resize(
         thrust::distance(tmp_key_aggregated_edge_weights.begin(), thrust::get<1>(pair_it)),
         handle.get_stream());

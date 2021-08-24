@@ -25,8 +25,8 @@
 #include <cugraph/utilities/host_barrier.hpp>
 
 #include <raft/cudart_utils.h>
-#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/distance.h>
 #include <thrust/functional.h>

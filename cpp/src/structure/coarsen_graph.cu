@@ -24,9 +24,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_barrier.hpp>
 
-#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -89,10 +89,8 @@ edge_t groupby_e_and_coarsen_edgelist(vertex_t* edgelist_major_vertices /* [INOU
     thrust::make_zip_iterator(thrust::make_tuple(edgelist_major_vertices, edgelist_minor_vertices));
 
   if (edgelist_weights) {
-    thrust::sort_by_key(rmm::exec_policy(stream),
-                        pair_first,
-                        pair_first + number_of_edges,
-                        *edgelist_weights);
+    thrust::sort_by_key(
+      rmm::exec_policy(stream), pair_first, pair_first + number_of_edges, *edgelist_weights);
 
     rmm::device_uvector<vertex_t> tmp_edgelist_major_vertices(number_of_edges, stream);
     rmm::device_uvector<vertex_t> tmp_edgelist_minor_vertices(tmp_edgelist_major_vertices.size(),
@@ -124,8 +122,7 @@ edge_t groupby_e_and_coarsen_edgelist(vertex_t* edgelist_major_vertices /* [INOU
     thrust::sort(rmm::exec_policy(stream), pair_first, pair_first + number_of_edges);
     return static_cast<edge_t>(thrust::distance(
       pair_first,
-      thrust::unique(
-        rmm::exec_policy(stream), pair_first, pair_first + number_of_edges)));
+      thrust::unique(rmm::exec_policy(stream), pair_first, pair_first + number_of_edges)));
   }
 }
 
@@ -395,27 +392,21 @@ coarsen_graph(
                labels,
                labels + unique_labels.size(),
                unique_labels.begin());
-  thrust::sort(rmm::exec_policy(handle.get_stream()),
-               unique_labels.begin(),
-               unique_labels.end());
-  unique_labels.resize(
-    thrust::distance(unique_labels.begin(),
-                     thrust::unique(rmm::exec_policy(handle.get_stream()),
-                                    unique_labels.begin(),
-                                    unique_labels.end())),
-    handle.get_stream());
+  thrust::sort(rmm::exec_policy(handle.get_stream()), unique_labels.begin(), unique_labels.end());
+  unique_labels.resize(thrust::distance(unique_labels.begin(),
+                                        thrust::unique(rmm::exec_policy(handle.get_stream()),
+                                                       unique_labels.begin(),
+                                                       unique_labels.end())),
+                       handle.get_stream());
 
   unique_labels = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(unique_labels));
 
-  thrust::sort(rmm::exec_policy(handle.get_stream()),
-               unique_labels.begin(),
-               unique_labels.end());
-  unique_labels.resize(
-    thrust::distance(unique_labels.begin(),
-                     thrust::unique(rmm::exec_policy(handle.get_stream()),
-                                    unique_labels.begin(),
-                                    unique_labels.end())),
-    handle.get_stream());
+  thrust::sort(rmm::exec_policy(handle.get_stream()), unique_labels.begin(), unique_labels.end());
+  unique_labels.resize(thrust::distance(unique_labels.begin(),
+                                        thrust::unique(rmm::exec_policy(handle.get_stream()),
+                                                       unique_labels.begin(),
+                                                       unique_labels.end())),
+                       handle.get_stream());
 
   // 4. renumber
 
@@ -514,15 +505,12 @@ coarsen_graph(
                labels,
                labels + unique_labels.size(),
                unique_labels.begin());
-  thrust::sort(rmm::exec_policy(handle.get_stream()),
-               unique_labels.begin(),
-               unique_labels.end());
-  unique_labels.resize(
-    thrust::distance(unique_labels.begin(),
-                     thrust::unique(rmm::exec_policy(handle.get_stream()),
-                                    unique_labels.begin(),
-                                    unique_labels.end())),
-    handle.get_stream());
+  thrust::sort(rmm::exec_policy(handle.get_stream()), unique_labels.begin(), unique_labels.end());
+  unique_labels.resize(thrust::distance(unique_labels.begin(),
+                                        thrust::unique(rmm::exec_policy(handle.get_stream()),
+                                                       unique_labels.begin(),
+                                                       unique_labels.end())),
+                       handle.get_stream());
 
   auto [renumber_map_labels, segment_offsets] = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
     handle,

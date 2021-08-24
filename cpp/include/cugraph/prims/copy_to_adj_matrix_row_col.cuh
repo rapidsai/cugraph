@@ -26,8 +26,8 @@
 #include <cugraph/utilities/thrust_tuple_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>

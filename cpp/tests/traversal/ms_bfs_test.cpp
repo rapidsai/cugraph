@@ -31,9 +31,9 @@
 
 #include <cuda_profiler_api.h>
 #include <raft/cudart_utils.h>
-#include <rmm/exec_policy.hpp>
 #include <algorithm>
 #include <iostream>
+#include <rmm/exec_policy.hpp>
 #include <tuple>
 #include <vector>
 

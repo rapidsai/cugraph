@@ -15,10 +15,10 @@
  */
 
 #pragma once
-#include <rmm/exec_policy.hpp>
-#include <rmm/device_vector.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <raft/handle.hpp>
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 
 namespace cugraph {
 namespace mg {

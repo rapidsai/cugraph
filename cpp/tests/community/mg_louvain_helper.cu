@@ -146,12 +146,9 @@ void sort_and_coarsen_edgelist(
     edgelist_minor_vertices = std::move(tmp_edgelist_minor_vertices);
     (*edgelist_weights)     = std::move(tmp_edgelist_weights);
   } else {
-    thrust::sort(rmm::exec_policy(stream),
-                 pair_first,
-                 pair_first + edgelist_major_vertices.size());
-    auto it         = thrust::unique(rmm::exec_policy(stream),
-                             pair_first,
-                             pair_first + edgelist_major_vertices.size());
+    thrust::sort(rmm::exec_policy(stream), pair_first, pair_first + edgelist_major_vertices.size());
+    auto it = thrust::unique(
+      rmm::exec_policy(stream), pair_first, pair_first + edgelist_major_vertices.size());
     number_of_edges = thrust::distance(pair_first, it);
   }
 
@@ -246,12 +243,11 @@ coarsen_graph(
                                : std::nullopt;
   edgelist.number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices.size());
 
-  vertex_t new_number_of_vertices =
-    1 + thrust::reduce(rmm::exec_policy(handle.get_stream()),
-                       labels,
-                       labels + graph_view.get_number_of_vertices(),
-                       vertex_t{0},
-                       thrust::maximum<vertex_t>());
+  vertex_t new_number_of_vertices = 1 + thrust::reduce(rmm::exec_policy(handle.get_stream()),
+                                                       labels,
+                                                       labels + graph_view.get_number_of_vertices(),
+                                                       vertex_t{0},
+                                                       thrust::maximum<vertex_t>());
 
   return std::make_unique<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>(
     handle,

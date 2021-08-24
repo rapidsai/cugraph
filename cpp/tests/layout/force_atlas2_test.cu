@@ -20,8 +20,8 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 
-#include <rmm/exec_policy.hpp>
 #include <raft/error.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cuda_profiler_api.h>
 

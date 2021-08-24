@@ -30,9 +30,9 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/cudart_utils.h>
-#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
@@ -1285,12 +1285,11 @@ void update_frontier_v_push_if_out_nbr(
     auto bucket_key_pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(bucket_indices.begin(), get_dataframe_buffer_begin<key_t>(key_buffer)));
     bucket_indices.resize(
-      thrust::distance(
-        bucket_key_pair_first,
-        thrust::remove_if(rmm::exec_policy(handle.get_stream()),
-                          bucket_key_pair_first,
-                          bucket_key_pair_first + num_buffer_elements,
-                          detail::check_invalid_bucket_idx_t<key_t>())),
+      thrust::distance(bucket_key_pair_first,
+                       thrust::remove_if(rmm::exec_policy(handle.get_stream()),
+                                         bucket_key_pair_first,
+                                         bucket_key_pair_first + num_buffer_elements,
+                                         detail::check_invalid_bucket_idx_t<key_t>())),
       handle.get_stream());
     resize_dataframe_buffer<key_t>(key_buffer, bucket_indices.size(), handle.get_stream());
     bucket_indices.shrink_to_fit(handle.get_stream());

@@ -21,9 +21,9 @@
 #include <tuple>
 #include <utility>
 
-#include <rmm/exec_policy.hpp>
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/transform.h>
 #include <ctime>

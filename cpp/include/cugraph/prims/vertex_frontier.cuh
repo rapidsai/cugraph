@@ -96,10 +96,7 @@ class SortedUniqueKeyBucket {
       tags_.resize(1, handle_ptr_->get_stream());
       auto pair_first =
         thrust::make_tuple(thrust::make_zip_iterator(vertices_.begin(), tags_.begin()));
-      thrust::fill(rmm::exec_policy(handle_ptr_->get_stream()),
-                   pair_first,
-                   pair_first + 1,
-                   key);
+      thrust::fill(rmm::exec_policy(handle_ptr_->get_stream()), pair_first, pair_first + 1, key);
     }
   }
 
@@ -129,20 +126,17 @@ class SortedUniqueKeyBucket {
                     vertex_last,
                     merged_vertices.begin());
       merged_vertices.resize(
-        thrust::distance(
-          merged_vertices.begin(),
-          thrust::unique(rmm::exec_policy(handle_ptr_->get_stream()),
-                         merged_vertices.begin(),
-                         merged_vertices.end())),
+        thrust::distance(merged_vertices.begin(),
+                         thrust::unique(rmm::exec_policy(handle_ptr_->get_stream()),
+                                        merged_vertices.begin(),
+                                        merged_vertices.end())),
         handle_ptr_->get_stream());
       merged_vertices.shrink_to_fit(handle_ptr_->get_stream());
       vertices_ = std::move(merged_vertices);
     } else {
       vertices_.resize(thrust::distance(vertex_first, vertex_last), handle_ptr_->get_stream());
-      thrust::copy(rmm::exec_policy(handle_ptr_->get_stream()),
-                   vertex_first,
-                   vertex_last,
-                   vertices_.begin());
+      thrust::copy(
+        rmm::exec_policy(handle_ptr_->get_stream()), vertex_first, vertex_last, vertices_.begin());
     }
   }
 
@@ -177,11 +171,10 @@ class SortedUniqueKeyBucket {
                     key_last,
                     merged_pair_first);
       merged_vertices.resize(
-        thrust::distance(
-          merged_pair_first,
-          thrust::unique(rmm::exec_policy(handle_ptr_->get_stream()),
-                         merged_pair_first,
-                         merged_pair_first + merged_vertices.size())),
+        thrust::distance(merged_pair_first,
+                         thrust::unique(rmm::exec_policy(handle_ptr_->get_stream()),
+                                        merged_pair_first,
+                                        merged_pair_first + merged_vertices.size())),
         handle_ptr_->get_stream());
       merged_tags.resize(merged_vertices.size(), handle_ptr_->get_stream());
       merged_vertices.shrink_to_fit(handle_ptr_->get_stream());
@@ -347,13 +340,13 @@ class VertexFrontier {
       thrust::make_zip_iterator(thrust::make_tuple(bucket_indices.begin(), this_bucket.begin()));
     bucket_indices.resize(
       thrust::distance(pair_first,
-                       thrust::remove_if(
-                         rmm::exec_policy(handle_ptr_->get_stream()),
-                         pair_first,
-                         pair_first + bucket_indices.size(),
-                         [] __device__(auto pair) {
-                           return thrust::get<0>(pair) == static_cast<uint8_t>(kInvalidBucketIdx);
-                         })),
+                       thrust::remove_if(rmm::exec_policy(handle_ptr_->get_stream()),
+                                         pair_first,
+                                         pair_first + bucket_indices.size(),
+                                         [] __device__(auto pair) {
+                                           return thrust::get<0>(pair) ==
+                                                  static_cast<uint8_t>(kInvalidBucketIdx);
+                                         })),
       handle_ptr_->get_stream());
     this_bucket.resize(bucket_indices.size());
     bucket_indices.shrink_to_fit(handle_ptr_->get_stream());
@@ -425,13 +418,12 @@ class VertexFrontier {
         [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
       rmm::device_uvector<uint8_t> d_indices(to_bucket_indices.size(), handle_ptr_->get_stream());
       rmm::device_uvector<size_t> d_counts(d_indices.size(), handle_ptr_->get_stream());
-      auto it = thrust::reduce_by_key(
-        rmm::exec_policy(handle_ptr_->get_stream()),
-        bucket_idx_first,
-        bucket_idx_last,
-        thrust::make_constant_iterator(size_t{1}),
-        d_indices.begin(),
-        d_counts.begin());
+      auto it = thrust::reduce_by_key(rmm::exec_policy(handle_ptr_->get_stream()),
+                                      bucket_idx_first,
+                                      bucket_idx_last,
+                                      thrust::make_constant_iterator(size_t{1}),
+                                      d_indices.begin(),
+                                      d_counts.begin());
       d_indices.resize(thrust::distance(d_indices.begin(), thrust::get<0>(it)),
                        handle_ptr_->get_stream());
       d_counts.resize(d_indices.size(), handle_ptr_->get_stream());

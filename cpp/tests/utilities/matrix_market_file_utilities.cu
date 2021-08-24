@@ -335,10 +335,8 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
       handle, graph_file_full_path, test_weighted);
 
   rmm::device_uvector<vertex_t> d_vertices(number_of_vertices, handle.get_stream());
-  thrust::sequence(rmm::exec_policy(handle.get_stream()),
-                   d_vertices.begin(),
-                   d_vertices.end(),
-                   vertex_t{0});
+  thrust::sequence(
+    rmm::exec_policy(handle.get_stream()), d_vertices.begin(), d_vertices.end(), vertex_t{0});
   handle.get_stream_view().synchronize();
 
   if (multi_gpu) {
@@ -352,14 +350,12 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
 
     auto vertex_key_func = cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
     d_vertices.resize(
-      thrust::distance(
-        d_vertices.begin(),
-        thrust::remove_if(rmm::exec_policy(handle.get_stream()),
-                          d_vertices.begin(),
-                          d_vertices.end(),
-                          [comm_rank, key_func = vertex_key_func] __device__(auto val) {
-                            return key_func(val) != comm_rank;
-                          })),
+      thrust::distance(d_vertices.begin(),
+                       thrust::remove_if(rmm::exec_policy(handle.get_stream()),
+                                         d_vertices.begin(),
+                                         d_vertices.end(),
+                                         [comm_rank, key_func = vertex_key_func] __device__(
+                                           auto val) { return key_func(val) != comm_rank; })),
       handle.get_stream());
     d_vertices.shrink_to_fit(handle.get_stream());
 

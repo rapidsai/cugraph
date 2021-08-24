@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include <rmm/device_vector.hpp>
-#include <rmm/exec_policy.hpp>
 #include <Hornet.hpp>
 #include <Static/CoreNumber/CoreNumber.cuh>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 //#include <nvgraph_gdf.h>
 
 namespace cugraph {

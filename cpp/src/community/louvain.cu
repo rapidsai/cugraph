@@ -81,10 +81,8 @@ void flatten_dendrogram(raft::handle_t const& handle,
 {
   rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices, handle.get_stream());
 
-  thrust::sequence(rmm::exec_policy(handle.get_stream()),
-                   vertex_ids_v.begin(),
-                   vertex_ids_v.end(),
-                   vertex_t{0});
+  thrust::sequence(
+    rmm::exec_policy(handle.get_stream()), vertex_ids_v.begin(), vertex_ids_v.end(), vertex_t{0});
 
   partition_at_level<vertex_t, false>(
     handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());

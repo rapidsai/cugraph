@@ -20,9 +20,9 @@
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 
-#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>

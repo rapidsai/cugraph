@@ -30,8 +30,8 @@
 
 #include <raft/handle.hpp>
 
-#include <rmm/exec_policy.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/fill.h>
@@ -101,10 +101,8 @@ std::vector<edge_t> compute_edge_counts(raft::handle_t const& handle,
   if (static_cast<size_t>(thrust::distance(d_local_partition_ids.begin(), thrust::get<0>(it))) <
       num_local_partitions) {
     rmm::device_uvector<edge_t> d_counts(num_local_partitions, handle.get_stream());
-    thrust::fill(rmm::exec_policy(handle.get_stream()),
-                 d_counts.begin(),
-                 d_counts.end(),
-                 edge_t{0});
+    thrust::fill(
+      rmm::exec_policy(handle.get_stream()), d_counts.begin(), d_counts.end(), edge_t{0});
     thrust::scatter(rmm::exec_policy(handle.get_stream()),
                     d_edge_counts.begin(),
                     thrust::get<1>(it),

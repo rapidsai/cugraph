@@ -21,8 +21,8 @@
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <raft/cudart_utils.h>
-#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/tuple.h>
 

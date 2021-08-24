@@ -49,11 +49,8 @@ std::vector<int> getTopKIds(double* p_katz, int count, int k = 10)
   cudaStream_t stream = nullptr;
   rmm::device_vector<int> id(count);
   thrust::sequence(rmm::exec_policy(stream), id.begin(), id.end());
-  thrust::sort_by_key(rmm::exec_policy(stream),
-                      p_katz,
-                      p_katz + count,
-                      id.begin(),
-                      thrust::greater<double>());
+  thrust::sort_by_key(
+    rmm::exec_policy(stream), p_katz, p_katz + count, id.begin(), thrust::greater<double>());
   std::vector<int> topK(k);
   thrust::copy(id.begin(), id.begin() + k, topK.begin());
   return topK;

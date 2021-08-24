@@ -19,11 +19,11 @@
  * @file two_hop_neighbors.cu
  * ---------------------------------------------------------------------------**/
 
-#include <rmm/exec_policy.hpp>
-#include <rmm/device_vector.hpp>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 #include "two_hop_neighbors.cuh"
 
 #include <thrust/execution_policy.h>
@@ -100,11 +100,8 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
   auto tuple_start = thrust::make_zip_iterator(thrust::make_tuple(d_first_pair, d_second_pair));
   auto tuple_end   = tuple_start + output_size;
   thrust::sort(rmm::exec_policy(stream), tuple_start, tuple_end);
-  tuple_end = thrust::copy_if(rmm::exec_policy(stream),
-                              tuple_start,
-                              tuple_end,
-                              tuple_start,
-                              self_loop_flagger<VT>());
+  tuple_end = thrust::copy_if(
+    rmm::exec_policy(stream), tuple_start, tuple_end, tuple_start, self_loop_flagger<VT>());
   tuple_end = thrust::unique(rmm::exec_policy(stream), tuple_start, tuple_end);
 
   // Get things ready to return

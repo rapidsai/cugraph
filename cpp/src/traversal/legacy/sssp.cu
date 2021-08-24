@@ -17,8 +17,8 @@
 // Author: Prasun Gera pgera@nvidia.com
 
 #include <algorithm>
-#include <rmm/device_vector.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <rmm/device_vector.hpp>
 
 #include <cugraph/legacy/graph.hpp>
 
