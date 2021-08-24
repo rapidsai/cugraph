@@ -20,8 +20,8 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
-#include <cugraph/graph_view.hpp>
 #include <cugraph/graph_generators.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <cuda_profiler_api.h>
 #include <gtest/gtest.h>
