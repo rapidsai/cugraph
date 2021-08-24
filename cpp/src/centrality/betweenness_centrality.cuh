@@ -17,7 +17,7 @@
 // Author: Xavier Cadet xcadet@nvidia.com
 
 #pragma once
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 
 namespace cugraph {
 namespace detail {

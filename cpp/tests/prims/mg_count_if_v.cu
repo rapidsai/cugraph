@@ -138,7 +138,7 @@ class Tests_MG_CountIfV
           handle, true, false);
       auto sg_graph_view = sg_graph.view();
       auto expected_vertex_count =
-        thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::count_if(rmm::exec_policy(handle.get_stream()),
                          thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
                          thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
                          test_predicate<vertex_t>(hash_bin_count));

@@ -20,7 +20,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 #include <thrust/random.h>
 
 #include <cugraph/algorithms.hpp>
@@ -47,7 +47,7 @@ void fill_start(raft::handle_t const& handle,
 {
   index_t num_paths = d_start.size();
 
-  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::transform(rmm::exec_policy(handle.get_stream()),
                     thrust::make_counting_iterator<index_t>(0),
                     thrust::make_counting_iterator<index_t>(num_paths),
 

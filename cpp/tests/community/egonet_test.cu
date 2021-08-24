@@ -30,7 +30,7 @@
 #include <gtest/gtest.h>
 
 #include <raft/cudart_utils.h>
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 #include <algorithm>
 #include <tuple>
 #include <vector>

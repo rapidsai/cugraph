@@ -21,7 +21,7 @@
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 

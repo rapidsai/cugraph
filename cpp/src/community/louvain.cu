@@ -81,7 +81,7 @@ void flatten_dendrogram(raft::handle_t const& handle,
 {
   rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices, handle.get_stream());
 
-  thrust::sequence(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::sequence(rmm::exec_policy(handle.get_stream()),
                    vertex_ids_v.begin(),
                    vertex_ids_v.end(),
                    vertex_t{0});
@@ -100,7 +100,7 @@ void flatten_dendrogram(
   rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.get_number_of_vertices(),
                                              handle.get_stream());
 
-  thrust::sequence(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::sequence(rmm::exec_policy(handle.get_stream()),
                    vertex_ids_v.begin(),
                    vertex_ids_v.end(),
                    graph_view.get_local_vertex_first());

@@ -22,7 +22,7 @@
 
 #include <cugraph/utilities/error.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 #include <rmm/device_buffer.hpp>
 
 #include <thrust/iterator/counting_iterator.h>

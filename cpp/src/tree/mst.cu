@@ -24,7 +24,7 @@
 #include <memory>
 #include <utility>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 #include <thrust/transform.h>
 #include <ctime>
 

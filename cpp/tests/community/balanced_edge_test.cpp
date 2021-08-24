@@ -12,7 +12,7 @@
 
 #include <cugraph/algorithms.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 
 TEST(balanced_edge, success)
 {

@@ -20,7 +20,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 #include <raft/error.hpp>
 
 #include <cuda_profiler_api.h>

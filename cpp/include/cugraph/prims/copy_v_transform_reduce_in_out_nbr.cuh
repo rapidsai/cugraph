@@ -25,7 +25,7 @@
 #include <cugraph/utilities/host_barrier.hpp>
 
 #include <raft/cudart_utils.h>
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 #include <raft/handle.hpp>
 
 #include <thrust/distance.h>
@@ -439,12 +439,12 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     }
 
     if (GraphViewType::is_multi_gpu) {
-      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::fill(rmm::exec_policy(handle.get_stream()),
                    minor_buffer_first,
                    minor_buffer_first + minor_tmp_buffer_size,
                    minor_init);
     } else {
-      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::fill(rmm::exec_policy(handle.get_stream()),
                    vertex_value_output_first,
                    vertex_value_output_first + graph_view.get_number_of_local_vertices(),
                    minor_init);
@@ -546,7 +546,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the
                                        // hypersparse segment in
                                        // for_all_major_for_all_nbr_hypersparse
-          thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          thrust::fill(rmm::exec_policy(handle.get_stream()),
                        output_buffer_first + (*segment_offsets)[3],
                        output_buffer_first + (*segment_offsets)[4],
                        major_init);
