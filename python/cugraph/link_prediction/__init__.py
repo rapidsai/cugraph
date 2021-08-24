@@ -16,5 +16,8 @@ from cugraph.link_prediction.jaccard import jaccard_coefficient
 from cugraph.link_prediction.overlap import overlap
 from cugraph.link_prediction.wjaccard import jaccard_w
 from cugraph.link_prediction.woverlap import overlap_w
+from cugraph.link_prediction.wsorensen import sorensen_w
 from cugraph.link_prediction.jaccard import jaccard_coefficient
+from cugraph.link_prediction.sorensen import sorensen_coefficient
+from cugraph.link_prediction.sorensen import sorensen
 from cugraph.link_prediction.overlap import overlap_coefficient
