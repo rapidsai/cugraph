@@ -52,8 +52,7 @@ set(CMAKE_CUDA_ARCHITECTURES ${usable_arch_values})
 
 
 # Write the version header
-include(cmake/Modules/Version.cmake)
-write_version()
+rapids_cmake_write_version_file(include/cugraph/version_config.hpp)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
