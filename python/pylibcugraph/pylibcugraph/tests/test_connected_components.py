@@ -13,13 +13,14 @@
 
 import pytest
 
+
 @pytest.fixture
 def plc():
     import pylibcugraph
     return pylibcugraph
 
 
-################################################################################
+###############################################################################
 def test_import():
     """
     Ensure pylibcugraph is importable.

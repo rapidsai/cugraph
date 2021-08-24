@@ -1,0 +1,7 @@
+# Configuration file for Python coverage tests
+[run]
+include = cugraph/cugraph/*
+          pylibcugraph/pylibcugraph/*
+omit = cugraph/cugraph/tests/*
+       pylibcugraph/pylibcugraph/tests/*
+
