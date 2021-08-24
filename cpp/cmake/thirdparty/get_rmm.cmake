@@ -16,18 +16,11 @@
 
 function(find_and_configure_rmm VERSION)
 
-    if(${VERSION} MATCHES [=[([0-9]+)\.([0-9]+)\.([0-9]+)]=])
-        set(MAJOR_AND_MINOR "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}")
-    else()
-        set(MAJOR_AND_MINOR "${VERSION}")
-    endif()
-
-    if(TARGET rmm::rmm)
-        return()
-    endif()
-
-    # FIXME: turn GIT_SHALLOW back to TRUE when changing GIT_TAG back
-    # to branch-${MAJOR_AND_MINOR}
+    # No way to override the version rapids-cmake pulls
+    # so we need to manually checkout when needing a diverged
+    # version
+    # include(${rapids-cmake-dir}/cpm/rmm.cmake)
+    # rapids_cpm_rmm()
     rapids_cpm_find(rmm ${VERSION}
         GLOBAL_TARGETS      rmm::rmm
         BUILD_EXPORT_SET    cugraph-exports
