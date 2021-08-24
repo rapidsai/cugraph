@@ -53,13 +53,12 @@ gpuci_logger "Activate conda env"
 . /opt/conda/etc/profile.d/conda.sh
 conda activate rapids
 
-# FIXME: return librmm and RMM to ${MINOR_VERSION}
 gpuci_logger "Install dependencies"
 gpuci_mamba_retry install -y \
       "libcudf=${MINOR_VERSION}" \
       "cudf=${MINOR_VERSION}" \
-      "librmm=21.10.00a210812" \
-      "rmm=21.10.00a210813" \
+      "librmm=${MINOR_VERSION}" \
+      "rmm=${MINOR_VERSION}" \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
