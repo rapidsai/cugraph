@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -44,7 +44,7 @@ def cugraph_call(cu_M, edgevals=False):
 
     # cugraph sorensen Call
     t1 = time.time()
-    df = cugraph.sorensen(G) #change this when running pytest
+    df = cugraph.sorensen(G)
     t2 = time.time() - t1
     print("Time : " + str(t2))
 
@@ -89,6 +89,7 @@ def networkx_call(M):
         src.append(u)
         dst.append(v)
         # Conversion from Networkx Jaccard to Sorensen
+        # No networkX equivalent
         coeff.append((2*p)/(1+p))
     return src, dst, coeff
 
@@ -162,6 +163,8 @@ def test_sorensen_two_hop(graph_file):
     preds = nx.jaccard_coefficient(Gnx, nx_pairs)
     nx_coeff = []
     for u, v, p in preds:
+        # Conversion from Networkx Jaccard to Sorensen
+        # No networkX equivalent
         nx_coeff.append((2*p)/(1+p))
     df = cugraph.sorensen(G, pairs)
     df = df.sort_values(by=["source", "destination"]).reset_index(drop=True)
@@ -196,6 +199,8 @@ def test_sorensen_two_hop_edge_vals(graph_file):
     preds = nx.jaccard_coefficient(Gnx, nx_pairs)
     nx_coeff = []
     for u, v, p in preds:
+        # Conversion from Networkx Jaccard to Sorensen
+        # No networkX equivalent
         nx_coeff.append((2*p)/(1+p))
     df = cugraph.sorensen(G, pairs)
     df = df.sort_values(by=["source", "destination"]).reset_index(drop=True)

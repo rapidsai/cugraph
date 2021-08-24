@@ -24,7 +24,8 @@ def sorensen(input_graph, vertex_pair=None):
     """
     Compute the Sorensen coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
-    Sorensen coefficient is defined between two sets as the ratio of the volume.
+    Sorensen coefficient is defined between two sets as the ratio of twice the 
+    volume of their intersection divided by the volume of each set.
     If first is specified but second is not, or vice versa, an exception will be
     thrown.
 
@@ -32,18 +33,7 @@ def sorensen(input_graph, vertex_pair=None):
     use the edges of the graph to construct a vertex pair list and will
     return the sorensen coefficient for those vertex pairs.
 
-    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> pairs = cugraph.get_two_hop_neighbors(G)
-    >>> df = cugraph.sorensen(G, pairs)
-
-    But please remember that cugraph will fill the dataframe with the entire
-    solution you request, so you'll need enough memory to store the 2-hop
-    neighborhood dataframe.
-
-
+    
     Parameters
     ----------
     graph : cugraph.Graph
@@ -98,7 +88,6 @@ def sorensen(input_graph, vertex_pair=None):
     df.jaccard_coeff = ((2*df.jaccard_coeff)/(1+df.jaccard_coeff))
     df.rename(
         {'jaccard_coeff':'sorensen_coeff'}, axis=1, inplace=True)
-
     if input_graph.renumbered:
         df = input_graph.unrenumber(df, "source")
         df = input_graph.unrenumber(df, "destination")

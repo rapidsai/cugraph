@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +22,8 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
     """
     Compute the weighted Sorensen similarity between each pair of vertices
     connected by an edge, or between arbitrary pairs of vertices specified by
-    the user.
+    the user. Sorensen coefficient is defined between two sets as the ratio of 
+    twice the volume of their intersection divided by the volume of each set.
 
     Parameters
     ----------
