@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -123,7 +123,7 @@ def find_bicliques(
             # summarize occurances
             ic = _count_features(feature_list, True)
 
-            goal = int(degree * support)  # NOQA 
+            goal = int(degree * support)  # NOQA
 
             # only get dst nodes with the same degree
             c = ic.query('count >= @goal')

@@ -41,6 +41,9 @@ def checkThisFile(f):
         return False
     if git_helpers and git_helpers.isFileEmpty(f):
         return False
+    # Special case for versioneer.py - it uses a separate copyright.
+    if os.path.basename(f) == "versioneer.py":
+        return False
     for checker in FilesToCheck:
         if checker.search(f):
             return True
