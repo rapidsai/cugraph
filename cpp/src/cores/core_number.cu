@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <rmm/exec_policy.hpp>
 #include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 #include <Hornet.hpp>
 #include <Static/CoreNumber/CoreNumber.cuh>
 #include <cugraph/legacy/graph.hpp>
@@ -110,8 +110,7 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph(
 
   rmm::device_vector<VT> sorted_core_num(in_graph.number_of_vertices);
 
-  thrust::scatter(
-    rmm::exec_policy(stream), core_num, core_num + len, vid, sorted_core_num.begin());
+  thrust::scatter(rmm::exec_policy(stream), core_num, core_num + len, vid, sorted_core_num.begin());
 
   VT* d_sorted_core_num = sorted_core_num.data().get();
 
