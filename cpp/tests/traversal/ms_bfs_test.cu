@@ -19,11 +19,9 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/graph_generators.hpp>
-
-#include <cugraph/experimental/graph.hpp>
 
 #include <cuda_profiler_api.h>
 #include <gtest/gtest.h>
@@ -142,7 +140,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     raft::copy(d_sources.data(), h_sources.data(), h_sources.size(), handle.get_stream());
 
     // from the graph
-    cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
     rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
     rmm::device_uvector<vertex_t> d_vertices(n_vertices, handle.get_stream());
     rmm::device_uvector<weight_t> d_weights(n_edges, handle.get_stream());
@@ -152,14 +150,14 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
                      vertex_t{0});
 
     std::tie(graph, std::ignore) =
-      cugraph::experimental::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+      cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
         handle,
         std::optional<std::tuple<vertex_t const*, vertex_t>>{
           std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},
         std::move(d_srcs),
         std::move(d_dst),
         std::nullopt,
-        cugraph::experimental::graph_properties_t{false, false},
+        cugraph::graph_properties_t{false, false},
         false);
 
     auto graph_view = graph.view();
@@ -185,14 +183,14 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     bool direction_optimizing = false;
 
     vertex_t source = h_sources[0];
-    cugraph::experimental::bfs(handle,
-                               graph_view,
-                               d_distances_ref[0].begin(),
-                               d_predecessors_ref[0].begin(),
-                               &source,
-                               1,
-                               direction_optimizing,
-                               configuration.radius);
+    cugraph::bfs(handle,
+                 graph_view,
+                 d_distances_ref[0].begin(),
+                 d_predecessors_ref[0].begin(),
+                 &source,
+                 1,
+                 direction_optimizing,
+                 configuration.radius);
 
     // one by one
     HighResTimer hr_timer;
@@ -200,14 +198,14 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     cudaProfilerStart();
     for (size_t i = 0; i < h_sources.size(); i++) {
       source = h_sources[i];
-      cugraph::experimental::bfs(handle,
-                                 graph_view,
-                                 d_distances_ref[i].begin(),
-                                 d_predecessors_ref[i].begin(),
-                                 &source,
-                                 1,
-                                 direction_optimizing,
-                                 configuration.radius);
+      cugraph::bfs(handle,
+                   graph_view,
+                   d_distances_ref[i].begin(),
+                   d_predecessors_ref[i].begin(),
+                   &source,
+                   1,
+                   direction_optimizing,
+                   configuration.radius);
     }
     cudaProfilerStop();
     hr_timer.stop();
@@ -220,14 +218,14 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
 
     hr_timer.start("msbfs");
     cudaProfilerStart();
-    cugraph::experimental::bfs(handle,
-                               graph_view,
-                               d_distances.begin(),
-                               d_predecessors.begin(),
-                               d_sources.data(),
-                               h_sources.size(),
-                               direction_optimizing,
-                               configuration.radius);
+    cugraph::bfs(handle,
+                 graph_view,
+                 d_distances.begin(),
+                 d_predecessors.begin(),
+                 d_sources.data(),
+                 h_sources.size(),
+                 direction_optimizing,
+                 configuration.radius);
 
     cudaProfilerStop();
     hr_timer.stop();

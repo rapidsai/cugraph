@@ -133,11 +133,13 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
       hr_clock.start();
     }
 
+    vertex_t source = bfs_usecase.source;
+
     cugraph::bfs(handle,
                  graph_view,
                  d_distances.data(),
                  d_predecessors.data(),
-                 static_cast<vertex_t>(bfs_usecase.source),
+                 &source,
                  1,
                  false,
                  std::numeric_limits<vertex_t>::max());

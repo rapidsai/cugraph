@@ -107,7 +107,7 @@ extract(raft::handle_t const& handle,
                                                     csr_view,
                                                     reached[i].data(),
                                                     predecessors.data(),
-                                                    h_source_vertex[i],
+                                                    source_vertex + i,
                                                     1,
                                                     direction_optimizing,
                                                     radius);
