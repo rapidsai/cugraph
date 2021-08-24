@@ -25,7 +25,8 @@ def test_import():
     """
     Ensure pylibcugraph is importable.
     """
-    import pylibcugraph  # suppress F401 (imported but never used) in flake8
+    # suppress F401 (imported but never used) in flake8
+    import pylibcugraph  # noqa: F401
 
 
 def test_scc(plc):
