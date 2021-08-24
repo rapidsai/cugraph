@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include <rmm/exec_policy.hpp>
+#include <rmm/device_vector.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>

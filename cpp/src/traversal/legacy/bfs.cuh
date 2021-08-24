@@ -12,6 +12,7 @@
 #pragma once
 
 #include <rmm/exec_policy.hpp>
+#include <rmm/device_vector.hpp>
 #include <climits>
 
 #define TRAVERSAL_DEFAULT_ALPHA 15

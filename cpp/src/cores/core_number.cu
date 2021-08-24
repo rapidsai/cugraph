@@ -15,6 +15,7 @@
  */
 
 #include <rmm/exec_policy.hpp>
+#include <rmm/device_vector.hpp>
 #include <Hornet.hpp>
 #include <Static/CoreNumber/CoreNumber.cuh>
 #include <cugraph/legacy/graph.hpp>

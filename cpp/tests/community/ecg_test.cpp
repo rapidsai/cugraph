@@ -14,6 +14,7 @@
 #include <cugraph/legacy/graph.hpp>
 
 #include <rmm/exec_policy.hpp>
+#include <rmm/device_vector.hpp>
 
 // FIXME:  Temporarily disable this test.  Something is wrong with
 //         ECG, or the expectation of this test.  If I run ensemble size

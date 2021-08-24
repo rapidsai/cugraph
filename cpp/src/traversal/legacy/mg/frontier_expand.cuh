@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <rmm/device_vector.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include "frontier_expand_kernels.cuh"
 #include "vertex_binning.cuh"

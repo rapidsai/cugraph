@@ -16,6 +16,7 @@
 
 #pragma once
 #include <rmm/exec_policy.hpp>
+#include <rmm/device_vector.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <raft/handle.hpp>
 

@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <rmm/device_vector.hpp>
 #include <raft/handle.hpp>
 #include "../traversal_common.cuh"
 #include "common_utils.cuh"

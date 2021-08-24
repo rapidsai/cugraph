@@ -14,6 +14,7 @@
 #include <cugraph/legacy/graph.hpp>
 
 #include <rmm/exec_policy.hpp>
+#include <rmm/device_vector.hpp>
 
 TEST(triangle, dolphin)
 {
