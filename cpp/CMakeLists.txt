@@ -330,11 +330,11 @@ endif()
 
 ###################################################################################################
 # - install targets -------------------------------------------------------------------------------
-
+rapids_cmake_install_lib_dir( lib_dir )
 include(CPack)
 
 install(TARGETS cugraph
-        DESTINATION lib
+        DESTINATION ${lib_dir}
         EXPORT cugraph-exports)
 
 install(DIRECTORY include/cugraph/
