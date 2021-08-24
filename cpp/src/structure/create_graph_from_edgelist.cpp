@@ -172,8 +172,9 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
     std::tie(*renumber_map_labels, *segment_offsets) =
       cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle,
-        std::optional<std::tuple<vertex_t const*, vertex_t>>{
-          std::make_tuple((*vertex_span).data(), static_cast<vertex_t>((*vertex_span).size()))},
+        vertex_span ? std::optional<std::tuple<vertex_t const*, vertex_t>>{std::make_tuple(
+                        (*vertex_span).data(), static_cast<vertex_t>((*vertex_span).size()))}
+                    : std::nullopt,
         store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
         store_transposed ? edgelist_rows.data() : edgelist_cols.data(),
         static_cast<edge_t>(edgelist_rows.size()));
