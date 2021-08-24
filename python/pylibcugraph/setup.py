@@ -30,7 +30,7 @@ from distutils.sysconfig import get_python_lib
 
 
 INSTALL_REQUIRES = ['numba', 'cython']
-CYTHON_FILES = ['cugraph/**/*.pyx']
+CYTHON_FILES = ['pylibcugraph/**/*.pyx']
 
 UCX_HOME = get_environment_option("UCX_HOME")
 CUDA_HOME = get_environment_option('CUDA_HOME')
@@ -98,7 +98,7 @@ class CleanCommand(Command):
         os.system('rm -rf build')
         os.system('rm -rf dist')
         os.system('rm -rf dask-worker-space')
-        os.system('rm -f cugraph/raft')
+        os.system('rm -f pylibcugraph/raft')
         os.system('find . -name "__pycache__" -type d -exec rm -rf {} +')
         os.system('rm -rf *.egg-info')
         os.system('find . -name "*.cpp" -type f -delete')
@@ -116,8 +116,8 @@ EXTENSIONS = [
               include_dirs=[
                   conda_include_dir,
                   ucx_include_dir,
-                  '../cpp/include',
-                  "../thirdparty/cub",
+                  "../../cpp/include",
+                  "../../thirdparty/cub",
                   raft_include_dir,
                   os.path.join(conda_include_dir, "libcudacxx"),
                   cuda_include_dir,
@@ -141,8 +141,8 @@ for e in EXTENSIONS:
         profile=False, language_level=3, embedsignature=True
     )
 
-setup(name='cugraph',
-      description="cuGraph - GPU Graph Analytics",
+setup(name='pylibcugraph',
+      description="pylibcugraph - GPU Graph Analytics",
       version=versioneer.get_version(),
       classifiers=[
           # "Development Status :: 4 - Beta",
@@ -156,7 +156,7 @@ setup(name='cugraph',
       author="NVIDIA Corporation",
       setup_requires=['cython'],
       ext_modules=EXTENSIONS,
-      packages=find_packages(include=['cugraph', 'cugraph.*']),
+      packages=find_packages(include=['pylibcugraph', 'pylibcugraph.*']),
       install_requires=INSTALL_REQUIRES,
       license="Apache",
       cmdclass=cmdclass,
