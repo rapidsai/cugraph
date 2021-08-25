@@ -77,8 +77,11 @@ from cugraph.link_prediction import (
     jaccard_coefficient,
     overlap,
     overlap_coefficient,
+    sorensen,
+    sorensen_coefficient,
     jaccard_w,
     overlap_w,
+    sorensen_w,
 )
 
 from cugraph.traversal import (
