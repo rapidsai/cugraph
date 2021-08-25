@@ -153,9 +153,9 @@ def clone_repo_if_needed(name, cpp_build_path=None,
     if repo_cloned:
         # FIXME: should _external_repositories go in the "python" dir instead,
         # to be shared by both packages?
-        repo_path = (_get_repo_path() + \
-                     '/python/pylibcugraph/_external_repositories/' + \
-                     name + \
+        repo_path = (_get_repo_path() +
+                     '/python/pylibcugraph/_external_repositories/' +
+                     name +
                      '/')
     else:
         repo_path = os.path.join(cpp_build_path, name + '-src/')
