@@ -52,7 +52,7 @@ T reduce_v(raft::handle_t const& handle,
            T init)
 {
   auto ret = thrust::reduce(
-    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    rmm::exec_policy(handle.get_stream()),
     vertex_value_input_first,
     vertex_value_input_first + graph_view.get_number_of_local_vertices(),
     ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
@@ -89,7 +89,7 @@ T reduce_v(raft::handle_t const& handle,
            T init)
 {
   auto ret = thrust::reduce(
-    rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    rmm::exec_policy(handle.get_stream()),
     input_first,
     input_last,
     ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},

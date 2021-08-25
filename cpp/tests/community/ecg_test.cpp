@@ -13,7 +13,8 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 
 // FIXME:  Temporarily disable this test.  Something is wrong with
 //         ECG, or the expectation of this test.  If I run ensemble size

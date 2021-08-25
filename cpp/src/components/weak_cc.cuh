@@ -28,7 +28,8 @@
 #include <raft/cudart_utils.h>
 #include <raft/device_atomics.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 #include "utils.h"
 
 namespace MLCommon {
