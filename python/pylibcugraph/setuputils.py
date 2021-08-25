@@ -115,7 +115,7 @@ def use_raft_package(raft_path, cpp_build_path,
         raft_path, raft_cloned = \
             clone_repo_if_needed('raft', cpp_build_path,
                                  git_info_file=git_info_file)
-        raft_path = os.path.join('../', raft_path)
+        raft_path = os.path.join('../../', raft_path)
 
     raft_path = os.path.realpath(raft_path)
     print('-- RAFT found at: ' + str(raft_path))
@@ -151,8 +151,12 @@ def clone_repo_if_needed(name, cpp_build_path=None,
                                            git_info_file=git_info_file)
 
     if repo_cloned:
-        repo_path = (
-            _get_repo_path() + '/python/_external_repositories/' + name + '/')
+        # FIXME: should _external_repositories go in the "python" dir instead,
+        # to be shared by both packages?
+        repo_path = (_get_repo_path() + \
+                     '/python/pylibcugraph/_external_repositories/' + \
+                     name + \
+                     '/')
     else:
         repo_path = os.path.join(cpp_build_path, name + '-src/')
 
@@ -305,5 +309,5 @@ def get_repo_cmake_info(names, file_path):
 
 
 def _get_repo_path():
-    python_dir = Path(__file__).resolve()
+    python_dir = Path(__file__).resolve().parent
     return str(python_dir.parent.parent.absolute())
