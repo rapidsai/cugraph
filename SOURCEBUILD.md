@@ -49,6 +49,10 @@ conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11
 # for CUDA 11.2
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.2.yml
 
+# for CUDA 11.4
+conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.4.yml
+
+
 # activate the environment
 conda activate cugraph_dev
 
