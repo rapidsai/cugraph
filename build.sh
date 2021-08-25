@@ -186,8 +186,7 @@ if buildAll || hasArg libcugraph; then
 fi
 
 # Build, and install pylibcugraph
-#if buildAll || hasArg pylibcugraph; then
-if hasArg pylibcugraph; then
+if buildAll || hasArg pylibcugraph; then
     cd ${REPODIR}/python/pylibcugraph
     # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
     # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
