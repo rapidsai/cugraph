@@ -26,6 +26,7 @@
 
 #include <thrust/transform.h>
 #include <ctime>
+#include <rmm/exec_policy.hpp>
 
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>

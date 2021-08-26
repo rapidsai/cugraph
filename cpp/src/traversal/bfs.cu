@@ -23,6 +23,7 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>

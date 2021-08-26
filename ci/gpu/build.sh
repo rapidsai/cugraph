@@ -53,7 +53,6 @@ gpuci_logger "Activate conda env"
 . /opt/conda/etc/profile.d/conda.sh
 conda activate rapids
 
-# FIXME: return librmm and RMM to ${MINOR_VERSION}
 gpuci_logger "Install dependencies"
 gpuci_mamba_retry install -y \
       "libcudf=${MINOR_VERSION}" \

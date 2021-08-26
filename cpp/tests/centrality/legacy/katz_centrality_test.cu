@@ -20,6 +20,8 @@
 
 #include <converters/COOtoCSR.cuh>
 
+#include <rmm/device_vector.hpp>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <rmm/device_vector.hpp>

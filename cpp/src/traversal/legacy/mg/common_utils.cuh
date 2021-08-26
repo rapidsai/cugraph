@@ -20,6 +20,7 @@
 
 #include <thrust/host_vector.h>
 #include <cub/cub.cuh>
+#include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <raft/cudart_utils.h>
