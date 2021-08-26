@@ -30,9 +30,9 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/cudart_utils.h>
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
@@ -528,11 +528,11 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
 
   if constexpr (std::is_same_v<payload_t, void>) {
-    thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::sort(rmm::exec_policy(handle.get_stream()),
                  buffer_key_output_first,
                  buffer_key_output_first + num_buffer_elements);
   } else {
-    thrust::sort_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::sort_by_key(rmm::exec_policy(handle.get_stream()),
                         buffer_key_output_first,
                         buffer_key_output_first + num_buffer_elements,
                         buffer_payload_output_first);
@@ -540,7 +540,7 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
 
   size_t num_reduced_buffer_elements{};
   if constexpr (std::is_same_v<payload_t, void>) {
-    auto it = thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    auto it = thrust::unique(rmm::exec_policy(handle.get_stream()),
                              buffer_key_output_first,
                              buffer_key_output_first + num_buffer_elements);
     num_reduced_buffer_elements =
@@ -548,7 +548,7 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
   } else if constexpr (std::is_same<ReduceOp, reduce_op::any<typename ReduceOp::type>>::value) {
     // FIXME: if ReducOp is any, we may have a cheaper alternative than sort & uique (i.e. discard
     // non-first elements)
-    auto it = thrust::unique_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    auto it = thrust::unique_by_key(rmm::exec_policy(handle.get_stream()),
                                     buffer_key_output_first,
                                     buffer_key_output_first + num_buffer_elements,
                                     buffer_payload_output_first);
@@ -567,7 +567,7 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
     rmm::device_uvector<key_t> keys(num_buffer_elements, handle.get_stream());
     auto value_buffer =
       allocate_dataframe_buffer<payload_t>(num_buffer_elements, handle.get_stream());
-    auto it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    auto it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream()),
                                     buffer_key_output_first,
                                     buffer_key_output_first + num_buffer_elements,
                                     buffer_payload_output_first,
@@ -578,11 +578,11 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
     num_reduced_buffer_elements =
       static_cast<size_t>(thrust::distance(keys.begin(), thrust::get<0>(it)));
     // FIXME: this copy can be replaced by move
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(rmm::exec_policy(handle.get_stream()),
                  keys.begin(),
                  keys.begin() + num_reduced_buffer_elements,
                  buffer_key_output_first);
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(rmm::exec_policy(handle.get_stream()),
                  get_dataframe_buffer_begin<payload_t>(value_buffer),
                  get_dataframe_buffer_begin<payload_t>(value_buffer) + num_reduced_buffer_elements,
                  buffer_payload_output_first);
@@ -657,7 +657,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
       // FIXME: this copy is unnecessary, better fix RAFT comm's bcast to take const iterators for
       // input
       if (col_comm_rank == static_cast<int>(i)) {
-        thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::copy(rmm::exec_policy(handle.get_stream()),
                      local_frontier_vertex_first,
                      local_frontier_vertex_last,
                      frontier_vertices.begin());
@@ -678,7 +678,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
       ret +=
         use_dcs
           ? thrust::transform_reduce(
-              rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+              rmm::exec_policy(handle.get_stream()),
               frontier_vertices.begin(),
               frontier_vertices.end(),
               [matrix_partition,
@@ -703,7 +703,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
               edge_t{0},
               thrust::plus<edge_t>())
           : thrust::transform_reduce(
-              rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+              rmm::exec_policy(handle.get_stream()),
               frontier_vertices.begin(),
               frontier_vertices.end(),
               [matrix_partition] __device__(auto major) {
@@ -715,7 +715,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
     } else {
       assert(i == 0);
       ret += thrust::transform_reduce(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        rmm::exec_policy(handle.get_stream()),
         local_frontier_vertex_first,
         local_frontier_vertex_last,
         [matrix_partition] __device__(auto major) {
@@ -894,7 +894,7 @@ void update_frontier_v_push_if_out_nbr(
         matrix_partition_frontier_key_buffer, matrix_partition_frontier_size, handle.get_stream());
 
       if (static_cast<size_t>(col_comm_rank) == i) {
-        thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::copy(rmm::exec_policy(handle.get_stream()),
                      frontier_key_first,
                      frontier_key_last,
                      get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer));
@@ -909,7 +909,7 @@ void update_frontier_v_push_if_out_nbr(
     } else {
       resize_dataframe_buffer<key_t>(
         matrix_partition_frontier_key_buffer, matrix_partition_frontier_size, handle.get_stream());
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::copy(rmm::exec_policy(handle.get_stream()),
                    frontier_key_first,
                    frontier_key_last,
                    get_dataframe_buffer_begin<key_t>(matrix_partition_frontier_key_buffer));
@@ -938,7 +938,7 @@ void update_frontier_v_push_if_out_nbr(
 
     auto max_pushes =
       use_dcs ? thrust::transform_reduce(
-                  rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                  rmm::exec_policy(handle.get_stream()),
                   matrix_partition_frontier_row_first,
                   matrix_partition_frontier_row_last,
                   [matrix_partition,
@@ -963,7 +963,7 @@ void update_frontier_v_push_if_out_nbr(
                   edge_t{0},
                   thrust::plus<edge_t>())
               : thrust::transform_reduce(
-                  rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+                  rmm::exec_policy(handle.get_stream()),
                   matrix_partition_frontier_row_first,
                   matrix_partition_frontier_row_last,
                   [matrix_partition] __device__(auto row) {
@@ -1007,7 +1007,7 @@ void update_frontier_v_push_if_out_nbr(
       raft::update_device(
         d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
       rmm::device_uvector<vertex_t> d_offsets(d_thresholds.size(), handle.get_stream());
-      thrust::lower_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::lower_bound(rmm::exec_policy(handle.get_stream()),
                           matrix_partition_frontier_row_first,
                           matrix_partition_frontier_row_last,
                           d_thresholds.begin(),
@@ -1170,7 +1170,7 @@ void update_frontier_v_push_if_out_nbr(
       row_first =
         thrust::get<0>(get_dataframe_buffer_begin<key_t>(key_buffer).get_iterator_tuple());
     }
-    thrust::lower_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::lower_bound(rmm::exec_policy(handle.get_stream()),
                         row_first,
                         row_first + num_buffer_elements,
                         d_vertex_lasts.begin(),
@@ -1234,7 +1234,7 @@ void update_frontier_v_push_if_out_nbr(
         thrust::make_tuple(get_dataframe_buffer_begin<key_t>(key_buffer),
                            detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer)));
       thrust::transform(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        rmm::exec_policy(handle.get_stream()),
         key_payload_pair_first,
         key_payload_pair_first + num_buffer_elements,
         bucket_indices.begin(),
@@ -1266,7 +1266,7 @@ void update_frontier_v_push_if_out_nbr(
       shrink_to_fit_dataframe_buffer<payload_t>(payload_buffer, handle.get_stream());
     } else {
       thrust::transform(
-        rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        rmm::exec_policy(handle.get_stream()),
         get_dataframe_buffer_begin<key_t>(key_buffer),
         get_dataframe_buffer_begin<key_t>(key_buffer) + num_buffer_elements,
         bucket_indices.begin(),
@@ -1285,12 +1285,11 @@ void update_frontier_v_push_if_out_nbr(
     auto bucket_key_pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(bucket_indices.begin(), get_dataframe_buffer_begin<key_t>(key_buffer)));
     bucket_indices.resize(
-      thrust::distance(
-        bucket_key_pair_first,
-        thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          bucket_key_pair_first,
-                          bucket_key_pair_first + num_buffer_elements,
-                          detail::check_invalid_bucket_idx_t<key_t>())),
+      thrust::distance(bucket_key_pair_first,
+                       thrust::remove_if(rmm::exec_policy(handle.get_stream()),
+                                         bucket_key_pair_first,
+                                         bucket_key_pair_first + num_buffer_elements,
+                                         detail::check_invalid_bucket_idx_t<key_t>())),
       handle.get_stream());
     resize_dataframe_buffer<key_t>(key_buffer, bucket_indices.size(), handle.get_stream());
     bucket_indices.shrink_to_fit(handle.get_stream());

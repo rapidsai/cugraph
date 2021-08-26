@@ -25,6 +25,7 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <rmm/device_scalar.hpp>
+#include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <raft/handle.hpp>

@@ -40,7 +40,7 @@ While module can be assigned any name can be used, we picked cnx to reduce
 the amount of text to be changed. The text highlighted in yellow indicates
 changes.
 
-.. image:: ./images/Nx_Cg_1.png
+.. image:: ../images/Nx_Cg_1.png
   :width: 600
 
 It is that easy.  All algorithms in cuGraph support a NetworkX graph object as
@@ -191,7 +191,7 @@ If your code follows the above model of inserting one element at a time, the we 
 
 Now, if your code bulk loads the data from Pandas, then RAPIDS can accelerate that process by orders of magnitude.
 
-.. image:: ./images/Nx_Cg_2.png
+.. image:: ../images/Nx_Cg_2.png
   :width: 600
 
 The above cuGraph code will create cuGraph.Graph object and not a NetworkX.Graph object. 

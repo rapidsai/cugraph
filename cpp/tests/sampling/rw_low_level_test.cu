@@ -21,8 +21,8 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <thrust/random.h>
+#include <rmm/exec_policy.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <sampling/random_walks.cuh>

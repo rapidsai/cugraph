@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/reduce_op.cuh>
@@ -22,7 +21,9 @@
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
+
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -106,11 +107,11 @@ void bfs(raft::handle_t const& handle,
   auto constexpr invalid_distance = std::numeric_limits<vertex_t>::max();
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
-  thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::fill(rmm::exec_policy(handle.get_stream()),
                distances,
                distances + push_graph_view.get_number_of_local_vertices(),
                invalid_distance);
-  thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::fill(rmm::exec_policy(handle.get_stream()),
                predecessor_first,
                predecessor_first + push_graph_view.get_number_of_local_vertices(),
                invalid_vertex);
@@ -118,7 +119,7 @@ void bfs(raft::handle_t const& handle,
     push_graph_view.get_vertex_partition_view());
   if (n_sources)
     thrust::for_each(
-      rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      rmm::exec_policy(handle.get_stream()),
       d_sources,
       d_sources + n_sources,
       [vertex_partition, distances, predecessor_first] __device__(auto v) {

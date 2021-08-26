@@ -19,8 +19,8 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cugraph/serialization/serializer.hpp>
 
