@@ -134,22 +134,8 @@ void sssp(raft::handle_t const& handle,
 
   // 5. SSSP iteration
 
-  bool vertex_and_adj_matrix_row_ranges_coincide =
-    push_graph_view.get_number_of_local_vertices() ==
-        push_graph_view.get_number_of_local_adj_matrix_partition_rows()
-      ? true
-      : false;
-  rmm::device_uvector<weight_t> adj_matrix_row_distances(0, handle.get_stream());
-  if (!vertex_and_adj_matrix_row_ranges_coincide) {
-    adj_matrix_row_distances.resize(push_graph_view.get_number_of_local_adj_matrix_partition_rows(),
-                                    handle.get_stream());
-    thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                 adj_matrix_row_distances.begin(),
-                 adj_matrix_row_distances.end(),
-                 std::numeric_limits<weight_t>::max());
-  }
-  auto row_distances =
-    !vertex_and_adj_matrix_row_ranges_coincide ? adj_matrix_row_distances.data() : distances;
+  row_properties_t<GraphViewType, weight_t> adj_matrix_row_distances(handle, push_graph_view);
+  adj_matrix_row_distances.fill(std::numeric_limits<weight_t>::max(), handle.get_stream());
 
   if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(source_vertex);
@@ -157,15 +143,13 @@ void sssp(raft::handle_t const& handle,
 
   auto near_far_threshold = delta;
   while (true) {
-    if (!vertex_and_adj_matrix_row_ranges_coincide) {
-      copy_to_adj_matrix_row(
-        handle,
-        push_graph_view,
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
-        distances,
-        row_distances);
-    }
+    copy_to_adj_matrix_row(
+      handle,
+      push_graph_view,
+      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
+      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
+      distances,
+      adj_matrix_row_distances);
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
       push_graph_view.get_vertex_partition_view());
@@ -176,7 +160,7 @@ void sssp(raft::handle_t const& handle,
       vertex_frontier,
       static_cast<size_t>(Bucket::cur_near),
       std::vector<size_t>{static_cast<size_t>(Bucket::next_near), static_cast<size_t>(Bucket::far)},
-      row_distances,
+      adj_matrix_row_distances.begin(),
       thrust::make_constant_iterator(0) /* dummy */,
       [vertex_partition, distances, cutoff] __device__(
         vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {

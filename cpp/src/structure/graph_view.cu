@@ -18,6 +18,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
+#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
@@ -92,8 +93,8 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
     copy_v_transform_reduce_out_nbr(
       handle,
       graph_view,
-      thrust::make_constant_iterator(0) /* dummy */,
-      thrust::make_constant_iterator(0) /* dummy */,
+      dummy_properties_t{}.begin(),
+      dummy_properties_t{}.begin(),
       [] __device__(vertex_t, vertex_t, weight_t, auto, auto) { return edge_t{1}; },
       edge_t{0},
       minor_degrees.data());
@@ -101,8 +102,8 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
     copy_v_transform_reduce_in_nbr(
       handle,
       graph_view,
-      thrust::make_constant_iterator(0) /* dummy */,
-      thrust::make_constant_iterator(0) /* dummy */,
+      dummy_properties_t{}.begin(),
+      dummy_properties_t{}.begin(),
       [] __device__(vertex_t, vertex_t, weight_t, auto, auto) { return edge_t{1}; },
       edge_t{0},
       minor_degrees.data());
@@ -127,8 +128,8 @@ rmm::device_uvector<weight_t> compute_weight_sums(
     copy_v_transform_reduce_in_nbr(
       handle,
       graph_view,
-      thrust::make_constant_iterator(0) /* dummy */,
-      thrust::make_constant_iterator(0) /* dummy */,
+      dummy_properties_t{}.begin(),
+      dummy_properties_t{}.begin(),
       [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w; },
       weight_t{0.0},
       weight_sums.data());
@@ -136,8 +137,8 @@ rmm::device_uvector<weight_t> compute_weight_sums(
     copy_v_transform_reduce_out_nbr(
       handle,
       graph_view,
-      thrust::make_constant_iterator(0) /* dummy */,
-      thrust::make_constant_iterator(0) /* dummy */,
+      dummy_properties_t{}.begin(),
+      dummy_properties_t{}.begin(),
       [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w; },
       weight_t{0.0},
       weight_sums.data());
