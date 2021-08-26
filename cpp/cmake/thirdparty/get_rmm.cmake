@@ -14,7 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-function(find_and_configure_rmm VERSION)
+function(find_and_configure_rmm)
 
     include(${rapids-cmake-dir}/cpm/rmm.cmake)
     rapids_cpm_rmm(
