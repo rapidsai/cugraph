@@ -19,7 +19,7 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/functional.h>
 #include <thrust/transform_reduce.h>

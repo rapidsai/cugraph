@@ -23,7 +23,7 @@
 
 #include <raft/device_atomics.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 
 #include <rmm/exec_policy.hpp>
 

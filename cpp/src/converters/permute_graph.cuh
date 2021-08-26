@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <rmm/thrust_rmm_allocator.h>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 #include <utilities/graph_utils.cuh>
 #include "converters/COOtoCSR.cuh"
 
@@ -59,22 +60,18 @@ void permute_graph(legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph
   graph.get_source_indices(d_src);
 
   if (graph.has_data())
-    thrust::copy(rmm::exec_policy(stream)->on(stream),
+    thrust::copy(rmm::exec_policy(stream),
                  graph.edge_data,
                  graph.edge_data + graph.number_of_edges,
                  d_weights);
 
   // Permute the src_indices
   permutation_functor<vertex_t> pf(permutation);
-  thrust::transform(
-    rmm::exec_policy(stream)->on(stream), d_src, d_src + graph.number_of_edges, d_src, pf);
+  thrust::transform(rmm::exec_policy(stream), d_src, d_src + graph.number_of_edges, d_src, pf);
 
   // Permute the destination indices
-  thrust::transform(rmm::exec_policy(stream)->on(stream),
-                    graph.indices,
-                    graph.indices + graph.number_of_edges,
-                    d_dst,
-                    pf);
+  thrust::transform(
+    rmm::exec_policy(stream), graph.indices, graph.indices + graph.number_of_edges, d_dst, pf);
 
   legacy::GraphCOOView<vertex_t, edge_t, weight_t> graph_coo;
 
