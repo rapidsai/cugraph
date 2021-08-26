@@ -21,8 +21,8 @@
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <raft/cudart_utils.h>
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/tuple.h>
 
@@ -406,7 +406,7 @@ T transform_reduce_e(raft::handle_t const& handle,
   property_add<T> edge_property_add{};
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
-  thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::fill(rmm::exec_policy(handle.get_stream()),
                get_dataframe_buffer_begin<T>(result_buffer),
                get_dataframe_buffer_begin<T>(result_buffer) + 1,
                T{});
@@ -503,7 +503,7 @@ T transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
-  auto result = thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  auto result = thrust::reduce(rmm::exec_policy(handle.get_stream()),
                                get_dataframe_buffer_begin<T>(result_buffer),
                                get_dataframe_buffer_begin<T>(result_buffer) + 1,
                                T{},

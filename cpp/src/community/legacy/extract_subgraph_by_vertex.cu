@@ -18,8 +18,9 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/device_atomics.cuh>
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 
 namespace {
 
@@ -39,7 +40,7 @@ std::unique_ptr<cugraph::legacy::GraphCOO<vertex_t, edge_t, weight_t>> extract_s
   int64_t* d_error_count  = error_count_v.data().get();
 
   thrust::for_each(
-    rmm::exec_policy(stream)->on(stream),
+    rmm::exec_policy(stream),
     thrust::make_counting_iterator<vertex_t>(0),
     thrust::make_counting_iterator<vertex_t>(num_vertices),
     [vertices, d_vertex_used, d_error_count, graph_num_verts] __device__(vertex_t idx) {
@@ -60,7 +61,7 @@ std::unique_ptr<cugraph::legacy::GraphCOO<vertex_t, edge_t, weight_t>> extract_s
 
   // iterate over the edges and count how many make it into the output
   int64_t count = thrust::count_if(
-    rmm::exec_policy(stream)->on(stream),
+    rmm::exec_policy(stream),
     thrust::make_counting_iterator<edge_t>(0),
     thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
     [graph_src, graph_dst, d_vertex_used, num_vertices] __device__(edge_t e) {
@@ -78,7 +79,7 @@ std::unique_ptr<cugraph::legacy::GraphCOO<vertex_t, edge_t, weight_t>> extract_s
     weight_t* d_new_weight = result->edge_data();
 
     //  reusing error_count as a vertex counter...
-    thrust::for_each(rmm::exec_policy(stream)->on(stream),
+    thrust::for_each(rmm::exec_policy(stream),
                      thrust::make_counting_iterator<edge_t>(0),
                      thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
                      [graph_src,

@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 #include <sampling/random_walks.cuh>
 
 #include <raft/handle.hpp>

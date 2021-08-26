@@ -359,7 +359,7 @@ void random_test(int32_t num_rows, int32_t num_cols, int32_t upper_bound, int re
   //int64_t seed{85};
   int64_t seed{time(nullptr)};
 
-  thrust::for_each(rmm::exec_policy(stream)->on(stream),
+  thrust::for_each(rmm::exec_policy(stream),
                    thrust::make_counting_iterator<int32_t>(0),
                    thrust::make_counting_iterator<int32_t>(num_rows * num_cols),
                    [d_data, seed, upper_bound] __device__ (int32_t e) {

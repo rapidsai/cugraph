@@ -20,9 +20,9 @@
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
@@ -78,7 +78,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                                 [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
                                  detail::num_sparse_segments_per_vertex_partition]
               : major_last;
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::transform(rmm::exec_policy(handle.get_stream()),
                       thrust::make_counting_iterator(vertex_t{0}),
                       thrust::make_counting_iterator(major_hypersparse_first - major_first),
                       local_degrees.begin(),
@@ -86,11 +86,11 @@ rmm::device_uvector<edge_t> compute_major_degrees(
     if (use_dcs) {
       auto p_dcs_nzd_vertices   = (*adj_matrix_partition_dcs_nzd_vertices)[i];
       auto dcs_nzd_vertex_count = (*adj_matrix_partition_dcs_nzd_vertex_counts)[i];
-      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::fill(rmm::exec_policy(handle.get_stream()),
                    local_degrees.begin() + (major_hypersparse_first - major_first),
                    local_degrees.begin() + (major_last - major_first),
                    edge_t{0});
-      thrust::for_each(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::for_each(rmm::exec_policy(handle.get_stream()),
                        thrust::make_counting_iterator(vertex_t{0}),
                        thrust::make_counting_iterator(dcs_nzd_vertex_count),
                        [p_offsets,
@@ -123,7 +123,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const& handle,
                                                   vertex_t number_of_vertices)
 {
   rmm::device_uvector<edge_t> degrees(number_of_vertices, handle.get_stream());
-  thrust::tabulate(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::tabulate(rmm::exec_policy(handle.get_stream()),
                    degrees.begin(),
                    degrees.end(),
                    [offsets] __device__(auto i) { return offsets[i + 1] - offsets[i]; });

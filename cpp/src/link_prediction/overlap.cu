@@ -19,9 +19,10 @@
  * @file jaccard.cu
  * ---------------------------------------------------------------------------**/
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 #include <utilities/graph_utils.cuh>
 
 namespace cugraph {

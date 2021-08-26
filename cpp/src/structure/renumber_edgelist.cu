@@ -356,7 +356,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   d_segment_offsets.set_element_async(
     num_segments_per_vertex_partition, vertex_count, handle.get_stream());
 
-  thrust::upper_bound(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::upper_bound(rmm::exec_policy(handle.get_stream()),
                       counts.begin(),
                       counts.end(),
                       d_thresholds.begin(),

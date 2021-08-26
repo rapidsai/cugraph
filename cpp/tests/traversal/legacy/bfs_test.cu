@@ -21,7 +21,8 @@
 
 #include <cugraph/algorithms.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <raft/handle.hpp>
 

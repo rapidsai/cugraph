@@ -16,27 +16,12 @@
 
 function(find_and_configure_rmm VERSION)
 
-    # No way to override the version rapids-cmake pulls
-    # so we need to manually checkout when needing a diverged
-    # version
-    # include(${rapids-cmake-dir}/cpm/rmm.cmake)
-    # rapids_cpm_rmm()
-    rapids_cpm_find(rmm ${VERSION}
-        GLOBAL_TARGETS      rmm::rmm
+    include(${rapids-cmake-dir}/cpm/rmm.cmake)
+    rapids_cpm_rmm(
         BUILD_EXPORT_SET    cugraph-exports
         INSTALL_EXPORT_SET  cugraph-exports
-        CPM_ARGS
-            GIT_REPOSITORY  https://github.com/rapidsai/rmm.git
-            GIT_TAG         23bbe745af1d988224b5498f7b8e3fe3720532d4
-            GIT_SHALLOW     FALSE
-            OPTIONS         "BUILD_TESTS OFF"
-                            "BUILD_BENCHMARKS OFF"
-                            "CUDA_STATIC_RUNTIME ${CUDA_STATIC_RUNTIME}"
-                            "DISABLE_DEPRECATION_WARNING ${DISABLE_DEPRECATION_WARNING}"
     )
 
 endfunction()
 
-set(CUGRAPH_MIN_VERSION_rmm "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
-
-find_and_configure_rmm(${CUGRAPH_MIN_VERSION_rmm})
+find_and_configure_rmm()
