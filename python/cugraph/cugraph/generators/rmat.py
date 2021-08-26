@@ -70,6 +70,7 @@ def _ensure_args_multi_rmat(
     """
     Ensures the args passed in are usable for the multi_rmat() API, raises the
     appropriate exception if incorrect, else returns None.
+
     """
     if not isinstance(n_edgelists, int):
         raise TypeError("'n_edgelists' must be an int")
@@ -303,9 +304,9 @@ def rmat(
         scramble_vertex_ids=True,
         create_using=None,  # return edgelist instead of Graph instance
         mg=False
-    )
-
+        )
     """
+
     _ensure_args_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,
                       scramble_vertex_ids, create_using, mg)
 
@@ -335,39 +336,39 @@ def multi_rmat(
     Parameters
     ----------
     n_edgelists : int
-    Number of edge lists (graphs) to generate
+        Number of edge lists (graphs) to generate
 
     min_scale : int
-    Scale factor to set the minimum number of vertices in the graph
+        Scale factor to set the minimum number of vertices in the graph
 
     max_scale : int
-    Scale factor to set the maximum number of vertices in the graph
+        Scale factor to set the maximum number of vertices in the graph
 
     edge_factor : int
-    Average number of edges per vertex to generate
+        Average number of edges per vertex to generate
 
     size_distribution : int
-    Distribution of the graph sizes, impacts the scale parameter of the R-MAT
-    generator.
-    '0' for POWER_LAW distribution and '1' for UNIFORM distribution
+        Distribution of the graph sizes, impacts the scale parameter of the
+        R-MAT generator.
+        '0' for POWER_LAW distribution and '1' for UNIFORM distribution
 
     edge_distribution : int
-    Edges distribution for each graph, impacts how R-MAT parameters a,b,c,d,
-    are set.
-    '0' for POWER_LAW distribution and '1' for UNIFORM distribution
+        Edges distribution for each graph, impacts how R-MAT parameters a,b,c,d,
+        are set.
+        '0' for POWER_LAW distribution and '1' for UNIFORM distribution
 
     seed : int
-    Seed value for the random number generator
+        Seed value for the random number generator
 
     clip_and_flip : bool
-    Flag controlling whether to generate edges only in the lower triangular
-    part (including the diagonal) of the graph adjacency matrix
-    (if set to 'true') or not (if set to 'false')
+        Flag controlling whether to generate edges only in the lower triangular
+        part (including the diagonal) of the graph adjacency matrix
+        (if set to 'true') or not (if set to 'false')
 
     scramble_vertex_ids : bool
-    Flag controlling whether to scramble vertex ID bits (if set to 'true') or
-    not (if set to 'false'); scrambling vertx ID bits breaks correlation
-    between vertex ID values and vertex degrees
+        Flag controlling whether to scramble vertex ID bits (if set to 'true') or
+        not (if set to 'false'); scrambling vertx ID bits breaks correlation
+        between vertex ID values and vertex degrees
 
     Returns
     -------
