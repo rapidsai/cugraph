@@ -117,7 +117,7 @@ void bfs(raft::handle_t const& handle,
                invalid_vertex);
   auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
     push_graph_view.get_vertex_partition_view());
-  if (n_sources)
+  if (n_sources) {
     thrust::for_each(
       rmm::exec_policy(handle.get_stream()),
       d_sources,
@@ -126,7 +126,7 @@ void bfs(raft::handle_t const& handle,
         *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) =
           vertex_t{0};
       });
-
+  }
   // 3. initialize BFS frontier
   enum class Bucket { cur, next, num_buckets };
   VertexFrontier<vertex_t,
@@ -140,9 +140,10 @@ void bfs(raft::handle_t const& handle,
     vertex_t src;
     // Fixme: this (cheap) transfer could be skiped when is_local_vertex_nocheck accpets device mem
     raft::copy(&src, sources, n_sources, handle.get_stream());
-    if (push_graph_view.is_local_vertex_nocheck(src))
+    if (push_graph_view.is_local_vertex_nocheck(src)) {
       vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
         .insert(d_sources, d_sources + n_sources);
+    }
   } else {
     // pre-shuffled
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
