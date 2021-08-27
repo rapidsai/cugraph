@@ -91,7 +91,7 @@ void barnes_hut(raft::handle_t const& handle,
   rmm::device_uvector<int> d_childl((nnodes + 1) * 4, stream_view);
   // FA2 requires degree + 1
   rmm::device_uvector<int> d_massl(nnodes + 1, stream_view);
-  thrust::fill(rmm::exec_policy(stream_view), d_massl.begin(), d_massl.end(), 1);
+  thrust::fill(handle.get_thrust_policy(), d_massl.begin(), d_massl.end(), 1);
 
   rmm::device_uvector<float> d_maxxl(blocks * FACTOR1, stream_view);
   rmm::device_uvector<float> d_maxyl(blocks * FACTOR1, stream_view);
@@ -154,7 +154,7 @@ void barnes_hut(raft::handle_t const& handle,
   swinging   = d_swinging.data();
   traction   = d_traction.data();
 
-  thrust::fill(rmm::exec_policy(stream_view), d_old_forces.begin(), d_old_forces.end(), 0.f);
+  thrust::fill(handle.get_thrust_policy(), d_old_forces.begin(), d_old_forces.end(), 0.f);
 
   // Sort COO for coalesced memory access.
   sort(graph, stream_view.value());
@@ -175,7 +175,7 @@ void barnes_hut(raft::handle_t const& handle,
 
   // If outboundAttractionDistribution active, compensate.
   if (outbound_attraction_distribution) {
-    int sum = thrust::reduce(rmm::exec_policy(stream_view), d_massl.begin(), d_massl.begin() + n);
+    int sum = thrust::reduce(handle.get_thrust_policy(), d_massl.begin(), d_massl.begin() + n);
     outbound_att_compensation = sum / (float)n;
   }
 
@@ -198,10 +198,10 @@ void barnes_hut(raft::handle_t const& handle,
 
   for (int iter = 0; iter < max_iter; ++iter) {
     // Reset force values
-    thrust::fill(rmm::exec_policy(stream_view), d_rep_forces.begin(), d_rep_forces.end(), 0.f);
-    thrust::fill(rmm::exec_policy(stream_view), d_attract.begin(), d_attract.end(), 0.f);
-    thrust::fill(rmm::exec_policy(stream_view), d_swinging.begin(), d_swinging.end(), 0.f);
-    thrust::fill(rmm::exec_policy(stream_view), d_traction.begin(), d_traction.end(), 0.f);
+    thrust::fill(handle.get_thrust_policy(), d_rep_forces.begin(), d_rep_forces.end(), 0.f);
+    thrust::fill(handle.get_thrust_policy(), d_attract.begin(), d_attract.end(), 0.f);
+    thrust::fill(handle.get_thrust_policy(), d_swinging.begin(), d_swinging.end(), 0.f);
+    thrust::fill(handle.get_thrust_policy(), d_traction.begin(), d_traction.end(), 0.f);
 
     ResetKernel<<<1, 1, 0, stream_view.value()>>>(radiusd_squared, bottomd, NNODES, radiusd);
     CHECK_CUDA(stream_view.value());
@@ -304,10 +304,10 @@ void barnes_hut(raft::handle_t const& handle,
 
     // Compute global swinging and traction values
     const float s =
-      thrust::reduce(rmm::exec_policy(stream_view), d_swinging.begin(), d_swinging.end());
+      thrust::reduce(handle.get_thrust_policy(), d_swinging.begin(), d_swinging.end());
 
     const float t =
-      thrust::reduce(rmm::exec_policy(stream_view), d_traction.begin(), d_traction.end());
+      thrust::reduce(handle.get_thrust_policy(), d_traction.begin(), d_traction.end());
 
     // Compute global speed based on gloab and local swinging and traction.
     adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency, s, t, n);

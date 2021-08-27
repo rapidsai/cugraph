@@ -78,7 +78,7 @@ void bfs(raft::handle_t const& handle,
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
   auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
-  thrust::transform(rmm::exec_policy(handle.get_stream()),
+  thrust::transform(handle.get_thrust_policy(),
                     thrust::make_counting_iterator(push_graph_view.get_local_vertex_first()),
                     thrust::make_counting_iterator(push_graph_view.get_local_vertex_last()),
                     val_first,

@@ -56,7 +56,7 @@ T transform_reduce_v(raft::handle_t const& handle,
                      T init)
 {
   auto ret = thrust::transform_reduce(
-    rmm::exec_policy(handle.get_stream()),
+    handle.get_thrust_policy(),
     vertex_value_input_first,
     vertex_value_input_first + graph_view.get_number_of_local_vertices(),
     v_op,
@@ -99,7 +99,7 @@ T transform_reduce_v(raft::handle_t const& handle,
                      T init)
 {
   auto ret = thrust::transform_reduce(
-    rmm::exec_policy(handle.get_stream()),
+    handle.get_thrust_policy(),
     input_first,
     input_last,
     v_op,
