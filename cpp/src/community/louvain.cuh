@@ -28,6 +28,9 @@
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 
+#include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
+
 #include <thrust/binary_search.h>
 #include <thrust/transform_reduce.h>
 
@@ -153,7 +156,7 @@ class Louvain {
     dendrogram_->add_level(
       current_graph_view_.get_local_vertex_first(), num_vertices, handle_.get_stream_view());
 
-    thrust::sequence(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::sequence(handle_.get_thrust_policy(),
                      dendrogram_->current_level_begin(),
                      dendrogram_->current_level_end(),
                      current_graph_view_.get_local_vertex_first());
@@ -163,7 +166,7 @@ class Louvain {
   weight_t modularity(weight_t total_edge_weight, weight_t resolution)
   {
     weight_t sum_degree_squared = thrust::transform_reduce(
-      rmm::exec_policy(handle_.get_stream_view()),
+      handle_.get_thrust_policy(),
       cluster_weights_v_.begin(),
       cluster_weights_v_.end(),
       [] __device__(weight_t p) { return p * p; },
@@ -203,7 +206,7 @@ class Louvain {
     cluster_keys_v_.resize(vertex_weights_v_.size(), handle_.get_stream_view());
     cluster_weights_v_.resize(vertex_weights_v_.size(), handle_.get_stream_view());
 
-    thrust::sequence(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::sequence(handle_.get_thrust_policy(),
                      cluster_keys_v_.begin(),
                      cluster_keys_v_.end(),
                      current_graph_view_.get_local_vertex_first());
@@ -337,7 +340,7 @@ class Louvain {
       cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(output_buffer));
 
     thrust::transform(
-      rmm::exec_policy(handle_.get_stream_view()),
+      handle_.get_thrust_policy(),
       cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(output_buffer),
       cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(output_buffer) +
         current_graph_view_.get_number_of_local_vertices(),
@@ -345,7 +348,7 @@ class Louvain {
       [] __device__(auto p) { return thrust::get<1>(p); });
 
     thrust::transform(
-      rmm::exec_policy(handle_.get_stream_view()),
+      handle_.get_thrust_policy(),
       cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(output_buffer),
       cugraph::get_dataframe_buffer_begin<thrust::tuple<weight_t, weight_t>>(output_buffer) +
         current_graph_view_.get_number_of_local_vertices(),
@@ -392,12 +395,12 @@ class Louvain {
       map_key_last    = cluster_keys_v_.end();
       map_value_first = cluster_weights_v_.begin();
     } else {
-      thrust::sort_by_key(rmm::exec_policy(handle_.get_stream_view()),
+      thrust::sort_by_key(handle_.get_thrust_policy(),
                           cluster_keys_v_.begin(),
                           cluster_keys_v_.end(),
                           cluster_weights_v_.begin());
 
-      thrust::transform(rmm::exec_policy(handle_.get_stream_view()),
+      thrust::transform(handle_.get_thrust_policy(),
                         next_cluster_v.begin(),
                         next_cluster_v.end(),
                         src_cluster_weights_v.begin(),
@@ -464,7 +467,7 @@ class Louvain {
       cugraph::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(output_buffer));
 
     thrust::transform(
-      rmm::exec_policy(handle_.get_stream_view()),
+      handle_.get_thrust_policy(),
       next_cluster_v.begin(),
       next_cluster_v.end(),
       cugraph::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(output_buffer),
@@ -504,7 +507,7 @@ class Louvain {
     current_graph_view_ = current_graph_->view();
 
     rmm::device_uvector<vertex_t> numbering_indices(numbering_map.size(), handle_.get_stream());
-    thrust::sequence(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::sequence(handle_.get_thrust_policy(),
                      numbering_indices.begin(),
                      numbering_indices.end(),
                      current_graph_view_.get_local_vertex_first());

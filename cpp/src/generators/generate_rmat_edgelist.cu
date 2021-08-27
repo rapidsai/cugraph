@@ -20,7 +20,6 @@
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
 
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
@@ -69,7 +68,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
     seed += num_edges_to_generate * 2 * scale;
 
     thrust::transform(
-      rmm::exec_policy(handle.get_stream_view()),
+      handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
       thrust::make_counting_iterator(num_edges_to_generate),
       pair_first,

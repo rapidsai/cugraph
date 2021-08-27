@@ -107,11 +107,11 @@ void bfs(raft::handle_t const& handle,
   auto constexpr invalid_distance = std::numeric_limits<vertex_t>::max();
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
-  thrust::fill(rmm::exec_policy(handle.get_stream()),
+  thrust::fill(rmm::exec_policy(handle.get_thrust_policy()),
                distances,
                distances + push_graph_view.get_number_of_local_vertices(),
                invalid_distance);
-  thrust::fill(rmm::exec_policy(handle.get_stream()),
+  thrust::fill(rmm::exec_policy(handle.get_thrust_policy()),
                predecessor_first,
                predecessor_first + push_graph_view.get_number_of_local_vertices(),
                invalid_vertex);
@@ -119,7 +119,7 @@ void bfs(raft::handle_t const& handle,
     push_graph_view.get_vertex_partition_view());
   if (n_sources) {
     thrust::for_each(
-      rmm::exec_policy(handle.get_stream()),
+      rmm::exec_policy(handle.get_thrust_policy()),
       d_sources,
       d_sources + n_sources,
       [vertex_partition, distances, predecessor_first] __device__(auto v) {
@@ -127,6 +127,7 @@ void bfs(raft::handle_t const& handle,
           vertex_t{0};
       });
   }
+
   // 3. initialize BFS frontier
   enum class Bucket { cur, next, num_buckets };
   VertexFrontier<vertex_t,

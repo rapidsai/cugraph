@@ -18,7 +18,6 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
 
 #include <thrust/sequence.h>
 
@@ -68,15 +67,11 @@ generate_path_graph_edgelist(raft::handle_t const& handle,
 
     if (edge_off_end) ++num_edges;
 
-    thrust::sequence(rmm::exec_policy(handle.get_stream()),
-                     src_iterator,
-                     src_iterator + num_edges,
-                     base_vertex_id);
+    thrust::sequence(
+      handle.get_thrust_policy(), src_iterator, src_iterator + num_edges, base_vertex_id);
 
-    thrust::sequence(rmm::exec_policy(handle.get_stream()),
-                     dst_iterator,
-                     dst_iterator + num_edges,
-                     base_vertex_id + 1);
+    thrust::sequence(
+      handle.get_thrust_policy(), dst_iterator, dst_iterator + num_edges, base_vertex_id + 1);
 
     src_iterator += num_edges;
     dst_iterator += num_edges;
@@ -122,7 +117,7 @@ generate_2d_mesh_graph_edgelist(
       thrust::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
                          thrust::make_counting_iterator<vertex_t>(base_vertex_id + 1)));
 
-    output_iterator = thrust::copy_if(rmm::exec_policy(handle.get_stream()),
+    output_iterator = thrust::copy_if(handle.get_thrust_policy(),
                                       x_iterator,
                                       x_iterator + num_vertices - 1,
                                       output_iterator,
@@ -136,7 +131,7 @@ generate_2d_mesh_graph_edgelist(
       thrust::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
                          thrust::make_counting_iterator<vertex_t>(base_vertex_id + x)));
 
-    output_iterator = thrust::copy_if(rmm::exec_policy(handle.get_stream()),
+    output_iterator = thrust::copy_if(handle.get_thrust_policy(),
                                       y_iterator,
                                       y_iterator + num_vertices - x,
                                       output_iterator,
@@ -188,7 +183,7 @@ generate_3d_mesh_graph_edgelist(
       thrust::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
                          thrust::make_counting_iterator<vertex_t>(base_vertex_id + 1)));
 
-    output_iterator = thrust::copy_if(rmm::exec_policy(handle.get_stream()),
+    output_iterator = thrust::copy_if(handle.get_thrust_policy(),
                                       x_iterator,
                                       x_iterator + num_vertices - 1,
                                       output_iterator,
@@ -202,7 +197,7 @@ generate_3d_mesh_graph_edgelist(
       thrust::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
                          thrust::make_counting_iterator<vertex_t>(base_vertex_id + x)));
 
-    output_iterator = thrust::copy_if(rmm::exec_policy(handle.get_stream()),
+    output_iterator = thrust::copy_if(handle.get_thrust_policy(),
                                       y_iterator,
                                       y_iterator + num_vertices - x,
                                       output_iterator,
@@ -216,7 +211,7 @@ generate_3d_mesh_graph_edgelist(
       thrust::make_tuple(thrust::make_counting_iterator<vertex_t>(base_vertex_id),
                          thrust::make_counting_iterator<vertex_t>(base_vertex_id + x * y)));
 
-    output_iterator = thrust::copy_if(rmm::exec_policy(handle.get_stream()),
+    output_iterator = thrust::copy_if(handle.get_thrust_policy(),
                                       z_iterator,
                                       z_iterator + num_vertices - x * y,
                                       output_iterator,
@@ -287,7 +282,7 @@ generate_complete_graph_edgelist(
         return thrust::make_tuple(src, dst);
       });
 
-    output_iterator = thrust::copy_if(rmm::exec_policy(handle.get_stream()),
+    output_iterator = thrust::copy_if(handle.get_thrust_policy(),
                                       transform_iter,
                                       transform_iter + num_vertices * num_vertices,
                                       output_iterator,

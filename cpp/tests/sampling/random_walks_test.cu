@@ -47,7 +47,7 @@ void fill_start(raft::handle_t const& handle,
 {
   index_t num_paths = d_start.size();
 
-  thrust::transform(rmm::exec_policy(handle.get_stream()),
+  thrust::transform(handle.get_thrust_policy(),
                     thrust::make_counting_iterator<index_t>(0),
                     thrust::make_counting_iterator<index_t>(num_paths),
 
