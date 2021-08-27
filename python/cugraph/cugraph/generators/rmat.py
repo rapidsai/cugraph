@@ -353,8 +353,8 @@ def multi_rmat(
         '0' for POWER_LAW distribution and '1' for UNIFORM distribution
 
     edge_distribution : int
-        Edges distribution for each graph, impacts how R-MAT parameters a,b,c,d,
-        are set.
+        Edges distribution for each graph, impacts how R-MAT parameters
+        a,b,c,d, are set.
         '0' for POWER_LAW distribution and '1' for UNIFORM distribution
 
     seed : int
@@ -366,8 +366,8 @@ def multi_rmat(
         (if set to 'true') or not (if set to 'false')
 
     scramble_vertex_ids : bool
-        Flag controlling whether to scramble vertex ID bits (if set to 'true') or
-        not (if set to 'false'); scrambling vertx ID bits breaks correlation
+        Flag controlling whether to scramble vertex ID bits (if set to 'true')
+        or not (if set to 'false'); scrambling vertx ID bits breaks correlation
         between vertex ID values and vertex degrees
 
     Returns
