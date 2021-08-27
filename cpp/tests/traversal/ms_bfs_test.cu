@@ -26,7 +26,6 @@
 #include <cuda_profiler_api.h>
 #include <gtest/gtest.h>
 #include <raft/cudart_utils.h>
-#include <rmm/exec_policy.hpp>
 #include <thrust/extrema.h>
 #include <thrust/sequence.h>
 #include <thrust/transform.h>
@@ -35,6 +34,7 @@
 #include <limits>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include <tuple>
 #include <utilities/thrust_wrapper.hpp>
@@ -54,17 +54,17 @@ void translate_vertex_ids(raft::handle_t const& handle,
                           rmm::device_uvector<vertex_t>& d_dst_v,
                           vertex_t vertex_id_offset)
 {
-   thrust::transform(rmm::exec_policy(handle.get_stream()),
-                     d_src_v.begin(),
-                     d_src_v.end(),
-                     d_src_v.begin(),
-                     [offset = vertex_id_offset] __device__(vertex_t v) { return offset + v; });
+  thrust::transform(rmm::exec_policy(handle.get_stream()),
+                    d_src_v.begin(),
+                    d_src_v.end(),
+                    d_src_v.begin(),
+                    [offset = vertex_id_offset] __device__(vertex_t v) { return offset + v; });
 
-   thrust::transform(rmm::exec_policy(handle.get_stream()),
-                     d_dst_v.begin(),
-                     d_dst_v.end(),
-                     d_dst_v.begin(),
-                     [offset = vertex_id_offset] __device__(vertex_t v) { return offset + v; });
+  thrust::transform(rmm::exec_policy(handle.get_stream()),
+                    d_dst_v.begin(),
+                    d_dst_v.end(),
+                    d_dst_v.begin(),
+                    [offset = vertex_id_offset] __device__(vertex_t v) { return offset + v; });
 }
 
 class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
@@ -126,14 +126,14 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     auto it_src = d_srcs.begin();
     auto it_dst = d_dst.begin();
     for (auto i = edgelists.begin(); i != edgelists.end(); ++i) {
-       it_src = thrust::copy(rmm::exec_policy(handle.get_stream()),
-                             std::get<0>(*i).begin(),
-                             std::get<0>(*i).end(),
-                             it_src);
-       it_dst = thrust::copy(rmm::exec_policy(handle.get_stream()),
-                             std::get<1>(*i).begin(),
-                             std::get<1>(*i).end(),
-                             it_dst);
+      it_src = thrust::copy(rmm::exec_policy(handle.get_stream()),
+                            std::get<0>(*i).begin(),
+                            std::get<0>(*i).end(),
+                            it_src);
+      it_dst = thrust::copy(rmm::exec_policy(handle.get_stream()),
+                            std::get<1>(*i).begin(),
+                            std::get<1>(*i).end(),
+                            it_dst);
     }
 
     rmm::device_uvector<vertex_t> d_sources(h_sources.size(), handle.get_stream());
@@ -144,10 +144,8 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
     rmm::device_uvector<vertex_t> d_vertices(n_vertices, handle.get_stream());
     rmm::device_uvector<weight_t> d_weights(n_edges, handle.get_stream());
-    thrust::sequence(rmm::exec_policy(handle.get_stream()),
-                     d_vertices.begin(),
-                     d_vertices.end(),
-                     vertex_t{0});
+    thrust::sequence(
+      rmm::exec_policy(handle.get_stream()), d_vertices.begin(), d_vertices.end(), vertex_t{0});
 
     std::tie(graph, std::ignore) =
       cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
@@ -233,15 +231,15 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     // checksum
     vertex_t ref_sum = 0;
     for (size_t i = 0; i < h_sources.size(); i++) {
-       thrust::replace(rmm::exec_policy(handle.get_stream()),
-                       d_distances_ref[i].begin(),
-                       d_distances_ref[i].end(),
-                       std::numeric_limits<vertex_t>::max(),
-                       static_cast<vertex_t>(0));
-       ref_sum += thrust::reduce(rmm::exec_policy(handle.get_stream()),
-                                 d_distances_ref[i].begin(),
-                                 d_distances_ref[i].end(),
-                                 static_cast<vertex_t>(0));
+      thrust::replace(rmm::exec_policy(handle.get_stream()),
+                      d_distances_ref[i].begin(),
+                      d_distances_ref[i].end(),
+                      std::numeric_limits<vertex_t>::max(),
+                      static_cast<vertex_t>(0));
+      ref_sum += thrust::reduce(rmm::exec_policy(handle.get_stream()),
+                                d_distances_ref[i].begin(),
+                                d_distances_ref[i].end(),
+                                static_cast<vertex_t>(0));
     }
     thrust::replace(rmm::exec_policy(handle.get_stream()),
                     d_distances.begin(),
