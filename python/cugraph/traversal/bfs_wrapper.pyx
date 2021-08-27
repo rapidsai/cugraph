@@ -63,6 +63,7 @@ def bfs(input_graph, start, depth_limit, direction_optimizing=False):
     cdef uintptr_t c_edge_weights = <uintptr_t>NULL
 
     # Step 5: Check if source index is valid
+    # FIXME: Updates to multi-seed BFS support disabled this check. Re-enable ASAP.
     #if not 0 <= start < num_verts:
     #    raise ValueError("Starting vertex should be between 0 to number of vertices")
 
