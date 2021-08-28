@@ -13,6 +13,7 @@
 
 #include <climits>
 #include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #define TRAVERSAL_DEFAULT_ALPHA 15
 

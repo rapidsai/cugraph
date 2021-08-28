@@ -59,7 +59,7 @@ class Leiden : public Louvain<graph_type> {
     weight_t* d_delta_Q              = delta_Q_v.data();
     vertex_t* d_constraint           = constraint_v_.data();
 
-    thrust::copy(this->handle_.get_thrust_policy(),
+    thrust::copy(rmm::exec_policy(this->handle_.get_stream_view()),
                  this->dendrogram_->current_level_begin(),
                  this->dendrogram_->current_level_end(),
                  next_cluster_v.data());
@@ -82,7 +82,7 @@ class Leiden : public Louvain<graph_type> {
 
       // Filter out positive delta_Q values for nodes not in the same constraint group
       thrust::for_each(
-        this->handle_.get_thrust_policy(),
+        rmm::exec_policy(this->handle_.get_stream_view()),
         thrust::make_counting_iterator(0),
         thrust::make_counting_iterator(graph.number_of_edges),
         [d_src_indices, d_dst_indices, d_constraint, d_delta_Q] __device__(vertex_t i) {
@@ -98,7 +98,7 @@ class Leiden : public Louvain<graph_type> {
       new_Q = this->modularity(total_edge_weight, resolution, graph, next_cluster_v.data());
 
       if (new_Q > cur_Q) {
-        thrust::copy(this->handle_.get_thrust_policy(),
+        thrust::copy(rmm::exec_policy(this->handle_.get_stream_view()),
                      next_cluster_v.begin(),
                      next_cluster_v.end(),
                      this->dendrogram_->current_level_begin());
@@ -113,8 +113,9 @@ class Leiden : public Louvain<graph_type> {
   {
     size_t num_level{0};
 
-    weight_t total_edge_weight = thrust::reduce(
-      this->handle_.get_thrust_policy(), this->weights_v_.begin(), this->weights_v_.end());
+    weight_t total_edge_weight = thrust::reduce(rmm::exec_policy(this->handle_.get_stream_view()),
+                                                this->weights_v_.begin(),
+                                                this->weights_v_.end());
 
     weight_t best_modularity = weight_t{-1};
 
@@ -137,7 +138,7 @@ class Leiden : public Louvain<graph_type> {
       this->dendrogram_->add_level(
         0, current_graph.number_of_vertices, this->handle_.get_stream_view());
 
-      thrust::sequence(this->handle_.get_thrust_policy(),
+      thrust::sequence(rmm::exec_policy(this->handle_.get_stream_view()),
                        this->dendrogram_->current_level_begin(),
                        this->dendrogram_->current_level_end());
 

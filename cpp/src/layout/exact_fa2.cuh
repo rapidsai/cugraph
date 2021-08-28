@@ -65,10 +65,10 @@ void exact_fa2(raft::handle_t const& handle,
   rmm::device_uvector<float> repel(n * 2, stream_view);
   rmm::device_uvector<float> attract(n * 2, stream_view);
   rmm::device_uvector<float> old_forces(n * 2, stream_view);
-  thrust::fill(handle.get_thrust_policy(), old_forces.begin(), old_forces.end(), 0.f);
+  thrust::fill(rmm::exec_policy(stream_view), old_forces.begin(), old_forces.end(), 0.f);
   // FA2 requires degree + 1.
   rmm::device_uvector<int> mass(n, stream_view);
-  thrust::fill(handle.get_thrust_policy(), mass.begin(), mass.end(), 1);
+  thrust::fill(rmm::exec_policy(stream_view), mass.begin(), mass.end(), 1);
   rmm::device_uvector<float> swinging(n, stream_view);
   rmm::device_uvector<float> traction(n, stream_view);
 
@@ -103,7 +103,7 @@ void exact_fa2(raft::handle_t const& handle,
   float jt                        = 0.f;
 
   if (outbound_attraction_distribution) {
-    int sum = thrust::reduce(handle.get_thrust_policy(), mass.begin(), mass.end());
+    int sum = thrust::reduce(rmm::exec_policy(stream_view), mass.begin(), mass.end());
     outbound_att_compensation = sum / (float)n;
   }
 
@@ -114,10 +114,10 @@ void exact_fa2(raft::handle_t const& handle,
 
   for (int iter = 0; iter < max_iter; ++iter) {
     // Reset force arrays
-    thrust::fill(handle.get_thrust_policy(), repel.begin(), repel.end(), 0.f);
-    thrust::fill(handle.get_thrust_policy(), attract.begin(), attract.end(), 0.f);
-    thrust::fill(handle.get_thrust_policy(), swinging.begin(), swinging.end(), 0.f);
-    thrust::fill(handle.get_thrust_policy(), traction.begin(), traction.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), repel.begin(), repel.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), attract.begin(), attract.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), swinging.begin(), swinging.end(), 0.f);
+    thrust::fill(rmm::exec_policy(stream_view), traction.begin(), traction.end(), 0.f);
 
     // Exact repulsion
     apply_repulsion<vertex_t>(
@@ -162,8 +162,8 @@ void exact_fa2(raft::handle_t const& handle,
                         stream_view.value());
 
     // Compute global swinging and traction values.
-    const float s = thrust::reduce(handle.get_thrust_policy(), swinging.begin(), swinging.end());
-    const float t = thrust::reduce(handle.get_thrust_policy(), traction.begin(), traction.end());
+    const float s = thrust::reduce(rmm::exec_policy(stream_view), swinging.begin(), swinging.end());
+    const float t = thrust::reduce(rmm::exec_policy(stream_view), traction.begin(), traction.end());
 
     adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency, s, t, n);
 

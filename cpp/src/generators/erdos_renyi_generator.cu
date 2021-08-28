@@ -18,6 +18,7 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -46,14 +47,14 @@ generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
       return dist(rng);
     });
 
-  size_t count = thrust::count_if(handle.get_thrust_policy(),
+  size_t count = thrust::count_if(rmm::exec_policy(handle.get_stream()),
                                   random_iterator,
                                   random_iterator + num_vertices * num_vertices,
                                   [p] __device__(float prob) { return prob < p; });
 
   rmm::device_uvector<size_t> indices_v(count, handle.get_stream());
 
-  thrust::copy_if(handle.get_thrust_policy(),
+  thrust::copy_if(rmm::exec_policy(handle.get_stream()),
                   random_iterator,
                   random_iterator + num_vertices * num_vertices,
                   indices_v.begin(),
@@ -62,7 +63,7 @@ generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> src_v(count, handle.get_stream());
   rmm::device_uvector<vertex_t> dst_v(count, handle.get_stream());
 
-  thrust::transform(handle.get_thrust_policy(),
+  thrust::transform(rmm::exec_policy(handle.get_stream()),
                     indices_v.begin(),
                     indices_v.end(),
                     thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), src_v.end())),

@@ -26,6 +26,7 @@
 #include <rmm/exec_policy.hpp>
 #include "two_hop_neighbors.cuh"
 
+#include <thrust/execution_policy.h>
 #include <thrust/scan.h>
 #include <thrust/transform.h>
 

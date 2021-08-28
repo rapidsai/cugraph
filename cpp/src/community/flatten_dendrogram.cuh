@@ -40,7 +40,7 @@ void partition_at_level(raft::handle_t const& handle,
     thrust::make_counting_iterator<size_t>(level),
     [&handle, &dendrogram, &local_vertex_ids_v, d_vertex_ids, &d_partition, local_num_verts](
       size_t l) {
-      thrust::sequence(handle.get_thrust_policy(),
+      thrust::sequence(rmm::exec_policy(handle.get_stream()),
                        local_vertex_ids_v.begin(),
                        local_vertex_ids_v.begin() + dendrogram.get_level_size_nocheck(l),
                        dendrogram.get_level_first_index_nocheck(l));

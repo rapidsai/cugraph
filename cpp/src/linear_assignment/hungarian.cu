@@ -20,6 +20,7 @@
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/for_each.h>
 #include <thrust/random.h>
@@ -78,7 +79,7 @@ weight_t hungarian(raft::handle_t const& handle,
     //  Fill the extra rows/columns with max(d_original_cost)
     //
     index_t n         = std::max(num_rows, num_cols);
-    weight_t max_cost = thrust::reduce(handle.get_thrust_policy(),
+    weight_t max_cost = thrust::reduce(rmm::exec_policy(handle.get_stream_view()),
                                        d_original_cost,
                                        d_original_cost + (num_rows * num_cols),
                                        weight_t{0},
@@ -88,7 +89,7 @@ weight_t hungarian(raft::handle_t const& handle,
     rmm::device_uvector<index_t> tmp_row_assignment_v(n, handle.get_stream_view());
     rmm::device_uvector<index_t> tmp_col_assignment_v(n, handle.get_stream_view());
 
-    thrust::transform(handle.get_thrust_policy(),
+    thrust::transform(rmm::exec_policy(handle.get_stream_view()),
                       thrust::make_counting_iterator<index_t>(0),
                       thrust::make_counting_iterator<index_t>(n * n),
                       tmp_cost_v.begin(),
@@ -159,14 +160,15 @@ weight_t hungarian_sparse(raft::handle_t const& handle,
   //  Renumber vertices internally.  Workers will become
   //  rows, tasks will become columns
   //
-  thrust::sequence(handle.get_thrust_policy(), temp_tasks_v.begin(), temp_tasks_v.end());
+  thrust::sequence(
+    rmm::exec_policy(handle.get_stream_view()), temp_tasks_v.begin(), temp_tasks_v.end());
 
-  thrust::for_each(handle.get_thrust_policy(),
+  thrust::for_each(rmm::exec_policy(handle.get_stream_view()),
                    workers,
                    workers + num_workers,
                    [d_temp_tasks] __device__(vertex_t v) { d_temp_tasks[v] = -1; });
 
-  auto temp_end = thrust::copy_if(handle.get_thrust_policy(),
+  auto temp_end = thrust::copy_if(rmm::exec_policy(handle.get_stream_view()),
                                   temp_tasks_v.begin(),
                                   temp_tasks_v.end(),
                                   d_tasks,
@@ -178,24 +180,30 @@ weight_t hungarian_sparse(raft::handle_t const& handle,
   //
   // Now we'll assign costs into the dense array
   //
+  thrust::fill(rmm::exec_policy(handle.get_stream_view()),
+               temp_workers_v.begin(),
+               temp_workers_v.end(),
+               vertex_t{-1});
+  thrust::fill(rmm::exec_policy(handle.get_stream_view()),
+               temp_tasks_v.begin(),
+               temp_tasks_v.end(),
+               vertex_t{-1});
   thrust::fill(
-    handle.get_thrust_policy(), temp_workers_v.begin(), temp_workers_v.end(), vertex_t{-1});
-  thrust::fill(handle.get_thrust_policy(), temp_tasks_v.begin(), temp_tasks_v.end(), vertex_t{-1});
-  thrust::fill(handle.get_thrust_policy(), cost_v.begin(), cost_v.end(), weight_t{0});
+    rmm::exec_policy(handle.get_stream_view()), cost_v.begin(), cost_v.end(), weight_t{0});
 
   thrust::for_each(
-    handle.get_thrust_policy(),
+    rmm::exec_policy(handle.get_stream_view()),
     thrust::make_counting_iterator<vertex_t>(0),
     thrust::make_counting_iterator<vertex_t>(num_rows),
     [d_temp_workers, workers] __device__(vertex_t v) { d_temp_workers[workers[v]] = v; });
 
   thrust::for_each(
-    handle.get_thrust_policy(),
+    rmm::exec_policy(handle.get_stream_view()),
     thrust::make_counting_iterator<vertex_t>(0),
     thrust::make_counting_iterator<vertex_t>(num_cols),
     [d_temp_tasks, d_tasks] __device__(vertex_t v) { d_temp_tasks[d_tasks[v]] = v; });
 
-  thrust::for_each(handle.get_thrust_policy(),
+  thrust::for_each(rmm::exec_policy(handle.get_stream_view()),
                    thrust::make_counting_iterator<edge_t>(0),
                    thrust::make_counting_iterator<edge_t>(graph.number_of_edges),
                    [d_temp_workers,
@@ -238,7 +246,7 @@ weight_t hungarian_sparse(raft::handle_t const& handle,
   //
   //  Translate the assignment back to the original vertex ids
   //
-  thrust::for_each(handle.get_thrust_policy(),
+  thrust::for_each(rmm::exec_policy(handle.get_stream_view()),
                    thrust::make_counting_iterator<vertex_t>(0),
                    thrust::make_counting_iterator<vertex_t>(num_rows),
                    [d_tasks, d_temp_assignment, assignment] __device__(vertex_t id) {

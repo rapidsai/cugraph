@@ -74,10 +74,9 @@ void get_traversed_cost_impl(raft::handle_t const& handle,
   vertex_t* vtx_keys = vtx_keys_v.data();
   raft::copy(vtx_keys, vertices, num_vertices, stream);
 
-  thrust::sequence(handle.get_thrust_policy(), vtx_map, vtx_map + num_vertices);
+  thrust::sequence(rmm::exec_policy(stream), vtx_map, vtx_map + num_vertices);
 
-  thrust::stable_sort_by_key(
-    handle.get_thrust_policy(), vtx_keys, vtx_keys + num_vertices, vtx_map);
+  thrust::stable_sort_by_key(rmm::exec_policy(stream), vtx_keys, vtx_keys + num_vertices, vtx_map);
 
   get_traversed_cost_kernel<<<nblocks, nthreads>>>(
     vertices, preds, vtx_map, info_weights, out, stop_vertex, num_vertices);

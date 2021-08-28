@@ -42,13 +42,14 @@ LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> dst_v(num_edges, handle.get_stream());
   rmm::device_uvector<double> order_v(num_vertices_, handle.get_stream());
 
-  auto execution_policy = handle.get_thrust_policy();
-  thrust::sequence(execution_policy, vertices_v.begin(), vertices_v.end(), vertex_t{0});
+  thrust::sequence(
+    rmm::exec_policy(handle.get_stream()), vertices_v.begin(), vertices_v.end(), vertex_t{0});
 
   cugraph::detail::uniform_random_fill(
     handle.get_stream_view(), order_v.data(), num_vertices_, double{0.0}, double{1.0}, seed);
 
-  thrust::sort_by_key(execution_policy, order_v.begin(), order_v.end(), vertices_v.begin());
+  thrust::sort_by_key(
+    rmm::exec_policy(handle.get_stream()), order_v.begin(), order_v.end(), vertices_v.begin());
 
   raft::copy(src_v.begin(), vertices_v.begin(), (num_vertices_ - 1), handle.get_stream());
   raft::copy(dst_v.begin(), vertices_v.begin() + 1, (num_vertices_ - 1), handle.get_stream());
@@ -62,7 +63,8 @@ LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
              (num_vertices_ - 1),
              handle.get_stream());
 
-  thrust::sequence(execution_policy, vertices_v.begin(), vertices_v.end(), vertex_t{0});
+  thrust::sequence(
+    rmm::exec_policy(handle.get_stream()), vertices_v.begin(), vertices_v.end(), vertex_t{0});
 
   handle.get_stream_view().synchronize();
 

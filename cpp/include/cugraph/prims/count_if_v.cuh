@@ -54,7 +54,7 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
                                                VertexOp v_op)
 {
   auto count =
-    thrust::count_if(handle.get_thrust_policy(),
+    thrust::count_if(rmm::exec_policy(handle.get_stream()),
                      vertex_value_input_first,
                      vertex_value_input_first + graph_view.get_number_of_local_vertices(),
                      v_op);
@@ -92,7 +92,8 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
                                                InputIterator input_last,
                                                VertexOp v_op)
 {
-  auto count = thrust::count_if(handle.get_thrust_policy(), input_first, input_last, v_op);
+  auto count =
+    thrust::count_if(rmm::exec_policy(handle.get_stream()), input_first, input_last, v_op);
   if (GraphViewType::is_multi_gpu) {
     count = host_scalar_allreduce(handle.get_comms(), count, handle.get_stream());
   }

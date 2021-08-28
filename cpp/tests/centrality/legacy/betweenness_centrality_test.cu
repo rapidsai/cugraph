@@ -23,7 +23,6 @@
 
 #include <raft/error.hpp>
 #include <raft/handle.hpp>
-#include <rmm/device_vector.hpp>
 
 #include <rmm/device_vector.hpp>
 

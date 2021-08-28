@@ -32,12 +32,15 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>> sort_by_
   rmm::device_uvector<vertex_t> sorted_keys(num_pairs, handle.get_stream_view());
   rmm::device_uvector<value_t> sorted_values(num_pairs, handle.get_stream_view());
 
-  auto execution_policy = handle.get_thrust_policy();
-  thrust::copy(execution_policy, keys, keys + num_pairs, sorted_keys.begin());
-  thrust::copy(execution_policy, values, values + num_pairs, sorted_values.begin());
+  thrust::copy(
+    rmm::exec_policy(handle.get_stream_view()), keys, keys + num_pairs, sorted_keys.begin());
+  thrust::copy(
+    rmm::exec_policy(handle.get_stream_view()), values, values + num_pairs, sorted_values.begin());
 
-  thrust::sort_by_key(
-    execution_policy, sorted_keys.begin(), sorted_keys.end(), sorted_values.begin());
+  thrust::sort_by_key(rmm::exec_policy(handle.get_stream_view()),
+                      sorted_keys.begin(),
+                      sorted_keys.end(),
+                      sorted_values.begin());
 
   return std::make_tuple(std::move(sorted_keys), std::move(sorted_values));
 }
@@ -84,14 +87,13 @@ void translate_vertex_ids(raft::handle_t const& handle,
                           rmm::device_uvector<vertex_t>& d_dst_v,
                           vertex_t vertex_id_offset)
 {
-  auto execution_policy = handle.get_thrust_policy();
-  thrust::transform(execution_policy,
+  thrust::transform(rmm::exec_policy(handle.get_stream()),
                     d_src_v.begin(),
                     d_src_v.end(),
                     d_src_v.begin(),
                     [offset = vertex_id_offset] __device__(vertex_t v) { return offset + v; });
 
-  thrust::transform(execution_policy,
+  thrust::transform(rmm::exec_policy(handle.get_stream()),
                     d_dst_v.begin(),
                     d_dst_v.end(),
                     d_dst_v.begin(),
@@ -103,8 +105,10 @@ void populate_vertex_ids(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>& d_vertices_v,
                          vertex_t vertex_id_offset)
 {
-  thrust::sequence(
-    handle.get_thrust_policy(), d_vertices_v.begin(), d_vertices_v.end(), vertex_id_offset);
+  thrust::sequence(rmm::exec_policy(handle.get_stream()),
+                   d_vertices_v.begin(),
+                   d_vertices_v.end(),
+                   vertex_id_offset);
 }
 
 template void translate_vertex_ids(raft::handle_t const& handle,

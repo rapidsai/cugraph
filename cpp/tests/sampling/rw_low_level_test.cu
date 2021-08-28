@@ -53,7 +53,7 @@ bool check_col_indices(raft::handle_t const& handle,
                        index_t num_paths)
 {
   bool all_indices_within_degs = thrust::all_of(
-    handle.get_thrust_policy(),
+    rmm::exec_policy(handle.get_stream_view()),
     thrust::make_counting_iterator<index_t>(0),
     thrust::make_counting_iterator<index_t>(num_paths),
     [p_d_col_indx     = cugraph::detail::raw_const_ptr(d_col_indx),

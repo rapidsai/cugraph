@@ -50,13 +50,14 @@ void renumber_ext_vertices(raft::handle_t const& handle,
   if (do_expensive_check) {
     rmm::device_uvector<vertex_t> labels(local_int_vertex_last - local_int_vertex_first,
                                          handle.get_stream_view());
-    thrust::copy(handle.get_thrust_policy(),
+    thrust::copy(rmm::exec_policy(handle.get_stream_view()),
                  renumber_map_labels,
                  renumber_map_labels + labels.size(),
                  labels.begin());
-    thrust::sort(handle.get_thrust_policy(), labels.begin(), labels.end());
+    thrust::sort(rmm::exec_policy(handle.get_stream_view()), labels.begin(), labels.end());
     CUGRAPH_EXPECTS(
-      thrust::unique(handle.get_thrust_policy(), labels.begin(), labels.end()) == labels.end(),
+      thrust::unique(rmm::exec_policy(handle.get_stream_view()), labels.begin(), labels.end()) ==
+        labels.end(),
       "Invalid input arguments: renumber_map_labels have duplicate elements.");
   }
 
@@ -77,18 +78,18 @@ void renumber_ext_vertices(raft::handle_t const& handle,
     sorted_unique_ext_vertices.resize(
       thrust::distance(
         sorted_unique_ext_vertices.begin(),
-        thrust::copy_if(handle.get_thrust_policy(),
+        thrust::copy_if(rmm::exec_policy(handle.get_stream_view()),
                         vertices,
                         vertices + num_vertices,
                         sorted_unique_ext_vertices.begin(),
                         [] __device__(auto v) { return v != invalid_vertex_id<vertex_t>::value; })),
       handle.get_stream_view());
-    thrust::sort(handle.get_thrust_policy(),
+    thrust::sort(rmm::exec_policy(handle.get_stream_view()),
                  sorted_unique_ext_vertices.begin(),
                  sorted_unique_ext_vertices.end());
     sorted_unique_ext_vertices.resize(
       thrust::distance(sorted_unique_ext_vertices.begin(),
-                       thrust::unique(handle.get_thrust_policy(),
+                       thrust::unique(rmm::exec_policy(handle.get_stream_view()),
                                       sorted_unique_ext_vertices.begin(),
                                       sorted_unique_ext_vertices.end())),
       handle.get_stream_view());
@@ -145,7 +146,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
     rmm::device_uvector<bool> contains(num_vertices, handle.get_stream_view());
     renumber_map_ptr->contains(vertices, vertices + num_vertices, contains.begin());
     auto vc_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertices, contains.begin()));
-    CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
+    CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
                                      vc_pair_first,
                                      vc_pair_first + num_vertices,
                                      [] __device__(auto pair) {
@@ -174,7 +175,7 @@ void unrenumber_local_int_vertices(
 {
   if (do_expensive_check) {
     CUGRAPH_EXPECTS(
-      thrust::count_if(handle.get_thrust_policy(),
+      thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
                        vertices,
                        vertices + num_vertices,
                        [local_int_vertex_first, local_int_vertex_last] __device__(auto v) {
@@ -185,7 +186,7 @@ void unrenumber_local_int_vertices(
       "+ num_vertices).");
   }
 
-  thrust::transform(handle.get_thrust_policy(),
+  thrust::transform(rmm::exec_policy(handle.get_stream_view()),
                     vertices,
                     vertices + num_vertices,
                     vertices,
@@ -210,7 +211,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
 
   if (do_expensive_check) {
     CUGRAPH_EXPECTS(
-      thrust::count_if(handle.get_thrust_policy(),
+      thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
                        vertices,
                        vertices + num_vertices,
                        [int_vertex_last = vertex_partition_lasts.back()] __device__(auto v) {
@@ -230,18 +231,18 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
     sorted_unique_int_vertices.resize(
       thrust::distance(
         sorted_unique_int_vertices.begin(),
-        thrust::copy_if(handle.get_thrust_policy(),
+        thrust::copy_if(rmm::exec_policy(handle.get_stream_view()),
                         vertices,
                         vertices + num_vertices,
                         sorted_unique_int_vertices.begin(),
                         [] __device__(auto v) { return v != invalid_vertex_id<vertex_t>::value; })),
       handle.get_stream_view());
-    thrust::sort(handle.get_thrust_policy(),
+    thrust::sort(rmm::exec_policy(handle.get_stream_view()),
                  sorted_unique_int_vertices.begin(),
                  sorted_unique_int_vertices.end());
     sorted_unique_int_vertices.resize(
       thrust::distance(sorted_unique_int_vertices.begin(),
-                       thrust::unique(handle.get_thrust_policy(),
+                       thrust::unique(rmm::exec_policy(handle.get_stream_view()),
                                       sorted_unique_int_vertices.begin(),
                                       sorted_unique_int_vertices.end())),
       handle.get_stream_view());
@@ -254,7 +255,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                         handle.get_stream());
     rmm::device_uvector<size_t> d_tx_int_vertex_offsets(d_vertex_partition_lasts.size(),
                                                         handle.get_stream_view());
-    thrust::lower_bound(handle.get_thrust_policy(),
+    thrust::lower_bound(rmm::exec_policy(handle.get_stream_view()),
                         sorted_unique_int_vertices.begin(),
                         sorted_unique_int_vertices.end(),
                         d_vertex_partition_lasts.begin(),
@@ -275,7 +276,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
       comm, sorted_unique_int_vertices.begin(), h_tx_int_vertex_counts, handle.get_stream_view());
 
     auto tx_ext_vertices = std::move(rx_int_vertices);
-    thrust::transform(handle.get_thrust_policy(),
+    thrust::transform(rmm::exec_policy(handle.get_stream_view()),
                       tx_ext_vertices.begin(),
                       tx_ext_vertices.end(),
                       tx_ext_vertices.begin(),

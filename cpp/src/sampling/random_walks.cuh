@@ -28,6 +28,7 @@
 #include <raft/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -118,7 +119,7 @@ struct rrandom_gen_t {
   {
     auto const* d_ptr_out_degs = d_crt_out_deg.data();
     thrust::transform_if(
-      handle_.get_thrust_policy(),
+      rmm::exec_policy(handle_.get_stream_view()),
       d_ptr_random_,
       d_ptr_random_ + num_paths_,  // input1
       d_ptr_out_degs,              // input2
@@ -228,7 +229,7 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
     const
   {
     thrust::transform_if(
-      handle_.get_thrust_policy(),
+      rmm::exec_policy(handle_.get_stream_view()),
       thrust::make_counting_iterator<index_t>(0),
       thrust::make_counting_iterator<index_t>(num_paths_),  // input1
       d_v_col_indx.begin(),                                 // input2
@@ -262,7 +263,7 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
                   device_vec_t<weight_t>& d_coalesced_w,  // out: set of coalesced weights
                   real_t tag)  // otherwise. ambiguity with the other operator()
   {
-    thrust::for_each(handle_.get_thrust_policy(),
+    thrust::for_each(rmm::exec_policy(handle_.get_stream_view()),
                      thrust::make_counting_iterator<index_t>(0),
                      thrust::make_counting_iterator<index_t>(num_paths_),  // input1
                      [max_depth        = max_depth_,
@@ -385,7 +386,7 @@ struct random_walker_t {
     // intialize path sizes to 1, as they contain at least one vertex each:
     // the initial set: d_src_init_v;
     //
-    thrust::copy_n(handle_.get_thrust_policy(),
+    thrust::copy_n(rmm::exec_policy(handle_.get_stream_view()),
                    thrust::make_constant_iterator<index_t>(1),
                    num_paths_,
                    d_sizes.begin());
@@ -399,7 +400,7 @@ struct random_walker_t {
     auto map_it_begin =
       thrust::make_transform_iterator(thrust::make_counting_iterator<index_t>(0), dlambda);
 
-    thrust::scatter(handle_.get_thrust_policy(),
+    thrust::scatter(rmm::exec_policy(handle_.get_stream_view()),
                     d_src_init_v.begin(),
                     d_src_init_v.end(),
                     map_it_begin,
@@ -477,7 +478,7 @@ struct random_walker_t {
   bool all_paths_stopped(device_vec_t<edge_t> const& d_crt_out_degs) const
   {
     auto how_many_stopped =
-      thrust::count_if(handle_.get_thrust_policy(),
+      thrust::count_if(rmm::exec_policy(handle_.get_stream_view()),
                        d_crt_out_degs.begin(),
                        d_crt_out_degs.end(),
                        [] __device__(auto crt_out_deg) { return crt_out_deg == 0; });
@@ -509,13 +510,13 @@ struct random_walker_t {
       return (col_indx >= ptr_d_sizes[row_indx] - 1);
     };
 
-    auto new_end_v = thrust::remove_if(handle_.get_thrust_policy(),
+    auto new_end_v = thrust::remove_if(rmm::exec_policy(handle_.get_stream_view()),
                                        d_coalesced_v.begin(),
                                        d_coalesced_v.end(),
                                        thrust::make_counting_iterator<index_t>(0),
                                        predicate_v);
 
-    auto new_end_w = thrust::remove_if(handle_.get_thrust_policy(),
+    auto new_end_w = thrust::remove_if(rmm::exec_policy(handle_.get_stream_view()),
                                        d_coalesced_w.begin(),
                                        d_coalesced_w.end(),
                                        thrust::make_counting_iterator<index_t>(0),
@@ -555,7 +556,7 @@ struct random_walker_t {
     auto map_it_begin =
       thrust::make_transform_iterator(thrust::make_counting_iterator<index_t>(0), dlambda);
 
-    thrust::gather(handle_.get_thrust_policy(),
+    thrust::gather(rmm::exec_policy(handle_.get_stream_view()),
                    map_it_begin,
                    map_it_begin + nelems,
                    d_src.begin(),
@@ -602,7 +603,7 @@ struct random_walker_t {
     auto map_it_begin =
       thrust::make_transform_iterator(thrust::make_counting_iterator<index_t>(0), dlambda);
 
-    thrust::scatter_if(handle_.get_thrust_policy(),
+    thrust::scatter_if(rmm::exec_policy(handle_.get_stream_view()),
                        d_src.begin(),
                        d_src.end(),
                        map_it_begin,
@@ -641,7 +642,7 @@ struct random_walker_t {
                          device_vec_t<index_t>& d_sizes) const
   {
     thrust::transform_if(
-      handle_.get_thrust_policy(),
+      rmm::exec_policy(handle_.get_stream_view()),
       d_sizes.begin(),
       d_sizes.end(),           // input
       d_crt_out_degs.begin(),  // stencil
@@ -662,12 +663,12 @@ struct random_walker_t {
   void init_padding(device_vec_t<vertex_t>& d_coalesced_v,
                     device_vec_t<weight_t>& d_coalesced_w) const
   {
-    thrust::fill(handle_.get_thrust_policy(),
+    thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
                  d_coalesced_v.begin(),
                  d_coalesced_v.end(),
                  vertex_padding_value_);
 
-    thrust::fill(handle_.get_thrust_policy(),
+    thrust::fill(rmm::exec_policy(handle_.get_stream_view()),
                  d_coalesced_w.begin(),
                  d_coalesced_w.end(),
                  weight_padding_value_);
@@ -744,7 +745,7 @@ random_walks_impl(raft::handle_t const& handle,
 
   vertex_t num_vertices = graph.get_number_of_vertices();
 
-  auto how_many_valid = thrust::count_if(handle.get_thrust_policy(),
+  auto how_many_valid = thrust::count_if(rmm::exec_policy(handle.get_stream_view()),
                                          d_v_start.begin(),
                                          d_v_start.end(),
                                          [num_vertices] __device__(auto crt_vertex) {
@@ -923,7 +924,7 @@ struct coo_convertor_t {
     //  and edge_paths_sz == 0 don't contribute
     //  anything):
     //
-    auto new_end_it = thrust::copy_if(handle_.get_thrust_policy(),
+    auto new_end_it = thrust::copy_if(rmm::exec_policy(handle_.get_stream_view()),
                                       d_sizes.begin(),
                                       d_sizes.end(),
                                       d_sz_w_scan.begin(),
@@ -939,7 +940,7 @@ struct coo_convertor_t {
     // edge_path_sz = (vertex_path_sz-1):
     //
     thrust::transform_exclusive_scan(
-      handle_.get_thrust_policy(),
+      rmm::exec_policy(handle_.get_stream_view()),
       d_sz_w_scan.begin(),
       d_sz_w_scan.end(),
       d_sz_w_scan.begin(),
@@ -955,7 +956,7 @@ struct coo_convertor_t {
   {
     device_vec_t<index_t> d_scan(num_paths_, handle_.get_stream());
     thrust::inclusive_scan(
-      handle_.get_thrust_policy(), d_sizes.begin(), d_sizes.end(), d_scan.begin());
+      rmm::exec_policy(handle_.get_stream_view()), d_sizes.begin(), d_sizes.end(), d_scan.begin());
 
     index_t total_sz{0};
     CUDA_TRY(cudaMemcpy(
@@ -965,7 +966,7 @@ struct coo_convertor_t {
 
     // initialize stencil to all 1's:
     //
-    thrust::copy_n(handle_.get_thrust_policy(),
+    thrust::copy_n(rmm::exec_policy(handle_.get_stream_view()),
                    thrust::make_constant_iterator<int>(1),
                    d_stencil.size(),
                    d_stencil.begin());
@@ -975,7 +976,7 @@ struct coo_convertor_t {
     // and the next one starts, hence there cannot be an edge
     // between a path ending vertex and next path starting vertex;
     //
-    thrust::scatter(handle_.get_thrust_policy(),
+    thrust::scatter(rmm::exec_policy(handle_.get_stream_view()),
                     thrust::make_constant_iterator(0),
                     thrust::make_constant_iterator(0) + num_paths_,
                     d_scan.begin(),
@@ -998,7 +999,7 @@ struct coo_convertor_t {
     // in stencil is not 0; (if it is, there's no "next"
     // or dst index, because the path has ended);
     //
-    thrust::copy_if(handle_.get_thrust_policy(),
+    thrust::copy_if(rmm::exec_policy(handle_.get_stream_view()),
                     thrust::make_counting_iterator<index_t>(0),
                     thrust::make_counting_iterator<index_t>(total_sz_v - 1),
                     valid_src_indx.begin(),
@@ -1017,7 +1018,7 @@ struct coo_convertor_t {
     // generated at the previous step;
     //
     thrust::transform(
-      handle_.get_thrust_policy(),
+      rmm::exec_policy(handle_.get_stream_view()),
       valid_src_indx.begin(),
       valid_src_indx.end(),
       thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin())),  // start_zip
@@ -1219,10 +1220,12 @@ query_rw_sizes_offsets(raft::handle_t const& handle, index_t num_paths, index_t 
   rmm::device_uvector<index_t> d_weight_sizes(num_paths, handle.get_stream());
   rmm::device_uvector<index_t> d_weight_offsets(num_paths, handle.get_stream());
 
-  thrust::exclusive_scan(
-    handle.get_thrust_policy(), ptr_d_sizes, ptr_d_sizes + num_paths, d_vertex_offsets.begin());
+  thrust::exclusive_scan(rmm::exec_policy(handle.get_stream_view()),
+                         ptr_d_sizes,
+                         ptr_d_sizes + num_paths,
+                         d_vertex_offsets.begin());
 
-  thrust::transform(handle.get_thrust_policy(),
+  thrust::transform(rmm::exec_policy(handle.get_stream_view()),
                     ptr_d_sizes,
                     ptr_d_sizes + num_paths,
                     d_weight_sizes.begin(),
@@ -1230,7 +1233,7 @@ query_rw_sizes_offsets(raft::handle_t const& handle, index_t num_paths, index_t 
 
   handle.get_stream_view().synchronize();
 
-  thrust::exclusive_scan(handle.get_thrust_policy(),
+  thrust::exclusive_scan(rmm::exec_policy(handle.get_stream_view()),
                          d_weight_sizes.begin(),
                          d_weight_sizes.end(),
                          d_weight_offsets.begin());

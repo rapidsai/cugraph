@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <thrust/execution_policy.h>
 #include <thrust/extrema.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/scan.h>

@@ -19,12 +19,16 @@
 #include <raft/cudart_utils.h>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
+
 #include <cugraph/utilities/error.hpp>
+
 #include <rmm/device_buffer.hpp>
 #include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/iterator/counting_iterator.h>
 
+#include <raft/cudart_utils.h>
 #include "cub/cub.cuh"
 
 #define TH_CENT_K_LOCLEN (34)

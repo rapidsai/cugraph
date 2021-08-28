@@ -22,7 +22,6 @@
 #include <converters/COOtoCSR.cuh>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
-#include <rmm/device_vector.hpp>
 #include <topology/topology.cuh>
 
 #include <cuda_profiler_api.h>
