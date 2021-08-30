@@ -75,9 +75,9 @@ fi
 gpuci_logger "Build conda pkg for cugraph"
 if [ "$BUILD_CUGRAPH" == "1" ]; then
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
-    gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON
+    gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON_VER
   else
-    gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph -c ci/artifacts/cugraph/cpu/.conda-bld/ --dirty --no-remove-work-dir --python=$PYTHON
+    gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph -c ci/artifacts/cugraph/cpu/.conda-bld/ --dirty --no-remove-work-dir --python=$PYTHON_VER
   fi
 fi
 
