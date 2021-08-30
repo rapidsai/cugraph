@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.cuh>
@@ -26,8 +26,8 @@
 #include <cugraph/utilities/thrust_tuple_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
@@ -39,7 +39,6 @@
 #include <utility>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -99,7 +98,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_cols()
              : graph_view.get_number_of_local_adj_matrix_partition_rows());
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(handle.get_thrust_policy(),
                  vertex_value_input_first,
                  vertex_value_input_first + graph_view.get_number_of_local_vertices(),
                  matrix_major_value_output_first);
@@ -170,7 +169,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
           });
         // FIXME: this gather (and temporary buffer) is unnecessary if NCCL directly takes a
         // permutation iterator (and directly gathers to the internal buffer)
-        thrust::gather(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::gather(handle.get_thrust_policy(),
                        map_first,
                        map_first + thrust::distance(vertex_first, vertex_last),
                        vertex_value_input_first,
@@ -191,7 +190,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
         thrust::scatter(
-          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          handle.get_thrust_policy(),
           rx_value_first,
           rx_value_first + rx_counts[i],
           map_first,
@@ -204,7 +203,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
         thrust::scatter(
-          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          handle.get_thrust_policy(),
           rx_value_first,
           rx_value_first + rx_counts[i],
           map_first,
@@ -227,7 +226,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
              ? graph_view.get_number_of_local_adj_matrix_partition_cols()
              : graph_view.get_number_of_local_adj_matrix_partition_rows());
     auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
-    thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::scatter(handle.get_thrust_policy(),
                     val_first,
                     val_first + thrust::distance(vertex_first, vertex_last),
                     vertex_first,
@@ -291,7 +290,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_rows()
              : graph_view.get_number_of_local_adj_matrix_partition_cols());
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(handle.get_thrust_policy(),
                  vertex_value_input_first,
                  vertex_value_input_first + graph_view.get_number_of_local_vertices(),
                  matrix_minor_value_output_first);
@@ -361,7 +360,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
           });
         // FIXME: this gather (and temporary buffer) is unnecessary if NCCL directly takes a
         // permutation iterator (and directly gathers to the internal buffer)
-        thrust::gather(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::gather(handle.get_thrust_policy(),
                        map_first,
                        map_first + thrust::distance(vertex_first, vertex_last),
                        vertex_value_input_first,
@@ -381,7 +380,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
-        thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::scatter(handle.get_thrust_policy(),
                         rx_value_first,
                         rx_value_first + rx_counts[i],
                         map_first,
@@ -393,7 +392,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
-        thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::scatter(handle.get_thrust_policy(),
                         rx_value_first,
                         rx_value_first + rx_counts[i],
                         map_first,
@@ -415,7 +414,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
     assert(graph_view.get_number_of_local_vertices() ==
            graph_view.get_number_of_local_adj_matrix_partition_rows());
     auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
-    thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::scatter(handle.get_thrust_policy(),
                     val_first,
                     val_first + thrust::distance(vertex_first, vertex_last),
                     vertex_first,
@@ -615,5 +614,4 @@ void copy_to_adj_matrix_col(raft::handle_t const& handle,
   }
 }
 
-}  // namespace experimental
 }  // namespace cugraph

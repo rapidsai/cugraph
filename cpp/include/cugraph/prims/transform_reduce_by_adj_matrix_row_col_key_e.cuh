@@ -15,10 +15,10 @@
  */
 #pragma once
 
-#include <cugraph/experimental/detail/graph_utils.cuh>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
-#include <cugraph/prims/edge_op_utils.cuh>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -28,7 +28,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -320,12 +319,12 @@ template <typename vertex_t, typename value_t, typename BufferType>
 std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
   rmm::device_uvector<vertex_t>&& keys, BufferType&& value_buffer, cudaStream_t stream)
 {
-  thrust::sort_by_key(rmm::exec_policy(stream)->on(stream),
+  thrust::sort_by_key(rmm::exec_policy(stream),
                       keys.begin(),
                       keys.end(),
                       get_dataframe_buffer_begin<value_t>(value_buffer));
   auto num_uniques =
-    thrust::count_if(rmm::exec_policy(stream)->on(stream),
+    thrust::count_if(rmm::exec_policy(stream),
                      thrust::make_counting_iterator(size_t{0}),
                      thrust::make_counting_iterator(keys.size()),
                      [keys = keys.data()] __device__(auto i) {
@@ -334,7 +333,7 @@ std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
 
   rmm::device_uvector<vertex_t> unique_keys(num_uniques, stream);
   auto value_for_unique_key_buffer = allocate_dataframe_buffer<value_t>(unique_keys.size(), stream);
-  thrust::reduce_by_key(rmm::exec_policy(stream)->on(stream),
+  thrust::reduce_by_key(rmm::exec_policy(stream),
                         keys.begin(),
                         keys.end(),
                         get_dataframe_buffer_begin<value_t>(value_buffer),
@@ -531,11 +530,9 @@ transform_reduce_by_adj_matrix_row_col_key_e(
       keys.resize(cur_size + tmp_keys.size(), handle.get_stream());
       resize_dataframe_buffer<T>(value_buffer, keys.size(), handle.get_stream());
 
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   tmp_keys.begin(),
-                   tmp_keys.end(),
-                   keys.begin() + cur_size);
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      auto execution_policy = handle.get_thrust_policy();
+      thrust::copy(execution_policy, tmp_keys.begin(), tmp_keys.end(), keys.begin() + cur_size);
+      thrust::copy(execution_policy,
                    get_dataframe_buffer_begin<T>(tmp_value_buffer),
                    get_dataframe_buffer_begin<T>(tmp_value_buffer) + tmp_keys.size(),
                    get_dataframe_buffer_begin<T>(value_buffer) + cur_size);
@@ -695,5 +692,4 @@ auto transform_reduce_by_adj_matrix_col_key_e(
     init);
 }
 
-}  // namespace experimental
 }  // namespace cugraph

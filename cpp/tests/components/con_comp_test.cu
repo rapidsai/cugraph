@@ -18,17 +18,16 @@
 
 #include <cuda_profiler_api.h>
 
+#include <rmm/device_vector.hpp>
+
 #include <converters/COOtoCSR.cuh>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 
+#include <rmm/device_vector.hpp>
+
 #include <algorithm>
 #include <iterator>
-
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
 
 namespace {  // un-nammed
 struct Usecase {
@@ -56,7 +55,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
   static void SetupTestCase() {}
   static void TearDownTestCase()
   {
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       for (unsigned int i = 0; i < weakly_cc_time.size(); ++i) {
         std::cout << weakly_cc_time[i] << std::endl;
       }
@@ -120,7 +119,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
 
     rmm::device_vector<int> d_labels(m);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       hr_clock.start();
       cugraph::connected_components<int, int, float>(
         G, cugraph::cugraph_cc_t::CUGRAPH_WEAK, d_labels.data().get());

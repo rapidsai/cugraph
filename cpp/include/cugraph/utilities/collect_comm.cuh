@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -33,7 +33,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
 
 // for key = [map_key_first, map_key_last), key_to_gpu_id_op(key) should be coincide with
 // comm.get_rank()
@@ -262,5 +261,4 @@ collect_values_for_unique_keys(raft::comms::comms_t const& comm,
   return value_buffer;
 }
 
-}  // namespace experimental
 }  // namespace cugraph

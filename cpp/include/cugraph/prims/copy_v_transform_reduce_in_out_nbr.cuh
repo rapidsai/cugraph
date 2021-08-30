@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
-#include <cugraph/prims/edge_op_utils.cuh>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
@@ -25,8 +25,8 @@
 #include <cugraph/utilities/host_barrier.hpp>
 
 #include <raft/cudart_utils.h>
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/distance.h>
 #include <thrust/functional.h>
@@ -39,7 +39,6 @@
 #include <utility>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -75,6 +74,7 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
 
   auto dcs_nzd_vertex_count = *(matrix_partition.get_dcs_nzd_vertex_count());
 
+  property_add<T> edge_property_add{};
   while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
     auto major =
       *(matrix_partition.get_major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
@@ -118,13 +118,13 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
     };
 
     if (update_major) {
-      *(result_value_output_first + (major - major_hypersparse_first)) = thrust::transform_reduce(
-        thrust::seq,
-        thrust::make_counting_iterator(edge_t{0}),
-        thrust::make_counting_iterator(local_degree),
-        transform_op,
-        init,
-        [] __device__(auto lhs, auto rhs) { return plus_edge_op_result(lhs, rhs); });
+      *(result_value_output_first + (major - major_hypersparse_first)) =
+        thrust::transform_reduce(thrust::seq,
+                                 thrust::make_counting_iterator(edge_t{0}),
+                                 thrust::make_counting_iterator(local_degree),
+                                 transform_op,
+                                 init,
+                                 edge_property_add);
     } else {
       thrust::for_each(
         thrust::seq,
@@ -169,6 +169,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   auto idx                = static_cast<size_t>(tid);
 
+  property_add<T> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
@@ -212,13 +213,13 @@ __global__ void for_all_major_for_all_nbr_low_degree(
     };
 
     if (update_major) {
-      *(result_value_output_first + idx) = thrust::transform_reduce(
-        thrust::seq,
-        thrust::make_counting_iterator(edge_t{0}),
-        thrust::make_counting_iterator(local_degree),
-        transform_op,
-        init,
-        [] __device__(auto lhs, auto rhs) { return plus_edge_op_result(lhs, rhs); });
+      *(result_value_output_first + idx) =
+        thrust::transform_reduce(thrust::seq,
+                                 thrust::make_counting_iterator(edge_t{0}),
+                                 thrust::make_counting_iterator(local_degree),
+                                 transform_op,
+                                 init,
+                                 edge_property_add);
     } else {
       thrust::for_each(
         thrust::seq,
@@ -266,6 +267,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   auto idx                = static_cast<size_t>(tid / raft::warp_size());
 
+  property_add<e_op_result_t> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
@@ -302,7 +304,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
                                     *(adj_matrix_col_value_input_first + col_offset),
                                     e_op);
       if (update_major) {
-        e_op_result_sum = plus_edge_op_result(e_op_result_sum, e_op_result);
+        e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
       } else {
         atomic_accumulate_edge_op_result(result_value_output_first + minor_offset, e_op_result);
       }
@@ -344,6 +346,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   auto idx                = static_cast<size_t>(blockIdx.x);
 
+  property_add<e_op_result_t> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
@@ -380,7 +383,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
                                     *(adj_matrix_col_value_input_first + col_offset),
                                     e_op);
       if (update_major) {
-        e_op_result_sum = plus_edge_op_result(e_op_result_sum, e_op_result);
+        e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
       } else {
         atomic_accumulate_edge_op_result(result_value_output_first + minor_offset, e_op_result);
       }
@@ -435,13 +438,14 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       minor_init               = (row_comm_rank == 0) ? init : T{};
     }
 
+    auto execution_policy = handle.get_thrust_policy();
     if (GraphViewType::is_multi_gpu) {
-      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::fill(execution_policy,
                    minor_buffer_first,
                    minor_buffer_first + minor_tmp_buffer_size,
                    minor_init);
     } else {
-      thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+      thrust::fill(execution_policy,
                    vertex_value_output_first,
                    vertex_value_output_first + graph_view.get_number_of_local_vertices(),
                    minor_init);
@@ -543,7 +547,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the
                                        // hypersparse segment in
                                        // for_all_major_for_all_nbr_hypersparse
-          thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          thrust::fill(handle.get_thrust_policy(),
                        output_buffer_first + (*segment_offsets)[3],
                        output_buffer_first + (*segment_offsets)[4],
                        major_init);
@@ -792,5 +796,4 @@ void copy_v_transform_reduce_out_nbr(
                                              vertex_value_output_first);
 }
 
-}  // namespace experimental
 }  // namespace cugraph

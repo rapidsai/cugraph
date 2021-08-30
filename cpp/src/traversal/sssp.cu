@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,292 +14,368 @@
  * limitations under the License.
  */
 
-// Author: Prasun Gera pgera@nvidia.com
-
-#include <algorithm>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph_view.hpp>
+#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/prims/count_if_e.cuh>
+#include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/transform_reduce_e.cuh>
+#include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_partition_device_view.cuh>
 
-#include <cugraph/legacy/graph.hpp>
+#include <raft/cudart_utils.h>
 
-#include "sssp.cuh"
-#include "sssp_kernels.cuh"
-#include "traversal_common.cuh"
+#include <thrust/fill.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/discard_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
+
+#include <limits>
 
 namespace cugraph {
 namespace detail {
 
-template <typename IndexType, typename DistType>
-void SSSP<IndexType, DistType>::setup()
+template <typename GraphViewType, typename PredecessorIterator>
+void sssp(raft::handle_t const& handle,
+          GraphViewType const& push_graph_view,
+          typename GraphViewType::weight_type* distances,
+          PredecessorIterator predecessor_first,
+          typename GraphViewType::vertex_type source_vertex,
+          typename GraphViewType::weight_type cutoff,
+          bool do_expensive_check)
 {
-  // Working data
-  // Each vertex can be in the frontier at most once
-  frontier.resize(n);
-  new_frontier.resize(n);
+  using vertex_t = typename GraphViewType::vertex_type;
+  using weight_t = typename GraphViewType::weight_type;
 
-  // size of bitmaps for vertices
-  vertices_bmap_size = (n / (8 * sizeof(int)) + 1);
+  static_assert(std::is_integral<vertex_t>::value,
+                "GraphViewType::vertex_type should be integral.");
+  static_assert(!GraphViewType::is_adj_matrix_transposed,
+                "GraphViewType should support the push model.");
 
-  // size of bitmaps for edges
-  edges_bmap_size = (nnz / (8 * sizeof(int)) + 1);
+  auto const num_vertices = push_graph_view.get_number_of_vertices();
+  auto const num_edges    = push_graph_view.get_number_of_edges();
+  if (num_vertices == 0) { return; }
 
-  // ith bit of isolated_bmap is set <=> degree of ith vertex = 0
-  isolated_bmap.resize(vertices_bmap_size);
+  // implements the Near-Far Pile method in
+  // A. Davidson, S. Baxter, M. Garland, and J. D. Owens, "Work-efficient parallel GPU methods for
+  // single-source shortest paths," 2014.
 
-  // Allocate buffer for data that need to be reset every iteration
-  iter_buffer_size = sizeof(int) * (edges_bmap_size + vertices_bmap_size) + sizeof(IndexType);
-  iter_buffer.resize(iter_buffer_size, stream);
-  // ith bit of relaxed_edges_bmap <=> ith edge was relaxed
-  relaxed_edges_bmap = static_cast<int*>(iter_buffer.data());
-  // ith bit of next_frontier_bmap <=> vertex is active in the next frontier
-  next_frontier_bmap = static_cast<int*>(iter_buffer.data()) + edges_bmap_size;
-  // num vertices in the next frontier
-  d_new_frontier_cnt = next_frontier_bmap + vertices_bmap_size;
+  // 1. check input arguments
 
-  // vertices_degree[i] = degree of vertex i
-  vertex_degree.resize(n);
+  CUGRAPH_EXPECTS(push_graph_view.is_valid_vertex(source_vertex),
+                  "Invalid input argument: source vertex out-of-range.");
+  CUGRAPH_EXPECTS(push_graph_view.is_weighted(),
+                  "Invalid input argument: an unweighted graph is passed to SSSP, BFS is more "
+                  "efficient for unweighted graphs.");
 
-  // frontier_vertex_degree[i] is the degree of vertex frontier[i]
-  frontier_vertex_degree.resize(n);
-
-  // exclusive sum of frontier_vertex_degree
-  exclusive_sum_frontier_vertex_degree.resize(n + 1);
-
-  // We use buckets of edges (32 edges per bucket for now, see exact macro in
-  // sssp_kernels). frontier_vertex_degree_buckets_offsets[i] is the index k
-  // such as frontier[k] is the source of the first edge of the bucket
-  // See top down kernels for more details
-  size_t bucket_off_size =
-    ((nnz / TOP_DOWN_EXPAND_DIMX + 1) * NBUCKETS_PER_BLOCK + 2) * sizeof(IndexType);
-  exclusive_sum_frontier_vertex_buckets_offsets.resize(bucket_off_size);
-
-  // Repurpose d_new_frontier_cnt temporarily
-  IndexType* d_nisolated = d_new_frontier_cnt;
-  cudaMemsetAsync(d_nisolated, 0, sizeof(IndexType), stream);
-
-  // Computing isolated_bmap
-  // Only dependent on graph - not source vertex - done once
-  traversal::flag_isolated_vertices(
-    n, isolated_bmap.data().get(), row_offsets, vertex_degree.data().get(), d_nisolated, stream);
-
-  cudaMemcpyAsync(&nisolated, d_nisolated, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
-
-  // We need nisolated to be ready to use
-  // nisolated is the number of isolated (zero out-degree) vertices
-  cudaStreamSynchronize(stream);
-}
-
-template <typename IndexType, typename DistType>
-void SSSP<IndexType, DistType>::configure(DistType* _distances,
-                                          IndexType* _predecessors,
-                                          int* _edge_mask)
-{
-  distances    = _distances;
-  predecessors = _predecessors;
-  edge_mask    = _edge_mask;
-
-  useEdgeMask         = (edge_mask != NULL);
-  computeDistances    = (distances != NULL);
-  computePredecessors = (predecessors != NULL);
-
-  // We need distances for SSSP even if the caller doesn't need them
-  if (!computeDistances) {
-    distances_vals.resize(n);
-    distances = distances_vals.data().get();
-  }
-  // Need next_distances in either case
-  next_distances_vals.resize(n);
-  next_distances = next_distances_vals.data().get();
-}
-
-template <typename IndexType, typename DistType>
-void SSSP<IndexType, DistType>::traverse(IndexType source_vertex)
-{
-  // Init distances to infinities
-  traversal::fill_vec(distances, n, traversal::vec_t<DistType>::max, stream);
-  traversal::fill_vec(next_distances, n, traversal::vec_t<DistType>::max, stream);
-
-  // If needed, set all predecessors to non-existent (-1)
-  if (computePredecessors) { cudaMemsetAsync(predecessors, -1, n * sizeof(IndexType), stream); }
-
-  //
-  // Initial frontier
-  //
-
-  cudaMemsetAsync(&distances[source_vertex], 0, sizeof(DistType), stream);
-  cudaMemsetAsync(&next_distances[source_vertex], 0, sizeof(DistType), stream);
-
-  int current_isolated_bmap_source_vert = 0;
-
-  cudaMemcpyAsync(&current_isolated_bmap_source_vert,
-                  isolated_bmap.data().get() + (source_vertex / INT_SIZE),
-                  sizeof(int),
-                  cudaMemcpyDeviceToHost);
-
-  // We need current_isolated_bmap_source_vert
-  cudaStreamSynchronize(stream);
-
-  int m = (1 << (source_vertex % INT_SIZE));
-
-  // If source is isolated (zero outdegree), we are done
-  if ((m & current_isolated_bmap_source_vert)) {
-    // Init distances and predecessors are done; stream is synchronized
+  if (do_expensive_check) {
+    auto num_negative_edge_weights =
+      count_if_e(handle,
+                 push_graph_view,
+                 thrust::make_constant_iterator(0) /* dummy */,
+                 thrust::make_constant_iterator(0) /* dummy */,
+                 [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+                   return w < 0.0;
+                 });
+    CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
+                    "Invalid input argument: input graph should have non-negative edge weights.");
   }
 
-  // Adding source_vertex to init frontier
-  cudaMemcpyAsync(
-    frontier.data().get(), &source_vertex, sizeof(IndexType), cudaMemcpyHostToDevice, stream);
+  // 2. initialize distances and predecessors
 
-  // Number of vertices in the frontier and number of out-edges from the
-  // frontier
-  IndexType mf, nf;
-  nf        = 1;
-  int iters = 0;
+  auto constexpr invalid_distance = std::numeric_limits<weight_t>::max();
+  auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
-  while (nf > 0) {
-    // Typical pre-top down workflow. set_frontier_degree + exclusive-scan
-    traversal::set_frontier_degree(frontier_vertex_degree.data().get(),
-                                   frontier.data().get(),
-                                   vertex_degree.data().get(),
-                                   nf,
-                                   stream);
+  auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
+  thrust::transform(handle.get_thrust_policy(),
+                    thrust::make_counting_iterator(push_graph_view.get_local_vertex_first()),
+                    thrust::make_counting_iterator(push_graph_view.get_local_vertex_last()),
+                    val_first,
+                    [source_vertex] __device__(auto val) {
+                      auto distance = invalid_distance;
+                      if (val == source_vertex) { distance = weight_t{0.0}; }
+                      return thrust::make_tuple(distance, invalid_vertex);
+                    });
 
-    traversal::exclusive_sum(frontier_vertex_degree.data().get(),
-                             exclusive_sum_frontier_vertex_degree.data().get(),
-                             nf + 1,
-                             stream);
+  if (num_edges == 0) { return; }
 
-    cudaMemcpyAsync(&mf,
-                    exclusive_sum_frontier_vertex_degree.data().get() + nf,
-                    sizeof(IndexType),
-                    cudaMemcpyDeviceToHost,
-                    stream);
+  // 3. update delta
 
-    // We need mf to know the next kernel's launch dims
-    cudaStreamSynchronize(stream);
+  weight_t average_vertex_degree{0.0};
+  weight_t average_edge_weight{0.0};
+  thrust::tie(average_vertex_degree, average_edge_weight) = transform_reduce_e(
+    handle,
+    push_graph_view,
+    thrust::make_constant_iterator(0) /* dummy */,
+    thrust::make_constant_iterator(0) /* dummy */,
+    [] __device__(vertex_t row, vertex_t col, weight_t w, auto row_val, auto col_val) {
+      return thrust::make_tuple(weight_t{1.0}, w);
+    },
+    thrust::make_tuple(weight_t{0.0}, weight_t{0.0}));
+  average_vertex_degree /= static_cast<weight_t>(num_vertices);
+  average_edge_weight /= static_cast<weight_t>(num_edges);
+  auto delta =
+    (static_cast<weight_t>(raft::warp_size()) * average_edge_weight) / average_vertex_degree;
 
-    traversal::compute_bucket_offsets(exclusive_sum_frontier_vertex_degree.data().get(),
-                                      exclusive_sum_frontier_vertex_buckets_offsets.data().get(),
-                                      nf,
-                                      mf,
-                                      stream);
+  // 4. initialize SSSP frontier
 
-    // Reset the transient structures to 0
-    cudaMemsetAsync(iter_buffer.data(), 0, iter_buffer_size, stream);
+  enum class Bucket { cur_near, next_near, far, num_buckets };
+  VertexFrontier<vertex_t,
+                 void,
+                 GraphViewType::is_multi_gpu,
+                 static_cast<size_t>(Bucket::num_buckets)>
+    vertex_frontier(handle);
 
-    sssp_kernels::frontier_expand(row_offsets,
-                                  col_indices,
-                                  edge_weights,
-                                  frontier.data().get(),
-                                  nf,
-                                  mf,
-                                  new_frontier.data().get(),
-                                  d_new_frontier_cnt,
-                                  exclusive_sum_frontier_vertex_degree.data().get(),
-                                  exclusive_sum_frontier_vertex_buckets_offsets.data().get(),
-                                  distances,
-                                  next_distances,
-                                  predecessors,
-                                  edge_mask,
-                                  next_frontier_bmap,
-                                  relaxed_edges_bmap,
-                                  isolated_bmap.data().get(),
-                                  stream);
+  // 5. SSSP iteration
 
-    cudaMemcpyAsync(&nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
+  bool vertex_and_adj_matrix_row_ranges_coincide =
+    push_graph_view.get_number_of_local_vertices() ==
+        push_graph_view.get_number_of_local_adj_matrix_partition_rows()
+      ? true
+      : false;
+  rmm::device_uvector<weight_t> adj_matrix_row_distances(0, handle.get_stream());
+  if (!vertex_and_adj_matrix_row_ranges_coincide) {
+    adj_matrix_row_distances.resize(push_graph_view.get_number_of_local_adj_matrix_partition_rows(),
+                                    handle.get_stream());
+    thrust::fill(handle.get_thrust_policy(),
+                 adj_matrix_row_distances.begin(),
+                 adj_matrix_row_distances.end(),
+                 std::numeric_limits<weight_t>::max());
+  }
+  auto row_distances =
+    !vertex_and_adj_matrix_row_ranges_coincide ? adj_matrix_row_distances.data() : distances;
 
-    // Copy next_distances to distances
-    cudaMemcpyAsync(
-      distances, next_distances, n * sizeof(DistType), cudaMemcpyDeviceToDevice, stream);
+  if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(source_vertex);
+  }
 
-    // We need nf for the loop
-    CUDA_TRY(cudaStreamSynchronize(stream));
+  auto near_far_threshold = delta;
+  while (true) {
+    if (!vertex_and_adj_matrix_row_ranges_coincide) {
+      copy_to_adj_matrix_row(
+        handle,
+        push_graph_view,
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
+        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
+        distances,
+        row_distances);
+    }
 
-    // Swap frontiers
-    // IndexType *tmp = frontier;
-    // frontier       = new_frontier;
-    // new_frontier   = tmp;
-    new_frontier.swap(frontier);
-    iters++;
+    auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+      push_graph_view.get_vertex_partition_view());
 
-    if (iters > n) {
-      // Bail out. Got a graph with a negative cycle
-      CUGRAPH_FAIL("ERROR: Max iterations exceeded. Check the graph for negative weight cycles");
+    update_frontier_v_push_if_out_nbr(
+      handle,
+      push_graph_view,
+      vertex_frontier,
+      static_cast<size_t>(Bucket::cur_near),
+      std::vector<size_t>{static_cast<size_t>(Bucket::next_near), static_cast<size_t>(Bucket::far)},
+      row_distances,
+      thrust::make_constant_iterator(0) /* dummy */,
+      [vertex_partition, distances, cutoff] __device__(
+        vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        auto push         = true;
+        auto new_distance = src_val + w;
+        auto threshold    = cutoff;
+        if (vertex_partition.is_local_vertex_nocheck(dst)) {
+          auto local_vertex_offset =
+            vertex_partition.get_local_vertex_offset_from_vertex_nocheck(dst);
+          auto old_distance = *(distances + local_vertex_offset);
+          threshold         = old_distance < threshold ? old_distance : threshold;
+        }
+        if (new_distance >= threshold) { push = false; }
+        return push ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
+                        new_distance, src)}
+                    : thrust::nullopt;
+      },
+      reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
+      distances,
+      thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
+      [near_far_threshold] __device__(auto v, auto v_val, auto pushed_val) {
+        auto new_dist = thrust::get<0>(pushed_val);
+        auto idx      = new_dist < v_val
+                          ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::next_near)
+                                                           : static_cast<size_t>(Bucket::far))
+                          : VertexFrontier<vertex_t>::kInvalidBucketIdx;
+        return new_dist < v_val
+                 ? thrust::optional<thrust::tuple<size_t, decltype(pushed_val)>>{thrust::make_tuple(
+                     static_cast<size_t>(new_dist < near_far_threshold ? Bucket::next_near
+                                                                       : Bucket::far),
+                     pushed_val)}
+                 : thrust::nullopt;
+      });
+
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).clear();
+    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).shrink_to_fit();
+    if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next_near)).aggregate_size() > 0) {
+      vertex_frontier.swap_buckets(static_cast<size_t>(Bucket::cur_near),
+                                   static_cast<size_t>(Bucket::next_near));
+    } else if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::far)).aggregate_size() >
+               0) {  // near queue is empty, split the far queue
+      auto old_near_far_threshold = near_far_threshold;
+      near_far_threshold += delta;
+
+      size_t near_size{0};
+      size_t far_size{0};
+      while (true) {
+        vertex_frontier.split_bucket(
+          static_cast<size_t>(Bucket::far),
+          std::vector<size_t>{static_cast<size_t>(Bucket::cur_near)},
+          [vertex_partition, distances, old_near_far_threshold, near_far_threshold] __device__(
+            auto v) {
+            auto dist =
+              *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v));
+            return dist >= old_near_far_threshold
+                     ? thrust::optional<size_t>{static_cast<size_t>(
+                         dist < near_far_threshold ? Bucket::cur_near : Bucket::far)}
+                     : thrust::nullopt;
+          });
+        near_size =
+          vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).aggregate_size();
+        far_size = vertex_frontier.get_bucket(static_cast<size_t>(Bucket::far)).aggregate_size();
+        if ((near_size > 0) || (far_size == 0)) {
+          break;
+        } else {
+          near_far_threshold += delta;
+        }
+      }
+      if ((near_size == 0) && (far_size == 0)) { break; }
+    } else {
+      break;
     }
   }
-}
 
-template <typename IndexType, typename DistType>
-void SSSP<IndexType, DistType>::clean()
-{
+  CUDA_TRY(cudaStreamSynchronize(
+    handle.get_stream()));  // this is as necessary vertex_frontier will become out-of-scope once
+                            // this function returns (FIXME: should I stream sync in VertexFrontier
+                            // destructor?)
 }
 
 }  // namespace detail
 
-/**
- * ---------------------------------------------------------------------------*
- * @brief Native sssp with predecessors
- *
- * @file sssp.cu
- * --------------------------------------------------------------------------*/
-template <typename VT, typename ET, typename WT>
-void sssp(legacy::GraphCSRView<VT, ET, WT> const& graph,
-          WT* distances,
-          VT* predecessors,
-          const VT source_vertex)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void sssp(raft::handle_t const& handle,
+          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+          weight_t* distances,
+          vertex_t* predecessors,
+          vertex_t source_vertex,
+          weight_t cutoff,
+          bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(distances || predecessors, "Invalid input argument, both outputs are nullptr");
-
-  if (typeid(VT) != typeid(int)) CUGRAPH_FAIL("Unsupported vertex id data type, please use int");
-  if (typeid(ET) != typeid(int)) CUGRAPH_FAIL("Unsupported edge id data type, please use int");
-  if (typeid(WT) != typeid(float) && typeid(WT) != typeid(double))
-    CUGRAPH_FAIL("Unsupported weight data type, please use float or double");
-
-  int num_vertices = graph.number_of_vertices;
-  int num_edges    = graph.number_of_edges;
-
-  const ET* offsets_ptr      = graph.offsets;
-  const VT* indices_ptr      = graph.indices;
-  const WT* edge_weights_ptr = nullptr;
-
-  // Both if / else branch operate own calls due to
-  // thrust::device_vector lifetime
-  if (!graph.edge_data) {
-    // Generate unit weights
-
-    // FIXME: This should fallback to BFS, but for now it'll go through the
-    // SSSP path since BFS needs the directed flag, which should not be
-    // necessary for the SSSP API. We can pass directed to the BFS call, but
-    // BFS also does only integer distances right now whereas we need float or
-    // double
-
-    rmm::device_vector<WT> d_edge_weights(num_edges, static_cast<WT>(1));
-    edge_weights_ptr = thrust::raw_pointer_cast(&d_edge_weights.front());
-    cugraph::detail::SSSP<VT, WT> sssp(
-      num_vertices, num_edges, offsets_ptr, indices_ptr, edge_weights_ptr);
-    sssp.configure(distances, predecessors, nullptr);
-    sssp.traverse(source_vertex);
+  if (predecessors != nullptr) {
+    detail::sssp(
+      handle, graph_view, distances, predecessors, source_vertex, cutoff, do_expensive_check);
   } else {
-    // SSSP is not defined for graphs with negative weight cycles
-    // Warn user about any negative edges
-    if (graph.prop.has_negative_edges == legacy::PropType::PROP_TRUE)
-      std::cerr << "WARN: The graph has negative weight edges. SSSP will not "
-                   "converge if the graph has negative weight cycles\n";
-    edge_weights_ptr = graph.edge_data;
-    cugraph::detail::SSSP<VT, WT> sssp(
-      num_vertices, num_edges, offsets_ptr, indices_ptr, edge_weights_ptr);
-    sssp.configure(distances, predecessors, nullptr);
-    sssp.traverse(source_vertex);
+    detail::sssp(handle,
+                 graph_view,
+                 distances,
+                 thrust::make_discard_iterator(),
+                 source_vertex,
+                 cutoff,
+                 do_expensive_check);
   }
 }
 
 // explicit instantiation
-template void sssp<int, int, float>(legacy::GraphCSRView<int, int, float> const& graph,
-                                    float* distances,
-                                    int* predecessors,
-                                    const int source_vertex);
-template void sssp<int, int, double>(legacy::GraphCSRView<int, int, double> const& graph,
-                                     double* distances,
-                                     int* predecessors,
-                                     const int source_vertex);
 
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+                   float* distances,
+                   int32_t* predecessors,
+                   int32_t source_vertex,
+                   float cutoff,
+                   bool do_expensive_check);
+
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+                   double* distances,
+                   int32_t* predecessors,
+                   int32_t source_vertex,
+                   double cutoff,
+                   bool do_expensive_check);
+
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+                   float* distances,
+                   int32_t* predecessors,
+                   int32_t source_vertex,
+                   float cutoff,
+                   bool do_expensive_check);
+
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+                   double* distances,
+                   int32_t* predecessors,
+                   int32_t source_vertex,
+                   double cutoff,
+                   bool do_expensive_check);
+
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+                   float* distances,
+                   int64_t* predecessors,
+                   int64_t source_vertex,
+                   float cutoff,
+                   bool do_expensive_check);
+
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+                   double* distances,
+                   int64_t* predecessors,
+                   int64_t source_vertex,
+                   double cutoff,
+                   bool do_expensive_check);
+
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+                   float* distances,
+                   int32_t* predecessors,
+                   int32_t source_vertex,
+                   float cutoff,
+                   bool do_expensive_check);
+
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+                   double* distances,
+                   int32_t* predecessors,
+                   int32_t source_vertex,
+                   double cutoff,
+                   bool do_expensive_check);
+
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+                   float* distances,
+                   int32_t* predecessors,
+                   int32_t source_vertex,
+                   float cutoff,
+                   bool do_expensive_check);
+
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+                   double* distances,
+                   int32_t* predecessors,
+                   int32_t source_vertex,
+                   double cutoff,
+                   bool do_expensive_check);
+
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+                   float* distances,
+                   int64_t* predecessors,
+                   int64_t source_vertex,
+                   float cutoff,
+                   bool do_expensive_check);
+
+template void sssp(raft::handle_t const& handle,
+                   graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+                   double* distances,
+                   int64_t* predecessors,
+                   int64_t source_vertex,
+                   double cutoff,
+                   bool do_expensive_check);
 }  // namespace cugraph

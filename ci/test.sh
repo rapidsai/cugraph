@@ -79,7 +79,7 @@ else
 fi
 
 echo "Python pytest for cuGraph..."
-cd ${CUGRAPH_ROOT}/python
+cd ${CUGRAPH_ROOT}/python/cugraph
 pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=cugraph/raft --benchmark-disable
 echo "Ran Python pytest for cugraph : return code was: $?, test script exit code is now: $EXITCODE"
 

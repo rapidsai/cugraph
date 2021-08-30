@@ -21,8 +21,8 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -55,9 +55,7 @@ void bfs_reference(edge_t* offsets,
   vertex_t depth{0};
 
   std::fill(distances, distances + num_vertices, std::numeric_limits<vertex_t>::max());
-  std::fill(predecessors,
-            predecessors + num_vertices,
-            cugraph::experimental::invalid_vertex_id<vertex_t>::value);
+  std::fill(predecessors, predecessors + num_vertices, cugraph::invalid_vertex_id<vertex_t>::value);
 
   *(distances + source) = depth;
   std::vector<vertex_t> cur_frontier_rows{source};
@@ -111,7 +109,6 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
   template <typename vertex_t, typename edge_t>
   void run_current_test(BFS_Usecase const& configuration)
   {
-    using namespace cugraph::experimental;
     using namespace cugraph::visitors;
 
     using weight_t = float;
@@ -126,7 +123,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
         handle, configuration.graph_file_full_path, test_weighted);
 
-    graph_properties_t graph_props{is_sym, false};
+    cugraph::graph_properties_t graph_props{is_sym, false};
     edge_t num_edges = d_dst.size();
 
     std::optional<weight_t const*> opt_ptr_w;
@@ -134,7 +131,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     // to be filled:
     //
-    cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
+    cugraph::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
       d_src.data(), d_dst.data(), opt_ptr_w, num_edges};
     bool sorted{false};
     bool check{false};
@@ -150,8 +147,9 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     graph_envelope_t graph_envelope{vertex_tid, edge_tid, weight_tid, st, mg, graph_tid, ep_graph};
 
-    auto const* p_graph = dynamic_cast<graph_t<vertex_t, edge_t, weight_t, false, false> const*>(
-      graph_envelope.graph().get());
+    auto const* p_graph =
+      dynamic_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> const*>(
+        graph_envelope.graph().get());
 
     auto graph_view = p_graph->view();
 
@@ -192,8 +190,6 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     {
       // visitors version:
       //
-      // using namespace cugraph::experimental;
-
       // in a context where dependent types are known,
       // type-erasing the graph is not necessary,
       // hence the `<alg>_wrapper()` is not necessary;
@@ -256,7 +252,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     for (auto it = h_cugraph_predecessors.begin(); it != h_cugraph_predecessors.end(); ++it) {
       auto i = std::distance(h_cugraph_predecessors.begin(), it);
-      if (*it == cugraph::experimental::invalid_vertex_id<vertex_t>::value) {
+      if (*it == cugraph::invalid_vertex_id<vertex_t>::value) {
         ASSERT_TRUE(h_reference_predecessors[i] == *it)
           << "vertex reachability do not match with the reference.";
       } else {
