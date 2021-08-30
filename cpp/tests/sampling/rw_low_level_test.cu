@@ -21,8 +21,8 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <thrust/random.h>
+#include <rmm/exec_policy.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <sampling/random_walks.cuh>
@@ -53,7 +53,7 @@ bool check_col_indices(raft::handle_t const& handle,
                        index_t num_paths)
 {
   bool all_indices_within_degs = thrust::all_of(
-    rmm::exec_policy(handle.get_stream_view()),
+    handle.get_thrust_policy(),
     thrust::make_counting_iterator<index_t>(0),
     thrust::make_counting_iterator<index_t>(num_paths),
     [p_d_col_indx     = cugraph::detail::raw_const_ptr(d_col_indx),

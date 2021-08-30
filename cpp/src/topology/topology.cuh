@@ -73,13 +73,13 @@ bool check_symmetry(raft::handle_t const& handle,
 {
   using BoolT = bool;
   rmm::device_uvector<BoolT> d_flags(nrows, handle.get_stream());
-  thrust::fill_n(rmm::exec_policy(handle.get_stream_view()), d_flags.begin(), nrows, true);
+  thrust::fill_n(handle.get_thrust_policy(), d_flags.begin(), nrows, true);
 
   BoolT* start_flags = d_flags.data();  // d_flags.begin();
   BoolT* end_flags   = start_flags + nrows;
   BoolT init{1};
   return thrust::transform_reduce(
-    rmm::exec_policy(handle.get_stream_view()),
+    handle.get_thrust_policy(),
     start_flags,
     end_flags,
     [ptr_r_o, ptr_c_i, start_flags, nnz] __device__(BoolT & crt_flag) {
@@ -145,13 +145,12 @@ struct thrust_segment_sorter_by_weights_t {
 
     // cannot use counting iterator, because d_keys gets passed to sort-by-key()
     //
-    thrust::sequence(
-      rmm::exec_policy(handle_.get_stream_view()), d_keys.begin(), d_keys.end(), edge_t{0});
+    thrust::sequence(handle.get_thrust_policy(), d_keys.begin(), d_keys.end(), edge_t{0});
 
     // d_segs = map each key(i.e., edge index), to corresponding
     // segment (i.e., partition = out-going set) index
     //
-    thrust::upper_bound(rmm::exec_policy(handle_.get_stream_view()),
+    thrust::upper_bound(handle.get_thrust_policy(),
                         ptr_d_offsets_,
                         ptr_d_offsets_ + num_vertices_ + 1,
                         d_keys.begin(),
@@ -159,7 +158,7 @@ struct thrust_segment_sorter_by_weights_t {
                         d_segs.begin());
 
     thrust::sort_by_key(
-      rmm::exec_policy(handle_.get_stream_view()),
+      handle.get_thrust_policy(),
       d_keys.begin(),
       d_keys.end(),
       thrust::make_zip_iterator(thrust::make_tuple(ptr_d_indices_, ptr_d_weights_)),
@@ -309,7 +308,7 @@ bool check_segmented_sort(raft::handle_t const& handle,
   // that are _not_ ordered increasingly:
   //
   auto it = thrust::find_if(
-    rmm::exec_policy(handle.get_stream_view()),
+    handle.get_thrust_policy(),
     thrust::make_counting_iterator<size_t>(0),
     end,
     [ptr_d_segs, ptr_d_weights] __device__(auto indx) {
@@ -346,13 +345,12 @@ bool check_segmented_sort(raft::handle_t const& handle,
 
   // cannot use counting iterator, because d_keys gets passed to sort-by-key()
   //
-  thrust::sequence(
-    rmm::exec_policy(handle.get_stream_view()), d_keys.begin(), d_keys.end(), edge_t{0});
+  thrust::sequence(handle.get_thrust_policy(), d_keys.begin(), d_keys.end(), edge_t{0});
 
   // d_segs = map each key(i.e., edge index), to corresponding
   // segment (i.e., partition = out-going set) index
   //
-  thrust::upper_bound(rmm::exec_policy(handle.get_stream_view()),
+  thrust::upper_bound(handle.get_thrust_policy(),
                       ptr_d_offsets,
                       ptr_d_offsets + num_vertices + 1,
                       d_keys.begin(),

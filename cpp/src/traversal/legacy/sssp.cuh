@@ -17,7 +17,7 @@
 // Author: Prasun Gera pgera@nvidia.com
 
 #pragma once
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/device_vector.hpp>
 
 namespace cugraph {
 namespace detail {

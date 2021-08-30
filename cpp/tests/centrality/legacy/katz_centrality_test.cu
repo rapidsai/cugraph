@@ -20,8 +20,11 @@
 
 #include <converters/COOtoCSR.cuh>
 
+#include <rmm/device_vector.hpp>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <rmm/device_vector.hpp>
 
 #include <gmock/gmock-generated-matchers.h>
 #include <gmock/gmock.h>
@@ -44,10 +47,9 @@ std::vector<int> getGoldenTopKIds(std::ifstream& fs_result, int k = 10)
 
 std::vector<int> getTopKIds(double* p_katz, int count, int k = 10)
 {
-  cudaStream_t stream = nullptr;
   rmm::device_vector<int> id(count);
-  thrust::sequence(rmm::exec_policy(stream)->on(stream), id.begin(), id.end());
-  thrust::sort_by_key(rmm::exec_policy(stream)->on(stream),
+  thrust::sequence(rmm::exec_policy(rmm::cuda_stream_default), id.begin(), id.end());
+  thrust::sort_by_key(rmm::exec_policy(rmm::cuda_stream_default),
                       p_katz,
                       p_katz + count,
                       id.begin(),
@@ -60,12 +62,10 @@ std::vector<int> getTopKIds(double* p_katz, int count, int k = 10)
 template <typename VT, typename ET, typename WT>
 int getMaxDegree(cugraph::legacy::GraphCSRView<VT, ET, WT> const& g)
 {
-  cudaStream_t stream{nullptr};
-
   rmm::device_vector<ET> degree_vector(g.number_of_vertices);
   ET* p_degree = degree_vector.data().get();
   g.degree(p_degree, cugraph::legacy::DegreeDirection::OUT);
-  ET max_out_degree = thrust::reduce(rmm::exec_policy(stream)->on(stream),
+  ET max_out_degree = thrust::reduce(rmm::exec_policy(rmm::cuda_stream_default),
                                      p_degree,
                                      p_degree + g.number_of_vertices,
                                      static_cast<ET>(-1),

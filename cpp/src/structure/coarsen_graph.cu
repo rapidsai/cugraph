@@ -24,9 +24,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_barrier.hpp>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -62,12 +62,12 @@ decompress_matrix_partition_to_edgelist(
 
   decompress_matrix_partition_to_fill_edgelist_majors(
     handle, matrix_partition, edgelist_major_vertices.data(), segment_offsets);
-  thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::copy(handle.get_thrust_policy(),
                matrix_partition.get_indices(),
                matrix_partition.get_indices() + number_of_edges,
                edgelist_minor_vertices.begin());
   if (edgelist_weights) {
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(handle.get_thrust_policy(),
                  *(matrix_partition.get_weights()),
                  *(matrix_partition.get_weights()) + number_of_edges,
                  (*edgelist_weights).data());
@@ -89,17 +89,15 @@ edge_t groupby_e_and_coarsen_edgelist(vertex_t* edgelist_major_vertices /* [INOU
     thrust::make_zip_iterator(thrust::make_tuple(edgelist_major_vertices, edgelist_minor_vertices));
 
   if (edgelist_weights) {
-    thrust::sort_by_key(rmm::exec_policy(stream)->on(stream),
-                        pair_first,
-                        pair_first + number_of_edges,
-                        *edgelist_weights);
+    thrust::sort_by_key(
+      rmm::exec_policy(stream), pair_first, pair_first + number_of_edges, *edgelist_weights);
 
     rmm::device_uvector<vertex_t> tmp_edgelist_major_vertices(number_of_edges, stream);
     rmm::device_uvector<vertex_t> tmp_edgelist_minor_vertices(tmp_edgelist_major_vertices.size(),
                                                               stream);
     rmm::device_uvector<weight_t> tmp_edgelist_weights(tmp_edgelist_major_vertices.size(), stream);
     auto it = thrust::reduce_by_key(
-      rmm::exec_policy(stream)->on(stream),
+      rmm::exec_policy(stream),
       pair_first,
       pair_first + number_of_edges,
       (*edgelist_weights),
@@ -113,7 +111,7 @@ edge_t groupby_e_and_coarsen_edgelist(vertex_t* edgelist_major_vertices /* [INOU
       thrust::make_zip_iterator(thrust::make_tuple(tmp_edgelist_major_vertices.begin(),
                                                    tmp_edgelist_minor_vertices.begin(),
                                                    tmp_edgelist_weights.begin()));
-    thrust::copy(rmm::exec_policy(stream)->on(stream),
+    thrust::copy(rmm::exec_policy(stream),
                  edge_first,
                  edge_first + ret,
                  thrust::make_zip_iterator(thrust::make_tuple(
@@ -121,11 +119,10 @@ edge_t groupby_e_and_coarsen_edgelist(vertex_t* edgelist_major_vertices /* [INOU
 
     return ret;
   } else {
-    thrust::sort(rmm::exec_policy(stream)->on(stream), pair_first, pair_first + number_of_edges);
+    thrust::sort(rmm::exec_policy(stream), pair_first, pair_first + number_of_edges);
     return static_cast<edge_t>(thrust::distance(
       pair_first,
-      thrust::unique(
-        rmm::exec_policy(stream)->on(stream), pair_first, pair_first + number_of_edges)));
+      thrust::unique(rmm::exec_policy(stream), pair_first, pair_first + number_of_edges)));
   }
 }
 
@@ -148,7 +145,7 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
 
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
-  thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+  thrust::transform(handle.get_thrust_policy(),
                     pair_first,
                     pair_first + edgelist_major_vertices.size(),
                     pair_first,
@@ -263,10 +260,8 @@ coarsen_graph(
     if (col_comm_rank == static_cast<int>(i)) {
       // FIXME: this copy is unnecessary, beter fix RAFT comm's bcast to take const iterators for
       // input
-      thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   labels,
-                   labels + major_labels.size(),
-                   major_labels.begin());
+      thrust::copy(
+        handle.get_thrust_policy(), labels, labels + major_labels.size(), major_labels.begin());
     }
     device_bcast(col_comm,
                  major_labels.data(),
@@ -335,6 +330,7 @@ coarsen_graph(
                                                   handle.get_stream());
       coarsened_edgelist_minor_vertices[j].resize(coarsened_edgelist_major_vertices[j].size(),
                                                   handle.get_stream());
+
       if (coarsened_edgelist_weights) {
         (*coarsened_edgelist_weights)[j].resize(coarsened_edgelist_major_vertices[j].size(),
                                                 handle.get_stream());
@@ -349,7 +345,7 @@ coarsen_graph(
                                                        coarsened_edgelist_minor_vertices[j].begin(),
                                                        (*coarsened_edgelist_weights)[j].begin())) +
           cur_size;
-        thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::copy(handle.get_thrust_policy(),
                      src_edge_first,
                      src_edge_first + number_of_partition_edges,
                      dst_edge_first);
@@ -361,7 +357,7 @@ coarsen_graph(
                                 thrust::make_tuple(coarsened_edgelist_major_vertices[j].begin(),
                                                    coarsened_edgelist_minor_vertices[j].begin())) +
                               cur_size;
-        thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::copy(handle.get_thrust_policy(),
                      src_edge_first,
                      src_edge_first + number_of_partition_edges,
                      dst_edge_first);
@@ -391,30 +387,22 @@ coarsen_graph(
 
   rmm::device_uvector<vertex_t> unique_labels(graph_view.get_number_of_local_vertices(),
                                               handle.get_stream());
-  thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               labels,
-               labels + unique_labels.size(),
-               unique_labels.begin());
-  thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               unique_labels.begin(),
-               unique_labels.end());
+  thrust::copy(
+    handle.get_thrust_policy(), labels, labels + unique_labels.size(), unique_labels.begin());
+  thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
-    thrust::distance(unique_labels.begin(),
-                     thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                    unique_labels.begin(),
-                                    unique_labels.end())),
+    thrust::distance(
+      unique_labels.begin(),
+      thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
   unique_labels = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(unique_labels));
 
-  thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               unique_labels.begin(),
-               unique_labels.end());
+  thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
-    thrust::distance(unique_labels.begin(),
-                     thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                    unique_labels.begin(),
-                                    unique_labels.end())),
+    thrust::distance(
+      unique_labels.begin(),
+      thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
   // 4. renumber
@@ -510,18 +498,13 @@ coarsen_graph(
 
   rmm::device_uvector<vertex_t> unique_labels(graph_view.get_number_of_vertices(),
                                               handle.get_stream());
-  thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               labels,
-               labels + unique_labels.size(),
-               unique_labels.begin());
-  thrust::sort(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               unique_labels.begin(),
-               unique_labels.end());
+  thrust::copy(
+    handle.get_thrust_policy(), labels, labels + unique_labels.size(), unique_labels.begin());
+  thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
-    thrust::distance(unique_labels.begin(),
-                     thrust::unique(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                                    unique_labels.begin(),
-                                    unique_labels.end())),
+    thrust::distance(
+      unique_labels.begin(),
+      thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
   auto [renumber_map_labels, segment_offsets] = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
