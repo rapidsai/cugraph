@@ -550,7 +550,7 @@ void expensive_check_edgelist(
         for (int j = 0; j < row_comm_size; ++j) {
           CUGRAPH_EXPECTS(
             thrust::count_if(
-              rmm::exec_policy(handle.get_stream_view()),
+              handle.get_thrust_policy(),
               edgelist_minor_vertices[i] + (*edgelist_intra_partition_segment_offsets)[i][j],
               edgelist_minor_vertices[i] + (*edgelist_intra_partition_segment_offsets)[i][j + 1],
               [row_comm_size,
