@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/thrust_tuple_utils.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/exec_policy.hpp>
@@ -35,22 +36,59 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename ValueIterator>
-struct key_to_value_t {
-  thrust::optional<vertex_t const*> const key_first{};
-  thrust::optional<vertex_t const*> const key_last{};
-  ValueIterator const value_first{};
+class major_properties_device_view_t {
+ public:
+  using value_type = typename thrust::iterator_traits<ValueIterator>::value_type;
 
-  __device__ typename thrust::iterator_traits<ValueIterator>::value_type operator()(
-    vertex_t offset) const
+  major_properties_device_view_t() = default;
+
+  major_properties_device_view_t(ValueIterator value_first) : value_first_(value_first) {}
+
+  void add_offset(vertex_t offset) { value_first_ += offset; }
+
+  ValueIterator value_data() const { return value_first_; }
+
+  __device__ auto get(vertex_t offset) const { return *(value_first_ + offset); }
+
+ private:
+  ValueIterator value_first_{};
+};
+
+template <typename vertex_t, typename ValueIterator>
+class minor_properties_device_view_t {
+ public:
+  using value_type = typename thrust::iterator_traits<ValueIterator>::value_type;
+
+  minor_properties_device_view_t() = default;
+
+  minor_properties_device_view_t(ValueIterator value_first)
+    : key_first_(thrust::nullopt), key_last_(thrust::nullopt), value_first_(value_first)
   {
-    if (key_first) {
-      auto it = thrust::lower_bound(thrust::seq, *key_first, *key_last, offset);
-      assert((it != *key_last) && (*it == offset));
-      return *(value_first + thrust::distance(*key_first, it));
-    } else {
-      return *(value_first + offset);
-    }
   }
+
+  minor_properties_device_view_t(vertex_t const* key_first,
+                                 vertex_t const* key_last,
+                                 ValueIterator value_first)
+    : key_first_(key_first), key_last_(key_last), value_first_(value_first)
+  {
+  }
+
+  __device__ auto& get(vertex_t offset) const
+  {
+    auto value_offset = offset;
+    if (key_first_) {
+      auto it = thrust::lower_bound(thrust::seq, *key_first_, *key_last_, offset);
+      assert((it != *key_last_) && (*it == offset));
+      value_offset = static_cast<vertex_t>(thrust::distance(*key_first_, it));
+    }
+    return *(value_first_ + value_offset);
+  }
+
+ private:
+  thrust::optional<vertex_t const*> key_first_{thrust::nullopt};
+  thrust::optional<vertex_t const*> key_last_{thrust::nullopt};
+
+  ValueIterator value_first_{};
 };
 
 template <typename vertex_t, typename T>
@@ -65,13 +103,27 @@ class major_properties_t {
 
   void fill(T value, rmm::cuda_stream_view stream)
   {
-    thrust::fill(
-      rmm::exec_policy(stream), value_data(), value_data() + size_dataframe_buffer<T>(buffer_), value);
+    thrust::fill(rmm::exec_policy(stream),
+                 value_data(),
+                 value_data() + size_dataframe_buffer<T>(buffer_),
+                 value);
   }
 
-  auto begin() const { return get_dataframe_buffer_begin<T>(buffer_); }
-
   auto value_data() { return get_dataframe_buffer_begin<T>(buffer_); }
+
+  auto device_view() const
+  {
+    auto value_first = get_dataframe_buffer_begin<T>(buffer_);
+    return major_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
+  }
+
+  auto mutable_device_view()
+  {
+    auto value_first = get_dataframe_buffer_begin<T>(buffer_);
+    static_assert(
+      !std::is_const_v<typename std::iterator_traits<decltype(value_first)>::value_type>);
+    return major_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
+  }
 
  private:
   decltype(allocate_dataframe_buffer<T>(0, rmm::cuda_stream_view{})) buffer_;
@@ -106,22 +158,37 @@ class minor_properties_t {
 
   void fill(T value, rmm::cuda_stream_view stream)
   {
-    thrust::fill(
-      rmm::exec_policy(stream), value_data(), value_data() + size_dataframe_buffer<T>(buffer_), value);
-  }
-
-  auto begin() const
-  {
-    auto value_first = get_dataframe_buffer_begin<T>(buffer_);
-    return thrust::make_transform_iterator(
-      thrust::make_counting_iterator(vertex_t{0}),
-      key_to_value_t<vertex_t, decltype(value_first)>{
-        key_first_ ? thrust::make_optional(*key_first_) : thrust::nullopt,
-        key_last_ ? thrust::make_optional(*key_last_) : thrust::nullopt,
-        value_first});
+    thrust::fill(rmm::exec_policy(stream),
+                 value_data(),
+                 value_data() + size_dataframe_buffer<T>(buffer_),
+                 value);
   }
 
   auto value_data() { return get_dataframe_buffer_begin<T>(buffer_); }
+
+  auto device_view() const
+  {
+    auto value_first = get_dataframe_buffer_begin<T>(buffer_);
+    if (key_first_) {
+      return minor_properties_device_view_t<vertex_t, decltype(value_first)>(
+        *key_first_, *key_last_, value_first);
+    } else {
+      return minor_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
+    }
+  }
+
+  auto mutable_device_view()
+  {
+    auto value_first = get_dataframe_buffer_begin<T>(buffer_);
+    static_assert(
+      !std::is_const_v<typename std::iterator_traits<decltype(value_first)>::value_type>);
+    if (key_first_) {
+      return minor_properties_device_view_t<vertex_t, decltype(value_first)>(
+        *key_first_, *key_last_, value_first);
+    } else {
+      return minor_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
+    }
+  }
 
  private:
   std::optional<vertex_t const*> key_first_{std::nullopt};
@@ -129,6 +196,22 @@ class minor_properties_t {
 
   decltype(allocate_dataframe_buffer<T>(0, rmm::cuda_stream_view{})) buffer_;
 };
+
+template <typename Iterator,
+          typename std::enable_if_t<std::is_arithmetic<
+            typename std::iterator_traits<Iterator>::value_type>::value>* = nullptr>
+auto to_thrust_tuple(Iterator iter)
+{
+  return thrust::make_tuple(iter);
+}
+
+template <typename Iterator,
+          typename std::enable_if_t<is_thrust_tuple_of_arithmetic<
+            typename std::iterator_traits<Iterator>::value_type>::value>* = nullptr>
+auto to_thrust_tuple(Iterator iter)
+{
+  return iter.get_iterator_tuple();
+}
 
 }  // namespace detail
 
@@ -143,6 +226,8 @@ class row_properties_t<GraphViewType,
   using value_type = T;
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
+  row_properties_t() = default;
 
   row_properties_t(raft::handle_t const& handle, GraphViewType const& graph_view)
   {
@@ -159,8 +244,10 @@ class row_properties_t<GraphViewType,
 
   void fill(T value, rmm::cuda_stream_view stream) { properties_.fill(value, stream); }
 
-  auto begin() const { return properties_.begin(); }
   auto value_data() { return properties_.value_data(); }
+
+  auto device_view() const { return properties_.device_view(); }
+  auto mutable_device_view() { return properties_.mutable_device_view(); }
 
  private:
   detail::minor_properties_t<typename GraphViewType::vertex_type, T> properties_{};
@@ -175,6 +262,8 @@ class row_properties_t<GraphViewType,
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
+  row_properties_t() = default;
+
   row_properties_t(raft::handle_t const& handle, GraphViewType const& graph_view)
   {
     properties_ = detail::major_properties_t<typename GraphViewType::vertex_type, T>(
@@ -183,8 +272,10 @@ class row_properties_t<GraphViewType,
 
   void fill(T value, rmm::cuda_stream_view stream) { properties_.fill(value, stream); }
 
-  auto begin() const { return properties_.begin(); }
   auto value_data() { return properties_.value_data(); }
+
+  auto device_view() const { return properties_.device_view(); }
+  auto mutable_device_view() { return properties_.mutable_device_view(); }
 
  private:
   detail::major_properties_t<typename GraphViewType::vertex_type, T> properties_{};
@@ -202,6 +293,8 @@ class col_properties_t<GraphViewType,
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
+  col_properties_t() = default;
+
   col_properties_t(raft::handle_t const& handle, GraphViewType const& graph_view)
   {
     properties_ = detail::major_properties_t<typename GraphViewType::vertex_type, T>(
@@ -210,8 +303,10 @@ class col_properties_t<GraphViewType,
 
   void fill(T value, rmm::cuda_stream_view stream) { properties_.fill(value, stream); }
 
-  auto begin() const { return properties_.begin(); }
   auto value_data() { return properties_.value_data(); }
+
+  auto device_view() const { return properties_.device_view(); }
+  auto mutable_device_view() { return properties_.mutable_device_view(); }
 
  private:
   detail::major_properties_t<typename GraphViewType::vertex_type, T> properties_{};
@@ -225,6 +320,8 @@ class col_properties_t<GraphViewType,
   using value_type = T;
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
+  col_properties_t() = default;
 
   col_properties_t(raft::handle_t const& handle, GraphViewType const& graph_view)
   {
@@ -241,18 +338,39 @@ class col_properties_t<GraphViewType,
 
   void fill(T value, rmm::cuda_stream_view stream) { properties_.fill(value, stream); }
 
-  auto begin() const { return properties_.begin(); }
   auto value_data() { return properties_.value_data(); }
+
+  auto device_view() const { return properties_.device_view(); }
+  auto mutable_device_view() { return properties_.mutable_device_view(); }
 
  private:
   detail::minor_properties_t<typename GraphViewType::vertex_type, T> properties_{};
 };
 
+template <typename vertex_t>
+class dummy_properties_device_view_t {
+ public:
+  using value_type = thrust::nullopt_t;
+
+  void add_offset(vertex_t offset) {}  // no-op
+
+  __device__ auto get(vertex_t offset) const { return thrust::nullopt; }
+};
+
+template <typename vertex_t>
 class dummy_properties_t {
  public:
   using value_type = thrust::nullopt_t;
 
-  auto begin() const { return thrust::make_constant_iterator(thrust::nullopt); }
+  auto device_view() const { return dummy_properties_device_view_t<vertex_t>{}; }
 };
+
+template <typename vertex_t, typename... Ts>
+auto device_view_concat(detail::major_properties_device_view_t<vertex_t, Ts>... device_views)
+{
+  auto concat_first = thrust::make_zip_iterator(
+    thrust_tuple_cat(detail::to_thrust_tuple(device_views.value_data())...));
+  return detail::major_properties_device_view_t<vertex_t, decltype(concat_first)>(concat_first);
+}
 
 }  // namespace cugraph
