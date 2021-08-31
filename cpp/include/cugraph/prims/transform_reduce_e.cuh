@@ -19,6 +19,7 @@
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/matrix_partition_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>

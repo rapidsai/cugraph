@@ -30,6 +30,7 @@
 #include <raft/handle.hpp>
 
 #include <thrust/sequence.h>
+#include <thrust/execution_policy.h>
 
 #include <gtest/gtest.h>
 
