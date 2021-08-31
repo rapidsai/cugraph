@@ -149,8 +149,8 @@ void sort_and_coarsen_edgelist(
     (*edgelist_weights)     = std::move(tmp_edgelist_weights);
   } else {
     thrust::sort(rmm::exec_policy(stream), pair_first, pair_first + edgelist_major_vertices.size());
-    auto it =
-      thrust::unique(rmm::exec_policy(stream), pair_first, pair_first + edgelist_major_vertices.size());
+    auto it = thrust::unique(
+      rmm::exec_policy(stream), pair_first, pair_first + edgelist_major_vertices.size());
     number_of_edges = thrust::distance(pair_first, it);
   }
 
