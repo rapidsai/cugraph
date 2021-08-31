@@ -131,22 +131,19 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool multi_gpu,
-          typename VertexIterator0,
-          typename VertexIterator1>
+          typename AdjMatrixMinorLabelInputWrapper>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   raft::handle_t const& handle,
   matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
-  VertexIterator0 const major_label_first,
-  VertexIterator1 const minor_label_first,
+  vertex_t const* major_label_first,
+  AdjMatrixMinorLabelInputWrapper const minor_label_input,
   std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
   static_assert(
-    std::is_same_v<typename thrust::iterator_traits<VertexIterator0>::value_type, vertex_t>);
-  static_assert(
-    std::is_same_v<typename thrust::iterator_traits<VertexIterator1>::value_type, vertex_t>);
+    std::is_same_v<typename AdjMatrixMinorLabelInputWrapper::value_type, vertex_t>);
 
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
   // compressed sparse format to save memory
@@ -161,12 +158,12 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                     pair_first + edgelist_major_vertices.size(),
                     pair_first,
                     [major_label_first,
-                     minor_label_first,
+                     minor_label_input,
                      major_first = matrix_partition.get_major_first(),
                      minor_first = matrix_partition.get_minor_first()] __device__(auto val) {
                       return thrust::make_tuple(
                         *(major_label_first + (thrust::get<0>(val) - major_first)),
-                        *(minor_label_first + (thrust::get<1>(val) - minor_first)));
+                        minor_label_input.get(thrust::get<1>(val) - minor_first));
                     });
 
   auto number_of_edges = groupby_e_and_coarsen_edgelist(
@@ -304,7 +301,7 @@ coarsen_graph(
         matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
           graph_view.get_matrix_partition_view(i)),
         major_labels.data(),
-        adj_matrix_minor_labels.begin(),
+        adj_matrix_minor_labels.device_view(),
         graph_view.get_local_adj_matrix_partition_segment_offsets(i));
 
     // 1-2. globally shuffle
@@ -512,7 +509,7 @@ coarsen_graph(
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
         graph_view.get_matrix_partition_view()),
       labels,
-      labels,
+      detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(labels),
       graph_view.get_local_adj_matrix_partition_segment_offsets(0));
 
   rmm::device_uvector<vertex_t> unique_labels(graph_view.get_number_of_vertices(),

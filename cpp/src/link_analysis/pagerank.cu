@@ -101,9 +101,9 @@ void pagerank(
       auto num_nonpositive_edge_weights = count_if_e(
         handle,
         pull_graph_view,
-        thrust::make_constant_iterator(0) /* dummy */,
-        thrust::make_constant_iterator(0) /* dummy */,
-        [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        dummy_properties_t<vertex_t>{}.device_view(),
+        dummy_properties_t<vertex_t>{}.device_view(),
+        [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) {
           return w <= 0.0;
         });
       CUGRAPH_EXPECTS(num_nonpositive_edge_weights == 0,
@@ -233,9 +233,9 @@ void pagerank(
     copy_v_transform_reduce_in_nbr(
       handle,
       pull_graph_view,
-      adj_matrix_row_pageranks.begin(),
-      dummy_properties_t{}.begin(),
-      [alpha] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+      adj_matrix_row_pageranks.device_view(),
+      dummy_properties_t<vertex_t>{}.device_view(),
+      [alpha] __device__(vertex_t, vertex_t, weight_t w, auto src_val, auto) {
         return src_val * w * alpha;
       },
       unvarying_part,

@@ -17,6 +17,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -117,8 +118,8 @@ void bfs(raft::handle_t const& handle,
         vertex_frontier,
         static_cast<size_t>(Bucket::cur),
         std::vector<size_t>{static_cast<size_t>(Bucket::next)},
-        thrust::make_constant_iterator(0) /* dummy */,
-        thrust::make_constant_iterator(0) /* dummy */,
+        dummy_properties_t<vertex_t>{}.device_view(),
+        dummy_properties_t<vertex_t>{}.device_view(),
         [vertex_partition, distances] __device__(
           vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
           auto push = true;
