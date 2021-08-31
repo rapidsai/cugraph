@@ -92,7 +92,8 @@ void katz_centrality(raft::handle_t const& handle,
   // old katz centrality values
   rmm::device_uvector<result_t> tmp_katz_centralities(
     pull_graph_view.get_number_of_local_vertices(), handle.get_stream());
-  row_properties_t<GraphViewType, result_t> adj_matrix_row_katz_centralities(handle, pull_graph_view);
+  row_properties_t<GraphViewType, result_t> adj_matrix_row_katz_centralities(handle,
+                                                                             pull_graph_view);
   auto new_katz_centralities = katz_centralities;
   auto old_katz_centralities = tmp_katz_centralities.data();
   size_t iter{0};

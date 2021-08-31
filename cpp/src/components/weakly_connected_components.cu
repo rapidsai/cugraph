@@ -458,7 +458,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     // requires placing the atomic variable on managed memory and this make it less attractive.
     rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream_view());
 
-    auto adj_matrix_col_components = GraphViewType::is_multi_gpu ? col_properties_t<GraphViewType, vertex_t>(handle, level_graph_view) : col_properties_t<GraphViewType, vertex_t>();
+    auto adj_matrix_col_components =
+      GraphViewType::is_multi_gpu
+        ? col_properties_t<GraphViewType, vertex_t>(handle, level_graph_view)
+        : col_properties_t<GraphViewType, vertex_t>();
     if constexpr (GraphViewType::is_multi_gpu) {
       adj_matrix_col_components.fill(invalid_component_id<vertex_t>::value, handle.get_stream());
     }
@@ -536,10 +539,13 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         GraphViewType::is_multi_gpu ? std::vector<size_t>{static_cast<size_t>(Bucket::next),
                                                           static_cast<size_t>(Bucket::conflict)}
                                     : std::vector<size_t>{static_cast<size_t>(Bucket::next)},
-      dummy_properties_t<vertex_t>{}.device_view(),
-      dummy_properties_t<vertex_t>{}.device_view(),
-        [col_components = GraphViewType::is_multi_gpu ? adj_matrix_col_components.mutable_device_view() : detail::minor_properties_device_view_t<vertex_t, vertex_t*>(level_components),
-         col_first      = level_graph_view.get_local_adj_matrix_partition_col_first(),
+        dummy_properties_t<vertex_t>{}.device_view(),
+        dummy_properties_t<vertex_t>{}.device_view(),
+        [col_components =
+           GraphViewType::is_multi_gpu
+             ? adj_matrix_col_components.mutable_device_view()
+             : detail::minor_properties_device_view_t<vertex_t, vertex_t*>(level_components),
+         col_first = level_graph_view.get_local_adj_matrix_partition_col_first(),
          edge_buffer_first =
            get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
          num_edge_inserts =
@@ -548,8 +554,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           auto col_offset = dst - col_first;
           // FIXME: better switch to atomic_ref after
           // https://github.com/nvidia/libcudacxx/milestone/2
-          auto old =
-            atomicCAS(&(col_components.get(col_offset)), invalid_component_id<vertex_t>::value, tag);
+          auto old = atomicCAS(
+            &(col_components.get(col_offset)), invalid_component_id<vertex_t>::value, tag);
           if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
             static_assert(sizeof(unsigned long long int) == sizeof(size_t));
             auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),

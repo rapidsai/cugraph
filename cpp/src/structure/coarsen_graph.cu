@@ -142,8 +142,7 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   AdjMatrixMinorLabelInputWrapper const minor_label_input,
   std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
-  static_assert(
-    std::is_same_v<typename AdjMatrixMinorLabelInputWrapper::value_type, vertex_t>);
+  static_assert(std::is_same_v<typename AdjMatrixMinorLabelInputWrapper::value_type, vertex_t>);
 
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
   // compressed sparse format to save memory
@@ -230,7 +229,6 @@ coarsen_graph(
   } else {
     copy_to_adj_matrix_col(handle, graph_view, labels, adj_matrix_minor_labels);
   }
-
 
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_major_vertices{};
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_minor_vertices{};

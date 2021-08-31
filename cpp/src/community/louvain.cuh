@@ -406,7 +406,7 @@ class Louvain {
     auto [old_cluster_sum_v, cluster_subtract_v] = compute_cluster_sum_and_subtract();
 
     row_properties_t<graph_view_t, thrust::tuple<weight_t, weight_t>>
-    src_old_cluster_sum_subtract_pairs{};
+      src_old_cluster_sum_subtract_pairs{};
     if constexpr (graph_view_t::is_multi_gpu) {
       src_old_cluster_sum_subtract_pairs =
         row_properties_t<graph_view_t, thrust::tuple<weight_t, weight_t>>(handle_,
@@ -426,9 +426,9 @@ class Louvain {
     auto zipped_src_device_view =
       graph_view_t::is_multi_gpu
         ? device_view_concat(src_vertex_weights_cache_.device_view(),
-                          src_clusters_cache_.device_view(),
-                          src_cluster_weights.device_view(),
-                          src_old_cluster_sum_subtract_pairs.device_view())
+                             src_clusters_cache_.device_view(),
+                             src_cluster_weights.device_view(),
+                             src_old_cluster_sum_subtract_pairs.device_view())
         : device_view_concat(
             detail::major_properties_device_view_t<vertex_t, weight_t const*>(
               vertex_weights_v_.data()),
@@ -436,7 +436,8 @@ class Louvain {
               next_clusters_v_.data()),
             detail::major_properties_device_view_t<vertex_t, weight_t const*>(
               vertex_cluster_weights_v.data()),
-            detail::major_properties_device_view_t<vertex_t, decltype(cluster_old_sum_subtract_pair_first)>(
+            detail::major_properties_device_view_t<vertex_t,
+                                                   decltype(cluster_old_sum_subtract_pair_first)>(
               cluster_old_sum_subtract_pair_first));
 
     copy_v_transform_reduce_key_aggregated_out_nbr(
@@ -444,7 +445,10 @@ class Louvain {
       current_graph_view_,
 #if 1
       zipped_src_device_view,
-      graph_view_t::is_multi_gpu ? dst_clusters_cache_.device_view() : detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(next_clusters_v_.data()),
+      graph_view_t::is_multi_gpu
+        ? dst_clusters_cache_.device_view()
+        : detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(
+            next_clusters_v_.data()),
 #else
       thrust::make_zip_iterator(thrust::make_tuple(src_old_cluster_sum_v.begin(),
                                                    d_src_vertex_weights_cache_,
@@ -570,7 +574,8 @@ class Louvain {
   rmm::device_uvector<weight_t> cluster_weights_v_;
 
   rmm::device_uvector<weight_t> vertex_weights_v_;
-  row_properties_t<graph_view_t, weight_t> src_vertex_weights_cache_;  // src cache for vertex_weights_v_
+  row_properties_t<graph_view_t, weight_t>
+    src_vertex_weights_cache_;  // src cache for vertex_weights_v_
 
   rmm::device_uvector<vertex_t> next_clusters_v_;
   row_properties_t<graph_view_t, vertex_t> src_clusters_cache_;  // src cache for next_clusters_v_
