@@ -534,11 +534,9 @@ transform_reduce_by_adj_matrix_row_col_key_e(
       keys.resize(cur_size + tmp_keys.size(), handle.get_stream());
       resize_dataframe_buffer<T>(value_buffer, keys.size(), handle.get_stream());
 
-      thrust::copy(rmm::exec_policy(handle.get_stream()),
-                   tmp_keys.begin(),
-                   tmp_keys.end(),
-                   keys.begin() + cur_size);
-      thrust::copy(rmm::exec_policy(handle.get_stream()),
+      auto execution_policy = handle.get_thrust_policy();
+      thrust::copy(execution_policy, tmp_keys.begin(), tmp_keys.end(), keys.begin() + cur_size);
+      thrust::copy(execution_policy,
                    get_dataframe_buffer_begin<T>(tmp_value_buffer),
                    get_dataframe_buffer_begin<T>(tmp_value_buffer) + tmp_keys.size(),
                    get_dataframe_buffer_begin<T>(value_buffer) + cur_size);

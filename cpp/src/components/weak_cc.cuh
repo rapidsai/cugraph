@@ -29,7 +29,6 @@
 #include <raft/device_atomics.cuh>
 
 #include <rmm/device_vector.hpp>
-#include <rmm/exec_policy.hpp>
 #include "utils.h"
 
 namespace MLCommon {

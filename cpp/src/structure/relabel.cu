@@ -24,7 +24,6 @@
 #include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -62,19 +61,13 @@ void relabel(raft::handle_t const& handle,
     // find unique old labels (to be relabeled)
 
     rmm::device_uvector<vertex_t> unique_old_labels(num_labels, handle.get_stream_view());
-    thrust::copy(rmm::exec_policy(handle.get_stream_view()),
-                 labels,
-                 labels + num_labels,
-                 unique_old_labels.data());
-    thrust::sort(rmm::exec_policy(handle.get_stream_view()),
-                 unique_old_labels.begin(),
-                 unique_old_labels.end());
-    unique_old_labels.resize(
-      thrust::distance(unique_old_labels.begin(),
-                       thrust::unique(rmm::exec_policy(handle.get_stream_view()),
-                                      unique_old_labels.begin(),
-                                      unique_old_labels.end())),
-      handle.get_stream_view());
+    thrust::copy(handle.get_thrust_policy(), labels, labels + num_labels, unique_old_labels.data());
+    thrust::sort(handle.get_thrust_policy(), unique_old_labels.begin(), unique_old_labels.end());
+    unique_old_labels.resize(thrust::distance(unique_old_labels.begin(),
+                                              thrust::unique(handle.get_thrust_policy(),
+                                                             unique_old_labels.begin(),
+                                                             unique_old_labels.end())),
+                             handle.get_stream_view());
     unique_old_labels.shrink_to_fit(handle.get_stream_view());
 
     // collect new labels for the unique old labels
@@ -91,11 +84,11 @@ void relabel(raft::handle_t const& handle,
                                                             handle.get_stream_view());
         rmm::device_uvector<vertex_t> label_pair_new_labels(num_label_pairs,
                                                             handle.get_stream_view());
-        thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+        thrust::copy(handle.get_thrust_policy(),
                      std::get<0>(old_new_label_pairs),
                      std::get<0>(old_new_label_pairs) + num_label_pairs,
                      label_pair_old_labels.begin());
-        thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+        thrust::copy(handle.get_thrust_policy(),
                      std::get<1>(old_new_label_pairs),
                      std::get<1>(old_new_label_pairs) + num_label_pairs,
                      label_pair_new_labels.begin());
@@ -152,7 +145,7 @@ void relabel(raft::handle_t const& handle,
         handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
         if (skip_missing_labels) {
-          thrust::transform(rmm::exec_policy(handle.get_stream_view()),
+          thrust::transform(handle.get_thrust_policy(),
                             rx_unique_old_labels.begin(),
                             rx_unique_old_labels.end(),
                             rx_unique_old_labels.begin(),
@@ -211,7 +204,7 @@ void relabel(raft::handle_t const& handle,
       thrust::make_tuple(std::get<0>(old_new_label_pairs), std::get<1>(old_new_label_pairs)));
     relabel_map.insert(pair_first, pair_first + num_label_pairs);
     if (skip_missing_labels) {
-      thrust::transform(rmm::exec_policy(handle.get_stream_view()),
+      thrust::transform(handle.get_thrust_policy(),
                         labels,
                         labels + num_labels,
                         labels,
@@ -228,7 +221,7 @@ void relabel(raft::handle_t const& handle,
 
   if (do_expensive_check && !skip_missing_labels) {
     CUGRAPH_EXPECTS(
-      thrust::count(rmm::exec_policy(handle.get_stream_view()),
+      thrust::count(handle.get_thrust_policy(),
                     labels,
                     labels + num_labels,
                     invalid_vertex_id<vertex_t>::value) == 0,

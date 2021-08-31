@@ -158,13 +158,13 @@ void pagerank(
     CUGRAPH_EXPECTS(sum > 0.0,
                     "Invalid input argument: sum of the PageRank initial "
                     "guess values should be positive.");
-    thrust::transform(rmm::exec_policy(handle.get_stream()),
+    thrust::transform(handle.get_thrust_policy(),
                       pageranks,
                       pageranks + pull_graph_view.get_number_of_local_vertices(),
                       pageranks,
                       [sum] __device__(auto val) { return val / sum; });
   } else {
-    thrust::fill(rmm::exec_policy(handle.get_stream()),
+    thrust::fill(handle.get_thrust_policy(),
                  pageranks,
                  pageranks + pull_graph_view.get_number_of_local_vertices(),
                  result_t{1.0} / static_cast<result_t>(num_vertices));
@@ -192,7 +192,7 @@ void pagerank(
   row_properties_t<GraphViewType, result_t> adj_matrix_row_pageranks(handle, pull_graph_view);
   size_t iter{0};
   while (true) {
-    thrust::copy(rmm::exec_policy(handle.get_stream()),
+    thrust::copy(handle.get_thrust_policy(),
                  pageranks,
                  pageranks + pull_graph_view.get_number_of_local_vertices(),
                  old_pageranks.data());
@@ -211,7 +211,7 @@ void pagerank(
       },
       result_t{0.0});
 
-    thrust::transform(rmm::exec_policy(handle.get_stream()),
+    thrust::transform(handle.get_thrust_policy(),
                       vertex_val_first,
                       vertex_val_first + pull_graph_view.get_number_of_local_vertices(),
                       pageranks,
@@ -247,7 +247,7 @@ void pagerank(
       auto val_first = thrust::make_zip_iterator(
         thrust::make_tuple(*personalization_vertices, *personalization_values));
       thrust::for_each(
-        rmm::exec_policy(handle.get_stream()),
+        handle.get_thrust_policy(),
         val_first,
         val_first + *personalization_vector_size,
         [vertex_partition, pageranks, dangling_sum, personalization_sum, alpha] __device__(

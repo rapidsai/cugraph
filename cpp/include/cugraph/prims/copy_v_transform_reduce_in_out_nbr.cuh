@@ -438,13 +438,14 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       minor_init               = (row_comm_rank == 0) ? init : T{};
     }
 
+    auto execution_policy = handle.get_thrust_policy();
     if (GraphViewType::is_multi_gpu) {
-      thrust::fill(rmm::exec_policy(handle.get_stream()),
+      thrust::fill(execution_policy,
                    minor_buffer_first,
                    minor_buffer_first + minor_tmp_buffer_size,
                    minor_init);
     } else {
-      thrust::fill(rmm::exec_policy(handle.get_stream()),
+      thrust::fill(execution_policy,
                    vertex_value_output_first,
                    vertex_value_output_first + graph_view.get_number_of_local_vertices(),
                    minor_init);
@@ -548,7 +549,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the
                                        // hypersparse segment in
                                        // for_all_major_for_all_nbr_hypersparse
-          thrust::fill(rmm::exec_policy(handle.get_stream()),
+          thrust::fill(handle.get_thrust_policy(),
                        output_buffer_first + (*segment_offsets)[3],
                        output_buffer_first + (*segment_offsets)[4],
                        major_init);

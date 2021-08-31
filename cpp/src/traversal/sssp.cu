@@ -27,7 +27,6 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/cudart_utils.h>
-#include <rmm/exec_policy.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -94,7 +93,7 @@ void sssp(raft::handle_t const& handle,
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
   auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
-  thrust::transform(rmm::exec_policy(handle.get_stream()),
+  thrust::transform(handle.get_thrust_policy(),
                     thrust::make_counting_iterator(push_graph_view.get_local_vertex_first()),
                     thrust::make_counting_iterator(push_graph_view.get_local_vertex_last()),
                     val_first,
@@ -137,7 +136,7 @@ void sssp(raft::handle_t const& handle,
 
   auto adj_matrix_row_distances = GraphViewType::is_multi_gpu ? row_properties_t<GraphViewType, weight_t>(handle, push_graph_view) : row_properties_t<GraphViewType, weight_t>{};
   if (GraphViewType::is_multi_gpu) {
-  adj_matrix_row_distances.fill(std::numeric_limits<weight_t>::max(), handle.get_stream());
+    adj_matrix_row_distances.fill(std::numeric_limits<weight_t>::max(), handle.get_stream());
   }
 
   if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
@@ -368,5 +367,4 @@ template void sssp(raft::handle_t const& handle,
                    int64_t source_vertex,
                    double cutoff,
                    bool do_expensive_check);
-
 }  // namespace cugraph

@@ -116,6 +116,7 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
   vertex_t* majors,
   std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
+  auto execution_policy = handle.get_thrust_policy();
   if (segment_offsets) {
     // FIXME: we may further improve performance by 1) concurrently running kernels on different
     // segments; 2) individually tuning block sizes for different segments; and 3) adding one more
@@ -153,7 +154,7 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
     }
     if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
       thrust::for_each(
-        rmm::exec_policy(handle.get_stream()),
+        execution_policy,
         thrust::make_counting_iterator(matrix_partition.get_major_first()) + (*segment_offsets)[2],
         thrust::make_counting_iterator(matrix_partition.get_major_first()) + (*segment_offsets)[3],
         [matrix_partition, majors] __device__(auto major) {
@@ -167,7 +168,7 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
     if (matrix_partition.get_dcs_nzd_vertex_count() &&
         (*(matrix_partition.get_dcs_nzd_vertex_count()) > 0)) {
       thrust::for_each(
-        rmm::exec_policy(handle.get_stream()),
+        execution_policy,
         thrust::make_counting_iterator(vertex_t{0}),
         thrust::make_counting_iterator(*(matrix_partition.get_dcs_nzd_vertex_count())),
         [matrix_partition, major_start_offset = (*segment_offsets)[3], majors] __device__(
@@ -183,7 +184,7 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
     }
   } else {
     thrust::for_each(
-      rmm::exec_policy(handle.get_stream()),
+      execution_policy,
       thrust::make_counting_iterator(matrix_partition.get_major_first()),
       thrust::make_counting_iterator(matrix_partition.get_major_first()) +
         matrix_partition.get_major_size(),
@@ -338,12 +339,13 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     }
     // FIXME: these copies are unnecessary, better fix RAFT comm's bcast to take separate input &
     // output pointers
-    thrust::copy(rmm::exec_policy(handle.get_stream()),
+    auto execution_policy = handle.get_thrust_policy();
+    thrust::copy(execution_policy,
                  map_unique_key_first,
                  map_unique_key_last,
                  map_keys.begin() + map_displacements[row_comm_rank]);
     thrust::copy(
-      rmm::exec_policy(handle.get_stream()),
+      execution_policy,
       map_value_first,
       map_value_first + thrust::distance(map_unique_key_first, map_unique_key_last),
       get_dataframe_buffer_begin<value_t>(map_value_buffer) + map_displacements[row_comm_rank]);
@@ -423,12 +425,12 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
         matrix_partition.get_indices(),
         detail::minor_to_key_t<AdjMatrixColKeyInputWrapper>{adj_matrix_col_key_input,
                                                             matrix_partition.get_minor_first()});
-      thrust::copy(rmm::exec_policy(handle.get_stream()),
+      thrust::copy(execution_policy,
                    minor_key_first,
                    minor_key_first + matrix_partition.get_number_of_edges(),
                    tmp_minor_keys.begin());
       if (graph_view.is_weighted()) {
-        thrust::copy(rmm::exec_policy(handle.get_stream()),
+        thrust::copy(execution_policy,
                      *(matrix_partition.get_weights()),
                      *(matrix_partition.get_weights()) + matrix_partition.get_number_of_edges(),
                      tmp_key_aggregated_edge_weights.begin());
@@ -451,25 +453,24 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       auto output_key_first = thrust::make_zip_iterator(
         thrust::make_tuple(reduced_major_vertices.begin(), reduced_minor_keys.begin()));
       if (graph_view.is_weighted()) {
-        thrust::sort_by_key(rmm::exec_policy(handle.get_stream()),
+        thrust::sort_by_key(execution_policy,
                             input_key_first,
                             input_key_first + tmp_major_vertices.size(),
                             tmp_key_aggregated_edge_weights.begin());
         reduced_size = thrust::distance(
           output_key_first,
-          thrust::get<0>(thrust::reduce_by_key(rmm::exec_policy(handle.get_stream()),
+          thrust::get<0>(thrust::reduce_by_key(execution_policy,
                                                input_key_first,
                                                input_key_first + tmp_major_vertices.size(),
                                                tmp_key_aggregated_edge_weights.begin(),
                                                output_key_first,
                                                reduced_key_aggregated_edge_weights.begin())));
       } else {
-        thrust::sort(rmm::exec_policy(handle.get_stream()),
-                     input_key_first,
-                     input_key_first + tmp_major_vertices.size());
+        thrust::sort(
+          execution_policy, input_key_first, input_key_first + tmp_major_vertices.size());
         reduced_size = thrust::distance(
           output_key_first,
-          thrust::get<0>(thrust::reduce_by_key(rmm::exec_policy(handle.get_stream()),
+          thrust::get<0>(thrust::reduce_by_key(execution_policy,
                                                input_key_first,
                                                input_key_first + tmp_major_vertices.size(),
                                                thrust::make_constant_iterator(weight_t{1.0}),
@@ -518,14 +519,15 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
       auto pair_first = thrust::make_zip_iterator(
         thrust::make_tuple(rx_major_vertices.begin(), rx_minor_keys.begin()));
-      thrust::sort_by_key(rmm::exec_policy(handle.get_stream()),
+      auto execution_policy = handle.get_thrust_policy();
+      thrust::sort_by_key(execution_policy,
                           pair_first,
                           pair_first + rx_major_vertices.size(),
                           rx_key_aggregated_edge_weights.begin());
       tmp_major_vertices.resize(rx_major_vertices.size(), handle.get_stream());
       tmp_minor_keys.resize(tmp_major_vertices.size(), handle.get_stream());
       tmp_key_aggregated_edge_weights.resize(tmp_major_vertices.size(), handle.get_stream());
-      auto pair_it = thrust::reduce_by_key(rmm::exec_policy(handle.get_stream()),
+      auto pair_it = thrust::reduce_by_key(execution_policy,
                                            pair_first,
                                            pair_first + rx_major_vertices.size(),
                                            rx_key_aggregated_edge_weights.begin(),
@@ -551,7 +553,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
     auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
       tmp_major_vertices.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
-    thrust::transform(rmm::exec_policy(handle.get_stream()),
+    thrust::transform(handle.get_thrust_policy(),
                       triplet_first,
                       triplet_first + tmp_major_vertices.size(),
                       tmp_e_op_result_buffer_first,
@@ -637,17 +639,18 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 #endif
   }
 
-  thrust::fill(rmm::exec_policy(handle.get_stream()),
+  auto execution_policy = handle.get_thrust_policy();
+  thrust::fill(execution_policy,
                vertex_value_output_first,
                vertex_value_output_first + graph_view.get_number_of_local_vertices(),
                T{});
-  thrust::sort_by_key(rmm::exec_policy(handle.get_stream()),
+  thrust::sort_by_key(execution_policy,
                       major_vertices.begin(),
                       major_vertices.end(),
                       get_dataframe_buffer_begin<T>(e_op_result_buffer));
 
   auto num_uniques = thrust::count_if(
-    rmm::exec_policy(handle.get_stream()),
+    execution_policy,
     thrust::make_counting_iterator(size_t{0}),
     thrust::make_counting_iterator(major_vertices.size()),
     [major_vertices = major_vertices.data()] __device__(auto i) {
@@ -663,13 +666,13 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                : invalid_vertex_id<vertex_t>::value;
     });
   thrust::copy_if(
-    rmm::exec_policy(handle.get_stream()),
+    execution_policy,
     major_vertex_first,
     major_vertex_first + major_vertices.size(),
     unique_major_vertices.begin(),
     [] __device__(auto major) { return major != invalid_vertex_id<vertex_t>::value; });
   thrust::reduce_by_key(
-    rmm::exec_policy(handle.get_stream()),
+    execution_policy,
     major_vertices.begin(),
     major_vertices.end(),
     get_dataframe_buffer_begin<T>(e_op_result_buffer),
@@ -685,7 +688,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     thrust::equal_to<vertex_t>{},
     reduce_op);
 
-  thrust::transform(rmm::exec_policy(handle.get_stream()),
+  thrust::transform(execution_policy,
                     vertex_value_output_first,
                     vertex_value_output_first + graph_view.get_number_of_local_vertices(),
                     vertex_value_output_first,
