@@ -43,14 +43,14 @@ struct is_valid_edge_op<
 
 template <typename GraphViewType,
           typename key_t,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename EdgeOp>
 struct evaluate_edge_op {
   using vertex_type    = typename GraphViewType::vertex_type;
   using weight_type    = typename GraphViewType::weight_type;
-  using row_value_type = typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
-  using col_value_type = typename std::iterator_traits<AdjMatrixColValueInputIterator>::value_type;
+  using row_value_type = typename AdjMatrixRowValueInputWrapper::value_type;
+  using col_value_type = typename AdjMatrixColValueInputWrapper::value_type;
 
   template <typename K = key_t,
             typename V = vertex_type,
@@ -82,16 +82,16 @@ struct evaluate_edge_op {
 
 template <typename GraphViewType,
           typename key_t,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename EdgeOp,
           typename T>
 struct cast_edge_op_bool_to_integer {
   static_assert(std::is_integral<T>::value);
   using vertex_type    = typename GraphViewType::vertex_type;
   using weight_type    = typename GraphViewType::weight_type;
-  using row_value_type = typename std::iterator_traits<AdjMatrixRowValueInputIterator>::value_type;
-  using col_value_type = typename std::iterator_traits<AdjMatrixColValueInputIterator>::value_type;
+  using row_value_type = typename AdjMatrixRowValueInputWrapper::value_type;
+  using col_value_type = typename AdjMatrixColValueInputWrapper::value_type;
 
   EdgeOp e_op{};
 
@@ -132,10 +132,10 @@ struct property_add<thrust::tuple<Args...>>
   using Type = thrust::tuple<Args...>;
 
  private:
-  template <typename T, std::size_t... I>
-  __device__ constexpr auto sum_impl(T& t1, T& t2, std::index_sequence<I...>)
+  template <typename T, std::size_t... Is>
+  __device__ constexpr auto sum_impl(T& t1, T& t2, std::index_sequence<Is...>)
   {
-    return thrust::make_tuple((thrust::get<I>(t1) + thrust::get<I>(t2))...);
+    return thrust::make_tuple((thrust::get<Is>(t1) + thrust::get<Is>(t2))...);
   }
 
  public:

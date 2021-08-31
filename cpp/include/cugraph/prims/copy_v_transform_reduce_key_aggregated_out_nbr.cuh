@@ -41,14 +41,14 @@ namespace detail {
 int32_t constexpr copy_v_transform_reduce_key_aggregated_out_nbr_for_all_block_size = 1024;
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
-template <typename VertexIterator>
+template <typename AdjMatrixColKeyInputWrapper>
 struct minor_to_key_t {
-  using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
-  VertexIterator adj_matrix_col_key_first{};
+  using vertex_t = typename AdjMatrixColKeyInputWrapper::value_type;
+  AdjMatrixColKeyInputWrapper adj_matrix_col_key_input{};
   vertex_t minor_first{};
   __device__ vertex_t operator()(vertex_t minor)
   {
-    return *(adj_matrix_col_key_first + (minor - minor_first));
+    return adj_matrix_col_key_input.get(minor - minor_first);
   }
 };
 
@@ -209,8 +209,9 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
  * support two level reduction for every vertex.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
- * input properties.
+ * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
+ * properties.
+ * @tparam AdjMatrixColKeyInputWrapper Type of the wrapper for graph adjacency matrix column keys.
  * @tparam VertexIterator Type of the iterator for graph adjacency matrix column key values for
  * aggregation (key type should coincide with vertex type).
  * @tparam ValueIterator Type of the iterator for values in (key, value) pairs.
@@ -221,28 +222,27 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
- * properties for the first (inclusive) row (assigned to this process in multi-GPU).
- * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first
- * + @p graph_view.get_number_of_local_adj_matrix_partition_rows().
- * @param adj_matrix_col_key_first Iterator pointing to the adjacency matrix column key (for
- * aggregation) for the first (inclusive) column (assigned to this process in multi-GPU).
- * `adj_matrix_col_key_last` (exclusive) is deduced as @p adj_matrix_col_key_first + @p
- * graph_view.get_number_of_local_adj_matrix_partition_cols().
- * @param map_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
- * (assigned to this process in multi-GPU,
- * `cugraph::detail::compute_gpu_id_from_vertex_t` is used to map keys to processes).
- * (Key, value) pairs may be provided by transform_reduce_by_adj_matrix_row_key_e() or
- * transform_reduce_by_adj_matrix_col_key_e().
- * @param map_key_last Iterator pointing to the last (exclusive) key in (key, value) pairs (assigned
- * to this process in multi-GPU).
+ * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
+ * (for the rows assigned to this process in multi-GPU). Use either
+ * cugraph::row_properties_t::device_view() (if @p e_op needs to access row properties) or
+ * cugraph::dummy_properties_t::device_view() (if @p e_op does not access row properties). Use
+ * copy_to_adj_matrix_row to fill the wrapper.
+ * @param adj_matrix_col_key_input Device-copyable wrapper used to access column keys (for the
+ * columns assigned to this process in multi-GPU). Use either
+ * cugraph::col_properties_t::device_view(). Use copy_to_adj_matrix_col to fill the wrapper.
+ * @param map_unique_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
+ * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_vertex_t` is used
+ * to map keys to processes). (Key, value) pairs may be provided by
+ * transform_reduce_by_adj_matrix_row_key_e() or transform_reduce_by_adj_matrix_col_key_e().
+ * @param map_unique_key_last Iterator pointing to the last (exclusive) key in (key, value) pairs
+ * (assigned to this process in multi-GPU).
  * @param map_value_first Iterator pointing to the first (inclusive) value in (key, value) pairs
  * (assigned to this process in multi-GPU). `map_value_last` (exclusive) is deduced as @p
- * map_value_first + thrust::distance(@p map_key_first, @p map_key_last).
+ * map_value_first + thrust::distance(@p map_unique_key_first, @p map_unique_key_last).
  * @param key_aggregated_e_op Quinary operator takes edge source, key, aggregated edge weight, *(@p
  * adj_matrix_row_value_input_first + i), and value for the key stored in the input (key, value)
- * pairs provided by @p map_key_first, @p map_key_last, and @p map_value_first (aggregated over the
- * entire set of processes in multi-GPU).
+ * pairs provided by @p map_unique_key_first, @p map_unique_key_last, and @p map_value_first
+ * (aggregated over the entire set of processes in multi-GPU).
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
  * @param init Initial value to be added to the reduced @p reduce_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
@@ -251,9 +251,9 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
  * graph_view.get_number_of_local_vertices().
  */
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename VertexIterator0,
-          typename VertexIterator1,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColKeyInputWrapper,
+          typename VertexIterator,
           typename ValueIterator,
           typename KeyAggregatedEdgeOp,
           typename ReduceOp,
@@ -262,10 +262,10 @@ template <typename GraphViewType,
 void copy_v_transform_reduce_key_aggregated_out_nbr(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  VertexIterator0 adj_matrix_col_key_first,
-  VertexIterator1 map_key_first,
-  VertexIterator1 map_key_last,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColKeyInputWrapper adj_matrix_col_key_input,
+  VertexIterator map_unique_key_first,
+  VertexIterator map_unique_key_last,
   ValueIterator map_value_first,
   KeyAggregatedEdgeOp key_aggregated_e_op,
   ReduceOp reduce_op,
@@ -274,10 +274,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 {
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
-  static_assert(std::is_same<typename std::iterator_traits<VertexIterator0>::value_type,
+  static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
                              typename GraphViewType::vertex_type>::value);
-  static_assert(std::is_same<typename std::iterator_traits<VertexIterator0>::value_type,
-                             typename std::iterator_traits<VertexIterator1>::value_type>::value);
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
   using vertex_t = typename GraphViewType::vertex_type;
@@ -314,10 +312,10 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
-    auto map_counts =
-      host_scalar_allgather(row_comm,
-                            static_cast<size_t>(thrust::distance(map_key_first, map_key_last)),
-                            handle.get_stream());
+    auto map_counts = host_scalar_allgather(
+      row_comm,
+      static_cast<size_t>(thrust::distance(map_unique_key_first, map_unique_key_last)),
+      handle.get_stream());
     std::vector<size_t> map_displacements(row_comm_size, size_t{0});
     std::partial_sum(map_counts.begin(), map_counts.end() - 1, map_displacements.begin() + 1);
     rmm::device_uvector<vertex_t> map_keys(map_displacements.back() + map_counts.back(),
@@ -326,7 +324,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       allocate_dataframe_buffer<value_t>(map_keys.size(), handle.get_stream());
     for (int i = 0; i < row_comm_size; ++i) {
       device_bcast(row_comm,
-                   map_key_first,
+                   map_unique_key_first,
                    map_keys.begin() + map_displacements[i],
                    map_counts[i],
                    i,
@@ -341,13 +339,13 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     // FIXME: these copies are unnecessary, better fix RAFT comm's bcast to take separate input &
     // output pointers
     thrust::copy(rmm::exec_policy(handle.get_stream()),
-                 map_key_first,
-                 map_key_last,
+                 map_unique_key_first,
+                 map_unique_key_last,
                  map_keys.begin() + map_displacements[row_comm_rank]);
     thrust::copy(
       rmm::exec_policy(handle.get_stream()),
       map_value_first,
-      map_value_first + thrust::distance(map_key_first, map_key_last),
+      map_value_first + thrust::distance(map_unique_key_first, map_unique_key_last),
       get_dataframe_buffer_begin<value_t>(map_value_buffer) + map_displacements[row_comm_rank]);
 
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
@@ -357,8 +355,9 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     kv_map_ptr = std::make_unique<
       cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
       // cuco::static_map requires at least one empty slot
-      std::max(static_cast<size_t>(static_cast<double>(map_keys.size()) / load_factor),
-               static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
+      std::max(
+        static_cast<size_t>(static_cast<double>(map_keys.size()) / load_factor),
+        static_cast<size_t>(thrust::distance(map_unique_key_first, map_unique_key_last)) + 1),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value,
       stream_adapter);
@@ -374,15 +373,19 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     kv_map_ptr = std::make_unique<
       cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
       // cuco::static_map requires at least one empty slot
-      std::max(static_cast<size_t>(
-                 static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
-               static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
+      std::max(
+        static_cast<size_t>(
+          static_cast<double>(thrust::distance(map_unique_key_first, map_unique_key_last)) /
+          load_factor),
+        static_cast<size_t>(thrust::distance(map_unique_key_first, map_unique_key_last)) + 1),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value,
       stream_adapter);
 
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first));
-    kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
+    auto pair_first =
+      thrust::make_zip_iterator(thrust::make_tuple(map_unique_key_first, map_value_first));
+    kv_map_ptr->insert(pair_first,
+                       pair_first + thrust::distance(map_unique_key_first, map_unique_key_last));
   }
 
   // 2. aggregate each vertex out-going edges based on keys and transform-reduce.
@@ -418,8 +421,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     if (matrix_partition.get_major_size() > 0) {
       auto minor_key_first = thrust::make_transform_iterator(
         matrix_partition.get_indices(),
-        detail::minor_to_key_t<VertexIterator0>{adj_matrix_col_key_first,
-                                                matrix_partition.get_minor_first()});
+        detail::minor_to_key_t<AdjMatrixColKeyInputWrapper>{adj_matrix_col_key_input,
+                                                            matrix_partition.get_minor_first()});
       thrust::copy(rmm::exec_policy(handle.get_stream()),
                    minor_key_first,
                    minor_key_first + matrix_partition.get_number_of_edges(),
@@ -543,28 +546,30 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       allocate_dataframe_buffer<T>(tmp_major_vertices.size(), handle.get_stream());
     auto tmp_e_op_result_buffer_first = get_dataframe_buffer_begin<T>(tmp_e_op_result_buffer);
 
+    auto matrix_partition_row_value_input = adj_matrix_row_value_input;
+    matrix_partition_row_value_input.add_offset(matrix_partition.get_major_value_start_offset());
+
     auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
       tmp_major_vertices.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
-    thrust::transform(
-      rmm::exec_policy(handle.get_stream()),
-      triplet_first,
-      triplet_first + tmp_major_vertices.size(),
-      tmp_e_op_result_buffer_first,
-      [adj_matrix_row_value_input_first =
-         adj_matrix_row_value_input_first + matrix_partition.get_major_value_start_offset(),
-       key_aggregated_e_op,
-       matrix_partition,
-       kv_map = kv_map_ptr->get_device_view()] __device__(auto val) {
-        auto major = thrust::get<0>(val);
-        auto key   = thrust::get<1>(val);
-        auto w     = thrust::get<2>(val);
-        return key_aggregated_e_op(major,
-                                   key,
-                                   w,
-                                   *(adj_matrix_row_value_input_first +
-                                     matrix_partition.get_major_offset_from_major_nocheck(major)),
-                                   kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
-      });
+    thrust::transform(rmm::exec_policy(handle.get_stream()),
+                      triplet_first,
+                      triplet_first + tmp_major_vertices.size(),
+                      tmp_e_op_result_buffer_first,
+                      [matrix_partition_row_value_input,
+                       key_aggregated_e_op,
+                       matrix_partition,
+                       kv_map = kv_map_ptr->get_device_view()] __device__(auto val) {
+                        auto major = thrust::get<0>(val);
+                        auto key   = thrust::get<1>(val);
+                        auto w     = thrust::get<2>(val);
+                        return key_aggregated_e_op(
+                          major,
+                          key,
+                          w,
+                          matrix_partition_row_value_input.get(
+                            matrix_partition.get_major_offset_from_major_nocheck(major)),
+                          kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
+                      });
     tmp_minor_keys.resize(0, handle.get_stream());
     tmp_key_aggregated_edge_weights.resize(0, handle.get_stream());
     tmp_minor_keys.shrink_to_fit(handle.get_stream());

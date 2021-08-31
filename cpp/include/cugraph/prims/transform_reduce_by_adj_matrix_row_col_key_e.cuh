@@ -36,9 +36,9 @@ int32_t constexpr transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_siz
 
 template <bool adj_matrix_row_key,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
-          typename VertexIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
+          typename AdjMatrixRowColKeyInputWrapper,
           typename EdgeOp,
           typename T>
 __device__ void update_buffer_element(
@@ -49,9 +49,9 @@ __device__ void update_buffer_element(
   typename GraphViewType::vertex_type major,
   typename GraphViewType::vertex_type minor,
   typename GraphViewType::weight_type weight,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-  VertexIterator adj_matrix_row_col_key_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  AdjMatrixRowColKeyInputWrapper adj_matrix_row_col_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* key,
   T* value)
@@ -65,27 +65,26 @@ __device__ void update_buffer_element(
   auto row_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
   auto col_offset   = GraphViewType::is_adj_matrix_transposed ? major_offset : minor_offset;
 
-  *key   = *(adj_matrix_row_col_key_first +
-           ((GraphViewType::is_adj_matrix_transposed != adj_matrix_row_key) ? major_offset
-                                                                              : minor_offset));
+  *key   = adj_matrix_row_col_key_input.get((
+    (GraphViewType::is_adj_matrix_transposed != adj_matrix_row_key) ? major_offset : minor_offset));
   *value = evaluate_edge_op<GraphViewType,
                             vertex_t,
-                            AdjMatrixRowValueInputIterator,
-                            AdjMatrixColValueInputIterator,
+                            AdjMatrixRowValueInputWrapper,
+                            AdjMatrixColValueInputWrapper,
                             EdgeOp>()
              .compute(row,
                       col,
                       weight,
-                      *(adj_matrix_row_value_input_first + row_offset),
-                      *(adj_matrix_col_value_input_first + col_offset),
+                      adj_matrix_row_value_input.get(row_offset),
+                      adj_matrix_col_value_input.get(col_offset),
                       e_op);
 }
 
 template <bool adj_matrix_row_key,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
-          typename VertexIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
+          typename AdjMatrixRowColKeyInputWrapper,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_hypersparse(
@@ -94,9 +93,9 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
                                  typename GraphViewType::weight_type,
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_hypersparse_first,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-  VertexIterator adj_matrix_row_col_key_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  AdjMatrixRowColKeyInputWrapper adj_matrix_row_col_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* keys,
   T* values)
@@ -129,9 +128,9 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
         major,
         indices[i],
         weights ? (*weights)[i] : weight_t{1.0},
-        adj_matrix_row_value_input_first,
-        adj_matrix_col_value_input_first,
-        adj_matrix_row_col_key_first,
+        adj_matrix_row_value_input,
+        adj_matrix_col_value_input,
+        adj_matrix_row_col_key_input,
         e_op,
         keys + local_offset + i,
         values + local_offset + i);
@@ -143,9 +142,9 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
 
 template <bool adj_matrix_row_key,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
-          typename VertexIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
+          typename AdjMatrixRowColKeyInputWrapper,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_low_degree(
@@ -155,9 +154,9 @@ __global__ void for_all_major_for_all_nbr_low_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-  VertexIterator adj_matrix_row_col_key_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  AdjMatrixRowColKeyInputWrapper adj_matrix_row_col_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* keys,
   T* values)
@@ -186,9 +185,9 @@ __global__ void for_all_major_for_all_nbr_low_degree(
         major,
         indices[i],
         weights ? (*weights)[i] : weight_t{1.0},
-        adj_matrix_row_value_input_first,
-        adj_matrix_col_value_input_first,
-        adj_matrix_row_col_key_first,
+        adj_matrix_row_value_input,
+        adj_matrix_col_value_input,
+        adj_matrix_row_col_key_input,
         e_op,
         keys + local_offset + i,
         values + local_offset + i);
@@ -200,9 +199,9 @@ __global__ void for_all_major_for_all_nbr_low_degree(
 
 template <bool adj_matrix_row_key,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
-          typename VertexIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
+          typename AdjMatrixRowColKeyInputWrapper,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_mid_degree(
@@ -212,9 +211,9 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-  VertexIterator adj_matrix_row_col_key_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  AdjMatrixRowColKeyInputWrapper adj_matrix_row_col_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* keys,
   T* values)
@@ -246,9 +245,9 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
         major,
         indices[i],
         weights ? (*weights)[i] : weight_t{1.0},
-        adj_matrix_row_value_input_first,
-        adj_matrix_col_value_input_first,
-        adj_matrix_row_col_key_first,
+        adj_matrix_row_value_input,
+        adj_matrix_col_value_input,
+        adj_matrix_row_col_key_input,
         e_op,
         keys + local_offset + i,
         values + local_offset + i);
@@ -260,9 +259,9 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 
 template <bool adj_matrix_row_key,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
-          typename VertexIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
+          typename AdjMatrixRowColKeyInputWrapper,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_high_degree(
@@ -272,9 +271,9 @@ __global__ void for_all_major_for_all_nbr_high_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-  VertexIterator adj_matrix_row_col_key_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  AdjMatrixRowColKeyInputWrapper adj_matrix_row_col_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* keys,
   T* values)
@@ -302,9 +301,9 @@ __global__ void for_all_major_for_all_nbr_high_degree(
         major,
         indices[i],
         weights ? (*weights)[i] : weight_t{1.0},
-        adj_matrix_row_value_input_first,
-        adj_matrix_col_value_input_first,
-        adj_matrix_row_col_key_first,
+        adj_matrix_row_value_input,
+        adj_matrix_col_value_input,
+        adj_matrix_row_col_key_input,
         e_op,
         keys + local_offset + i,
         values + local_offset + i);
@@ -345,9 +344,9 @@ std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
 
 template <bool adj_matrix_row_key,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
-          typename VertexIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
+          typename AdjMatrixRowColKeyInputWrapper,
           typename EdgeOp,
           typename T>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
@@ -355,14 +354,14 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
 transform_reduce_by_adj_matrix_row_col_key_e(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-  VertexIterator adj_matrix_row_col_key_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  AdjMatrixRowColKeyInputWrapper adj_matrix_row_col_key_input,
   EdgeOp e_op,
   T init)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
+  static_assert(std::is_same<typename AdjMatrixRowColKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
 
   using vertex_t = typename GraphViewType::vertex_type;
@@ -392,13 +391,23 @@ transform_reduce_by_adj_matrix_row_col_key_e(
     auto tmp_value_buffer = allocate_dataframe_buffer<T>(tmp_keys.size(), handle.get_stream());
 
     if (graph_view.get_vertex_partition_size(comm_root_rank) > 0) {
-      auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                      ? vertex_t{0}
-                                      : matrix_partition.get_major_value_start_offset();
-      auto col_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                      ? matrix_partition.get_major_value_start_offset()
-                                      : vertex_t{0};
-      auto segment_offsets        = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+      auto matrix_partition_row_value_input = adj_matrix_row_value_input;
+      auto matrix_partition_col_value_input = adj_matrix_col_value_input;
+      if constexpr (GraphViewType::is_adj_matrix_transposed) {
+        matrix_partition_col_value_input.add_offset(
+          matrix_partition.get_major_value_start_offset());
+      } else {
+        matrix_partition_row_value_input.add_offset(
+          matrix_partition.get_major_value_start_offset());
+      }
+      auto matrix_partition_row_col_key_input = adj_matrix_row_col_key_input;
+      if constexpr ((adj_matrix_row_key && !GraphViewType::is_adj_matrix_transposed) ||
+                    (!adj_matrix_row_key && GraphViewType::is_adj_matrix_transposed)) {
+        matrix_partition_row_col_key_input.add_offset(
+          matrix_partition.get_major_value_start_offset());
+      }
+
+      auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
       if (segment_offsets) {
         // FIXME: we may further improve performance by 1) concurrently running kernels on different
         // segments; 2) individually tuning block sizes for different segments; and 3) adding one
@@ -414,10 +423,9 @@ transform_reduce_by_adj_matrix_row_col_key_e(
               matrix_partition,
               matrix_partition.get_major_first(),
               matrix_partition.get_major_first() + (*segment_offsets)[1],
-              adj_matrix_row_value_input_first + row_value_input_offset,
-              adj_matrix_col_value_input_first + col_value_input_offset,
-              adj_matrix_row_col_key_first +
-                (adj_matrix_row_key ? row_value_input_offset : col_value_input_offset),
+              matrix_partition_row_value_input,
+              matrix_partition_col_value_input,
+              matrix_partition_row_col_key_input,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin<T>(tmp_value_buffer));
@@ -432,10 +440,9 @@ transform_reduce_by_adj_matrix_row_col_key_e(
               matrix_partition,
               matrix_partition.get_major_first() + (*segment_offsets)[1],
               matrix_partition.get_major_first() + (*segment_offsets)[2],
-              adj_matrix_row_value_input_first + row_value_input_offset,
-              adj_matrix_col_value_input_first + col_value_input_offset,
-              adj_matrix_row_col_key_first +
-                (adj_matrix_row_key ? row_value_input_offset : col_value_input_offset),
+              matrix_partition_row_value_input,
+              matrix_partition_col_value_input,
+              matrix_partition_row_col_key_input,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin<T>(tmp_value_buffer));
@@ -450,10 +457,9 @@ transform_reduce_by_adj_matrix_row_col_key_e(
               matrix_partition,
               matrix_partition.get_major_first() + (*segment_offsets)[2],
               matrix_partition.get_major_first() + (*segment_offsets)[3],
-              adj_matrix_row_value_input_first + row_value_input_offset,
-              adj_matrix_col_value_input_first + col_value_input_offset,
-              adj_matrix_row_col_key_first +
-                (adj_matrix_row_key ? row_value_input_offset : col_value_input_offset),
+              matrix_partition_row_value_input,
+              matrix_partition_col_value_input,
+              matrix_partition_row_col_key_input,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin<T>(tmp_value_buffer));
@@ -468,10 +474,9 @@ transform_reduce_by_adj_matrix_row_col_key_e(
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first() + (*segment_offsets)[3],
-              adj_matrix_row_value_input_first + row_value_input_offset,
-              adj_matrix_col_value_input_first + col_value_input_offset,
-              adj_matrix_row_col_key_first +
-                (adj_matrix_row_key ? row_value_input_offset : col_value_input_offset),
+              matrix_partition_row_value_input,
+              matrix_partition_col_value_input,
+              matrix_partition_row_col_key_input,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin<T>(tmp_value_buffer));
@@ -487,10 +492,9 @@ transform_reduce_by_adj_matrix_row_col_key_e(
             matrix_partition,
             matrix_partition.get_major_first(),
             matrix_partition.get_major_last(),
-            adj_matrix_row_value_input_first + row_value_input_offset,
-            adj_matrix_col_value_input_first + col_value_input_offset,
-            adj_matrix_row_col_key_first +
-              (adj_matrix_row_key ? row_value_input_offset : col_value_input_offset),
+            matrix_partition_row_value_input,
+            matrix_partition_col_value_input,
+            matrix_partition_row_col_key_input,
             e_op,
             tmp_keys.data(),
             get_dataframe_buffer_begin<T>(tmp_value_buffer));
@@ -562,32 +566,32 @@ transform_reduce_by_adj_matrix_row_col_key_e(
  * edges are determined by the graph adjacency matrix rows.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
- * input properties.
- * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
- * input properties.
- * @tparam VertexIterator Type of the iterator for keys in (key, value) pairs (key type should
- * coincide with vertex type).
+ * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
+ * properties.
+ * @tparam AdjMatrixColValueInputWrapper Type of the wrapper for graph adjacency matrix column input
+ * properties.
+ * @tparam AdjMatrixRowKeyInputWrapper Type of the wrapper for graph adjacency matrix row keys.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
- * properties for the first (inclusive) row (assigned to this process in multi-GPU).
- * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_view.get_number_of_local_adj_matrix_partition_rows().
- * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
- * properties for the first (inclusive) column (assigned to this process in multi-GPU).
- * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_view.get_number_of_local_adj_matrix_partition_cols().
- * @param adj_matrix_row_key_first Iterator pointing to the adjacency matrix row key for the first
- * (inclusive) column (assigned to this process in multi-GPU). `adj_matrix_row_key_last` (exclusive)
- * is deduced as @p adj_matrix_row_key_first + @p graph_view.get_number_of_local_adj_matrix_rows().
+ * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
+ * (for the rows assigned to this process in multi-GPU). Use either
+ * cugraph::row_properties_t::device_view() (if @p e_op needs to access row properties) or
+ * cugraph::dummy_properties_t::device_view() (if @p e_op does not access row properties). Use
+ * copy_to_adj_matrix_row to fill the wrapper.
+ * @param adj_matrix_col_value_input Device-copyable wrapper used to access column input properties
+ * (for the columns assigned to this process in multi-GPU). Use either
+ * cugraph::col_properties_t::device_view() (if @p e_op needs to access column properties) or
+ * cugraph::dummy_properties_t::device_view() (if @p e_op does not access column properties). Use
+ * copy_to_adj_matrix_col to fill the wrapper.
+ * @param adj_matrix_row_key_input Device-copyable wrapper used to access row keys(for the rows
+ * assigned to this process in multi-GPU). Use either cugraph::row_properties_t::device_view(). Use
+ * copy_to_adj_matrix_row to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
- * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
- * get_number_of_local_adj_matrix_partition_cols())) and returns a transformed value to be reduced.
+ * weight), properties for the row (i.e. source), and properties for the column  (i.e. destination)
+ * and returns a transformed value to be reduced.
  * @param init Initial value to be added to the value in each transform-reduced (key, value) pair.
  * @return std::tuple Tuple of rmm::device_uvector<typename GraphView::vertex_type> and
  * rmm::device_uvector<T> (if T is arithmetic scalar) or a tuple of rmm::device_uvector objects (if
@@ -595,32 +599,31 @@ transform_reduce_by_adj_matrix_row_col_key_e(
  * type).
  */
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
-          typename VertexIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
+          typename AdjMatrixRowKeyInputWrapper,
           typename EdgeOp,
           typename T>
 auto transform_reduce_by_adj_matrix_row_key_e(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-  VertexIterator adj_matrix_row_key_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  AdjMatrixRowKeyInputWrapper adj_matrix_row_key_input,
   EdgeOp e_op,
   T init)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
+  static_assert(std::is_same<typename AdjMatrixRowKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
 
-  return detail::transform_reduce_by_adj_matrix_row_col_key_e<true>(
-    handle,
-    graph_view,
-    adj_matrix_row_value_input_first,
-    adj_matrix_col_value_input_first,
-    adj_matrix_row_key_first,
-    e_op,
-    init);
+  return detail::transform_reduce_by_adj_matrix_row_col_key_e<true>(handle,
+                                                                    graph_view,
+                                                                    adj_matrix_row_value_input,
+                                                                    adj_matrix_col_value_input,
+                                                                    adj_matrix_row_key_input,
+                                                                    e_op,
+                                                                    init);
 }
 
 // FIXME: EdgeOp & VertexOp in update_frontier_v_push_if_out_nbr concatenates push inidicator or
@@ -632,33 +635,32 @@ auto transform_reduce_by_adj_matrix_row_key_e(
  * edges are determined by the graph adjacency matrix columns.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
- * input properties.
- * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
- * input properties.
- * @tparam VertexIterator Type of the iterator for keys in (key, value) pairs (key type should
- * coincide with vertex type).
+ * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
+ * properties.
+ * @tparam AdjMatrixColValueInputWrapper Type of the wrapper for graph adjacency matrix column input
+ * properties.
+ * @tparam AdjMatrixColKeyInputWrapper Type of the wrapper for graph adjacency matrix column keys.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
- * properties for the first (inclusive) row (assigned to this process in multi-GPU).
- * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_view.get_number_of_local_adj_matrix_partition_rows().
- * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
- * properties for the first (inclusive) column (assigned to this process in multi-GPU).
- * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_view.get_number_of_local_adj_matrix_partition_cols().
- * @param adj_matrix_col_key_first Iterator pointing to the adjacency matrix column key for the
- * first (inclusive) column (assigned to this process in multi-GPU).
- * `adj_matrix_col_key_last` (exclusive) is deduced as @p adj_matrix_col_key_first + @p
- * graph_view.get_number_of_local_adj_matrix_cols().
+ * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
+ * (for the rows assigned to this process in multi-GPU). Use either
+ * cugraph::row_properties_t::device_view() (if @p e_op needs to access row properties) or
+ * cugraph::dummy_properties_t::device_view() (if @p e_op does not access row properties). Use
+ * copy_to_adj_matrix_row to fill the wrapper.
+ * @param adj_matrix_col_value_input Device-copyable wrapper used to access column input properties
+ * (for the columns assigned to this process in multi-GPU). Use either
+ * cugraph::col_properties_t::device_view() (if @p e_op needs to access column properties) or
+ * cugraph::dummy_properties_t::device_view() (if @p e_op does not access column properties). Use
+ * copy_to_adj_matrix_col to fill the wrapper.
+ * @param adj_matrix_col_key_input Device-copyable wrapper used to access column keys(for the
+ * columns assigned to this process in multi-GPU). Use either
+ * cugraph::col_properties_t::device_view(). Use copy_to_adj_matrix_col to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
- * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
- * get_number_of_local_adj_matrix_partition_cols())) and returns a transformed value to be reduced.
+ * weight), properties for the row (i.e. source), and properties for the column  (i.e. destination)
+ * and returns a transformed value to be reduced.
  * @param init Initial value to be added to the value in each transform-reduced (key, value) pair.
  * @return std::tuple Tuple of rmm::device_uvector<typename GraphView::vertex_type> and
  * rmm::device_uvector<T> (if T is arithmetic scalar) or a tuple of rmm::device_uvector objects (if
@@ -666,32 +668,31 @@ auto transform_reduce_by_adj_matrix_row_key_e(
  * type).
  */
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
-          typename VertexIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
+          typename AdjMatrixColKeyInputWrapper,
           typename EdgeOp,
           typename T>
 auto transform_reduce_by_adj_matrix_col_key_e(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
-  VertexIterator adj_matrix_col_key_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  AdjMatrixColKeyInputWrapper adj_matrix_col_key_input,
   EdgeOp e_op,
   T init)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
+  static_assert(std::is_same<typename AdjMatrixColKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
 
-  return detail::transform_reduce_by_adj_matrix_row_col_key_e<false>(
-    handle,
-    graph_view,
-    adj_matrix_row_value_input_first,
-    adj_matrix_col_value_input_first,
-    adj_matrix_col_key_first,
-    e_op,
-    init);
+  return detail::transform_reduce_by_adj_matrix_row_col_key_e<false>(handle,
+                                                                     graph_view,
+                                                                     adj_matrix_row_value_input,
+                                                                     adj_matrix_col_value_input,
+                                                                     adj_matrix_col_key_input,
+                                                                     e_op,
+                                                                     init);
 }
 
 }  // namespace cugraph
