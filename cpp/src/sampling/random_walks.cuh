@@ -1073,7 +1073,7 @@ random_walks(raft::handle_t const& handle,
              index_t num_paths,
              index_t max_depth,
              bool use_padding,
-             int selector_type)
+             std::unique_ptr<sampling_params_t> sampling_strategy)
 {
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
@@ -1111,8 +1111,11 @@ random_walks(raft::handle_t const& handle,
       << "WARNING: Due to GPU memory availability, slower vertical traversal will be used.\n";
   }
 
+  int selector_type{0};
+  if (sampling_strategy) selector_type = static_cast<int>(sampling_strategy->sampling_type_);
+
   if (use_vertical_strategy) {
-    if (selector_type == static_cast<int>(detail::sampling_t::BIASED)) {
+    if (selector_type == static_cast<int>(sampling_strategy_t::BIASED)) {
       detail::biased_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
 
       auto quad_tuple =
@@ -1138,7 +1141,7 @@ random_walks(raft::handle_t const& handle,
                              std::move(std::get<2>(quad_tuple)));
     }
   } else {
-    if (selector_type == static_cast<int>(detail::sampling_t::BIASED)) {
+    if (selector_type == static_cast<int>(sampling_strategy_t::BIASED)) {
       detail::biased_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
 
       auto quad_tuple =

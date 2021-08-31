@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <cugraph/api_helpers.hpp>
+
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
@@ -1344,8 +1346,8 @@ extract_ego(raft::handle_t const& handle,
  * (compressed) format; when padding is used the output is a matrix of vertex paths and a matrix of
  * edges paths (weights); in this case the matrices are stored in row major order; the vertex path
  * matrix is padded with `num_vertices` values and the weight matrix is padded with `0` values;
- * @param selector_type identifier for sampling strategy: uniform, biased, etc.; possible
- * values{0==uniform, 1==biased}; defaults to 0 == uniform;
+ * @param sampling_strategy pointer for sampling strategy: uniform, biased, etc.; possible
+ * values{0==uniform, 1==biased, 2==node2vec}; defaults to nullptr == uniform;
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
  * rmm::device_uvector<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced
  * case (default), the return consists of corresponding vertex and edge weights for each, and
@@ -1365,8 +1367,8 @@ random_walks(raft::handle_t const& handle,
              typename graph_t::vertex_type const* ptr_d_start,
              index_t num_paths,
              index_t max_depth,
-             bool use_padding  = false,
-             int selector_type = 0);
+             bool use_padding                                     = false,
+             std::unique_ptr<sampling_params_t> sampling_strategy = nullptr);
 
 /**
  * @brief Finds (weakly-connected-)component IDs of each vertices in the input graph.

@@ -18,6 +18,7 @@
 //
 #pragma once
 
+#include <cugraph/api_helpers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/visitors/graph_envelope.hpp>
 #include <cugraph/visitors/ret_terased.hpp>
@@ -43,8 +44,6 @@
 namespace cugraph {
 
 namespace detail {
-
-enum class sampling_t : int { UNIFORM = 0, BIASED };  // sampling strategy; others: NODE2VEC
 
 template <typename T>
 using device_vec_t = rmm::device_uvector<T>;
