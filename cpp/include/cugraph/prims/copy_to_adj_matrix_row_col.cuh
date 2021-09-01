@@ -440,7 +440,8 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param adj_matrix_row_value_output Wrapper used to access data storage to copy row properties (for the rows assigned to this process in multi-GPU).
+ * @param adj_matrix_row_value_output Wrapper used to access data storage to copy row properties
+ * (for the rows assigned to this process in multi-GPU).
  */
 template <typename GraphViewType, typename VertexValueInputIterator>
 void copy_to_adj_matrix_row(
@@ -452,11 +453,9 @@ void copy_to_adj_matrix_row(
     adj_matrix_row_value_output)
 {
   if constexpr (GraphViewType::is_adj_matrix_transposed) {
-    copy_to_matrix_minor(
-      handle, graph_view, vertex_value_input_first, adj_matrix_row_value_output);
+    copy_to_matrix_minor(handle, graph_view, vertex_value_input_first, adj_matrix_row_value_output);
   } else {
-    copy_to_matrix_major(
-      handle, graph_view, vertex_value_input_first, adj_matrix_row_value_output);
+    copy_to_matrix_major(handle, graph_view, vertex_value_input_first, adj_matrix_row_value_output);
   }
 }
 
@@ -481,7 +480,8 @@ void copy_to_adj_matrix_row(
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param adj_matrix_row_value_output Wrapper used to access data storage to copy row properties (for the rows assigned to this process in multi-GPU).
+ * @param adj_matrix_row_value_output Wrapper used to access data storage to copy row properties
+ * (for the rows assigned to this process in multi-GPU).
  */
 template <typename GraphViewType, typename VertexIterator, typename VertexValueInputIterator>
 void copy_to_adj_matrix_row(
@@ -525,7 +525,8 @@ void copy_to_adj_matrix_row(
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param adj_matrix_col_value_output Wrapper used to access data storage to copy column properties (for the columns assigned to this process in multi-GPU).
+ * @param adj_matrix_col_value_output Wrapper used to access data storage to copy column properties
+ * (for the columns assigned to this process in multi-GPU).
  */
 template <typename GraphViewType, typename VertexValueInputIterator>
 void copy_to_adj_matrix_col(
@@ -537,11 +538,9 @@ void copy_to_adj_matrix_col(
     adj_matrix_col_value_output)
 {
   if constexpr (GraphViewType::is_adj_matrix_transposed) {
-    copy_to_matrix_major(
-      handle, graph_view, vertex_value_input_first, adj_matrix_col_value_output);
+    copy_to_matrix_major(handle, graph_view, vertex_value_input_first, adj_matrix_col_value_output);
   } else {
-    copy_to_matrix_minor(
-      handle, graph_view, vertex_value_input_first, adj_matrix_col_value_output);
+    copy_to_matrix_minor(handle, graph_view, vertex_value_input_first, adj_matrix_col_value_output);
   }
 }
 
@@ -566,7 +565,8 @@ void copy_to_adj_matrix_col(
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param adj_matrix_col_value_output Wrapper used to access data storage to copy column properties (for the columns assigned to this process in multi-GPU).
+ * @param adj_matrix_col_value_output Wrapper used to access data storage to copy column properties
+ * (for the columns assigned to this process in multi-GPU).
  */
 template <typename GraphViewType, typename VertexIterator, typename VertexValueInputIterator>
 void copy_to_adj_matrix_col(
