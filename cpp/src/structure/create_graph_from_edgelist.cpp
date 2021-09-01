@@ -113,8 +113,10 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
              *vertex_partition_segment_offsets) =
       cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle,
-        std::optional<std::tuple<vertex_t const*, vertex_t>>{std::make_tuple(
-          (*local_vertex_span).data(), static_cast<vertex_t>((*local_vertex_span).size()))},
+        local_vertex_span
+          ? std::optional<std::tuple<vertex_t const*, vertex_t>>{std::make_tuple(
+              (*local_vertex_span).data(), static_cast<vertex_t>((*local_vertex_span).size()))}
+          : std::nullopt,
         major_ptrs,
         minor_ptrs,
         edgelist_edge_counts,
