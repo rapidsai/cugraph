@@ -378,6 +378,7 @@ class Louvain {
                           cluster_keys_v_.end(),
                           cluster_weights_v_.begin());
 
+      vertex_cluster_weights_v.resize(next_clusters_v_.size(), handle_.get_stream());
       thrust::transform(handle_.get_thrust_policy(),
                         next_clusters_v_.begin(),
                         next_clusters_v_.end(),
@@ -494,7 +495,10 @@ class Louvain {
         current_graph_view_,
         dummy_properties_t<vertex_t>{}.device_view(),
         dummy_properties_t<vertex_t>{}.device_view(),
-        src_clusters_cache_.device_view(),
+        graph_view_t::is_multi_gpu
+          ? src_clusters_cache_.device_view()
+          : detail::major_properties_device_view_t<vertex_t, vertex_t const*>(
+              next_clusters_v_.data()),
         [] __device__(auto, auto, auto wt, auto, auto) { return wt; },
         weight_t{0});
   }
