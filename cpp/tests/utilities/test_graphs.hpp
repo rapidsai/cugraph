@@ -267,8 +267,8 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     }
 
     if (multi_gpu) {
-      std::tie(src_v, dst_v, weights_v) =
-        cugraph::detail::shuffle_edgelist_by_gpu_id(handle, std::move(src_v), std::move(dst_v), std::move(weights_v));
+      std::tie(src_v, dst_v, weights_v) = cugraph::detail::shuffle_edgelist_by_gpu_id(
+        handle, std::move(src_v), std::move(dst_v), std::move(weights_v));
     }
 
     translate(handle, src_v, dst_v);
