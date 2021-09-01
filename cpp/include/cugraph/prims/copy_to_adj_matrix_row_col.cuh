@@ -429,8 +429,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
  * @brief Copy vertex property values to the corresponding graph adjacency matrix row property
  * variables.
  *
- * This version fills the entire set of graph adjacency matrix row property values. This function is
- * inspired by thrust::copy().
+ * This version fills the entire set of graph adjacency matrix row property values.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
@@ -465,7 +464,7 @@ void copy_to_adj_matrix_row(
  *
  * This version fills only a subset of graph adjacency matrix row property values. [@p vertex_first,
  * @p vertex_last) specifies the vertices with new values to be copied to graph adjacency matrix row
- * property variables. This function is inspired by thrust::copy().
+ * property variables.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator  Type of the iterator for vertex identifiers.
