@@ -555,7 +555,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           // FIXME: better switch to atomic_ref after
           // https://github.com/nvidia/libcudacxx/milestone/2
           auto old = atomicCAS(
-            &(col_components.get(col_offset)), invalid_component_id<vertex_t>::value, tag);
+            col_components.get_iter(col_offset), invalid_component_id<vertex_t>::value, tag);
           if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
             static_assert(sizeof(unsigned long long int) == sizeof(size_t));
             auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),

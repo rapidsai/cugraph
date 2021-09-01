@@ -249,7 +249,7 @@ class Louvain {
       cluster_weights_v_ = std::move(rx_weights_v);
     }
 
-    if (graph_view_t::is_multi_gpu) {
+    if constexpr (graph_view_t::is_multi_gpu) {
       src_vertex_weights_cache_ =
         row_properties_t<graph_view_t, weight_t>(handle_, current_graph_view_);
       copy_to_adj_matrix_row(
@@ -259,20 +259,6 @@ class Louvain {
     }
 
     timer_stop(handle_.get_stream_view());
-  }
-
-  template <typename T>
-  void cache_src_properties(rmm::device_uvector<T>& input,
-                            row_properties_t<graph_view_t, T>& src_cache_)
-  {
-    copy_to_adj_matrix_row(handle_, current_graph_view_, input.begin(), src_cache_);
-  }
-
-  template <typename T>
-  void cache_dst_properties(rmm::device_uvector<T>& input,
-                            col_properties_t<graph_view_t, T>& dst_cache_)
-  {
-    copy_to_adj_matrix_col(handle_, current_graph_view_, input.begin(), dst_cache_);
   }
 
   virtual weight_t update_clustering(weight_t total_edge_weight, weight_t resolution)
@@ -289,9 +275,11 @@ class Louvain {
 
     if constexpr (graph_view_t::is_multi_gpu) {
       src_clusters_cache_ = row_properties_t<graph_view_t, vertex_t>(handle_, current_graph_view_);
-      cache_src_properties(next_clusters_v_, src_clusters_cache_);
+      copy_to_adj_matrix_row(
+        handle_, current_graph_view_, next_clusters_v_.begin(), src_clusters_cache_);
       dst_clusters_cache_ = col_properties_t<graph_view_t, vertex_t>(handle_, current_graph_view_);
-      cache_dst_properties(next_clusters_v_, dst_clusters_cache_);
+      copy_to_adj_matrix_col(
+        handle_, current_graph_view_, next_clusters_v_.begin(), dst_clusters_cache_);
     }
 
     weight_t new_Q = modularity(total_edge_weight, resolution);
@@ -418,7 +406,7 @@ class Louvain {
                              src_old_cluster_sum_subtract_pairs);
     }
 
-    auto output_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
+    auto output_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
       current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
 
     auto cluster_old_sum_subtract_pair_first = thrust::make_zip_iterator(
@@ -443,39 +431,21 @@ class Louvain {
     copy_v_transform_reduce_key_aggregated_out_nbr(
       handle_,
       current_graph_view_,
-#if 1
       zipped_src_device_view,
       graph_view_t::is_multi_gpu
         ? dst_clusters_cache_.device_view()
         : detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(
             next_clusters_v_.data()),
-#else
-      thrust::make_zip_iterator(thrust::make_tuple(src_old_cluster_sum_v.begin(),
-                                                   d_src_vertex_weights_cache_,
-                                                   src_cluster_subtract_v.begin(),
-                                                   d_src_cluster_cache_,
-                                                   src_cluster_weights_v.begin())),
-
-      d_dst_cluster_cache_,
-#endif
       cluster_keys_v_.begin(),
       cluster_keys_v_.end(),
       cluster_weights_v_.begin(),
       [total_edge_weight, resolution] __device__(
         auto src, auto neighbor_cluster, auto new_cluster_sum, auto src_info, auto a_new) {
-#if 1
         auto k_k              = thrust::get<0>(src_info);
         auto src_cluster      = thrust::get<1>(src_info);
         auto a_old            = thrust::get<2>(src_info);
         auto old_cluster_sum  = thrust::get<3>(src_info);
         auto cluster_subtract = thrust::get<4>(src_info);
-#else
-        auto old_cluster_sum  = thrust::get<0>(src_info);
-        auto k_k              = thrust::get<1>(src_info);
-        auto cluster_subtract = thrust::get<2>(src_info);
-        auto src_cluster      = thrust::get<3>(src_info);
-        auto a_old            = thrust::get<4>(src_info);
-#endif
 
         if (src_cluster == neighbor_cluster) new_cluster_sum -= cluster_subtract;
 
@@ -512,8 +482,10 @@ class Louvain {
       });
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      cache_src_properties(next_clusters_v_, src_clusters_cache_);
-      cache_dst_properties(next_clusters_v_, dst_clusters_cache_);
+      copy_to_adj_matrix_row(
+        handle_, current_graph_view_, next_clusters_v_.begin(), src_clusters_cache_);
+      copy_to_adj_matrix_row(
+        handle_, current_graph_view_, next_clusters_v_.begin(), src_clusters_cache_);
     }
 
     std::tie(cluster_keys_v_, cluster_weights_v_) =
@@ -569,7 +541,6 @@ class Louvain {
   std::unique_ptr<graph_t> current_graph_{};
   graph_view_t current_graph_view_;
 
-  // FIXME: better move inside the update_by_delta_modularity?
   rmm::device_uvector<vertex_t> cluster_keys_v_;
   rmm::device_uvector<weight_t> cluster_weights_v_;
 

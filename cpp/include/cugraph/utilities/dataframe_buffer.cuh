@@ -93,6 +93,21 @@ auto get_dataframe_buffer_begin_tuple_impl(std::index_sequence<Is...>, BufferTyp
 }
 
 template <typename TupleType, size_t I, typename BufferType>
+auto get_dataframe_buffer_cbegin_tuple_element_impl(BufferType& buffer)
+{
+  using element_t = typename thrust::tuple_element<I, TupleType>::type;
+  return std::get<I>(buffer).cbegin();
+}
+
+template <typename TupleType, size_t... Is, typename BufferType>
+auto get_dataframe_buffer_cbegin_tuple_impl(std::index_sequence<Is...>, BufferType& buffer)
+{
+  // thrust::make_tuple instead of std::make_tuple as this is fed to thrust::make_zip_iterator.
+  return thrust::make_tuple(
+    get_dataframe_buffer_cbegin_tuple_element_impl<TupleType, Is>(buffer)...);
+}
+
+template <typename TupleType, size_t I, typename BufferType>
 auto get_dataframe_buffer_end_tuple_element_impl(BufferType& buffer)
 {
   using element_t = typename thrust::tuple_element<I, TupleType>::type;
@@ -104,6 +119,20 @@ auto get_dataframe_buffer_end_tuple_impl(std::index_sequence<Is...>, BufferType&
 {
   // thrust::make_tuple instead of std::make_tuple as this is fed to thrust::make_zip_iterator.
   return thrust::make_tuple(get_dataframe_buffer_end_tuple_element_impl<TupleType, Is>(buffer)...);
+}
+
+template <typename TupleType, size_t I, typename BufferType>
+auto get_dataframe_buffer_cend_tuple_element_impl(BufferType& buffer)
+{
+  using element_t = typename thrust::tuple_element<I, TupleType>::type;
+  return std::get<I>(buffer).cend();
+}
+
+template <typename TupleType, size_t... Is, typename BufferType>
+auto get_dataframe_buffer_cend_tuple_impl(std::index_sequence<Is...>, BufferType& buffer)
+{
+  // thrust::make_tuple instead of std::make_tuple as this is fed to thrust::make_zip_iterator.
+  return thrust::make_tuple(get_dataframe_buffer_cend_tuple_element_impl<TupleType, Is>(buffer)...);
 }
 
 }  // namespace detail
@@ -203,6 +232,24 @@ auto get_dataframe_buffer_begin(BufferType& buffer)
 template <typename T,
           typename BufferType,
           typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+auto get_dataframe_buffer_cbegin(BufferType& buffer)
+{
+  return buffer.cbegin();
+}
+
+template <typename T,
+          typename BufferType,
+          typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value>* = nullptr>
+auto get_dataframe_buffer_cbegin(BufferType& buffer)
+{
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  return thrust::make_zip_iterator(detail::get_dataframe_buffer_cbegin_tuple_impl<T>(
+    std::make_index_sequence<tuple_size>(), buffer));
+}
+
+template <typename T,
+          typename BufferType,
+          typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
 auto get_dataframe_buffer_end(BufferType& buffer)
 {
   return buffer.end();
@@ -216,6 +263,24 @@ auto get_dataframe_buffer_end(BufferType& buffer)
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
   return thrust::make_zip_iterator(
     detail::get_dataframe_buffer_end_tuple_impl<T>(std::make_index_sequence<tuple_size>(), buffer));
+}
+
+template <typename T,
+          typename BufferType,
+          typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+auto get_dataframe_buffer_cend(BufferType& buffer)
+{
+  return buffer.cend();
+}
+
+template <typename T,
+          typename BufferType,
+          typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value>* = nullptr>
+auto get_dataframe_buffer_cend(BufferType& buffer)
+{
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  return thrust::make_zip_iterator(detail::get_dataframe_buffer_cend_tuple_impl<T>(
+    std::make_index_sequence<tuple_size>(), buffer));
 }
 
 }  // namespace cugraph

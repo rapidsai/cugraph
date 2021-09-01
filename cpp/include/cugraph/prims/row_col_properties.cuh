@@ -48,7 +48,8 @@ class major_properties_device_view_t {
 
   ValueIterator value_data() const { return value_first_; }
 
-  __device__ auto get(vertex_t offset) const { return *(value_first_ + offset); }
+  __device__ ValueIterator get_iter(vertex_t offset) const { return value_first_ + offset; }
+  __device__ value_type get(vertex_t offset) const { return *get_iter(offset); }
 
  private:
   ValueIterator value_first_{};
@@ -73,7 +74,7 @@ class minor_properties_device_view_t {
   {
   }
 
-  __device__ auto& get(vertex_t offset) const
+  __device__ ValueIterator get_iter(vertex_t offset) const
   {
     auto value_offset = offset;
     if (key_first_) {
@@ -81,8 +82,10 @@ class minor_properties_device_view_t {
       assert((it != *key_last_) && (*it == offset));
       value_offset = static_cast<vertex_t>(thrust::distance(*key_first_, it));
     }
-    return *(value_first_ + value_offset);
+    return value_first_ + value_offset;
   }
+
+  __device__ value_type get(vertex_t offset) const { return *get_iter(offset); }
 
  private:
   thrust::optional<vertex_t const*> key_first_{thrust::nullopt};
@@ -113,15 +116,13 @@ class major_properties_t {
 
   auto device_view() const
   {
-    auto value_first = get_dataframe_buffer_begin<T>(buffer_);
+    auto value_first = get_dataframe_buffer_cbegin<T>(buffer_);
     return major_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
   }
 
   auto mutable_device_view()
   {
     auto value_first = get_dataframe_buffer_begin<T>(buffer_);
-    static_assert(
-      !std::is_const_v<typename std::iterator_traits<decltype(value_first)>::value_type>);
     return major_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
   }
 
@@ -168,7 +169,7 @@ class minor_properties_t {
 
   auto device_view() const
   {
-    auto value_first = get_dataframe_buffer_begin<T>(buffer_);
+    auto value_first = get_dataframe_buffer_cbegin<T>(buffer_);
     if (key_first_) {
       return minor_properties_device_view_t<vertex_t, decltype(value_first)>(
         *key_first_, *key_last_, value_first);
@@ -180,8 +181,6 @@ class minor_properties_t {
   auto mutable_device_view()
   {
     auto value_first = get_dataframe_buffer_begin<T>(buffer_);
-    static_assert(
-      !std::is_const_v<typename std::iterator_traits<decltype(value_first)>::value_type>);
     if (key_first_) {
       return minor_properties_device_view_t<vertex_t, decltype(value_first)>(
         *key_first_, *key_last_, value_first);
