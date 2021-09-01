@@ -409,8 +409,10 @@ ConfigureTest(SERIALIZATION_TEST "${SERIALIZATION_TEST_SRCS}")
 
 ###################################################################################################
 # - Experimental renumber tests -------------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_RENUMBERING_TEST experimental/renumbering_test.cpp)
+set(RENUMBERING_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/structure/renumbering_test.cpp")
 
+ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
 
 ###################################################################################################
 # - BFS Visitor tests -----------------------------------------------------------------------------
