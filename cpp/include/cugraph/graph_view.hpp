@@ -776,22 +776,22 @@ class graph_view_t<vertex_t,
 
   std::optional<vertex_t const*> get_local_sorted_unique_edge_row_begin() const
   {
-    return local_sorted_unique_edge_row_first_;
+    return std::nullopt;
   }
 
   std::optional<vertex_t const*> get_local_sorted_unique_edge_row_end() const
   {
-    return local_sorted_unique_edge_row_last_;
+    return std::nullopt;
   }
 
   std::optional<vertex_t const*> get_local_sorted_unique_edge_col_begin() const
   {
-    return local_sorted_unique_edge_col_first_;
+    return std::nullopt;
   }
 
   std::optional<vertex_t const*> get_local_sorted_unique_edge_col_end() const
   {
-    return local_sorted_unique_edge_col_last_;
+    return std::nullopt;
   }
 
  private:
@@ -801,12 +801,6 @@ class graph_view_t<vertex_t,
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets_{std::nullopt};
-
-  // FIXME: to be implemented.
-  std::optional<vertex_t const*> local_sorted_unique_edge_row_first_{std::nullopt};
-  std::optional<vertex_t const*> local_sorted_unique_edge_row_last_{std::nullopt};
-  std::optional<vertex_t const*> local_sorted_unique_edge_col_first_{std::nullopt};
-  std::optional<vertex_t const*> local_sorted_unique_edge_col_last_{std::nullopt};
 };
 
 }  // namespace cugraph

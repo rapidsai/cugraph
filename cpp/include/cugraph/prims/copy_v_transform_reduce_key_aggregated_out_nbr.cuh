@@ -425,6 +425,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
         matrix_partition.get_indices(),
         detail::minor_to_key_t<AdjMatrixColKeyInputWrapper>{adj_matrix_col_key_input,
                                                             matrix_partition.get_minor_first()});
+      auto execution_policy = handle.get_thrust_policy();
       thrust::copy(execution_policy,
                    minor_key_first,
                    minor_key_first + matrix_partition.get_number_of_edges(),
