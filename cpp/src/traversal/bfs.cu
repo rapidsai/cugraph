@@ -19,8 +19,10 @@
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
+#include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
+#include <cugraph/vertex_partition_device.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/exec_policy.hpp>
@@ -67,7 +69,7 @@ void bfs(raft::handle_t const& handle,
       ? host_scalar_allreduce(handle.get_comms(), n_sources, handle.get_stream())
       : n_sources;
   CUGRAPH_EXPECTS(aggregate_n_sources > 0,
-                  "Invalid input argument: input should have more than one source");
+                  "Invalid input argument: input should have at least one source");
 
   // 1. check input arguments
   CUGRAPH_EXPECTS(
@@ -87,7 +89,7 @@ void bfs(raft::handle_t const& handle,
     }
   }
 
-  /*if (do_expensive_check) {
+  if (do_expensive_check) {
     vertex_partition_device_t<GraphViewType> vertex_partition(push_graph_view);
     auto num_invalid_vertices =
       count_if_v(handle,
@@ -100,7 +102,7 @@ void bfs(raft::handle_t const& handle,
                  });
     CUGRAPH_EXPECTS(num_invalid_vertices == 0,
                     "Invalid input argument: sources have invalid vertex IDs.");
-  }*/
+  }
 
   // 2. initialize distances and predecessors
 
@@ -139,7 +141,7 @@ void bfs(raft::handle_t const& handle,
   // insert local source(s) in the bucket
   if (aggregate_n_sources == 1) {
     vertex_t src;
-    // Fixme: this (cheap) transfer could be skiped when is_local_vertex_nocheck accpets device mem
+    // FIXME: this (cheap) transfer could be skiped when is_local_vertex_nocheck accpets device mem
     raft::copy(&src, sources, n_sources, handle.get_stream());
     if (push_graph_view.is_local_vertex_nocheck(src)) {
       vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
