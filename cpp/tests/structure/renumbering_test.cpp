@@ -74,10 +74,8 @@ class Tests_Renumbering
     rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream_view());
     rmm::device_uvector<vertex_t> renumber_map_labels_v(0, handle.get_stream_view());
     vertex_t number_of_vertices{};
-    edge_t number_of_edges{};
-    bool symmetric{};
 
-    std::tie(src_v, dst_v, std::ignore, number_of_vertices, symmetric) =
+    std::tie(src_v, dst_v, std::ignore, number_of_vertices, std::ignore) =
       input_usecase.template construct_edgelist<vertex_t, edge_t, weight_t, false, false>(handle,
                                                                                           false);
 

@@ -164,6 +164,9 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
              bool>
   construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
   {
+    // FIXME: This should be moved out of this function.
+    //        We should create a symmetric graph facade for tests
+    //        that want a symmetric graph
     constexpr bool symmetric{true};
 
     std::vector<size_t> partition_ids(1);
