@@ -21,14 +21,13 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <gtest/gtest.h>
 
@@ -96,7 +95,7 @@ class Tests_Renumbering
     }
 
     std::tie(renumber_map_labels_v, std::ignore) =
-      cugraph::experimental::renumber_edgelist<vertex_t, edge_t, false>(
+      cugraph::renumber_edgelist<vertex_t, edge_t, false>(
         handle, std::nullopt, src_v.begin(), dst_v.begin(), src_v.size());
 
     if (PERF) {
@@ -107,20 +106,18 @@ class Tests_Renumbering
     }
 
     if (renumbering_usecase.check_correctness) {
-      cugraph::experimental::unrenumber_local_int_vertices(
-        handle,
-        src_v.data(),
-        src_v.size(),
-        renumber_map_labels_v.data(),
-        0,
-        static_cast<vertex_t>(renumber_map_labels_v.size()));
-      cugraph::experimental::unrenumber_local_int_vertices(
-        handle,
-        dst_v.data(),
-        dst_v.size(),
-        renumber_map_labels_v.data(),
-        0,
-        static_cast<vertex_t>(renumber_map_labels_v.size()));
+      cugraph::unrenumber_local_int_vertices(handle,
+                                             src_v.data(),
+                                             src_v.size(),
+                                             renumber_map_labels_v.data(),
+                                             0,
+                                             static_cast<vertex_t>(renumber_map_labels_v.size()));
+      cugraph::unrenumber_local_int_vertices(handle,
+                                             dst_v.data(),
+                                             dst_v.size(),
+                                             renumber_map_labels_v.data(),
+                                             0,
+                                             static_cast<vertex_t>(renumber_map_labels_v.size()));
 
       h_final_src_v.resize(src_v.size());
       h_final_dst_v.resize(dst_v.size());
