@@ -23,19 +23,23 @@
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/graph_view.hpp>
 
-#include <cuda_profiler_api.h>
-#include <gtest/gtest.h>
 #include <raft/cudart_utils.h>
-#include <thrust/extrema.h>
-#include <thrust/sequence.h>
-#include <thrust/transform.h>
-#include <algorithm>
-#include <iostream>
-#include <limits>
 #include <raft/handle.hpp>
+#include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
+
+#include <cuda_profiler_api.h>
+#include <thrust/extrema.h>
+#include <thrust/sequence.h>
+#include <thrust/transform.h>
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <iostream>
+#include <limits>
 #include <tuple>
 #include <utilities/thrust_wrapper.hpp>
 #include <vector>
