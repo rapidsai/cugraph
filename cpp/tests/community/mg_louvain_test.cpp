@@ -29,6 +29,7 @@
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
 
+#include <thrust/execution_policy.h>
 #include <thrust/sequence.h>
 
 #include <gtest/gtest.h>
@@ -129,8 +130,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
       std::tie(*sg_graph, std::ignore) =
         cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
           handle,
-          std::optional<std::tuple<vertex_t const*, vertex_t>>{
-            std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},
+          std::move(d_vertices),
           std::move(d_edgelist_rows),
           std::move(d_edgelist_cols),
           std::move(d_edgelist_weights),

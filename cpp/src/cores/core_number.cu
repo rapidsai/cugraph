@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <Hornet.hpp>
 #include <Static/CoreNumber/CoreNumber.cuh>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <rmm/device_vector.hpp>
+#include <rmm/exec_policy.hpp>
 //#include <nvgraph_gdf.h>
 
 namespace cugraph {
@@ -66,7 +67,7 @@ void extract_edges(legacy::GraphCOOView<VT, ET, WT> const& i_graph,
       thrust::make_tuple(i_graph.src_indices, i_graph.dst_indices, i_graph.edge_data));
     auto outEdge = thrust::make_zip_iterator(
       thrust::make_tuple(o_graph.src_indices, o_graph.dst_indices, o_graph.edge_data));
-    auto ptr = thrust::copy_if(rmm::exec_policy(stream)->on(stream),
+    auto ptr = thrust::copy_if(rmm::exec_policy(stream),
                                inEdge,
                                inEdge + i_graph.number_of_edges,
                                outEdge,
@@ -79,7 +80,7 @@ void extract_edges(legacy::GraphCOOView<VT, ET, WT> const& i_graph,
       thrust::make_zip_iterator(thrust::make_tuple(i_graph.src_indices, i_graph.dst_indices));
     auto outEdge =
       thrust::make_zip_iterator(thrust::make_tuple(o_graph.src_indices, o_graph.dst_indices));
-    auto ptr = thrust::copy_if(rmm::exec_policy(stream)->on(stream),
+    auto ptr = thrust::copy_if(rmm::exec_policy(stream),
                                inEdge,
                                inEdge + i_graph.number_of_edges,
                                outEdge,
@@ -109,8 +110,7 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph(
 
   rmm::device_vector<VT> sorted_core_num(in_graph.number_of_vertices);
 
-  thrust::scatter(
-    rmm::exec_policy(stream)->on(stream), core_num, core_num + len, vid, sorted_core_num.begin());
+  thrust::scatter(rmm::exec_policy(stream), core_num, core_num + len, vid, sorted_core_num.begin());
 
   VT* d_sorted_core_num = sorted_core_num.data().get();
 
@@ -121,7 +121,7 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph(
 
   auto out_graph = std::make_unique<legacy::GraphCOO<VT, ET, WT>>(
     in_graph.number_of_vertices,
-    thrust::count_if(rmm::exec_policy(stream)->on(stream),
+    thrust::count_if(rmm::exec_policy(stream),
                      edge,
                      edge + in_graph.number_of_edges,
                      detail::FilterEdges(k, d_sorted_core_num)),

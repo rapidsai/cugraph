@@ -154,9 +154,14 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
   }
 
   if (multi_gpu) {
-    std::tie(d_edgelist_rows, d_edgelist_cols, d_edgelist_weights) =
-      cugraph::detail::shuffle_edgelist_by_edge(
-        handle, d_edgelist_rows, d_edgelist_cols, d_edgelist_weights, store_transposed);
+    std::tie(store_transposed ? d_edgelist_cols : d_edgelist_rows,
+             store_transposed ? d_edgelist_rows : d_edgelist_cols,
+             d_edgelist_weights) =
+      cugraph::detail::shuffle_edgelist_by_gpu_id(
+        handle,
+        store_transposed ? std::move(d_edgelist_cols) : std::move(d_edgelist_rows),
+        store_transposed ? std::move(d_edgelist_rows) : std::move(d_edgelist_cols),
+        std::move(d_edgelist_weights));
   }
 
   rmm::device_uvector<vertex_t> d_vertices(0, handle.get_stream());
@@ -172,13 +177,14 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
                                    partition_vertex_firsts[i]);
   }
 
-  if (multi_gpu) { d_vertices = cugraph::detail::shuffle_vertices(handle, d_vertices); }
+  if (multi_gpu) {
+    d_vertices = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(d_vertices));
+  }
 
   return cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
-      std::optional<std::tuple<vertex_t const*, vertex_t>>{
-        std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},
+      std::move(d_vertices),
       std::move(d_edgelist_rows),
       std::move(d_edgelist_cols),
       std::move(d_edgelist_weights),

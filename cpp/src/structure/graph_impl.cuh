@@ -69,8 +69,8 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                   vertex_t major_first,
                   std::optional<vertex_t> major_hypersparse_first,
                   vertex_t major_last,
-                  vertex_t minor_first,
-                  vertex_t minor_last,
+                  vertex_t /* minor_first */,
+                  vertex_t /* minor_last */,
                   rmm::cuda_stream_view stream_view)
 {
   rmm::device_uvector<edge_t> offsets((major_last - major_first) + 1, stream_view);

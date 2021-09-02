@@ -23,7 +23,7 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/sequence.h>
 
@@ -335,10 +335,8 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
       handle, graph_file_full_path, test_weighted);
 
   rmm::device_uvector<vertex_t> d_vertices(number_of_vertices, handle.get_stream());
-  thrust::sequence(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                   d_vertices.begin(),
-                   d_vertices.end(),
-                   vertex_t{0});
+  auto execution_policy = handle.get_thrust_policy();
+  thrust::sequence(execution_policy, d_vertices.begin(), d_vertices.end(), vertex_t{0});
   handle.get_stream_view().synchronize();
 
   if (multi_gpu) {
@@ -352,14 +350,12 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
 
     auto vertex_key_func = cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
     d_vertices.resize(
-      thrust::distance(
-        d_vertices.begin(),
-        thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                          d_vertices.begin(),
-                          d_vertices.end(),
-                          [comm_rank, key_func = vertex_key_func] __device__(auto val) {
-                            return key_func(val) != comm_rank;
-                          })),
+      thrust::distance(d_vertices.begin(),
+                       thrust::remove_if(execution_policy,
+                                         d_vertices.begin(),
+                                         d_vertices.end(),
+                                         [comm_rank, key_func = vertex_key_func] __device__(
+                                           auto val) { return key_func(val) != comm_rank; })),
       handle.get_stream());
     d_vertices.shrink_to_fit(handle.get_stream());
 
@@ -371,7 +367,7 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
         d_edgelist_rows.begin(), d_edgelist_cols.begin(), (*d_edgelist_weights).begin()));
       number_of_local_edges = thrust::distance(
         edge_first,
-        thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::remove_if(execution_policy,
                           edge_first,
                           edge_first + d_edgelist_rows.size(),
                           [comm_rank, key_func = edge_key_func] __device__(auto e) {
@@ -384,7 +380,7 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
         thrust::make_tuple(d_edgelist_rows.begin(), d_edgelist_cols.begin()));
       number_of_local_edges = thrust::distance(
         edge_first,
-        thrust::remove_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::remove_if(execution_policy,
                           edge_first,
                           edge_first + d_edgelist_rows.size(),
                           [comm_rank, key_func = edge_key_func] __device__(auto e) {
@@ -408,8 +404,7 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
   return cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
-      std::optional<std::tuple<vertex_t const*, vertex_t>>{
-        std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},
+      std::move(d_vertices),
       std::move(d_edgelist_rows),
       std::move(d_edgelist_cols),
       std::move(d_edgelist_weights),

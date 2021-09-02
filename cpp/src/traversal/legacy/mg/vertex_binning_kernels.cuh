@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <rmm/thrust_rmm_allocator.h>
+#include <rmm/device_vector.hpp>
 #include "../traversal_common.cuh"
 
 namespace cugraph {
