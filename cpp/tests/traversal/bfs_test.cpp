@@ -27,6 +27,7 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
+#include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -133,14 +134,14 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
       hr_clock.start();
     }
 
-    vertex_t source = bfs_usecase.source;
+    rmm::device_scalar<vertex_t> const d_source(bfs_usecase.source, handle.get_stream());
 
     cugraph::bfs(handle,
                  graph_view,
                  d_distances.data(),
                  d_predecessors.data(),
-                 &source,
-                 1,
+                 d_source.data(),
+                 size_t{1},
                  false,
                  std::numeric_limits<vertex_t>::max());
 
