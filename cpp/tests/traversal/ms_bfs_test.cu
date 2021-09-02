@@ -180,12 +180,13 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     bool direction_optimizing = false;
 
     vertex_t source = h_sources[0];
+    rmm::device_scalar<vertex_t> const d_source_0(source, handle.get_stream());
     cugraph::bfs(handle,
                  graph_view,
                  d_distances_ref[0].begin(),
                  d_predecessors_ref[0].begin(),
-                 &source,
-                 1,
+                 d_source_0.data(),
+                 size_t{1},
                  direction_optimizing,
                  configuration.radius);
 
@@ -195,12 +196,13 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     cudaProfilerStart();
     for (size_t i = 0; i < h_sources.size(); i++) {
       source = h_sources[i];
+      rmm::device_scalar<vertex_t> const d_source_i(source, handle.get_stream());
       cugraph::bfs(handle,
                    graph_view,
                    d_distances_ref[i].begin(),
                    d_predecessors_ref[i].begin(),
-                   &source,
-                   1,
+                   d_source_i.data(),
+                   size_t{1},
                    direction_optimizing,
                    configuration.radius);
     }

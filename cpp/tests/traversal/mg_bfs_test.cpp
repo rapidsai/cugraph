@@ -114,7 +114,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
       hr_clock.start();
     }
 
-    auto d_mg_source =
+    auto const d_mg_source =
       mg_graph_view.is_local_vertex_nocheck(bfs_usecase.source)
         ? std::make_optional<rmm::device_scalar<vertex_t>>(bfs_usecase.source, handle.get_stream())
         : std::nullopt;
@@ -196,7 +196,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                           handle.get_stream());
         handle.get_stream_view().synchronize();
 
-        rmm::device_scalar<vertex_t> d_sg_source(unrenumbered_source, handle.get_stream());
+        rmm::device_scalar<vertex_t> const d_sg_source(unrenumbered_source, handle.get_stream());
         cugraph::bfs(handle,
                      sg_graph_view,
                      d_sg_distances.data(),
