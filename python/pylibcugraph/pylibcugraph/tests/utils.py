@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import os
-from itertools import product
 from pathlib import Path
 import cudf
 
@@ -24,6 +23,7 @@ RAPIDS_DATASET_ROOT_DIR_PATH = Path(RAPIDS_DATASET_ROOT_DIR)
 DATASETS = [RAPIDS_DATASET_ROOT_DIR_PATH/f for f in [
     "karate.csv",
     "dolphins.csv"]]
+
 
 def read_csv_file(csv_file, read_weights_in_sp=True):
     print("Reading " + str(csv_file) + "...")

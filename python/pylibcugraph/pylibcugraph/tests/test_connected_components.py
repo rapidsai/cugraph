@@ -17,7 +17,7 @@ import numpy as np
 import cupy
 import cugraph
 
-import utils
+from . import utils
 
 
 @pytest.fixture
@@ -41,7 +41,6 @@ def test_import():
     import pylibcugraph  # noqa: F401
 
 
-
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_scc(package_under_test, graph_file):
     """
@@ -57,13 +56,15 @@ def test_scc(package_under_test, graph_file):
     cudf_ind = indices
 
     cupy_labels = cupy.array(np.zeros(G.number_of_vertices()))
-    pylibcugraph.strongly_connected_components(cupy_off.__cuda_array_interface__,
-                                               cudf_ind.__cuda_array_interface__,
-                                               None,
-                                               G.number_of_vertices(),
-                                               G.number_of_edges(directed_edges=True),
-                                               cupy_labels.__cuda_array_interface__
-                                               )
+    pylibcugraph.strongly_connected_components(
+        cupy_off.__cuda_array_interface__,
+        cudf_ind.__cuda_array_interface__,
+        None,
+        G.number_of_vertices(),
+        G.number_of_edges(directed_edges=True),
+        cupy_labels.__cuda_array_interface__
+    )
+
     print(cupy_labels)
     df = cugraph.strongly_connected_components(G)
     print(df)
@@ -83,14 +84,14 @@ def test_wcc(package_under_test, graph_file):
     cudf_dst = cu_M["1"]
 
     cupy_labels = cupy.array(np.zeros(G.number_of_vertices()), dtype='int32')
-    pylibcugraph.weakly_connected_components(cupy_src.__cuda_array_interface__,
-                                             cudf_dst.__cuda_array_interface__,
-                                             None,
-                                             G.number_of_vertices(),
-                                             G.number_of_edges(directed_edges=True),
-                                             cupy_labels.__cuda_array_interface__
-                                             )
-
+    pylibcugraph.weakly_connected_components(
+        cupy_src.__cuda_array_interface__,
+        cudf_dst.__cuda_array_interface__,
+        None,
+        G.number_of_vertices(),
+        G.number_of_edges(directed_edges=True),
+        cupy_labels.__cuda_array_interface__
+    )
 
     print(cupy_labels)
     df = cugraph.weakly_connected_components(G)
