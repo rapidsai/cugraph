@@ -1143,7 +1143,6 @@ weight_t hungarian(raft::handle_t const& handle,
  * @param predecessors Pointer to the output predecessor array or `nullptr`.
  * @param sources Source vertices to start breadth-first search (root vertex of the breath-first
  * search tree). If more than one source is passed, there must be a single source per component.
- * Device memory and host memory are accepted.
  * @param n_sources number of sources (one source per component at most).
  * @param direction_optimizing If set to true, this algorithm switches between the push based
  * breadth-first search and pull based breadth-first search depending on the size of the
@@ -1158,7 +1157,7 @@ void bfs(raft::handle_t const& handle,
          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
          vertex_t* distances,
          vertex_t* predecessors,
-         vertex_t* sources,
+         vertex_t* const sources,
          size_t n_sources          = 1,
          bool direction_optimizing = false,
          vertex_t depth_limit      = std::numeric_limits<vertex_t>::max(),
