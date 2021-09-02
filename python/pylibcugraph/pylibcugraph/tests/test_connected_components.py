@@ -12,18 +12,42 @@
 # limitations under the License.
 
 import pytest
-from pylibcugraph.tests import utils
+import numpy as np
+
 import cupy
 import cugraph
-import pylibcugraph
-import numpy as np
+
+import utils
+
+
+@pytest.fixture
+def package_under_test():
+    """
+    Create a fixture to import the package under test.  This is useful since
+    bugs that prevent the package under test from being imported will not
+    prevent pytest from collecting, listing, running, etc. the tests.
+    """
+    import pylibcugraph
+    return pylibcugraph
+
+
+###############################################################################
+# Tests
+def test_import():
+    """
+    Ensure pylibcugraph is importable.
+    """
+    # suppress F401 (imported but never used) in flake8
+    import pylibcugraph  # noqa: F401
+
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_scc(graph_file):
+def test_scc(package_under_test, graph_file):
     """
-    FIXME: rewrite once SCC is implemented.
+    Tests strongly_connected_components()
     """
+    pylibcugraph = package_under_test
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
@@ -44,16 +68,17 @@ def test_scc(graph_file):
     df = cugraph.strongly_connected_components(G)
     print(df)
 
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_wcc(graph_file):
+def test_wcc(package_under_test, graph_file):
     """
-    FIXME: rewrite once WCC is implemented.
+    Tests weakly_connected_components()
     """
+    pylibcugraph = package_under_test
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
 
-    
     cupy_src = cupy.array(cu_M["0"])
     cudf_dst = cu_M["1"]
 

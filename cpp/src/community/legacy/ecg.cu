@@ -149,7 +149,7 @@ void ecg(raft::handle_t const& handle,
 
   rmm::device_uvector<weight_t> ecg_weights_v(graph.number_of_edges, handle.get_stream_view());
 
-  thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+  thrust::copy(handle.get_thrust_policy(),
                graph.edge_data,
                graph.edge_data + graph.number_of_edges,
                ecg_weights_v.data());
@@ -182,7 +182,7 @@ void ecg(raft::handle_t const& handle,
 
   // Set weights = min_weight + (1 - min-weight)*sum/ensemble_size
   update_functor<weight_t> uf(min_weight, ensemble_size);
-  thrust::transform(rmm::exec_policy(handle.get_stream_view()),
+  thrust::transform(handle.get_thrust_policy(),
                     ecg_weights_v.begin(),
                     ecg_weights_v.end(),
                     ecg_weights_v.begin(),

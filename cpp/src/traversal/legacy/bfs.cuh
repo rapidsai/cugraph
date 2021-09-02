@@ -11,8 +11,8 @@
 
 #pragma once
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <climits>
+#include <rmm/device_vector.hpp>
 
 #define TRAVERSAL_DEFAULT_ALPHA 15
 

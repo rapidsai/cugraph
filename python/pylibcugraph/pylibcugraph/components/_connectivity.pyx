@@ -11,9 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph.components.connectivity cimport *
 from libc.stdint cimport uintptr_t
 from libcpp.memory cimport unique_ptr
+
+from pylibcugraph.components._connectivity cimport *
 
 
 def weakly_connected_components(src, dst, weights, num_verts, num_edges, labels):

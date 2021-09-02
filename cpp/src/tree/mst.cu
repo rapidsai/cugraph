@@ -24,9 +24,9 @@
 #include <memory>
 #include <utility>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <thrust/transform.h>
 #include <ctime>
+#include <rmm/exec_policy.hpp>
 
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>

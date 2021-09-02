@@ -92,7 +92,7 @@ struct generate_impl {
   {
     auto data = std::make_tuple(rmm::device_uvector<Args>(labels.size(), handle.get_stream())...);
     auto zip  = get_zip_iterator(data);
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::transform(handle.get_thrust_policy(),
                       labels.begin(),
                       labels.end(),
                       zip,
@@ -108,7 +108,7 @@ struct generate_impl {
     auto length = thrust::distance(begin, end);
     auto data   = std::make_tuple(rmm::device_uvector<Args>(length, handle.get_stream())...);
     auto zip    = get_zip_iterator(data);
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::transform(handle.get_thrust_policy(),
                       begin,
                       end,
                       zip,
@@ -272,7 +272,7 @@ class Tests_MG_ReduceV
       using property_t      = decltype(property_initial_value);
 
       auto expected_result =
-        thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::reduce(handle.get_thrust_policy(),
                        sg_property_iter,
                        sg_property_iter + sg_graph_view.get_number_of_local_vertices(),
                        property_initial_value,
