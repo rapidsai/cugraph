@@ -194,11 +194,15 @@ add_library(cugraph SHARED
     src/structure/graph_view_mg.cu
     src/structure/coarsen_graph_sg.cu
     src/structure/coarsen_graph_mg.cu
-    src/structure/renumber_edgelist.cu
-    src/structure/renumber_utils.cu
+    src/structure/renumber_edgelist_sg.cu
+    src/structure/renumber_edgelist_mg.cu
+    src/structure/renumber_utils_sg.cu
+    src/structure/renumber_utils_mg.cu
     src/structure/relabel_sg.cu
     src/structure/relabel_mg.cu
-    src/structure/induced_subgraph.cu
+    src/structure/induced_subgraph_sg.cu
+    ## FIXME: Not currently supported
+    ##src/structure/induced_subgraph_mg.cu
     src/traversal/bfs_sg.cu
     src/traversal/bfs_mg.cu
     src/traversal/sssp_sg.cu
