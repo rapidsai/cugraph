@@ -16,13 +16,13 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
-#include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/vertex_partition_device_view.cuh>
 #include <cugraph/vertex_partition_device.cuh>
+#include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/exec_policy.hpp>

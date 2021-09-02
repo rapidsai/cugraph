@@ -51,7 +51,7 @@ void bfs_visitor<vertex_t,
 
     // unpack bfs() args:
     //
-    assert(v_args.size() == 7);
+    assert(v_args.size() == 8);
 
     // cnstr. args unpacking:
     //

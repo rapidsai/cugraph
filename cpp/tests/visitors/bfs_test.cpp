@@ -167,7 +167,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     ASSERT_TRUE(configuration.source >= 0 &&
                 configuration.source <= graph_view.get_number_of_vertices())
-      << "Starting sources should be >= 0 and"
+      << "Starting source vertex value should be >= 0 and"
       << " less than the number of vertices in the graph.";
 
     std::vector<vertex_t> h_reference_distances(graph_view.get_number_of_vertices());
@@ -203,8 +203,15 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       bool dir_opt{false};
       auto depth_l = std::numeric_limits<vertex_t>::max();
       bool check{false};
-      erased_pack_t ep{
-        &handle, p_d_dist, p_d_predec, &src, &dir_opt, &depth_l, &check};  // args for bfs()
+      size_t n_sources{1};
+      erased_pack_t ep{&handle,
+                       p_d_dist,
+                       p_d_predec,
+                       &src,
+                       &n_sources,
+                       &dir_opt,
+                       &depth_l,
+                       &check};  // args for bfs(),
 
       // several options to run the BFS algorithm:
       //
