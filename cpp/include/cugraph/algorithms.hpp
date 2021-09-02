@@ -592,7 +592,8 @@ void bfs(raft::handle_t const& handle,
  * 32-bit)
  * @tparam weight_t                  Type of edge weights. Supported values : float or double.
  *
- * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the
+ * handle,
  * @param[in]  graph                 cuGRAPH COO graph
  * @param[in]  num_workers           number of vertices in the worker set
  * @param[in]  workers               device pointer to an array of worker vertex ids
@@ -1140,8 +1141,10 @@ weight_t hungarian(raft::handle_t const& handle,
  * @param graph_view Graph view object.
  * @param distances Pointer to the output distance array.
  * @param predecessors Pointer to the output predecessor array or `nullptr`.
- * @param source_vertex Source vertex to start breadth-first search (root vertex of the breath-first
- * search tree).
+ * @param sources Source vertices to start breadth-first search (root vertex of the breath-first
+ * search tree). If more than one source is passed, there must be a single source per component.
+ * Device memory and host memory are accepted.
+ * @param n_sources number of sources (one source per component at most).
  * @param direction_optimizing If set to true, this algorithm switches between the push based
  * breadth-first search and pull based breadth-first search depending on the size of the
  * breadth-first search frontier (currently unsupported). This option is valid only for symmetric
@@ -1155,7 +1158,8 @@ void bfs(raft::handle_t const& handle,
          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
          vertex_t* distances,
          vertex_t* predecessors,
-         vertex_t source_vertex,
+         vertex_t* sources,
+         size_t n_sources          = 1,
          bool direction_optimizing = false,
          vertex_t depth_limit      = std::numeric_limits<vertex_t>::max(),
          bool do_expensive_check   = false);
