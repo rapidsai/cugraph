@@ -43,6 +43,38 @@
 
 namespace cugraph {
 
+namespace detail {
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t, typename weight_t>
+struct key_aggregated_edge_op_t {
+  weight_t total_edge_weight{};
+  weight_t resolution{};
+  __device__ auto operator()(
+    vertex_t src,
+    vertex_t neighbor_cluster,
+    weight_t new_cluster_sum,
+    thrust::tuple<weight_t, vertex_t, weight_t, weight_t, weight_t> src_info,
+    weight_t a_new) const
+  {
+    auto k_k              = thrust::get<0>(src_info);
+    auto src_cluster      = thrust::get<1>(src_info);
+    auto a_old            = thrust::get<2>(src_info);
+    auto old_cluster_sum  = thrust::get<3>(src_info);
+    auto cluster_subtract = thrust::get<4>(src_info);
+
+    if (src_cluster == neighbor_cluster) new_cluster_sum -= cluster_subtract;
+
+    weight_t delta_modularity = 2 * (((new_cluster_sum - old_cluster_sum) / total_edge_weight) -
+                                     resolution * (a_new * k_k - a_old * k_k + k_k * k_k) /
+                                       (total_edge_weight * total_edge_weight));
+
+    return thrust::make_tuple(neighbor_cluster, delta_modularity);
+  }
+};
+
+}  // namespace detail
+
 template <typename graph_view_type>
 class Louvain {
  public:
@@ -440,22 +472,7 @@ class Louvain {
       cluster_keys_v_.begin(),
       cluster_keys_v_.end(),
       cluster_weights_v_.begin(),
-      [total_edge_weight, resolution] __device__(
-        auto src, auto neighbor_cluster, auto new_cluster_sum, auto src_info, auto a_new) {
-        auto k_k              = thrust::get<0>(src_info);
-        auto src_cluster      = thrust::get<1>(src_info);
-        auto a_old            = thrust::get<2>(src_info);
-        auto old_cluster_sum  = thrust::get<3>(src_info);
-        auto cluster_subtract = thrust::get<4>(src_info);
-
-        if (src_cluster == neighbor_cluster) new_cluster_sum -= cluster_subtract;
-
-        weight_t delta_modularity = 2 * (((new_cluster_sum - old_cluster_sum) / total_edge_weight) -
-                                         resolution * (a_new * k_k - a_old * k_k + k_k * k_k) /
-                                           (total_edge_weight * total_edge_weight));
-
-        return thrust::make_tuple(neighbor_cluster, delta_modularity);
-      },
+      detail::key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
       [] __device__(auto p1, auto p2) {
         auto id1 = thrust::get<0>(p1);
         auto id2 = thrust::get<0>(p2);

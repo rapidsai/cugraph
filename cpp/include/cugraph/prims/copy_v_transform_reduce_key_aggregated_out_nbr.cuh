@@ -46,9 +46,48 @@ struct minor_to_key_t {
   using vertex_t = typename AdjMatrixColKeyInputWrapper::value_type;
   AdjMatrixColKeyInputWrapper adj_matrix_col_key_input{};
   vertex_t minor_first{};
-  __device__ vertex_t operator()(vertex_t minor)
+  __device__ vertex_t operator()(vertex_t minor) const
   {
     return adj_matrix_col_key_input.get(minor - minor_first);
+  }
+};
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t, typename weight_t>
+struct minor_key_to_col_rank_t {
+  compute_gpu_id_from_vertex_t<vertex_t> key_func{};
+  int row_comm_size{};
+  __device__ int operator()(
+    thrust::tuple<vertex_t, vertex_t, weight_t> val /* major, minor key, weight */) const
+  {
+    return key_func(thrust::get<1>(val)) / row_comm_size;
+  }
+};
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t,
+          typename weight_t,
+          typename AdjMatrixRowValueInputWrapper,
+          typename KeyAggregatedEdgeOp,
+          typename MatrixPartitionDeviceView,
+          typename StaticMapDeviceView>
+struct call_key_aggregated_e_op_t {
+  AdjMatrixRowValueInputWrapper matrix_partition_row_value_input{};
+  KeyAggregatedEdgeOp key_aggregated_e_op{};
+  MatrixPartitionDeviceView matrix_partition{};
+  StaticMapDeviceView kv_map{};
+  __device__ auto operator()(
+    thrust::tuple<vertex_t, vertex_t, weight_t> val /* major, minor key, weight */) const
+  {
+    auto major = thrust::get<0>(val);
+    auto key   = thrust::get<1>(val);
+    auto w     = thrust::get<2>(val);
+    return key_aggregated_e_op(major,
+                               key,
+                               w,
+                               matrix_partition_row_value_input.get(
+                                 matrix_partition.get_major_offset_from_major_nocheck(major)),
+                               kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
   }
 };
 
@@ -512,10 +551,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
           col_comm,
           triplet_first,
           triplet_first + tmp_major_vertices.size(),
-          [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
-           row_comm_size] __device__(auto val) {
-            return key_func(thrust::get<1>(val)) / row_comm_size;
-          },
+          detail::minor_key_to_col_rank_t<vertex_t, weight_t>{
+            detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}, row_comm_size},
           handle.get_stream());
 
       auto pair_first = thrust::make_zip_iterator(
@@ -558,21 +595,16 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                       triplet_first,
                       triplet_first + tmp_major_vertices.size(),
                       tmp_e_op_result_buffer_first,
-                      [matrix_partition_row_value_input,
-                       key_aggregated_e_op,
-                       matrix_partition,
-                       kv_map = kv_map_ptr->get_device_view()] __device__(auto val) {
-                        auto major = thrust::get<0>(val);
-                        auto key   = thrust::get<1>(val);
-                        auto w     = thrust::get<2>(val);
-                        return key_aggregated_e_op(
-                          major,
-                          key,
-                          w,
-                          matrix_partition_row_value_input.get(
-                            matrix_partition.get_major_offset_from_major_nocheck(major)),
-                          kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
-                      });
+                      detail::call_key_aggregated_e_op_t<vertex_t,
+                                                         weight_t,
+                                                         AdjMatrixRowValueInputWrapper,
+                                                         KeyAggregatedEdgeOp,
+                                                         decltype(matrix_partition),
+                                                         decltype(kv_map_ptr->get_device_view())>{
+                        matrix_partition_row_value_input,
+                        key_aggregated_e_op,
+                        matrix_partition,
+                        kv_map_ptr->get_device_view()});
     tmp_minor_keys.resize(0, handle.get_stream());
     tmp_key_aggregated_edge_weights.resize(0, handle.get_stream());
     tmp_minor_keys.shrink_to_fit(handle.get_stream());
