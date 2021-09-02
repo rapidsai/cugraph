@@ -27,7 +27,8 @@ template std::
     std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
     std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
     std::vector<int32_t> const& edgelist_edge_counts,
-    std::optional<std::vector<std::vector<int32_t>>> const& edgelist_intra_partition_segment_offsets,
+    std::optional<std::vector<std::vector<int32_t>>> const&
+      edgelist_intra_partition_segment_offsets,
     bool do_expensive_check);
 
 template std::
@@ -38,7 +39,8 @@ template std::
     std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
     std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
     std::vector<int64_t> const& edgelist_edge_counts,
-    std::optional<std::vector<std::vector<int64_t>>> const& edgelist_intra_partition_segment_offsets,
+    std::optional<std::vector<std::vector<int64_t>>> const&
+      edgelist_intra_partition_segment_offsets,
     bool do_expensive_check);
 
 template std::
@@ -49,7 +51,8 @@ template std::
     std::vector<int64_t*> const& edgelist_major_vertices /* [INOUT] */,
     std::vector<int64_t*> const& edgelist_minor_vertices /* [INOUT] */,
     std::vector<int64_t> const& edgelist_edge_counts,
-    std::optional<std::vector<std::vector<int64_t>>> const& edgelist_intra_partition_segment_offsets,
+    std::optional<std::vector<std::vector<int64_t>>> const&
+      edgelist_intra_partition_segment_offsets,
     bool do_expensive_check);
 
 }  // namespace cugraph
