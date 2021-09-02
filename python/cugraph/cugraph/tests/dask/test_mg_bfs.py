@@ -29,6 +29,7 @@ def test_dask_bfs(dask_client):
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "netscience.csv").as_posix()
+
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -40,6 +41,16 @@ def test_dask_bfs(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
+    def modify_dataset(df):
+        temp_df = cudf.DataFrame()
+        temp_df['src'] = df['src']+1000
+        temp_df['dst'] = df['dst']+1000
+        temp_df['value'] = df['value']
+        return cudf.concat([df, temp_df])
+
+    meta = ddf._meta
+    ddf = ddf.map_partitions(modify_dataset, meta=meta)
+
     df = cudf.read_csv(
         input_data_path,
         delimiter=" ",
@@ -47,15 +58,18 @@ def test_dask_bfs(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
+    df = modify_dataset(df)
+
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, "src", "dst", renumber=True)
+    g.from_cudf_edgelist(df, "src", "dst")
 
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
-    expected_dist = cugraph.bfs(g, 0)
-    result_dist = dcg.bfs(dg, 0, depth_limit=2)
+    expected_dist = cugraph.bfs(g, [0, 1000])
+    result_dist = dcg.bfs(dg, [0, 1000])
     result_dist = result_dist.compute()
+
     compare_dist = expected_dist.merge(
         result_dist, on="vertex", suffixes=["_local", "_dask"]
     )
