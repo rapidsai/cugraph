@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,59 +14,53 @@
  * limitations under the License.
  */
 
-#pragma once
-
 #include <community/flatten_dendrogram.cuh>
-#include <community/louvain.cuh>
+#include <community/legacy/louvain.cuh>
 #include <cugraph/graph.hpp>
 
 #include <rmm/device_uvector.hpp>
-
-CUCO_DECLARE_BITWISE_COMPARABLE(float)
-CUCO_DECLARE_BITWISE_COMPARABLE(double)
 
 namespace cugraph {
 
 namespace detail {
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void check_clustering(graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+template <typename vertex_t, typename edge_t, typename weight_t>
+void check_clustering(legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph_view,
                       vertex_t* clustering)
 {
-  if (graph_view.get_number_of_local_vertices() > 0)
-    CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
+  CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename weight_t>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph_view,
   size_t max_level,
   weight_t resolution)
 {
-  Louvain<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>> runner(handle, graph_view);
+  CUGRAPH_EXPECTS(graph_view.edge_data != nullptr,
+                  "Invalid input argument: louvain expects a weighted graph");
 
+  legacy::Louvain<legacy::GraphCSRView<vertex_t, edge_t, weight_t>> runner(handle, graph_view);
   weight_t wt = runner(max_level, resolution);
 
   return std::make_pair(runner.move_dendrogram(), wt);
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void flatten_dendrogram(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  Dendrogram<vertex_t> const& dendrogram,
-  vertex_t* clustering)
+template <typename vertex_t, typename edge_t, typename weight_t>
+void flatten_dendrogram(raft::handle_t const& handle,
+                        legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph_view,
+                        Dendrogram<vertex_t> const& dendrogram,
+                        vertex_t* clustering)
 {
-  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.get_number_of_vertices(),
-                                             handle.get_stream());
+  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices, handle.get_stream());
 
   thrust::sequence(handle.get_thrust_policy(),
                    vertex_ids_v.begin(),
                    vertex_ids_v.end(),
-                   graph_view.get_local_vertex_first());
+                   vertex_t{0});
 
-  partition_at_level<vertex_t, multi_gpu>(
+  partition_at_level<vertex_t, false>(
     handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());
 }
 
@@ -115,4 +109,17 @@ std::pair<size_t, typename graph_view_t::weight_type> louvain(
   return std::make_pair(dendrogram->num_levels(), modularity);
 }
 
+// Explicit template instantations
+template std::pair<size_t, float> louvain(raft::handle_t const&,
+                                          legacy::GraphCSRView<int32_t, int32_t, float> const&,
+                                          int32_t*,
+                                          size_t,
+                                          float);
+template std::pair<size_t, double> louvain(raft::handle_t const&,
+                                           legacy::GraphCSRView<int32_t, int32_t, double> const&,
+                                           int32_t*,
+                                           size_t,
+                                           double);
 }  // namespace cugraph
+
+#include <cugraph/legacy/eidir_graph.hpp>
