@@ -85,8 +85,7 @@ compressed_sparse_to_edgelist(edge_t const* compressed_sparse_offsets,
   // FIXME: this is highly inefficient for very high-degree vertices, for better performance, we can
   // fill high-degree vertices using one CUDA block per vertex, mid-degree vertices using one CUDA
   // warp per vertex, and low-degree vertices using one CUDA thread per block
-  auto execution_policy = handle.get_thrust_policy();
-  thrust::for_each(execution_policy,
+  thrust::for_each(rmm::exec_policy(stream),
                    thrust::make_counting_iterator(major_first),
                    thrust::make_counting_iterator(major_last),
                    [compressed_sparse_offsets,
@@ -96,12 +95,12 @@ compressed_sparse_to_edgelist(edge_t const* compressed_sparse_offsets,
                      auto last  = compressed_sparse_offsets[v - major_first + 1];
                      thrust::fill(thrust::seq, p_majors + first, p_majors + last, v);
                    });
-  thrust::copy(execution_policy,
+  thrust::copy(rmm::exec_policy(stream),
                compressed_sparse_indices,
                compressed_sparse_indices + number_of_edges,
                edgelist_minor_vertices.begin());
   if (compressed_sparse_weights) {
-    thrust::copy(execution_policy,
+    thrust::copy(rmm::exec_policy(stream),
                  (*compressed_sparse_weights),
                  (*compressed_sparse_weights) + number_of_edges,
                  (*edgelist_weights).data());
@@ -124,9 +123,8 @@ void sort_and_coarsen_edgelist(
 
   size_t number_of_edges{0};
 
-  auto execution_policy = handle.get_thrust_policy();
   if (edgelist_weights) {
-    thrust::sort_by_key(execution_policy,
+    thrust::sort_by_key(rmm::exec_policy(stream),
                         pair_first,
                         pair_first + edgelist_major_vertices.size(),
                         (*edgelist_weights).begin());
@@ -137,7 +135,7 @@ void sort_and_coarsen_edgelist(
                                                               stream);
     rmm::device_uvector<weight_t> tmp_edgelist_weights(tmp_edgelist_major_vertices.size(), stream);
     auto it = thrust::reduce_by_key(
-      execution_policy,
+      rmm::exec_policy(stream),
       pair_first,
       pair_first + edgelist_major_vertices.size(),
       (*edgelist_weights).begin(),
@@ -150,9 +148,9 @@ void sort_and_coarsen_edgelist(
     edgelist_minor_vertices = std::move(tmp_edgelist_minor_vertices);
     (*edgelist_weights)     = std::move(tmp_edgelist_weights);
   } else {
-    thrust::sort(execution_policy, pair_first, pair_first + edgelist_major_vertices.size());
-    auto it =
-      thrust::unique(execution_policy, pair_first, pair_first + edgelist_major_vertices.size());
+    thrust::sort(rmm::exec_policy(stream), pair_first, pair_first + edgelist_major_vertices.size());
+    auto it = thrust::unique(
+      rmm::exec_policy(stream), pair_first, pair_first + edgelist_major_vertices.size());
     number_of_edges = thrust::distance(pair_first, it);
   }
 
