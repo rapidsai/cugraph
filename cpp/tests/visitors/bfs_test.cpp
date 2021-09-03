@@ -200,7 +200,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       //
       vertex_t* p_d_dist   = d_distances.begin();
       vertex_t* p_d_predec = d_predecessors.begin();
-      rmm::device_scalar<vertex_t> const d_source(configuration.source, handle.get_stream());
+      rmm::device_scalar<vertex_t> d_source(configuration.source, handle.get_stream());
       bool dir_opt{false};
       auto depth_l = std::numeric_limits<vertex_t>::max();
       bool check{false};
