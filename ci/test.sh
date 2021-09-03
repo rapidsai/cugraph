@@ -69,8 +69,8 @@ set +e
 if (python ${CUGRAPH_ROOT}/ci/utils/is_pascal.py); then
     echo "WARNING: skipping C++ tests on Pascal GPU arch."
 else
-    echo "C++ gtests for cuGraph..."
-    for gt in tests/*_TEST; do
+    echo "C++ gtests for cuGraph (single-GPU only)..."
+    for gt in $(find ./tests -name "*_TEST" | grep -v "MG_" || true); do
         test_name=$(basename $gt)
         echo "Running gtest $test_name"
         ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
