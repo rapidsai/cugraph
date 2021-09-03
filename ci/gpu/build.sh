@@ -88,7 +88,7 @@ conda list --show-channel-urls
 
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_logger "Build from source"
-    $WORKSPACE/build.sh -v clean libcugraph cugraph
+    $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph
 else
     export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build"
 
@@ -108,8 +108,8 @@ else
     pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
     pip install "git+https://github.com/dask/dask.git" --upgrade --no-deps
 
-    echo "Build cugraph..."
-    $WORKSPACE/build.sh cugraph
+    echo "Build pylibcugraph and cugraph..."
+    $WORKSPACE/build.sh pylibcugraph cugraph
 fi
 
 ################################################################################
