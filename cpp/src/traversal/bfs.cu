@@ -21,7 +21,6 @@
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/vertex_partition_device.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/handle.hpp>
@@ -47,7 +46,7 @@ void bfs(raft::handle_t const& handle,
          GraphViewType const& push_graph_view,
          typename GraphViewType::vertex_type* distances,
          PredecessorIterator predecessor_first,
-         typename GraphViewType::vertex_type* sources,
+         typename GraphViewType::vertex_type const* sources,
          size_t n_sources,
          bool direction_optimizing,
          typename GraphViewType::vertex_type depth_limit,
@@ -62,7 +61,11 @@ void bfs(raft::handle_t const& handle,
 
   auto const num_vertices = push_graph_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
-  // CUGRAPH_EXPECTS(sources != nullptr, "Invalid input argument: sources cannot be null");
+
+  // 1. check input arguments
+
+  CUGRAPH_EXPECTS((n_sources == 0) || (sources != nullptr),
+                  "Invalid input argument: sources cannot be null");
 
   auto aggregate_n_sources =
     GraphViewType::is_multi_gpu
@@ -71,31 +74,18 @@ void bfs(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(aggregate_n_sources > 0,
                   "Invalid input argument: input should have at least one source");
 
-  // 1. check input arguments
   CUGRAPH_EXPECTS(
     push_graph_view.is_symmetric() || !direction_optimizing,
     "Invalid input argument: input graph should be symmetric for direction optimizing BFS.");
 
-  // Transfer single source to the device for single source case
-  vertex_t* d_sources = sources;
-  rmm::device_uvector<vertex_t> d_sources_v(0, handle.get_stream());
-  if (aggregate_n_sources == 1 && n_sources) {
-    cudaPointerAttributes s_att;
-    CUDA_CHECK(cudaPointerGetAttributes(&s_att, sources));
-    if (s_att.devicePointer == nullptr) {
-      d_sources_v.resize(n_sources, handle.get_stream());
-      d_sources = d_sources_v.data();
-      raft::copy(d_sources, sources, n_sources, handle.get_stream());
-    }
-  }
-
   if (do_expensive_check) {
-    vertex_partition_device_t<GraphViewType> vertex_partition(push_graph_view);
+    auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
+      push_graph_view.get_vertex_partition_view());
     auto num_invalid_vertices =
       count_if_v(handle,
                  push_graph_view,
-                 d_sources,
-                 d_sources + n_sources,
+                 sources,
+                 sources + n_sources,
                  [vertex_partition] __device__(auto val) {
                    return !(vertex_partition.is_valid_vertex(val) &&
                             vertex_partition.is_local_vertex_nocheck(val));
@@ -122,8 +112,8 @@ void bfs(raft::handle_t const& handle,
   if (n_sources) {
     thrust::for_each(
       rmm::exec_policy(handle.get_thrust_policy()),
-      d_sources,
-      d_sources + n_sources,
+      sources,
+      sources + n_sources,
       [vertex_partition, distances, predecessor_first] __device__(auto v) {
         *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) =
           vertex_t{0};
@@ -138,20 +128,8 @@ void bfs(raft::handle_t const& handle,
                  static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle);
 
-  // insert local source(s) in the bucket
-  if (aggregate_n_sources == 1) {
-    vertex_t src;
-    // FIXME: this (cheap) transfer could be skiped when is_local_vertex_nocheck accpets device mem
-    raft::copy(&src, sources, n_sources, handle.get_stream());
-    if (push_graph_view.is_local_vertex_nocheck(src)) {
-      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
-        .insert(d_sources, d_sources + n_sources);
-    }
-  } else {
-    // pre-shuffled
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
-      .insert(d_sources, d_sources + n_sources);
-  }
+  vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(sources, sources + n_sources);
+
   // 4. BFS iteration
   vertex_t depth{0};
   while (true) {
@@ -217,7 +195,7 @@ void bfs(raft::handle_t const& handle,
          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
          vertex_t* distances,
          vertex_t* predecessors,
-         vertex_t* sources,
+         vertex_t const* sources,
          size_t n_sources,
          bool direction_optimizing,
          vertex_t depth_limit,
@@ -252,7 +230,7 @@ template void bfs(raft::handle_t const& handle,
                   graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
                   int32_t* distances,
                   int32_t* predecessors,
-                  int32_t* sources,
+                  int32_t const* sources,
                   size_t n_sources,
                   bool direction_optimizing,
                   int32_t depth_limit,
@@ -262,7 +240,7 @@ template void bfs(raft::handle_t const& handle,
                   graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
                   int32_t* distances,
                   int32_t* predecessors,
-                  int32_t* sources,
+                  int32_t const* sources,
                   size_t n_sources,
                   bool direction_optimizing,
                   int32_t depth_limit,
@@ -272,7 +250,7 @@ template void bfs(raft::handle_t const& handle,
                   graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
                   int32_t* distances,
                   int32_t* predecessors,
-                  int32_t* sources,
+                  int32_t const* sources,
                   size_t n_sources,
                   bool direction_optimizing,
                   int32_t depth_limit,
@@ -282,7 +260,7 @@ template void bfs(raft::handle_t const& handle,
                   graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
                   int32_t* distances,
                   int32_t* predecessors,
-                  int32_t* sources,
+                  int32_t const* sources,
                   size_t n_sources,
                   bool direction_optimizing,
                   int32_t depth_limit,
@@ -292,7 +270,7 @@ template void bfs(raft::handle_t const& handle,
                   graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
                   int64_t* distances,
                   int64_t* predecessors,
-                  int64_t* sources,
+                  int64_t const* sources,
                   size_t n_sources,
                   bool direction_optimizing,
                   int64_t depth_limit,
@@ -302,7 +280,7 @@ template void bfs(raft::handle_t const& handle,
                   graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
                   int64_t* distances,
                   int64_t* predecessors,
-                  int64_t* sources,
+                  int64_t const* sources,
                   size_t n_sources,
                   bool direction_optimizing,
                   int64_t depth_limit,
@@ -312,7 +290,7 @@ template void bfs(raft::handle_t const& handle,
                   graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
                   int32_t* distances,
                   int32_t* predecessors,
-                  int32_t* sources,
+                  int32_t const* sources,
                   size_t n_sources,
                   bool direction_optimizing,
                   int32_t depth_limit,
@@ -322,7 +300,7 @@ template void bfs(raft::handle_t const& handle,
                   graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
                   int32_t* distances,
                   int32_t* predecessors,
-                  int32_t* sources,
+                  int32_t const* sources,
                   size_t n_sources,
                   bool direction_optimizing,
                   int32_t depth_limit,
@@ -332,7 +310,7 @@ template void bfs(raft::handle_t const& handle,
                   graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
                   int32_t* distances,
                   int32_t* predecessors,
-                  int32_t* sources,
+                  int32_t const* sources,
                   size_t n_sources,
                   bool direction_optimizing,
                   int32_t depth_limit,
@@ -342,7 +320,7 @@ template void bfs(raft::handle_t const& handle,
                   graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
                   int32_t* distances,
                   int32_t* predecessors,
-                  int32_t* sources,
+                  int32_t const* sources,
                   size_t n_sources,
                   bool direction_optimizing,
                   int32_t depth_limit,
@@ -352,7 +330,7 @@ template void bfs(raft::handle_t const& handle,
                   graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
                   int64_t* distances,
                   int64_t* predecessors,
-                  int64_t* sources,
+                  int64_t const* sources,
                   size_t n_sources,
                   bool direction_optimizing,
                   int64_t depth_limit,
@@ -362,7 +340,7 @@ template void bfs(raft::handle_t const& handle,
                   graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
                   int64_t* distances,
                   int64_t* predecessors,
-                  int64_t* sources,
+                  int64_t const* sources,
                   size_t n_sources,
                   bool direction_optimizing,
                   int64_t depth_limit,
