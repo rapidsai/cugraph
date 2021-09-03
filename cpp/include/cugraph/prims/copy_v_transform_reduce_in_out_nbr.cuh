@@ -428,7 +428,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
           : graph_view.get_number_of_local_adj_matrix_partition_cols()
       : vertex_t{0};
   auto minor_tmp_buffer = allocate_dataframe_buffer<T>(minor_tmp_buffer_size, handle.get_stream());
-  auto minor_buffer_first = get_dataframe_buffer_begin<T>(minor_tmp_buffer);
+  auto minor_buffer_first = get_dataframe_buffer_begin(minor_tmp_buffer);
 
   if (in != GraphViewType::is_adj_matrix_transposed) {
     auto minor_init = init;
@@ -463,7 +463,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       GraphViewType::is_multi_gpu && update_major ? matrix_partition.get_major_size() : vertex_t{0};
     auto major_tmp_buffer =
       allocate_dataframe_buffer<T>(major_tmp_buffer_size, handle.get_stream());
-    auto major_buffer_first = get_dataframe_buffer_begin<T>(major_tmp_buffer);
+    auto major_buffer_first = get_dataframe_buffer_begin(major_tmp_buffer);
 
     auto major_init = T{};
     if (update_major) {

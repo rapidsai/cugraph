@@ -334,7 +334,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                    handle.get_stream());
       device_bcast(row_comm,
                    map_value_first,
-                   get_dataframe_buffer_begin<value_t>(map_value_buffer) + map_displacements[i],
+                   get_dataframe_buffer_begin(map_value_buffer) + map_displacements[i],
                    map_counts[i],
                    i,
                    handle.get_stream());
@@ -346,11 +346,10 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                  map_key_first,
                  map_key_last,
                  map_keys.begin() + map_displacements[row_comm_rank]);
-    thrust::copy(
-      execution_policy,
-      map_value_first,
-      map_value_first + thrust::distance(map_key_first, map_key_last),
-      get_dataframe_buffer_begin<value_t>(map_value_buffer) + map_displacements[row_comm_rank]);
+    thrust::copy(execution_policy,
+                 map_value_first,
+                 map_value_first + thrust::distance(map_key_first, map_key_last),
+                 get_dataframe_buffer_begin(map_value_buffer) + map_displacements[row_comm_rank]);
 
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
@@ -366,7 +365,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       stream_adapter);
 
     auto pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(map_keys.begin(), get_dataframe_buffer_begin<value_t>(map_value_buffer)));
+      thrust::make_tuple(map_keys.begin(), get_dataframe_buffer_begin(map_value_buffer)));
     kv_map_ptr->insert(pair_first, pair_first + map_keys.size());
   } else {
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
@@ -544,7 +543,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
     auto tmp_e_op_result_buffer =
       allocate_dataframe_buffer<T>(tmp_major_vertices.size(), handle.get_stream());
-    auto tmp_e_op_result_buffer_first = get_dataframe_buffer_begin<T>(tmp_e_op_result_buffer);
+    auto tmp_e_op_result_buffer_first = get_dataframe_buffer_begin(tmp_e_op_result_buffer);
 
     auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
       tmp_major_vertices.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
@@ -603,7 +602,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                      handle.get_stream());
       device_gatherv(col_comm,
                      tmp_e_op_result_buffer_first,
-                     get_dataframe_buffer_begin<T>(rx_tmp_e_op_result_buffer),
+                     get_dataframe_buffer_begin(rx_tmp_e_op_result_buffer),
                      tmp_major_vertices.size(),
                      rx_sizes,
                      rx_displs,
@@ -643,7 +642,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   thrust::sort_by_key(execution_policy,
                       major_vertices.begin(),
                       major_vertices.end(),
-                      get_dataframe_buffer_begin<T>(e_op_result_buffer));
+                      get_dataframe_buffer_begin(e_op_result_buffer));
 
   auto num_uniques = thrust::count_if(
     execution_policy,
@@ -671,7 +670,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     execution_policy,
     major_vertices.begin(),
     major_vertices.end(),
-    get_dataframe_buffer_begin<T>(e_op_result_buffer),
+    get_dataframe_buffer_begin(e_op_result_buffer),
     thrust::make_discard_iterator(),
     thrust::make_permutation_iterator(
       vertex_value_output_first,

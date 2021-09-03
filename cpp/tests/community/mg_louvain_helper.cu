@@ -121,7 +121,7 @@ void sort_and_coarsen_edgelist(
   std::optional<rmm::device_uvector<weight_t>>& edgelist_weights /* [INOUT] */)
 {
   cudaStream_t stream = handle.get_stream();
-  auto pair_first = thrust::make_zip_iterator(
+  auto pair_first     = thrust::make_zip_iterator(
     thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
 
   size_t number_of_edges{0};

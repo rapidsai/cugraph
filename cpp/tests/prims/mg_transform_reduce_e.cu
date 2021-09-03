@@ -23,6 +23,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/dataframe_buffer.cuh>
 
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/graph_view.hpp>
@@ -41,59 +42,64 @@
 
 #include <random>
 
+template <typename... Args>
+struct PropertyType {
+  using Type = std::conditional_t<(sizeof...(Args) > 1),
+                                  thrust::tuple<Args...>,
+                                  typename thrust::tuple_element<0, thrust::tuple<Args...>>::type>;
+};
+
 template <typename vertex_t, typename... Args>
-struct property_transform : public thrust::unary_function<vertex_t, thrust::tuple<Args...>> {
+struct property_transform
+  : public thrust::unary_function<vertex_t, typename PropertyType<Args...>::Type> {
   int mod{};
   property_transform(int mod_count) : mod(mod_count) {}
-  constexpr __device__ auto operator()(const vertex_t& val)
+
+  template <typename Type = typename PropertyType<Args...>::Type>
+  constexpr __device__
+    typename std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<Type>::value, Type>
+    operator()(const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto value = hash_func(val) % mod;
     return thrust::make_tuple(static_cast<Args>(value)...);
   }
+
+  template <typename Type = typename PropertyType<Args...>::Type>
+  constexpr __device__ typename std::enable_if_t<std::is_arithmetic<Type>::value, Type> operator()(
+    const vertex_t& val)
+  {
+    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    auto value = hash_func(val) % mod;
+    return static_cast<Type>(value);
+  }
 };
+
 template <typename vertex_t, template <typename...> typename Tuple, typename... Args>
 struct property_transform<vertex_t, Tuple<Args...>> : public property_transform<vertex_t, Args...> {
 };
 
-template <typename Tuple, std::size_t... I>
-auto make_iterator_tuple(Tuple& data, std::index_sequence<I...>)
-{
-  return thrust::make_tuple((std::get<I>(data).begin())...);
-}
-
-template <typename... Args>
-auto get_zip_iterator(std::tuple<Args...>& data)
-{
-  return thrust::make_zip_iterator(make_iterator_tuple(
-    data, std::make_index_sequence<std::tuple_size<std::tuple<Args...>>::value>()));
-}
-
-template <typename T>
-auto get_property_iterator(std::tuple<T>& data)
-{
-  return (std::get<0>(data)).begin();
-}
-
-template <typename T0, typename... Args>
-auto get_property_iterator(std::tuple<T0, Args...>& data)
-{
-  return get_zip_iterator(data);
-}
-
 template <typename... Args>
 struct generate_impl {
+ private:
+  using Type               = typename PropertyType<Args...>::Type;
+  using PropertyBufferType = std::conditional_t<
+    (sizeof...(Args) > 1),
+    std::tuple<rmm::device_uvector<Args>...>,
+    rmm::device_uvector<typename thrust::tuple_element<0, thrust::tuple<Args...>>::type>>;
+
+ public:
   static thrust::tuple<Args...> initial_value(int init)
   {
     return thrust::make_tuple(static_cast<Args>(init)...);
   }
   template <typename label_t>
-  static std::tuple<rmm::device_uvector<Args>...> vertex_property(rmm::device_uvector<label_t>& labels,
-                                                           int hash_bin_count,
-                                                           raft::handle_t const& handle)
+  static auto vertex_property(rmm::device_uvector<label_t>& labels,
+                              int hash_bin_count,
+                              raft::handle_t const& handle)
   {
-    auto data = std::make_tuple(rmm::device_uvector<Args>(labels.size(), handle.get_stream())...);
-    auto zip  = get_zip_iterator(data);
+    auto data = cugraph::allocate_dataframe_buffer<Type>(labels.size(), handle.get_stream());
+    auto zip  = cugraph::get_dataframe_buffer_begin(data);
     thrust::transform(handle.get_thrust_policy(),
                       labels.begin(),
                       labels.end(),
@@ -102,14 +108,14 @@ struct generate_impl {
     return data;
   }
   template <typename label_t>
-  static std::tuple<rmm::device_uvector<Args>...> vertex_property(thrust::counting_iterator<label_t> begin,
-                                                           thrust::counting_iterator<label_t> end,
-                                                           int hash_bin_count,
-                                                           raft::handle_t const& handle)
+  static auto vertex_property(thrust::counting_iterator<label_t> begin,
+                              thrust::counting_iterator<label_t> end,
+                              int hash_bin_count,
+                              raft::handle_t const& handle)
   {
     auto length = thrust::distance(begin, end);
-    auto data   = std::make_tuple(rmm::device_uvector<Args>(length, handle.get_stream())...);
-    auto zip    = get_zip_iterator(data);
+    auto data   = cugraph::allocate_dataframe_buffer<Type>(length, handle.get_stream());
+    auto zip    = cugraph::get_dataframe_buffer_begin(data);
     thrust::transform(handle.get_thrust_policy(),
                       begin,
                       end,
@@ -118,60 +124,49 @@ struct generate_impl {
     return data;
   }
   template <typename Op, typename T1, typename T2, std::size_t... I>
-    static constexpr void copy_property_impl(Op&& op, T1&& t1, T2&& t2, std::index_sequence<I...>)
-    {
-      (op(std::get<I>(t1), std::get<I>(t2)), ...);
-    }
+  static constexpr void copy_property_impl(Op&& op, T1&& t1, T2&& t2, std::index_sequence<I...>)
+  {
+    (op(std::get<I>(t1), std::get<I>(t2)), ...);
+  }
 
-  template <typename Op, typename Tuple>
-    static void
-    copy_property(Tuple const& property,
-                  Tuple& output_property,
-                  Op op)
-    {
-      copy_property_impl(op, property, output_property, std::make_index_sequence<std::tuple_size<Tuple>::value>());
+  template <typename Op, typename BufferType>
+  static void copy_property(BufferType const& property, BufferType& output_property, Op op)
+  {
+    if constexpr (cugraph::is_std_tuple_of_arithmetic_vectors<BufferType>::value) {
+      copy_property_impl(op,
+                         property,
+                         output_property,
+                         std::make_index_sequence<std::tuple_size<BufferType>::value>());
+    } else if constexpr (cugraph::is_arithmetic_vector<BufferType, rmm::device_uvector>::value) {
+      op(property, output_property);
     }
-
-  template <typename GraphViewType>
-    static std::tuple<rmm::device_uvector<Args>...>
-    column_property(raft::handle_t const& handle,
-                    GraphViewType const& graph_view,
-                    std::tuple<rmm::device_uvector<Args>...>& property)
-    {
-      if (true) {
-        std::cerr<<"ERR DEBUG MESSAGE "<<graph_view.get_number_of_local_adj_matrix_partition_cols()<<" "<<
-          graph_view.get_number_of_local_vertices()<<"\n";
-        cudaDeviceSynchronize();
-      }
-      auto output_property = std::make_tuple(rmm::device_uvector<Args>(graph_view.get_number_of_local_adj_matrix_partition_cols(), handle.get_stream())...);
-      copy_property(property, output_property,
-                    [&handle, &graph_view] (const auto& in, auto& out) {
-                      copy_to_adj_matrix_col(handle, graph_view, in.begin(), out.begin());
-                    }
-                   );
-      return output_property;
-    }
+  }
 
   template <typename GraphViewType>
-    static std::tuple<rmm::device_uvector<Args>...>
-    row_property(raft::handle_t const& handle,
-                    GraphViewType const& graph_view,
-                    std::tuple<rmm::device_uvector<Args>...>& property)
-    {
-      if (true) {
-        std::cerr<<"ERR DEBUG MESSAGE "<<graph_view.get_number_of_local_adj_matrix_partition_rows()<<" "<<
-          graph_view.get_number_of_local_vertices()<<"\n";
-        cudaDeviceSynchronize();
-      }
-      auto output_property = std::make_tuple(rmm::device_uvector<Args>(graph_view.get_number_of_local_adj_matrix_partition_rows(), handle.get_stream())...);
-      copy_property(property, output_property,
-                    [&handle, &graph_view] (const auto& in, auto& out) {
-                      copy_to_adj_matrix_row(handle, graph_view, in.begin(), out.begin());
-                    }
-                   );
-      return output_property;
-    }
+  static auto column_property(raft::handle_t const& handle,
+                              GraphViewType const& graph_view,
+                              PropertyBufferType& property)
+  {
+    auto output_property = cugraph::allocate_dataframe_buffer<Type>(
+      graph_view.get_number_of_local_adj_matrix_partition_cols(), handle.get_stream());
+    copy_property(property, output_property, [&handle, &graph_view](const auto& in, auto& out) {
+      copy_to_adj_matrix_col(handle, graph_view, in.begin(), out.begin());
+    });
+    return output_property;
+  }
 
+  template <typename GraphViewType>
+  static auto row_property(raft::handle_t const& handle,
+                           GraphViewType const& graph_view,
+                           PropertyBufferType& property)
+  {
+    auto output_property = cugraph::allocate_dataframe_buffer<Type>(
+      graph_view.get_number_of_local_adj_matrix_partition_rows(), handle.get_stream());
+    copy_property(property, output_property, [&handle, &graph_view](const auto& in, auto& out) {
+      copy_to_adj_matrix_row(handle, graph_view, in.begin(), out.begin());
+    });
+    return output_property;
+  }
 };
 
 template <typename T>
@@ -285,16 +280,17 @@ class Tests_MG_TransformReduceE
     // 3. run MG transform reduce
 
     const int hash_bin_count = 5;
-    const int initial_value  = 10;
+    const int initial_value  = 0;
 
     auto property_initial_value = generate<result_t>::initial_value(initial_value);
-    using property_t   = decltype(property_initial_value);
+    using property_t            = decltype(property_initial_value);
     auto vertex_property_data =
       generate<result_t>::vertex_property((*d_mg_renumber_map_labels), hash_bin_count, handle);
-    auto col_prop = generate<result_t>::column_property(handle, mg_graph_view, vertex_property_data);
+    auto col_prop =
+      generate<result_t>::column_property(handle, mg_graph_view, vertex_property_data);
     auto row_prop = generate<result_t>::row_property(handle, mg_graph_view, vertex_property_data);
-    auto col_property_iter = get_property_iterator(col_prop);
-    auto row_property_iter = get_property_iterator(row_prop);
+    auto col_property_iter = cugraph::get_dataframe_buffer_begin(col_prop);
+    auto row_property_iter = cugraph::get_dataframe_buffer_begin(row_prop);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -303,15 +299,16 @@ class Tests_MG_TransformReduceE
     }
 
     auto result = transform_reduce_e(
-      handle, mg_graph_view,
+      handle,
+      mg_graph_view,
       row_property_iter,
       col_property_iter,
       [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
-      if (row_property < col_property) {
-        return row_property;
-      } else {
-        return col_property;
-      }
+        if (row_property < col_property) {
+          return row_property;
+        } else {
+          return col_property;
+        }
       },
       property_initial_value);
 
@@ -326,33 +323,39 @@ class Tests_MG_TransformReduceE
     //// 4. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-//      auto [sg_graph, d_sg_renumber_map_labels] =
-//        input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-//          handle, true, false);
-//      auto sg_graph_view = sg_graph.view();
-//
-//      auto sg_vertex_property_data =
-//        generate<result_t>::vertex_property((*d_sg_renumber_map_labels), hash_bin_count, handle);
-//      auto sg_col_prop = generate<result_t>::column_property(handle, sg_graph_view, sg_vertex_property_data);
-//      auto sg_row_prop = generate<result_t>::row_property(handle, sg_graph_view, sg_vertex_property_data);
-//      auto sg_col_property_iter = get_property_iterator(sg_col_prop);
-//      auto sg_row_property_iter = get_property_iterator(sg_row_prop);
-//
-//      auto expected_result = transform_reduce_e(
-//          handle, sg_graph_view,
-//      sg_row_property_iter,
-//      sg_col_property_iter,
-//      [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
-//      if (row_property < col_property) {
-//        return row_property;
-//      } else {
-//        return col_property;
-//      }
-//      },
-//      property_initial_value);
-//      result_compare<property_t> compare{};
-//      ASSERT_TRUE(compare(expected_result, result));
-//
+      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
+      std::tie(sg_graph, std::ignore) =
+        input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
+          handle, true, false);
+      auto sg_graph_view = sg_graph.view();
+
+      auto sg_vertex_property_data = generate<result_t>::vertex_property(
+        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
+        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
+        hash_bin_count,
+        handle);
+      auto sg_col_prop =
+        generate<result_t>::column_property(handle, sg_graph_view, sg_vertex_property_data);
+      auto sg_row_prop =
+        generate<result_t>::row_property(handle, sg_graph_view, sg_vertex_property_data);
+      auto sg_col_property_iter = cugraph::get_dataframe_buffer_begin(sg_col_prop);
+      auto sg_row_property_iter = cugraph::get_dataframe_buffer_begin(sg_row_prop);
+
+      auto expected_result = transform_reduce_e(
+        handle,
+        sg_graph_view,
+        sg_row_property_iter,
+        sg_col_property_iter,
+        [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
+          if (row_property < col_property) {
+            return row_property;
+          } else {
+            return col_property;
+          }
+        },
+        property_initial_value);
+      result_compare<property_t> compare{};
+      ASSERT_TRUE(compare(expected_result, result));
     }
   }
 };
