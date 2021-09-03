@@ -55,10 +55,10 @@ if __cuda_version != __ktruss_unsupported_cuda_version:
 else:
     __kuvs = ".".join([str(n) for n in __ktruss_unsupported_cuda_version])
     k_truss = __UnsupportedModule(
-        NotImplementedError("k_truss is not currently supported in CUDA"
+        NotImplementedError("k_truss is not currently supported in CUDA_VER"
                             f" {__kuvs} environments.")
         )
     ktruss_subgraph = __UnsupportedModule(
-        NotImplementedError("ktruss_subgraph is not currently supported in CUDA"
+        NotImplementedError("ktruss_subgraph is not currently supported in CUDA_VER"
                             f" {__kuvs} environments.")
         )

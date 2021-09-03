@@ -340,7 +340,7 @@ enum class cugraph_cc_t {
  * This implementation comes from [1] and solves component labeling problem in
  * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
  *
- * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
+ * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA_VER"
  *
  * The strong version (for directed or undirected graphs) is based on:
  * [2] Gilbert, J. et al, 2011. "Graph Algorithms in the Language of Linear Algebra"

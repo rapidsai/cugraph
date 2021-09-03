@@ -197,7 +197,7 @@ void weak_cc_label_batched(vertex_t* labels,
  * This implementation comes from [1] and solves component labeling problem in
  * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
  *
- * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
+ * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA_VER"
  *
  * @tparam vertex_t   The type of a vertex id
  * @tparam edge_t     The type of an edge id
@@ -253,7 +253,7 @@ void weak_cc_batched(vertex_t* labels,
  * This implementation comes from [1] and solves component labeling problem in
  * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
  *
- * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
+ * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA_VER"
  *
  * @tparam vertex_t   The type of a vertex id
  * @tparam edge_t     The type of an edge id
@@ -301,7 +301,7 @@ void weak_cc(vertex_t* labels,
  * This implementation comes from [1] and solves component labeling problem in
  * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
  *
- * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
+ * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA_VER"
  *
  * @tparam vertex_t   The type of a vertex id
  * @tparam edge_t     The type of an edge id
