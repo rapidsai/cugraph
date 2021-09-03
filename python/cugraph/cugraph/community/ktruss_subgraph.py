@@ -29,7 +29,7 @@ __ktruss_unsupported_cuda_version = (11, 4)
 
 if __cuda_version == __ktruss_unsupported_cuda_version:
     __kuvs = ".".join([str(n) for n in __ktruss_unsupported_cuda_version])
-    raise NotImplementedError("k_truss is not currently supported in CUDA"
+    raise NotImplementedError("k_truss is not currently supported in CUDA_VER"
                               f" {__kuvs} environments.")
 
 
