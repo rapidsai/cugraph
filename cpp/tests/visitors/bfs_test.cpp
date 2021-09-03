@@ -26,6 +26,7 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
+#include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -199,7 +200,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       //
       vertex_t* p_d_dist   = d_distances.begin();
       vertex_t* p_d_predec = d_predecessors.begin();
-      auto src             = static_cast<vertex_t>(configuration.source);
+      rmm::device_scalar<vertex_t> d_source(configuration.source, handle.get_stream());
       bool dir_opt{false};
       auto depth_l = std::numeric_limits<vertex_t>::max();
       bool check{false};
@@ -207,7 +208,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       erased_pack_t ep{&handle,
                        p_d_dist,
                        p_d_predec,
-                       &src,
+                       d_source.data(),
                        &n_sources,
                        &dir_opt,
                        &depth_l,

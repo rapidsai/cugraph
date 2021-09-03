@@ -12,15 +12,27 @@
 # limitations under the License.
 
 import pytest
+import numpy as np
+
+import cupy
+import cugraph
+
+from . import utils
 
 
 @pytest.fixture
-def plc():
+def package_under_test():
+    """
+    Create a fixture to import the package under test.  This is useful since
+    bugs that prevent the package under test from being imported will not
+    prevent pytest from collecting, listing, running, etc. the tests.
+    """
     import pylibcugraph
     return pylibcugraph
 
 
 ###############################################################################
+# Tests
 def test_import():
     """
     Ensure pylibcugraph is importable.
@@ -29,17 +41,58 @@ def test_import():
     import pylibcugraph  # noqa: F401
 
 
-def test_scc(plc):
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_scc(package_under_test, graph_file):
     """
-    FIXME: rewrite once SCC is implemented.
+    Tests strongly_connected_components()
     """
-    with pytest.raises(NotImplementedError):
-        plc.strongly_connected_components(None, None, None, None, None, None)
+    pylibcugraph = package_under_test
+    cu_M = utils.read_csv_file(graph_file)
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+
+    offsets, indices, weights = G.view_adj_list()
+    cupy_off = cupy.array(offsets)
+    cudf_ind = indices
+
+    cupy_labels = cupy.array(np.zeros(G.number_of_vertices()))
+    pylibcugraph.strongly_connected_components(
+        cupy_off.__cuda_array_interface__,
+        cudf_ind.__cuda_array_interface__,
+        None,
+        G.number_of_vertices(),
+        G.number_of_edges(directed_edges=True),
+        cupy_labels.__cuda_array_interface__
+    )
+
+    print(cupy_labels)
+    df = cugraph.strongly_connected_components(G)
+    print(df)
 
 
-def test_wcc(plc):
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_wcc(package_under_test, graph_file):
     """
-    FIXME: rewrite once WCC is implemented.
+    Tests weakly_connected_components()
     """
-    with pytest.raises(NotImplementedError):
-        plc.weakly_connected_components(None, None, None, None, None, None)
+    pylibcugraph = package_under_test
+    cu_M = utils.read_csv_file(graph_file)
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+
+    cupy_src = cupy.array(cu_M["0"])
+    cudf_dst = cu_M["1"]
+
+    cupy_labels = cupy.array(np.zeros(G.number_of_vertices()), dtype='int32')
+    pylibcugraph.weakly_connected_components(
+        cupy_src.__cuda_array_interface__,
+        cudf_dst.__cuda_array_interface__,
+        None,
+        G.number_of_vertices(),
+        G.number_of_edges(directed_edges=True),
+        cupy_labels.__cuda_array_interface__
+    )
+
+    print(cupy_labels)
+    df = cugraph.weakly_connected_components(G)
+    print(df)
