@@ -73,6 +73,46 @@ struct key_aggregated_edge_op_t {
   }
 };
 
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t, typename weight_t>
+struct reduce_op_t {
+  __device__ auto operator()(thrust::tuple<vertex_t, weight_t> p0,
+                             thrust::tuple<vertex_t, weight_t> p1) const
+  {
+    auto id0 = thrust::get<0>(p0);
+    auto id1 = thrust::get<0>(p1);
+    auto wt0 = thrust::get<1>(p0);
+    auto wt1 = thrust::get<1>(p1);
+
+    return (wt0 < wt1) ? p1 : ((wt0 > wt1) ? p0 : ((id0 < id1) ? p0 : p1));
+  }
+};
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t, typename weight_t>
+struct cluster_update_op_t {
+  bool up_down{};
+  __device__ auto operator()(vertex_t old_cluster, thrust::tuple<vertex_t, weight_t> p) const
+  {
+    vertex_t new_cluster      = thrust::get<0>(p);
+    weight_t delta_modularity = thrust::get<1>(p);
+
+    return (delta_modularity > weight_t{0})
+             ? (((new_cluster > old_cluster) != up_down) ? old_cluster : new_cluster)
+             : old_cluster;
+  }
+};
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t, typename weight_t>
+struct return_edge_weight_t {
+  __device__ auto operator()(
+    vertex_t, vertex_t, weight_t w, thrust::nullopt_t, thrust::nullopt_t) const
+  {
+    return w;
+  }
+};
+
 }  // namespace detail
 
 template <typename graph_view_type>
@@ -473,14 +513,7 @@ class Louvain {
       cluster_keys_v_.end(),
       cluster_weights_v_.begin(),
       detail::key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
-      [] __device__(auto p1, auto p2) {
-        auto id1 = thrust::get<0>(p1);
-        auto id2 = thrust::get<0>(p2);
-        auto wt1 = thrust::get<1>(p1);
-        auto wt2 = thrust::get<1>(p2);
-
-        return (wt1 < wt2) ? p2 : ((wt1 > wt2) ? p1 : ((id1 < id2) ? p1 : p2));
-      },
+      detail::reduce_op_t<vertex_t, weight_t>{},
       thrust::make_tuple(vertex_t{-1}, weight_t{0}),
       cugraph::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(output_buffer));
 
@@ -490,20 +523,13 @@ class Louvain {
       next_clusters_v_.end(),
       cugraph::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(output_buffer),
       next_clusters_v_.begin(),
-      [up_down] __device__(vertex_t old_cluster, auto p) {
-        vertex_t new_cluster      = thrust::get<0>(p);
-        weight_t delta_modularity = thrust::get<1>(p);
-
-        return (delta_modularity > weight_t{0})
-                 ? (((new_cluster > old_cluster) != up_down) ? old_cluster : new_cluster)
-                 : old_cluster;
-      });
+      detail::cluster_update_op_t<vertex_t, weight_t>{up_down});
 
     if constexpr (graph_view_t::is_multi_gpu) {
       copy_to_adj_matrix_row(
         handle_, current_graph_view_, next_clusters_v_.begin(), src_clusters_cache_);
-      copy_to_adj_matrix_row(
-        handle_, current_graph_view_, next_clusters_v_.begin(), src_clusters_cache_);
+      copy_to_adj_matrix_col(
+        handle_, current_graph_view_, next_clusters_v_.begin(), dst_clusters_cache_);
     }
 
     std::tie(cluster_keys_v_, cluster_weights_v_) =
@@ -516,7 +542,7 @@ class Louvain {
           ? src_clusters_cache_.device_view()
           : detail::major_properties_device_view_t<vertex_t, vertex_t const*>(
               next_clusters_v_.data()),
-        [] __device__(auto, auto, auto wt, auto, auto) { return wt; },
+        detail::return_edge_weight_t<vertex_t, weight_t>{},
         weight_t{0});
   }
 

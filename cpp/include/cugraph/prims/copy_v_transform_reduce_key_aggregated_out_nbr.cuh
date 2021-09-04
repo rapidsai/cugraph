@@ -79,9 +79,12 @@ struct call_key_aggregated_e_op_t {
   __device__ auto operator()(
     thrust::tuple<vertex_t, vertex_t, weight_t> val /* major, minor key, weight */) const
   {
-    auto major = thrust::get<0>(val);
-    auto key   = thrust::get<1>(val);
-    auto w     = thrust::get<2>(val);
+    auto major     = thrust::get<0>(val);
+    auto key       = thrust::get<1>(val);
+    auto w         = thrust::get<2>(val);
+    auto row_value = matrix_partition_row_value_input.get(
+      matrix_partition.get_major_offset_from_major_nocheck(major));
+    auto key_val = kv_map.find(key)->second.load(cuda::std::memory_order_relaxed);
     return key_aggregated_e_op(major,
                                key,
                                w,
@@ -89,6 +92,52 @@ struct call_key_aggregated_e_op_t {
                                  matrix_partition.get_major_offset_from_major_nocheck(major)),
                                kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
   }
+};
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t>
+struct is_first_in_run_t {
+  vertex_t const* major_vertices{nullptr};
+  __device__ bool operator()(size_t i) const
+  {
+    return ((i == 0) || (major_vertices[i] != major_vertices[i - 1])) ? true : false;
+  }
+};
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t>
+struct is_valid_vertex_t {
+  __device__ bool operator()(vertex_t v) const { return v != invalid_vertex_id<vertex_t>::value; }
+};
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t>
+struct invalidate_if_not_first_in_run_t {
+  vertex_t const* major_vertices{nullptr};
+  __device__ vertex_t operator()(size_t i) const
+  {
+    return ((i == 0) || (major_vertices[i] != major_vertices[i - 1]))
+             ? major_vertices[i]
+             : invalid_vertex_id<vertex_t>::value;
+  }
+};
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t, bool multi_gpu>
+struct vertex_local_offset_t {
+  vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition{};
+  __device__ vertex_t operator()(vertex_t v) const
+  {
+    return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v);
+  }
+};
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename ReduceOp, typename T>
+struct reduce_with_init_t {
+  ReduceOp reduce_op{};
+  T init{};
+  __device__ T operator()(T val) const { return reduce_op(val, init); }
 };
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -523,9 +572,9 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       tmp_major_vertices.resize(reduced_size, handle.get_stream());
       tmp_minor_keys.resize(tmp_major_vertices.size(), handle.get_stream());
       tmp_key_aggregated_edge_weights.resize(tmp_major_vertices.size(), handle.get_stream());
-      tmp_major_vertices.shrink_to_fit(handle.get_stream());
       tmp_minor_keys.shrink_to_fit(handle.get_stream());
       tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
+      tmp_major_vertices.shrink_to_fit(handle.get_stream());
     }
 
     if (GraphViewType::is_multi_gpu) {
@@ -682,50 +731,39 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                       major_vertices.end(),
                       get_dataframe_buffer_begin<T>(e_op_result_buffer));
 
-  auto num_uniques = thrust::count_if(
-    execution_policy,
-    thrust::make_counting_iterator(size_t{0}),
-    thrust::make_counting_iterator(major_vertices.size()),
-    [major_vertices = major_vertices.data()] __device__(auto i) {
-      return ((i == 0) || (major_vertices[i] != major_vertices[i - 1])) ? true : false;
-    });
+  auto num_uniques = thrust::count_if(execution_policy,
+                                      thrust::make_counting_iterator(size_t{0}),
+                                      thrust::make_counting_iterator(major_vertices.size()),
+                                      detail::is_first_in_run_t<vertex_t>{major_vertices.data()});
   rmm::device_uvector<vertex_t> unique_major_vertices(num_uniques, handle.get_stream());
 
   auto major_vertex_first = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
-    [major_vertices = major_vertices.data()] __device__(auto i) {
-      return ((i == 0) || (major_vertices[i] != major_vertices[i - 1]))
-               ? major_vertices[i]
-               : invalid_vertex_id<vertex_t>::value;
-    });
-  thrust::copy_if(
-    execution_policy,
-    major_vertex_first,
-    major_vertex_first + major_vertices.size(),
-    unique_major_vertices.begin(),
-    [] __device__(auto major) { return major != invalid_vertex_id<vertex_t>::value; });
-  thrust::reduce_by_key(
-    execution_policy,
-    major_vertices.begin(),
-    major_vertices.end(),
-    get_dataframe_buffer_begin<T>(e_op_result_buffer),
-    thrust::make_discard_iterator(),
-    thrust::make_permutation_iterator(
-      vertex_value_output_first,
-      thrust::make_transform_iterator(
-        unique_major_vertices.begin(),
-        [vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-           graph_view.get_vertex_partition_view())] __device__(auto v) {
-          return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v);
-        })),
-    thrust::equal_to<vertex_t>{},
-    reduce_op);
+    detail::invalidate_if_not_first_in_run_t<vertex_t>{major_vertices.data()});
+  thrust::copy_if(execution_policy,
+                  major_vertex_first,
+                  major_vertex_first + major_vertices.size(),
+                  unique_major_vertices.begin(),
+                  detail::is_valid_vertex_t<vertex_t>{});
+  thrust::reduce_by_key(execution_policy,
+                        major_vertices.begin(),
+                        major_vertices.end(),
+                        get_dataframe_buffer_begin<T>(e_op_result_buffer),
+                        thrust::make_discard_iterator(),
+                        thrust::make_permutation_iterator(
+                          vertex_value_output_first,
+                          thrust::make_transform_iterator(
+                            unique_major_vertices.begin(),
+                            detail::vertex_local_offset_t<vertex_t, GraphViewType::is_multi_gpu>{
+                              graph_view.get_vertex_partition_view()})),
+                        thrust::equal_to<vertex_t>{},
+                        reduce_op);
 
   thrust::transform(execution_policy,
                     vertex_value_output_first,
                     vertex_value_output_first + graph_view.get_number_of_local_vertices(),
                     vertex_value_output_first,
-                    [reduce_op, init] __device__(auto val) { return reduce_op(val, init); });
+                    detail::reduce_with_init_t<ReduceOp, T>{reduce_op, init});
 }
 
 }  // namespace cugraph
