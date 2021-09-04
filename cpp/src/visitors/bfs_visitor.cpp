@@ -61,7 +61,7 @@ void bfs_visitor<vertex_t,
 
     vertex_t* p_d_predec = static_cast<vertex_t*>(v_args[2]);
 
-    vertex_t* p_d_src = static_cast<vertex_t*>(v_args[3]);
+    vertex_t const* p_d_src = static_cast<vertex_t const*>(v_args[3]);
 
     size_t n_sources = *static_cast<size_t*>(v_args[4]);
 
