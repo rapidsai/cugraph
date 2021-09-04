@@ -40,7 +40,8 @@ struct rw_visitor<vertex_t,
                   weight_t,
                   st,
                   mg,
-                  std::enable_if_t<(!is_candidate_v<vertex_t, edge_t, weight_t>)>> : visitor_t {
+                  std::enable_if_t<(!is_candidate<vertex_t, edge_t, weight_t>::value)>>
+  : visitor_t {
   void visit_graph(graph_envelope_t::base_graph_t const&) override
   {
     // purposely empty
@@ -50,6 +51,12 @@ struct rw_visitor<vertex_t,
     static return_t r{};
     return r;
   }
+
+  return_t&& get_result(void) override
+  {
+    static return_t r{};
+    return std::move(r);
+  }
 };
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
@@ -58,12 +65,13 @@ struct rw_visitor<vertex_t,
                   weight_t,
                   st,
                   mg,
-                  std::enable_if_t<is_candidate_v<vertex_t, edge_t, weight_t>::value>> : visitor_t {
+                  std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>> : visitor_t {
   rw_visitor(erased_pack_t& ep) : ep_(ep) {}
 
   void visit_graph(graph_envelope_t::base_graph_t const&) override;
 
   return_t const& get_result(void) const override { return result_; }
+  return_t&& get_result(void) override { return std::move(result_); }
 
  private:
   erased_pack_t& ep_;

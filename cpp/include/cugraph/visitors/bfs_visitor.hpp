@@ -56,6 +56,12 @@ struct bfs_visitor<vertex_t,
     static return_t r{};
     return r;
   }
+
+  return_t&& get_result(void) override
+  {
+    static return_t r{};
+    return std::move(r);
+  }
 };
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
@@ -70,6 +76,8 @@ struct bfs_visitor<vertex_t,
   void visit_graph(graph_envelope_t::base_graph_t const&) override;
 
   return_t const& get_result(void) const override { return result_; }
+
+  return_t&& get_result(void) override { return std::move(result_); }
 
  private:
   erased_pack_t& ep_;

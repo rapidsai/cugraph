@@ -238,6 +238,8 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
   //
   visitors::return_t const& get_result(void) const override { return ret_unused_; }
 
+  visitors::return_t&& get_result(void) override { return std::move(ret_unused_); }
+
   rmm::device_uvector<weight_t>&& get_aggregated_weights(void)
   {
     return std::move(d_aggregate_weights_);

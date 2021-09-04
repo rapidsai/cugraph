@@ -205,6 +205,7 @@ add_library(cugraph SHARED
     src/visitors/graph_envelope.cpp
     src/visitors/visitors_factory.cpp
     src/visitors/bfs_visitor.cpp
+    src/visitors/rw_visitor.cpp
 )
 
 set_target_properties(cugraph

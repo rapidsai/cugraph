@@ -64,14 +64,14 @@ void rw_visitor<vertex_t,
 
     bool use_padding = *static_cast<bool*>(v_args[4]);
 
-    ptr_params_t p_uniq_params = *static_cast<ptr_params_t*>(v_args[5]);
+    ptr_params_t p_uniq_params = std::move(*static_cast<ptr_params_t*>(v_args[5]));
 
     // call algorithm
     //
-    auto tpl_result =
-      random_walks(handle, gview, p_d_start, num_paths, max_depth, use_padding, p_uniq_params);
+    auto tpl_result = random_walks(
+      handle, gview, p_d_start, num_paths, max_depth, use_padding, std::move(p_uniq_params));
 
-    result_ = return_t{tpl_result};
+    result_ = return_t{std::move(tpl_result)};
   } else {
     CUGRAPH_FAIL(
       "Unsupported RandomWalks algorithm (store_transposed == true or multi_gpu == true).");
@@ -133,9 +133,7 @@ return_t random_walks(graph_envelope_t const& g, erased_pack_t& ep)
 
   g.apply(*p_visitor);
 
-  return_t ret{p_visitor->get_result()};
-
-  return ret;  // RVO-ed;
+  return p_visitor->get_result();
 }
 
 }  // namespace api

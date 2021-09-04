@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <stdexcept>
+#include <type_traits>
 
 namespace cugraph {
 namespace visitors {
@@ -28,7 +29,7 @@ struct return_t {
   struct base_return_t {
     virtual ~base_return_t(void) {}
 
-    virtual void copy(return_t const&)                       = 0;
+    virtual void copy(return_t&&)                            = 0;
     virtual std::unique_ptr<base_return_t> clone(void) const = 0;
   };
 
@@ -36,15 +37,25 @@ struct return_t {
   struct generic_return_t : base_return_t {
     generic_return_t(T const& t) : return_(t) {}
 
-    void copy(return_t const& r) override
+    generic_return_t(T&& t) : return_(std::move(t)) {}
+
+    void copy(return_t&& r) override
     {
-      base_return_t const* p_B = static_cast<base_return_t const*>(r.p_impl_.get());
-      return_                  = *(dynamic_cast<T const*>(p_B));
+      if constexpr (std::is_copy_constructible_v<T>) {
+        base_return_t const* p_B = static_cast<base_return_t const*>(r.p_impl_.get());
+        return_                  = *(dynamic_cast<T const*>(p_B));
+      } else {
+        base_return_t* p_B = static_cast<base_return_t*>(r.p_impl_.get());
+        return_            = std::move(*(dynamic_cast<T*>(p_B)));
+      }
     }
 
     std::unique_ptr<base_return_t> clone(void) const override
     {
-      return std::make_unique<generic_return_t<T>>(return_);
+      if constexpr (std::is_copy_constructible_v<T>)
+        return std::make_unique<generic_return_t<T>>(return_);
+      else
+        throw std::runtime_error("ERROR: cannot clone object that is not copy constructible.");
     }
 
     T const& get(void) const { return return_; }
@@ -57,6 +68,11 @@ struct return_t {
 
   template <typename T>
   return_t(T const& t) : p_impl_(std::make_unique<generic_return_t<T>>(t))
+  {
+  }
+
+  template <typename T>
+  return_t(T&& t) : p_impl_(std::make_unique<generic_return_t<T>>(std::move(t)))
   {
   }
 
@@ -84,7 +100,7 @@ struct return_t {
   }
 
   template <typename T>
-  T get(void) const
+  T const& get(void) const
   {
     if (p_impl_) {
       generic_return_t<T> const* p = static_cast<generic_return_t<T> const*>(p_impl_.get());
@@ -92,6 +108,8 @@ struct return_t {
     } else
       throw std::runtime_error("ERROR: nullptr impl.");
   }
+
+  void const* get_ptr(void) const { return static_cast<void const*>(p_impl_.get()); }
 
  private:
   std::unique_ptr<base_return_t> p_impl_;

@@ -133,9 +133,7 @@ return_t bfs(graph_envelope_t const& g, erased_pack_t& ep)
 
   g.apply(*p_visitor);
 
-  return_t ret{p_visitor->get_result()};
-
-  return ret;  // RVO-ed;
+  return p_visitor->get_result();
 }
 
 }  // namespace api

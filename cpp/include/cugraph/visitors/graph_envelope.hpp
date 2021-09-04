@@ -74,6 +74,8 @@ struct graph_envelope_t {
     virtual std::unique_ptr<visitor_t> make_louvain_visitor(erased_pack_t&) const = 0;
 
     virtual std::unique_ptr<visitor_t> make_bfs_visitor(erased_pack_t&) const = 0;
+
+    virtual std::unique_ptr<visitor_t> make_rw_visitor(erased_pack_t&) const = 0;
   };
 
   using pair_uniques_t =
@@ -124,6 +126,8 @@ class visitor_t {
   virtual void visit_graph(graph_envelope_t::base_graph_t const&) = 0;
 
   virtual return_t const& get_result(void) const = 0;
+
+  virtual return_t&& get_result(void) = 0;
 };
 
 // convenience templatized base:
@@ -162,6 +166,8 @@ struct dependent_factory_t<vertex_t,
   std::unique_ptr<visitor_t> make_louvain_visitor(erased_pack_t&) const override { return nullptr; }
 
   std::unique_ptr<visitor_t> make_bfs_visitor(erased_pack_t&) const override { return nullptr; }
+
+  std::unique_ptr<visitor_t> make_rw_visitor(erased_pack_t&) const override { return nullptr; }
 };
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
@@ -179,6 +185,8 @@ struct dependent_factory_t<vertex_t,
   std::unique_ptr<visitor_t> make_louvain_visitor(erased_pack_t&) const override;
 
   std::unique_ptr<visitor_t> make_bfs_visitor(erased_pack_t&) const override;
+
+  std::unique_ptr<visitor_t> make_rw_visitor(erased_pack_t&) const override;
 };
 
 // utility factory selector:
