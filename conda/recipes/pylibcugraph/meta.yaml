@@ -1,0 +1,40 @@
+# Copyright (c) 2021, NVIDIA CORPORATION.
+
+# Usage:
+#   conda build -c nvidia -c rapidsai -c conda-forge  .
+{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
+{% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set cuda_version='.'.join(environ.get('CUDA', 'unknown').split('.')[:2]) %}
+{% set py_version=environ.get('CONDA_PY', 36) %}
+package:
+  name: pylibcugraph
+  version: {{ version }}
+
+source:
+  git_url: ../../..
+
+build:
+  number: {{ GIT_DESCRIBE_NUMBER }}
+  string: cuda{{ cuda_version }}_py{{ py_version }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+  script_env:
+    - CC
+    - CXX
+    - CUDAHOSTCXX
+    - PARALLEL_LEVEL
+
+requirements:
+  build:
+    - python x.x
+    - cython>=0.29,<0.30
+    - libcugraph={{ version }}
+    - cudatoolkit {{ cuda_version }}.*
+  run:
+    - python x.x
+    - libcugraph={{ version }}
+    - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
+
+about:
+  home: http://rapids.ai/
+  license: Apache-2.0
+  license_file: ../../../LICENSE
+  summary: pylibcugraph library
