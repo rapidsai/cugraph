@@ -27,6 +27,8 @@ requirements:
     - python x.x
     - cython>=0.29,<0.30
     - libcugraph={{ version }}
+    - ucx-py 0.22
+    - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
   run:
     - python x.x
