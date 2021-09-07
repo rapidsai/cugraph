@@ -14,7 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-function(find_and_configure_gtest )
+function(find_and_configure_gtest)
 
     include(${rapids-cmake-dir}/cpm/gtest.cmake)
     rapids_cpm_gtest()
