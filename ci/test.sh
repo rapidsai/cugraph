@@ -26,7 +26,7 @@ GTEST_ARGS="--gtest_output=xml:${CUGRAPH_ROOT}/test-results/"
 DOWNLOAD_MODE=""
 EXITCODE=0
 
-export RAPIDS_DATASET_ROOT_DIR=${CUGRAPH_ROOT}/datasets
+export RAPIDS_DATASET_ROOT_DIR=${RAPIDS_DATASET_ROOT_DIR:-${CUGRAPH_ROOT}/datasets}
 
 # FIXME: consider using getopts for option parsing
 function hasArg {
@@ -69,8 +69,8 @@ set +e
 if (python ${CUGRAPH_ROOT}/ci/utils/is_pascal.py); then
     echo "WARNING: skipping C++ tests on Pascal GPU arch."
 else
-    echo "C++ gtests for cuGraph..."
-    for gt in tests/*_TEST; do
+    echo "C++ gtests for cuGraph (single-GPU only)..."
+    for gt in $(find ./tests -name "*_TEST" | grep -v "MG_" || true); do
         test_name=$(basename $gt)
         echo "Running gtest $test_name"
         ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
@@ -78,9 +78,14 @@ else
     done
 fi
 
+echo "Python pytest for pylibcugraph..."
+cd ${CUGRAPH_ROOT}/python/pylibcugraph/pylibcugraph
+pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=pylibcugraph --cov-report=xml:${WORKSPACE}/python/pylibcugraph/pylibcugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
+echo "Ran Python pytest for pylibcugraph : return code was: $?, test script exit code is now: $EXITCODE"
+
 echo "Python pytest for cuGraph..."
-cd ${CUGRAPH_ROOT}/python/cugraph
-pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=cugraph/raft --benchmark-disable
+cd ${CUGRAPH_ROOT}/python/cugraph/cugraph
+pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
 echo "Ran Python pytest for cugraph : return code was: $?, test script exit code is now: $EXITCODE"
 
 echo "Python benchmarks for cuGraph (running as tests)..."

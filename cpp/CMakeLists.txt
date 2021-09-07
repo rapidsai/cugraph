@@ -32,7 +32,6 @@ project(CUGRAPH VERSION 21.10.00 LANGUAGES C CXX CUDA)
 # Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
 # cuhornet currently doesn't support
 #
-# < 60
 # >= 86
 set(supported_archs "60" "62" "70" "72" "75" "80")
 foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
@@ -52,8 +51,7 @@ set(CMAKE_CUDA_ARCHITECTURES ${usable_arch_values})
 
 
 # Write the version header
-include(cmake/Modules/Version.cmake)
-write_version()
+rapids_cmake_write_version_file(include/cugraph/version_config.hpp)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -97,13 +95,13 @@ list(APPEND CUGRAPH_CUDA_FLAGS -Xfatbin=-compress-all)
 # memchecking
 if (CMAKE_CUDA_LINEINFO)
     list(APPEND CUGRAPH_CUDA_FLAGS -lineinfo)
-endif(CMAKE_CUDA_LINEINFO)
+endif()
 
 # Debug options
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     message(STATUS "Building with debugging flags")
     list(APPEND CUGRAPH_CUDA_FLAGS -G -Xcompiler=-rdynamic)
-endif(CMAKE_BUILD_TYPE MATCHES Debug)
+endif()
 
 ###################################################################################################
 # - find openmp -----------------------------------------------------------------------------------
@@ -112,7 +110,7 @@ find_package(OpenMP)
 if(OpenMP_FOUND)
     # find_package(OPenMP) does not automatically add OpenMP flags to CUDA
     list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=${OpenMP_CXX_FLAGS})
-endif(OpenMP_FOUND)
+endif()
 
 
 ###################################################################################################
@@ -335,7 +333,7 @@ target_link_libraries(cugraph PRIVATE
 ###   set_target_properties(target PROPERTIES
 ###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
     ${OpenMP_CXX_LIB_NAMES})
-endif(OpenMP_CXX_FOUND)
+endif()
 
 
 ###################################################################################################
@@ -344,15 +342,15 @@ endif(OpenMP_CXX_FOUND)
 if(BUILD_TESTS)
   include(CTest)
   add_subdirectory(tests)
-endif(BUILD_TESTS)
+endif()
 
 ###################################################################################################
 # - install targets -------------------------------------------------------------------------------
-
+rapids_cmake_install_lib_dir( lib_dir )
 include(CPack)
 
 install(TARGETS cugraph
-        DESTINATION lib
+        DESTINATION ${lib_dir}
         EXPORT cugraph-exports)
 
 install(DIRECTORY include/cugraph/
