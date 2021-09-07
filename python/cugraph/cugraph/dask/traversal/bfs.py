@@ -108,16 +108,35 @@ def bfs(graph,
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
+    def df_merge(df, tmp_df, tmp_col_names):
+        x = df[0].merge(tmp_df, on=tmp_col_names, how='inner')
+        return x['global_id']
+
     if graph.renumbered:
-        if isinstance(start, dask_cudf.DataFrame)\
-          or isinstance(start, cudf.DataFrame):
-            start = graph.lookup_internal_vertex_id(start, start.columns).\
-                    compute()
-            start = start.iloc[0]
+        renumber_ddf = graph.renumber_map.implementation.ddf
+        col_names = graph.renumber_map.implementation.col_names
+        if isinstance(start,
+                      dask_cudf.DataFrame) or isinstance(start,
+                                                         cudf.DataFrame):
+            tmp_df = start
+            tmp_col_names = start.columns
         else:
-            start = graph.lookup_internal_vertex_id(cudf.Series([start])
-                                                    ).compute()
-            start = start.iloc[0]
+            tmp_df = cudf.DataFrame()
+            tmp_df["0"] = cudf.Series(start)
+            tmp_col_names = ["0"]
+        tmp_ddf = tmp_df[tmp_col_names].rename(
+            columns=dict(zip(tmp_col_names, col_names)))
+        for name in col_names:
+            tmp_ddf[name] = tmp_ddf[name].astype(renumber_ddf[name].dtype)
+        renumber_data = get_distributed_data(renumber_ddf)
+        start = [client.submit(df_merge,
+                               wf[1],
+                               tmp_ddf,
+                               col_names,
+                               workers=[wf[0]])
+                 for idx, wf in enumerate(renumber_data.worker_to_parts.items()
+                                          )
+                 ]
 
     result = [client.submit(
               call_bfs,
@@ -127,7 +146,7 @@ def bfs(graph,
               num_edges,
               vertex_partition_offsets,
               graph.aggregate_segment_offsets,
-              start,
+              start[idx],
               depth_limit,
               return_distances,
               workers=[wf[0]])

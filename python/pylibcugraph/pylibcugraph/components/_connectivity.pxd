@@ -16,20 +16,25 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.structure.graph_utilities cimport *
-from libcpp cimport bool
+from pylibcugraph.structure.graph_primtypes cimport *
+from pylibcugraph.structure.graph_utilities cimport *
 
-cdef extern from "limits.h":
-    cdef int INT_MAX
+
+cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
+
+    ctypedef enum cugraph_cc_t:
+        CUGRAPH_WEAK "cugraph::cugraph_cc_t::CUGRAPH_WEAK"
+        CUGRAPH_STRONG "cugraph::cugraph_cc_t::CUGRAPH_STRONG"
+        NUM_CONNECTIVITY_TYPES "cugraph::cugraph_cc_t::NUM_CONNECTIVITY_TYPES"
+
+    cdef void connected_components[VT,ET,WT](
+        const GraphCSRView[VT,ET,WT] &graph,
+        cugraph_cc_t connect_type,
+        VT *labels) except +
 
 cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
-    cdef void call_bfs[vertex_t, weight_t](
+    cdef void call_wcc[vertex_t, weight_t](
         const handle_t &handle,
         const graph_container_t &g,
-        vertex_t *identifiers,
-        vertex_t *distances,
-        vertex_t *predecessors,
-        vertex_t depth_limit,
-        const vertex_t *start_vertex,
-        size_t n_sources,
-        bool direction_optimizing) except +
+        vertex_t *identifiers) except +
+

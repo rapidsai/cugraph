@@ -359,8 +359,8 @@ ConfigureTest(INDUCED_SUBGRAPH_TEST community/induced_subgraph_test.cpp)
 ConfigureTest(BFS_TEST traversal/bfs_test.cpp)
 
 ###################################################################################################
-# - Experimental Multi-source BFS tests -----------------------------------------------------------
-ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cpp)
+# - Experimental Multi-source BFS tests ----------------------------------------------------------
+ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu)
 
 ###################################################################################################
 # - Experimental SSSP tests -----------------------------------------------------------------------

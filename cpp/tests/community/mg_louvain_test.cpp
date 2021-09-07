@@ -29,6 +29,7 @@
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
 
+#include <thrust/execution_policy.h>
 #include <thrust/sequence.h>
 
 #include <gtest/gtest.h>
