@@ -73,7 +73,7 @@ void next_biased(raft::handle_t const& handle,
                  vector_test_t<vertex_t>& d_next_v,
                  selector_t const& selector)
 {
-  thrust::transform(rmm::exec_policy(handle.get_stream_view()),
+  thrust::transform(handle.get_thrust_policy(),
                     d_src_v.begin(),
                     d_src_v.end(),
                     d_rnd.begin(),

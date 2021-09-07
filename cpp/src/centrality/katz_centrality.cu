@@ -19,6 +19,7 @@
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/count_if_v.cuh>
+#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/utilities/error.hpp>
 
@@ -91,8 +92,8 @@ void katz_centrality(raft::handle_t const& handle,
   // old katz centrality values
   rmm::device_uvector<result_t> tmp_katz_centralities(
     pull_graph_view.get_number_of_local_vertices(), handle.get_stream());
-  rmm::device_uvector<result_t> adj_matrix_row_katz_centralities(
-    pull_graph_view.get_number_of_local_adj_matrix_partition_rows(), handle.get_stream());
+  row_properties_t<GraphViewType, result_t> adj_matrix_row_katz_centralities(handle,
+                                                                             pull_graph_view);
   auto new_katz_centralities = katz_centralities;
   auto old_katz_centralities = tmp_katz_centralities.data();
   size_t iter{0};
@@ -100,14 +101,14 @@ void katz_centrality(raft::handle_t const& handle,
     std::swap(new_katz_centralities, old_katz_centralities);
 
     copy_to_adj_matrix_row(
-      handle, pull_graph_view, old_katz_centralities, adj_matrix_row_katz_centralities.begin());
+      handle, pull_graph_view, old_katz_centralities, adj_matrix_row_katz_centralities);
 
     copy_v_transform_reduce_in_nbr(
       handle,
       pull_graph_view,
-      adj_matrix_row_katz_centralities.begin(),
-      thrust::make_constant_iterator(0) /* dummy */,
-      [alpha] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+      adj_matrix_row_katz_centralities.device_view(),
+      dummy_properties_t<vertex_t>{}.device_view(),
+      [alpha] __device__(vertex_t, vertex_t, weight_t w, auto src_val, auto) {
         return static_cast<result_t>(alpha * src_val * w);
       },
       betas != nullptr ? result_t{0.0} : beta,

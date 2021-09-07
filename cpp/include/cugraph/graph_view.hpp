@@ -554,6 +554,26 @@ class graph_view_t<vertex_t,
   weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
   weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
 
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_row_begin() const
+  {
+    return local_sorted_unique_edge_row_first_;
+  }
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_row_end() const
+  {
+    return local_sorted_unique_edge_row_last_;
+  }
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_col_begin() const
+  {
+    return local_sorted_unique_edge_col_first_;
+  }
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_col_end() const
+  {
+    return local_sorted_unique_edge_col_last_;
+  }
+
  private:
   std::vector<edge_t const*> adj_matrix_partition_offsets_{};
   std::vector<vertex_t const*> adj_matrix_partition_indices_{};
@@ -569,6 +589,12 @@ class graph_view_t<vertex_t,
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets_{};
+
+  // FIXME: to be implemented.
+  std::optional<vertex_t const*> local_sorted_unique_edge_row_first_{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_row_last_{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_col_first_{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_col_last_{std::nullopt};
 };
 
 // single-GPU version
@@ -747,6 +773,26 @@ class graph_view_t<vertex_t,
 
   weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
   weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_row_begin() const
+  {
+    return std::nullopt;
+  }
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_row_end() const
+  {
+    return std::nullopt;
+  }
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_col_begin() const
+  {
+    return std::nullopt;
+  }
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_col_end() const
+  {
+    return std::nullopt;
+  }
 
  private:
   edge_t const* offsets_{nullptr};

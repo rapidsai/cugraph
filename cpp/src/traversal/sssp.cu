@@ -19,6 +19,7 @@
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/count_if_e.cuh>
 #include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
@@ -77,11 +78,9 @@ void sssp(raft::handle_t const& handle,
     auto num_negative_edge_weights =
       count_if_e(handle,
                  push_graph_view,
-                 thrust::make_constant_iterator(0) /* dummy */,
-                 thrust::make_constant_iterator(0) /* dummy */,
-                 [] __device__(vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
-                   return w < 0.0;
-                 });
+                 dummy_properties_t<vertex_t>{}.device_view(),
+                 dummy_properties_t<vertex_t>{}.device_view(),
+                 [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w < 0.0; });
     CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
                     "Invalid input argument: input graph should have non-negative edge weights.");
   }
@@ -111,9 +110,9 @@ void sssp(raft::handle_t const& handle,
   thrust::tie(average_vertex_degree, average_edge_weight) = transform_reduce_e(
     handle,
     push_graph_view,
-    thrust::make_constant_iterator(0) /* dummy */,
-    thrust::make_constant_iterator(0) /* dummy */,
-    [] __device__(vertex_t row, vertex_t col, weight_t w, auto row_val, auto col_val) {
+    dummy_properties_t<vertex_t>{}.device_view(),
+    dummy_properties_t<vertex_t>{}.device_view(),
+    [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) {
       return thrust::make_tuple(weight_t{1.0}, w);
     },
     thrust::make_tuple(weight_t{0.0}, weight_t{0.0}));
@@ -133,22 +132,12 @@ void sssp(raft::handle_t const& handle,
 
   // 5. SSSP iteration
 
-  bool vertex_and_adj_matrix_row_ranges_coincide =
-    push_graph_view.get_number_of_local_vertices() ==
-        push_graph_view.get_number_of_local_adj_matrix_partition_rows()
-      ? true
-      : false;
-  rmm::device_uvector<weight_t> adj_matrix_row_distances(0, handle.get_stream());
-  if (!vertex_and_adj_matrix_row_ranges_coincide) {
-    adj_matrix_row_distances.resize(push_graph_view.get_number_of_local_adj_matrix_partition_rows(),
-                                    handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(),
-                 adj_matrix_row_distances.begin(),
-                 adj_matrix_row_distances.end(),
-                 std::numeric_limits<weight_t>::max());
+  auto adj_matrix_row_distances =
+    GraphViewType::is_multi_gpu ? row_properties_t<GraphViewType, weight_t>(handle, push_graph_view)
+                                : row_properties_t<GraphViewType, weight_t>{};
+  if (GraphViewType::is_multi_gpu) {
+    adj_matrix_row_distances.fill(std::numeric_limits<weight_t>::max(), handle.get_stream());
   }
-  auto row_distances =
-    !vertex_and_adj_matrix_row_ranges_coincide ? adj_matrix_row_distances.data() : distances;
 
   if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(source_vertex);
@@ -156,14 +145,14 @@ void sssp(raft::handle_t const& handle,
 
   auto near_far_threshold = delta;
   while (true) {
-    if (!vertex_and_adj_matrix_row_ranges_coincide) {
+    if (GraphViewType::is_multi_gpu) {
       copy_to_adj_matrix_row(
         handle,
         push_graph_view,
         vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
         vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
         distances,
-        row_distances);
+        adj_matrix_row_distances);
     }
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
@@ -175,10 +164,12 @@ void sssp(raft::handle_t const& handle,
       vertex_frontier,
       static_cast<size_t>(Bucket::cur_near),
       std::vector<size_t>{static_cast<size_t>(Bucket::next_near), static_cast<size_t>(Bucket::far)},
-      row_distances,
-      thrust::make_constant_iterator(0) /* dummy */,
+      GraphViewType::is_multi_gpu
+        ? adj_matrix_row_distances.device_view()
+        : detail::major_properties_device_view_t<vertex_t, weight_t const*>(distances),
+      dummy_properties_t<vertex_t>{}.device_view(),
       [vertex_partition, distances, cutoff] __device__(
-        vertex_t src, vertex_t dst, weight_t w, auto src_val, auto dst_val) {
+        vertex_t src, vertex_t dst, weight_t w, auto src_val, auto) {
         auto push         = true;
         auto new_distance = src_val + w;
         auto threshold    = cutoff;
