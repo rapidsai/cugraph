@@ -66,7 +66,7 @@ conda config --set ssl_verify False
 # BUILD - Conda package builds
 ###############################################################################
 
-gpuci_logger "Build conda pkg for libcugraph"
+gpuci_logger "Build conda package for libcugraph"
 if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph
@@ -77,7 +77,7 @@ if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
   fi
 fi
 
-gpuci_logger "Build conda pkg for cugraph"
+gpuci_logger "Build conda packages for pylibcugraph and cugraph"
 if [ "$BUILD_CUGRAPH" == "1" ]; then
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON
