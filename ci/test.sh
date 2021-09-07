@@ -80,12 +80,12 @@ fi
 
 echo "Python pytest for pylibcugraph..."
 cd ${CUGRAPH_ROOT}/python/pylibcugraph/pylibcugraph
-pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=pylibcugraph --cov-report=xml:${WORKSPACE}/python/pylibcugraph/pylibcugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
+pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-pylibcugraph-pytests.xml -v --cov-config=.coveragerc --cov=pylibcugraph --cov-report=xml:${WORKSPACE}/python/pylibcugraph/pylibcugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
 echo "Ran Python pytest for pylibcugraph : return code was: $?, test script exit code is now: $EXITCODE"
 
 echo "Python pytest for cuGraph..."
 cd ${CUGRAPH_ROOT}/python/cugraph/cugraph
-pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
+pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
 echo "Ran Python pytest for cugraph : return code was: $?, test script exit code is now: $EXITCODE"
 
 echo "Python benchmarks for cuGraph (running as tests)..."
