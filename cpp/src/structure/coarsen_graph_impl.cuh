@@ -437,7 +437,13 @@ coarsen_graph(
       minor_ptrs[i] = coarsened_edgelist_minor_vertices[i].data();
       counts[i]     = static_cast<edge_t>(coarsened_edgelist_major_vertices[i].size());
     }
-    std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges, segment_offsets) =
+    std::tie(renumber_map_labels,
+             partition,
+             number_of_vertices,
+             number_of_edges,
+             segment_offsets,
+             std::ignore,
+             std::ignore) =
       renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle,
         std::optional<std::tuple<vertex_t const*, vertex_t>>{

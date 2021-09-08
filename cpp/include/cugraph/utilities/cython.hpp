@@ -270,6 +270,9 @@ struct renum_tuple_t {
     return std::make_unique<std::vector<vertex_t>>(segment_offsets_);
   }
 
+  vertex_t& get_num_unique_edge_majors(void) { return num_unique_edge_majors_; }
+  vertex_t& get_num_unique_edge_minors(void) { return num_unique_edge_minors_; }
+
   // `partition_t` pass-through getters
   //
   int get_part_row_size() const { return part_.get_row_size(); }
@@ -364,6 +367,8 @@ struct renum_tuple_t {
   vertex_t nv_{0};
   edge_t ne_{0};
   std::vector<vertex_t> segment_offsets_;
+  vertex_t num_unique_edge_majors_{0};
+  vertex_t num_unique_edge_minors_{0};
 };
 
 // FIXME: finish description for vertex_partition_offsets

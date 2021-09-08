@@ -23,9 +23,6 @@
 
 #include <raft/handle.hpp>
 
-#include <thrust/functional.h>
-#include <thrust/transform_reduce.h>
-
 #include <cstdint>
 #include <numeric>
 
@@ -112,7 +109,9 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
              partition,
              number_of_vertices,
              number_of_edges,
-             *vertex_partition_segment_offsets) =
+             *vertex_partition_segment_offsets,
+             std::ignore,
+             std::ignore) =
       cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle,
         local_vertex_span

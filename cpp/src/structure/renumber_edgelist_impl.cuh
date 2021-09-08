@@ -47,7 +47,7 @@ namespace detail {
 
 // returns renumber map, segment_offsets, and # unique edge majors & minors
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertx_t, vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t, vertex_t>
 compute_renumber_map(raft::handle_t const& handle,
                      std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
                      std::vector<vertex_t const*> const& edgelist_major_vertices,
