@@ -590,7 +590,8 @@ class graph_view_t<vertex_t,
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets_{};
 
-  // FIXME: to be implemented.
+  // if valid, store row/column properties in key/value pairs (this saves memory if # unique edge
+  // rows/cols << V / row_comm_size|col_comm_size).
   std::optional<vertex_t const*> local_sorted_unique_edge_row_first_{std::nullopt};
   std::optional<vertex_t const*> local_sorted_unique_edge_row_last_{std::nullopt};
   std::optional<vertex_t const*> local_sorted_unique_edge_col_first_{std::nullopt};
