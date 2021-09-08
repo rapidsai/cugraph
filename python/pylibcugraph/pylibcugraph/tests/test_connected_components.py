@@ -31,6 +31,24 @@ def package_under_test():
     return pylibcugraph
 
 
+@pytest.fixture(scope="module",
+                params=[pytest.param(csv, id=csv.name)
+                        for csv in utils.DATASETS])
+def DiGraph_input(request):
+    """
+    Parameterized with a list of tuples containing the .csv file, and returns a
+    DiGraph constructed from the .csv dataset
+
+    This fixture has a module scope, so each dataset and corresponding DiGraph
+    is only read and constructed once.
+    """
+    dataset_file = request.param
+    cu_M = utils.read_csv_file(dataset_file)
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+    return G
+
+
 ###############################################################################
 # Tests
 def test_import():
@@ -41,15 +59,12 @@ def test_import():
     import pylibcugraph  # noqa: F401
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_scc(package_under_test, graph_file):
+def test_scc(package_under_test, DiGraph_input):
     """
     Tests strongly_connected_components()
     """
     pylibcugraph = package_under_test
-    cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+    G = DiGraph_input
 
     offsets, indices, weights = G.view_adj_list()
     cupy_off = cupy.array(offsets)
@@ -57,42 +72,85 @@ def test_scc(package_under_test, graph_file):
 
     cupy_labels = cupy.array(np.zeros(G.number_of_vertices()))
     pylibcugraph.strongly_connected_components(
-        cupy_off.__cuda_array_interface__,
-        cudf_ind.__cuda_array_interface__,
+        cupy_off,
+        cudf_ind,
         None,
         G.number_of_vertices(),
         G.number_of_edges(directed_edges=True),
-        cupy_labels.__cuda_array_interface__
+        cupy_labels
     )
 
-    print(cupy_labels)
+    # Compare to cugraph
+    # FIXME: this comparison will not be helpful when cuGraph eventually calls
+    # pylibcugraph. This needs to compare to known good results.
     df = cugraph.strongly_connected_components(G)
-    print(df)
+    assert (df["labels"] == cupy_labels.tolist()).all()
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_wcc(package_under_test, graph_file):
+def test_wcc(package_under_test, DiGraph_input):
     """
     Tests weakly_connected_components()
     """
     pylibcugraph = package_under_test
-    cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+    G = DiGraph_input
 
-    cupy_src = cupy.array(cu_M["0"])
-    cudf_dst = cu_M["1"]
-
+    cupy_src = cupy.array(G.edgelist.edgelist_df["src"])
+    cudf_dst = G.edgelist.edgelist_df["dst"]
     cupy_labels = cupy.array(np.zeros(G.number_of_vertices()), dtype='int32')
+
     pylibcugraph.weakly_connected_components(
-        cupy_src.__cuda_array_interface__,
-        cudf_dst.__cuda_array_interface__,
+        cupy_src,
+        cudf_dst,
         None,
         G.number_of_vertices(),
         G.number_of_edges(directed_edges=True),
-        cupy_labels.__cuda_array_interface__
+        cupy_labels
     )
 
-    print(cupy_labels)
+    # Compare to cugraph
+    # FIXME: this comparison will not be helpful when cuGraph eventually calls
+    # pylibcugraph. This needs to compare to known good results.
     df = cugraph.weakly_connected_components(G)
-    print(df)
+    assert (df["labels"] == cupy_labels.tolist()).all()
+
+
+@pytest.mark.parametrize("api_name", ["strongly_connected_components",
+                                      "weakly_connected_components"])
+def test_invalid_input(package_under_test, api_name):
+    """
+    Ensures that the *_connected_components() APIs only accepts instances of
+    the correct type.
+    """
+    pylibcugraph = package_under_test
+    cupy_array = cupy.ndarray(range(8))
+    python_list = list(range(8))
+    api = getattr(pylibcugraph, api_name)
+
+    with pytest.raises(TypeError):
+        api(src=cupy_array,
+            dst=cupy_array,
+            weights=cupy_array,  # should raise, weights must be None
+            num_verts=2,
+            num_edges=8,
+            labels=cupy_array)
+    with pytest.raises(TypeError):
+        api(src=cupy_array,
+            dst=python_list,  # should raise, no __cuda_array_interface__
+            weights=None,
+            num_verts=2,
+            num_edges=8,
+            labels=cupy_array)
+    with pytest.raises(TypeError):
+        api(src=python_list,  # should raise, no __cuda_array_interface__
+            dst=cupy_array,
+            weights=None,
+            num_verts=2,
+            num_edges=8,
+            labels=cupy_array)
+    with pytest.raises(TypeError):
+        api(src=cupy_array,
+            dst=cupy_array,
+            weights=None,
+            num_verts=2,
+            num_edges=8,
+            labels=python_list)  # should raise, no __cuda_array_interface__
