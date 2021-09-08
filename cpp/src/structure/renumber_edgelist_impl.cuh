@@ -77,7 +77,7 @@ compute_renumber_map(raft::handle_t const& handle,
 
   rmm::device_uvector<vertex_t> major_labels(0, handle.get_stream());
   rmm::device_uvector<edge_t> major_counts(0, handle.get_stream());
-  vertex_t num_unique_edge_majors{0};
+  vertex_t num_local_unique_edge_majors{0};
   for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
     rmm::device_uvector<vertex_t> tmp_major_labels(0, handle.get_stream());
     rmm::device_uvector<edge_t> tmp_major_counts(0, handle.get_stream());
@@ -107,7 +107,7 @@ compute_renumber_map(raft::handle_t const& handle,
                             tmp_major_labels.begin(),
                             tmp_major_counts.begin());
     }
-    num_unique_edge_majors += static_cast<vertex_t>(tmp_major_labels.size());
+    num_local_unique_edge_majors += static_cast<vertex_t>(tmp_major_labels.size());
 
     if (multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
@@ -174,7 +174,7 @@ compute_renumber_map(raft::handle_t const& handle,
     edgelist_edge_counts.begin(), edgelist_edge_counts.end() - 1, minor_displs.begin() + 1);
   rmm::device_uvector<vertex_t> minor_labels(minor_displs.back() + edgelist_edge_counts.back(),
                                              handle.get_stream());
-  vertex_t num_unique_edge_minors{0};
+  vertex_t num_local_unique_edge_minors{0};
   for (size_t i = 0; i < edgelist_minor_vertices.size(); ++i) {
     thrust::copy(handle.get_thrust_policy(),
                  edgelist_minor_vertices[i],
@@ -187,7 +187,7 @@ compute_renumber_map(raft::handle_t const& handle,
       minor_labels.begin(),
       thrust::unique(handle.get_thrust_policy(), minor_labels.begin(), minor_labels.end())),
     handle.get_stream());
-  num_unique_edge_minors += static_cast<vertex_t>(minor_labels.size());
+  num_local_unique_edge_minors += static_cast<vertex_t>(minor_labels.size());
   if (multi_gpu) {
     auto& comm               = handle.get_comms();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -370,8 +370,10 @@ compute_renumber_map(raft::handle_t const& handle,
                     handle.get_stream());
   handle.get_stream_view().synchronize();
 
-  return std::make_tuple(
-    std::move(labels), h_segment_offsets, num_unique_edge_majors, num_unique_edge_minors);
+  return std::make_tuple(std::move(labels),
+                         h_segment_offsets,
+                         num_local_unique_edge_majors,
+                         num_local_unique_edge_minors);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>

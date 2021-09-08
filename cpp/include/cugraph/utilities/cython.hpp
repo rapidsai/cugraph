@@ -102,6 +102,8 @@ struct graph_container_t {
   size_t num_local_edges;
   size_t num_global_vertices;
   size_t num_global_edges;
+  size_t num_local_unique_edge_rows{};
+  size_t num_local_unique_edge_cols{};
   numberTypeEnum vertexType;
   numberTypeEnum edgeType;
   numberTypeEnum weightType;
@@ -436,6 +438,8 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_local_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
+                              size_t num_local_unique_edge_rows,
+                              size_t num_local_unique_edge_cols,
                               bool is_weighted,
                               bool is_symmetric,
                               bool transposed,

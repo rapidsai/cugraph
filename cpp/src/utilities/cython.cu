@@ -169,6 +169,8 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
           static_cast<vertex_t const*>(graph_container.segment_offsets) +
             graph_container.num_segments + 1)
       : std::nullopt,
+    graph_container.num_local_unique_edge_rows,
+    graph_container.num_local_unique_edge_cols,
     graph_container.do_expensive_check);
 }
 
@@ -221,6 +223,8 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_local_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
+                              size_t num_local_unique_edge_rows,
+                              size_t num_local_unique_edge_cols,
                               bool is_weighted,
                               bool is_symmetric,
                               bool transposed,
@@ -244,22 +248,24 @@ void populate_graph_container(graph_container_t& graph_container,
     graph_container.col_comm_rank = col_comm_rank;
   }
 
-  graph_container.src_vertices             = src_vertices;
-  graph_container.dst_vertices             = dst_vertices;
-  graph_container.weights                  = weights;
-  graph_container.is_weighted              = is_weighted;
-  graph_container.vertex_partition_offsets = vertex_partition_offsets;
-  graph_container.segment_offsets          = segment_offsets;
-  graph_container.num_segments             = num_segments;
-  graph_container.num_local_edges          = num_local_edges;
-  graph_container.num_global_vertices      = num_global_vertices;
-  graph_container.num_global_edges         = num_global_edges;
-  graph_container.vertexType               = vertexType;
-  graph_container.edgeType                 = edgeType;
-  graph_container.weightType               = weightType;
-  graph_container.transposed               = transposed;
-  graph_container.is_multi_gpu             = multi_gpu;
-  graph_container.do_expensive_check       = do_expensive_check;
+  graph_container.src_vertices               = src_vertices;
+  graph_container.dst_vertices               = dst_vertices;
+  graph_container.weights                    = weights;
+  graph_container.is_weighted                = is_weighted;
+  graph_container.vertex_partition_offsets   = vertex_partition_offsets;
+  graph_container.segment_offsets            = segment_offsets;
+  graph_container.num_segments               = num_segments;
+  graph_container.num_local_edges            = num_local_edges;
+  graph_container.num_global_vertices        = num_global_vertices;
+  graph_container.num_global_edges           = num_global_edges;
+  graph_container.num_local_unique_edge_rows = num_local_unique_edge_rows;
+  graph_container.num_local_unique_edge_cols = num_local_unique_edge_cols;
+  graph_container.vertexType                 = vertexType;
+  graph_container.edgeType                   = edgeType;
+  graph_container.weightType                 = weightType;
+  graph_container.transposed                 = transposed;
+  graph_container.is_multi_gpu               = multi_gpu;
+  graph_container.do_expensive_check         = do_expensive_check;
 
   graph_properties_t graph_props{.is_symmetric = is_symmetric, .is_multigraph = false};
   graph_container.graph_props = graph_props;

@@ -95,6 +95,8 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   cugraph::partition_t<vertex_t> partition{};
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
+  vertex_t num_local_unique_edge_majors{};
+  vertex_t num_local_unique_edge_minors{};
   auto vertex_partition_segment_offsets = std::make_optional<std::vector<vertex_t>>(0);
   {
     std::vector<vertex_t*> major_ptrs(col_comm_size);
@@ -110,8 +112,8 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
              number_of_vertices,
              number_of_edges,
              *vertex_partition_segment_offsets,
-             std::ignore,
-             std::ignore) =
+             num_local_unique_edge_majors,
+             num_local_unique_edge_minors) =
       cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle,
         local_vertex_span
@@ -145,7 +147,9 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
       number_of_vertices,
       number_of_edges,
       graph_properties,
-      vertex_partition_segment_offsets),
+      vertex_partition_segment_offsets,
+      store_transposed ? num_local_unique_edge_minors : num_local_unique_edge_majors,
+      store_transposed ? num_local_unique_edge_majors : num_local_unique_edge_minors),
     std::optional<rmm::device_uvector<vertex_t>>{std::move(renumber_map_labels)});
 }
 

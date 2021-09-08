@@ -203,6 +203,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           edge_t number_of_edges,
           graph_properties_t properties,
           std::optional<std::vector<vertex_t>> const& segment_offsets,
+          vertex_t num_local_unique_edge_rows,
+          vertex_t num_local_unique_edge_cols,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, number_of_vertices, number_of_edges, properties),

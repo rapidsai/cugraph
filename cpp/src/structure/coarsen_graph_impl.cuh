@@ -428,6 +428,8 @@ coarsen_graph(
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
   std::optional<std::vector<vertex_t>> segment_offsets{};
+  vertex_t num_local_unique_edge_majors{};
+  vertex_t num_local_unique_edge_minors{};
   {
     std::vector<vertex_t*> major_ptrs(coarsened_edgelist_major_vertices.size());
     std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
@@ -442,8 +444,8 @@ coarsen_graph(
              number_of_vertices,
              number_of_edges,
              segment_offsets,
-             std::ignore,
-             std::ignore) =
+             num_local_unique_edge_majors,
+             num_local_unique_edge_minors) =
       renumber_edgelist<vertex_t, edge_t, multi_gpu>(
         handle,
         std::optional<std::tuple<vertex_t const*, vertex_t>>{
@@ -479,7 +481,9 @@ coarsen_graph(
       number_of_vertices,
       number_of_edges,
       graph_properties_t{graph_view.is_symmetric(), false},
-      segment_offsets),
+      segment_offsets,
+      store_transposed ? num_local_unique_edge_minors : num_local_unique_edge_majors,
+      store_transposed ? num_local_unique_edge_majors : num_local_unique_edge_minors),
     std::move(renumber_map_labels));
 }
 
