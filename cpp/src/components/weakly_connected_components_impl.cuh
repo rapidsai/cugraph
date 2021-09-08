@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/graph_utils.cuh>
@@ -767,79 +768,5 @@ void weakly_connected_components(
 {
   weakly_connected_components_impl(handle, graph_view, components, do_expensive_check);
 }
-
-// explicit instantiation
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
-  int32_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
-  int32_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
-  int32_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
-  int32_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
-  int32_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
-  int32_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
-  int32_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
-  int32_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
-  int64_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
-  int64_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
-  int64_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
-  int64_t* components,
-  bool do_expensive_check);
 
 }  // namespace cugraph

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/graph_functions.hpp>
@@ -902,89 +903,5 @@ renumber_edgelist(raft::handle_t const& handle,
 
   return std::make_tuple(std::move(renumber_map_labels), segment_offsets);
 }
-
-// explicit instantiation directives (EIDir's):
-//
-
-// instantiations for <vertex_t == int32_t, edge_t == int32_t>
-//
-template std::tuple<rmm::device_uvector<int32_t>,
-                    partition_t<int32_t>,
-                    int32_t,
-                    int32_t,
-                    std::vector<int32_t>,
-                    int32_t,
-                    int32_t>
-renumber_edgelist<int32_t, int32_t, true>(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> local_vertex_span,
-  std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
-  std::vector<int32_t> const& edgelist_edge_counts,
-  std::optional<std::vector<std::vector<int32_t>>> const& edgelist_intra_partition_segment_offsets,
-  bool do_expensive_check);
-
-template std::tuple<rmm::device_uvector<int32_t>, std::vector<int32_t>>
-renumber_edgelist<int32_t, int32_t, false>(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
-  int32_t* edgelist_major_vertices /* [INOUT] */,
-  int32_t* edgelist_minor_vertices /* [INOUT] */,
-  int32_t num_edgelist_edges,
-  bool do_expensive_check);
-
-// instantiations for <vertex_t == int32_t, edge_t == int64_t>
-//
-template std::tuple<rmm::device_uvector<int32_t>,
-                    partition_t<int32_t>,
-                    int32_t,
-                    int64_t,
-                    std::vector<int32_t>,
-                    int32_t,
-                    int32_t>
-renumber_edgelist<int32_t, int64_t, true>(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> local_vertex_span,
-  std::vector<int32_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<int32_t*> const& edgelist_minor_vertices /* [INOUT] */,
-  std::vector<int64_t> const& edgelist_edge_counts,
-  std::optional<std::vector<std::vector<int64_t>>> const& edgelist_intra_partition_segment_offsets,
-  bool do_expensive_check);
-
-template std::tuple<rmm::device_uvector<int32_t>, std::vector<int32_t>>
-renumber_edgelist<int32_t, int64_t, false>(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<int32_t const*, int32_t>> vertex_span,
-  int32_t* edgelist_major_vertices /* [INOUT] */,
-  int32_t* edgelist_minor_vertices /* [INOUT] */,
-  int64_t num_edgelist_edges,
-  bool do_expensive_check);
-
-// instantiations for <vertex_t == int64_t, edge_t == int64_t>
-//
-template std::tuple<rmm::device_uvector<int64_t>,
-                    partition_t<int64_t>,
-                    int64_t,
-                    int64_t,
-                    std::vector<int64_t>,
-                    int64_t,
-                    int64_t>
-renumber_edgelist<int64_t, int64_t, true>(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<int64_t const*, int64_t>> local_vertex_span,
-  std::vector<int64_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<int64_t*> const& edgelist_minor_vertices /* [INOUT] */,
-  std::vector<int64_t> const& edgelist_edge_counts,
-  std::optional<std::vector<std::vector<int64_t>>> const& edgelist_intra_partition_segment_offsets,
-  bool do_expensive_check);
-
-template std::tuple<rmm::device_uvector<int64_t>, std::vector<int64_t>>
-renumber_edgelist<int64_t, int64_t, false>(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<int64_t const*, int64_t>> vertex_span,
-  int64_t* edgelist_major_vertices /* [INOUT] */,
-  int64_t* edgelist_minor_vertices /* [INOUT] */,
-  int64_t num_edgelist_edges,
-  bool do_expensive_check);
 
 }  // namespace cugraph
