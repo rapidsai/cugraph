@@ -73,7 +73,7 @@ namespace cugraph {
  * the entire set of vertices (assigned to this process in multi-GPU), partition_t object storing
  * graph partitioning information, total number of vertices, total number of edges, vertex partition
  * segment offsets (a vertex partition is partitioned to multiple segments based on vertex degrees),
- * and the number of unique edge rows and columns.
+ * and the number of unique edge major & minor vertex IDs.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
