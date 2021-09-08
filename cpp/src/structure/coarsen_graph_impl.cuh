@@ -427,7 +427,7 @@ coarsen_graph(
                                   col_comm_rank);
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
-  std::optional<std::vector<vertex_t>> segment_offsets{};
+  std::vector<vertex_t> segment_offsets{};
   vertex_t num_local_unique_edge_majors{};
   vertex_t num_local_unique_edge_minors{};
   {

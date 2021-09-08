@@ -163,12 +163,9 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
     static_cast<vertex_t>(graph_container.num_global_vertices),
     static_cast<edge_t>(graph_container.num_global_edges),
     graph_container.graph_props,
-    graph_container.segment_offsets != nullptr
-      ? std::make_optional<std::vector<vertex_t>>(
-          static_cast<vertex_t const*>(graph_container.segment_offsets),
-          static_cast<vertex_t const*>(graph_container.segment_offsets) +
-            graph_container.num_segments + 1)
-      : std::nullopt,
+    std::vector<vertex_t>(static_cast<vertex_t const*>(graph_container.segment_offsets),
+                          static_cast<vertex_t const*>(graph_container.segment_offsets) +
+                            graph_container.num_segments + 1),
     graph_container.num_local_unique_edge_rows,
     graph_container.num_local_unique_edge_cols,
     graph_container.do_expensive_check);

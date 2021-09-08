@@ -202,7 +202,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           vertex_t number_of_vertices,
           edge_t number_of_edges,
           graph_properties_t properties,
-          std::optional<std::vector<vertex_t>> const& segment_offsets,
+          std::vector<vertex_t> const& segment_offsets,
           vertex_t num_local_unique_edge_rows,
           vertex_t num_local_unique_edge_cols,
           bool do_expensive_check)
@@ -227,16 +227,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   CUGRAPH_EXPECTS(edgelists.size() == static_cast<size_t>(col_comm_size),
                   "Invalid input argument: errneous edgelists.size().");
   CUGRAPH_EXPECTS(
-    !segment_offsets.has_value() ||
-      ((*segment_offsets).size() == (detail::num_sparse_segments_per_vertex_partition + 1)) ||
-      ((*segment_offsets).size() == (detail::num_sparse_segments_per_vertex_partition + 2)),
+    (segment_offsets.size() == (detail::num_sparse_segments_per_vertex_partition + 1)) ||
+      (segment_offsets.size() == (detail::num_sparse_segments_per_vertex_partition + 2)),
     "Invalid input argument: segment_offsets.size() returns an invalid value.");
 
   auto is_weighted = edgelists[0].p_edge_weights.has_value();
-  auto use_dcs =
-    segment_offsets
-      ? ((*segment_offsets).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
-      : false;
+  auto use_dcs = segment_offsets.size() > (detail::num_sparse_segments_per_vertex_partition + 1);
 
   CUGRAPH_EXPECTS(
     std::any_of(edgelists.begin(),
@@ -286,12 +282,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // aggregate segment_offsets
 
-  if (segment_offsets) {
+  {
     // FIXME: we need to add host_allgather
-    rmm::device_uvector<vertex_t> d_segment_offsets((*segment_offsets).size(), default_stream_view);
+    rmm::device_uvector<vertex_t> d_segment_offsets(segment_offsets.size(), default_stream_view);
     raft::update_device(d_segment_offsets.data(),
-                        (*segment_offsets).data(),
-                        (*segment_offsets).size(),
+                        segment_offsets.data(),
+                        segment_offsets.size(),
                         default_stream_view.value());
     rmm::device_uvector<vertex_t> d_aggregate_segment_offsets(
       col_comm_size * d_segment_offsets.size(), default_stream_view);
@@ -332,7 +328,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     auto major_hypersparse_first =
       use_dcs ? std::optional<vertex_t>{major_first +
                                         (*adj_matrix_partition_segment_offsets_)
-                                          [(*segment_offsets).size() * i +
+                                          [segment_offsets.size() * i +
                                            detail::num_sparse_segments_per_vertex_partition]}
               : std::nullopt;
     auto [offsets, indices, weights, dcs_nzd_vertices] =

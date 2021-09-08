@@ -97,7 +97,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   edge_t number_of_edges{};
   vertex_t num_local_unique_edge_majors{};
   vertex_t num_local_unique_edge_minors{};
-  auto vertex_partition_segment_offsets = std::make_optional<std::vector<vertex_t>>(0);
+  std::vector<vertex_t> vertex_partition_segment_offsets{};
   {
     std::vector<vertex_t*> major_ptrs(col_comm_size);
     std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
@@ -111,7 +111,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
              partition,
              number_of_vertices,
              number_of_edges,
-             *vertex_partition_segment_offsets,
+             vertex_partition_segment_offsets,
              num_local_unique_edge_majors,
              num_local_unique_edge_minors) =
       cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
