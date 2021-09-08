@@ -69,10 +69,11 @@ namespace cugraph {
  * for further memory footprint optimization if provided.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t,
- * std::vector<vertex_t>> Tuple of labels (vertex IDs before renumbering) for the entire set of
- * vertices (assigned to this process in multi-GPU), partition_t object storing graph partitioning
- * information, total number of vertices, total number of edges, and vertex partition segment
- * offsets (a vertex partition is partitioned to multiple segments based on vertex degrees).
+ * std::vector<vertex_t>, vertex_t, vertex_t> Tuple of labels (vertex IDs before renumbering) for
+ * the entire set of vertices (assigned to this process in multi-GPU), partition_t object storing
+ * graph partitioning information, total number of vertices, total number of edges, vertex partition
+ * segment offsets (a vertex partition is partitioned to multiple segments based on vertex degrees),
+ * and the number of unique edge rows and columns.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu,
@@ -80,7 +81,9 @@ std::enable_if_t<multi_gpu,
                             partition_t<vertex_t>,
                             vertex_t,
                             edge_t,
-                            std::vector<vertex_t>>>
+                            std::vector<vertex_t>,
+                            vertex_t,
+                            vertex_t>>
 renumber_edgelist(
   raft::handle_t const& handle,
   std::optional<std::tuple<vertex_t const*, vertex_t>> local_vertex_span,
