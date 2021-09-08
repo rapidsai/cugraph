@@ -40,6 +40,16 @@ using namespace cugraph::visitors;
  */
 return_t bfs(graph_envelope_t const& g, erased_pack_t& ep);
 
+/**
+ * @brief Type-erased Random Walks wrapper.
+ *
+ * @param[in] g graph_envelope reference;
+ * @param[in] ep erased_pack_t pack of erased arguments, that the caller is responsible to set
+ * correctly;
+ * @return return set;
+ */
+return_t random_walks(graph_envelope_t const& g, erased_pack_t& ep);
+
 // TODO: more to follow...
 
 }  // namespace api

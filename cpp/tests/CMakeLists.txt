@@ -405,7 +405,6 @@ set(SERIALIZATION_TEST_SRCS
 
 ConfigureTest(SERIALIZATION_TEST "${SERIALIZATION_TEST_SRCS}")
 
-
 ###################################################################################################
 # - BFS Visitor tests -----------------------------------------------------------------------------
 
@@ -413,6 +412,14 @@ set(BFS_VISITOR_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/visitors/bfs_test.cpp")
 
 ConfigureTest(BFS_VISITOR_TEST "${BFS_VISITOR_TEST_SRCS}")
+
+###################################################################################################
+# - Random Walks Visitor tests --------------------------------------------------------------------
+
+set(RW_VISITOR_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/visitors/rw_test.cu")
+
+ConfigureTest(RANDOM_WALKS_VISITOR_TEST "${RW_VISITOR_TEST_SRCS}")
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
