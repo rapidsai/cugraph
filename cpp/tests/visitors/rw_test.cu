@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_view.hpp>
+
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <utilities/../sampling/random_walks_utils.cuh>
-
-#include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
-#include <cugraph/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
