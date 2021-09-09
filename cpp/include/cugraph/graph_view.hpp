@@ -332,6 +332,10 @@ class graph_view_t<vertex_t,
     edge_t number_of_edges,
     graph_properties_t properties,
     std::optional<std::vector<vertex_t>> const& adj_matrix_partition_segment_offsets,
+    std::optional<vertex_t const*> local_sorted_unique_edge_row_first,
+    std::optional<vertex_t const*> local_sorted_unique_edge_row_last,
+    std::optional<vertex_t const*> local_sorted_unique_edge_col_first,
+    std::optional<vertex_t const*> local_sorted_unique_edge_col_last,
     bool do_expensive_check = false);
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }

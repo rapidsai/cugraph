@@ -168,6 +168,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
     edge_t number_of_edges,
     graph_properties_t properties,
     std::optional<std::vector<vertex_t>> const& adj_matrix_partition_segment_offsets,
+    std::optional<vertex_t const*> local_sorted_unique_edge_row_first,
+    std::optional<vertex_t const*> local_sorted_unique_edge_row_last,
+    std::optional<vertex_t const*> local_sorted_unique_edge_col_first,
+    std::optional<vertex_t const*> local_sorted_unique_edge_col_last,
     bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, number_of_vertices, number_of_edges, properties),
@@ -183,7 +187,11 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                                               adj_matrix_partition_segment_offsets,
                                               handle.get_stream())),
     partition_(partition),
-    adj_matrix_partition_segment_offsets_(adj_matrix_partition_segment_offsets)
+    adj_matrix_partition_segment_offsets_(adj_matrix_partition_segment_offsets),
+    local_sorted_unique_edge_row_first_(local_sorted_unique_edge_row_first),
+    local_sorted_unique_edge_row_last_(local_sorted_unique_edge_row_first),
+    local_sorted_unique_edge_col_first_(local_sorted_unique_edge_row_first),
+    local_sorted_unique_edge_col_last_(local_sorted_unique_edge_row_first)
 {
   // cheap error checks
 

@@ -115,6 +115,14 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       this->get_number_of_edges(),
       this->get_graph_properties(),
       adj_matrix_partition_segment_offsets_,
+      local_sorted_unique_edge_rows_ ? std::make_optional((*local_sorted_unique_edge_rows_).data()) : std::nullopt,
+      local_sorted_unique_edge_rows_
+        ? std::make_optional((*local_sorted_unique_edge_rows_).data() + (*local_sorted_unique_edge_rows_).size())
+        : std::nullopt,
+      local_sorted_unique_edge_cols_ ? std::make_optional((*local_sorted_unique_edge_cols_).data()) : std::nullopt,
+      local_sorted_unique_edge_cols_
+        ? std::make_optional((*local_sorted_unique_edge_cols_).data() + (*local_sorted_unique_edge_cols_).size())
+        : std::nullopt,
       false);
   }
 
