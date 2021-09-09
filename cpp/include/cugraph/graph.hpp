@@ -136,8 +136,8 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   // if valid, store row/column properties in key/value pairs (this saves memory if # unique edge
   // rows/cols << V / row_comm_size|col_comm_size).
-  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_rows{std::nullopt};
-  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_cols{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_rows_{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_cols_{std::nullopt};
 };
 
 // single-GPU version

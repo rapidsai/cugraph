@@ -224,6 +224,11 @@ namespace detail {
 using namespace cugraph::visitors;
 
 // FIXME: threshold values require tuning
+// use (key, value) pairs to store row/column properties if (unique edge rows/cols) over (V /
+// row_comm_size|col_comm_size) is smaller than the threshold value
+double constexpr row_col_properties_kv_pair_fill_ratio_threshold = 0.25;
+
+// FIXME: threshold values require tuning
 // use the hypersparse format (currently, DCSR or DCSC) for the vertices with their degrees smaller
 // than col_comm_size * hypersparse_threshold_ratio, should be less than 1.0
 double constexpr hypersparse_threshold_ratio = 0.5;
