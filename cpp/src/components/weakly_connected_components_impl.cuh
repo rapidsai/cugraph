@@ -20,6 +20,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/device_comm.cuh>
@@ -442,7 +443,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       init_max_new_roots = std::min(init_max_new_roots, max_new_roots);
     }
 
-    // 2-3. initialize vertex frontier, edge_buffer, and col_components (if multi-gpu)
+    // 2-3. initialize vertex frontier, edge_buffer, and adj_matrix_col_components (if multi-gpu)
 
     VertexFrontier<vertex_t,
                    vertex_t,
@@ -458,15 +459,12 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     // requires placing the atomic variable on managed memory and this make it less attractive.
     rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream_view());
 
-    rmm::device_uvector<vertex_t> col_components(
-      GraphViewType::is_multi_gpu ? level_graph_view.get_number_of_local_adj_matrix_partition_cols()
-                                  : vertex_t{0},
-      handle.get_stream_view());
-    if (GraphViewType::is_multi_gpu) {
-      thrust::fill(handle.get_thrust_policy(),
-                   col_components.begin(),
-                   col_components.end(),
-                   invalid_component_id<vertex_t>::value);
+    auto adj_matrix_col_components =
+      GraphViewType::is_multi_gpu
+        ? col_properties_t<GraphViewType, vertex_t>(handle, level_graph_view)
+        : col_properties_t<GraphViewType, vertex_t>();
+    if constexpr (GraphViewType::is_multi_gpu) {
+      adj_matrix_col_components.fill(invalid_component_id<vertex_t>::value, handle.get_stream());
     }
 
     // 2.4 iterate till every vertex gets visited
@@ -507,7 +505,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         break;
       }
 
-      if (GraphViewType::is_multi_gpu) {
+      if constexpr (GraphViewType::is_multi_gpu) {
         copy_to_adj_matrix_col(
           handle,
           level_graph_view,
@@ -518,7 +516,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                            .end()
                            .get_iterator_tuple()),
           level_components,
-          col_components.begin());
+          adj_matrix_col_components);
       }
 
       auto max_pushes =
@@ -542,10 +540,13 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         GraphViewType::is_multi_gpu ? std::vector<size_t>{static_cast<size_t>(Bucket::next),
                                                           static_cast<size_t>(Bucket::conflict)}
                                     : std::vector<size_t>{static_cast<size_t>(Bucket::next)},
-        thrust::make_counting_iterator(0) /* dummy */,
-        thrust::make_counting_iterator(0) /* dummy */,
-        [col_components = GraphViewType::is_multi_gpu ? col_components.data() : level_components,
-         col_first      = level_graph_view.get_local_adj_matrix_partition_col_first(),
+        dummy_properties_t<vertex_t>{}.device_view(),
+        dummy_properties_t<vertex_t>{}.device_view(),
+        [col_components =
+           GraphViewType::is_multi_gpu
+             ? adj_matrix_col_components.mutable_device_view()
+             : detail::minor_properties_device_view_t<vertex_t, vertex_t*>(level_components),
+         col_first = level_graph_view.get_local_adj_matrix_partition_col_first(),
          edge_buffer_first =
            get_dataframe_buffer_begin<thrust::tuple<vertex_t, vertex_t>>(edge_buffer),
          num_edge_inserts =
@@ -554,8 +555,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           auto col_offset = dst - col_first;
           // FIXME: better switch to atomic_ref after
           // https://github.com/nvidia/libcudacxx/milestone/2
-          auto old =
-            atomicCAS(col_components + col_offset, invalid_component_id<vertex_t>::value, tag);
+          auto old = atomicCAS(
+            col_components.get_iter(col_offset), invalid_component_id<vertex_t>::value, tag);
           if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
             static_assert(sizeof(unsigned long long int) == sizeof(size_t));
             auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),

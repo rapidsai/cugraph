@@ -22,6 +22,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
+#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_barrier.hpp>
 
@@ -127,17 +128,23 @@ edge_t groupby_e_and_coarsen_edgelist(vertex_t* edgelist_major_vertices /* [INOU
   }
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool multi_gpu,
+          typename AdjMatrixMinorLabelInputWrapper>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   raft::handle_t const& handle,
   matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
-  vertex_t const* p_major_labels,
-  vertex_t const* p_minor_labels,
+  vertex_t const* major_label_first,
+  AdjMatrixMinorLabelInputWrapper const minor_label_input,
   std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
+  static_assert(std::is_same_v<typename AdjMatrixMinorLabelInputWrapper::value_type, vertex_t>);
+
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
   // compressed sparse format to save memory
 
@@ -150,12 +157,13 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                     pair_first,
                     pair_first + edgelist_major_vertices.size(),
                     pair_first,
-                    [p_major_labels,
-                     p_minor_labels,
+                    [major_label_first,
+                     minor_label_input,
                      major_first = matrix_partition.get_major_first(),
                      minor_first = matrix_partition.get_minor_first()] __device__(auto val) {
-                      return thrust::make_tuple(p_major_labels[thrust::get<0>(val) - major_first],
-                                                p_minor_labels[thrust::get<1>(val) - minor_first]);
+                      return thrust::make_tuple(
+                        *(major_label_first + (thrust::get<0>(val) - major_first)),
+                        minor_label_input.get(thrust::get<1>(val) - minor_first));
                     });
 
   auto number_of_edges = groupby_e_and_coarsen_edgelist(
@@ -210,14 +218,17 @@ coarsen_graph(
 
   // 1. construct coarsened edge list
 
-  rmm::device_uvector<vertex_t> adj_matrix_minor_labels(
-    store_transposed ? graph_view.get_number_of_local_adj_matrix_partition_rows()
-                     : graph_view.get_number_of_local_adj_matrix_partition_cols(),
-    handle.get_stream());
-  if (store_transposed) {
-    copy_to_adj_matrix_row(handle, graph_view, labels, adj_matrix_minor_labels.data());
+  std::conditional_t<
+    store_transposed,
+    row_properties_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+                     vertex_t>,
+    col_properties_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+                     vertex_t>>
+    adj_matrix_minor_labels(handle, graph_view);
+  if constexpr (store_transposed) {
+    copy_to_adj_matrix_row(handle, graph_view, labels, adj_matrix_minor_labels);
   } else {
-    copy_to_adj_matrix_col(handle, graph_view, labels, adj_matrix_minor_labels.data());
+    copy_to_adj_matrix_col(handle, graph_view, labels, adj_matrix_minor_labels);
   }
 
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_major_vertices{};
@@ -287,7 +298,7 @@ coarsen_graph(
         matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
           graph_view.get_matrix_partition_view(i)),
         major_labels.data(),
-        adj_matrix_minor_labels.data(),
+        adj_matrix_minor_labels.device_view(),
         graph_view.get_local_adj_matrix_partition_segment_offsets(i));
 
     // 1-2. globally shuffle
@@ -494,7 +505,7 @@ coarsen_graph(
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
         graph_view.get_matrix_partition_view()),
       labels,
-      labels,
+      detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(labels),
       graph_view.get_local_adj_matrix_partition_segment_offsets(0));
 
   rmm::device_uvector<vertex_t> unique_labels(graph_view.get_number_of_vertices(),
