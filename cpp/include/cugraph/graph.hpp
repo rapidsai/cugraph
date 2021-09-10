@@ -37,6 +37,32 @@ struct edgelist_t {
   edge_t number_of_edges{0};
 };
 
+template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
+struct graph_meta_t;
+
+// multi-GPU version
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>> {
+  vertex_t number_of_vertices{};
+  edge_t number_of_edges{};
+  graph_properties_t properties{};
+
+  partition_t<vertex_t> partition{};
+
+  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
+  std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
+};
+
+// single-GPU version
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
+  vertex_t number_of_vertices{};
+  graph_properties_t properties{};
+
+  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
+  std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
+};
+
 // graph_t is an owning graph class (note that graph_view_t is a non-owning graph class)
 template <typename vertex_t,
           typename edge_t,
@@ -65,13 +91,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   graph_t(raft::handle_t const& handle,
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
-          partition_t<vertex_t> const& partition,
-          vertex_t number_of_vertices,
-          edge_t number_of_edges,
-          graph_properties_t properties,
-          std::vector<vertex_t> const& segment_offsets,
-          vertex_t num_local_unique_edge_rows,
-          vertex_t num_local_unique_edge_cols,
+          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
@@ -110,19 +130,13 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       weights,
       dcs_nzd_vertices,
       dcs_nzd_vertex_counts,
-      partition_,
-      this->get_number_of_vertices(),
-      this->get_number_of_edges(),
-      this->get_graph_properties(),
-      adj_matrix_partition_segment_offsets_,
-      local_sorted_unique_edge_rows_ ? std::make_optional((*local_sorted_unique_edge_rows_).data()) : std::nullopt,
-      local_sorted_unique_edge_rows_
-        ? std::make_optional((*local_sorted_unique_edge_rows_).data() + (*local_sorted_unique_edge_rows_).size())
-        : std::nullopt,
-      local_sorted_unique_edge_cols_ ? std::make_optional((*local_sorted_unique_edge_cols_).data()) : std::nullopt,
-      local_sorted_unique_edge_cols_
-        ? std::make_optional((*local_sorted_unique_edge_cols_).data() + (*local_sorted_unique_edge_cols_).size())
-        : std::nullopt,
+      graph_view_meta_t<vertex_t, edge_t, multi_gpu>{
+        this->get_number_of_vertices(),
+        this->get_number_of_edges(),
+        this->get_graph_properties(),
+        partition_,
+        adj_matrix_partition_segment_offsets_,
+      },
       false);
   }
 
@@ -170,9 +184,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   graph_t(raft::handle_t const& handle,
           edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
-          vertex_t number_of_vertices,
-          graph_properties_t properties,
-          std::optional<std::vector<vertex_t>> const& segment_offsets,
+          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
   bool is_weighted() const { return weights_.has_value(); }
@@ -184,10 +196,10 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       offsets_.data(),
       indices_.data(),
       weights_ ? std::optional<weight_t const*>{(*weights_).data()} : std::nullopt,
-      this->get_number_of_vertices(),
-      this->get_number_of_edges(),
-      this->get_graph_properties(),
-      segment_offsets_,
+      graph_view_meta_t<vertex_t, edge_t, multi_gpu>{this->get_number_of_vertices(),
+                                                     this->get_number_of_edges(),
+                                                     this->get_graph_properties(),
+                                                     segment_offsets_},
       false);
   }
 

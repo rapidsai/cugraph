@@ -212,17 +212,11 @@ template <typename vertex_t,
 graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
   graph_t(raft::handle_t const& handle,
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
-          partition_t<vertex_t> const& partition,
-          vertex_t number_of_vertices,
-          edge_t number_of_edges,
-          graph_properties_t properties,
-          std::vector<vertex_t> const& segment_offsets,
-          vertex_t num_local_unique_edge_rows,
-          vertex_t num_local_unique_edge_cols,
+          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-      handle, number_of_vertices, number_of_edges, properties),
-    partition_(partition)
+      handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
+    partition_(meta.partition)
 {
   // cheap error checks
 
@@ -241,12 +235,17 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   CUGRAPH_EXPECTS(edgelists.size() == static_cast<size_t>(col_comm_size),
                   "Invalid input argument: errneous edgelists.size().");
   CUGRAPH_EXPECTS(
-    (segment_offsets.size() == (detail::num_sparse_segments_per_vertex_partition + 1)) ||
-      (segment_offsets.size() == (detail::num_sparse_segments_per_vertex_partition + 2)),
-    "Invalid input argument: segment_offsets.size() returns an invalid value.");
+    !(meta.segment_offsets).has_value() ||
+      ((*(meta.segment_offsets)).size() ==
+       (detail::num_sparse_segments_per_vertex_partition + 1)) ||
+      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 2)),
+    "Invalid input argument: (*(meta.segment_offsets)).size() returns an invalid value.");
 
   auto is_weighted = edgelists[0].p_edge_weights.has_value();
-  auto use_dcs = segment_offsets.size() > (detail::num_sparse_segments_per_vertex_partition + 1);
+  auto use_dcs =
+    meta.segment_offsets
+      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
+      : false;
 
   CUGRAPH_EXPECTS(
     std::any_of(edgelists.begin(),
@@ -267,8 +266,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   if (do_expensive_check) {
     edge_t number_of_local_edges{};
     for (size_t i = 0; i < edgelists.size(); ++i) {
-      auto [major_first, major_last] = partition.get_matrix_partition_major_range(i);
-      auto [minor_first, minor_last] = partition.get_matrix_partition_minor_range();
+      auto [major_first, major_last] = partition_.get_matrix_partition_major_range(i);
+      auto [minor_first, minor_last] = partition_.get_matrix_partition_minor_range();
 
       number_of_local_edges += edgelists[i].number_of_edges;
 
@@ -283,15 +282,15 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                          major_first, major_last, minor_first, minor_last}) == 0,
                       "Invalid input argument: edgelists[] have out-of-range values.");
     }
-    auto number_of_local_edges_sum =
+    number_of_local_edges_sum =
       host_scalar_allreduce(comm, number_of_local_edges, default_stream_view.value());
-    CUGRAPH_EXPECTS(
-      number_of_local_edges_sum == this->get_number_of_edges(),
-      "Invalid input argument: the sum of local edge counts does not match with number_of_edges.");
+    CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
+                    "Invalid input argument: the sum of local edge counts does not match with "
+                    "meta.number_of_edges.");
 
     CUGRAPH_EXPECTS(
-      partition.get_vertex_partition_last(comm_size - 1) == number_of_vertices,
-      "Invalid input argument: vertex partition should cover [0, number_of_vertices).");
+      partition_.get_vertex_partition_last(comm_size - 1) == meta.number_of_vertices,
+      "Invalid input argument: vertex partition should cover [0, meta.number_of_vertices).");
 
     rmm::device_uvector<vertex_t> majors(number_of_local_edges, handle.get_stream());
     rmm::device_uvector<vertex_t> minors(number_of_local_edges, handle.get_stream());
@@ -329,12 +328,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // aggregate segment_offsets
 
-  {
+  if (meta.segment_offsets) {
     // FIXME: we need to add host_allgather
-    rmm::device_uvector<vertex_t> d_segment_offsets(segment_offsets.size(), default_stream_view);
+    rmm::device_uvector<vertex_t> d_segment_offsets((*(meta.segment_offsets)).size(),
+                                                    default_stream_view);
     raft::update_device(d_segment_offsets.data(),
-                        segment_offsets.data(),
-                        segment_offsets.size(),
+                        (*(meta.segment_offsets)).data(),
+                        (*(meta.segment_offsets)).size(),
                         default_stream_view.value());
     rmm::device_uvector<vertex_t> d_aggregate_segment_offsets(
       col_comm_size * d_segment_offsets.size(), default_stream_view);
@@ -370,12 +370,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     (*adj_matrix_partition_dcs_nzd_vertex_counts_).reserve(edgelists.size());
   }
   for (size_t i = 0; i < edgelists.size(); ++i) {
-    auto [major_first, major_last] = partition.get_matrix_partition_major_range(i);
-    auto [minor_first, minor_last] = partition.get_matrix_partition_minor_range();
+    auto [major_first, major_last] = partition_.get_matrix_partition_major_range(i);
+    auto [minor_first, minor_last] = partition_.get_matrix_partition_minor_range();
     auto major_hypersparse_first =
       use_dcs ? std::optional<vertex_t>{major_first +
                                         (*adj_matrix_partition_segment_offsets_)
-                                          [segment_offsets.size() * i +
+                                          [(*(meta.segment_offsets)).size() * i +
                                            detail::num_sparse_segments_per_vertex_partition]}
               : std::nullopt;
     auto [offsets, indices, weights, dcs_nzd_vertices] =
@@ -505,15 +505,13 @@ template <typename vertex_t,
 graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
   graph_t(raft::handle_t const& handle,
           edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
-          vertex_t number_of_vertices,
-          graph_properties_t properties,
-          std::optional<std::vector<vertex_t>> const& segment_offsets,
+          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-      handle, number_of_vertices, edgelist.number_of_edges, properties),
+      handle, meta.number_of_vertices, edgelist.number_of_edges, meta.properties),
     offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream_view())),
     indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream_view())),
-    segment_offsets_(segment_offsets)
+    segment_offsets_(meta.segment_offsets)
 {
   // cheap error checks
 
@@ -531,9 +529,9 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     "std::nullopt nor nullptr if weighted and edgelist.number_of_edges > 0.");
 
   CUGRAPH_EXPECTS(
-    !segment_offsets.has_value() ||
-      ((*segment_offsets).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
-    "Invalid input argument: segment_offsets.size() returns an invalid value.");
+    !segment_offsets_.has_value() ||
+      ((*segment_offsets_).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
+    "Invalid input argument: (*(meta.segment_offsets)).size() returns an invalid value.");
 
   // optional expensive checks (part 1/2)
 

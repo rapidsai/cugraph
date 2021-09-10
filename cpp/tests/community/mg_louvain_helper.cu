@@ -254,9 +254,10 @@ coarsen_graph(
   return std::make_unique<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>(
     handle,
     edgelist,
-    new_number_of_vertices,
-    cugraph::graph_properties_t{graph_view.is_symmetric(), false},
-    std::nullopt);
+    cugraph::graph_meta_t<vertex_t, edge_t, false>{
+      new_number_of_vertices,
+      cugraph::graph_properties_t{graph_view.is_symmetric(), false},
+      std::nullopt});
 }
 
 // explicit instantiation

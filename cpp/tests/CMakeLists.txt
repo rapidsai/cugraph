@@ -293,10 +293,6 @@ ConfigureTest(EGO_TEST community/egonet_test.cu)
 ConfigureTest(FA2_TEST layout/force_atlas2_test.cu)
 
 ###################################################################################################
-# - TSP  tests --------------------------------------------------------------------------
-ConfigureTest(TSP_TEST traversal/tsp_test.cu)
-
-###################################################################################################
 # - CONNECTED COMPONENTS  tests -------------------------------------------------------------------
 ConfigureTest(CONNECT_TEST components/con_comp_test.cu)
 

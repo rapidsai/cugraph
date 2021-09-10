@@ -159,15 +159,17 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
   return std::make_unique<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelists,
-    partition,
-    static_cast<vertex_t>(graph_container.num_global_vertices),
-    static_cast<edge_t>(graph_container.num_global_edges),
-    graph_container.graph_props,
-    std::vector<vertex_t>(static_cast<vertex_t const*>(graph_container.segment_offsets),
-                          static_cast<vertex_t const*>(graph_container.segment_offsets) +
-                            graph_container.num_segments + 1),
-    graph_container.num_local_unique_edge_rows,
-    graph_container.num_local_unique_edge_cols,
+    graph_meta_t<vertex_t, edge_t, multi_gpu>{
+      static_cast<vertex_t>(graph_container.num_global_vertices),
+      static_cast<edge_t>(graph_container.num_global_edges),
+      graph_container.graph_props,
+      partition,
+      graph_container.segment_offsets != nullptr
+        ? std::make_optional<std::vector<vertex_t>>(
+            static_cast<vertex_t const*>(graph_container.segment_offsets),
+            static_cast<vertex_t const*>(graph_container.segment_offsets) +
+              graph_container.num_segments + 1)
+        : std::nullopt},
     graph_container.do_expensive_check);
 }
 
@@ -190,14 +192,15 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
   return std::make_unique<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelist,
-    static_cast<vertex_t>(graph_container.num_global_vertices),
-    graph_container.graph_props,
-    graph_container.segment_offsets != nullptr
-      ? std::make_optional<std::vector<vertex_t>>(
-          static_cast<vertex_t const*>(graph_container.segment_offsets),
-          static_cast<vertex_t const*>(graph_container.segment_offsets) +
-            graph_container.num_segments + 1)
-      : std::nullopt,
+    graph_meta_t<vertex_t, edge_t, multi_gpu>{
+      static_cast<vertex_t>(graph_container.num_global_vertices),
+      graph_container.graph_props,
+      graph_container.segment_offsets != nullptr
+        ? std::make_optional<std::vector<vertex_t>>(
+            static_cast<vertex_t const*>(graph_container.segment_offsets),
+            static_cast<vertex_t const*>(graph_container.segment_offsets) +
+              graph_container.num_segments + 1)
+        : std::nullopt},
     graph_container.do_expensive_check);
 }
 
@@ -1215,22 +1218,16 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
       minor_ptrs[i] = shuffled_edgelist_minor_vertices + displacements[i];
     }
 
-    std::tie(p_ret->get_dv(),
-             p_ret->get_partition(),
-             p_ret->get_num_vertices(),
-             p_ret->get_num_edges(),
-             p_ret->get_segment_offsets(),
-             p_ret->get_num_unique_edge_majors(),
-             p_ret->get_num_unique_edge_minors()) =
-      cugraph::renumber_edgelist<vertex_t, edge_t, true>(handle,
-                                                         std::nullopt,
-                                                         major_ptrs,
-                                                         minor_ptrs,
-                                                         edge_counts,
-                                                         std::nullopt,
-                                                         do_expensive_check);
+    cugraph::renumber_meta_t<vertex_t, edge_t, true> meta{};
+    std::tie(p_ret->get_dv(), meta) = cugraph::renumber_edgelist<vertex_t, edge_t, true>(
+      handle, std::nullopt, major_ptrs, minor_ptrs, edge_counts, std::nullopt, do_expensive_check);
+    p_ret->get_num_vertices()    = meta.number_of_vertices;
+    p_ret->get_num_edges()       = meta.number_of_edges;
+    p_ret->get_partition()       = meta.partition;
+    p_ret->get_segment_offsets() = meta.segment_offsets;
   } else {
-    std::tie(p_ret->get_dv(), p_ret->get_segment_offsets()) =
+    cugraph::renumber_meta_t<vertex_t, edge_t, false> meta{};
+    std::tie(p_ret->get_dv(), meta) =
       cugraph::renumber_edgelist<vertex_t, edge_t, false>(handle,
                                                           std::nullopt,
                                                           shuffled_edgelist_major_vertices,
@@ -1238,10 +1235,10 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
                                                           edge_counts[0],
                                                           do_expensive_check);
 
-    p_ret->get_partition() = cugraph::partition_t<vertex_t>{};  // dummy
-
-    p_ret->get_num_vertices() = static_cast<vertex_t>(p_ret->get_dv().size());
-    p_ret->get_num_edges()    = edge_counts[0];
+    p_ret->get_num_vertices()    = static_cast<vertex_t>(p_ret->get_dv().size());
+    p_ret->get_num_edges()       = edge_counts[0];
+    p_ret->get_partition()       = cugraph::partition_t<vertex_t>{};  // dummy
+    p_ret->get_segment_offsets() = meta.segment_offsets;
   }
 
   return p_ret;  // RVO-ed (copy ellision)

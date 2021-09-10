@@ -613,14 +613,9 @@ void expensive_check_edgelist(
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::enable_if_t<multi_gpu,
-                 std::tuple<rmm::device_uvector<vertex_t>,
-                            partition_t<vertex_t>,
-                            vertex_t,
-                            edge_t,
-                            std::vector<vertex_t>,
-                            vertex_t,
-                            vertex_t>>
+std::enable_if_t<
+  multi_gpu,
+  std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
 renumber_edgelist(
   raft::handle_t const& handle,
   std::optional<std::tuple<vertex_t const*, vertex_t>> local_vertex_span,
@@ -842,17 +837,16 @@ renumber_edgelist(
   comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
-  return std::make_tuple(std::move(renumber_map_labels),
-                         partition,
-                         number_of_vertices,
-                         number_of_edges,
-                         vertex_partition_segment_offsets,
-                         num_unique_edge_majors,
-                         num_unique_edge_minors);
+  return std::make_tuple(
+    std::move(renumber_map_labels),
+    renumber_meta_t<vertex_t, edge_t, multi_gpu>{
+      number_of_vertices, number_of_edges, partition, vertex_partition_segment_offsets});
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::enable_if_t<!multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>>>
+std::enable_if_t<
+  !multi_gpu,
+  std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
 renumber_edgelist(raft::handle_t const& handle,
                   std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
                   vertex_t* edgelist_major_vertices /* [INOUT] */,
@@ -903,7 +897,8 @@ renumber_edgelist(raft::handle_t const& handle,
   renumber_map.find(
     edgelist_minor_vertices, edgelist_minor_vertices + num_edgelist_edges, edgelist_minor_vertices);
 
-  return std::make_tuple(std::move(renumber_map_labels), segment_offsets);
+  return std::make_tuple(std::move(renumber_map_labels),
+                         renumber_meta_t<vertex_t, edge_t, multi_gpu>{segment_offsets});
 }
 
 }  // namespace cugraph

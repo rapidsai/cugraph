@@ -163,18 +163,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
     std::optional<std::vector<weight_t const*>> const& adj_matrix_partition_weights,
     std::optional<std::vector<vertex_t const*>> const& adj_matrix_partition_dcs_nzd_vertices,
     std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
-    partition_t<vertex_t> const& partition,
-    vertex_t number_of_vertices,
-    edge_t number_of_edges,
-    graph_properties_t properties,
-    std::optional<std::vector<vertex_t>> const& adj_matrix_partition_segment_offsets,
-    std::optional<vertex_t const*> local_sorted_unique_edge_row_first,
-    std::optional<vertex_t const*> local_sorted_unique_edge_row_last,
-    std::optional<vertex_t const*> local_sorted_unique_edge_col_first,
-    std::optional<vertex_t const*> local_sorted_unique_edge_col_last,
+    graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
     bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-      handle, number_of_vertices, number_of_edges, properties),
+      handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
     adj_matrix_partition_offsets_(adj_matrix_partition_offsets),
     adj_matrix_partition_indices_(adj_matrix_partition_indices),
     adj_matrix_partition_weights_(adj_matrix_partition_weights),
@@ -183,15 +175,11 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
     adj_matrix_partition_number_of_edges_(
       update_adj_matrix_partition_edge_counts(adj_matrix_partition_offsets,
                                               adj_matrix_partition_dcs_nzd_vertex_counts,
-                                              partition,
-                                              adj_matrix_partition_segment_offsets,
+                                              meta.partition,
+                                              meta.adj_matrix_partition_segment_offsets,
                                               handle.get_stream())),
-    partition_(partition),
-    adj_matrix_partition_segment_offsets_(adj_matrix_partition_segment_offsets),
-    local_sorted_unique_edge_row_first_(local_sorted_unique_edge_row_first),
-    local_sorted_unique_edge_row_last_(local_sorted_unique_edge_row_first),
-    local_sorted_unique_edge_col_first_(local_sorted_unique_edge_row_first),
-    local_sorted_unique_edge_col_last_(local_sorted_unique_edge_row_first)
+    partition_(meta.partition),
+    adj_matrix_partition_segment_offsets_(meta.adj_matrix_partition_segment_offsets)
 {
   // cheap error checks
 
@@ -229,8 +217,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                   "Internal Error: erroneous adj_matrix_partition_offsets.size().");
 
   CUGRAPH_EXPECTS(
-    !adj_matrix_partition_segment_offsets.has_value() ||
-      ((*adj_matrix_partition_segment_offsets).size() ==
+    !(meta.adj_matrix_partition_segment_offsets.has_value()) ||
+      ((*(meta.adj_matrix_partition_segment_offsets)).size() ==
        col_comm_size * (detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 2 : 1))),
     "Internal Error: invalid adj_matrix_partition_segment_offsets.size().");
 
@@ -248,12 +236,12 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 
     edge_t number_of_local_edges_sum{};
     for (size_t i = 0; i < adj_matrix_partition_offsets.size(); ++i) {
-      auto [major_first, major_last] = partition.get_matrix_partition_major_range(i);
-      auto [minor_first, minor_last] = partition.get_matrix_partition_minor_range();
+      auto [major_first, major_last] = partition_.get_matrix_partition_major_range(i);
+      auto [minor_first, minor_last] = partition_.get_matrix_partition_minor_range();
       auto offset_array_size         = major_last - major_first + 1;
       if (use_dcs) {
         auto major_hypersparse_first =
-          major_first + (*adj_matrix_partition_segment_offsets)
+          major_first + (*(meta.adj_matrix_partition_segment_offsets))
                           [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
                            detail::num_sparse_segments_per_vertex_partition];
         offset_array_size = major_hypersparse_first - major_first +
@@ -285,42 +273,45 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                     "Internal Error: the sum of local edges counts does not match with "
                     "number_of_local_edges.");
 
-    if (adj_matrix_partition_segment_offsets) {
+    if (meta.adj_matrix_partition_segment_offsets) {
       auto degrees = detail::compute_major_degrees(handle,
                                                    adj_matrix_partition_offsets,
                                                    adj_matrix_partition_dcs_nzd_vertices,
                                                    adj_matrix_partition_dcs_nzd_vertex_counts,
-                                                   partition,
-                                                   adj_matrix_partition_segment_offsets);
+                                                   partition_,
+                                                   meta.adj_matrix_partition_segment_offsets);
       CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream_view),
                                         degrees.begin(),
                                         degrees.end(),
                                         thrust::greater<edge_t>{}),
-                      "Invalid Invalid input argument: adj_matrix_partition_segment_offsets are "
-                      "provided, but degrees are not in descending order.");
+                      "Invalid Invalid input argument: meta.adj_matrix_partition_segment_offsets "
+                      "are provided, but degrees are not in descending order.");
 
       auto num_segments_per_vertex_partition =
         detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 1 : 0);
       for (int i = 0; i < col_comm_size; ++i) {
-        CUGRAPH_EXPECTS(std::is_sorted((*adj_matrix_partition_segment_offsets).begin() +
+        CUGRAPH_EXPECTS(std::is_sorted((*(meta.adj_matrix_partition_segment_offsets)).begin() +
                                          (num_segments_per_vertex_partition + 1) * i,
-                                       (*adj_matrix_partition_segment_offsets).begin() +
+                                       (*(meta.adj_matrix_partition_segment_offsets)).begin() +
                                          (num_segments_per_vertex_partition + 1) * (i + 1)),
-                        "Internal Error: erroneous adj_matrix_partition_segment_offsets.");
+                        "Internal Error: erroneous meta.adj_matrix_partition_segment_offsets.");
         CUGRAPH_EXPECTS(
-          (*adj_matrix_partition_segment_offsets)[(num_segments_per_vertex_partition + 1) * i] == 0,
-          "Internal Error: erroneous adj_matrix_partition_segment_offsets.");
+          (*(meta.adj_matrix_partition_segment_offsets))[(num_segments_per_vertex_partition + 1) *
+                                                         i] == 0,
+          "Internal Error: erroneous meta.adj_matrix_partition_segment_offsets.");
         auto vertex_partition_idx = row_comm_size * i + row_comm_rank;
         CUGRAPH_EXPECTS(
-          (*adj_matrix_partition_segment_offsets)[(num_segments_per_vertex_partition + 1) * i +
-                                                  num_segments_per_vertex_partition] ==
-            partition.get_vertex_partition_size(vertex_partition_idx),
-          "Internal Error: erroneous adj_matrix_partition_segment_offsets.");
+          (*(meta
+               .adj_matrix_partition_segment_offsets))[(num_segments_per_vertex_partition + 1) * i +
+                                                       num_segments_per_vertex_partition] ==
+            partition_.get_vertex_partition_size(vertex_partition_idx),
+          "Internal Error: erroneous meta.adj_matrix_partition_segment_offsets.");
       }
     }
 
-    CUGRAPH_EXPECTS(partition.get_vertex_partition_last(comm_size - 1) == number_of_vertices,
-                    "Internal Error: vertex partition should cover [0, number_of_vertices).");
+    CUGRAPH_EXPECTS(
+      partition_.get_vertex_partition_last(comm_size - 1) == this->get_number_of_vertices(),
+      "Internal Error: vertex partition should cover [0, number_of_vertices).");
 
     // FIXME: check for symmetricity may better be implemetned with transpose().
     if (this->is_symmetric()) {}
@@ -335,34 +326,31 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-graph_view_t<vertex_t,
-             edge_t,
-             weight_t,
-             store_transposed,
-             multi_gpu,
-             std::enable_if_t<!multi_gpu>>::graph_view_t(raft::handle_t const& handle,
-                                                         edge_t const* offsets,
-                                                         vertex_t const* indices,
-                                                         std::optional<weight_t const*> weights,
-                                                         vertex_t number_of_vertices,
-                                                         edge_t number_of_edges,
-                                                         graph_properties_t properties,
-                                                         std::optional<std::vector<vertex_t>> const&
-                                                           segment_offsets,
-                                                         bool do_expensive_check)
+graph_view_t<
+  vertex_t,
+  edge_t,
+  weight_t,
+  store_transposed,
+  multi_gpu,
+  std::enable_if_t<!multi_gpu>>::graph_view_t(raft::handle_t const& handle,
+                                              edge_t const* offsets,
+                                              vertex_t const* indices,
+                                              std::optional<weight_t const*> weights,
+                                              graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
+                                              bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-      handle, number_of_vertices, number_of_edges, properties),
+      handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
     offsets_(offsets),
     indices_(indices),
     weights_(weights),
-    segment_offsets_(segment_offsets)
+    segment_offsets_(meta.segment_offsets)
 {
   // cheap error checks
 
   CUGRAPH_EXPECTS(
-    !segment_offsets.has_value() ||
-      ((*segment_offsets).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
-    "Internal Error: segment_offsets.size() returns an invalid value.");
+    !(meta.segment_offsets).has_value() ||
+      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
+    "Internal Error: (*(meta.segment_offsets)).size() returns an invalid value.");
 
   // optional expensive checks
 
@@ -382,20 +370,22 @@ graph_view_t<vertex_t,
                        out_of_range_t<vertex_t>{0, this->get_number_of_vertices()}) == 0,
       "Internal Error: adj_matrix_partition_indices[] have out-of-range vertex IDs.");
 
-    if (segment_offsets) {
-      auto degrees = detail::compute_major_degrees(handle, offsets, number_of_vertices);
+    if (meta.segment_offsets) {
+      auto degrees = detail::compute_major_degrees(handle, offsets, this->get_number_of_vertices());
       CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream_view),
                                         degrees.begin(),
                                         degrees.end(),
                                         thrust::greater<edge_t>{}),
-                      "Invalid Invalid input argument: segment_offsets are provided, but degrees "
+                      "Invalid Invalid input argument: meta.segment_offsets is valid, but degrees "
                       "are not in descending order.");
 
-      CUGRAPH_EXPECTS(std::is_sorted((*segment_offsets).begin(), (*segment_offsets).end()),
-                      "Internal Error: erroneous segment_offsets.");
-      CUGRAPH_EXPECTS((*segment_offsets)[0] == 0, "Invalid input argument segment_offsets.");
-      CUGRAPH_EXPECTS((*segment_offsets).back() == this->get_number_of_vertices(),
-                      "Invalid input argument: segment_offsets.");
+      CUGRAPH_EXPECTS(
+        std::is_sorted((*(meta.segment_offsets)).begin(), (*(meta.segment_offsets)).end()),
+        "Internal Error: erroneous meta.segment_offsets.");
+      CUGRAPH_EXPECTS((*(meta.segment_offsets))[0] == 0,
+                      "Invalid input argument meta.segment_offsets.");
+      CUGRAPH_EXPECTS((*(meta.segment_offsets)).back() == this->get_number_of_vertices(),
+                      "Invalid input argument: meta.segment_offsets.");
     }
 
     // FIXME: check for symmetricity may better be implemetned with transpose().
