@@ -282,7 +282,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                          major_first, major_last, minor_first, minor_last}) == 0,
                       "Invalid input argument: edgelists[] have out-of-range values.");
     }
-    number_of_local_edges_sum =
+    auto number_of_local_edges_sum =
       host_scalar_allreduce(comm, number_of_local_edges, default_stream_view.value());
     CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
                     "Invalid input argument: the sum of local edge counts does not match with "
@@ -314,14 +314,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     auto num_local_unique_edge_minors = static_cast<vertex_t>(thrust::distance(
       minors.begin(), thrust::unique(handle.get_thrust_policy(), minors.begin(), minors.end())));
     if constexpr (store_transposed) {
-      CUGRAPH_EXPECTS(num_local_unique_edge_majors == num_local_unique_edge_cols,
+      CUGRAPH_EXPECTS(num_local_unique_edge_majors == meta.num_local_unique_edge_cols,
                       "Invalid input argument: num_unique_edge_cols is erroneous.");
-      CUGRAPH_EXPECTS(num_local_unique_edge_minors == num_local_unique_edge_rows,
+      CUGRAPH_EXPECTS(num_local_unique_edge_minors == meta.num_local_unique_edge_rows,
                       "Invalid input argument: num_unique_edge_rows is erroneous.");
     } else {
-      CUGRAPH_EXPECTS(num_local_unique_edge_majors == num_local_unique_edge_rows,
+      CUGRAPH_EXPECTS(num_local_unique_edge_majors == meta.num_local_unique_edge_rows,
                       "Invalid input argument: num_unique_edge_rows is erroneous.");
-      CUGRAPH_EXPECTS(num_local_unique_edge_minors == num_local_unique_edge_cols,
+      CUGRAPH_EXPECTS(num_local_unique_edge_minors == meta.num_local_unique_edge_cols,
                       "Invalid input argument: num_unique_edge_cols is erroneous.");
     }
   }
@@ -401,15 +401,15 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   // support storing edge row/column properties in (key, value) pairs.
 
   auto num_local_unique_edge_majors =
-    store_transposed ? num_local_unique_edge_cols : num_local_unique_edge_rows;
+    store_transposed ? meta.num_local_unique_edge_cols : meta.num_local_unique_edge_rows;
   auto num_local_unique_edge_minors =
-    store_transposed ? num_local_unique_edge_rows : num_local_unique_edge_cols;
+    store_transposed ? meta.num_local_unique_edge_rows : meta.num_local_unique_edge_cols;
 
   vertex_t aggregate_major_size{0};
-  for (size_t i = 0; i < partition.get_number_of_matrix_partitions(); ++i) {
-    aggregate_major_size += partition.get_matrix_partition_major_size(i);
+  for (size_t i = 0; i < partition_.get_number_of_matrix_partitions(); ++i) {
+    aggregate_major_size += partition_.get_matrix_partition_major_size(i);
   }
-  auto minor_size                      = partition.get_matrix_partition_minor_size();
+  auto minor_size                      = partition_.get_matrix_partition_minor_size();
   auto max_major_properties_fill_ratio = host_scalar_allreduce(
     comm,
     static_cast<double>(num_local_unique_edge_majors) / static_cast<double>(aggregate_major_size),
@@ -424,7 +424,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                                                   handle.get_stream());
     size_t cur_size{0};
     for (size_t i = 0; i < adj_matrix_partition_offsets_.size(); ++i) {
-      auto [major_first, major_last] = partition.get_matrix_partition_major_range(i);
+      auto [major_first, major_last] = partition_.get_matrix_partition_major_range(i);
       cur_size += thrust::distance(
         local_sorted_unique_edge_majors.data() + cur_size,
         thrust::copy_if(

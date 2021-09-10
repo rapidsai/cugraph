@@ -839,8 +839,12 @@ renumber_edgelist(
 
   return std::make_tuple(
     std::move(renumber_map_labels),
-    renumber_meta_t<vertex_t, edge_t, multi_gpu>{
-      number_of_vertices, number_of_edges, partition, vertex_partition_segment_offsets});
+    renumber_meta_t<vertex_t, edge_t, multi_gpu>{number_of_vertices,
+                                                 number_of_edges,
+                                                 partition,
+                                                 vertex_partition_segment_offsets,
+                                                 num_unique_edge_majors,
+                                                 num_unique_edge_minors});
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>

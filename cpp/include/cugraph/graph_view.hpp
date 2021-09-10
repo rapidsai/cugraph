@@ -305,6 +305,11 @@ struct graph_view_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets{};
+
+  std::optional<vertex_t const*> local_sorted_unique_edge_row_first_{};
+  std::optional<vertex_t const*> local_sorted_unique_edge_row_last_{};
+  std::optional<vertex_t const*> local_sorted_unique_edge_col_first_{};
+  std::optional<vertex_t const*> local_sorted_unique_edge_col_last_{};
 };
 
 // single-GPU version
