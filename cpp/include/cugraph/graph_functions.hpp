@@ -29,8 +29,7 @@
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
-struct renumber_meta_t {
-};
+struct renumber_meta_t;
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>> {
