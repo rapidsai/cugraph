@@ -137,7 +137,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     bool sorted{false};
     bool check{false};
 
-    erased_pack_t ep_graph{&handle, &edgelist, &num_vertices, &graph_props, &sorted, &check};
+    cugraph::graph_meta_t<vertex_t, edge_t, false> meta{num_vertices, graph_props, std::nullopt};
+    erased_pack_t ep_graph{&handle, &edgelist, &meta, &check};
 
     DTypes vertex_tid = reverse_dmap_t<vertex_t>::type_id;
     DTypes edge_tid   = reverse_dmap_t<edge_t>::type_id;

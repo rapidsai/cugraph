@@ -28,6 +28,23 @@
 
 namespace cugraph {
 
+template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
+struct renumber_meta_t {
+};
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>> {
+  vertex_t number_of_vertices{};
+  edge_t number_of_edges{};
+  partition_t<vertex_t> partition{};
+  std::vector<vertex_t> segment_offsets{};
+};
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
+  std::vector<vertex_t> segment_offsets{};
+};
+
 /**
  * @brief renumber edgelist (multi-GPU)
  *
@@ -68,19 +85,18 @@ namespace cugraph {
  * compute_gpu_id_from_vertex_t function to edge minor vertex IDs. This optinoal information is used
  * for further memory footprint optimization if provided.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<rmm::device_uvector<vertex_t>, partition_t<vertex_t>, vertex_t, edge_t,
- * std::vector<vertex_t>> Tuple of labels (vertex IDs before renumbering) for the entire set of
- * vertices (assigned to this process in multi-GPU), partition_t object storing graph partitioning
- * information, total number of vertices, total number of edges, and vertex partition segment
- * offsets (a vertex partition is partitioned to multiple segments based on vertex degrees).
+ * @return std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>
+ * Tuple of labels (vertex IDs before renumbering) for the entire set of vertices (assigned to this
+ * process in multi-GPU) and meta-data collected while renumbering. The meta-data includes total
+ * number of vertices, total number of edges, partition_t object storing graph partitioning
+ * information,  and vertex partition segment offsets (a vertex partition is partitioned to multiple
+ * segments based on vertex degrees). This meta-data is expected to be used in graph construction &
+ * graph primitives.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::enable_if_t<multi_gpu,
-                 std::tuple<rmm::device_uvector<vertex_t>,
-                            partition_t<vertex_t>,
-                            vertex_t,
-                            edge_t,
-                            std::vector<vertex_t>>>
+std::enable_if_t<
+  multi_gpu,
+  std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
 renumber_edgelist(
   raft::handle_t const& handle,
   std::optional<std::tuple<vertex_t const*, vertex_t>> local_vertex_span,
@@ -112,12 +128,16 @@ renumber_edgelist(
  * Vertex IDs are updated in-place ([INOUT] parameter).
  * @param num_edgelist_edges Number of edges in the edgelist.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> Tuple of abels (vertex
- * IDs before renumbering) for the entire set of vertices and vertex partition segment offsets (a
- * vertex partition is partitioned to multiple segments based on vertex degrees).
+ * @return std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>
+ * Tuple of labels (vertex IDs before renumbering) for the entire set of vertices and meta-data
+ * collected while renumbering. The meta-data includes vertex partition segment offsets (a vertex
+ * partition is partitioned to multiple segments based on vertex degrees). This meta-data is
+ * expected to be used in graph construction & graph primitives.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::enable_if_t<!multi_gpu, std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>>>
+std::enable_if_t<
+  !multi_gpu,
+  std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
 renumber_edgelist(raft::handle_t const& handle,
                   std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
                   vertex_t* edgelist_major_vertices /* [INOUT] */,

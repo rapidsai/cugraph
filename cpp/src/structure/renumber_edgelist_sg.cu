@@ -19,7 +19,7 @@ namespace cugraph {
 
 // SG instantiation
 
-template std::tuple<rmm::device_uvector<int32_t>, std::vector<int32_t>>
+template std::tuple<rmm::device_uvector<int32_t>, renumber_meta_t<int32_t, int32_t, false>>
 renumber_edgelist<int32_t, int32_t, false>(
   raft::handle_t const& handle,
   std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
@@ -28,7 +28,7 @@ renumber_edgelist<int32_t, int32_t, false>(
   int32_t num_edgelist_edges,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int32_t>, std::vector<int32_t>>
+template std::tuple<rmm::device_uvector<int32_t>, renumber_meta_t<int32_t, int64_t, false>>
 renumber_edgelist<int32_t, int64_t, false>(
   raft::handle_t const& handle,
   std::optional<std::tuple<int32_t const*, int32_t>> optional_vertex_span,
@@ -37,7 +37,7 @@ renumber_edgelist<int32_t, int64_t, false>(
   int64_t num_edgelist_edges,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int64_t>, std::vector<int64_t>>
+template std::tuple<rmm::device_uvector<int64_t>, renumber_meta_t<int64_t, int64_t, false>>
 renumber_edgelist<int64_t, int64_t, false>(
   raft::handle_t const& handle,
   std::optional<std::tuple<int64_t const*, int64_t>> optional_vertex_span,

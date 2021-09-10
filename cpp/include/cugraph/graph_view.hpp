@@ -286,6 +286,33 @@ class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ 
 
 }  // namespace detail
 
+template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
+struct graph_view_meta_t;
+
+// multi-GPU version
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+struct graph_view_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>> {
+  vertex_t number_of_vertices;
+  edge_t number_of_edges;
+  graph_properties_t properties;
+
+  partition_t<vertex_t> partition{};
+
+  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
+  std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets{};
+};
+
+// single-GPU version
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+struct graph_view_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
+  vertex_t number_of_vertices;
+  edge_t number_of_edges;
+  graph_properties_t properties;
+
+  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
+  std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
+};
+
 // graph_view_t is a non-owning graph class (note that graph_t is an owning graph class)
 template <typename vertex_t,
           typename edge_t,
@@ -322,11 +349,7 @@ class graph_view_t<vertex_t,
     std::optional<std::vector<weight_t const*>> const& adj_matrix_partition_weights,
     std::optional<std::vector<vertex_t const*>> const& adj_matrix_partition_dcs_nzd_vertices,
     std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
-    partition_t<vertex_t> const& partition,
-    vertex_t number_of_vertices,
-    edge_t number_of_edges,
-    graph_properties_t properties,
-    std::optional<std::vector<vertex_t>> const& adj_matrix_partition_segment_offsets,
+    graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
     bool do_expensive_check = false);
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
@@ -621,10 +644,7 @@ class graph_view_t<vertex_t,
                edge_t const* offsets,
                vertex_t const* indices,
                std::optional<weight_t const*> weights,
-               vertex_t number_of_vertices,
-               edge_t number_of_edges,
-               graph_properties_t properties,
-               std::optional<std::vector<vertex_t>> const& segment_offsets,
+               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
                bool do_expensive_check = false);
 
   bool is_weighted() const { return weights_.has_value(); }
