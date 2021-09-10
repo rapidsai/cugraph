@@ -88,7 +88,6 @@ from cugraph.traversal import (
     shortest_path,
     filter_unreachable,
     shortest_path_length,
-    traveling_salesperson,
     concurrent_bfs,
     multi_source_bfs,
 )

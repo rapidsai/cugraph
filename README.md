@@ -83,7 +83,6 @@ As of Release 21.08 - including 21.08 nightly
 | Traversal    |                                        |              |                     |
 |              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
 |              | Single Source Shortest Path (SSSP)     | Multi-GPU    | [C++ README](cpp/src/traversal/README.md#SSSP) |
-|              | Traveling Salesperson Problem (TSP)    | Single-GPU   |                     |
 | Tree         |                                        |              |                     |
 |              | Minimum Spanning Tree                  | Single-GPU   |                     |
 |              | Maximum Spanning Tree                  | Single-GPU   |                     |

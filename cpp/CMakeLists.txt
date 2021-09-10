@@ -161,7 +161,6 @@ add_library(cugraph SHARED
     src/link_analysis/gunrock_hits.cpp
     src/traversal/legacy/bfs.cu
     src/traversal/legacy/sssp.cu
-    src/traversal/tsp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
     src/layout/force_atlas2.cu
