@@ -24,4 +24,4 @@ This page provides a list of all publicly accessible modules, methods and classe
     generator
     helper_functions
     dask-cugraph.rst
-
+    pylibcugraph.rst

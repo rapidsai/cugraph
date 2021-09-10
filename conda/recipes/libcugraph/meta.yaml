@@ -52,4 +52,4 @@ about:
   home: http://rapids.ai/
   license: Apache-2.0
   license_file: ../../../LICENSE
-  summary: libgraph library
+  summary: libcugraph library
