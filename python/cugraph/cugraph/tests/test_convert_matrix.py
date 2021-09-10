@@ -52,7 +52,7 @@ def test_to_from_pandas(graph_file):
 
     # create a cugraph DiGraph and convert to pandas adjacency
     cuG = cugraph.from_pandas_edgelist(
-        M, source="0", destination="1", edge_attr="weight",
+        nx_pdf, source="0", destination="1", edge_attr="weight",
         create_using=cugraph.DiGraph
     )
 
