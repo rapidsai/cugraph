@@ -17,7 +17,7 @@ from .graph_implementation import (simpleGraphImpl,
                                    npartiteGraphImpl)
 import cudf
 import warnings
-
+import pandas
 
 # TODO: Move to utilities
 def null_check(col):
@@ -294,8 +294,8 @@ class Graph:
         >>> G.from_pandas_edgelist(df, source='0', destination='1',
                                  edge_attr='2', renumber=False)
         """
-        if type(pdf) != "pandas.core.frame.DataFrame":
-            raise Exception("pdf input is not a Pandas DataFrame")
+        if isinstance(pdf, pandas.core.frame.DataFrame) == False:
+            raise Exception(f"pdf input is not a Pandas DataFrame f{type(pdf)}")
 
         gdf = cudf.DataFrame.from_pandas(pdf)
         self.from_cudf_edgelist(gdf, source=source, destination=destination,
@@ -310,7 +310,7 @@ class Graph:
         pdf : pandas.DataFrame
             A DataFrame that contains adjacency information
         """
-        if type(pdf) != "pandas.core.frame.DataFrame":
+        if isinstance(pdf, pandas.core.frame.DataFrame) == False:
             raise Exception("pdf input is not a Pandas DataFrame")
 
         np_array = pdf.to_numpy()
@@ -326,7 +326,7 @@ class Graph:
         np_array : numpy.array
             A Numpy array that contains adjacency information
         """
-        if type(np_array) != "numpy.ndarray":
+        if isinstance(np_array, np.ndarray) == False:
             raise Exception("np_array input is not a Numpy array")
         if len(np_array.shape) != 2:
             raise Exception("np_array is not a 2D matrix")
@@ -352,7 +352,7 @@ class Graph:
         np_matrix : numpy.matrix
             A Numpy matrix that contains adjacency information
         """
-        if type(np_matrix) != "numpy.matrix":
+        if isinstance(np_matrix, np.matrix) == False:
             raise Exception("np_matrix input is not a Numpy matrix")
 
         np_array = np.asarray(np_matrix)
