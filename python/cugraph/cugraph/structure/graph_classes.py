@@ -19,6 +19,7 @@ import cudf
 import warnings
 import pandas
 
+
 # TODO: Move to utilities
 def null_check(col):
     if col.null_count != 0:
@@ -294,8 +295,8 @@ class Graph:
         >>> G.from_pandas_edgelist(df, source='0', destination='1',
                                  edge_attr='2', renumber=False)
         """
-        if isinstance(pdf, pandas.core.frame.DataFrame) == False:
-            raise Exception(f"pdf input is not a Pandas DataFrame f{type(pdf)}")
+        if not isinstance(pdf, pandas.core.frame.DataFrame):
+            raise Exception("pdf input is not a Pandas DataFrame")
 
         gdf = cudf.DataFrame.from_pandas(pdf)
         self.from_cudf_edgelist(gdf, source=source, destination=destination,
@@ -310,7 +311,7 @@ class Graph:
         pdf : pandas.DataFrame
             A DataFrame that contains adjacency information
         """
-        if isinstance(pdf, pandas.core.frame.DataFrame) == False:
+        if not isinstance(pdf, pandas.core.frame.DataFrame):
             raise Exception("pdf input is not a Pandas DataFrame")
 
         np_array = pdf.to_numpy()
@@ -326,7 +327,7 @@ class Graph:
         np_array : numpy.array
             A Numpy array that contains adjacency information
         """
-        if isinstance(np_array, np.ndarray) == False:
+        if not isinstance(np_array, np.ndarray):
             raise Exception("np_array input is not a Numpy array")
         if len(np_array.shape) != 2:
             raise Exception("np_array is not a 2D matrix")
@@ -352,7 +353,7 @@ class Graph:
         np_matrix : numpy.matrix
             A Numpy matrix that contains adjacency information
         """
-        if isinstance(np_matrix, np.matrix) == False:
+        if not isinstance(np_matrix, np.matrix):
             raise Exception("np_matrix input is not a Numpy matrix")
 
         np_array = np.asarray(np_matrix)
