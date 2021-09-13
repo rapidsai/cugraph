@@ -94,28 +94,24 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
 
   // 2. renumber
 
-  rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
-  renumber_meta_t<vertex_t, edge_t, multi_gpu> meta{};
-  {
-    std::vector<vertex_t*> major_ptrs(col_comm_size);
-    std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
-    for (int i = 0; i < col_comm_size; ++i) {
-      major_ptrs[i] = (store_transposed ? edgelist_cols.begin() : edgelist_rows.begin()) +
-                      edgelist_displacements[i];
-      minor_ptrs[i] = (store_transposed ? edgelist_rows.begin() : edgelist_cols.begin()) +
-                      edgelist_displacements[i];
-    }
-    std::tie(renumber_map_labels, meta) = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-      handle,
-      local_vertex_span
-        ? std::optional<std::tuple<vertex_t const*, vertex_t>>{std::make_tuple(
-            (*local_vertex_span).data(), static_cast<vertex_t>((*local_vertex_span).size()))}
-        : std::nullopt,
-      major_ptrs,
-      minor_ptrs,
-      edgelist_edge_counts,
-      edgelist_intra_partition_segment_offsets);
+  std::vector<vertex_t*> major_ptrs(col_comm_size);
+  std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
+  for (int i = 0; i < col_comm_size; ++i) {
+    major_ptrs[i] = (store_transposed ? edgelist_cols.begin() : edgelist_rows.begin()) +
+                    edgelist_displacements[i];
+    minor_ptrs[i] = (store_transposed ? edgelist_rows.begin() : edgelist_cols.begin()) +
+                    edgelist_displacements[i];
   }
+  auto [renumber_map_labels, meta] = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+    handle,
+    local_vertex_span
+      ? std::optional<std::tuple<vertex_t const*, vertex_t>>{std::make_tuple(
+          (*local_vertex_span).data(), static_cast<vertex_t>((*local_vertex_span).size()))}
+      : std::nullopt,
+    major_ptrs,
+    minor_ptrs,
+    edgelist_edge_counts,
+    edgelist_intra_partition_segment_offsets);
 
   // 3. create a graph
 
