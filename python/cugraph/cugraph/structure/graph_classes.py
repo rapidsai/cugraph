@@ -22,6 +22,7 @@ from .utils import import_optional
 
 pd = import_optional("pandas")
 
+
 # TODO: Move to utilities
 def null_check(col):
     if col.null_count != 0:
@@ -299,7 +300,7 @@ class Graph:
         """
         if pd is None:
             raise RuntimeError("Pandas could not be imported, "
-                           "cannot convert from pandas")
+                               "cannot convert from pandas")
 
         if not isinstance(pdf, pd.core.frame.DataFrame):
             raise Exception("pdf input is not a Pandas DataFrame")
@@ -319,7 +320,7 @@ class Graph:
         """
         if pd is None:
             raise RuntimeError("Pandas could not be imported, "
-                           "cannot convert from pandas")
+                               "cannot convert from pandas")
 
         if not isinstance(pdf, pd.core.frame.DataFrame):
             raise TypeError("pdf input is not a Pandas DataFrame")
