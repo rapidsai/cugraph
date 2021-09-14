@@ -24,16 +24,15 @@ def sorensen(input_graph, vertex_pair=None):
     """
     Compute the Sorensen coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
-    Sorensen coefficient is defined between two sets as the ratio of twice the 
+    Sorensen coefficient is defined between two sets as the ratio of twice the
     volume of their intersection divided by the volume of each set.
-    If first is specified but second is not, or vice versa, an exception will be
-    thrown.
+    If first is specified but second is not, or vice versa, an exception will
+    be thrown.
 
     cugraph.sorensen, in the absence of a specified vertex pair list, will
     use the edges of the graph to construct a vertex pair list and will
     return the sorensen coefficient for those vertex pairs.
 
-    
     Parameters
     ----------
     graph : cugraph.Graph
@@ -63,8 +62,8 @@ def sorensen(input_graph, vertex_pair=None):
             The destination vertex ID (will be identical to second if
             specified)
         df['sorensen_coeff'] : cudf.Series
-            The computed Sorensen coefficient between the source and destination
-            vertices
+            The computed Sorensen coefficient between the source and
+            destination vertices
 
     Examples
     --------
@@ -87,7 +86,7 @@ def sorensen(input_graph, vertex_pair=None):
     df = jaccard_wrapper.jaccard(input_graph, None, vertex_pair)
     df.jaccard_coeff = ((2*df.jaccard_coeff)/(1+df.jaccard_coeff))
     df.rename(
-        {'jaccard_coeff':'sorensen_coeff'}, axis=1, inplace=True)
+        {'jaccard_coeff': 'sorensen_coeff'}, axis=1, inplace=True)
     if input_graph.renumbered:
         df = input_graph.unrenumber(df, "source")
         df = input_graph.unrenumber(df, "destination")
@@ -127,8 +126,8 @@ def sorensen_coefficient(G, ebunch=None):
             The destination vertex ID (will be identical to second if
             specified)
         df['sorensen_coeff'] : cudf.Series
-            The computed sorensen coefficient between the source and destination
-            vertices
+            The computed sorensen coefficient between the source and
+            destination vertices
 
     Examples
     --------

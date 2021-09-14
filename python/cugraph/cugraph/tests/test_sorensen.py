@@ -209,6 +209,7 @@ def test_sorensen_two_hop_edge_vals(graph_file):
         diff = abs(nx_coeff[i] - df["sorensen_coeff"].iloc[i])
         assert diff < 1.0e-6
 
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_sorensen_multi_column(graph_file):
     gc.collect()

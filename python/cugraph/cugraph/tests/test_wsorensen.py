@@ -20,7 +20,6 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-from cugraph.link_prediction import sorensen_w
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings

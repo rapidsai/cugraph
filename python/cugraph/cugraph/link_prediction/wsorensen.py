@@ -22,7 +22,7 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
     """
     Compute the weighted Sorensen similarity between each pair of vertices
     connected by an edge, or between arbitrary pairs of vertices specified by
-    the user. Sorensen coefficient is defined between two sets as the ratio of 
+    the user. Sorensen coefficient is defined between two sets as the ratio of
     twice the volume of their intersection divided by the volume of each set.
 
     Parameters
@@ -98,7 +98,7 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
     df = jaccard_wrapper.jaccard(input_graph, jaccard_weights, vertex_pair)
     df.jaccard_coeff = ((2*df.jaccard_coeff)/(1+df.jaccard_coeff))
     df.rename(
-        {'jaccard_coeff':'sorensen_coeff'}, axis=1, inplace=True)
+        {'jaccard_coeff': 'sorensen_coeff'}, axis=1, inplace=True)
 
     if input_graph.renumbered:
         df = input_graph.unrenumber(df, "source")
