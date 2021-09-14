@@ -322,6 +322,14 @@ target_link_libraries(cugraph PRIVATE
     ${OpenMP_CXX_LIB_NAMES})
 endif(OpenMP_CXX_FOUND)
 
+##### C-only
+##### {
+add_library(cugraph_c
+  src/visitors/cugraph_api.cpp
+  )
+
+target_link_libraries(cugraph_c PRIVATE cugraph)
+##### }
 
 ###################################################################################################
 # - generate tests --------------------------------------------------------------------------------
