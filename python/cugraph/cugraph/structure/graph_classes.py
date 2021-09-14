@@ -18,7 +18,7 @@ from .graph_implementation import (simpleGraphImpl,
 import cudf
 import warnings
 
-from .utils import import_optional
+from cugraph.utilities.utils import import_optional
 
 pd = import_optional("pandas")
 
