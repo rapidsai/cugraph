@@ -30,11 +30,13 @@
 #include <raft/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/permutation_iterator.h>
 
+#include <algorithm>
 #include <numeric>
 #include <type_traits>
 #include <utility>
@@ -51,7 +53,9 @@ void copy_to_matrix_major(raft::handle_t const& handle,
                           VertexValueInputIterator vertex_value_input_first,
                           MatrixMajorValueOutputWrapper& matrix_major_value_output)
 {
-  if (GraphViewType::is_multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
+    using vertex_t = typename GraphViewType::vertex_type;
+
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -72,18 +76,53 @@ void copy_to_matrix_major(raft::handle_t const& handle,
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
-    std::vector<size_t> rx_counts(col_comm_size, size_t{0});
-    std::vector<size_t> displacements(col_comm_size, size_t{0});
-    for (int i = 0; i < col_comm_size; ++i) {
-      rx_counts[i]     = graph_view.get_vertex_partition_size(i * row_comm_size + row_comm_rank);
-      displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
+    if (matrix_major_value_output.key_first()) {
+      auto key_offsets = GraphViewType::is_adj_matrix_transposed
+                           ? *(graph_view.get_local_sorted_unique_edge_col_offsets())
+                           : *(graph_view.get_local_sorted_unique_edge_row_offsets());
+
+      vertex_t max_rx_size{0};
+      for (int i = 0; i < col_comm_size; ++i) {
+        max_rx_size = std::max(
+          max_rx_size, graph_view.get_vertex_partition_size(i * row_comm_size + row_comm_rank));
+      }
+      auto rx_value_buffer = allocate_dataframe_buffer<
+        typename std::iterator_traits<VertexValueInputIterator>::value_type>(max_rx_size,
+                                                                             handle.get_stream());
+      auto rx_value_first = get_dataframe_buffer_begin<
+        typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_value_buffer);
+      for (int i = 0; i < col_comm_size; ++i) {
+        device_bcast(col_comm,
+                     vertex_value_input_first,
+                     rx_value_first,
+                     graph_view.get_vertex_partition_size(i * row_comm_size + row_comm_rank),
+                     i,
+                     handle.get_stream());
+
+        auto v_offset_first = thrust::make_transform_iterator(
+          *(matrix_major_value_output.key_first()) + key_offsets[i],
+          [v_first = graph_view.get_vertex_partition_first(
+             i * row_comm_size + row_comm_rank)] __device__(auto v) { return v - v_first; });
+        thrust::gather(handle.get_thrust_policy(),
+                       v_offset_first,
+                       v_offset_first + (key_offsets[i + 1] - key_offsets[i]),
+                       rx_value_first,
+                       matrix_major_value_output.value_data() + key_offsets[i]);
+      }
+    } else {
+      std::vector<size_t> rx_counts(col_comm_size, size_t{0});
+      std::vector<size_t> displacements(col_comm_size, size_t{0});
+      for (int i = 0; i < col_comm_size; ++i) {
+        rx_counts[i]     = graph_view.get_vertex_partition_size(i * row_comm_size + row_comm_rank);
+        displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
+      }
+      device_allgatherv(col_comm,
+                        vertex_value_input_first,
+                        matrix_major_value_output.value_data(),
+                        rx_counts,
+                        displacements,
+                        handle.get_stream());
     }
-    device_allgatherv(col_comm,
-                      vertex_value_input_first,
-                      matrix_major_value_output.value_data(),
-                      rx_counts,
-                      displacements,
-                      handle.get_stream());
 
     // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
     // two different communicators (end of col_comm)
@@ -96,6 +135,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   } else {
+    assert(!(matrix_major_value_output.key_first()));
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_cols()
              : graph_view.get_number_of_local_adj_matrix_partition_rows());
@@ -121,7 +161,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  if (GraphViewType::is_multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -146,19 +186,25 @@ void copy_to_matrix_major(raft::handle_t const& handle,
       host_scalar_allgather(col_comm,
                             static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
                             handle.get_stream());
+    auto max_rx_size =
+      std::reduce(rx_counts.begin(), rx_counts.end(), size_t{0}, [](auto lhs, auto rhs) {
+        return std::max(lhs, rhs);
+      });
+    rmm::device_uvector<vertex_t> rx_vertices(max_rx_size, handle.get_stream());
+    auto rx_tmp_buffer = allocate_dataframe_buffer<
+      typename std::iterator_traits<VertexValueInputIterator>::value_type>(max_rx_size,
+                                                                           handle.get_stream());
+    auto rx_value_first = get_dataframe_buffer_begin<
+      typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
+
+    auto key_offsets = GraphViewType::is_adj_matrix_transposed
+                         ? graph_view.get_local_sorted_unique_edge_col_offsets()
+                         : graph_view.get_local_sorted_unique_edge_row_offsets();
 
     for (int i = 0; i < col_comm_size; ++i) {
       auto matrix_partition =
         matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
           graph_view.get_matrix_partition_view(i));
-
-      rmm::device_uvector<vertex_t> rx_vertices(col_comm_rank == i ? size_t{0} : rx_counts[i],
-                                                handle.get_stream());
-      auto rx_tmp_buffer = allocate_dataframe_buffer<
-        typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_counts[i],
-                                                                             handle.get_stream());
-      auto rx_value_first = get_dataframe_buffer_begin<
-        typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
 
       if (col_comm_rank == i) {
         auto vertex_partition =
@@ -183,19 +229,24 @@ void copy_to_matrix_major(raft::handle_t const& handle,
         col_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
       device_bcast(col_comm, rx_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
 
-      if (col_comm_rank == i) {
-        auto map_first =
-          thrust::make_transform_iterator(vertex_first, [matrix_partition] __device__(auto v) {
-            return matrix_partition.get_major_offset_from_major_nocheck(v);
-          });
-        // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
-        // directly scatters from the internal buffer)
-        thrust::scatter(
+      if (matrix_major_value_output.key_first()) {
+        thrust::for_each(
           handle.get_thrust_policy(),
-          rx_value_first,
-          rx_value_first + rx_counts[i],
-          map_first,
-          matrix_major_value_output.value_data() + matrix_partition.get_major_value_start_offset());
+          thrust::make_counting_iterator(vertex_t{0}),
+          thrust::make_counting_iterator((*key_offsets)[i + 1] - (*key_offsets)[i]),
+          [rx_vertex_first = rx_vertices.begin(),
+           rx_vertex_last  = rx_vertices.end(),
+           rx_value_first,
+           output_key_first = *(matrix_major_value_output.key_first()) + (*key_offsets)[i],
+           output_value_first =
+             matrix_major_value_output.value_data() + (*key_offsets)[i]] __device__(auto i) {
+            auto major = *(output_key_first + i);
+            auto it    = thrust::lower_bound(thrust::seq, rx_vertex_first, rx_vertex_last, major);
+            if (*it == major) {
+              auto rx_value             = *(rx_value_first + thrust::distance(rx_vertex_first, it));
+              *(output_value_first + i) = rx_value;
+            }
+          });
       } else {
         auto map_first = thrust::make_transform_iterator(
           rx_vertices.begin(), [matrix_partition] __device__(auto v) {
@@ -223,6 +274,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   } else {
+    assert(!(matrix_major_value_output.key_first()));
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_cols()
              : graph_view.get_number_of_local_adj_matrix_partition_rows());
@@ -243,7 +295,9 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                           VertexValueInputIterator vertex_value_input_first,
                           MatrixMinorValueOutputWrapper& matrix_minor_value_output)
 {
-  if (GraphViewType::is_multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
+    using vertex_t = typename GraphViewType::vertex_type;
+
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -264,18 +318,53 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
-    std::vector<size_t> rx_counts(row_comm_size, size_t{0});
-    std::vector<size_t> displacements(row_comm_size, size_t{0});
-    for (int i = 0; i < row_comm_size; ++i) {
-      rx_counts[i]     = graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i);
-      displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
+    if (matrix_minor_value_output.key_first()) {
+      auto key_offsets = GraphViewType::is_adj_matrix_transposed
+                           ? *(graph_view.get_local_sorted_unique_edge_row_offsets())
+                           : *(graph_view.get_local_sorted_unique_edge_col_offsets());
+
+      vertex_t max_rx_size{0};
+      for (int i = 0; i < row_comm_size; ++i) {
+        max_rx_size = std::max(
+          max_rx_size, graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i));
+      }
+      auto rx_value_buffer = allocate_dataframe_buffer<
+        typename std::iterator_traits<VertexValueInputIterator>::value_type>(max_rx_size,
+                                                                             handle.get_stream());
+      auto rx_value_first = get_dataframe_buffer_begin<
+        typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_value_buffer);
+      for (int i = 0; i < row_comm_size; ++i) {
+        device_bcast(row_comm,
+                     vertex_value_input_first,
+                     rx_value_first,
+                     graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i),
+                     i,
+                     handle.get_stream());
+
+        auto v_offset_first = thrust::make_transform_iterator(
+          *(matrix_minor_value_output.key_first()) + key_offsets[i],
+          [v_first = graph_view.get_vertex_partition_first(
+             col_comm_rank * row_comm_size + i)] __device__(auto v) { return v - v_first; });
+        thrust::gather(handle.get_thrust_policy(),
+                       v_offset_first,
+                       v_offset_first + (key_offsets[i + 1] - key_offsets[i]),
+                       rx_value_first,
+                       matrix_minor_value_output.value_data() + key_offsets[i]);
+      }
+    } else {
+      std::vector<size_t> rx_counts(row_comm_size, size_t{0});
+      std::vector<size_t> displacements(row_comm_size, size_t{0});
+      for (int i = 0; i < row_comm_size; ++i) {
+        rx_counts[i]     = graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i);
+        displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
+      }
+      device_allgatherv(row_comm,
+                        vertex_value_input_first,
+                        matrix_minor_value_output.value_data(),
+                        rx_counts,
+                        displacements,
+                        handle.get_stream());
     }
-    device_allgatherv(row_comm,
-                      vertex_value_input_first,
-                      matrix_minor_value_output.value_data(),
-                      rx_counts,
-                      displacements,
-                      handle.get_stream());
 
     // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
     // two different communicators (end of row_comm)
@@ -288,6 +377,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   } else {
+    assert(!(matrix_minor_value_output.key_first()));
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_rows()
              : graph_view.get_number_of_local_adj_matrix_partition_cols());
@@ -313,7 +403,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  if (GraphViewType::is_multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -338,19 +428,25 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       host_scalar_allgather(row_comm,
                             static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
                             handle.get_stream());
+    auto max_rx_size =
+      std::reduce(rx_counts.begin(), rx_counts.end(), size_t{0}, [](auto lhs, auto rhs) {
+        return std::max(lhs, rhs);
+      });
+    rmm::device_uvector<vertex_t> rx_vertices(max_rx_size, handle.get_stream());
+    auto rx_tmp_buffer = allocate_dataframe_buffer<
+      typename std::iterator_traits<VertexValueInputIterator>::value_type>(max_rx_size,
+                                                                           handle.get_stream());
+    auto rx_value_first = get_dataframe_buffer_begin<
+      typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
+
+    auto key_offsets = GraphViewType::is_adj_matrix_transposed
+                         ? graph_view.get_local_sorted_unique_edge_row_offsets()
+                         : graph_view.get_local_sorted_unique_edge_col_offsets();
 
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.get_matrix_partition_view(size_t{0}));
     for (int i = 0; i < row_comm_size; ++i) {
-      rmm::device_uvector<vertex_t> rx_vertices(row_comm_rank == i ? size_t{0} : rx_counts[i],
-                                                handle.get_stream());
-      auto rx_tmp_buffer = allocate_dataframe_buffer<
-        typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_counts[i],
-                                                                             handle.get_stream());
-      auto rx_value_first = get_dataframe_buffer_begin<
-        typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
-
       if (row_comm_rank == i) {
         auto vertex_partition =
           vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
@@ -374,18 +470,24 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
         row_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
       device_bcast(row_comm, rx_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
 
-      if (row_comm_rank == i) {
-        auto map_first =
-          thrust::make_transform_iterator(vertex_first, [matrix_partition] __device__(auto v) {
-            return matrix_partition.get_minor_offset_from_minor_nocheck(v);
+      if (matrix_minor_value_output.key_first()) {
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator(vertex_t{0}),
+          thrust::make_counting_iterator((*key_offsets)[i + 1] - (*key_offsets)[i]),
+          [rx_vertex_first = rx_vertices.begin(),
+           rx_vertex_last  = rx_vertices.end(),
+           rx_value_first,
+           output_key_first = *(matrix_minor_value_output.key_first()) + (*key_offsets)[i],
+           output_value_first =
+             matrix_minor_value_output.value_data() + (*key_offsets)[i]] __device__(auto i) {
+            auto minor = *(output_key_first + i);
+            auto it    = thrust::lower_bound(thrust::seq, rx_vertex_first, rx_vertex_last, minor);
+            if (*it == minor) {
+              auto rx_value             = *(rx_value_first + thrust::distance(rx_vertex_first, it));
+              *(output_value_first + i) = rx_value;
+            }
           });
-        // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
-        // directly scatters from the internal buffer)
-        thrust::scatter(handle.get_thrust_policy(),
-                        rx_value_first,
-                        rx_value_first + rx_counts[i],
-                        map_first,
-                        matrix_minor_value_output.value_data());
       } else {
         auto map_first = thrust::make_transform_iterator(
           rx_vertices.begin(), [matrix_partition] __device__(auto v) {
@@ -412,6 +514,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   } else {
+    assert(!(matrix_minor_value_output.key_first()));
     assert(graph_view.get_number_of_local_vertices() ==
            graph_view.get_number_of_local_adj_matrix_partition_rows());
     auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
