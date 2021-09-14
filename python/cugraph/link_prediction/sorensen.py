@@ -72,7 +72,7 @@ def sorensen(input_graph, vertex_pair=None):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> df = cugraph.Sorensen(G)
+    >>> df = cugraph.sorensen(G)
     """
     if type(input_graph) is not Graph:
         raise Exception("input graph must be undirected")
