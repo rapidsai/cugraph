@@ -44,21 +44,21 @@
 #include <random>
 
 template <typename... Args>
-struct PropertyType {
-  using Type = std::conditional_t<(sizeof...(Args) > 1),
+struct property_type {
+  using type = std::conditional_t<(sizeof...(Args) > 1),
                                   thrust::tuple<Args...>,
                                   typename thrust::tuple_element<0, thrust::tuple<Args...>>::type>;
 };
 
 template <typename vertex_t, typename... Args>
 struct property_transform
-  : public thrust::unary_function<vertex_t, typename PropertyType<Args...>::Type> {
+  : public thrust::unary_function<vertex_t, typename property_type<Args...>::type> {
   int mod{};
   property_transform(int mod_count) : mod(mod_count) {}
 
-  template <typename Type = typename PropertyType<Args...>::Type>
+  template <typename type = typename property_type<Args...>::type>
   constexpr __device__
-    typename std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<Type>::value, Type>
+    typename std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<type>::value, type>
     operator()(const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
@@ -66,13 +66,13 @@ struct property_transform
     return thrust::make_tuple(static_cast<Args>(value)...);
   }
 
-  template <typename Type = typename PropertyType<Args...>::Type>
-  constexpr __device__ typename std::enable_if_t<std::is_arithmetic<Type>::value, Type> operator()(
+  template <typename type = typename property_type<Args...>::type>
+  constexpr __device__ typename std::enable_if_t<std::is_arithmetic<type>::value, type> operator()(
     const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto value = hash_func(val) % mod;
-    return static_cast<Type>(value);
+    return static_cast<type>(value);
   }
 };
 
@@ -83,8 +83,8 @@ struct property_transform<vertex_t, Tuple<Args...>> : public property_transform<
 template <typename... Args>
 struct generate_impl {
  private:
-  using Type               = typename PropertyType<Args...>::Type;
-  using PropertyBufferType = std::conditional_t<
+  using type                 = typename property_type<Args...>::type;
+  using property_buffer_type = std::conditional_t<
     (sizeof...(Args) > 1),
     std::tuple<rmm::device_uvector<Args>...>,
     rmm::device_uvector<typename thrust::tuple_element<0, thrust::tuple<Args...>>::type>>;
@@ -99,7 +99,7 @@ struct generate_impl {
                               int hash_bin_count,
                               raft::handle_t const& handle)
   {
-    auto data = cugraph::allocate_dataframe_buffer<Type>(labels.size(), handle.get_stream());
+    auto data = cugraph::allocate_dataframe_buffer<type>(labels.size(), handle.get_stream());
     auto zip  = cugraph::get_dataframe_buffer_begin(data);
     thrust::transform(handle.get_thrust_policy(),
                       labels.begin(),
@@ -115,7 +115,7 @@ struct generate_impl {
                               raft::handle_t const& handle)
   {
     auto length = thrust::distance(begin, end);
-    auto data   = cugraph::allocate_dataframe_buffer<Type>(length, handle.get_stream());
+    auto data   = cugraph::allocate_dataframe_buffer<type>(length, handle.get_stream());
     auto zip    = cugraph::get_dataframe_buffer_begin(data);
     thrust::transform(handle.get_thrust_policy(),
                       begin,
@@ -125,23 +125,23 @@ struct generate_impl {
     return data;
   }
 
-  template <typename GraphViewType>
+  template <typename graph_view_type>
   static auto column_property(raft::handle_t const& handle,
-                              GraphViewType const& graph_view,
-                              PropertyBufferType& property)
+                              graph_view_type const& graph_view,
+                              property_buffer_type& property)
   {
-    auto output_property = cugraph::col_properties_t<GraphViewType, Type>(handle, graph_view);
+    auto output_property = cugraph::col_properties_t<graph_view_type, type>(handle, graph_view);
     copy_to_adj_matrix_col(
       handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
     return output_property;
   }
 
-  template <typename GraphViewType>
+  template <typename graph_view_type>
   static auto row_property(raft::handle_t const& handle,
-                           GraphViewType const& graph_view,
-                           PropertyBufferType& property)
+                           graph_view_type const& graph_view,
+                           property_buffer_type& property)
   {
-    auto output_property = cugraph::row_properties_t<GraphViewType, Type>(handle, graph_view);
+    auto output_property = cugraph::row_properties_t<graph_view_type, type>(handle, graph_view);
     copy_to_adj_matrix_row(
       handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
     return output_property;
@@ -164,10 +164,10 @@ template <typename... Args>
 struct result_compare<thrust::tuple<Args...>> {
   static constexpr double threshold_ratio{1e-3};
 
-  using Type = thrust::tuple<Args...>;
-  constexpr auto operator()(const Type& t1, const Type& t2)
+  using type = thrust::tuple<Args...>;
+  constexpr auto operator()(const type& t1, const type& t2)
   {
-    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
+    return equality_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<type>::value>());
   }
 
  private:
