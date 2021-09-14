@@ -1,25 +1,28 @@
 # Building Documentation
 
-A basic python environment with packages listed in `./requirement.txt` is
-enough to build the docs.  Doc generation does not get run by default
+All prerequisite for building docs are in the cugraph development conda environment.
+[See build instructions](../../SOURCEBUILD.md) on how to create the development conda environment
 
-## Get additional dependency
+## Steps to follow:
+
+In order to build the docs, we need the conda dev environment from cugraph and we need to build cugraph from source.  
+
+1. Create a conda env and build cugraph from source. The dependencies to build rapids from source are installed in that conda environment, and then rapids is built and installed into the same environment.
+
+2. Once cugraph is built from source, navigate to `../docs/cugraph/`. If you have your documentation written and want to turn it into HTML, run makefile:
+
 
 ```bash
-pip install -r requirement.txt
-```
-
-## Run makefile:
-
-```bash
+# most be in the /docs/cugraph directory
 make html
 ```
 
-Outputs to `build/html/index.html`
+This should run Sphinx in your shell, and outputs to `build/html/index.html`
+
 
 ## View docs web page by opening HTML in browser:
 
-First navigate to `/build/html/` folder, i.e., `cd build/html` and then run the following command:
+First navigate to `/build/html/` folder, and then run the following command:
 
 ```bash
 python -m http.server

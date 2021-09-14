@@ -26,6 +26,7 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
+#include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -167,7 +168,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     ASSERT_TRUE(configuration.source >= 0 &&
                 configuration.source <= graph_view.get_number_of_vertices())
-      << "Starting sources should be >= 0 and"
+      << "Starting source vertex value should be >= 0 and"
       << " less than the number of vertices in the graph.";
 
     std::vector<vertex_t> h_reference_distances(graph_view.get_number_of_vertices());
@@ -199,12 +200,19 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       //
       vertex_t* p_d_dist   = d_distances.begin();
       vertex_t* p_d_predec = d_predecessors.begin();
-      auto src             = static_cast<vertex_t>(configuration.source);
+      rmm::device_scalar<vertex_t> d_source(configuration.source, handle.get_stream());
       bool dir_opt{false};
       auto depth_l = std::numeric_limits<vertex_t>::max();
       bool check{false};
-      erased_pack_t ep{
-        &handle, p_d_dist, p_d_predec, &src, &dir_opt, &depth_l, &check};  // args for bfs()
+      size_t n_sources{1};
+      erased_pack_t ep{&handle,
+                       p_d_dist,
+                       p_d_predec,
+                       d_source.data(),
+                       &n_sources,
+                       &dir_opt,
+                       &depth_l,
+                       &check};  // args for bfs(),
 
       // several options to run the BFS algorithm:
       //

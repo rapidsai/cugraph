@@ -25,7 +25,7 @@ function(find_and_configure_faiss)
     )
 
     rapids_cpm_find(FAISS ${PKG_VERSION}
-        GLOBAL_TARGETS  faiss
+        GLOBAL_TARGETS  faiss FAISS::FAISS
         CPM_ARGS
           GIT_REPOSITORY  https://github.com/facebookresearch/faiss.git
           GIT_TAG         ${PKG_PINNED_TAG}

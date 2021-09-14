@@ -2,15 +2,11 @@ Welcome to cugraph's documentation!
 ===================================
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
    :caption: Contents:
 
-   cugraph_intro.md
-   api.rst
-   dask-cugraph.rst
-   cugraph_blogs.rst
-   cugraph_ref.rst
-   nx_transition.rst
+   basics/index
+   api_docs/index
 
 Indices and tables
 ==================
