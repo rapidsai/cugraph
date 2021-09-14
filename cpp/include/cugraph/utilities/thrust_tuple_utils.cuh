@@ -61,6 +61,20 @@ struct compute_thrust_tuple_element_sizes_impl<TupleType, I, I> {
   void compute(std::array<size_t, thrust::tuple_size<TupleType>::value>& arr) const {}
 };
 
+template <typename TupleType, std::size_t... Is>
+auto thrust_tuple_to_std_tuple(TupleType tup, std::index_sequence<Is...>)
+{
+  return std::make_tuple(thrust::get<Is>(tup)...);
+}
+
+template <typename TupleType, std::size_t... Is>
+auto std_tuple_to_thrust_tuple(TupleType tup, std::index_sequence<Is...>)
+{
+  constexpr size_t maximum_thrust_tuple_size = 10;
+  static_assert(std::tuple_size_v<TupleType> <= maximum_thrust_tuple_size);
+  return thrust::make_tuple(std::get<Is>(tup)...);
+}
+
 template <typename T>
 __device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(
   thrust::detail::any_assign& /* dereferencing thrust::discard_iterator results in this type */ lhs,
@@ -203,6 +217,30 @@ struct compute_thrust_tuple_element_sizes {
     return ret;
   }
 };
+
+template <typename TupleType>
+auto thrust_tuple_to_std_tuple(TupleType tup)
+{
+  return detail::thrust_tuple_to_std_tuple(
+    tup, std::make_index_sequence<thrust::tuple_size<TupleType>::value>{});
+}
+
+template <typename TupleType>
+auto std_tuple_to_thrust_tuple(TupleType tup)
+{
+  constexpr size_t maximum_thrust_tuple_size = 10;
+  static_assert(std::tuple_size_v<TupleType> <= maximum_thrust_tuple_size);
+  return detail::std_tuple_to_thrust_tuple(
+    tup, std::make_index_sequence<std::tuple_size_v<TupleType>>{});
+}
+
+// a temporary function to emulate thrust::tuple_cat (not supported) using std::tuple_cat (should
+// retire once thrust::tuple is replaced with cuda::std::tuple)
+template <typename... TupleTypes>
+auto thrust_tuple_cat(TupleTypes... tups)
+{
+  return std_tuple_to_thrust_tuple(std::tuple_cat(thrust_tuple_to_std_tuple(tups)...));
+}
 
 template <typename Iterator, typename TupleType>
 struct atomic_accumulate_thrust_tuple {

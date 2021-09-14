@@ -183,11 +183,15 @@ def bfs(G,
         G, nx_weight_attr="weight",
         matrix_graph_type=DiGraph if directed else Graph)
 
+    # The BFS C++ extension assumes the start vertex is a cudf.Series object,
+    # and operates on internal vertex IDs if renumbered.
     if G.renumbered is True:
         if isinstance(start, cudf.DataFrame):
-            start = G.lookup_internal_vertex_id(start, start.columns).iloc[0]
+            start = G.lookup_internal_vertex_id(start, start.columns)
         else:
-            start = G.lookup_internal_vertex_id(cudf.Series([start]))[0]
+            start = G.lookup_internal_vertex_id(cudf.Series(start))
+    else:
+        start = cudf.Series(start)
 
     df = bfs_wrapper.bfs(G, start, depth_limit)
     if G.renumbered:

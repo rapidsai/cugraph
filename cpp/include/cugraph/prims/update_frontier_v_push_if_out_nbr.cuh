@@ -182,8 +182,8 @@ struct check_invalid_bucket_idx_t {
 };
 
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
@@ -196,8 +196,8 @@ __device__ void push_if_buffer_element(
   typename GraphViewType::vertex_type row_offset,
   typename GraphViewType::vertex_type col,
   typename GraphViewType::weight_type weight,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   BufferKeyOutputIterator buffer_key_output_first,
   BufferPayloadOutputIterator buffer_payload_output_first,
   size_t* buffer_idx_ptr,
@@ -211,14 +211,14 @@ __device__ void push_if_buffer_element(
   auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
   auto e_op_result = evaluate_edge_op<GraphViewType,
                                       key_t,
-                                      AdjMatrixRowValueInputIterator,
-                                      AdjMatrixColValueInputIterator,
+                                      AdjMatrixRowValueInputWrapper,
+                                      AdjMatrixColValueInputWrapper,
                                       EdgeOp>()
                        .compute(key,
                                 col,
                                 weight,
-                                *(adj_matrix_row_value_input_first + row_offset),
-                                *(adj_matrix_col_value_input_first + col_offset),
+                                adj_matrix_row_value_input.get(row_offset),
+                                adj_matrix_col_value_input.get(col_offset),
                                 e_op);
   if (e_op_result) {
     static_assert(sizeof(unsigned long long int) == sizeof(size_t));
@@ -241,8 +241,8 @@ __device__ void push_if_buffer_element(
 
 template <typename GraphViewType,
           typename KeyIterator,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
@@ -254,8 +254,8 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
   typename GraphViewType::vertex_type major_hypersparse_first,
   KeyIterator key_first,
   KeyIterator key_last,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   BufferKeyOutputIterator buffer_key_output_first,
   BufferPayloadOutputIterator buffer_payload_output_first,
   size_t* buffer_idx_ptr,
@@ -303,8 +303,8 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
                                               row_offset,
                                               indices[i],
                                               weights ? (*weights)[i] : weight_t{1.0},
-                                              adj_matrix_row_value_input_first,
-                                              adj_matrix_col_value_input_first,
+                                              adj_matrix_row_value_input,
+                                              adj_matrix_col_value_input,
                                               buffer_key_output_first,
                                               buffer_payload_output_first,
                                               buffer_idx_ptr,
@@ -317,8 +317,8 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
 
 template <typename GraphViewType,
           typename KeyIterator,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
@@ -329,8 +329,8 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   KeyIterator key_first,
   KeyIterator key_last,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   BufferKeyOutputIterator buffer_key_output_first,
   BufferPayloadOutputIterator buffer_payload_output_first,
   size_t* buffer_idx_ptr,
@@ -370,8 +370,8 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
                                             row_offset,
                                             indices[i],
                                             weights ? (*weights)[i] : weight_t{1.0},
-                                            adj_matrix_row_value_input_first,
-                                            adj_matrix_col_value_input_first,
+                                            adj_matrix_row_value_input,
+                                            adj_matrix_col_value_input,
                                             buffer_key_output_first,
                                             buffer_payload_output_first,
                                             buffer_idx_ptr,
@@ -383,8 +383,8 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
 
 template <typename GraphViewType,
           typename KeyIterator,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
@@ -395,8 +395,8 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   KeyIterator key_first,
   KeyIterator key_last,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   BufferKeyOutputIterator buffer_key_output_first,
   BufferPayloadOutputIterator buffer_payload_output_first,
   size_t* buffer_idx_ptr,
@@ -438,8 +438,8 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
                                             row_offset,
                                             indices[i],
                                             weights ? (*weights)[i] : weight_t{1.0},
-                                            adj_matrix_row_value_input_first,
-                                            adj_matrix_col_value_input_first,
+                                            adj_matrix_row_value_input,
+                                            adj_matrix_col_value_input,
                                             buffer_key_output_first,
                                             buffer_payload_output_first,
                                             buffer_idx_ptr,
@@ -452,8 +452,8 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
 
 template <typename GraphViewType,
           typename KeyIterator,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
@@ -464,8 +464,8 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   KeyIterator key_first,
   KeyIterator key_last,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   BufferKeyOutputIterator buffer_key_output_first,
   BufferPayloadOutputIterator buffer_payload_output_first,
   size_t* buffer_idx_ptr,
@@ -504,8 +504,8 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
                                             row_offset,
                                             indices[i],
                                             weights ? (*weights)[i] : weight_t{1.0},
-                                            adj_matrix_row_value_input_first,
-                                            adj_matrix_col_value_input_first,
+                                            adj_matrix_row_value_input,
+                                            adj_matrix_col_value_input,
                                             buffer_key_output_first,
                                             buffer_payload_output_first,
                                             buffer_idx_ptr,
@@ -752,10 +752,10 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexFrontierType Type of the vertex frontier class which abstracts vertex frontier
  * managements.
- * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
- * input properties.
- * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
- * input properties.
+ * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
+ * properties.
+ * @tparam AdjMatrixColValueInputWrapper Type of the wrapper for graph adjacency matrix column input
+ * properties.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
@@ -770,19 +770,19 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * current iteration.
  * @param next_frontier_bucket_indices Indices of the VertexFrontier buckets to store new frontier
  * vertices for the next iteration.
- * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
- * properties for the first (inclusive) row (assigned to this process in multi-GPU).
- * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_view.get_number_of_local_adj_matrix_partition_rows().
- * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
- * properties for the first (inclusive) column (assigned to this process in multi-GPU).
- * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_view.get_number_of_local_adj_matrix_partition_cols().
+ * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
+ * (for the rows assigned to this process in multi-GPU). Use either
+ * cugraph::row_properties_t::device_view() (if @p e_op needs to access row properties) or
+ * cugraph::dummy_properties_t::device_view() (if @p e_op does not access row properties). Use
+ * copy_to_adj_matrix_row to fill the wrapper.
+ * @param adj_matrix_col_value_input Device-copyable wrapper used to access column input properties
+ * (for the columns assigned to this process in multi-GPU). Use either
+ * cugraph::col_properties_t::device_view() (if @p e_op needs to access column properties) or
+ * cugraph::dummy_properties_t::device_view() (if @p e_op does not access column properties). Use
+ * copy_to_adj_matrix_col to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
- * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
- * get_number_of_local_adj_matrix_partition_cols())) and returns a value to reduced by the @p
- * reduce_op.
+ * weight), properties for the row (i.e. source), and properties for the column  (i.e. destination)
+ * and returns a value to be reduced the @p reduce_op.
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
@@ -799,8 +799,8 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  */
 template <typename GraphViewType,
           typename VertexFrontierType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename EdgeOp,
           typename ReduceOp,
           typename VertexValueInputIterator,
@@ -815,8 +815,8 @@ void update_frontier_v_push_if_out_nbr(
   // FIXME: if vertices in the frontier are tagged, we should have an option to access with (vertex,
   // tag) pair (currently we can access only with vertex, we may use cuco::static_map for this
   // purpose)
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   EdgeOp e_op,
   ReduceOp reduce_op,
   // FIXME: if vertices in the frontier are tagged, we should have an option to access with (vertex,
@@ -993,9 +993,10 @@ void update_frontier_v_push_if_out_nbr(
       resize_dataframe_buffer(payload_buffer, new_buffer_size, handle.get_stream());
     }
 
-    auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                    ? vertex_t{0}
-                                    : matrix_partition.get_major_value_start_offset();
+    auto matrix_partition_row_value_input = adj_matrix_row_value_input;
+    auto matrix_partition_col_value_input = adj_matrix_col_value_input;
+    matrix_partition_row_value_input.add_offset(matrix_partition.get_major_value_start_offset());
+
     if (segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
       std::vector<vertex_t> h_thresholds(detail::num_sparse_segments_per_vertex_partition +
@@ -1030,8 +1031,8 @@ void update_frontier_v_push_if_out_nbr(
             matrix_partition,
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer),
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[0],
-            adj_matrix_row_value_input_first + row_value_input_offset,
-            adj_matrix_col_value_input_first,
+            matrix_partition_row_value_input,
+            matrix_partition_col_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1047,8 +1048,8 @@ void update_frontier_v_push_if_out_nbr(
             matrix_partition,
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[0],
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[1],
-            adj_matrix_row_value_input_first + row_value_input_offset,
-            adj_matrix_col_value_input_first,
+            matrix_partition_row_value_input,
+            matrix_partition_col_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1064,8 +1065,8 @@ void update_frontier_v_push_if_out_nbr(
             matrix_partition,
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[1],
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[2],
-            adj_matrix_row_value_input_first + row_value_input_offset,
-            adj_matrix_col_value_input_first,
+            matrix_partition_row_value_input,
+            matrix_partition_col_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1082,8 +1083,8 @@ void update_frontier_v_push_if_out_nbr(
             matrix_partition.get_major_first() + (*segment_offsets)[3],
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[2],
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[3],
-            adj_matrix_row_value_input_first + row_value_input_offset,
-            adj_matrix_col_value_input_first,
+            matrix_partition_row_value_input,
+            matrix_partition_col_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1101,8 +1102,8 @@ void update_frontier_v_push_if_out_nbr(
             matrix_partition,
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer),
             get_dataframe_buffer_end(matrix_partition_frontier_key_buffer),
-            adj_matrix_row_value_input_first + row_value_input_offset,
-            adj_matrix_col_value_input_first,
+            matrix_partition_row_value_input,
+            matrix_partition_col_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),

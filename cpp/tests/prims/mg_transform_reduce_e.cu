@@ -29,6 +29,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
 
 #include <thrust/count.h>
@@ -123,35 +124,15 @@ struct generate_impl {
                       property_transform<label_t, Args...>(hash_bin_count));
     return data;
   }
-  template <typename Op, typename T1, typename T2, std::size_t... I>
-  static constexpr void copy_property_impl(Op&& op, T1&& t1, T2&& t2, std::index_sequence<I...>)
-  {
-    (op(std::get<I>(t1), std::get<I>(t2)), ...);
-  }
-
-  template <typename Op, typename BufferType>
-  static void copy_property(BufferType const& property, BufferType& output_property, Op op)
-  {
-    if constexpr (cugraph::is_std_tuple_of_arithmetic_vectors<BufferType>::value) {
-      copy_property_impl(op,
-                         property,
-                         output_property,
-                         std::make_index_sequence<std::tuple_size<BufferType>::value>());
-    } else if constexpr (cugraph::is_arithmetic_vector<BufferType, rmm::device_uvector>::value) {
-      op(property, output_property);
-    }
-  }
 
   template <typename GraphViewType>
   static auto column_property(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
                               PropertyBufferType& property)
   {
-    auto output_property = cugraph::allocate_dataframe_buffer<Type>(
-      graph_view.get_number_of_local_adj_matrix_partition_cols(), handle.get_stream());
-    copy_property(property, output_property, [&handle, &graph_view](const auto& in, auto& out) {
-      copy_to_adj_matrix_col(handle, graph_view, in.begin(), out.begin());
-    });
+    auto output_property = cugraph::col_properties_t<GraphViewType, Type>(handle, graph_view);
+    copy_to_adj_matrix_col(
+      handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
     return output_property;
   }
 
@@ -160,11 +141,9 @@ struct generate_impl {
                            GraphViewType const& graph_view,
                            PropertyBufferType& property)
   {
-    auto output_property = cugraph::allocate_dataframe_buffer<Type>(
-      graph_view.get_number_of_local_adj_matrix_partition_rows(), handle.get_stream());
-    copy_property(property, output_property, [&handle, &graph_view](const auto& in, auto& out) {
-      copy_to_adj_matrix_row(handle, graph_view, in.begin(), out.begin());
-    });
+    auto output_property = cugraph::row_properties_t<GraphViewType, Type>(handle, graph_view);
+    copy_to_adj_matrix_row(
+      handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
     return output_property;
   }
 };
@@ -289,8 +268,6 @@ class Tests_MG_TransformReduceE
     auto col_prop =
       generate<result_t>::column_property(handle, mg_graph_view, vertex_property_data);
     auto row_prop = generate<result_t>::row_property(handle, mg_graph_view, vertex_property_data);
-    auto col_property_iter = cugraph::get_dataframe_buffer_begin(col_prop);
-    auto row_property_iter = cugraph::get_dataframe_buffer_begin(row_prop);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -301,8 +278,8 @@ class Tests_MG_TransformReduceE
     auto result = transform_reduce_e(
       handle,
       mg_graph_view,
-      row_property_iter,
-      col_property_iter,
+      row_prop.device_view(),
+      col_prop.device_view(),
       [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
         if (row_property < col_property) {
           return row_property;
@@ -338,14 +315,12 @@ class Tests_MG_TransformReduceE
         generate<result_t>::column_property(handle, sg_graph_view, sg_vertex_property_data);
       auto sg_row_prop =
         generate<result_t>::row_property(handle, sg_graph_view, sg_vertex_property_data);
-      auto sg_col_property_iter = cugraph::get_dataframe_buffer_begin(sg_col_prop);
-      auto sg_row_property_iter = cugraph::get_dataframe_buffer_begin(sg_row_prop);
 
       auto expected_result = transform_reduce_e(
         handle,
         sg_graph_view,
-        sg_row_property_iter,
-        sg_col_property_iter,
+        sg_row_prop.device_view(),
+        sg_col_prop.device_view(),
         [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
           if (row_property < col_property) {
             return row_property;

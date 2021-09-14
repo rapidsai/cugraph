@@ -51,18 +51,18 @@ auto get_dataframe_buffer_end_tuple_impl(std::index_sequence<I...>, TupleType& b
   return thrust::make_zip_iterator(thrust::make_tuple((std::get<I>(buffer).end())...));
 }
 
-template <typename TupleType, size_t I, typename BufferType>
-auto get_dataframe_buffer_end_tuple_element_impl(BufferType& buffer)
-{
-  using element_t = typename thrust::tuple_element<I, TupleType>::type;
-  return std::get<I>(buffer).end();
-}
-
-template <typename TupleType, size_t... Is, typename BufferType>
-auto get_dataframe_buffer_end_tuple_impl(std::index_sequence<Is...>, BufferType& buffer)
+template <typename TupleType, size_t... I>
+auto get_dataframe_buffer_cbegin_tuple_impl(std::index_sequence<I...>, TupleType& buffer)
 {
   // thrust::make_tuple instead of std::make_tuple as this is fed to thrust::make_zip_iterator.
-  return thrust::make_tuple(get_dataframe_buffer_end_tuple_element_impl<TupleType, Is>(buffer)...);
+  return thrust::make_zip_iterator(thrust::make_tuple((std::get<I>(buffer).cbegin())...));
+}
+
+template <typename TupleType, std::size_t... I>
+auto get_dataframe_buffer_cend_tuple_impl(std::index_sequence<I...>, TupleType& buffer)
+{
+  // thrust::make_tuple instead of std::make_tuple as this is fed to thrust::make_zip_iterator.
+  return thrust::make_zip_iterator(thrust::make_tuple((std::get<I>(buffer).cend())...));
 }
 
 }  // namespace detail
@@ -117,16 +117,16 @@ size_t size_dataframe_buffer(Type& buffer)
 }
 
 template <typename BufferType,
-          typename std::enable_if_t<is_arithmetic_vector<BufferType, rmm::device_uvector>::value>* =
-            nullptr>
+          typename std::enable_if_t<is_arithmetic_vector<std::remove_cv_t<BufferType>,
+                                                         rmm::device_uvector>::value>* = nullptr>
 auto get_dataframe_buffer_begin(BufferType& buffer)
 {
   return buffer.begin();
 }
 
-template <
-  typename BufferType,
-  typename std::enable_if_t<is_std_tuple_of_arithmetic_vectors<BufferType>::value>* = nullptr>
+template <typename BufferType,
+          typename std::enable_if_t<
+            is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value>* = nullptr>
 auto get_dataframe_buffer_begin(BufferType& buffer)
 {
   return detail::get_dataframe_buffer_begin_tuple_impl(
@@ -134,19 +134,53 @@ auto get_dataframe_buffer_begin(BufferType& buffer)
 }
 
 template <typename BufferType,
-          typename std::enable_if_t<is_arithmetic_vector<BufferType, rmm::device_uvector>::value>* =
-            nullptr>
+          typename std::enable_if_t<is_arithmetic_vector<std::remove_cv_t<BufferType>,
+                                                         rmm::device_uvector>::value>* = nullptr>
+auto get_dataframe_buffer_cbegin(BufferType& buffer)
+{
+  return buffer.cbegin();
+}
+
+template <typename BufferType,
+          typename std::enable_if_t<
+            is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value>* = nullptr>
+auto get_dataframe_buffer_cbegin(BufferType& buffer)
+{
+  return detail::get_dataframe_buffer_cbegin_tuple_impl(
+    std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
+}
+
+template <typename BufferType,
+          typename std::enable_if_t<is_arithmetic_vector<std::remove_cv_t<BufferType>,
+                                                         rmm::device_uvector>::value>* = nullptr>
 auto get_dataframe_buffer_end(BufferType& buffer)
 {
   return buffer.end();
 }
 
-template <
-  typename BufferType,
-  typename std::enable_if_t<is_std_tuple_of_arithmetic_vectors<BufferType>::value>* = nullptr>
+template <typename BufferType,
+          typename std::enable_if_t<
+            is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value>* = nullptr>
 auto get_dataframe_buffer_end(BufferType& buffer)
 {
   return detail::get_dataframe_buffer_end_tuple_impl(
+    std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
+}
+
+template <typename BufferType,
+          typename std::enable_if_t<is_arithmetic_vector<std::remove_cv_t<BufferType>,
+                                                         rmm::device_uvector>::value>* = nullptr>
+auto get_dataframe_buffer_cend(BufferType& buffer)
+{
+  return buffer.cend();
+}
+
+template <typename BufferType,
+          typename std::enable_if_t<
+            is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value>* = nullptr>
+auto get_dataframe_buffer_cend(BufferType& buffer)
+{
+  return detail::get_dataframe_buffer_cend_tuple_impl(
     std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
 }
 
