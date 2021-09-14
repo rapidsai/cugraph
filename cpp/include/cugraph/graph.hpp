@@ -146,6 +146,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_rows_).data() +
                                            (*local_sorted_unique_edge_rows_).size()}
           : std::nullopt,
+        local_sorted_unique_edge_row_offsets_,
         local_sorted_unique_edge_cols_
           ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_cols_).data()}
           : std::nullopt,
@@ -153,6 +154,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_cols_).data() +
                                            (*local_sorted_unique_edge_cols_).size()}
           : std::nullopt,
+        local_sorted_unique_edge_col_offsets_,
       },
       false);
   }
@@ -177,6 +179,8 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   // rows/cols << V / row_comm_size|col_comm_size).
   std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_rows_{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_cols_{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_row_offsets_{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_col_offsets_{std::nullopt};
 };
 
 // single-GPU version

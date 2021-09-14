@@ -306,10 +306,12 @@ struct graph_view_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets{};
 
-  std::optional<vertex_t const*> local_sorted_unique_edge_row_first_{};
-  std::optional<vertex_t const*> local_sorted_unique_edge_row_last_{};
-  std::optional<vertex_t const*> local_sorted_unique_edge_col_first_{};
-  std::optional<vertex_t const*> local_sorted_unique_edge_col_last_{};
+  std::optional<vertex_t const*> local_sorted_unique_edge_row_first{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_row_last{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_row_offsets{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_col_first{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_col_last{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_col_offsets{std::nullopt};
 };
 
 // single-GPU version
@@ -597,6 +599,11 @@ class graph_view_t<vertex_t,
     return local_sorted_unique_edge_row_last_;
   }
 
+  std::optional<std::vector<vertex_t>> get_local_sorted_unique_edge_row_offsets() const
+  {
+    return local_sorted_unique_edge_row_offsets_;
+  }
+
   std::optional<vertex_t const*> get_local_sorted_unique_edge_col_begin() const
   {
     return local_sorted_unique_edge_col_first_;
@@ -605,6 +612,11 @@ class graph_view_t<vertex_t,
   std::optional<vertex_t const*> get_local_sorted_unique_edge_col_end() const
   {
     return local_sorted_unique_edge_col_last_;
+  }
+
+  std::optional<std::vector<vertex_t>> get_local_sorted_unique_edge_col_offsets() const
+  {
+    return local_sorted_unique_edge_col_offsets_;
   }
 
  private:
@@ -627,8 +639,10 @@ class graph_view_t<vertex_t,
   // rows/cols << V / row_comm_size|col_comm_size).
   std::optional<vertex_t const*> local_sorted_unique_edge_row_first_{std::nullopt};
   std::optional<vertex_t const*> local_sorted_unique_edge_row_last_{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_row_offsets_{std::nullopt};
   std::optional<vertex_t const*> local_sorted_unique_edge_col_first_{std::nullopt};
   std::optional<vertex_t const*> local_sorted_unique_edge_col_last_{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_col_offsets_{std::nullopt};
 };
 
 // single-GPU version

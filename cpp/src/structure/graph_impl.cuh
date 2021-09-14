@@ -435,10 +435,37 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           has_nzd_t<vertex_t, edge_t>{adj_matrix_partition_offsets_[i].data(), major_first}));
     }
     assert(cur_size == num_local_unique_edge_majors);
+
+    std::vector<vertex_t> h_vertex_partition_firsts(col_comm_size - 1);
+    for (int i = 1; i < col_comm_size; ++i) {
+      h_vertex_partition_firsts[i - 1] =
+        partition_.get_vertex_partition_first(i * row_comm_size + row_comm_rank);
+    }
+    rmm::device_uvector<vertex_t> d_vertex_partition_firsts(h_vertex_partition_firsts.size(),
+                                                            handle.get_stream());
+    raft::update_device(d_vertex_partition_firsts.data(),
+                        h_vertex_partition_firsts.data(),
+                        h_vertex_partition_firsts.size(),
+                        handle.get_stream());
+    rmm::device_uvector<vertex_t> d_key_offsets(d_vertex_partition_firsts.size(),
+                                                handle.get_stream());
+    thrust::lower_bound(handle.get_thrust_policy(),
+                        local_sorted_unique_edge_majors.begin(),
+                        local_sorted_unique_edge_majors.end(),
+                        d_vertex_partition_firsts.begin(),
+                        d_vertex_partition_firsts.end(),
+                        d_key_offsets.begin());
+    std::vector<vertex_t> h_key_offsets(col_comm_size + 1, vertex_t{0});
+    h_key_offsets.back() = static_cast<vertex_t>(local_sorted_unique_edge_majors.size());
+    raft::update_host(
+      h_key_offsets.data() + 1, d_key_offsets.data(), d_key_offsets.size(), handle.get_stream());
+
     if constexpr (store_transposed) {
-      local_sorted_unique_edge_cols_ = std::move(local_sorted_unique_edge_majors);
+      local_sorted_unique_edge_cols_        = std::move(local_sorted_unique_edge_majors);
+      local_sorted_unique_edge_col_offsets_ = std::move(h_key_offsets);
     } else {
-      local_sorted_unique_edge_rows_ = std::move(local_sorted_unique_edge_majors);
+      local_sorted_unique_edge_rows_        = std::move(local_sorted_unique_edge_majors);
+      local_sorted_unique_edge_row_offsets_ = std::move(h_key_offsets);
     }
   }
 
@@ -479,10 +506,37 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                       local_sorted_unique_edge_minors.end())),
       handle.get_stream());
     local_sorted_unique_edge_minors.shrink_to_fit(handle.get_stream());
+
+    std::vector<vertex_t> h_vertex_partition_firsts(row_comm_size - 1);
+    for (int i = 1; i < row_comm_size; ++i) {
+      h_vertex_partition_firsts[i - 1] =
+        partition_.get_vertex_partition_first(col_comm_rank * row_comm_size + i);
+    }
+    rmm::device_uvector<vertex_t> d_vertex_partition_firsts(h_vertex_partition_firsts.size(),
+                                                            handle.get_stream());
+    raft::update_device(d_vertex_partition_firsts.data(),
+                        h_vertex_partition_firsts.data(),
+                        h_vertex_partition_firsts.size(),
+                        handle.get_stream());
+    rmm::device_uvector<vertex_t> d_key_offsets(d_vertex_partition_firsts.size(),
+                                                handle.get_stream());
+    thrust::lower_bound(handle.get_thrust_policy(),
+                        local_sorted_unique_edge_minors.begin(),
+                        local_sorted_unique_edge_minors.end(),
+                        d_vertex_partition_firsts.begin(),
+                        d_vertex_partition_firsts.end(),
+                        d_key_offsets.begin());
+    std::vector<vertex_t> h_key_offsets(row_comm_size + 1, vertex_t{0});
+    h_key_offsets.back() = static_cast<vertex_t>(local_sorted_unique_edge_minors.size());
+    raft::update_host(
+      h_key_offsets.data() + 1, d_key_offsets.data(), d_key_offsets.size(), handle.get_stream());
+
     if constexpr (store_transposed) {
-      local_sorted_unique_edge_rows_ = std::move(local_sorted_unique_edge_minors);
+      local_sorted_unique_edge_rows_        = std::move(local_sorted_unique_edge_minors);
+      local_sorted_unique_edge_row_offsets_ = std::move(h_key_offsets);
     } else {
-      local_sorted_unique_edge_cols_ = std::move(local_sorted_unique_edge_minors);
+      local_sorted_unique_edge_cols_        = std::move(local_sorted_unique_edge_minors);
+      local_sorted_unique_edge_col_offsets_ = std::move(h_key_offsets);
     }
   }
 
