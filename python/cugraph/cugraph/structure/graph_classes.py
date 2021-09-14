@@ -613,7 +613,7 @@ class DiGraph(Graph):
 
 class MultiGraph(Graph):
     """
-    A Multigraph, can be more than one edges between vertex pairs
+    A Multigraph; a Graph containing more than one edge between vertex pairs.
     """
     def __init__(self, directed=False):
         super(MultiGraph, self).__init__(directed=directed)
