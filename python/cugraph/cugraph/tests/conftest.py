@@ -24,9 +24,9 @@ from cugraph.comms import comms as Comms
 from cugraph.dask.common.mg_utils import get_visible_devices
 
 
-# session-wide fixtures
+# module-wide fixtures
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def dask_client():
     dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
     cluster = None
