@@ -420,14 +420,7 @@ coarsen_graph(
   // 4. renumber
 
   rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
-  partition_t<vertex_t> partition(std::vector<vertex_t>(comm_size + 1, 0),
-                                  row_comm_size,
-                                  col_comm_size,
-                                  row_comm_rank,
-                                  col_comm_rank);
-  vertex_t number_of_vertices{};
-  edge_t number_of_edges{};
-  std::optional<std::vector<vertex_t>> segment_offsets{};
+  renumber_meta_t<vertex_t, edge_t, multi_gpu> meta{};
   {
     std::vector<vertex_t*> major_ptrs(coarsened_edgelist_major_vertices.size());
     std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
@@ -437,16 +430,15 @@ coarsen_graph(
       minor_ptrs[i] = coarsened_edgelist_minor_vertices[i].data();
       counts[i]     = static_cast<edge_t>(coarsened_edgelist_major_vertices[i].size());
     }
-    std::tie(renumber_map_labels, partition, number_of_vertices, number_of_edges, segment_offsets) =
-      renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-        handle,
-        std::optional<std::tuple<vertex_t const*, vertex_t>>{
-          std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
-        major_ptrs,
-        minor_ptrs,
-        counts,
-        std::nullopt,
-        do_expensive_check);
+    std::tie(renumber_map_labels, meta) = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+      handle,
+      std::optional<std::tuple<vertex_t const*, vertex_t>>{
+        std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
+      major_ptrs,
+      minor_ptrs,
+      counts,
+      std::nullopt,
+      do_expensive_check);
   }
 
   // 5. build a graph
@@ -469,11 +461,12 @@ coarsen_graph(
     std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
       handle,
       edgelists,
-      partition,
-      number_of_vertices,
-      number_of_edges,
-      graph_properties_t{graph_view.is_symmetric(), false},
-      segment_offsets),
+      graph_meta_t<vertex_t, edge_t, multi_gpu>{
+        meta.number_of_vertices,
+        meta.number_of_edges,
+        graph_properties_t{graph_view.is_symmetric(), false},
+        meta.partition,
+        meta.segment_offsets}),
     std::move(renumber_map_labels));
 }
 
@@ -519,7 +512,7 @@ coarsen_graph(
       thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
-  auto [renumber_map_labels, segment_offsets] = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+  auto [renumber_map_labels, meta] = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
     handle,
     std::optional<std::tuple<vertex_t const*, vertex_t>>{
       std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
@@ -542,9 +535,10 @@ coarsen_graph(
     std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
       handle,
       edgelist,
-      static_cast<vertex_t>(renumber_map_labels.size()),
-      graph_properties_t{graph_view.is_symmetric(), false},
-      segment_offsets),
+      graph_meta_t<vertex_t, edge_t, multi_gpu>{
+        static_cast<vertex_t>(renumber_map_labels.size()),
+        graph_properties_t{graph_view.is_symmetric(), false},
+        meta.segment_offsets}),
     std::move(renumber_map_labels));
 }
 

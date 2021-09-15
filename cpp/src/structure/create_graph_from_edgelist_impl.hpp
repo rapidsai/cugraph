@@ -94,36 +94,24 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
 
   // 2. renumber
 
-  rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
-  cugraph::partition_t<vertex_t> partition{};
-  vertex_t number_of_vertices{};
-  edge_t number_of_edges{};
-  auto vertex_partition_segment_offsets = std::make_optional<std::vector<vertex_t>>(0);
-  {
-    std::vector<vertex_t*> major_ptrs(col_comm_size);
-    std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
-    for (int i = 0; i < col_comm_size; ++i) {
-      major_ptrs[i] = (store_transposed ? edgelist_cols.begin() : edgelist_rows.begin()) +
-                      edgelist_displacements[i];
-      minor_ptrs[i] = (store_transposed ? edgelist_rows.begin() : edgelist_cols.begin()) +
-                      edgelist_displacements[i];
-    }
-    std::tie(renumber_map_labels,
-             partition,
-             number_of_vertices,
-             number_of_edges,
-             *vertex_partition_segment_offsets) =
-      cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-        handle,
-        local_vertex_span
-          ? std::optional<std::tuple<vertex_t const*, vertex_t>>{std::make_tuple(
-              (*local_vertex_span).data(), static_cast<vertex_t>((*local_vertex_span).size()))}
-          : std::nullopt,
-        major_ptrs,
-        minor_ptrs,
-        edgelist_edge_counts,
-        edgelist_intra_partition_segment_offsets);
+  std::vector<vertex_t*> major_ptrs(col_comm_size);
+  std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
+  for (int i = 0; i < col_comm_size; ++i) {
+    major_ptrs[i] = (store_transposed ? edgelist_cols.begin() : edgelist_rows.begin()) +
+                    edgelist_displacements[i];
+    minor_ptrs[i] = (store_transposed ? edgelist_rows.begin() : edgelist_cols.begin()) +
+                    edgelist_displacements[i];
   }
+  auto [renumber_map_labels, meta] = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+    handle,
+    local_vertex_span
+      ? std::optional<std::tuple<vertex_t const*, vertex_t>>{std::make_tuple(
+          (*local_vertex_span).data(), static_cast<vertex_t>((*local_vertex_span).size()))}
+      : std::nullopt,
+    major_ptrs,
+    minor_ptrs,
+    edgelist_edge_counts,
+    edgelist_intra_partition_segment_offsets);
 
   // 3. create a graph
 
@@ -142,11 +130,11 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
     cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
       edgelists,
-      partition,
-      number_of_vertices,
-      number_of_edges,
-      graph_properties,
-      vertex_partition_segment_offsets),
+      cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{meta.number_of_vertices,
+                                                         meta.number_of_edges,
+                                                         graph_properties,
+                                                         meta.partition,
+                                                         meta.segment_offsets}),
     std::optional<rmm::device_uvector<vertex_t>>{std::move(renumber_map_labels)});
 }
 
@@ -171,17 +159,16 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
     renumber ? std::make_optional<rmm::device_uvector<vertex_t>>(0, handle.get_stream())
              : std::nullopt;
   std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
+  renumber_meta_t<vertex_t, edge_t, multi_gpu> meta{};
   if (renumber) {
-    segment_offsets = std::vector<vertex_t>{};
-    std::tie(*renumber_map_labels, *segment_offsets) =
-      cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-        handle,
-        vertex_span ? std::optional<std::tuple<vertex_t const*, vertex_t>>{std::make_tuple(
-                        (*vertex_span).data(), static_cast<vertex_t>((*vertex_span).size()))}
-                    : std::nullopt,
-        store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
-        store_transposed ? edgelist_rows.data() : edgelist_cols.data(),
-        static_cast<edge_t>(edgelist_rows.size()));
+    std::tie(*renumber_map_labels, meta) = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+      handle,
+      vertex_span ? std::optional<std::tuple<vertex_t const*, vertex_t>>{std::make_tuple(
+                      (*vertex_span).data(), static_cast<vertex_t>((*vertex_span).size()))}
+                  : std::nullopt,
+      store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
+      store_transposed ? edgelist_rows.data() : edgelist_cols.data(),
+      static_cast<edge_t>(edgelist_rows.size()));
   }
 
   vertex_t num_vertices{};
@@ -205,9 +192,10 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
         edgelist_weights ? std::optional<weight_t const*>{(*edgelist_weights).data()}
                          : std::nullopt,
         static_cast<edge_t>(edgelist_rows.size())},
-      num_vertices,
-      graph_properties,
-      std::optional<std::vector<vertex_t>>{segment_offsets}),
+      cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{
+        num_vertices,
+        graph_properties,
+        renumber ? std::optional<std::vector<vertex_t>>{meta.segment_offsets} : std::nullopt}),
     std::move(renumber_map_labels));
 }
 
