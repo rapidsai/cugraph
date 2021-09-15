@@ -318,10 +318,8 @@ template <typename vertex_t, typename value_t, typename BufferType>
 std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
   rmm::device_uvector<vertex_t>&& keys, BufferType&& value_buffer, cudaStream_t stream)
 {
-  thrust::sort_by_key(rmm::exec_policy(stream),
-                      keys.begin(),
-                      keys.end(),
-                      get_dataframe_buffer_begin<value_t>(value_buffer));
+  thrust::sort_by_key(
+    rmm::exec_policy(stream), keys.begin(), keys.end(), get_dataframe_buffer_begin(value_buffer));
   auto num_uniques =
     thrust::count_if(rmm::exec_policy(stream),
                      thrust::make_counting_iterator(size_t{0}),
@@ -335,9 +333,9 @@ std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
   thrust::reduce_by_key(rmm::exec_policy(stream),
                         keys.begin(),
                         keys.end(),
-                        get_dataframe_buffer_begin<value_t>(value_buffer),
+                        get_dataframe_buffer_begin(value_buffer),
                         unique_keys.begin(),
-                        get_dataframe_buffer_begin<value_t>(value_for_unique_key_buffer));
+                        get_dataframe_buffer_begin(value_for_unique_key_buffer));
 
   return std::make_tuple(std::move(unique_keys), std::move(value_for_unique_key_buffer));
 }
@@ -428,7 +426,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
               matrix_partition_row_col_key_input,
               e_op,
               tmp_keys.data(),
-              get_dataframe_buffer_begin<T>(tmp_value_buffer));
+              get_dataframe_buffer_begin(tmp_value_buffer));
         }
         if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
           raft::grid_1d_warp_t update_grid(
@@ -445,7 +443,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
               matrix_partition_row_col_key_input,
               e_op,
               tmp_keys.data(),
-              get_dataframe_buffer_begin<T>(tmp_value_buffer));
+              get_dataframe_buffer_begin(tmp_value_buffer));
         }
         if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
           raft::grid_1d_thread_t update_grid(
@@ -462,7 +460,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
               matrix_partition_row_col_key_input,
               e_op,
               tmp_keys.data(),
-              get_dataframe_buffer_begin<T>(tmp_value_buffer));
+              get_dataframe_buffer_begin(tmp_value_buffer));
         }
         if (matrix_partition.get_dcs_nzd_vertex_count() &&
             (*(matrix_partition.get_dcs_nzd_vertex_count()) > 0)) {
@@ -479,7 +477,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
               matrix_partition_row_col_key_input,
               e_op,
               tmp_keys.data(),
-              get_dataframe_buffer_begin<T>(tmp_value_buffer));
+              get_dataframe_buffer_begin(tmp_value_buffer));
         }
       } else {
         raft::grid_1d_thread_t update_grid(
@@ -497,7 +495,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
             matrix_partition_row_col_key_input,
             e_op,
             tmp_keys.data(),
-            get_dataframe_buffer_begin<T>(tmp_value_buffer));
+            get_dataframe_buffer_begin(tmp_value_buffer));
       }
     }
     std::tie(tmp_keys, tmp_value_buffer) = reduce_to_unique_kv_pairs<vertex_t, T>(
@@ -514,7 +512,7 @@ transform_reduce_by_adj_matrix_row_col_key_e(
           comm,
           tmp_keys.begin(),
           tmp_keys.end(),
-          get_dataframe_buffer_begin<T>(tmp_value_buffer),
+          get_dataframe_buffer_begin(tmp_value_buffer),
           [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(
             auto val) { return key_func(val); },
           handle.get_stream());
@@ -532,14 +530,14 @@ transform_reduce_by_adj_matrix_row_col_key_e(
       // can reserve address space to avoid expensive reallocation.
       // https://devblogs.nvidia.com/introducing-low-level-gpu-virtual-memory-management
       keys.resize(cur_size + tmp_keys.size(), handle.get_stream());
-      resize_dataframe_buffer<T>(value_buffer, keys.size(), handle.get_stream());
+      resize_dataframe_buffer(value_buffer, keys.size(), handle.get_stream());
 
       auto execution_policy = handle.get_thrust_policy();
       thrust::copy(execution_policy, tmp_keys.begin(), tmp_keys.end(), keys.begin() + cur_size);
       thrust::copy(execution_policy,
-                   get_dataframe_buffer_begin<T>(tmp_value_buffer),
-                   get_dataframe_buffer_begin<T>(tmp_value_buffer) + tmp_keys.size(),
-                   get_dataframe_buffer_begin<T>(value_buffer) + cur_size);
+                   get_dataframe_buffer_begin(tmp_value_buffer),
+                   get_dataframe_buffer_begin(tmp_value_buffer) + tmp_keys.size(),
+                   get_dataframe_buffer_begin(value_buffer) + cur_size);
     }
   }
 

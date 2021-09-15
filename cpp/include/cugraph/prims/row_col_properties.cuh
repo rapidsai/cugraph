@@ -106,23 +106,21 @@ class major_properties_t {
 
   void fill(T value, rmm::cuda_stream_view stream)
   {
-    thrust::fill(rmm::exec_policy(stream),
-                 value_data(),
-                 value_data() + size_dataframe_buffer<T>(buffer_),
-                 value);
+    thrust::fill(
+      rmm::exec_policy(stream), value_data(), value_data() + size_dataframe_buffer(buffer_), value);
   }
 
-  auto value_data() { return get_dataframe_buffer_begin<T>(buffer_); }
+  auto value_data() { return get_dataframe_buffer_begin(buffer_); }
 
   auto device_view() const
   {
-    auto value_first = get_dataframe_buffer_cbegin<T>(buffer_);
+    auto value_first = get_dataframe_buffer_cbegin(buffer_);
     return major_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
   }
 
   auto mutable_device_view()
   {
-    auto value_first = get_dataframe_buffer_begin<T>(buffer_);
+    auto value_first = get_dataframe_buffer_begin(buffer_);
     return major_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
   }
 
@@ -159,17 +157,15 @@ class minor_properties_t {
 
   void fill(T value, rmm::cuda_stream_view stream)
   {
-    thrust::fill(rmm::exec_policy(stream),
-                 value_data(),
-                 value_data() + size_dataframe_buffer<T>(buffer_),
-                 value);
+    thrust::fill(
+      rmm::exec_policy(stream), value_data(), value_data() + size_dataframe_buffer(buffer_), value);
   }
 
-  auto value_data() { return get_dataframe_buffer_begin<T>(buffer_); }
+  auto value_data() { return get_dataframe_buffer_begin(buffer_); }
 
   auto device_view() const
   {
-    auto value_first = get_dataframe_buffer_cbegin<T>(buffer_);
+    auto value_first = get_dataframe_buffer_cbegin(buffer_);
     if (key_first_) {
       return minor_properties_device_view_t<vertex_t, decltype(value_first)>(
         *key_first_, *key_last_, value_first);
@@ -180,7 +176,7 @@ class minor_properties_t {
 
   auto mutable_device_view()
   {
-    auto value_first = get_dataframe_buffer_begin<T>(buffer_);
+    auto value_first = get_dataframe_buffer_begin(buffer_);
     if (key_first_) {
       return minor_properties_device_view_t<vertex_t, decltype(value_first)>(
         *key_first_, *key_last_, value_first);
