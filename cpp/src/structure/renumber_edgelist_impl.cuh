@@ -701,11 +701,14 @@ renumber_edgelist(
   comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
+  vertex_t max_matrix_partition_major_size{0};
   for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
-    rmm::device_uvector<vertex_t> renumber_map_major_labels(
-      col_comm_rank == static_cast<int>(i) ? vertex_t{0}
-                                           : partition.get_matrix_partition_major_size(i),
-      handle.get_stream());
+    max_matrix_partition_major_size =
+      std::max(max_matrix_partition_major_size, partition.get_matrix_partition_major_size(i));
+  }
+  rmm::device_uvector<vertex_t> renumber_map_major_labels(max_matrix_partition_major_size,
+                                                          handle.get_stream());
+  for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
     device_bcast(col_comm,
                  renumber_map_labels.data(),
                  renumber_map_major_labels.data(),
@@ -728,8 +731,7 @@ renumber_edgelist(
         invalid_vertex_id<vertex_t>::value,
         stream_adapter};
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      col_comm_rank == static_cast<int>(i) ? renumber_map_labels.begin()
-                                           : renumber_map_major_labels.begin(),
+      renumber_map_major_labels.begin(),
       thrust::make_counting_iterator(partition.get_matrix_partition_major_first(i))));
     renumber_map.insert(pair_first, pair_first + partition.get_matrix_partition_major_size(i));
     renumber_map.find(edgelist_major_vertices[i],
@@ -750,10 +752,14 @@ renumber_edgelist(
   if ((partition.get_matrix_partition_minor_size() >= number_of_edges / comm_size) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
+    vertex_t max_segment_size{0};
+    for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
+      max_segment_size = std::max(
+        max_segment_size, partition.get_vertex_partition_size(col_comm_rank * row_comm_size + i));
+    }
+    rmm::device_uvector<vertex_t> renumber_map_minor_labels(max_segment_size, handle.get_stream());
     for (int i = 0; i < row_comm_size; ++i) {
       auto segment_size = partition.get_vertex_partition_size(col_comm_rank * row_comm_size + i);
-      rmm::device_uvector<vertex_t> renumber_map_minor_labels(
-        row_comm_rank == i ? vertex_t{0} : segment_size, handle.get_stream());
       device_bcast(row_comm,
                    renumber_map_labels.data(),
                    renumber_map_minor_labels.data(),
@@ -776,7 +782,7 @@ renumber_edgelist(
                      invalid_vertex_id<vertex_t>::value,
                      stream_adapter};
       auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-        row_comm_rank == i ? renumber_map_labels.begin() : renumber_map_minor_labels.begin(),
+        renumber_map_minor_labels.begin(),
         thrust::make_counting_iterator(
           partition.get_vertex_partition_first(col_comm_rank * row_comm_size + i))));
       renumber_map.insert(pair_first, pair_first + segment_size);
