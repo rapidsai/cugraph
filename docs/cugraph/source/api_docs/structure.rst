@@ -1,31 +1,40 @@
-=========
-Structure
-=========
-.. currentmodule:: cugraph.structure.graph_classes
+=============
+Graph Classes
+=============
+.. currentmodule:: cugraph
 
-Constructor
------------
+Constructors
+------------
 .. autosummary::
    :toctree: api/
 
    Graph
+   MultiGraph
+   BiPartiteGraph
 
 
-Methods
--------
+Adding Data
+-----------
 .. autosummary::
    :toctree: api/
 
-   Graph.add_internal_vertex_id
-   Graph.add_nodes_from
-   Graph.clear
+
    Graph.from_cudf_adjlist
    Graph.from_cudf_edgelist
    Graph.from_dask_cudf_edgelist
-   Graph.from_numpy_array
-   Graph.from_numpy_matrix
    Graph.from_pandas_adjacency
    Graph.from_pandas_edgelist
+   Graph.from_numpy_array
+   Graph.from_numpy_matrix
+   Graph.add_internal_vertex_id
+   Graph.add_nodes_from
+   Graph.clear
+
+Checks
+------
+.. autosummary::
+   :toctree: api/
+
    Graph.has_isolated_vertices
    Graph.is_bipartite
    Graph.is_directed
@@ -38,7 +47,6 @@ Methods
    Graph.to_undirected
    Graph.unrenumber
 
-.. currentmodule:: cugraph
 
 Symmetrize
 ----------

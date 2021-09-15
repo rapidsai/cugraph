@@ -39,11 +39,3 @@ Single-source-shortest-path (MG)
 
    cugraph.dask.traversal.sssp.call_sssp
    cugraph.dask.traversal.sssp.sssp
-
-
-Traveling-salesperson-problem
------------------------------
-.. autosummary::
-   :toctree: api/
-
-   cugraph.traversal.traveling_salesperson.traveling_salesperson

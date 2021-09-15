@@ -29,7 +29,6 @@ import versioneer
 from distutils.sysconfig import get_python_lib
 
 
-INSTALL_REQUIRES = ['numba', 'cython']
 CYTHON_FILES = ['pylibcugraph/**/*.pyx']
 
 UCX_HOME = get_environment_option("UCX_HOME")
@@ -157,7 +156,6 @@ setup(name='pylibcugraph',
       setup_requires=['cython'],
       ext_modules=EXTENSIONS,
       packages=find_packages(include=['pylibcugraph', 'pylibcugraph.*']),
-      install_requires=INSTALL_REQUIRES,
       license="Apache",
       cmdclass=cmdclass,
       zip_safe=False)

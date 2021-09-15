@@ -286,6 +286,33 @@ class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ 
 
 }  // namespace detail
 
+template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
+struct graph_view_meta_t;
+
+// multi-GPU version
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+struct graph_view_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>> {
+  vertex_t number_of_vertices;
+  edge_t number_of_edges;
+  graph_properties_t properties;
+
+  partition_t<vertex_t> partition{};
+
+  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
+  std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets{};
+};
+
+// single-GPU version
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+struct graph_view_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
+  vertex_t number_of_vertices;
+  edge_t number_of_edges;
+  graph_properties_t properties;
+
+  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
+  std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
+};
+
 // graph_view_t is a non-owning graph class (note that graph_t is an owning graph class)
 template <typename vertex_t,
           typename edge_t,
@@ -322,11 +349,7 @@ class graph_view_t<vertex_t,
     std::optional<std::vector<weight_t const*>> const& adj_matrix_partition_weights,
     std::optional<std::vector<vertex_t const*>> const& adj_matrix_partition_dcs_nzd_vertices,
     std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
-    partition_t<vertex_t> const& partition,
-    vertex_t number_of_vertices,
-    edge_t number_of_edges,
-    graph_properties_t properties,
-    std::optional<std::vector<vertex_t>> const& adj_matrix_partition_segment_offsets,
+    graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
     bool do_expensive_check = false);
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
@@ -554,6 +577,26 @@ class graph_view_t<vertex_t,
   weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
   weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
 
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_row_begin() const
+  {
+    return local_sorted_unique_edge_row_first_;
+  }
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_row_end() const
+  {
+    return local_sorted_unique_edge_row_last_;
+  }
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_col_begin() const
+  {
+    return local_sorted_unique_edge_col_first_;
+  }
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_col_end() const
+  {
+    return local_sorted_unique_edge_col_last_;
+  }
+
  private:
   std::vector<edge_t const*> adj_matrix_partition_offsets_{};
   std::vector<vertex_t const*> adj_matrix_partition_indices_{};
@@ -569,6 +612,12 @@ class graph_view_t<vertex_t,
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets_{};
+
+  // FIXME: to be implemented.
+  std::optional<vertex_t const*> local_sorted_unique_edge_row_first_{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_row_last_{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_col_first_{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_col_last_{std::nullopt};
 };
 
 // single-GPU version
@@ -595,10 +644,7 @@ class graph_view_t<vertex_t,
                edge_t const* offsets,
                vertex_t const* indices,
                std::optional<weight_t const*> weights,
-               vertex_t number_of_vertices,
-               edge_t number_of_edges,
-               graph_properties_t properties,
-               std::optional<std::vector<vertex_t>> const& segment_offsets,
+               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
                bool do_expensive_check = false);
 
   bool is_weighted() const { return weights_.has_value(); }
@@ -747,6 +793,26 @@ class graph_view_t<vertex_t,
 
   weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
   weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_row_begin() const
+  {
+    return std::nullopt;
+  }
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_row_end() const
+  {
+    return std::nullopt;
+  }
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_col_begin() const
+  {
+    return std::nullopt;
+  }
+
+  std::optional<vertex_t const*> get_local_sorted_unique_edge_col_end() const
+  {
+    return std::nullopt;
+  }
 
  private:
   edge_t const* offsets_{nullptr};

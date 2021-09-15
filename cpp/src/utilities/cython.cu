@@ -159,16 +159,17 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
   return std::make_unique<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelists,
-    partition,
-    static_cast<vertex_t>(graph_container.num_global_vertices),
-    static_cast<edge_t>(graph_container.num_global_edges),
-    graph_container.graph_props,
-    graph_container.segment_offsets != nullptr
-      ? std::make_optional<std::vector<vertex_t>>(
-          static_cast<vertex_t const*>(graph_container.segment_offsets),
-          static_cast<vertex_t const*>(graph_container.segment_offsets) +
-            graph_container.num_segments + 1)
-      : std::nullopt,
+    graph_meta_t<vertex_t, edge_t, multi_gpu>{
+      static_cast<vertex_t>(graph_container.num_global_vertices),
+      static_cast<edge_t>(graph_container.num_global_edges),
+      graph_container.graph_props,
+      partition,
+      graph_container.segment_offsets != nullptr
+        ? std::make_optional<std::vector<vertex_t>>(
+            static_cast<vertex_t const*>(graph_container.segment_offsets),
+            static_cast<vertex_t const*>(graph_container.segment_offsets) +
+              graph_container.num_segments + 1)
+        : std::nullopt},
     graph_container.do_expensive_check);
 }
 
@@ -191,14 +192,15 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
   return std::make_unique<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelist,
-    static_cast<vertex_t>(graph_container.num_global_vertices),
-    graph_container.graph_props,
-    graph_container.segment_offsets != nullptr
-      ? std::make_optional<std::vector<vertex_t>>(
-          static_cast<vertex_t const*>(graph_container.segment_offsets),
-          static_cast<vertex_t const*>(graph_container.segment_offsets) +
-            graph_container.num_segments + 1)
-      : std::nullopt,
+    graph_meta_t<vertex_t, edge_t, multi_gpu>{
+      static_cast<vertex_t>(graph_container.num_global_vertices),
+      graph_container.graph_props,
+      graph_container.segment_offsets != nullptr
+        ? std::make_optional<std::vector<vertex_t>>(
+            static_cast<vertex_t const*>(graph_container.segment_offsets),
+            static_cast<vertex_t const*>(graph_container.segment_offsets) +
+              graph_container.num_segments + 1)
+        : std::nullopt},
     graph_container.do_expensive_check);
 }
 
@@ -737,7 +739,8 @@ void call_bfs(raft::handle_t const& handle,
               vertex_t* distances,
               vertex_t* predecessors,
               vertex_t depth_limit,
-              const vertex_t start_vertex,
+              vertex_t* sources,
+              size_t n_sources,
               bool direction_optimizing)
 {
   if (graph_container.is_multi_gpu) {
@@ -748,7 +751,8 @@ void call_bfs(raft::handle_t const& handle,
                    graph->view(),
                    reinterpret_cast<int32_t*>(distances),
                    reinterpret_cast<int32_t*>(predecessors),
-                   static_cast<int32_t>(start_vertex),
+                   reinterpret_cast<int32_t*>(sources),
+                   static_cast<size_t>(n_sources),
                    direction_optimizing,
                    static_cast<int32_t>(depth_limit));
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
@@ -758,7 +762,8 @@ void call_bfs(raft::handle_t const& handle,
                    graph->view(),
                    reinterpret_cast<vertex_t*>(distances),
                    reinterpret_cast<vertex_t*>(predecessors),
-                   static_cast<vertex_t>(start_vertex),
+                   reinterpret_cast<vertex_t*>(sources),
+                   static_cast<size_t>(n_sources),
                    direction_optimizing,
                    static_cast<vertex_t>(depth_limit));
     }
@@ -770,7 +775,8 @@ void call_bfs(raft::handle_t const& handle,
                    graph->view(),
                    reinterpret_cast<int32_t*>(distances),
                    reinterpret_cast<int32_t*>(predecessors),
-                   static_cast<int32_t>(start_vertex),
+                   reinterpret_cast<int32_t*>(sources),
+                   static_cast<size_t>(n_sources),
                    direction_optimizing,
                    static_cast<int32_t>(depth_limit));
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
@@ -780,7 +786,8 @@ void call_bfs(raft::handle_t const& handle,
                    graph->view(),
                    reinterpret_cast<vertex_t*>(distances),
                    reinterpret_cast<vertex_t*>(predecessors),
-                   static_cast<vertex_t>(start_vertex),
+                   reinterpret_cast<vertex_t*>(sources),
+                   static_cast<size_t>(n_sources),
                    direction_optimizing,
                    static_cast<vertex_t>(depth_limit));
     }
@@ -1207,20 +1214,16 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
       minor_ptrs[i] = shuffled_edgelist_minor_vertices + displacements[i];
     }
 
-    std::tie(p_ret->get_dv(),
-             p_ret->get_partition(),
-             p_ret->get_num_vertices(),
-             p_ret->get_num_edges(),
-             p_ret->get_segment_offsets()) =
-      cugraph::renumber_edgelist<vertex_t, edge_t, true>(handle,
-                                                         std::nullopt,
-                                                         major_ptrs,
-                                                         minor_ptrs,
-                                                         edge_counts,
-                                                         std::nullopt,
-                                                         do_expensive_check);
+    cugraph::renumber_meta_t<vertex_t, edge_t, true> meta{};
+    std::tie(p_ret->get_dv(), meta) = cugraph::renumber_edgelist<vertex_t, edge_t, true>(
+      handle, std::nullopt, major_ptrs, minor_ptrs, edge_counts, std::nullopt, do_expensive_check);
+    p_ret->get_num_vertices()    = meta.number_of_vertices;
+    p_ret->get_num_edges()       = meta.number_of_edges;
+    p_ret->get_partition()       = meta.partition;
+    p_ret->get_segment_offsets() = meta.segment_offsets;
   } else {
-    std::tie(p_ret->get_dv(), p_ret->get_segment_offsets()) =
+    cugraph::renumber_meta_t<vertex_t, edge_t, false> meta{};
+    std::tie(p_ret->get_dv(), meta) =
       cugraph::renumber_edgelist<vertex_t, edge_t, false>(handle,
                                                           std::nullopt,
                                                           shuffled_edgelist_major_vertices,
@@ -1228,10 +1231,10 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
                                                           edge_counts[0],
                                                           do_expensive_check);
 
-    p_ret->get_partition() = cugraph::partition_t<vertex_t>{};  // dummy
-
-    p_ret->get_num_vertices() = static_cast<vertex_t>(p_ret->get_dv().size());
-    p_ret->get_num_edges()    = edge_counts[0];
+    p_ret->get_num_vertices()    = static_cast<vertex_t>(p_ret->get_dv().size());
+    p_ret->get_num_edges()       = edge_counts[0];
+    p_ret->get_partition()       = cugraph::partition_t<vertex_t>{};  // dummy
+    p_ret->get_segment_offsets() = meta.segment_offsets;
   }
 
   return p_ret;  // RVO-ed (copy ellision)
@@ -1358,7 +1361,8 @@ template void call_bfs<int32_t, float>(raft::handle_t const& handle,
                                        int32_t* distances,
                                        int32_t* predecessors,
                                        int32_t depth_limit,
-                                       const int32_t start_vertex,
+                                       int32_t* sources,
+                                       size_t n_sources,
                                        bool direction_optimizing);
 
 template void call_bfs<int32_t, double>(raft::handle_t const& handle,
@@ -1367,7 +1371,8 @@ template void call_bfs<int32_t, double>(raft::handle_t const& handle,
                                         int32_t* distances,
                                         int32_t* predecessors,
                                         int32_t depth_limit,
-                                        const int32_t start_vertex,
+                                        int32_t* sources,
+                                        size_t n_sources,
                                         bool direction_optimizing);
 
 template void call_bfs<int64_t, float>(raft::handle_t const& handle,
@@ -1376,7 +1381,8 @@ template void call_bfs<int64_t, float>(raft::handle_t const& handle,
                                        int64_t* distances,
                                        int64_t* predecessors,
                                        int64_t depth_limit,
-                                       const int64_t start_vertex,
+                                       int64_t* sources,
+                                       size_t n_sources,
                                        bool direction_optimizing);
 
 template void call_bfs<int64_t, double>(raft::handle_t const& handle,
@@ -1385,7 +1391,8 @@ template void call_bfs<int64_t, double>(raft::handle_t const& handle,
                                         int64_t* distances,
                                         int64_t* predecessors,
                                         int64_t depth_limit,
-                                        const int64_t start_vertex,
+                                        int64_t* sources,
+                                        size_t n_sources,
                                         bool direction_optimizing);
 
 template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, float>(
