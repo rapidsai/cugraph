@@ -655,8 +655,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     auto num_inserts           = num_edge_inserts.value(handle.get_stream_view());
     auto aggregate_num_inserts = num_inserts;
     if (GraphViewType::is_multi_gpu) {
-      auto& comm            = handle.get_comms();
-      aggregate_num_inserts = host_scalar_allreduce(comm, num_inserts, raft::comms::op_t::SUM, handle.get_stream());
+      auto& comm = handle.get_comms();
+      aggregate_num_inserts =
+        host_scalar_allreduce(comm, num_inserts, raft::comms::op_t::SUM, handle.get_stream());
     }
 
     if (aggregate_num_inserts > 0) {
