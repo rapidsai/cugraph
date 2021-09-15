@@ -89,8 +89,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
       auto rx_value_buffer = allocate_dataframe_buffer<
         typename std::iterator_traits<VertexValueInputIterator>::value_type>(max_rx_size,
                                                                              handle.get_stream());
-      auto rx_value_first = get_dataframe_buffer_begin<
-        typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_value_buffer);
+      auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffer);
       for (int i = 0; i < col_comm_size; ++i) {
         device_bcast(col_comm,
                      vertex_value_input_first,
@@ -330,8 +329,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       auto rx_value_buffer = allocate_dataframe_buffer<
         typename std::iterator_traits<VertexValueInputIterator>::value_type>(max_rx_size,
                                                                              handle.get_stream());
-      auto rx_value_first = get_dataframe_buffer_begin<
-        typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_value_buffer);
+      auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffer);
       for (int i = 0; i < row_comm_size; ++i) {
         device_bcast(row_comm,
                      vertex_value_input_first,
