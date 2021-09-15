@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/graph_view.hpp>
+#include <cugraph/matrix_partition_view.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
@@ -63,6 +64,9 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
   size_t idx = static_cast<size_t>(tid);
 
   auto dcs_nzd_vertex_count = *(matrix_partition.get_dcs_nzd_vertex_count());
+
+  using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
+  __shared__ typename BlockReduce::TempStorage temp_storage;
 
   property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
@@ -117,9 +121,7 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
     idx += gridDim.x * blockDim.x;
   }
 
-  e_op_result_sum =
-    block_reduce_edge_op_result<e_op_result_t, transform_reduce_e_for_all_block_size>().compute(
-      e_op_result_sum);
+  e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
   if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
 }
 
@@ -148,6 +150,9 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(tid);
+
+  using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
+  __shared__ typename BlockReduce::TempStorage temp_storage;
 
   property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
@@ -202,9 +207,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
     idx += gridDim.x * blockDim.x;
   }
 
-  e_op_result_sum =
-    block_reduce_edge_op_result<e_op_result_t, transform_reduce_e_for_all_block_size>().compute(
-      e_op_result_sum);
+  e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
   if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
 }
 
@@ -236,6 +239,8 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(tid / raft::warp_size());
 
+  using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
+  __shared__ typename BlockReduce::TempStorage temp_storage;
   property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
@@ -276,9 +281,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
     idx += gridDim.x * (blockDim.x / raft::warp_size());
   }
 
-  e_op_result_sum =
-    block_reduce_edge_op_result<e_op_result_t, transform_reduce_e_for_all_block_size>().compute(
-      e_op_result_sum);
+  e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
   if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
 }
 
@@ -307,6 +310,8 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(blockIdx.x);
 
+  using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
+  __shared__ typename BlockReduce::TempStorage temp_storage;
   property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
@@ -347,9 +352,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
     idx += gridDim.x;
   }
 
-  e_op_result_sum =
-    block_reduce_edge_op_result<e_op_result_t, transform_reduce_e_for_all_block_size>().compute(
-      e_op_result_sum);
+  e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
   if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
 }
 
@@ -407,10 +410,11 @@ T transform_reduce_e(raft::handle_t const& handle,
   property_add<T> edge_property_add{};
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(),
-               get_dataframe_buffer_begin<T>(result_buffer),
-               get_dataframe_buffer_begin<T>(result_buffer) + 1,
-               T{});
+  thrust::fill(
+    handle.get_thrust_policy(),
+    get_dataframe_buffer_begin(result_buffer),
+    get_dataframe_buffer_begin(result_buffer) + 1,
+    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{});
 
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     auto matrix_partition =
@@ -442,7 +446,7 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition.get_major_first() + (*segment_offsets)[1],
             matrix_partition_row_value_input,
             matrix_partition_col_value_input,
-            get_dataframe_buffer_begin<T>(result_buffer),
+            get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
       if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
@@ -456,7 +460,7 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition.get_major_first() + (*segment_offsets)[2],
             matrix_partition_row_value_input,
             matrix_partition_col_value_input,
-            get_dataframe_buffer_begin<T>(result_buffer),
+            get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
       if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
@@ -470,7 +474,7 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition.get_major_first() + (*segment_offsets)[3],
             matrix_partition_row_value_input,
             matrix_partition_col_value_input,
-            get_dataframe_buffer_begin<T>(result_buffer),
+            get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
       if (matrix_partition.get_dcs_nzd_vertex_count() &&
@@ -484,7 +488,7 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition.get_major_first() + (*segment_offsets)[3],
             matrix_partition_row_value_input,
             matrix_partition_col_value_input,
-            get_dataframe_buffer_begin<T>(result_buffer),
+            get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
     } else {
@@ -500,15 +504,15 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition.get_major_last(),
             matrix_partition_row_value_input,
             matrix_partition_col_value_input,
-            get_dataframe_buffer_begin<T>(result_buffer),
+            get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
     }
   }
 
   auto result = thrust::reduce(handle.get_thrust_policy(),
-                               get_dataframe_buffer_begin<T>(result_buffer),
-                               get_dataframe_buffer_begin<T>(result_buffer) + 1,
+                               get_dataframe_buffer_begin(result_buffer),
+                               get_dataframe_buffer_begin(result_buffer) + 1,
                                T{},
                                edge_property_add);
 
@@ -516,7 +520,7 @@ T transform_reduce_e(raft::handle_t const& handle,
     result = host_scalar_allreduce(handle.get_comms(), result, handle.get_stream());
   }
 
-  return edge_property_add(init, result);
+  return result;
 }
 
 }  // namespace cugraph

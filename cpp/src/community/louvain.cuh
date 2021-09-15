@@ -515,15 +515,14 @@ class Louvain {
       detail::key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
       detail::reduce_op_t<vertex_t, weight_t>{},
       thrust::make_tuple(vertex_t{-1}, weight_t{0}),
-      cugraph::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(output_buffer));
+      cugraph::get_dataframe_buffer_begin(output_buffer));
 
-    thrust::transform(
-      handle_.get_thrust_policy(),
-      next_clusters_v_.begin(),
-      next_clusters_v_.end(),
-      cugraph::get_dataframe_buffer_begin<thrust::tuple<vertex_t, weight_t>>(output_buffer),
-      next_clusters_v_.begin(),
-      detail::cluster_update_op_t<vertex_t, weight_t>{up_down});
+    thrust::transform(handle_.get_thrust_policy(),
+                      next_clusters_v_.begin(),
+                      next_clusters_v_.end(),
+                      cugraph::get_dataframe_buffer_begin(output_buffer),
+                      next_clusters_v_.begin(),
+                      detail::cluster_update_op_t<vertex_t, weight_t>{up_down});
 
     if constexpr (graph_view_t::is_multi_gpu) {
       copy_to_adj_matrix_row(

@@ -48,8 +48,3 @@ Other BLOGS
 * `Where should I walk <https://towardsdatascience.com/where-should-i-walk-e66b26735de5>`_
 * `Where really are the parking spots? <https://towardsdatascience.com/where-really-are-the-parking-spots-ed6a1129035e>`_
 * `Accelerating Single Cell Genomic Analysis using RAPIDS <https://developer.nvidia.com/blog/accelerating-single-cell-genomic-analysis-using-rapids/>`_
-
-
-
-
-Copyright (c) 2020, NVIDIA CORPORATION.

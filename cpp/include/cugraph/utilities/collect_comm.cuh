@@ -143,8 +143,7 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
     thrust::distance(collect_key_first, collect_key_last), stream_view);
-  kv_map_ptr->find(
-    collect_key_first, collect_key_last, get_dataframe_buffer_begin<value_t>(value_buffer));
+  kv_map_ptr->find(collect_key_first, collect_key_last, get_dataframe_buffer_begin(value_buffer));
 
   return value_buffer;
 }
@@ -254,9 +253,8 @@ collect_values_for_unique_keys(raft::comms::comms_t const& comm,
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
     thrust::distance(collect_unique_key_first, collect_unique_key_last), stream_view);
-  kv_map_ptr->find(collect_unique_key_first,
-                   collect_unique_key_last,
-                   get_dataframe_buffer_begin<value_t>(value_buffer));
+  kv_map_ptr->find(
+    collect_unique_key_first, collect_unique_key_last, get_dataframe_buffer_begin(value_buffer));
 
   return value_buffer;
 }

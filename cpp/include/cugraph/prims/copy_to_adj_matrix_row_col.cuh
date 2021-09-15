@@ -194,8 +194,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
     auto rx_tmp_buffer = allocate_dataframe_buffer<
       typename std::iterator_traits<VertexValueInputIterator>::value_type>(max_rx_size,
                                                                            handle.get_stream());
-    auto rx_value_first = get_dataframe_buffer_begin<
-      typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
+    auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
     auto key_offsets = GraphViewType::is_adj_matrix_transposed
                          ? graph_view.get_local_sorted_unique_edge_col_offsets()
@@ -436,8 +435,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
     auto rx_tmp_buffer = allocate_dataframe_buffer<
       typename std::iterator_traits<VertexValueInputIterator>::value_type>(max_rx_size,
                                                                            handle.get_stream());
-    auto rx_value_first = get_dataframe_buffer_begin<
-      typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
+    auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
     auto key_offsets = GraphViewType::is_adj_matrix_transposed
                          ? graph_view.get_local_sorted_unique_edge_row_offsets()
