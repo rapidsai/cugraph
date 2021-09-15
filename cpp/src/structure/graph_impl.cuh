@@ -282,8 +282,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                          major_first, major_last, minor_first, minor_last}) == 0,
                       "Invalid input argument: edgelists[] have out-of-range values.");
     }
-    auto number_of_local_edges_sum =
-      host_scalar_allreduce(comm, number_of_local_edges, default_stream_view.value());
+    auto number_of_local_edges_sum = host_scalar_allreduce(
+      comm, number_of_local_edges, raft::comms::op_t::SUM, default_stream_view.value());
     CUGRAPH_EXPECTS(number_of_local_edges_sum == this->get_number_of_edges(),
                     "Invalid input argument: the sum of local edge counts does not match with "
                     "meta.number_of_edges.");

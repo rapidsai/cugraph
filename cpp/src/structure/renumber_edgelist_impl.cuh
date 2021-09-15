@@ -680,6 +680,7 @@ renumber_edgelist(
   auto number_of_edges    = host_scalar_allreduce(
     comm,
     std::accumulate(edgelist_edge_counts.begin(), edgelist_edge_counts.end(), edge_t{0}),
+    raft::comms::op_t::SUM,
     handle.get_stream());
 
   // 3. renumber edges
