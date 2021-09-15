@@ -71,7 +71,11 @@ void rw_visitor<vertex_t,
     auto tpl_result = random_walks(
       handle, gview, p_d_start, num_paths, max_depth, use_padding, std::move(p_uniq_params));
 
-    result_ = return_t{std::move(tpl_result)};
+    auto tpl_erased_result = std::make_tuple(std::get<0>(tpl_result).release(),
+                                             std::get<1>(tpl_result).release(),
+                                             std::get<2>(tpl_result).release());
+
+    result_ = return_t{std::move(tpl_erased_result)};
   } else {
     CUGRAPH_FAIL(
       "Unsupported RandomWalks algorithm (store_transposed == true or multi_gpu == true).");

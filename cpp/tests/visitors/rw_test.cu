@@ -87,10 +87,16 @@ class Tests_RW_Visitor : public ::testing::TestWithParam<RandomWalks_Usecase> {
   void run_current_test(RandomWalks_Usecase const& configuration)
   {
     using namespace cugraph::visitors;
-    using index_t      = edge_t;
-    using algo_ret_t   = std::tuple<rmm::device_uvector<vertex_t>,
+    using index_t = edge_t;
+
+#ifdef _USE_UNERASED_RW_RET_
+    using algo_ret_t = std::tuple<rmm::device_uvector<vertex_t>,
                                   rmm::device_uvector<weight_t>,
                                   rmm::device_uvector<index_t>>;
+#else
+    using algo_ret_t = std::tuple<rmm::device_buffer, rmm::device_buffer, rmm::device_buffer>;
+#endif
+
     using ptr_params_t = std::unique_ptr<cugraph::sampling_params_t>;
 
     raft::handle_t handle{};
@@ -186,10 +192,33 @@ class Tests_RW_Visitor : public ::testing::TestWithParam<RandomWalks_Usecase> {
     // unpack type-erased result:
     //
     auto&& ret_tuple = ret.get<algo_ret_t>();
+
     // check results:
     //
+#ifdef _USE_UNERASED_RW_RET_
     bool test_all_paths = cugraph::test::host_check_rw_paths(
       handle, graph_view, std::get<0>(ret_tuple), std::get<1>(ret_tuple), std::get<2>(ret_tuple));
+#else
+    rmm::device_buffer const& d_buf_vertices = std::get<0>(ret_tuple);
+    size_t num_path_vertices                 = d_buf_vertices.size() / sizeof(vertex_t);
+
+    rmm::device_buffer const& d_buf_weights = std::get<1>(ret_tuple);
+    size_t num_path_edges                   = d_buf_weights.size() / sizeof(weight_t);
+
+    rmm::device_buffer const& d_buf_sizes = std::get<2>(ret_tuple);
+    size_t path_sizes                     = d_buf_sizes.size() / sizeof(index_t);
+
+    bool test_all_paths =
+      cugraph::test::host_check_rw_paths(handle,
+                                         graph_view,
+                                         static_cast<vertex_t const*>(d_buf_vertices.data()),
+                                         num_path_vertices,
+                                         static_cast<weight_t const*>(d_buf_weights.data()),
+                                         num_path_edges,
+                                         static_cast<index_t const*>(d_buf_sizes.data()),
+                                         path_sizes,
+                                         0);
+#endif
 
     ASSERT_TRUE(test_all_paths);
   }
