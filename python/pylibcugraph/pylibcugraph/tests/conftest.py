@@ -11,25 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-from pathlib import Path
-
-import cudf
+import pytest
 
 
-RAPIDS_DATASET_ROOT_DIR = os.getenv("RAPIDS_DATASET_ROOT_DIR", "../datasets")
-RAPIDS_DATASET_ROOT_DIR_PATH = Path(RAPIDS_DATASET_ROOT_DIR)
-
-
-DATASETS = [RAPIDS_DATASET_ROOT_DIR_PATH/f for f in [
-    "karate.csv",
-    "dolphins.csv"]]
-
-
-def read_csv_file(csv_file, weights_dtype="float32"):
-    return cudf.read_csv(
-        csv_file,
-        delimiter=" ",
-        dtype=["int32", "int32", weights_dtype],
-        header=None,
-    )
+@pytest.fixture
+def package_under_test():
+    """
+    Create a fixture to import the package under test.  This is useful since
+    bugs that prevent the package under test from being imported will not
+    prevent pytest from collecting, listing, running, etc. the tests.
+    """
+    import pylibcugraph
+    return pylibcugraph
