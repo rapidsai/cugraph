@@ -59,7 +59,7 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
                      vertex_value_input_first + graph_view.get_number_of_local_vertices(),
                      v_op);
   if (GraphViewType::is_multi_gpu) {
-    count = host_scalar_allreduce(handle.get_comms(), count, handle.get_stream());
+    count = host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());
   }
   return count;
 }
@@ -94,7 +94,7 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
 {
   auto count = thrust::count_if(handle.get_thrust_policy(), input_first, input_last, v_op);
   if (GraphViewType::is_multi_gpu) {
-    count = host_scalar_allreduce(handle.get_comms(), count, handle.get_stream());
+    count = host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());
   }
   return count;
 }

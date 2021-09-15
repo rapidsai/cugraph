@@ -71,7 +71,8 @@ void bfs(raft::handle_t const& handle,
 
   auto aggregate_n_sources =
     GraphViewType::is_multi_gpu
-      ? host_scalar_allreduce(handle.get_comms(), n_sources, handle.get_stream())
+      ? host_scalar_allreduce(
+          handle.get_comms(), n_sources, raft::comms::op_t::SUM, handle.get_stream())
       : n_sources;
   CUGRAPH_EXPECTS(aggregate_n_sources > 0,
                   "Invalid input argument: input should have at least one source");
