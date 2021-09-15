@@ -460,7 +460,9 @@ coarsen_graph(
         meta.number_of_edges,
         graph_properties_t{graph_view.is_symmetric(), false},
         meta.partition,
-        meta.segment_offsets}),
+        meta.segment_offsets,
+        store_transposed ? meta.num_local_unique_edge_minors : meta.num_local_unique_edge_majors,
+        store_transposed ? meta.num_local_unique_edge_majors : meta.num_local_unique_edge_minors}),
     std::move(renumber_map_labels));
 }
 
