@@ -413,10 +413,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto max_major_properties_fill_ratio = host_scalar_allreduce(
     comm,
     static_cast<double>(num_local_unique_edge_majors) / static_cast<double>(aggregate_major_size),
+    raft::comms::op_t::MAX,
     handle.get_stream());
   auto max_minor_properties_fill_ratio = host_scalar_allreduce(
     comm,
     static_cast<double>(num_local_unique_edge_minors) / static_cast<double>(minor_size),
+    raft::comms::op_t::MAX,
     handle.get_stream());
 
   if (max_major_properties_fill_ratio < detail::row_col_properties_kv_pair_fill_ratio_threshold) {
