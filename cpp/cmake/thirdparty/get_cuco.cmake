@@ -16,12 +16,8 @@
 
 function(find_and_configure_cuco VERSION)
 
-    if(TARGET cuco::cuco)
-      return()
-    endif()
-
     rapids_cpm_find(cuco ${VERSION}
-      GLOBAL_TARGETS cuco cuco::cuco
+      GLOBAL_TARGETS cuco::cuco
       CPM_ARGS
         GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
         GIT_TAG        b1fea0cbe4c384160740af00f7c8760846539abb
@@ -30,7 +26,9 @@ function(find_and_configure_cuco VERSION)
                        "BUILD_EXAMPLES OFF"
     )
 
-    add_library(cuco::cuco ALIAS cuco)
+    if(TARGET cuco AND NOT TARGET cuco::cuco)
+      add_library(cuco::cuco ALIAS cuco)
+    endif()
 
 endfunction()
 

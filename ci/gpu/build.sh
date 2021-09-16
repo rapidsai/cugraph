@@ -83,7 +83,7 @@ conda config --show-sources
 conda list --show-channel-urls
 
 ################################################################################
-# BUILD - Build libcugraph and cuGraph from source
+# BUILD
 ################################################################################
 
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
@@ -113,7 +113,7 @@ else
 fi
 
 ################################################################################
-# TEST - Run GoogleTest and py.tests for libcugraph and cuGraph
+# TEST
 ################################################################################
 
 # Switch to +e to allow failing commands to continue the script, which is needed

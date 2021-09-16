@@ -216,18 +216,16 @@ auto shuffle_values(raft::comms::comms_t const& comm,
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
-  device_multicast_sendrecv(
-    comm,
-    tx_value_first,
-    tx_counts,
-    tx_offsets,
-    tx_dst_ranks,
-    get_dataframe_buffer_begin<typename std::iterator_traits<TxValueIterator>::value_type>(
-      rx_value_buffer),
-    rx_counts,
-    rx_offsets,
-    rx_src_ranks,
-    stream_view);
+  device_multicast_sendrecv(comm,
+                            tx_value_first,
+                            tx_counts,
+                            tx_offsets,
+                            tx_dst_ranks,
+                            get_dataframe_buffer_begin(rx_value_buffer),
+                            rx_counts,
+                            rx_offsets,
+                            rx_src_ranks,
+                            stream_view);
 
   if (rx_counts.size() < static_cast<size_t>(comm_size)) {
     std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
@@ -268,18 +266,16 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const& comm,
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
-  device_multicast_sendrecv(
-    comm,
-    tx_value_first,
-    tx_counts,
-    tx_offsets,
-    tx_dst_ranks,
-    get_dataframe_buffer_begin<typename std::iterator_traits<ValueIterator>::value_type>(
-      rx_value_buffer),
-    rx_counts,
-    rx_offsets,
-    rx_src_ranks,
-    stream_view);
+  device_multicast_sendrecv(comm,
+                            tx_value_first,
+                            tx_counts,
+                            tx_offsets,
+                            tx_dst_ranks,
+                            get_dataframe_buffer_begin(rx_value_buffer),
+                            rx_counts,
+                            rx_offsets,
+                            rx_src_ranks,
+                            stream_view);
 
   if (rx_counts.size() < static_cast<size_t>(comm_size)) {
     std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
@@ -335,18 +331,16 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
-  device_multicast_sendrecv(
-    comm,
-    tx_value_first,
-    tx_counts,
-    tx_offsets,
-    tx_dst_ranks,
-    get_dataframe_buffer_begin<typename std::iterator_traits<ValueIterator>::value_type>(
-      rx_value_buffer),
-    rx_counts,
-    rx_offsets,
-    rx_src_ranks,
-    stream_view);
+  device_multicast_sendrecv(comm,
+                            tx_value_first,
+                            tx_counts,
+                            tx_offsets,
+                            tx_dst_ranks,
+                            get_dataframe_buffer_begin(rx_value_buffer),
+                            rx_counts,
+                            rx_offsets,
+                            rx_src_ranks,
+                            stream_view);
 
   if (rx_counts.size() < static_cast<size_t>(comm_size)) {
     std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
