@@ -68,18 +68,6 @@ def compare_jaccard_two_hop(G, Gnx):
         assert diff < 1.0e-6
 
 
-def read_csv(graph_file, read_csv_cu=False):
-    """
-    Read csv file for both networkx and cugraph
-    """
-    M = utils.read_csv_for_nx(graph_file)
-    if read_csv_cu:
-        cu_M = utils.read_csv_file(graph_file)
-        return M, cu_M
-    else:
-        return M
-
-
 def cugraph_call(benchmark_callable, cu_M, edgevals=False):
     G = cugraph.Graph()
     if edgevals is True:
@@ -133,10 +121,23 @@ def networkx_call(M, benchmark_callable=None):
     return src, dst, coeff
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_jaccard(gpubenchmark, graph_file):
+# =============================================================================
+# Pytest Fixtures
+# =============================================================================
+@pytest.fixture(scope="module", params=utils.DATASETS_UNDIRECTED)
+def read_csv(request):
+    """
+    Read csv file for both networkx and cugraph
+    """
+    M = utils.read_csv_for_nx(request.param)
+    cu_M = utils.read_csv_file(request.param)
+    
+    return M, cu_M
 
-    M, cu_M = read_csv(graph_file, read_csv_cu=True)
+
+def test_jaccard(read_csv, gpubenchmark):
+
+    M, cu_M = read_csv
     cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, cu_M)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
@@ -153,10 +154,9 @@ def test_jaccard(gpubenchmark, graph_file):
     assert err == 0
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_nx_jaccard_time(gpubenchmark, graph_file):
+def test_nx_jaccard_time(read_csv, gpubenchmark):
 
-    M = read_csv(graph_file)
+    M, _ = read_csv
     nx_src, nx_dst, nx_coeff = networkx_call(M, gpubenchmark)
 
 
@@ -166,7 +166,8 @@ def test_nx_jaccard_time(gpubenchmark, graph_file):
 )
 def test_jaccard_edgevals(gpubenchmark, graph_file):
 
-    M, cu_M = read_csv(graph_file, read_csv_cu=True)
+    M = utils.read_csv_for_nx(graph_file)
+    cu_M = utils.read_csv_file(graph_file)
     cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, cu_M, edgevals=True)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
@@ -183,10 +184,9 @@ def test_jaccard_edgevals(gpubenchmark, graph_file):
     assert err == 0
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_jaccard_two_hop(graph_file):
+def test_jaccard_two_hop(read_csv):
 
-    M, cu_M = read_csv(graph_file, read_csv_cu=True)
+    M, cu_M = read_csv
 
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.Graph()
@@ -197,10 +197,9 @@ def test_jaccard_two_hop(graph_file):
     compare_jaccard_two_hop(G, Gnx)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_jaccard_two_hop_edge_vals(graph_file):
+def test_jaccard_two_hop_edge_vals(read_csv):
 
-    M, cu_M = read_csv(graph_file, read_csv_cu=True)
+    M, cu_M = read_csv
 
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
@@ -211,10 +210,9 @@ def test_jaccard_two_hop_edge_vals(graph_file):
     compare_jaccard_two_hop(G, Gnx)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_jaccard_nx(graph_file):
+def test_jaccard_nx(read_csv):
 
-    M = read_csv(graph_file)
+    M, _ = read_csv
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.Graph()
     )
@@ -231,10 +229,9 @@ def test_jaccard_nx(graph_file):
     # assert nx_j == cg_j
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_jaccard_multi_column(graph_file):
+def test_jaccard_multi_column(read_csv):
 
-    M = read_csv(graph_file)
+    M, _ = read_csv
 
     cu_M = cudf.DataFrame()
     cu_M["src_0"] = cudf.Series(M["0"])
