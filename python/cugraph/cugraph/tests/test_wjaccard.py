@@ -42,21 +42,6 @@ def setup_function():
     gc.collect()
 
 
-# =============================================================================
-# Helper functions
-# =============================================================================
-def read_csv(graph_file, read_csv_cu=False):
-    """
-    Read csv file for both networkx and cugraph
-    """
-    M = utils.read_csv_for_nx(graph_file)
-    if read_csv_cu:
-        cu_M = utils.read_csv_file(graph_file)
-        return M, cu_M
-    else:
-        return M
-
-
 def cugraph_call(benchmark_callable, cu_M):
     # Device data
     weight_arr = cudf.Series(
@@ -108,10 +93,23 @@ def networkx_call(M, benchmark_callable=None):
     return coeff
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_wjaccard(gpubenchmark, graph_file):
+# =============================================================================
+# Pytest Fixtures
+# =============================================================================
+@pytest.fixture(scope="module", params=utils.DATASETS_UNDIRECTED)
+def read_csv(request):
+    """
+    Read csv file for both networkx and cugraph
+    """
+    M = utils.read_csv_for_nx(request.param)
+    cu_M = utils.read_csv_file(request.param)
 
-    M, cu_M = read_csv(graph_file, read_csv_cu=True)
+    return M, cu_M
+
+
+def test_wjaccard(gpubenchmark, read_csv):
+
+    M, cu_M = read_csv
 
     cu_coeff = cugraph_call(gpubenchmark, cu_M)
     nx_coeff = networkx_call(M)
@@ -120,17 +118,15 @@ def test_wjaccard(gpubenchmark, graph_file):
         assert diff < 1.0e-6
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_nx_wjaccard_time(gpubenchmark, graph_file):
+def test_nx_wjaccard_time(gpubenchmark, read_csv):
 
-    M = read_csv(graph_file)
+    M, _ = read_csv
     networkx_call(M, gpubenchmark)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_wjaccard_multi_column_weights(gpubenchmark, graph_file):
+def test_wjaccard_multi_column_weights(gpubenchmark, read_csv):
 
-    M, cu_M = read_csv(graph_file, read_csv_cu=True)
+    M, cu_M = read_csv
 
     cu_coeff = cugraph_call(gpubenchmark, cu_M)
     nx_coeff = networkx_call(M)
@@ -139,10 +135,9 @@ def test_wjaccard_multi_column_weights(gpubenchmark, graph_file):
         assert diff < 1.0e-6
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_wjaccard_multi_column(graph_file):
+def test_wjaccard_multi_column(read_csv):
 
-    M = read_csv(graph_file)
+    M, _ = read_csv
 
     cu_M = cudf.DataFrame()
     cu_M["src_0"] = cudf.Series(M["0"])
