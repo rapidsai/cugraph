@@ -27,7 +27,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 21.10.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 21.12.00 LANGUAGES C CXX CUDA)
 
 # Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
 # cuhornet currently doesn't support
