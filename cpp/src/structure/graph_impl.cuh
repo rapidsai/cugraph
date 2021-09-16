@@ -264,7 +264,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   // optional expensive checks (part 1/2)
 
   if (do_expensive_check) {
-    edge_t number_of_local_edges{};
+    edge_t number_of_local_edges{0};
     for (size_t i = 0; i < edgelists.size(); ++i) {
       auto [major_first, major_last] = partition_.get_matrix_partition_major_range(i);
       auto [minor_first, minor_last] = partition_.get_matrix_partition_minor_range();
@@ -306,6 +306,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                    p_minors,
                    p_minors + edgelists[i].number_of_edges,
                    minors.begin() + cur_size);
+      cur_size += edgelists[i].number_of_edges;
     }
     thrust::sort(handle.get_thrust_policy(), majors.begin(), majors.end());
     thrust::sort(handle.get_thrust_policy(), minors.begin(), minors.end());
@@ -315,14 +316,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       minors.begin(), thrust::unique(handle.get_thrust_policy(), minors.begin(), minors.end())));
     if constexpr (store_transposed) {
       CUGRAPH_EXPECTS(num_local_unique_edge_majors == meta.num_local_unique_edge_cols,
-                      "Invalid input argument: num_unique_edge_cols is erroneous.");
+                      "Invalid input argument: num_local_unique_edge_cols is erroneous.");
       CUGRAPH_EXPECTS(num_local_unique_edge_minors == meta.num_local_unique_edge_rows,
-                      "Invalid input argument: num_unique_edge_rows is erroneous.");
+                      "Invalid input argument: num_local_unique_edge_rows is erroneous.");
     } else {
       CUGRAPH_EXPECTS(num_local_unique_edge_majors == meta.num_local_unique_edge_rows,
-                      "Invalid input argument: num_unique_edge_rows is erroneous.");
+                      "Invalid input argument: num_local_unique_edge_rows is erroneous.");
       CUGRAPH_EXPECTS(num_local_unique_edge_minors == meta.num_local_unique_edge_cols,
-                      "Invalid input argument: num_unique_edge_cols is erroneous.");
+                      "Invalid input argument: num_local_unique_edge_cols is erroneous.");
     }
   }
 
