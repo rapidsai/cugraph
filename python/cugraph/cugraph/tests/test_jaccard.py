@@ -131,7 +131,7 @@ def read_csv(request):
     """
     M = utils.read_csv_for_nx(request.param)
     cu_M = utils.read_csv_file(request.param)
-    
+
     return M, cu_M
 
 
