@@ -15,6 +15,7 @@ from cugraph.link_prediction import overlap_wrapper
 import cudf
 from cugraph.utilities import renumber_vertex_pair
 
+
 def overlap_w(input_graph, weights, vertex_pair=None):
     """
     Compute the weighted Overlap Coefficient between each pair of vertices
@@ -64,7 +65,12 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
-    >>> df = cugraph.overlap_w(G, M[2])
+    >>> weights = cudf.DataFrame()
+    >>> weights['vertex']=G.nodes().sample(n=10).drop_duplicates()
+    >>> weights.reset_index(inplace=True, drop=True)
+    >>> weights['weight']=[random.random() for w in range(
+    >>>                    len(weights['vertex']))]
+    >>> df = cugraph.overlap_w(G, weights)
     """
 
     if type(vertex_pair) == cudf.DataFrame:
@@ -97,5 +103,3 @@ def overlap_w(input_graph, weights, vertex_pair=None):
         df = input_graph.unrenumber(df, "destination")
 
     return df
-
-

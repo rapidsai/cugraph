@@ -104,4 +104,3 @@ def overlap(input_graph, vertex_pair=None):
         df = input_graph.unrenumber(df, "destination")
 
     return df
-

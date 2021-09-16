@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-import time
 
 import numpy as np
 import pytest
@@ -36,7 +35,29 @@ with warnings.catch_warnings():
 print("Networkx version : {} ".format(nx.__version__))
 
 
-def cugraph_call(cu_M):
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
+# =============================================================================
+# Helper functions
+# =============================================================================
+def read_csv(graph_file, read_csv_cu=False):
+    """
+    Read csv file for both networkx and cugraph
+    """
+    M = utils.read_csv_for_nx(graph_file)
+    if read_csv_cu:
+        cu_M = utils.read_csv_file(graph_file)
+        return M, cu_M
+    else:
+        return M
+
+
+def cugraph_call(benchmark_callable, cu_M):
     # Device data
     weight_arr = cudf.Series(
         np.ones(max(cu_M["0"].max(), cu_M["1"].max()) + 1, dtype=np.float32)
@@ -49,17 +70,14 @@ def cugraph_call(cu_M):
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     # cugraph Jaccard Call
-    t1 = time.time()
-    df = cugraph.jaccard_w(G, weights)
-    t2 = time.time() - t1
-    print("Time : " + str(t2))
+    df = benchmark_callable(cugraph.jaccard_w, G, weights)
 
     df = df.sort_values(["source", "destination"]).reset_index(drop=True)
 
     return df["jaccard_coeff"]
 
 
-def networkx_call(M):
+def networkx_call(M, benchmark_callable=None):
 
     sources = M["0"]
     destinations = M["1"]
@@ -79,11 +97,11 @@ def networkx_call(M):
     )
     # Networkx Jaccard Call
     print("Solving... ")
-    t1 = time.time()
-    preds = nx.jaccard_coefficient(Gnx, edges)
-    t2 = time.time() - t1
+    if benchmark_callable is not None:
+        preds = benchmark_callable(nx.jaccard_coefficient, Gnx, edges)
+    else:
+        preds = nx.jaccard_coefficient(Gnx, edges)
 
-    print("Time : " + str(t2))
     coeff = []
     for u, v, p in preds:
         coeff.append(p)
@@ -91,14 +109,11 @@ def networkx_call(M):
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_wjaccard(graph_file):
-    gc.collect()
+def test_wjaccard(gpubenchmark, graph_file):
 
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
-    # suppress F841 (local variable is assigned but never used) in flake8
-    # no networkX equivalent to compare cu_coeff against...
-    cu_coeff = cugraph_call(cu_M)  # noqa: F841
+    M, cu_M = read_csv(graph_file, read_csv_cu=True)
+
+    cu_coeff = cugraph_call(gpubenchmark, cu_M)
     nx_coeff = networkx_call(M)
     for i in range(len(cu_coeff)):
         diff = abs(nx_coeff[i] - cu_coeff[i])
@@ -106,14 +121,18 @@ def test_wjaccard(graph_file):
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_wjaccard_multi_column_weights(graph_file):
-    gc.collect()
+def test_nx_wjaccard_time(gpubenchmark, graph_file):
 
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
-    # suppress F841 (local variable is assigned but never used) in flake8
-    # no networkX equivalent to compare cu_coeff against...
-    cu_coeff = cugraph_call(cu_M)  # noqa: F841
+    M = read_csv(graph_file)
+    networkx_call(M, gpubenchmark)
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_wjaccard_multi_column_weights(gpubenchmark, graph_file):
+
+    M, cu_M = read_csv(graph_file, read_csv_cu=True)
+
+    cu_coeff = cugraph_call(gpubenchmark, cu_M)
     nx_coeff = networkx_call(M)
     for i in range(len(cu_coeff)):
         diff = abs(nx_coeff[i] - cu_coeff[i])
@@ -122,9 +141,8 @@ def test_wjaccard_multi_column_weights(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_wjaccard_multi_column(graph_file):
-    gc.collect()
 
-    M = utils.read_csv_for_nx(graph_file)
+    M = read_csv(graph_file)
 
     cu_M = cudf.DataFrame()
     cu_M["src_0"] = cudf.Series(M["0"])

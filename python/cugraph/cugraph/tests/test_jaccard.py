@@ -33,11 +33,52 @@ with warnings.catch_warnings():
 
 print("Networkx version : {} ".format(nx.__version__))
 
+
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
 def setup_function():
     gc.collect()
+
+
+# =============================================================================
+# Helper functions
+# =============================================================================
+def compare_jaccard_two_hop(G, Gnx):
+    """
+    Compute both cugraph and nx jaccard after extracting the two hop neighbors
+    from G and compare both results
+    """
+    pairs = (
+        G.get_two_hop_neighbors()
+        .sort_values(["first", "second"])
+        .reset_index(drop=True)
+    )
+
+    nx_pairs = list(pairs.to_records(index=False))
+    preds = nx.jaccard_coefficient(Gnx, nx_pairs)
+    nx_coeff = []
+    for u, v, p in preds:
+        nx_coeff.append(p)
+    df = cugraph.jaccard(G, pairs)
+    df = df.sort_values(by=["source", "destination"]).reset_index(drop=True)
+    assert len(nx_coeff) == len(df)
+    for i in range(len(df)):
+        diff = abs(nx_coeff[i] - df["jaccard_coeff"].iloc[i])
+        assert diff < 1.0e-6
+
+
+def read_csv(graph_file, read_csv_cu=False):
+    """
+    Read csv file for both networkx and cugraph
+    """
+    M = utils.read_csv_for_nx(graph_file)
+    if read_csv_cu:
+        cu_M = utils.read_csv_file(graph_file)
+        return M, cu_M
+    else:
+        return M
+
 
 def cugraph_call(benchmark_callable, cu_M, edgevals=False):
     G = cugraph.Graph()
@@ -95,8 +136,7 @@ def networkx_call(M, benchmark_callable=None):
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard(gpubenchmark, graph_file):
 
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
+    M, cu_M = read_csv(graph_file, read_csv_cu=True)
     cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, cu_M)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
@@ -112,10 +152,11 @@ def test_jaccard(gpubenchmark, graph_file):
     print("Mismatches:  %d" % err)
     assert err == 0
 
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_nx_jaccard_time(gpubenchmark, graph_file):
 
-    M = utils.read_csv_for_nx(graph_file)
+    M = read_csv(graph_file)
     nx_src, nx_dst, nx_coeff = networkx_call(M, gpubenchmark)
 
 
@@ -125,8 +166,7 @@ def test_nx_jaccard_time(gpubenchmark, graph_file):
 )
 def test_jaccard_edgevals(gpubenchmark, graph_file):
 
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
+    M, cu_M = read_csv(graph_file, read_csv_cu=True)
     cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, cu_M, edgevals=True)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
@@ -146,39 +186,21 @@ def test_jaccard_edgevals(gpubenchmark, graph_file):
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_two_hop(graph_file):
 
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
+    M, cu_M = read_csv(graph_file, read_csv_cu=True)
 
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.Graph()
     )
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
-    pairs = (
-        G.get_two_hop_neighbors()
-        .sort_values(["first", "second"])
-        .reset_index(drop=True)
-    )
-    nx_pairs = []
-    for i in range(len(pairs)):
-        nx_pairs.append((pairs["first"].iloc[i], pairs["second"].iloc[i]))
-    preds = nx.jaccard_coefficient(Gnx, nx_pairs)
-    nx_coeff = []
-    for u, v, p in preds:
-        nx_coeff.append(p)
-    df = cugraph.jaccard(G, pairs)
-    df = df.sort_values(by=["source", "destination"]).reset_index(drop=True)
-    assert len(nx_coeff) == len(df)
-    for i in range(len(df)):
-        diff = abs(nx_coeff[i] - df["jaccard_coeff"].iloc[i])
-        assert diff < 1.0e-6
+
+    compare_jaccard_two_hop(G, Gnx)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_two_hop_edge_vals(graph_file):
 
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
+    M, cu_M = read_csv(graph_file, read_csv_cu=True)
 
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
@@ -186,31 +208,13 @@ def test_jaccard_two_hop_edge_vals(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
 
-    pairs = (
-        G.get_two_hop_neighbors()
-        .sort_values(["first", "second"])
-        .reset_index(drop=True)
-    )
-
-    nx_pairs = []
-    for i in range(len(pairs)):
-        nx_pairs.append((pairs["first"].iloc[i], pairs["second"].iloc[i]))
-    preds = nx.jaccard_coefficient(Gnx, nx_pairs)
-    nx_coeff = []
-    for u, v, p in preds:
-        nx_coeff.append(p)
-    df = cugraph.jaccard(G, pairs)
-    df = df.sort_values(by=["source", "destination"]).reset_index(drop=True)
-    assert len(nx_coeff) == len(df)
-    for i in range(len(df)):
-        diff = abs(nx_coeff[i] - df["jaccard_coeff"].iloc[i])
-        assert diff < 1.0e-6
+    compare_jaccard_two_hop(G, Gnx)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_nx(graph_file):
 
-    M = utils.read_csv_for_nx(graph_file)
+    M = read_csv(graph_file)
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.Graph()
     )
@@ -230,7 +234,7 @@ def test_jaccard_nx(graph_file):
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_multi_column(graph_file):
 
-    M = utils.read_csv_for_nx(graph_file)
+    M = read_csv(graph_file)
 
     cu_M = cudf.DataFrame()
     cu_M["src_0"] = cudf.Series(M["0"])
@@ -253,4 +257,3 @@ def test_jaccard_multi_column(graph_file):
 
     # Calculating mismatch
     assert df_res["jaccard_coeff"].equals(df_exp["jaccard_coeff"])
-

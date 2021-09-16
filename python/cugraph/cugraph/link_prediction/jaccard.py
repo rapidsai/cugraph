@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cudf
-from cugraph.structure.graph_classes import Graph, DiGraph
+from cugraph.structure.graph_classes import DiGraph
 from cugraph.link_prediction import jaccard_wrapper
 from cugraph.utilities import check_nx_graph
 from cugraph.utilities import df_edge_score_to_dictionary
@@ -184,4 +184,3 @@ def jaccard_coefficient(G, ebunch=None):
                                          dst="destination")
 
     return df
-

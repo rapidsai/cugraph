@@ -11,10 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph_classes import Graph, DiGraph
+from cugraph.structure.graph_classes import DiGraph
 from cugraph.link_prediction import jaccard_wrapper
 import cudf
 from cugraph.utilities import renumber_vertex_pair
+
 
 def sorensen_w(input_graph, weights, vertex_pair=None):
     """
@@ -67,7 +68,12 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
-    >>> df = cugraph.sorensen_w(G, M['2'])
+    >>> weights = cudf.DataFrame()
+    >>> weights['vertex']=G.nodes().sample(n=10).drop_duplicates()
+    >>> weights.reset_index(inplace=True, drop=True)
+    >>> weights['weight']=[random.random() for w in range(
+    >>>                    len(weights['vertex']))]
+    >>> df = cugraph.sorensen_w(G, weights)
     """
     if type(input_graph) is DiGraph:
         raise TypeError("input graph must a Graph")
@@ -101,5 +107,3 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
         df = input_graph.unrenumber(df, "destination")
 
     return df
-
-

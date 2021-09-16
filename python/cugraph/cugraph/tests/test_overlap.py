@@ -20,11 +20,29 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 
+
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
 def setup_function():
     gc.collect()
+
+
+# =============================================================================
+# Helper functions
+# =============================================================================
+def compare_overlap(cu_coeff, cpu_coeff):
+
+    assert len(cu_coeff) == len(cpu_coeff)
+    for i in range(len(cu_coeff)):
+        if np.isnan(cpu_coeff[i]):
+            assert np.isnan(cu_coeff[i])
+        elif np.isnan(cu_coeff[i]):
+            assert cpu_coeff[i] == cu_coeff[i]
+        else:
+            diff = abs(cpu_coeff[i] - cu_coeff[i])
+            assert diff < 1.0e-6
+
 
 def cugraph_call(benchmark_callable, cu_M, pairs, edgevals=False):
     G = cugraph.DiGraph()
@@ -83,70 +101,64 @@ def cpu_call(M, first, second):
     return result
 
 
-# Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_overlap(gpubenchmark, graph_file):
+# =============================================================================
+# Pytest Fixtures
+# =============================================================================
+@pytest.fixture(scope="module", params=utils.DATASETS_UNDIRECTED)
+def read_csv(request):
+    """
+    Read csv file for both networkx and cugraph
+    """
 
-    Mnx = utils.read_csv_for_nx(graph_file)
+    Mnx = utils.read_csv_for_nx(request.param)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
     M = scipy.sparse.csr_matrix(
         (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
     )
 
-    cu_M = utils.read_csv_file(graph_file)
+    cu_M = utils.read_csv_file(request.param)
+    print("cu_M is \n", cu_M)
+    return M, cu_M
+
+
+@pytest.fixture(scope="module")
+def extract_two_hop(read_csv):
+    """
+    Build graph and extract two hop neighbors
+    """
     G = cugraph.Graph()
+    _, cu_M = read_csv
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
     pairs = (
         G.get_two_hop_neighbors()
         .sort_values(["first", "second"])
         .reset_index(drop=True)
     )
+    return pairs
+
+
+# Test
+def test_overlap(gpubenchmark, read_csv, extract_two_hop):
+
+    M, cu_M = read_csv
+    pairs = extract_two_hop
 
     cu_coeff = cugraph_call(gpubenchmark, cu_M, pairs)
     cpu_coeff = cpu_call(M, pairs["first"], pairs["second"])
 
-    assert len(cu_coeff) == len(cpu_coeff)
-    for i in range(len(cu_coeff)):
-        if np.isnan(cpu_coeff[i]):
-            assert np.isnan(cu_coeff[i])
-        elif np.isnan(cu_coeff[i]):
-            assert cpu_coeff[i] == cu_coeff[i]
-        else:
-            diff = abs(cpu_coeff[i] - cu_coeff[i])
-            assert diff < 1.0e-6
+    compare_overlap(cu_coeff, cpu_coeff)
 
 
 # Test
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_overlap_edge_vals(gpubenchmark, graph_file):
+def test_overlap_edge_vals(gpubenchmark, read_csv, extract_two_hop):
 
-    Mnx = utils.read_csv_for_nx(graph_file)
-    N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    M = scipy.sparse.csr_matrix(
-        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
-    )
-
-    cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
-    pairs = (
-        G.get_two_hop_neighbors()
-        .sort_values(["first", "second"])
-        .reset_index(drop=True)
-    )
+    M, cu_M = read_csv
+    pairs = extract_two_hop
 
     cu_coeff = cugraph_call(gpubenchmark, cu_M, pairs, edgevals=True)
     cpu_coeff = cpu_call(M, pairs["first"], pairs["second"])
 
-    assert len(cu_coeff) == len(cpu_coeff)
-    for i in range(len(cu_coeff)):
-        if np.isnan(cpu_coeff[i]):
-            assert np.isnan(cu_coeff[i])
-        elif np.isnan(cu_coeff[i]):
-            assert cpu_coeff[i] == cu_coeff[i]
-        else:
-            diff = abs(cpu_coeff[i] - cu_coeff[i])
-            assert diff < 1.0e-6
+    compare_overlap(cu_coeff, cpu_coeff)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
@@ -175,4 +187,3 @@ def test_overlap_multi_column(graph_file):
 
     # Calculating mismatch
     assert df_res["overlap_coeff"].equals(df_exp["overlap_coeff"])
-

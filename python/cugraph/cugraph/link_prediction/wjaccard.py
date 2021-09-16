@@ -11,10 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph_classes import Graph, DiGraph
+from cugraph.structure.graph_classes import DiGraph
 from cugraph.link_prediction import jaccard_wrapper
 import cudf
 from cugraph.utilities import renumber_vertex_pair
+
 
 def jaccard_w(input_graph, weights, vertex_pair=None):
     """
@@ -75,7 +76,8 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
     >>> weights = cudf.DataFrame()
     >>> weights['vertex']=G.nodes().sample(n=10).drop_duplicates()
     >>> weights.reset_index(inplace=True, drop=True)
-    >>> weights['weight']=[random.random() for w in range(len(M_2['vertex']))]
+    >>> weights['weight']=[random.random() for w in range(
+    >>>                    len(weights['vertex']))]
     >>> df = cugraph.jaccard_w(G, weights)
     """
     if type(input_graph) is DiGraph:
@@ -112,5 +114,3 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
         df = input_graph.unrenumber(df, "destination")
 
     return df
-
-
