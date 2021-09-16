@@ -84,8 +84,8 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
     }
 
     auto [mg_graph, d_mg_renumber_map_labels] =
-      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        handle, false, true);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
+        handle, input_usecase, false, true);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -175,8 +175,8 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
 
         cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
         std::tie(sg_graph, std::ignore) =
-          input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, false, false);
+          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+            handle, input_usecase, false, false);
 
         auto sg_graph_view = sg_graph.view();
 

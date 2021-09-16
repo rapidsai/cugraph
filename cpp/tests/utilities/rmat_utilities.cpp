@@ -190,7 +190,7 @@ generate_graph_from_rmat_params(raft::handle_t const& handle,
       std::move(d_edgelist_weights),
       cugraph::graph_properties_t{undirected, true},
       renumber);
-}  // namespace test
+}
 
 // explicit instantiations
 
