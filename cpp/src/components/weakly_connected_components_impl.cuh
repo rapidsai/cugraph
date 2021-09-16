@@ -544,7 +544,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         [col_components =
            GraphViewType::is_multi_gpu
              ? adj_matrix_col_components.mutable_device_view()
-             : detail::row_col_properties_device_view_t<vertex_t, vertex_t*>(level_components),
+             : detail::minor_properties_device_view_t<vertex_t, vertex_t*>(level_components),
          col_first = level_graph_view.get_local_adj_matrix_partition_col_first(),
          edge_buffer_first =
            get_dataframe_buffer_begin(edge_buffer),

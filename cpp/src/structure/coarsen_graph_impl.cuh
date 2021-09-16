@@ -494,7 +494,7 @@ coarsen_graph(
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
         graph_view.get_matrix_partition_view()),
       labels,
-      detail::row_col_properties_device_view_t<vertex_t, vertex_t const*>(labels),
+      detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(labels),
       graph_view.get_local_adj_matrix_partition_segment_offsets(0));
 
   rmm::device_uvector<vertex_t> unique_labels(graph_view.get_number_of_vertices(),

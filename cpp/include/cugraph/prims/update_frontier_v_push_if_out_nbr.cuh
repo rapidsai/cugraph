@@ -980,7 +980,7 @@ void update_frontier_v_push_if_out_nbr(
 
     auto matrix_partition_row_value_input = adj_matrix_row_value_input;
     auto matrix_partition_col_value_input = adj_matrix_col_value_input;
-    matrix_partition_row_value_input.add_offset(matrix_partition.get_major_value_start_offset());
+    matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
 
     if (segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);

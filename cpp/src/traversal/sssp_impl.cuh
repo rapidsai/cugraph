@@ -167,7 +167,7 @@ void sssp(raft::handle_t const& handle,
       std::vector<size_t>{static_cast<size_t>(Bucket::next_near), static_cast<size_t>(Bucket::far)},
       GraphViewType::is_multi_gpu
         ? adj_matrix_row_distances.device_view()
-        : detail::row_col_properties_device_view_t<vertex_t, weight_t const*>(distances),
+        : detail::major_properties_device_view_t<vertex_t, weight_t const*>(distances),
       dummy_properties_t<vertex_t>{}.device_view(),
       [vertex_partition, distances, cutoff] __device__(
         vertex_t src, vertex_t dst, weight_t w, auto src_val, auto) {
