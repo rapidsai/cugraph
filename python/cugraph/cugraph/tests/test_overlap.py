@@ -12,8 +12,6 @@
 # limitations under the License.
 
 import gc
-import time
-
 import pytest
 import numpy as np
 import scipy
@@ -22,8 +20,13 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
-def cugraph_call(cu_M, pairs, edgevals=False):
+def cugraph_call(benchmark_callable, cu_M, pairs, edgevals=False):
     G = cugraph.DiGraph()
     # Device data
     if edgevals is True:
@@ -31,10 +34,7 @@ def cugraph_call(cu_M, pairs, edgevals=False):
     else:
         G.from_cudf_edgelist(cu_M, source="0", destination="1")
     # cugraph Overlap Call
-    t1 = time.time()
-    df = cugraph.overlap(G, pairs)
-    t2 = time.time() - t1
-    print("Time : " + str(t2))
+    df = benchmark_callable(cugraph.overlap, G, pairs)
     df = df.sort_values(by=["source", "destination"])
     return df["overlap_coeff"].to_array()
 
@@ -85,8 +85,7 @@ def cpu_call(M, first, second):
 
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_overlap(graph_file):
-    gc.collect()
+def test_overlap(gpubenchmark, graph_file):
 
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
@@ -103,7 +102,7 @@ def test_overlap(graph_file):
         .reset_index(drop=True)
     )
 
-    cu_coeff = cugraph_call(cu_M, pairs)
+    cu_coeff = cugraph_call(gpubenchmark, cu_M, pairs)
     cpu_coeff = cpu_call(M, pairs["first"], pairs["second"])
 
     assert len(cu_coeff) == len(cpu_coeff)
@@ -119,8 +118,7 @@ def test_overlap(graph_file):
 
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_overlap_edge_vals(graph_file):
-    gc.collect()
+def test_overlap_edge_vals(gpubenchmark, graph_file):
 
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
@@ -137,7 +135,7 @@ def test_overlap_edge_vals(graph_file):
         .reset_index(drop=True)
     )
 
-    cu_coeff = cugraph_call(cu_M, pairs, edgevals=True)
+    cu_coeff = cugraph_call(gpubenchmark, cu_M, pairs, edgevals=True)
     cpu_coeff = cpu_call(M, pairs["first"], pairs["second"])
 
     assert len(cu_coeff) == len(cpu_coeff)
@@ -153,7 +151,6 @@ def test_overlap_edge_vals(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_overlap_multi_column(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
 
@@ -178,3 +175,4 @@ def test_overlap_multi_column(graph_file):
 
     # Calculating mismatch
     assert df_res["overlap_coeff"].equals(df_exp["overlap_coeff"])
+

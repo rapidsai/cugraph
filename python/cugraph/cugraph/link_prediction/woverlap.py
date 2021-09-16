@@ -13,9 +13,7 @@
 
 from cugraph.link_prediction import overlap_wrapper
 import cudf
-import numpy as np
 from cugraph.utilities import renumber_vertex_pair
-
 
 def overlap_w(input_graph, weights, vertex_pair=None):
     """
@@ -32,7 +30,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     Parameters
     ----------
     input_graph : cugraph.Graph
-        cuGraph graph descriptor, should contain the connectivity information
+        cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
 
@@ -73,7 +71,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
     elif vertex_pair is None:
         pass
-    else:
+    elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
     if input_graph.renumbered:
@@ -88,9 +86,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
                 weights, 'vertex', cols
             )
 
-    overlap_weights = cudf.Series(np.ones(len(weights)))
-    for i in range(len(weights)):
-        overlap_weights[weights['vertex'].iloc[i]] = weights['weight'].iloc[i]
+    overlap_weights = weights['weight']
 
     overlap_weights = overlap_weights.astype('float32')
 
@@ -101,3 +97,5 @@ def overlap_w(input_graph, weights, vertex_pair=None):
         df = input_graph.unrenumber(df, "destination")
 
     return df
+
+

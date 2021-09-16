@@ -11,12 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph_classes import Graph
+from cugraph.structure.graph_classes import Graph, DiGraph
 from cugraph.link_prediction import jaccard_wrapper
 import cudf
-import numpy as np
 from cugraph.utilities import renumber_vertex_pair
-
 
 def jaccard_w(input_graph, weights, vertex_pair=None):
     """
@@ -33,7 +31,7 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
     Parameters
     ----------
     graph : cugraph.Graph
-        cuGraph graph descriptor, should contain the connectivity information
+        cuGraph Graph instance , should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
 
@@ -74,32 +72,39 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
-    >>> df = cugraph.jaccard_w(G, M[2])
+    >>> weights = cudf.DataFrame()
+    >>> weights['vertex']=G.nodes().sample(n=10).drop_duplicates()
+    >>> weights.reset_index(inplace=True, drop=True)
+    >>> weights['weight']=[random.random() for w in range(len(M_2['vertex']))]
+    >>> df = cugraph.jaccard_w(G, weights)
     """
-    if type(input_graph) is not Graph:
-        raise Exception("input graph must be undirected")
+    if type(input_graph) is DiGraph:
+        raise TypeError("input graph must a Graph")
 
     if type(vertex_pair) == cudf.DataFrame:
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
     elif vertex_pair is None:
         pass
-    else:
+    elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
     if input_graph.renumbered:
+        # The 'vertex' column of the cudf 'weights' also needs to be renumbered
+        # if the graph was renumbered
         vertex_size = input_graph.vertex_column_size()
+        # single-column vertices i.e only one src and dst columns
         if vertex_size == 1:
             weights = input_graph.add_internal_vertex_id(
                 weights, 'vertex', 'vertex'
             )
+        # multi-column vertices i.e more than one src and dst columns
         else:
             cols = weights.columns[:vertex_size].to_list()
             weights = input_graph.add_internal_vertex_id(
                 weights, 'vertex', cols
             )
-    jaccard_weights = cudf.Series(np.ones(len(weights)))
-    for i in range(len(weights)):
-        jaccard_weights[weights['vertex'].iloc[i]] = weights['weight'].iloc[i]
+
+    jaccard_weights = weights['weight']
     df = jaccard_wrapper.jaccard(input_graph, jaccard_weights, vertex_pair)
 
     if input_graph.renumbered:
@@ -107,3 +112,5 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
         df = input_graph.unrenumber(df, "destination")
 
     return df
+
+

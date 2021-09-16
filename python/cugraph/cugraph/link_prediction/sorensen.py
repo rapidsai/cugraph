@@ -11,9 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pandas as pd
 import cudf
-from cugraph.structure.graph_classes import Graph
+from cugraph.structure.graph_classes import Graph, DiGraph
 from cugraph.link_prediction import jaccard_wrapper
 from cugraph.utilities import check_nx_graph
 from cugraph.utilities import df_edge_score_to_dictionary
@@ -36,7 +35,7 @@ def sorensen(input_graph, vertex_pair=None):
     Parameters
     ----------
     graph : cugraph.Graph
-        cuGraph graph descriptor, should contain the connectivity information
+        cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
@@ -73,14 +72,14 @@ def sorensen(input_graph, vertex_pair=None):
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> df = cugraph.sorensen(G)
     """
-    if type(input_graph) is not Graph:
-        raise Exception("input graph must be undirected")
+    if type(input_graph) is DiGraph:
+        raise TypeError("input graph must a Graph")
 
     if type(vertex_pair) == cudf.DataFrame:
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
     elif vertex_pair is None:
         pass
-    else:
+    elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
     df = jaccard_wrapper.jaccard(input_graph, None, vertex_pair)
@@ -100,7 +99,7 @@ def sorensen_coefficient(G, ebunch=None):
     Parameters
     ----------
     graph : cugraph.Graph
-        cuGraph graph descriptor, should contain the connectivity information
+        cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
@@ -142,7 +141,7 @@ def sorensen_coefficient(G, ebunch=None):
     G, isNx = check_nx_graph(G)
 
     if isNx is True and ebunch is not None:
-        vertex_pair = cudf.from_pandas(pd.DataFrame(ebunch))
+        vertex_pair = cudf.DataFrame(ebunch)
 
     df = sorensen(G, vertex_pair)
 
@@ -153,3 +152,4 @@ def sorensen_coefficient(G, ebunch=None):
                                          dst="destination")
 
     return df
+

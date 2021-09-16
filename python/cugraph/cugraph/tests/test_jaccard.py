@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-import time
 import pytest
 
 import cudf
@@ -34,8 +33,13 @@ with warnings.catch_warnings():
 
 print("Networkx version : {} ".format(nx.__version__))
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
-def cugraph_call(cu_M, edgevals=False):
+def cugraph_call(benchmark_callable, cu_M, edgevals=False):
     G = cugraph.Graph()
     if edgevals is True:
         G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
@@ -43,10 +47,7 @@ def cugraph_call(cu_M, edgevals=False):
         G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     # cugraph Jaccard Call
-    t1 = time.time()
-    df = cugraph.jaccard(G)
-    t2 = time.time() - t1
-    print("Time : " + str(t2))
+    df = benchmark_callable(cugraph.jaccard, G)
 
     df = df.sort_values(["source", "destination"]).reset_index(drop=True)
 
@@ -57,7 +58,7 @@ def cugraph_call(cu_M, edgevals=False):
     )
 
 
-def networkx_call(M):
+def networkx_call(M, benchmark_callable=None):
 
     sources = M["0"]
     destinations = M["1"]
@@ -77,11 +78,10 @@ def networkx_call(M):
 
     # Networkx Jaccard Call
     print("Solving... ")
-    t1 = time.time()
-    preds = nx.jaccard_coefficient(Gnx, edges)
-    t2 = time.time() - t1
-
-    print("Time : " + str(t2))
+    if benchmark_callable is not None:
+        preds = benchmark_callable(nx.jaccard_coefficient, Gnx, edges)
+    else:
+        preds = nx.jaccard_coefficient(Gnx, edges)
     src = []
     dst = []
     coeff = []
@@ -93,12 +93,11 @@ def networkx_call(M):
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_jaccard(graph_file):
-    gc.collect()
+def test_jaccard(gpubenchmark, graph_file):
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
-    cu_src, cu_dst, cu_coeff = cugraph_call(cu_M)
+    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, cu_M)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
     # Calculating mismatch
@@ -113,16 +112,22 @@ def test_jaccard(graph_file):
     print("Mismatches:  %d" % err)
     assert err == 0
 
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_nx_jaccard_time(gpubenchmark, graph_file):
 
-@pytest.mark.parametrize("graph_file", [PurePath(
-    utils.RAPIDS_DATASET_ROOT_DIR)/"netscience.csv"]
+    M = utils.read_csv_for_nx(graph_file)
+    nx_src, nx_dst, nx_coeff = networkx_call(M, gpubenchmark)
+
+
+@pytest.mark.parametrize(
+    "graph_file",
+    [utils.RAPIDS_DATASET_ROOT_DIR/PurePath("netscience.csv")]
 )
-def test_jaccard_edgevals(graph_file):
-    gc.collect()
+def test_jaccard_edgevals(gpubenchmark, graph_file):
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
-    cu_src, cu_dst, cu_coeff = cugraph_call(cu_M, edgevals=True)
+    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, cu_M, edgevals=True)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
     # Calculating mismatch
@@ -140,7 +145,6 @@ def test_jaccard_edgevals(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_two_hop(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -172,7 +176,6 @@ def test_jaccard_two_hop(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_two_hop_edge_vals(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -206,7 +209,6 @@ def test_jaccard_two_hop_edge_vals(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_nx(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
@@ -227,7 +229,6 @@ def test_jaccard_nx(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_jaccard_multi_column(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
 
@@ -252,3 +253,4 @@ def test_jaccard_multi_column(graph_file):
 
     # Calculating mismatch
     assert df_res["jaccard_coeff"].equals(df_exp["jaccard_coeff"])
+
