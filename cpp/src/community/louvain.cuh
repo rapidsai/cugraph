@@ -175,7 +175,6 @@ class Louvain {
       compute_vertex_and_cluster_weights();
 
       weight_t new_Q = update_clustering(total_edge_weight, resolution);
-std::cout << graph_view_t::is_multi_gpu << " new_Q=" << new_Q << " dendrogram_->num_levels()=" << dendrogram_->num_levels() << " max_level=" << max_level << " total_edge_weight=" << total_edge_weight << " resolution=" << resolution << std::endl;
 
       if (new_Q <= best_modularity) { break; }
 
@@ -356,7 +355,6 @@ std::cout << graph_view_t::is_multi_gpu << " new_Q=" << new_Q << " dendrogram_->
     }
 
     weight_t new_Q = modularity(total_edge_weight, resolution);
-std::cout << graph_view_t::is_multi_gpu << "update_clustering new_Q=" << new_Q << std::endl;
     weight_t cur_Q = new_Q - 1;
 
     // To avoid the potential of having two vertices swap clusters
@@ -372,7 +370,6 @@ std::cout << graph_view_t::is_multi_gpu << "update_clustering new_Q=" << new_Q <
       up_down = !up_down;
 
       new_Q = modularity(total_edge_weight, resolution);
-std::cout << graph_view_t::is_multi_gpu << "update_clustering loop new_Q=" << new_Q << std::endl;
 
       if (new_Q > cur_Q) {
         raft::copy(dendrogram_->current_level_begin(),
@@ -526,7 +523,6 @@ std::cout << graph_view_t::is_multi_gpu << "update_clustering loop new_Q=" << ne
                       cugraph::get_dataframe_buffer_begin(output_buffer),
                       next_clusters_v_.begin(),
                       detail::cluster_update_op_t<vertex_t, weight_t>{up_down});
-raft::print_device_vector("new next_clusters_v_", next_clusters_v_.data(), next_clusters_v_.size(), std::cout);
 
     if constexpr (graph_view_t::is_multi_gpu) {
       copy_to_adj_matrix_row(
