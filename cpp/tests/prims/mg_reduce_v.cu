@@ -278,7 +278,6 @@ class Tests_MG_ReduceV
                        sg_property_iter + sg_graph_view.get_number_of_local_vertices(),
                        property_initial_value,
                        cugraph::property_add<property_t>());
-
       result_compare<property_t> compare{};
       ASSERT_TRUE(compare(expected_result, result));
     }
