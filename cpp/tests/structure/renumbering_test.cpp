@@ -38,11 +38,6 @@
 #include <random>
 #include <vector>
 
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
-
 struct Renumbering_Usecase {
   bool check_correctness{true};
 };
@@ -87,8 +82,8 @@ class Tests_Renumbering
       raft::update_host(h_original_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
     }
 
-    if (PERF) {
-      handle.get_stream_view().synchronize();  // for consistent performance measurement
+    if (cugraph::test::g_perf) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -96,8 +91,8 @@ class Tests_Renumbering
       cugraph::renumber_edgelist<vertex_t, edge_t, false>(
         handle, std::nullopt, src_v.begin(), dst_v.begin(), src_v.size());
 
-    if (PERF) {
-      handle.get_stream_view().synchronize();  // for consistent performance measurement
+    if (cugraph::test::g_perf) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "renumbering took " << elapsed_time * 1e-6 << " s.\n";
@@ -166,7 +161,11 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_large_tests,
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
   Tests_Renumbering_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
