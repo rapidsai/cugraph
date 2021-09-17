@@ -266,8 +266,6 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     }
 
     return std::make_tuple(
-      // store_transposed ? std::move(dst_v) : std::move(src_v),
-      // store_transposed ? std::move(src_v) : std::move(dst_v),
       std::move(src_v),
       std::move(dst_v),
       std::move(weights_v),
