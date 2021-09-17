@@ -754,7 +754,7 @@ renumber_edgelist(
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
     vertex_t max_segment_size{0};
-    for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
+    for (size_t i = 0; i < row_comm_size; ++i) {
       max_segment_size = std::max(
         max_segment_size, partition.get_vertex_partition_size(col_comm_rank * row_comm_size + i));
     }
