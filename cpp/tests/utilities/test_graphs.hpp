@@ -266,10 +266,10 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     }
 
     return std::make_tuple(
-                           //store_transposed ? std::move(dst_v) : std::move(src_v),
-                                 //store_transposed ? std::move(src_v) : std::move(dst_v),
-                           std::move(src_v),
-                           std::move(dst_v),
+      // store_transposed ? std::move(dst_v) : std::move(src_v),
+      // store_transposed ? std::move(src_v) : std::move(dst_v),
+      std::move(src_v),
+      std::move(dst_v),
       std::move(weights_v),
       std::move(vertices_v),
       static_cast<vertex_t>(detail::TranslateGraph_Usecase::base_vertex_id_) + number_of_vertices,
@@ -330,7 +330,8 @@ class PathGraph_Usecase {
       handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
     rmm::device_uvector<vertex_t> d_vertices(num_vertices_, handle.get_stream());
-    cugraph::detail::sequence_fill(handle.get_stream(), d_vertices.data(), num_vertices_, vertex_t{0});
+    cugraph::detail::sequence_fill(
+      handle.get_stream(), d_vertices.data(), num_vertices_, vertex_t{0});
     handle.get_stream_view().synchronize();
 
     return std::make_tuple(std::move(src_v),
