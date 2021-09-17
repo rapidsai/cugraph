@@ -46,6 +46,7 @@ class major_properties_device_view_t {
     ValueIterator value_first)  // for single-GPU only and for advanced users
     : value_first_(value_first)
   {
+    set_local_adj_matrix_partition_idx(size_t{0});
   }
 
   major_properties_device_view_t(ValueIterator value_first,
@@ -89,7 +90,33 @@ class major_properties_device_view_t {
     }
   }
 
+  std::optional<vertex_t const*> key_data() const
+  {
+    return key_first_ ? std::optional<vertex_t const*>{*key_first_} : std::nullopt;
+  }
+
   ValueIterator value_data() const { return value_first_; }
+
+  std::optional<vertex_t const*> matrix_partition_key_offsets() const
+  {
+    return matrix_partition_key_offsets_
+             ? std::optional<vertex_t const*>{*matrix_partition_key_offsets_}
+             : std::nullopt;
+  }
+
+  std::optional<vertex_t const*> matrix_partition_major_firsts() const
+  {
+    return matrix_partition_major_firsts_
+             ? std::optional<vertex_t const*>{*matrix_partition_major_firsts_}
+             : std::nullopt;
+  }
+
+  std::optional<vertex_t const*> matrix_partition_major_value_start_offsets() const
+  {
+    return matrix_partition_major_value_start_offsets_
+             ? std::optional<vertex_t const*>{*matrix_partition_major_value_start_offsets_}
+             : std::nullopt;
+  }
 
   __device__ ValueIterator get_iter(vertex_t offset) const
   {
@@ -132,10 +159,7 @@ class minor_properties_device_view_t {
 
   minor_properties_device_view_t() = default;
 
-  minor_properties_device_view_t(ValueIterator value_first)
-    : value_first_(value_first)
-  {
-  }
+  minor_properties_device_view_t(ValueIterator value_first) : value_first_(value_first) {}
 
   minor_properties_device_view_t(vertex_t const* key_first,
                                  vertex_t const* key_last,
@@ -175,6 +199,11 @@ template <typename vertex_t, typename T>
 class major_properties_t {
  public:
   major_properties_t() : buffer_(allocate_dataframe_buffer<T>(0, rmm::cuda_stream_view{})) {}
+
+  major_properties_t(raft::handle_t const& handle, vertex_t buffer_size)
+    : buffer_(allocate_dataframe_buffer<T>(buffer_size, handle.get_stream()))
+  {
+  }
 
   major_properties_t(raft::handle_t const& handle,
                      vertex_t buffer_size,
@@ -216,9 +245,11 @@ class major_properties_t {
         value_first,
         (*matrix_partition_key_offsets_).data(),
         (*matrix_partition_major_firsts_).data());
-    } else {
+    } else if (matrix_partition_major_value_start_offsets_) {
       return major_properties_device_view_t<vertex_t, decltype(value_first)>(
         value_first, (*matrix_partition_major_value_start_offsets_).data());
+    } else {
+      return major_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
     }
   }
 
@@ -231,9 +262,11 @@ class major_properties_t {
         value_first,
         (*matrix_partition_key_offsets_).data(),
         (*matrix_partition_major_firsts_).data());
-    } else {
+    } else if (matrix_partition_major_value_start_offsets_) {
       return major_properties_device_view_t<vertex_t, decltype(value_first)>(
         value_first, (*matrix_partition_major_value_start_offsets_).data());
+    } else {
+      return major_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
     }
   }
 
@@ -326,6 +359,12 @@ auto to_thrust_tuple(Iterator iter)
   return iter.get_iterator_tuple();
 }
 
+template <typename T, typename... Ts>
+decltype(auto) get_first_of_pack(T&& t, Ts&&...)
+{
+  return std::forward<T>(t);
+}
+
 }  // namespace detail
 
 template <typename GraphViewType, typename T>
@@ -369,16 +408,21 @@ class row_properties_t {
         properties_ = detail::minor_properties_t<vertex_t, T>(
           handle, graph_view.get_number_of_local_adj_matrix_partition_rows());
       } else {
-        std::vector<vertex_t> matrix_partition_major_value_start_offsets(
-          graph_view.get_number_of_local_adj_matrix_partitions());
-        for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-          matrix_partition_major_value_start_offsets[i] =
-            graph_view.get_local_adj_matrix_partition_row_value_start_offset(i);
+        if constexpr (GraphViewType::is_multi_gpu) {
+          std::vector<vertex_t> matrix_partition_major_value_start_offsets(
+            graph_view.get_number_of_local_adj_matrix_partitions());
+          for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+            matrix_partition_major_value_start_offsets[i] =
+              graph_view.get_local_adj_matrix_partition_row_value_start_offset(i);
+          }
+          properties_ = detail::major_properties_t<vertex_t, T>(
+            handle,
+            graph_view.get_number_of_local_adj_matrix_partition_rows(),
+            std::move(matrix_partition_major_value_start_offsets));
+        } else {
+          properties_ = detail::major_properties_t<vertex_t, T>(
+            handle, graph_view.get_number_of_local_adj_matrix_partition_rows());
         }
-        properties_ = detail::major_properties_t<vertex_t, T>(
-          handle,
-          graph_view.get_number_of_local_adj_matrix_partition_rows(),
-          std::move(matrix_partition_major_value_start_offsets));
       }
     }
   }
@@ -438,16 +482,21 @@ class col_properties_t {
       }
     } else {
       if constexpr (GraphViewType::is_adj_matrix_transposed) {
-        std::vector<vertex_t> matrix_partition_major_value_start_offsets(
-          graph_view.get_number_of_local_adj_matrix_partitions());
-        for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-          matrix_partition_major_value_start_offsets[i] =
-            graph_view.get_local_adj_matrix_partition_col_value_start_offset(i);
+        if constexpr (GraphViewType::is_multi_gpu) {
+          std::vector<vertex_t> matrix_partition_major_value_start_offsets(
+            graph_view.get_number_of_local_adj_matrix_partitions());
+          for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+            matrix_partition_major_value_start_offsets[i] =
+              graph_view.get_local_adj_matrix_partition_col_value_start_offset(i);
+          }
+          properties_ = detail::major_properties_t<vertex_t, T>(
+            handle,
+            graph_view.get_number_of_local_adj_matrix_partition_cols(),
+            std::move(matrix_partition_major_value_start_offsets));
+        } else {
+          properties_ = detail::major_properties_t<vertex_t, T>(
+            handle, graph_view.get_number_of_local_adj_matrix_partition_cols());
         }
-        properties_ = detail::major_properties_t<vertex_t, T>(
-          handle,
-          graph_view.get_number_of_local_adj_matrix_partition_cols(),
-          std::move(matrix_partition_major_value_start_offsets));
       } else {
         properties_ = detail::minor_properties_t<vertex_t, T>(
           handle, graph_view.get_number_of_local_adj_matrix_partition_cols());
@@ -491,11 +540,23 @@ class dummy_properties_t {
 };
 
 template <typename vertex_t, typename... Ts>
-auto device_view_concat(detail::major_properties_device_view_t<vertex_t, Ts>... device_views)
+auto device_view_concat(detail::major_properties_device_view_t<vertex_t, Ts> const&... device_views)
 {
   auto concat_first = thrust::make_zip_iterator(
     thrust_tuple_cat(detail::to_thrust_tuple(device_views.value_data())...));
-  return detail::major_properties_device_view_t<vertex_t, decltype(concat_first)>(concat_first);
+  auto first = detail::get_first_of_pack(device_views...);
+  if (first.key_data()) {
+    return detail::major_properties_device_view_t<vertex_t, decltype(concat_first)>(
+      *(first.key_data()),
+      concat_first,
+      *(first.matrix_partition_key_offsets()),
+      *(first.matrix_partition_major_firsts()));
+  } else if (first.matrix_partition_major_value_start_offsets()) {
+    return detail::major_properties_device_view_t<vertex_t, decltype(concat_first)>(
+      concat_first, *(first.matrix_partition_major_value_start_offsets()));
+  } else {
+    return detail::major_properties_device_view_t<vertex_t, decltype(concat_first)>(concat_first);
+  }
 }
 
 }  // namespace cugraph
