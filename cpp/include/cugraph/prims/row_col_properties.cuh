@@ -233,7 +233,12 @@ class major_properties_t {
   }
 
   auto key_first() { return key_first_; }
-  auto key_last() { return key_first_ + matrix_partition_key_offsets_.back(); }
+  auto key_last()
+  {
+    return key_first_ ? std::make_optional<vertex_t const*>(*key_first_ +
+                                                            (*matrix_partition_key_offsets_).back())
+                      : std::nullopt;
+  }
   auto value_data() { return get_dataframe_buffer_begin(buffer_); }
 
   auto device_view() const

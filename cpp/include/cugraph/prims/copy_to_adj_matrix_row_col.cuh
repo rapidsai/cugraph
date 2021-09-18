@@ -240,7 +240,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
              matrix_major_value_output.value_data() + (*key_offsets)[i]] __device__(auto i) {
             auto major = *(output_key_first + i);
             auto it    = thrust::lower_bound(thrust::seq, rx_vertex_first, rx_vertex_last, major);
-            if (*it == major) {
+            if ((it != rx_vertex_last) && (*it == major)) {
               auto rx_value             = *(rx_value_first + thrust::distance(rx_vertex_first, it));
               *(output_value_first + i) = rx_value;
             }
@@ -479,7 +479,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
              matrix_minor_value_output.value_data() + (*key_offsets)[i]] __device__(auto i) {
             auto minor = *(output_key_first + i);
             auto it    = thrust::lower_bound(thrust::seq, rx_vertex_first, rx_vertex_last, minor);
-            if (*it == minor) {
+            if ((it != rx_vertex_last) && (*it == minor)) {
               auto rx_value             = *(rx_value_first + thrust::distance(rx_vertex_first, it));
               *(output_value_first + i) = rx_value;
             }

@@ -50,7 +50,7 @@ struct out_of_range_t {
   vertex_t minor_first{};
   vertex_t minor_last{};
 
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> t)
+  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> t) const
   {
     auto major = thrust::get<0>(t);
     auto minor = thrust::get<1>(t);
@@ -428,14 +428,28 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     size_t cur_size{0};
     for (size_t i = 0; i < adj_matrix_partition_offsets_.size(); ++i) {
       auto [major_first, major_last] = partition_.get_matrix_partition_major_range(i);
+      auto major_hypersparse_first =
+        use_dcs ? std::optional<vertex_t>{major_first +
+                                          (*adj_matrix_partition_segment_offsets_)
+                                            [(*(meta.segment_offsets)).size() * i +
+                                             detail::num_sparse_segments_per_vertex_partition]}
+                : std::nullopt;
       cur_size += thrust::distance(
         local_sorted_unique_edge_majors.data() + cur_size,
         thrust::copy_if(
           handle.get_thrust_policy(),
           thrust::make_counting_iterator(major_first),
-          thrust::make_counting_iterator(major_last),
+          thrust::make_counting_iterator(use_dcs ? *major_hypersparse_first : major_last),
           local_sorted_unique_edge_majors.data() + cur_size,
           has_nzd_t<vertex_t, edge_t>{adj_matrix_partition_offsets_[i].data(), major_first}));
+      if (use_dcs) {
+        thrust::copy(handle.get_thrust_policy(),
+                     (*adj_matrix_partition_dcs_nzd_vertices_)[i].begin(),
+                     (*adj_matrix_partition_dcs_nzd_vertices_)[i].begin() +
+                       (*adj_matrix_partition_dcs_nzd_vertex_counts_)[i],
+                     local_sorted_unique_edge_majors.data() + cur_size);
+        cur_size += (*adj_matrix_partition_dcs_nzd_vertex_counts_)[i];
+      }
     }
     assert(cur_size == num_local_unique_edge_majors);
 

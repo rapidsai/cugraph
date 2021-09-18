@@ -49,7 +49,7 @@ struct out_of_range_t {
   vertex_t min{};
   vertex_t max{};
 
-  __device__ bool operator()(vertex_t v) { return (v < min) || (v >= max); }
+  __device__ bool operator()(vertex_t v) const { return (v < min) || (v >= max); }
 };
 
 template <typename vertex_t, typename edge_t>
