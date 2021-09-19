@@ -702,42 +702,47 @@ renumber_edgelist(
   comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
-  vertex_t max_matrix_partition_major_size{0};
-  for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
-    max_matrix_partition_major_size =
-      std::max(max_matrix_partition_major_size, partition.get_matrix_partition_major_size(i));
-  }
-  rmm::device_uvector<vertex_t> renumber_map_major_labels(max_matrix_partition_major_size,
-                                                          handle.get_stream());
-  for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
-    device_bcast(col_comm,
-                 renumber_map_labels.data(),
-                 renumber_map_major_labels.data(),
-                 partition.get_matrix_partition_major_size(i),
-                 i,
-                 handle.get_stream());
+  {
+    vertex_t max_matrix_partition_major_size{0};
+    for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
+      max_matrix_partition_major_size =
+        std::max(max_matrix_partition_major_size, partition.get_matrix_partition_major_size(i));
+    }
+    rmm::device_uvector<vertex_t> renumber_map_major_labels(max_matrix_partition_major_size,
+                                                            handle.get_stream());
+    for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
+      device_bcast(col_comm,
+                   renumber_map_labels.data(),
+                   renumber_map_major_labels.data(),
+                   partition.get_matrix_partition_major_size(i),
+                   i,
+                   handle.get_stream());
 
-    CUDA_TRY(cudaStreamSynchronize(
-      handle.get_stream()));  // cuco::static_map currently does not take stream
+      CUDA_TRY(cudaStreamSynchronize(
+        handle.get_stream()));  // cuco::static_map currently does not take stream
 
-    auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-      renumber_map{
-        // cuco::static_map requires at least one empty slot
-        std::max(static_cast<size_t>(
-                   static_cast<double>(partition.get_matrix_partition_major_size(i)) / load_factor),
-                 static_cast<size_t>(partition.get_matrix_partition_major_size(i)) + 1),
-        invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value,
-        stream_adapter};
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      renumber_map_major_labels.begin(),
-      thrust::make_counting_iterator(partition.get_matrix_partition_major_first(i))));
-    renumber_map.insert(pair_first, pair_first + partition.get_matrix_partition_major_size(i));
-    renumber_map.find(edgelist_major_vertices[i],
-                      edgelist_major_vertices[i] + edgelist_edge_counts[i],
-                      edgelist_major_vertices[i]);
+      auto poly_alloc =
+        rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+      auto stream_adapter =
+        rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
+        renumber_map{
+          // cuco::static_map requires at least one empty slot
+          std::max(
+            static_cast<size_t>(static_cast<double>(partition.get_matrix_partition_major_size(i)) /
+                                load_factor),
+            static_cast<size_t>(partition.get_matrix_partition_major_size(i)) + 1),
+          invalid_vertex_id<vertex_t>::value,
+          invalid_vertex_id<vertex_t>::value,
+          stream_adapter};
+      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+        renumber_map_major_labels.begin(),
+        thrust::make_counting_iterator(partition.get_matrix_partition_major_first(i))));
+      renumber_map.insert(pair_first, pair_first + partition.get_matrix_partition_major_size(i));
+      renumber_map.find(edgelist_major_vertices[i],
+                        edgelist_major_vertices[i] + edgelist_edge_counts[i],
+                        edgelist_major_vertices[i]);
+    }
   }
 
   // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
