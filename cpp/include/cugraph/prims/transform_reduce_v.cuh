@@ -63,7 +63,8 @@ T transform_reduce_v(raft::handle_t const& handle,
     ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
     property_add<T>());
   if (GraphViewType::is_multi_gpu) {
-    ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
+    ret =
+      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream());
   }
   return ret;
 }
@@ -106,7 +107,8 @@ T transform_reduce_v(raft::handle_t const& handle,
     ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
     property_add<T>());
   if (GraphViewType::is_multi_gpu) {
-    ret = host_scalar_allreduce(handle.get_comms(), ret, handle.get_stream());
+    ret =
+      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream());
   }
   return ret;
 }

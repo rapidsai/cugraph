@@ -251,8 +251,8 @@ class Louvain {
       thrust::plus<weight_t>());
 
     if (graph_view_t::is_multi_gpu) {
-      sum_degree_squared =
-        host_scalar_allreduce(handle_.get_comms(), sum_degree_squared, handle_.get_stream());
+      sum_degree_squared = host_scalar_allreduce(
+        handle_.get_comms(), sum_degree_squared, raft::comms::op_t::SUM, handle_.get_stream());
     }
 
     weight_t sum_internal = transform_reduce_e(
