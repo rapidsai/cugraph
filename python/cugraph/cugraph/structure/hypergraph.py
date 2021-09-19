@@ -158,7 +158,7 @@ def hypergraph(
 
     if not dropna:
         for key, col in events[columns].iteritems():
-            if cudf.utils.dtypes.is_string_dtype(col.dtype):
+            if cudf.api.types.is_string_dtype(col.dtype):
                 events[key].fillna("null", inplace=True)
 
     edges = None
