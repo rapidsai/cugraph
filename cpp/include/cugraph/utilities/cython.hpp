@@ -102,8 +102,6 @@ struct graph_container_t {
   size_t num_local_edges;
   size_t num_global_vertices;
   size_t num_global_edges;
-  size_t num_local_unique_edge_rows{};
-  size_t num_local_unique_edge_cols{};
   numberTypeEnum vertexType;
   numberTypeEnum edgeType;
   numberTypeEnum weightType;
@@ -272,9 +270,6 @@ struct renum_tuple_t {
     return std::make_unique<std::vector<vertex_t>>(segment_offsets_);
   }
 
-  vertex_t& get_num_unique_edge_majors(void) { return num_unique_edge_majors_; }
-  vertex_t& get_num_unique_edge_minors(void) { return num_unique_edge_minors_; }
-
   // `partition_t` pass-through getters
   //
   int get_part_row_size() const { return part_.get_row_size(); }
@@ -369,8 +364,6 @@ struct renum_tuple_t {
   vertex_t nv_{0};
   edge_t ne_{0};
   std::vector<vertex_t> segment_offsets_;
-  vertex_t num_unique_edge_majors_{0};
-  vertex_t num_unique_edge_minors_{0};
 };
 
 // FIXME: finish description for vertex_partition_offsets
@@ -438,8 +431,6 @@ void populate_graph_container(graph_container_t& graph_container,
                               size_t num_local_edges,
                               size_t num_global_vertices,
                               size_t num_global_edges,
-                              size_t num_local_unique_edge_rows,
-                              size_t num_local_unique_edge_cols,
                               bool is_weighted,
                               bool is_symmetric,
                               bool transposed,
