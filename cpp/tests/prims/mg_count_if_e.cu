@@ -205,8 +205,8 @@ class Tests_MG_TransformCountIfE
       hr_clock.start();
     }
     auto [mg_graph, d_mg_renumber_map_labels] =
-      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
-        handle, prims_usecase.test_weighted, true);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
+        handle, input_usecase, prims_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -258,8 +258,8 @@ class Tests_MG_TransformCountIfE
     if (prims_usecase.check_correctness) {
       cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
       std::tie(sg_graph, std::ignore) =
-        input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-          handle, true, false);
+        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
+          handle, input_usecase, prims_usecase.test_weighted, false);
       auto sg_graph_view = sg_graph.view();
 
       auto sg_vertex_property_data = generate<result_t>::vertex_property(
