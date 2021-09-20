@@ -369,7 +369,9 @@ extract_induced_subgraphs(
  * This parameter can be used to include isolated vertices. If multi-GPU, applying the
  * compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function to
  * work (vertices should be pre-shuffled).
- * @param edgelist_rows Vector of edge row (source) vertex IDs.
+ * @param edgelist_rows Vector of edge row (source) vertex IDs. If multi-GPU, applying the
+ * compute_gpu_id_from_edge_t to every edge should return the local GPU ID for this function to work
+ * (edges should be pre-shuffled).
  * @param edgelist_cols Vector of edge column (destination) vertex IDs.
  * @param edgelist_weights Vector of edge weights.
  * @param graph_properties Properties of the graph represented by the input (optional vertex list
