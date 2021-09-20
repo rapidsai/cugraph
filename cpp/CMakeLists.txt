@@ -408,8 +408,6 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph_c/version_config.hpp
 ################################################################################
 # - install export -------------------------------------------------------------
 
-# FIXME: does the C-API need to be an exported target too?
-
 set(doc_string
 [=[
 Provide targets for cuGraph.
@@ -426,7 +424,7 @@ thrust_create_target(cugraph::Thrust FROM_OPTIONS)
 
  rapids_export(INSTALL cugraph
     EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph
+    GLOBAL_TARGETS cugraph cugraph_c
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
     FINAL_CODE_BLOCK code_string
@@ -436,7 +434,7 @@ thrust_create_target(cugraph::Thrust FROM_OPTIONS)
 # - build export ---------------------------------------------------------------
 rapids_export(BUILD cugraph
     EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph
+    GLOBAL_TARGETS cugraph cugraph_c
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
     FINAL_CODE_BLOCK code_string
