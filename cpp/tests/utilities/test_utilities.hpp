@@ -113,10 +113,11 @@ static const std::string& get_rapids_dataset_root_dir()
 }
 
 // returns a tuple of (rows, columns, weights, number_of_vertices, is_symmetric)
-template <typename vertex_t, typename weight_t>
+template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
+           rmm::device_uvector<vertex_t>,
            vertex_t,
            bool>
 read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
@@ -135,27 +136,6 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    std::string const& graph_file_full_path,
                                    bool test_weighted,
                                    bool renumber);
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           std::optional<rmm::device_uvector<vertex_t>>>
-generate_graph_from_rmat_params(raft::handle_t const& handle,
-                                size_t scale,
-                                size_t edge_factor,
-                                double a,
-                                double b,
-                                double c,
-                                uint64_t seed,
-                                bool undirected,
-                                bool scramble_vertex_ids,
-                                bool test_weighted,
-                                bool renumber,
-                                std::vector<size_t> const& partition_ids,
-                                size_t num_partitions);
 
 // alias for easy customization for debug purposes:
 //

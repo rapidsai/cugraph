@@ -69,12 +69,13 @@ void pagerank(
   if (num_vertices == 0) { return; }
 
   auto aggregate_personalization_vector_size =
-    personalization_vertices
-      ? GraphViewType::is_multi_gpu
-          ? host_scalar_allreduce(
-              handle.get_comms(), *personalization_vector_size, handle.get_stream())
-          : *personalization_vector_size
-      : vertex_t{0};
+    personalization_vertices ? GraphViewType::is_multi_gpu
+                                 ? host_scalar_allreduce(handle.get_comms(),
+                                                         *personalization_vector_size,
+                                                         raft::comms::op_t::SUM,
+                                                         handle.get_stream())
+                                 : *personalization_vector_size
+                             : vertex_t{0};
 
   // 1. check input arguments
 

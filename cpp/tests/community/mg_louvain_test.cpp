@@ -109,19 +109,13 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
       auto [d_edgelist_rows,
             d_edgelist_cols,
             d_edgelist_weights,
+            d_vertices,
             number_of_vertices,
             is_symmetric] =
-        cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
+        cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t, false, false>(
           handle, graph_filename, true);
 
-      rmm::device_uvector<vertex_t> d_vertices(number_of_vertices, handle.get_stream());
-      std::vector<vertex_t> h_vertices(number_of_vertices);
-
       d_clustering_v.resize(d_vertices.size(), handle.get_stream());
-
-      thrust::sequence(thrust::host, h_vertices.begin(), h_vertices.end(), vertex_t{0});
-      raft::update_device(
-        d_vertices.data(), h_vertices.data(), d_vertices.size(), handle.get_stream());
 
       // renumber using d_renumber_map_gathered_v
       cugraph::test::single_gpu_renumber_edgelist_given_number_map(
