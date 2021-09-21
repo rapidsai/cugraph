@@ -17,7 +17,6 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
-from pathlib import PurePath
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -170,7 +169,7 @@ def test_nx_sorensen_time(gpubenchmark, read_csv):
 
 @pytest.mark.parametrize(
     "graph_file",
-    [utils.RAPIDS_DATASET_ROOT_DIR/PurePath("netscience.csv")]
+    [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"netscience.csv"]
 )
 def test_sorensen_edgevals(gpubenchmark, graph_file):
 

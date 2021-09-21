@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cudf
-from cugraph.structure.graph_classes import DiGraph
+from cugraph.structure.graph_classes import Graph
 from cugraph.link_prediction import jaccard_wrapper
 from cugraph.utilities import check_nx_graph
 from cugraph.utilities import df_edge_score_to_dictionary
@@ -72,13 +72,11 @@ def sorensen(input_graph, vertex_pair=None):
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> df = cugraph.sorensen(G)
     """
-    if type(input_graph) is DiGraph:
+    if type(input_graph) is not Graph:
         raise TypeError("input graph must a Graph")
 
     if type(vertex_pair) == cudf.DataFrame:
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
-    elif vertex_pair is None:
-        pass
     elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 

@@ -65,18 +65,23 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> # Create a dataframe containing the vertices with their
+    >>> # corresponding weight
     >>> weights = cudf.DataFrame()
-    >>> weights['vertex']=G.nodes().sample(n=10).drop_duplicates()
+    >>> # Sample 10 random vertices from the graph and drop duplicates if
+    >>> # there are any to avoid duplicates vertices with different weight
+    >>> # value in the 'weights' dataframe
+    >>> weights['vertex'] = G.nodes().sample(n=10).drop_duplicates()
+    >>> # Reset the indices and drop the index column
     >>> weights.reset_index(inplace=True, drop=True)
-    >>> weights['weight']=[random.random() for w in range(
-    >>>                    len(weights['vertex']))]
+    >>> # Create a weight column with random weights
+    >>> weights['weight'] = [random.random() for w in range(
+    >>>                      len(weights['vertex']))]
     >>> df = cugraph.overlap_w(G, weights)
     """
 
     if type(vertex_pair) == cudf.DataFrame:
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
-    elif vertex_pair is None:
-        pass
     elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 

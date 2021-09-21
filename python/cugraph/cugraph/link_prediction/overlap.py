@@ -92,8 +92,6 @@ def overlap(input_graph, vertex_pair=None):
 
     if type(vertex_pair) == cudf.DataFrame:
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
-    elif vertex_pair is None:
-        pass
     elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
