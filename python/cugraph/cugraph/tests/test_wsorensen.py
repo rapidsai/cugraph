@@ -112,7 +112,6 @@ def read_csv(request):
 
 
 def test_wsorensen(gpubenchmark, read_csv):
-    gc.collect()
 
     M, cu_M = read_csv
 
@@ -130,7 +129,6 @@ def test_nx_wsorensen_time(gpubenchmark, read_csv):
 
 
 def test_wsorensen_multi_column_weights(gpubenchmark, read_csv):
-    gc.collect()
 
     M, cu_M = read_csv
 
@@ -142,7 +140,6 @@ def test_wsorensen_multi_column_weights(gpubenchmark, read_csv):
 
 
 def test_wsorensen_multi_column(read_csv):
-    gc.collect()
 
     M, _ = read_csv
 
