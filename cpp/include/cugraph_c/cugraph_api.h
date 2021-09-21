@@ -33,64 +33,65 @@ typedef int bool_t;
 
 /* C stub declarations */
 
-typedef struct c_raft_handle_ {
+typedef struct cugraph_raft_handle_ {
   int allign_;
-} c_raft_handle_t;
+} cugraph_raft_handle_t;
 
-typedef struct c_graph_envelope_ {
+typedef struct cugraph_graph_envelope_ {
   int allign_;
-} c_graph_envelope_t;
+} cugraph_graph_envelope_t;
 
-typedef struct c_erased_device_array_ {
+typedef struct cugraph_erased_device_array_ {
   int allign_;
-} c_device_array_t;
+} cugraph_device_array_t;
 
-typedef struct c_erased_unique_ptr_ {
+typedef struct cugraph_erased_unique_ptr_ {
   int allign_;
-} c_unique_ptr_t;
+} cugraph_unique_ptr_t;
 
-typedef struct c_device_buffer_ {
+typedef struct cugraph_device_buffer_ {
   void* data_;
   size_t size_; /* in bytes */
-} c_device_buffer_t;
+} cugraph_device_buffer_t;
 
 /* C algorithm specific stubs: should go into separate corresponding headers */
 
-typedef struct c_rw_ret_tuple_ {
-  c_device_buffer_t vertex_paths_;
-  c_device_buffer_t weight_paths_;
-  c_device_buffer_t sizes_;
-} c_rw_ret_tuple_t;
+typedef struct cugraph_rw_ret_tuple_ {
+  cugraph_device_buffer_t vertex_paths_;
+  cugraph_device_buffer_t weight_paths_;
+  cugraph_device_buffer_t sizes_;
+} cugraph_rw_ret_tuple_t;
 
-typedef struct c_rw_ret_ {
+typedef struct cugraph_rw_ret_ {
   void* p_erased_ret;
-} c_rw_ret_t;
+} cugraph_rw_ret_t;
 
 /* TODO:
  * (1.) graph_envelope "cnstr" / "destr":
  *
- *      c_graph_envelope_t* make_graph_envelope(...);
- *      free_graph_envelope(c_graph_envelope_t* ptr);
+ *      cugraph_graph_envelope_t* make_graph_envelope(...);
+ *      free_graph_envelope(cugraph_graph_envelope_t* ptr);
  *
  * (2.) type reconstruction extractors;
  *      e.g., for `return_t`: different extractors
  *      interpret return in a different (typed) way;
  *
  *      Example:
- *      c_device_buffer_t* extract_rw_ret_vertex_path(c_type vertex_t_id, c_rw_ret_t* rw_result);
- *      c_device_buffer_t* extract_rw_ret_weight_path(c_type vertex_t_id, c_rw_ret_t* rw_result);
+ *      cugraph_device_buffer_t* extract_rw_ret_vertex_path(cugraph_type vertex_t_id,
+ * cugraph_rw_ret_t* rw_result); cugraph_device_buffer_t* extract_rw_ret_weight_path(cugraph_type
+ * vertex_t_id, cugraph_rw_ret_t* rw_result);
  */
 
 /* C algorithm specific wrapper declarations: : should go into separate corresponding headers */
 
-cugraph_error_t c_random_walks(const c_raft_handle_t* ptr_handle,
-                               c_graph_envelope_t* ptr_graph_envelope,
-                               c_device_array_t* ptr_d_start,
-                               size_t num_paths,
-                               size_t max_depth,
-                               bool_t flag_use_padding,
-                               c_unique_ptr_t* ptr_sampling_strategy,
-                               c_rw_ret_t* ret);
+cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
+                                     cugraph_graph_envelope_t* ptr_graph_envelope,
+                                     cugraph_device_array_t* ptr_d_start,
+                                     size_t num_paths,
+                                     size_t max_depth,
+                                     bool_t flag_use_padding,
+                                     cugraph_unique_ptr_t* ptr_sampling_strategy,
+                                     cugraph_rw_ret_t* ret);
 
 #ifdef __cplusplus
 }
