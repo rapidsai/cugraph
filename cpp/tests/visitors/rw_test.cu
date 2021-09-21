@@ -103,8 +103,8 @@ class Tests_RW_Visitor : public ::testing::TestWithParam<RandomWalks_Usecase> {
 
     // extract graph data from graph matrix file:
     //
-    auto&& [d_src, d_dst, opt_d_w, num_vertices, is_sym] =
-      cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
+    auto&& [d_src, d_dst, opt_d_w, d_verts_ignore, num_vertices, is_sym] =
+      cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t, false, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted);
 
     cugraph::graph_properties_t graph_props{is_sym, false};

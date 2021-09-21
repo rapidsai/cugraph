@@ -517,7 +517,8 @@ T transform_reduce_e(raft::handle_t const& handle,
                                edge_property_add);
 
   if (GraphViewType::is_multi_gpu) {
-    result = host_scalar_allreduce(handle.get_comms(), result, handle.get_stream());
+    result = host_scalar_allreduce(
+      handle.get_comms(), result, raft::comms::op_t::SUM, handle.get_stream());
   }
 
   return result;

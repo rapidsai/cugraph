@@ -20,7 +20,6 @@
 
 add_library(cugraphtestutil STATIC
             utilities/matrix_market_file_utilities.cu
-            utilities/rmat_utilities.cpp
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
             components/wcc_graphs.cu
@@ -218,11 +217,13 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
 
     add_test(NAME ${CMAKE_TEST_NAME}
              COMMAND ${MPIEXEC_EXECUTABLE}
+             "--noprefix"
              ${MPIEXEC_NUMPROC_FLAG}
              ${GPU_COUNT}
              ${MPIEXEC_PREFLAGS}
              ${CMAKE_TEST_NAME}
              ${MPIEXEC_POSTFLAGS})
+
 endfunction()
 
 ###################################################################################################
@@ -386,16 +387,19 @@ ConfigureTest(RANDOM_WALKS_PROFILING sampling/random_walks_profiling.cu)
 ConfigureTest(SERIALIZATION_TEST serialization/un_serialize_test.cpp)
 
 ###################################################################################################
+# - Experimental renumber tests -------------------------------------------------------------------
+set(RENUMBERING_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/structure/renumbering_test.cpp")
+
+ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
+
+###################################################################################################
 # - BFS Visitor tests -----------------------------------------------------------------------------
 ConfigureTest(BFS_VISITOR_TEST visitors/bfs_test.cpp)
 
 ###################################################################################################
 # - Random Walks Visitor tests --------------------------------------------------------------------
-
-set(RW_VISITOR_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/visitors/rw_test.cu")
-
-ConfigureTest(RANDOM_WALKS_VISITOR_TEST "${RW_VISITOR_TEST_SRCS}")
+ConfigureTest(RANDOM_WALKS_VISITOR_TEST visitors/rw_test.cu)
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
@@ -461,6 +465,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_E tests -----------------------------------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_E_TEST prims/mg_transform_reduce_e.cu)
+
+        ###########################################################################################
+        # - MG PRIMS COUNT_IF_E tests -------------------------------------------------------------
+        ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()

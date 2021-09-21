@@ -194,8 +194,10 @@ class SortedUniqueKeyBucket {
   template <bool do_aggregate = is_multi_gpu>
   std::enable_if_t<do_aggregate, size_t> aggregate_size() const
   {
-    return host_scalar_allreduce(
-      handle_ptr_->get_comms(), vertices_.size(), handle_ptr_->get_stream());
+    return host_scalar_allreduce(handle_ptr_->get_comms(),
+                                 vertices_.size(),
+                                 raft::comms::op_t::SUM,
+                                 handle_ptr_->get_stream());
   }
 
   template <bool do_aggregate = is_multi_gpu>

@@ -161,8 +161,8 @@ class Tests_PageRank
     }
 
     auto [graph, d_renumber_map_labels] =
-      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
-        handle, pagerank_usecase.test_weighted, renumber);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
+        handle, input_usecase, pagerank_usecase.test_weighted, renumber);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -263,8 +263,8 @@ class Tests_PageRank
       cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
-          input_usecase.template construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            handle, pagerank_usecase.test_weighted, false);
+          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
+            handle, input_usecase, pagerank_usecase.test_weighted, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
