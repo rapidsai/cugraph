@@ -22,6 +22,13 @@ import cugraph
 from cugraph.tests import utils
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
 def cugraph_call(benchmark_callable, cu_M, pairs):
     # Device data
     weights_arr = cudf.Series(
@@ -86,7 +93,6 @@ def cpu_call(M, first, second):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_woverlap(gpubenchmark, graph_file):
-    gc.collect()
 
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
@@ -118,7 +124,6 @@ def test_woverlap(gpubenchmark, graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_woverlap_multi_column(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
 
