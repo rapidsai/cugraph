@@ -16,17 +16,26 @@ import sys
 import sysconfig
 import shutil
 
-from setuptools import setup, find_packages, Command
-from setuptools.extension import Extension
-from setuputils import use_raft_package, get_environment_option
+# Must import in this order:
+#   setuptools -> Cython.Distutils.build_ext -> setuptools.command.build_ext
+# Otherwise, setuptools.command.build_ext ends up inheriting from
+# Cython.Distutils.old_build_ext which we do not want
+import setuptools
 
 try:
-    from Cython.Distutils.build_ext import new_build_ext as build_ext
+    from Cython.Distutils.build_ext import new_build_ext as _build_ext
 except ImportError:
-    from setuptools.command.build_ext import build_ext
+    from setuptools.command.build_ext import build_ext as _build_ext
+
+from distutils.sysconfig import get_python_lib
+
+import setuptools.command.build_ext
+from setuptools import find_packages, setup, Command
+from setuptools.extension import Extension
+
+from setuputils import use_raft_package, get_environment_option
 
 import versioneer
-from distutils.sysconfig import get_python_lib
 
 
 INSTALL_REQUIRES = ['numba', 'cython']
@@ -81,6 +90,32 @@ raft_include_dir = use_raft_package(raft_path, libcugraph_path)
 if not libcugraph_path:
     libcugraph_path = conda_lib_dir
 
+extensions = [
+    Extension("*",
+              sources=CYTHON_FILES,
+              include_dirs=[
+                  conda_include_dir,
+                  ucx_include_dir,
+                  '../cpp/include',
+                  "../thirdparty/cub",
+                  raft_include_dir,
+                  os.path.join(conda_include_dir, "libcudacxx"),
+                  cuda_include_dir,
+                  os.path.dirname(sysconfig.get_path("include"))
+              ],
+              library_dirs=[
+                  get_python_lib(),
+                  conda_lib_dir,
+                  libcugraph_path,
+                  ucx_lib_dir,
+                  cuda_lib_dir,
+                  os.path.join(os.sys.prefix, "lib")
+              ],
+              libraries=['cudart', 'cusparse', 'cusolver', 'cugraph', 'nccl'],
+              language='c++',
+              extra_compile_args=['-std=c++17'])
+]
+
 
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
@@ -105,41 +140,49 @@ class CleanCommand(Command):
         os.system('find . -name "*.cpython*.so" -type f -delete')
 
 
+class build_ext_no_debug(_build_ext):
+
+    def build_extensions(self):
+        def remove_flags(compiler, *flags):
+            for flag in flags:
+                try:
+                    compiler.compiler_so = list(
+                        filter((flag).__ne__, compiler.compiler_so)
+                    )
+                except Exception:
+                    pass
+        # Full optimization
+        self.compiler.compiler_so.append("-O3")
+        # No debug symbols, full optimization, no '-Wstrict-prototypes' warning
+        remove_flags(
+            self.compiler, "-g", "-G", "-O1", "-O2", "-Wstrict-prototypes"
+        )
+        super().build_extensions()
+
+    def finalize_options(self):
+        if self.distribution.ext_modules:
+            # Delay import this to allow for Cython-less installs
+            from Cython.Build.Dependencies import cythonize
+
+            nthreads = getattr(self, "parallel", None)  # -j option in Py3.5+
+            nthreads = int(nthreads) if nthreads else None
+            self.distribution.ext_modules = cythonize(
+                self.distribution.ext_modules,
+                nthreads=nthreads,
+                force=self.force,
+                gdb_debug=False,
+                compiler_directives=dict(
+                    profile=False, language_level=3, embedsignature=True
+                ),
+            )
+        # Skip calling super() and jump straight to setuptools
+        setuptools.command.build_ext.build_ext.finalize_options(self)
+
+
 cmdclass = dict()
 cmdclass.update(versioneer.get_cmdclass())
-cmdclass["build_ext"] = build_ext
+cmdclass["build_ext"] = build_ext_no_debug
 cmdclass["clean"] = CleanCommand
-
-EXTENSIONS = [
-    Extension("*",
-              sources=CYTHON_FILES,
-              include_dirs=[
-                  conda_include_dir,
-                  ucx_include_dir,
-                  "../../cpp/include",
-                  "../../thirdparty/cub",
-                  raft_include_dir,
-                  os.path.join(conda_include_dir, "libcudacxx"),
-                  cuda_include_dir,
-                  os.path.dirname(sysconfig.get_path("include"))
-              ],
-              library_dirs=[
-                  get_python_lib(),
-                  conda_lib_dir,
-                  libcugraph_path,
-                  ucx_lib_dir,
-                  cuda_lib_dir,
-                  os.path.join(os.sys.prefix, "lib")
-              ],
-              libraries=['cudart', 'cusparse', 'cusolver', 'cugraph', 'nccl'],
-              language='c++',
-              extra_compile_args=['-std=c++17'])
-]
-
-for e in EXTENSIONS:
-    e.cython_directives = dict(
-        profile=False, language_level=3, embedsignature=True
-    )
 
 setup(name='cugraph',
       description="cuGraph - RAPIDS GPU Graph Analytics",
@@ -154,8 +197,8 @@ setup(name='cugraph',
       ],
       # Include the separately-compiled shared library
       author="NVIDIA Corporation",
-      setup_requires=['cython'],
-      ext_modules=EXTENSIONS,
+      setup_requires=['Cython>=0.29,<0.30'],
+      ext_modules=extensions,
       packages=find_packages(include=['cugraph', 'cugraph.*']),
       install_requires=INSTALL_REQUIRES,
       license="Apache",
