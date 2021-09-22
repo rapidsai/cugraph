@@ -29,17 +29,17 @@ template <typename vertex_t,
           bool st,
           bool mg,
           typename Enable = void>
-struct graph_reader_visitor_t;
+struct graph_maker_visitor;
 
 // dummy out non-candidate instantiation paths:
 //
 template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
-struct graph_reader_visitor_t<vertex_t,
-                              edge_t,
-                              weight_t,
-                              st,
-                              mg,
-                              std::enable_if_t<(!is_candidate<vertex_t, edge_t, weight_t>::value)>>
+struct graph_maker_visitor<vertex_t,
+                           edge_t,
+                           weight_t,
+                           st,
+                           mg,
+                           std::enable_if_t<(!is_candidate<vertex_t, edge_t, weight_t>::value)>>
   : visitor_t {
   void visit_graph(graph_envelope_t::base_graph_t const&) override
   {
@@ -59,14 +59,14 @@ struct graph_reader_visitor_t<vertex_t,
 };
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
-struct graph_reader_visitor_t<vertex_t,
-                              edge_t,
-                              weight_t,
-                              st,
-                              mg,
-                              std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>
+struct graph_maker_visitor<vertex_t,
+                           edge_t,
+                           weight_t,
+                           st,
+                           mg,
+                           std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>
   : visitor_t {
-  graph_reader_visitor_t(erased_pack_t& ep) : ep_(ep) {}
+  graph_maker_visitor(erased_pack_t& ep) : ep_(ep) {}
 
   void visit_graph(graph_envelope_t::base_graph_t const&) override;
 

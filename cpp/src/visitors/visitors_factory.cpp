@@ -18,6 +18,7 @@
 //
 
 #include <cugraph/visitors/bfs_visitor.hpp>
+#include <cugraph/visitors/graph_make_visitor.hpp>
 #include <cugraph/visitors/rw_visitor.hpp>
 
 #include <cugraph/visitors/graph_envelope.hpp>
@@ -65,6 +66,19 @@ std::unique_ptr<visitor_t> dependent_factory_t<
                                                                                         ep) const
 {
   return std::make_unique<rw_visitor<vertex_t, edge_t, weight_t, st, mg>>(ep);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
+std::unique_ptr<visitor_t>
+dependent_factory_t<vertex_t,
+                    edge_t,
+                    weight_t,
+                    st,
+                    mg,
+                    std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>::
+  make_graph_maker_visitor(erased_pack_t& ep) const
+{
+  return std::make_unique<graph_maker_visitor<vertex_t, edge_t, weight_t, st, mg>>(ep);
 }
 
 // EIDir's:
