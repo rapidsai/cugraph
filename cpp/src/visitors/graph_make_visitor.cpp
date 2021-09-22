@@ -35,7 +35,7 @@ void graph_maker_visitor<vertex_t,
     auto const& v_args = ep_.get_args();
 
     auto num_args = v_args.size();
-    assert(num_args > 7);
+    assert(num_args > 6);
 
     // cnstr. args unpacking:
     //
@@ -45,15 +45,14 @@ void graph_maker_visitor<vertex_t,
     weight_t const* p_weights  = static_cast<weight_t*>(v_args[3]);
     edge_t num_edges           = *static_cast<edge_t*>(v_args[4]);
     vertex_t num_vertices      = *static_cast<vertex_t*>(v_args[5]);
-    bool sorted                = *static_cast<bool*>(v_args[6]);
-    bool check                 = *static_cast<bool*>(v_args[7]);
+    bool check                 = *static_cast<bool*>(v_args[6]);
 
     bool is_sym{false};
     bool is_multigraph{false};
 
-    if (num_args > 8) {
-      is_sym = *static_cast<bool*>(v_args[8]);
-      if (num_args > 9) is_multigraph = *static_cast<bool*>(v_args[9]);
+    if (num_args > 7) {
+      is_sym = *static_cast<bool*>(v_args[7]);
+      if (num_args > 8) is_multigraph = *static_cast<bool*>(v_args[8]);
     }
 
     cugraph::graph_properties_t graph_props{is_sym, is_multigraph};
@@ -63,7 +62,8 @@ void graph_maker_visitor<vertex_t,
 
     cugraph::edgelist_t<vertex_t, edge_t, weight_t> edgelist{p_src, p_dst, opt_ptr_w, num_edges};
 
-    erased_pack_t ep_graph{ptr_handle, &edgelist, &num_vertices, &graph_props, &sorted, &check};
+    cugraph::graph_meta_t<vertex_t, edge_t, false> meta{num_vertices, graph_props, std::nullopt};
+    erased_pack_t ep_graph{ptr_handle, &edgelist, &meta, &check};
 
     DTypes vertex_tid = reverse_dmap_t<vertex_t>::type_id;
     DTypes edge_tid   = reverse_dmap_t<edge_t>::type_id;
