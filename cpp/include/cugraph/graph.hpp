@@ -94,6 +94,10 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
+  // return a new renumber_map
+  rmm::device_uvector<vertex_t> symmetrize(rmm::device_uvector<vertex_t>&& renumber_map,
+                                           bool reciprocal = false);
+
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
 
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
@@ -181,6 +185,10 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
+
+  // return a new renumber_map if @p renumber_map is valid
+  std::optional<rmm::device_uvector<vertex_t>> symmetrize(
+    std::optional<rmm::device_uvector<vertex_t>>&& renumber_map, bool reciprocal = false);
 
   bool is_weighted() const { return weights_.has_value(); }
 
