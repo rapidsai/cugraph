@@ -112,8 +112,8 @@ class Tests_WeaklyConnectedComponent
     }
 
     auto [graph, d_renumber_map_labels] =
-      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, false, renumber);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+        handle, input_usecase, false, renumber);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -147,8 +147,8 @@ class Tests_WeaklyConnectedComponent
       cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
-          input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, false, false);
+          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+            handle, input_usecase, false, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 

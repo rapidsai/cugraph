@@ -169,7 +169,10 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
             static_cast<vertex_t const*>(graph_container.segment_offsets),
             static_cast<vertex_t const*>(graph_container.segment_offsets) +
               graph_container.num_segments + 1)
-        : std::nullopt},
+        : std::nullopt,
+      // FIXME: disable (key, value) pairs at this moment (should be enabled once fully tuned).
+      std::numeric_limits<vertex_t>::max(),
+      std::numeric_limits<vertex_t>::max()},
     graph_container.do_expensive_check);
 }
 
@@ -580,9 +583,9 @@ void call_pagerank(raft::handle_t const& handle,
                    bool has_guess)
 {
   if (graph_container.is_multi_gpu) {
-    auto& comm = handle.get_comms();
-    auto aggregate_personalization_subset_size =
-      cugraph::host_scalar_allreduce(comm, personalization_subset_size, handle.get_stream());
+    auto& comm                                 = handle.get_comms();
+    auto aggregate_personalization_subset_size = cugraph::host_scalar_allreduce(
+      comm, personalization_subset_size, raft::comms::op_t::SUM, handle.get_stream());
 
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
       auto graph =
