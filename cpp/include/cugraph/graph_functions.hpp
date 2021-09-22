@@ -37,6 +37,9 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>>
   edge_t number_of_edges{};
   partition_t<vertex_t> partition{};
   std::vector<vertex_t> segment_offsets{};
+
+  vertex_t num_local_unique_edge_majors{};
+  vertex_t num_local_unique_edge_minors{};
 };
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -88,9 +91,9 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  * Tuple of labels (vertex IDs before renumbering) for the entire set of vertices (assigned to this
  * process in multi-GPU) and meta-data collected while renumbering. The meta-data includes total
  * number of vertices, total number of edges, partition_t object storing graph partitioning
- * information,  and vertex partition segment offsets (a vertex partition is partitioned to multiple
- * segments based on vertex degrees). This meta-data is expected to be used in graph construction &
- * graph primitives.
+ * information, vertex partition segment offsets (a vertex partition is partitioned to multiple
+ * segments based on vertex degrees), and the number of local unique edge major & minor vertex IDs.
+ * This meta-data is expected to be used in graph construction & graph primitives.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<

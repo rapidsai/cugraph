@@ -49,7 +49,7 @@ struct out_of_range_t {
   vertex_t min{};
   vertex_t max{};
 
-  __device__ bool operator()(vertex_t v) { return (v < min) || (v >= max); }
+  __device__ bool operator()(vertex_t v) const { return (v < min) || (v >= max); }
 };
 
 template <typename vertex_t, typename edge_t>
@@ -179,7 +179,13 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                                               meta.adj_matrix_partition_segment_offsets,
                                               handle.get_stream())),
     partition_(meta.partition),
-    adj_matrix_partition_segment_offsets_(meta.adj_matrix_partition_segment_offsets)
+    adj_matrix_partition_segment_offsets_(meta.adj_matrix_partition_segment_offsets),
+    local_sorted_unique_edge_row_first_(meta.local_sorted_unique_edge_row_first),
+    local_sorted_unique_edge_row_last_(meta.local_sorted_unique_edge_row_last),
+    local_sorted_unique_edge_row_offsets_(meta.local_sorted_unique_edge_row_offsets),
+    local_sorted_unique_edge_col_first_(meta.local_sorted_unique_edge_col_first),
+    local_sorted_unique_edge_col_last_(meta.local_sorted_unique_edge_col_last),
+    local_sorted_unique_edge_col_offsets_(meta.local_sorted_unique_edge_col_offsets)
 {
   // cheap error checks
 

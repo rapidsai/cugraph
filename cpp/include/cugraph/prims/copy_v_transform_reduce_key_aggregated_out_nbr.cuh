@@ -425,17 +425,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                    i,
                    handle.get_stream());
     }
-    // FIXME: these copies are unnecessary, better fix RAFT comm's bcast to take separate input &
-    // output pointers
-    auto execution_policy = handle.get_thrust_policy();
-    thrust::copy(execution_policy,
-                 map_unique_key_first,
-                 map_unique_key_last,
-                 map_keys.begin() + map_displacements[row_comm_rank]);
-    thrust::copy(execution_policy,
-                 map_value_first,
-                 map_value_first + thrust::distance(map_unique_key_first, map_unique_key_last),
-                 get_dataframe_buffer_begin(map_value_buffer) + map_displacements[row_comm_rank]);
 
     handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
 
@@ -635,7 +624,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     auto tmp_e_op_result_buffer_first = get_dataframe_buffer_begin(tmp_e_op_result_buffer);
 
     auto matrix_partition_row_value_input = adj_matrix_row_value_input;
-    matrix_partition_row_value_input.add_offset(matrix_partition.get_major_value_start_offset());
+    matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
 
     auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
       tmp_major_vertices.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
