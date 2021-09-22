@@ -51,6 +51,9 @@ struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>> {
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
+
+  vertex_t num_local_unique_edge_rows{};
+  vertex_t num_local_unique_edge_cols{};
 };
 
 // single-GPU version
@@ -140,6 +143,22 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
         this->get_graph_properties(),
         partition_,
         adj_matrix_partition_segment_offsets_,
+        local_sorted_unique_edge_rows_
+          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_rows_).data()}
+          : std::nullopt,
+        local_sorted_unique_edge_rows_
+          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_rows_).data() +
+                                           (*local_sorted_unique_edge_rows_).size()}
+          : std::nullopt,
+        local_sorted_unique_edge_row_offsets_,
+        local_sorted_unique_edge_cols_
+          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_cols_).data()}
+          : std::nullopt,
+        local_sorted_unique_edge_cols_
+          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_cols_).data() +
+                                           (*local_sorted_unique_edge_cols_).size()}
+          : std::nullopt,
+        local_sorted_unique_edge_col_offsets_,
       },
       false);
   }
@@ -159,6 +178,13 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   // segment offsets within the vertex partition based on vertex degree, relevant only if
   // segment_offsets.size() > 0
   std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets_{std::nullopt};
+
+  // if valid, store row/column properties in key/value pairs (this saves memory if # unique edge
+  // rows/cols << V / row_comm_size|col_comm_size).
+  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_rows_{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_cols_{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_row_offsets_{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_col_offsets_{std::nullopt};
 };
 
 // single-GPU version

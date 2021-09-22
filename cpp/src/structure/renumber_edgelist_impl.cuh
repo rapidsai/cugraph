@@ -45,13 +45,14 @@
 namespace cugraph {
 namespace detail {
 
+// returns renumber map, segment_offsets, and # unique edge majors & minors
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumber_map(
-  raft::handle_t const& handle,
-  std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
-  std::vector<vertex_t const*> const& edgelist_major_vertices,
-  std::vector<vertex_t const*> const& edgelist_minor_vertices,
-  std::vector<edge_t> const& edgelist_edge_counts)
+std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t, vertex_t>
+compute_renumber_map(raft::handle_t const& handle,
+                     std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
+                     std::vector<vertex_t const*> const& edgelist_major_vertices,
+                     std::vector<vertex_t const*> const& edgelist_minor_vertices,
+                     std::vector<edge_t> const& edgelist_edge_counts)
 {
   // FIXME: compare this sort based approach with hash based approach in both speed and memory
   // footprint
@@ -76,6 +77,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
 
   rmm::device_uvector<vertex_t> major_labels(0, handle.get_stream());
   rmm::device_uvector<edge_t> major_counts(0, handle.get_stream());
+  vertex_t num_local_unique_edge_majors{0};
   for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
     rmm::device_uvector<vertex_t> tmp_major_labels(0, handle.get_stream());
     rmm::device_uvector<edge_t> tmp_major_counts(0, handle.get_stream());
@@ -105,6 +107,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                             tmp_major_labels.begin(),
                             tmp_major_counts.begin());
     }
+    num_local_unique_edge_majors += static_cast<vertex_t>(tmp_major_labels.size());
 
     if (multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
@@ -171,6 +174,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
     edgelist_edge_counts.begin(), edgelist_edge_counts.end() - 1, minor_displs.begin() + 1);
   rmm::device_uvector<vertex_t> minor_labels(minor_displs.back() + edgelist_edge_counts.back(),
                                              handle.get_stream());
+  vertex_t num_local_unique_edge_minors{0};
   for (size_t i = 0; i < edgelist_minor_vertices.size(); ++i) {
     thrust::copy(handle.get_thrust_policy(),
                  edgelist_minor_vertices[i],
@@ -183,6 +187,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
       minor_labels.begin(),
       thrust::unique(handle.get_thrust_policy(), minor_labels.begin(), minor_labels.end())),
     handle.get_stream());
+  num_local_unique_edge_minors += static_cast<vertex_t>(minor_labels.size());
   if (multi_gpu) {
     auto& comm               = handle.get_comms();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -365,7 +370,10 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                     handle.get_stream());
   handle.get_stream_view().synchronize();
 
-  return std::make_tuple(std::move(labels), h_segment_offsets);
+  return std::make_tuple(std::move(labels),
+                         h_segment_offsets,
+                         num_local_unique_edge_majors,
+                         num_local_unique_edge_minors);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -646,7 +654,10 @@ renumber_edgelist(
 
   // 1. compute renumber map
 
-  auto [renumber_map_labels, vertex_partition_segment_offsets] =
+  auto [renumber_map_labels,
+        vertex_partition_segment_offsets,
+        num_unique_edge_majors,
+        num_unique_edge_minors] =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(handle,
                                                               local_vertex_span,
                                                               edgelist_const_major_vertices,
@@ -691,40 +702,47 @@ renumber_edgelist(
   comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
-  for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
-    rmm::device_uvector<vertex_t> renumber_map_major_labels(
-      col_comm_rank == static_cast<int>(i) ? vertex_t{0}
-                                           : partition.get_matrix_partition_major_size(i),
-      handle.get_stream());
-    device_bcast(col_comm,
-                 renumber_map_labels.data(),
-                 renumber_map_major_labels.data(),
-                 partition.get_matrix_partition_major_size(i),
-                 i,
-                 handle.get_stream());
+  {
+    vertex_t max_matrix_partition_major_size{0};
+    for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
+      max_matrix_partition_major_size =
+        std::max(max_matrix_partition_major_size, partition.get_matrix_partition_major_size(i));
+    }
+    rmm::device_uvector<vertex_t> renumber_map_major_labels(max_matrix_partition_major_size,
+                                                            handle.get_stream());
+    for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
+      device_bcast(col_comm,
+                   renumber_map_labels.data(),
+                   renumber_map_major_labels.data(),
+                   partition.get_matrix_partition_major_size(i),
+                   i,
+                   handle.get_stream());
 
-    CUDA_TRY(cudaStreamSynchronize(
-      handle.get_stream()));  // cuco::static_map currently does not take stream
+      CUDA_TRY(cudaStreamSynchronize(
+        handle.get_stream()));  // cuco::static_map currently does not take stream
 
-    auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-      renumber_map{
-        // cuco::static_map requires at least one empty slot
-        std::max(static_cast<size_t>(
-                   static_cast<double>(partition.get_matrix_partition_major_size(i)) / load_factor),
-                 static_cast<size_t>(partition.get_matrix_partition_major_size(i)) + 1),
-        invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value,
-        stream_adapter};
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      col_comm_rank == static_cast<int>(i) ? renumber_map_labels.begin()
-                                           : renumber_map_major_labels.begin(),
-      thrust::make_counting_iterator(partition.get_matrix_partition_major_first(i))));
-    renumber_map.insert(pair_first, pair_first + partition.get_matrix_partition_major_size(i));
-    renumber_map.find(edgelist_major_vertices[i],
-                      edgelist_major_vertices[i] + edgelist_edge_counts[i],
-                      edgelist_major_vertices[i]);
+      auto poly_alloc =
+        rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+      auto stream_adapter =
+        rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
+        renumber_map{
+          // cuco::static_map requires at least one empty slot
+          std::max(
+            static_cast<size_t>(static_cast<double>(partition.get_matrix_partition_major_size(i)) /
+                                load_factor),
+            static_cast<size_t>(partition.get_matrix_partition_major_size(i)) + 1),
+          invalid_vertex_id<vertex_t>::value,
+          invalid_vertex_id<vertex_t>::value,
+          stream_adapter};
+      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+        renumber_map_major_labels.begin(),
+        thrust::make_counting_iterator(partition.get_matrix_partition_major_first(i))));
+      renumber_map.insert(pair_first, pair_first + partition.get_matrix_partition_major_size(i));
+      renumber_map.find(edgelist_major_vertices[i],
+                        edgelist_major_vertices[i] + edgelist_edge_counts[i],
+                        edgelist_major_vertices[i]);
+    }
   }
 
   // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
@@ -740,10 +758,14 @@ renumber_edgelist(
   if ((partition.get_matrix_partition_minor_size() >= number_of_edges / comm_size) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
+    vertex_t max_segment_size{0};
+    for (int i = 0; i < row_comm_size; ++i) {
+      max_segment_size = std::max(
+        max_segment_size, partition.get_vertex_partition_size(col_comm_rank * row_comm_size + i));
+    }
+    rmm::device_uvector<vertex_t> renumber_map_minor_labels(max_segment_size, handle.get_stream());
     for (int i = 0; i < row_comm_size; ++i) {
       auto segment_size = partition.get_vertex_partition_size(col_comm_rank * row_comm_size + i);
-      rmm::device_uvector<vertex_t> renumber_map_minor_labels(
-        row_comm_rank == i ? vertex_t{0} : segment_size, handle.get_stream());
       device_bcast(row_comm,
                    renumber_map_labels.data(),
                    renumber_map_minor_labels.data(),
@@ -766,7 +788,7 @@ renumber_edgelist(
                      invalid_vertex_id<vertex_t>::value,
                      stream_adapter};
       auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-        row_comm_rank == i ? renumber_map_labels.begin() : renumber_map_minor_labels.begin(),
+        renumber_map_minor_labels.begin(),
         thrust::make_counting_iterator(
           partition.get_vertex_partition_first(col_comm_rank * row_comm_size + i))));
       renumber_map.insert(pair_first, pair_first + segment_size);
@@ -829,8 +851,12 @@ renumber_edgelist(
 
   return std::make_tuple(
     std::move(renumber_map_labels),
-    renumber_meta_t<vertex_t, edge_t, multi_gpu>{
-      number_of_vertices, number_of_edges, partition, vertex_partition_segment_offsets});
+    renumber_meta_t<vertex_t, edge_t, multi_gpu>{number_of_vertices,
+                                                 number_of_edges,
+                                                 partition,
+                                                 vertex_partition_segment_offsets,
+                                                 num_unique_edge_majors,
+                                                 num_unique_edge_minors});
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -854,7 +880,9 @@ renumber_edgelist(raft::handle_t const& handle,
       std::nullopt);
   }
 
-  auto [renumber_map_labels, segment_offsets] =
+  rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
+  std::vector<vertex_t> segment_offsets{};
+  std::tie(renumber_map_labels, segment_offsets, std::ignore, std::ignore) =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
       handle,
       vertex_span,

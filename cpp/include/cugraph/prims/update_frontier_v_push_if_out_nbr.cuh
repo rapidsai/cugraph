@@ -654,18 +654,10 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
 
       rmm::device_uvector<vertex_t> frontier_vertices(local_frontier_sizes[i],
                                                       handle.get_stream_view());
-      // FIXME: this copy is unnecessary, better fix RAFT comm's bcast to take const iterators for
-      // input
-      if (col_comm_rank == static_cast<int>(i)) {
-        thrust::copy(execution_policy,
-                     local_frontier_vertex_first,
-                     local_frontier_vertex_last,
-                     frontier_vertices.begin());
-      }
       device_bcast(col_comm,
+                   local_frontier_vertex_first,
                    frontier_vertices.data(),
-                   frontier_vertices.data(),
-                   frontier_vertices.size(),
+                   local_frontier_sizes[i],
                    static_cast<int>(i),
                    handle.get_stream());
 
@@ -893,13 +885,6 @@ void update_frontier_v_push_if_out_nbr(
       resize_dataframe_buffer(
         matrix_partition_frontier_key_buffer, matrix_partition_frontier_size, handle.get_stream());
 
-      if (static_cast<size_t>(col_comm_rank) == i) {
-        thrust::copy(handle.get_thrust_policy(),
-                     frontier_key_first,
-                     frontier_key_last,
-                     get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer));
-      }
-
       device_bcast(col_comm,
                    frontier_key_first,
                    get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer),
@@ -995,7 +980,7 @@ void update_frontier_v_push_if_out_nbr(
 
     auto matrix_partition_row_value_input = adj_matrix_row_value_input;
     auto matrix_partition_col_value_input = adj_matrix_col_value_input;
-    matrix_partition_row_value_input.add_offset(matrix_partition.get_major_value_start_offset());
+    matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
 
     if (segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
