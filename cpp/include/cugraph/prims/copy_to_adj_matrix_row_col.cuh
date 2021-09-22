@@ -15,9 +15,10 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -26,8 +27,8 @@
 #include <cugraph/utilities/thrust_tuple_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
@@ -39,17 +40,16 @@
 #include <utility>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
 template <typename GraphViewType,
           typename VertexValueInputIterator,
-          typename MatrixMajorValueOutputIterator>
+          typename MatrixMajorValueOutputWrapper>
 void copy_to_matrix_major(raft::handle_t const& handle,
                           GraphViewType const& graph_view,
                           VertexValueInputIterator vertex_value_input_first,
-                          MatrixMajorValueOutputIterator matrix_major_value_output_first)
+                          MatrixMajorValueOutputWrapper& matrix_major_value_output)
 {
   if (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
@@ -80,7 +80,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
     }
     device_allgatherv(col_comm,
                       vertex_value_input_first,
-                      matrix_major_value_output_first,
+                      matrix_major_value_output.value_data(),
                       rx_counts,
                       displacements,
                       handle.get_stream());
@@ -99,23 +99,23 @@ void copy_to_matrix_major(raft::handle_t const& handle,
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_cols()
              : graph_view.get_number_of_local_adj_matrix_partition_rows());
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(handle.get_thrust_policy(),
                  vertex_value_input_first,
                  vertex_value_input_first + graph_view.get_number_of_local_vertices(),
-                 matrix_major_value_output_first);
+                 matrix_major_value_output.value_data());
   }
 }
 
 template <typename GraphViewType,
           typename VertexIterator,
           typename VertexValueInputIterator,
-          typename MatrixMajorValueOutputIterator>
+          typename MatrixMajorValueOutputWrapper>
 void copy_to_matrix_major(raft::handle_t const& handle,
                           GraphViewType const& graph_view,
                           VertexIterator vertex_first,
                           VertexIterator vertex_last,
                           VertexValueInputIterator vertex_value_input_first,
-                          MatrixMajorValueOutputIterator matrix_major_value_output_first)
+                          MatrixMajorValueOutputWrapper& matrix_major_value_output)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -157,8 +157,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
       auto rx_tmp_buffer = allocate_dataframe_buffer<
         typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_counts[i],
                                                                              handle.get_stream());
-      auto rx_value_first = get_dataframe_buffer_begin<
-        typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
+      auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
       if (col_comm_rank == i) {
         auto vertex_partition =
@@ -170,7 +169,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
           });
         // FIXME: this gather (and temporary buffer) is unnecessary if NCCL directly takes a
         // permutation iterator (and directly gathers to the internal buffer)
-        thrust::gather(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::gather(handle.get_thrust_policy(),
                        map_first,
                        map_first + thrust::distance(vertex_first, vertex_last),
                        vertex_value_input_first,
@@ -191,11 +190,11 @@ void copy_to_matrix_major(raft::handle_t const& handle,
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
         thrust::scatter(
-          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          handle.get_thrust_policy(),
           rx_value_first,
           rx_value_first + rx_counts[i],
           map_first,
-          matrix_major_value_output_first + matrix_partition.get_major_value_start_offset());
+          matrix_major_value_output.value_data() + matrix_partition.get_major_value_start_offset());
       } else {
         auto map_first = thrust::make_transform_iterator(
           rx_vertices.begin(), [matrix_partition] __device__(auto v) {
@@ -204,11 +203,11 @@ void copy_to_matrix_major(raft::handle_t const& handle,
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
         thrust::scatter(
-          rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+          handle.get_thrust_policy(),
           rx_value_first,
           rx_value_first + rx_counts[i],
           map_first,
-          matrix_major_value_output_first + matrix_partition.get_major_value_start_offset());
+          matrix_major_value_output.value_data() + matrix_partition.get_major_value_start_offset());
       }
     }
 
@@ -227,21 +226,21 @@ void copy_to_matrix_major(raft::handle_t const& handle,
              ? graph_view.get_number_of_local_adj_matrix_partition_cols()
              : graph_view.get_number_of_local_adj_matrix_partition_rows());
     auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
-    thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::scatter(handle.get_thrust_policy(),
                     val_first,
                     val_first + thrust::distance(vertex_first, vertex_last),
                     vertex_first,
-                    matrix_major_value_output_first);
+                    matrix_major_value_output.value_data());
   }
 }
 
 template <typename GraphViewType,
           typename VertexValueInputIterator,
-          typename MatrixMinorValueOutputIterator>
+          typename MatrixMinorValueOutputWrapper>
 void copy_to_matrix_minor(raft::handle_t const& handle,
                           GraphViewType const& graph_view,
                           VertexValueInputIterator vertex_value_input_first,
-                          MatrixMinorValueOutputIterator matrix_minor_value_output_first)
+                          MatrixMinorValueOutputWrapper& matrix_minor_value_output)
 {
   if (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
@@ -272,7 +271,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
     }
     device_allgatherv(row_comm,
                       vertex_value_input_first,
-                      matrix_minor_value_output_first,
+                      matrix_minor_value_output.value_data(),
                       rx_counts,
                       displacements,
                       handle.get_stream());
@@ -291,23 +290,23 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_rows()
              : graph_view.get_number_of_local_adj_matrix_partition_cols());
-    thrust::copy(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::copy(handle.get_thrust_policy(),
                  vertex_value_input_first,
                  vertex_value_input_first + graph_view.get_number_of_local_vertices(),
-                 matrix_minor_value_output_first);
+                 matrix_minor_value_output.value_data());
   }
 }
 
 template <typename GraphViewType,
           typename VertexIterator,
           typename VertexValueInputIterator,
-          typename MatrixMinorValueOutputIterator>
+          typename MatrixMinorValueOutputWrapper>
 void copy_to_matrix_minor(raft::handle_t const& handle,
                           GraphViewType const& graph_view,
                           VertexIterator vertex_first,
                           VertexIterator vertex_last,
                           VertexValueInputIterator vertex_value_input_first,
-                          MatrixMinorValueOutputIterator matrix_minor_value_output_first)
+                          MatrixMinorValueOutputWrapper& matrix_minor_value_output)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -348,8 +347,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       auto rx_tmp_buffer = allocate_dataframe_buffer<
         typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_counts[i],
                                                                              handle.get_stream());
-      auto rx_value_first = get_dataframe_buffer_begin<
-        typename std::iterator_traits<VertexValueInputIterator>::value_type>(rx_tmp_buffer);
+      auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
       if (row_comm_rank == i) {
         auto vertex_partition =
@@ -361,7 +359,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
           });
         // FIXME: this gather (and temporary buffer) is unnecessary if NCCL directly takes a
         // permutation iterator (and directly gathers to the internal buffer)
-        thrust::gather(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::gather(handle.get_thrust_policy(),
                        map_first,
                        map_first + thrust::distance(vertex_first, vertex_last),
                        vertex_value_input_first,
@@ -381,11 +379,11 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
-        thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::scatter(handle.get_thrust_policy(),
                         rx_value_first,
                         rx_value_first + rx_counts[i],
                         map_first,
-                        matrix_minor_value_output_first);
+                        matrix_minor_value_output.value_data());
       } else {
         auto map_first = thrust::make_transform_iterator(
           rx_vertices.begin(), [matrix_partition] __device__(auto v) {
@@ -393,11 +391,11 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
-        thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::scatter(handle.get_thrust_policy(),
                         rx_value_first,
                         rx_value_first + rx_counts[i],
                         map_first,
-                        matrix_minor_value_output_first);
+                        matrix_minor_value_output.value_data());
       }
     }
 
@@ -415,11 +413,11 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
     assert(graph_view.get_number_of_local_vertices() ==
            graph_view.get_number_of_local_adj_matrix_partition_rows());
     auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
-    thrust::scatter(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::scatter(handle.get_thrust_policy(),
                     val_first,
                     val_first + thrust::distance(vertex_first, vertex_last),
                     vertex_first,
-                    matrix_minor_value_output_first);
+                    matrix_minor_value_output.value_data());
   }
 }
 
@@ -429,38 +427,32 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
  * @brief Copy vertex property values to the corresponding graph adjacency matrix row property
  * variables.
  *
- * This version fills the entire set of graph adjacency matrix row property values. This function is
- * inspired by thrust::copy().
+ * This version fills the entire set of graph adjacency matrix row property values.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
- * @tparam AdjMatrixRowValueOutputIterator Type of the iterator for graph adjacency matrix row
- * output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param adj_matrix_row_value_output_first Iterator pointing to the adjacency matrix row output
- * property variables for the first (inclusive) row (assigned to this process in multi-GPU).
- * `adj_matrix_row_value_output_last` (exclusive) is deduced as @p adj_matrix_row_value_output_first
- * + @p graph_view.get_number_of_local_adj_matrix_partition_rows().
+ * @param adj_matrix_row_value_output Wrapper used to access data storage to copy row properties
+ * (for the rows assigned to this process in multi-GPU).
  */
-template <typename GraphViewType,
-          typename VertexValueInputIterator,
-          typename AdjMatrixRowValueOutputIterator>
-void copy_to_adj_matrix_row(raft::handle_t const& handle,
-                            GraphViewType const& graph_view,
-                            VertexValueInputIterator vertex_value_input_first,
-                            AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first)
+template <typename GraphViewType, typename VertexValueInputIterator>
+void copy_to_adj_matrix_row(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexValueInputIterator vertex_value_input_first,
+  row_properties_t<GraphViewType,
+                   typename std::iterator_traits<VertexValueInputIterator>::value_type>&
+    adj_matrix_row_value_output)
 {
-  if (GraphViewType::is_adj_matrix_transposed) {
-    copy_to_matrix_minor(
-      handle, graph_view, vertex_value_input_first, adj_matrix_row_value_output_first);
+  if constexpr (GraphViewType::is_adj_matrix_transposed) {
+    copy_to_matrix_minor(handle, graph_view, vertex_value_input_first, adj_matrix_row_value_output);
   } else {
-    copy_to_matrix_major(
-      handle, graph_view, vertex_value_input_first, adj_matrix_row_value_output_first);
+    copy_to_matrix_major(handle, graph_view, vertex_value_input_first, adj_matrix_row_value_output);
   }
 }
 
@@ -470,13 +462,11 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
  *
  * This version fills only a subset of graph adjacency matrix row property values. [@p vertex_first,
  * @p vertex_last) specifies the vertices with new values to be copied to graph adjacency matrix row
- * property variables. This function is inspired by thrust::copy().
+ * property variables.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator  Type of the iterator for vertex identifiers.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
- * @tparam AdjMatrixRowValueOutputIterator Type of the iterator for graph adjacency matrix row
- * output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -487,36 +477,34 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param adj_matrix_row_value_output_first Iterator pointing to the adjacency matrix row output
- * property variables for the first (inclusive) row (assigned to this process in multi-GPU).
- * `adj_matrix_row_value_output_last` (exclusive) is deduced as @p adj_matrix_row_value_output_first
- * + @p graph_view.get_number_of_local_adj_matrix_partition_rows().
+ * @param adj_matrix_row_value_output Wrapper used to access data storage to copy row properties
+ * (for the rows assigned to this process in multi-GPU).
  */
-template <typename GraphViewType,
-          typename VertexIterator,
-          typename VertexValueInputIterator,
-          typename AdjMatrixRowValueOutputIterator>
-void copy_to_adj_matrix_row(raft::handle_t const& handle,
-                            GraphViewType const& graph_view,
-                            VertexIterator vertex_first,
-                            VertexIterator vertex_last,
-                            VertexValueInputIterator vertex_value_input_first,
-                            AdjMatrixRowValueOutputIterator adj_matrix_row_value_output_first)
+template <typename GraphViewType, typename VertexIterator, typename VertexValueInputIterator>
+void copy_to_adj_matrix_row(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexIterator vertex_first,
+  VertexIterator vertex_last,
+  VertexValueInputIterator vertex_value_input_first,
+  row_properties_t<GraphViewType,
+                   typename std::iterator_traits<VertexValueInputIterator>::value_type>&
+    adj_matrix_row_value_output)
 {
-  if (GraphViewType::is_adj_matrix_transposed) {
+  if constexpr (GraphViewType::is_adj_matrix_transposed) {
     copy_to_matrix_minor(handle,
                          graph_view,
                          vertex_first,
                          vertex_last,
                          vertex_value_input_first,
-                         adj_matrix_row_value_output_first);
+                         adj_matrix_row_value_output);
   } else {
     copy_to_matrix_major(handle,
                          graph_view,
                          vertex_first,
                          vertex_last,
                          vertex_value_input_first,
-                         adj_matrix_row_value_output_first);
+                         adj_matrix_row_value_output);
   }
 }
 
@@ -524,38 +512,32 @@ void copy_to_adj_matrix_row(raft::handle_t const& handle,
  * @brief Copy vertex property values to the corresponding graph adjacency matrix column property
  * variables.
  *
- * This version fills the entire set of graph adjacency matrix column property values. This function
- * is inspired by thrust::copy().
+ * This version fills the entire set of graph adjacency matrix column property values.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
- * @tparam AdjMatrixColValueOutputIterator Type of the iterator for graph adjacency matrix column
- * output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param adj_matrix_col_value_output_first Iterator pointing to the adjacency matrix column output
- * property variables for the first (inclusive) column (assigned to this process in multi-GPU).
- * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_view.get_number_of_local_adj_matrix_partition_cols().
+ * @param adj_matrix_col_value_output Wrapper used to access data storage to copy column properties
+ * (for the columns assigned to this process in multi-GPU).
  */
-template <typename GraphViewType,
-          typename VertexValueInputIterator,
-          typename AdjMatrixColValueOutputIterator>
-void copy_to_adj_matrix_col(raft::handle_t const& handle,
-                            GraphViewType const& graph_view,
-                            VertexValueInputIterator vertex_value_input_first,
-                            AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first)
+template <typename GraphViewType, typename VertexValueInputIterator>
+void copy_to_adj_matrix_col(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexValueInputIterator vertex_value_input_first,
+  col_properties_t<GraphViewType,
+                   typename std::iterator_traits<VertexValueInputIterator>::value_type>&
+    adj_matrix_col_value_output)
 {
-  if (GraphViewType::is_adj_matrix_transposed) {
-    copy_to_matrix_major(
-      handle, graph_view, vertex_value_input_first, adj_matrix_col_value_output_first);
+  if constexpr (GraphViewType::is_adj_matrix_transposed) {
+    copy_to_matrix_major(handle, graph_view, vertex_value_input_first, adj_matrix_col_value_output);
   } else {
-    copy_to_matrix_minor(
-      handle, graph_view, vertex_value_input_first, adj_matrix_col_value_output_first);
+    copy_to_matrix_minor(handle, graph_view, vertex_value_input_first, adj_matrix_col_value_output);
   }
 }
 
@@ -565,13 +547,11 @@ void copy_to_adj_matrix_col(raft::handle_t const& handle,
  *
  * This version fills only a subset of graph adjacency matrix column property values. [@p
  * vertex_first, @p vertex_last) specifies the vertices with new values to be copied to graph
- * adjacency matrix column property variables. This function is inspired by thrust::copy().
+ * adjacency matrix column property variables.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator  Type of the iterator for vertex identifiers.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
- * @tparam AdjMatrixColValueOutputIterator Type of the iterator for graph adjacency matrix column
- * output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -582,38 +562,35 @@ void copy_to_adj_matrix_col(raft::handle_t const& handle,
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param adj_matrix_col_value_output_first Iterator pointing to the adjacency matrix column output
- * property variables for the first (inclusive) column (assigned to this process in multi-GPU).
- * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_view.get_number_of_local_adj_matrix_partition_cols().
+ * @param adj_matrix_col_value_output Wrapper used to access data storage to copy column properties
+ * (for the columns assigned to this process in multi-GPU).
  */
-template <typename GraphViewType,
-          typename VertexIterator,
-          typename VertexValueInputIterator,
-          typename AdjMatrixColValueOutputIterator>
-void copy_to_adj_matrix_col(raft::handle_t const& handle,
-                            GraphViewType const& graph_view,
-                            VertexIterator vertex_first,
-                            VertexIterator vertex_last,
-                            VertexValueInputIterator vertex_value_input_first,
-                            AdjMatrixColValueOutputIterator adj_matrix_col_value_output_first)
+template <typename GraphViewType, typename VertexIterator, typename VertexValueInputIterator>
+void copy_to_adj_matrix_col(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexIterator vertex_first,
+  VertexIterator vertex_last,
+  VertexValueInputIterator vertex_value_input_first,
+  col_properties_t<GraphViewType,
+                   typename std::iterator_traits<VertexValueInputIterator>::value_type>&
+    adj_matrix_col_value_output)
 {
-  if (GraphViewType::is_adj_matrix_transposed) {
+  if constexpr (GraphViewType::is_adj_matrix_transposed) {
     copy_to_matrix_major(handle,
                          graph_view,
                          vertex_first,
                          vertex_last,
                          vertex_value_input_first,
-                         adj_matrix_col_value_output_first);
+                         adj_matrix_col_value_output);
   } else {
     copy_to_matrix_minor(handle,
                          graph_view,
                          vertex_first,
                          vertex_last,
                          vertex_value_input_first,
-                         adj_matrix_col_value_output_first);
+                         adj_matrix_col_value_output);
   }
 }
 
-}  // namespace experimental
 }  // namespace cugraph

@@ -15,14 +15,15 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
+#include <cugraph/matrix_partition_view.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <raft/cudart_utils.h>
-#include <rmm/thrust_rmm_allocator.h>
 #include <raft/handle.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/tuple.h>
 
@@ -30,7 +31,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -38,8 +38,8 @@ namespace detail {
 int32_t constexpr transform_reduce_e_for_all_block_size = 128;
 
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
 __global__ void for_all_major_for_all_nbr_hypersparse(
@@ -48,8 +48,8 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
                                  typename GraphViewType::weight_type,
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_hypersparse_first,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   ResultIterator result_iter /* size 1 */,
   EdgeOp e_op)
 {
@@ -64,6 +64,9 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
   size_t idx = static_cast<size_t>(tid);
 
   auto dcs_nzd_vertex_count = *(matrix_partition.get_dcs_nzd_vertex_count());
+
+  using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
+  __shared__ typename BlockReduce::TempStorage temp_storage;
 
   property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
@@ -81,8 +84,8 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
       thrust::make_counting_iterator(edge_t{0}),
       thrust::make_counting_iterator(local_degree),
       [&matrix_partition,
-       &adj_matrix_row_value_input_first,
-       &adj_matrix_col_value_input_first,
+       &adj_matrix_row_value_input,
+       &adj_matrix_col_value_input,
        &e_op,
        major,
        indices,
@@ -101,14 +104,14 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
                                                                  : minor_offset;
         return evaluate_edge_op<GraphViewType,
                                 vertex_t,
-                                AdjMatrixRowValueInputIterator,
-                                AdjMatrixColValueInputIterator,
+                                AdjMatrixRowValueInputWrapper,
+                                AdjMatrixColValueInputWrapper,
                                 EdgeOp>()
           .compute(row,
                    col,
                    weight,
-                   *(adj_matrix_row_value_input_first + row_offset),
-                   *(adj_matrix_col_value_input_first + col_offset),
+                   adj_matrix_row_value_input.get(row_offset),
+                   adj_matrix_col_value_input.get(col_offset),
                    e_op);
       },
       e_op_result_t{},
@@ -118,15 +121,13 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
     idx += gridDim.x * blockDim.x;
   }
 
-  e_op_result_sum =
-    block_reduce_edge_op_result<e_op_result_t, transform_reduce_e_for_all_block_size>().compute(
-      e_op_result_sum);
+  e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
   if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
 __global__ void for_all_major_for_all_nbr_low_degree(
@@ -136,8 +137,8 @@ __global__ void for_all_major_for_all_nbr_low_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   ResultIterator result_iter /* size 1 */,
   EdgeOp e_op)
 {
@@ -149,6 +150,9 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(tid);
+
+  using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
+  __shared__ typename BlockReduce::TempStorage temp_storage;
 
   property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
@@ -163,8 +167,8 @@ __global__ void for_all_major_for_all_nbr_low_degree(
       thrust::make_counting_iterator(edge_t{0}),
       thrust::make_counting_iterator(local_degree),
       [&matrix_partition,
-       &adj_matrix_row_value_input_first,
-       &adj_matrix_col_value_input_first,
+       &adj_matrix_row_value_input,
+       &adj_matrix_col_value_input,
        &e_op,
        major_offset,
        indices,
@@ -186,14 +190,14 @@ __global__ void for_all_major_for_all_nbr_low_degree(
                                                                  : minor_offset;
         return evaluate_edge_op<GraphViewType,
                                 vertex_t,
-                                AdjMatrixRowValueInputIterator,
-                                AdjMatrixColValueInputIterator,
+                                AdjMatrixRowValueInputWrapper,
+                                AdjMatrixColValueInputWrapper,
                                 EdgeOp>()
           .compute(row,
                    col,
                    weight,
-                   *(adj_matrix_row_value_input_first + row_offset),
-                   *(adj_matrix_col_value_input_first + col_offset),
+                   adj_matrix_row_value_input.get(row_offset),
+                   adj_matrix_col_value_input.get(col_offset),
                    e_op);
       },
       e_op_result_t{},
@@ -203,15 +207,13 @@ __global__ void for_all_major_for_all_nbr_low_degree(
     idx += gridDim.x * blockDim.x;
   }
 
-  e_op_result_sum =
-    block_reduce_edge_op_result<e_op_result_t, transform_reduce_e_for_all_block_size>().compute(
-      e_op_result_sum);
+  e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
   if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
 __global__ void for_all_major_for_all_nbr_mid_degree(
@@ -221,8 +223,8 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   ResultIterator result_iter /* size 1 */,
   EdgeOp e_op)
 {
@@ -237,6 +239,8 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(tid / raft::warp_size());
 
+  using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
+  __shared__ typename BlockReduce::TempStorage temp_storage;
   property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
@@ -263,29 +267,27 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
                             : minor_offset;
       auto e_op_result  = evaluate_edge_op<GraphViewType,
                                           vertex_t,
-                                          AdjMatrixRowValueInputIterator,
-                                          AdjMatrixColValueInputIterator,
+                                          AdjMatrixRowValueInputWrapper,
+                                          AdjMatrixColValueInputWrapper,
                                           EdgeOp>()
                            .compute(row,
                                     col,
                                     weight,
-                                    *(adj_matrix_row_value_input_first + row_offset),
-                                    *(adj_matrix_col_value_input_first + col_offset),
+                                    adj_matrix_row_value_input.get(row_offset),
+                                    adj_matrix_col_value_input.get(col_offset),
                                     e_op);
       e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
     }
     idx += gridDim.x * (blockDim.x / raft::warp_size());
   }
 
-  e_op_result_sum =
-    block_reduce_edge_op_result<e_op_result_t, transform_reduce_e_for_all_block_size>().compute(
-      e_op_result_sum);
+  e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
   if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
 __global__ void for_all_major_for_all_nbr_high_degree(
@@ -295,8 +297,8 @@ __global__ void for_all_major_for_all_nbr_high_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-  AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   ResultIterator result_iter /* size 1 */,
   EdgeOp e_op)
 {
@@ -308,6 +310,8 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(blockIdx.x);
 
+  using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
+  __shared__ typename BlockReduce::TempStorage temp_storage;
   property_add<e_op_result_t> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
@@ -334,23 +338,21 @@ __global__ void for_all_major_for_all_nbr_high_degree(
                             : minor_offset;
       auto e_op_result  = evaluate_edge_op<GraphViewType,
                                           vertex_t,
-                                          AdjMatrixRowValueInputIterator,
-                                          AdjMatrixColValueInputIterator,
+                                          AdjMatrixRowValueInputWrapper,
+                                          AdjMatrixColValueInputWrapper,
                                           EdgeOp>()
                            .compute(row,
                                     col,
                                     weight,
-                                    *(adj_matrix_row_value_input_first + row_offset),
-                                    *(adj_matrix_col_value_input_first + col_offset),
+                                    adj_matrix_row_value_input.get(row_offset),
+                                    adj_matrix_col_value_input.get(col_offset),
                                     e_op);
       e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
     }
     idx += gridDim.x;
   }
 
-  e_op_result_sum =
-    block_reduce_edge_op_result<e_op_result_t, transform_reduce_e_for_all_block_size>().compute(
-      e_op_result_sum);
+  e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
   if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
 }
 
@@ -362,39 +364,40 @@ __global__ void for_all_major_for_all_nbr_high_degree(
  * This function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam AdjMatrixRowValueInputIterator Type of the iterator for graph adjacency matrix row
- * input properties.
- * @tparam AdjMatrixColValueInputIterator Type of the iterator for graph adjacency matrix column
- * input properties.
+ * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
+ * properties.
+ * @tparam AdjMatrixColValueInputWrapper Type of the wrapper for graph adjacency matrix column input
+ * properties.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the initial value.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param adj_matrix_row_value_input_first Iterator pointing to the adjacency matrix row input
- * properties for the first (inclusive) row (assigned to this process in multi-GPU).
- * `adj_matrix_row_value_input_last` (exclusive) is deduced as @p adj_matrix_row_value_input_first +
- * @p graph_view.get_number_of_local_adj_matrix_partition_rows().
- * @param adj_matrix_col_value_input_first Iterator pointing to the adjacency matrix column input
- * properties for the first (inclusive) column (assigned to this process in multi-GPU).
- * `adj_matrix_col_value_output_last` (exclusive) is deduced as @p adj_matrix_col_value_output_first
- * + @p graph_view.get_number_of_local_adj_matrix_partition_cols().
+ * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
+ * (for the rows assigned to this process in multi-GPU). Use either
+ * cugraph::row_properties_t::device_view() (if @p e_op needs to access row properties) or
+ * cugraph::dummy_properties_t::device_view() (if @p e_op does not access row properties). Use
+ * copy_to_adj_matrix_row to fill the wrapper.
+ * @param adj_matrix_col_value_input Device-copyable wrapper used to access column input properties
+ * (for the columns assigned to this process in multi-GPU). Use either
+ * cugraph::col_properties_t::device_view() (if @p e_op needs to access column properties) or
+ * cugraph::dummy_properties_t::device_view() (if @p e_op does not access column properties). Use
+ * copy_to_adj_matrix_col to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), *(@p adj_matrix_row_value_input_first + i), and *(@p adj_matrix_col_value_input_first +
- * j) (where i is in [0, graph_view.get_number_of_local_adj_matrix_partition_rows()) and j is in [0,
- * get_number_of_local_adj_matrix_partition_cols())) and returns a transformed value to be reduced.
+ * weight), properties for the row (i.e. source), and properties for the column  (i.e. destination)
+ * and returns a value to be reduced.
  * @param init Initial value to be added to the transform-reduced input vertex properties.
  * @return T Reduction of the @p edge_op outputs.
  */
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputIterator,
-          typename AdjMatrixColValueInputIterator,
+          typename AdjMatrixRowValueInputWrapper,
+          typename AdjMatrixColValueInputWrapper,
           typename EdgeOp,
           typename T>
 T transform_reduce_e(raft::handle_t const& handle,
                      GraphViewType const& graph_view,
-                     AdjMatrixRowValueInputIterator adj_matrix_row_value_input_first,
-                     AdjMatrixColValueInputIterator adj_matrix_col_value_input_first,
+                     AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
+                     AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
                      EdgeOp e_op,
                      T init)
 {
@@ -407,23 +410,26 @@ T transform_reduce_e(raft::handle_t const& handle,
   property_add<T> edge_property_add{};
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
-  thrust::fill(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-               get_dataframe_buffer_begin<T>(result_buffer),
-               get_dataframe_buffer_begin<T>(result_buffer) + 1,
-               T{});
+  thrust::fill(
+    handle.get_thrust_policy(),
+    get_dataframe_buffer_begin(result_buffer),
+    get_dataframe_buffer_begin(result_buffer) + 1,
+    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{});
 
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.get_matrix_partition_view(i));
 
-    auto row_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                    ? vertex_t{0}
-                                    : matrix_partition.get_major_value_start_offset();
-    auto col_value_input_offset = GraphViewType::is_adj_matrix_transposed
-                                    ? matrix_partition.get_major_value_start_offset()
-                                    : vertex_t{0};
-    auto segment_offsets        = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+    auto matrix_partition_row_value_input = adj_matrix_row_value_input;
+    auto matrix_partition_col_value_input = adj_matrix_col_value_input;
+    if constexpr (GraphViewType::is_adj_matrix_transposed) {
+      matrix_partition_col_value_input.add_offset(matrix_partition.get_major_value_start_offset());
+    } else {
+      matrix_partition_row_value_input.add_offset(matrix_partition.get_major_value_start_offset());
+    }
+
+    auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
     if (segment_offsets) {
       // FIXME: we may further improve performance by 1) concurrently running kernels on different
       // segments; 2) individually tuning block sizes for different segments; and 3) adding one more
@@ -438,9 +444,9 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition,
             matrix_partition.get_major_first(),
             matrix_partition.get_major_first() + (*segment_offsets)[1],
-            adj_matrix_row_value_input_first + row_value_input_offset,
-            adj_matrix_col_value_input_first + col_value_input_offset,
-            get_dataframe_buffer_begin<T>(result_buffer),
+            matrix_partition_row_value_input,
+            matrix_partition_col_value_input,
+            get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
       if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
@@ -452,9 +458,9 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition,
             matrix_partition.get_major_first() + (*segment_offsets)[1],
             matrix_partition.get_major_first() + (*segment_offsets)[2],
-            adj_matrix_row_value_input_first + row_value_input_offset,
-            adj_matrix_col_value_input_first + col_value_input_offset,
-            get_dataframe_buffer_begin<T>(result_buffer),
+            matrix_partition_row_value_input,
+            matrix_partition_col_value_input,
+            get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
       if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
@@ -466,9 +472,9 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition,
             matrix_partition.get_major_first() + (*segment_offsets)[2],
             matrix_partition.get_major_first() + (*segment_offsets)[3],
-            adj_matrix_row_value_input_first + row_value_input_offset,
-            adj_matrix_col_value_input_first + col_value_input_offset,
-            get_dataframe_buffer_begin<T>(result_buffer),
+            matrix_partition_row_value_input,
+            matrix_partition_col_value_input,
+            get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
       if (matrix_partition.get_dcs_nzd_vertex_count() &&
@@ -480,9 +486,9 @@ T transform_reduce_e(raft::handle_t const& handle,
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
             matrix_partition.get_major_first() + (*segment_offsets)[3],
-            adj_matrix_row_value_input_first + row_value_input_offset,
-            adj_matrix_col_value_input_first + col_value_input_offset,
-            get_dataframe_buffer_begin<T>(result_buffer),
+            matrix_partition_row_value_input,
+            matrix_partition_col_value_input,
+            get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
     } else {
@@ -496,26 +502,26 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition,
             matrix_partition.get_major_first(),
             matrix_partition.get_major_last(),
-            adj_matrix_row_value_input_first + row_value_input_offset,
-            adj_matrix_col_value_input_first + col_value_input_offset,
-            get_dataframe_buffer_begin<T>(result_buffer),
+            matrix_partition_row_value_input,
+            matrix_partition_col_value_input,
+            get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
     }
   }
 
-  auto result = thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
-                               get_dataframe_buffer_begin<T>(result_buffer),
-                               get_dataframe_buffer_begin<T>(result_buffer) + 1,
+  auto result = thrust::reduce(handle.get_thrust_policy(),
+                               get_dataframe_buffer_begin(result_buffer),
+                               get_dataframe_buffer_begin(result_buffer) + 1,
                                T{},
                                edge_property_add);
 
   if (GraphViewType::is_multi_gpu) {
-    result = host_scalar_allreduce(handle.get_comms(), result, handle.get_stream());
+    result = host_scalar_allreduce(
+      handle.get_comms(), result, raft::comms::op_t::SUM, handle.get_stream());
   }
 
-  return edge_property_add(init, result);
+  return result;
 }
 
-}  // namespace experimental
 }  // namespace cugraph

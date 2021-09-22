@@ -16,14 +16,12 @@
 
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <experimental/scramble.cuh>
+#include <generators/scramble.cuh>
 
 #include <raft/cuda_utils.cuh>
 
 #include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
 
-#include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
 
 #include <numeric>
@@ -71,14 +69,13 @@ void scramble_vertex_ids(raft::handle_t const& handle,
   vertex_t scale = 1 + raft::log2(d_src_v.size());
 
   auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin()));
-  thrust::transform(rmm::exec_policy(handle.get_stream()),
+  thrust::transform(handle.get_thrust_policy(),
                     pair_first,
                     pair_first + d_src_v.size(),
                     pair_first,
                     [scale] __device__(auto pair) {
-                      return thrust::make_tuple(
-                        experimental::detail::scramble(thrust::get<0>(pair), scale),
-                        experimental::detail::scramble(thrust::get<1>(pair), scale));
+                      return thrust::make_tuple(detail::scramble(thrust::get<0>(pair), scale),
+                                                detail::scramble(thrust::get<1>(pair), scale));
                     });
 }
 
@@ -139,21 +136,19 @@ combine_edgelists(raft::handle_t const& handle,
 
     if (optional_d_weights) {
       thrust::sort(
-        rmm::exec_policy(handle.get_stream()),
+        handle.get_thrust_policy(),
         thrust::make_zip_iterator(
           thrust::make_tuple(srcs_v.begin(), dsts_v.begin(), weights_v.begin())),
         thrust::make_zip_iterator(thrust::make_tuple(srcs_v.end(), dsts_v.end(), weights_v.end())));
 
       auto pair_first =
         thrust::make_zip_iterator(thrust::make_tuple(srcs_v.begin(), dsts_v.begin()));
-      auto end_iter = thrust::unique_by_key(rmm::exec_policy(handle.get_stream()),
-                                            pair_first,
-                                            pair_first + srcs_v.size(),
-                                            weights_v.begin());
+      auto end_iter = thrust::unique_by_key(
+        handle.get_thrust_policy(), pair_first, pair_first + srcs_v.size(), weights_v.begin());
 
       number_of_edges = thrust::distance(pair_first, thrust::get<0>(end_iter));
     } else {
-      thrust::sort(rmm::exec_policy(handle.get_stream()),
+      thrust::sort(handle.get_thrust_policy(),
                    thrust::make_zip_iterator(thrust::make_tuple(srcs_v.begin(), dsts_v.begin())),
                    thrust::make_zip_iterator(thrust::make_tuple(srcs_v.end(), dsts_v.end())));
 
@@ -161,7 +156,7 @@ combine_edgelists(raft::handle_t const& handle,
         thrust::make_zip_iterator(thrust::make_tuple(srcs_v.begin(), dsts_v.begin()));
 
       auto end_iter = thrust::unique(
-        rmm::exec_policy(handle.get_stream()),
+        handle.get_thrust_policy(),
         thrust::make_zip_iterator(thrust::make_tuple(srcs_v.begin(), dsts_v.begin())),
         thrust::make_zip_iterator(thrust::make_tuple(srcs_v.end(), dsts_v.end())));
 
@@ -200,17 +195,17 @@ symmetrize_edgelist(raft::handle_t const& handle,
   d_src_v.resize(offset * 2, handle.get_stream_view());
   d_dst_v.resize(offset * 2, handle.get_stream_view());
 
-  thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+  thrust::copy(handle.get_thrust_policy(),
                d_dst_v.begin(),
                d_dst_v.begin() + offset,
                d_src_v.begin() + offset);
-  thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+  thrust::copy(handle.get_thrust_policy(),
                d_src_v.begin(),
                d_src_v.begin() + offset,
                d_dst_v.begin() + offset);
   if (optional_d_weights_v) {
     optional_d_weights_v->resize(d_src_v.size(), handle.get_stream_view());
-    thrust::copy(rmm::exec_policy(handle.get_stream_view()),
+    thrust::copy(handle.get_thrust_policy(),
                  optional_d_weights_v->begin(),
                  optional_d_weights_v->begin() + offset,
                  optional_d_weights_v->begin() + offset);

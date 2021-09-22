@@ -20,7 +20,6 @@
 
 namespace cugraph {
 namespace broadcast {
-using namespace cugraph::experimental;
 // Manual template instantiations (EIDir's):
 //
 template graph_t<int32_t, int32_t, float, false, false> graph_broadcast(

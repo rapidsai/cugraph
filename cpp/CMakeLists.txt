@@ -15,13 +15,9 @@
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
-include(FetchContent)
-FetchContent_Declare(
-  rapids-cmake
-  GIT_REPOSITORY https://github.com/rapidsai/rapids-cmake.git
-  GIT_TAG        origin/branch-21.08
-  )
-FetchContent_MakeAvailable(rapids-cmake)
+file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-21.10/RAPIDS.cmake
+    ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
+include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 
 include(rapids-cmake)
 include(rapids-cpm)
@@ -36,7 +32,6 @@ project(CUGRAPH VERSION 21.10.00 LANGUAGES C CXX CUDA)
 # Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
 # cuhornet currently doesn't support
 #
-# < 60
 # >= 86
 set(supported_archs "60" "62" "70" "72" "75" "80")
 foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
@@ -56,8 +51,7 @@ set(CMAKE_CUDA_ARCHITECTURES ${usable_arch_values})
 
 
 # Write the version header
-include(cmake/Modules/Version.cmake)
-write_version()
+rapids_cmake_write_version_file(include/cugraph/version_config.hpp)
 
 ###################################################################################################
 # - build type ------------------------------------------------------------------------------------
@@ -101,13 +95,13 @@ list(APPEND CUGRAPH_CUDA_FLAGS -Xfatbin=-compress-all)
 # memchecking
 if (CMAKE_CUDA_LINEINFO)
     list(APPEND CUGRAPH_CUDA_FLAGS -lineinfo)
-endif(CMAKE_CUDA_LINEINFO)
+endif()
 
 # Debug options
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     message(STATUS "Building with debugging flags")
     list(APPEND CUGRAPH_CUDA_FLAGS -G -Xcompiler=-rdynamic)
-endif(CMAKE_BUILD_TYPE MATCHES Debug)
+endif()
 
 ###################################################################################################
 # - find openmp -----------------------------------------------------------------------------------
@@ -116,7 +110,7 @@ find_package(OpenMP)
 if(OpenMP_FOUND)
     # find_package(OPenMP) does not automatically add OpenMP flags to CUDA
     list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=${OpenMP_CXX_FLAGS})
-endif(OpenMP_FOUND)
+endif()
 
 
 ###################################################################################################
@@ -162,49 +156,64 @@ add_library(cugraph SHARED
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
     src/utilities/graph_bcast.cu
-    src/structure/graph.cu
+    src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
     src/link_analysis/gunrock_hits.cpp
-    src/traversal/bfs.cu
-    src/traversal/sssp.cu
-    src/traversal/tsp.cu
+    src/traversal/legacy/bfs.cu
+    src/traversal/legacy/sssp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
     src/layout/force_atlas2.cu
     src/converters/COOtoCSR.cu
-    src/community/spectral_clustering.cu
-    src/community/louvain.cu
-    src/community/leiden.cu
-    src/community/ktruss.cu
-    src/community/ecg.cu
-    src/community/triangles_counting.cu
-    src/community/extract_subgraph_by_vertex.cu
-    src/community/egonet.cu
+    src/community/legacy/spectral_clustering.cu
+    src/community/louvain_sg.cu
+    src/community/louvain_mg.cu
+    src/community/legacy/louvain.cu
+    src/community/legacy/leiden.cu
+    src/community/legacy/ktruss.cu
+    src/community/legacy/ecg.cu
+    src/community/legacy/triangles_counting.cu
+    src/community/legacy/extract_subgraph_by_vertex.cu
+    src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
     src/cores/core_number.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu
-    src/centrality/katz_centrality.cu
+    src/centrality/legacy/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generator_tools.cu
     src/generators/simple_generators.cu
     src/generators/erdos_renyi_generator.cu
-    src/experimental/graph.cu
-    src/experimental/graph_view.cu
-    src/experimental/coarsen_graph.cu
-    src/experimental/renumber_edgelist.cu
-    src/experimental/renumber_utils.cu
-    src/experimental/relabel.cu
-    src/experimental/induced_subgraph.cu
-    src/experimental/bfs.cu
-    src/experimental/sssp.cu
-    src/experimental/pagerank.cu
-    src/experimental/katz_centrality.cu
+    src/structure/graph_sg.cu
+    src/structure/graph_mg.cu
+    src/structure/graph_view_sg.cu
+    src/structure/graph_view_mg.cu
+    src/structure/coarsen_graph_sg.cu
+    src/structure/coarsen_graph_mg.cu
+    src/structure/renumber_edgelist_sg.cu
+    src/structure/renumber_edgelist_mg.cu
+    src/structure/renumber_utils_sg.cu
+    src/structure/renumber_utils_mg.cu
+    src/structure/relabel_sg.cu
+    src/structure/relabel_mg.cu
+    src/structure/induced_subgraph_sg.cu
+    ## FIXME: Not currently supported
+    ##src/structure/induced_subgraph_mg.cu
+    src/traversal/bfs_sg.cu
+    src/traversal/bfs_mg.cu
+    src/traversal/sssp_sg.cu
+    src/traversal/sssp_mg.cu
+    src/link_analysis/pagerank_sg.cu
+    src/link_analysis/pagerank_mg.cu
+    src/centrality/katz_centrality_sg.cu
+    src/centrality/katz_centrality_mg.cu
     src/serialization/serializer.cu
     src/tree/mst.cu
-    src/components/weakly_connected_components.cu
-    src/structure/create_graph_from_edgelist.cpp
+    src/components/weakly_connected_components_sg.cu
+    src/components/weakly_connected_components_mg.cu
+    src/structure/create_graph_from_edgelist_sg.cpp
+    src/structure/create_graph_from_edgelist_mg.cpp
     src/utilities/host_barrier.cpp
     src/visitors/graph_envelope.cpp
     src/visitors/visitors_factory.cpp
@@ -323,7 +332,7 @@ target_link_libraries(cugraph PRIVATE
 ###   set_target_properties(target PROPERTIES
 ###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
     ${OpenMP_CXX_LIB_NAMES})
-endif(OpenMP_CXX_FOUND)
+endif()
 
 
 ###################################################################################################
@@ -332,13 +341,15 @@ endif(OpenMP_CXX_FOUND)
 if(BUILD_TESTS)
   include(CTest)
   add_subdirectory(tests)
-endif(BUILD_TESTS)
+endif()
 
 ###################################################################################################
 # - install targets -------------------------------------------------------------------------------
+rapids_cmake_install_lib_dir( lib_dir )
+include(CPack)
 
 install(TARGETS cugraph
-        DESTINATION lib
+        DESTINATION ${lib_dir}
         EXPORT cugraph-exports)
 
 install(DIRECTORY include/cugraph/

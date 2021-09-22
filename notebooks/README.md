@@ -10,12 +10,13 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 | Folder          | Notebook                                                     | Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Centrality      |                                                              |                                                              |
-|                 | [Centrality](centrality/Centrality.ipynb)                    | Compute and compare multiple centrality scores               |
+|                 | [Centrality](centrality/Centrality.ipynb)                    | Compute and compare multiple (currently 4) centrality scores |
 |                 | [Katz](centrality/Katz.ipynb)                                | Compute the Katz centrality for every vertex                 |
 |                 | [Betweenness](centrality/Betweenness.ipynb)                  | Compute both Edge and Vertex Betweenness centrality          |
 | Community       |                                                              |                                                              |
-|                 | [Louvain](community/Louvain.ipynb)                           | Identify clusters in a graph using the Louvain algorithm     |
+|                 | [Louvain](community/Louvain.ipynb) and Leiden                          | Identify clusters in a graph using both the Louvain and Leiden algorithms     |
 |                 | [ECG](community/ECG.ipynb)                                   | Identify clusters in a graph using the Ensemble Clustering for Graph |
+|                 | [K-Truss](community/ktruss.ipynb)                                | Extracts the K-Truss cluster                                 |
 |                 | [Spectral-Clustering](community/Spectral-Clustering.ipynb)   | Identify clusters in a  graph using Spectral Clustering with both<br> - Balanced Cut<br> - Modularity Modularity |
 |                 | [Subgraph Extraction](community/Subgraph-Extraction.ipynb)   | Compute a subgraph of the existing graph including only the specified vertices |
 |                 | [Triangle Counting](community/Triangle-Counting.ipynb)       | Count the number of Triangle in a graph                      |
@@ -24,18 +25,17 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 | Core            |                                                              |                                                              |
 |                 | [K-Core](cores/kcore.ipynb)                                  | Extracts the K-core cluster                                  |
 |                 | [Core Number](cores/core-number.ipynb)                       | Computer the Core number for each vertex in a graph          |
-|                 | [K-Truss](cores/ktruss.ipynb)                                | Extracts the K-Truss cluster                                 |
 | Link Analysis   |                                                              |                                                              |
 |                 | [Pagerank](link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |
 |                 | [HITS](link_analysis/HITS.ipynb)                             | Compute the HITS' Hub and Authority scores for every vertex in a graph              |
 | Link Prediction |                                                              |                                                              |
 |                 | [Jaccard Similarity](link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
 |                 | [Overlap Similarity](link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
+| Sampling        |
+|                 | [Random Walk](sampling/RandomWalk.ipynb)                     | Compute Random Walk for a various number of seeds and path lengths |
 | Traversal       |                                                              |                                                              |
 |                 | [BFS](traversal/BFS.ipynb)                                   | Compute the Breadth First Search path from a starting vertex to every other vertex in a graph |
 |                 | [SSSP](traversal/SSSP.ipynb)                                 | Single Source Shortest Path  - compute the shortest path from a starting vertex to every other vertex |
-| Sampling        |
-|                 | [Random Walk](sampling/RandomWalk.ipynb)                     | Compute Random Walk for a various number of seeds and path lengths |
 | Structure       |                                                              |                                                              |
 |                 | [Renumbering](structure/Renumber.ipynb) <br> [Renumbering 2](structure/Renumber-2.ipynb) | Renumber the vertex IDs in a graph (two sample notebooks)    |
 |                 | [Symmetrize](structure/Symmetrize.ipynb)                     | Symmetrize the edges in a graph                              |

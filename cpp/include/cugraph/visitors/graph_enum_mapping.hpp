@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 #include "graph_enum.hpp"
 
 namespace cugraph {

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,6 +40,9 @@ def checkThisFile(f):
     if not(os.path.exists(f)):
         return False
     if git_helpers and git_helpers.isFileEmpty(f):
+        return False
+    # Special case for versioneer.py - it uses a separate copyright.
+    if os.path.basename(f) == "versioneer.py":
         return False
     for checker in FilesToCheck:
         if checker.search(f):

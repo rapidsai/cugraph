@@ -21,7 +21,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <raft/cudart_utils.h>
@@ -29,6 +29,7 @@
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
 
+#include <thrust/execution_policy.h>
 #include <thrust/sequence.h>
 
 #include <gtest/gtest.h>
@@ -98,8 +99,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
                           weight_t mg_modularity)
   {
     auto sg_graph =
-      std::make_unique<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false>>(
-        handle);
+      std::make_unique<cugraph::graph_t<vertex_t, edge_t, weight_t, false, false>>(handle);
     rmm::device_uvector<vertex_t> d_clustering_v(0, handle.get_stream());
     weight_t sg_modularity{-1.0};
 
@@ -109,33 +109,26 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
       auto [d_edgelist_rows,
             d_edgelist_cols,
             d_edgelist_weights,
+            d_vertices,
             number_of_vertices,
             is_symmetric] =
-        cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
+        cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t, false, false>(
           handle, graph_filename, true);
 
-      rmm::device_uvector<vertex_t> d_vertices(number_of_vertices, handle.get_stream());
-      std::vector<vertex_t> h_vertices(number_of_vertices);
-
       d_clustering_v.resize(d_vertices.size(), handle.get_stream());
-
-      thrust::sequence(thrust::host, h_vertices.begin(), h_vertices.end(), vertex_t{0});
-      raft::update_device(
-        d_vertices.data(), h_vertices.data(), d_vertices.size(), handle.get_stream());
 
       // renumber using d_renumber_map_gathered_v
       cugraph::test::single_gpu_renumber_edgelist_given_number_map(
         handle, d_edgelist_rows, d_edgelist_cols, d_renumber_map_gathered_v);
 
       std::tie(*sg_graph, std::ignore) =
-        cugraph::experimental::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+        cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
           handle,
-          std::optional<std::tuple<vertex_t const*, vertex_t>>{
-            std::make_tuple(d_vertices.data(), static_cast<vertex_t>(d_vertices.size()))},
+          std::move(d_vertices),
           std::move(d_edgelist_rows),
           std::move(d_edgelist_cols),
           std::move(d_edgelist_weights),
-          cugraph::experimental::graph_properties_t{is_symmetric, false},
+          cugraph::graph_properties_t{is_symmetric, false},
           false);
     }
 
