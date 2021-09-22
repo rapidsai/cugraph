@@ -214,6 +214,8 @@ add_library(cugraph SHARED
     src/components/weakly_connected_components_mg.cu
     src/structure/create_graph_from_edgelist_sg.cpp
     src/structure/create_graph_from_edgelist_mg.cpp
+    src/structure/transpose_edgelist_sg.cu
+    src/structure/transpose_edgelist_mg.cu
     src/utilities/host_barrier.cpp
     src/visitors/graph_envelope.cpp
     src/visitors/visitors_factory.cpp
