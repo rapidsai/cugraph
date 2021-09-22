@@ -97,6 +97,16 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
+  // FIXME: Better re-investigate whether store_transposed should be a template parameter or not. It
+  // is quite likely that this flag is never used in performance sensitive places (e.g. intensive
+  // loops in the device code; AFAIK, device code in the detail space operates on (major, minor)
+  // pairs instead of (row, col) pairs). If store_transposed is not a template parameter, this
+  // function can be rmm::device_uvector<vertex_t> transpose(rmm::device_uvector<vertex_t>&&
+  // renumber_map) matching the symtax of symmetrize().
+  std::tuple<graph_t<vertex_t, weight_t, !store_transposed, multi_gpu>,
+             rmm::device_uvector<vertex_t>>
+  transpose(rmm::device_uvector<vertex_t>&& renumber_map, bool destroy = false);
+
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
 
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
@@ -207,6 +217,17 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
+
+  // FIXME: Better re-investigate whether store_transposed should be a template parameter or not. It
+  // is quite likely that this flag is never used in performance sensitive places (e.g. intensive
+  // loops in the device code; AFAIK, device code in the detail space operates on (major, minor)
+  // pairs instead of (row, col) pairs). If store_transposed is not a template parameter, this
+  // function can be std::optional<rmm::device_uvector<vertex_t>>
+  // transpose(std::optional<rmm::device_uvector<vertex_t>>&& renumber_map) matching the symtax of
+  // symmetrize().
+  std::tuple<graph_t<vertex_t, weight_t, !store_transposed, multi_gpu>,
+             std::optional<rmm::device_uvector<vertex_t>>>
+  transpose(std::optional<rmm::device_uvector<vertex_t>>&& renumber_map, bool destroy = false);
 
   bool is_weighted() const { return weights_.has_value(); }
 
