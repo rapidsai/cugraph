@@ -111,6 +111,8 @@ struct return_t {
 
   void const* get_ptr(void) const { return static_cast<void const*>(p_impl_.get()); }
 
+  void* release(void) { return static_cast<void*>(p_impl_.release()); }
+
  private:
   std::unique_ptr<base_return_t> p_impl_;
 };

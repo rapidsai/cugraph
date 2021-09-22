@@ -31,37 +31,54 @@ void graph_maker_visitor<vertex_t,
                          std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>::
   visit_graph(graph_envelope_t::base_graph_t const& graph)
 {
-  using index_t = edge_t;
+  if constexpr (mg == false) {
+    auto const& v_args = ep_.get_args();
 
-  // unless algorithms only call virtual graph methods
-  // under the hood, the algos require this conversion:
-  //
-  graph_t<vertex_t, edge_t, weight_t, st, mg> const* p_g =
-    static_cast<graph_t<vertex_t, edge_t, weight_t, st, mg> const*>(&graph);
+    auto num_args = v_args.size();
+    assert(num_args > 7);
 
-  auto gview = p_g->view();
+    // cnstr. args unpacking:
+    //
+    raft::handle_t* ptr_handle = static_cast<raft::handle_t*>(v_args[0]);
+    vertex_t const* p_src      = static_cast<vertex_t*>(v_args[1]);
+    vertex_t const* p_dst      = static_cast<vertex_t*>(v_args[2]);
+    weight_t const* p_weights  = static_cast<weight_t*>(v_args[3]);
+    edge_t num_edges           = *static_cast<edge_t*>(v_args[4]);
+    vertex_t num_vertices      = *static_cast<vertex_t*>(v_args[5]);
+    bool sorted                = *static_cast<bool*>(v_args[6]);
+    bool check                 = *static_cast<bool*>(v_args[7]);
 
-  auto const& v_args = ep_.get_args();
+    bool is_sym{false};
+    bool is_multigraph{false};
 
-  // unpack bfs() args:
-  //
-  // assert(v_args.size() == ?); // raft::handle_t, char* path, bool is_weighted...,
+    if (num_args > 8) {
+      is_sym = *static_cast<bool*>(v_args[8]);
+      if (num_args > 9) is_multigraph = *static_cast<bool*>(v_args[9]);
+    }
 
-  // cnstr. args unpacking:
-  //
-  raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
+    cugraph::graph_properties_t graph_props{is_sym, is_multigraph};
 
-  char const* p_path = static_cast<char*>(v_args[1]);
+    std::optional<weight_t const*> opt_ptr_w;
+    if (p_weights) { opt_ptr_w = p_weights; }
 
-  bool is_weighted = *static_cast<bool*>(v_args[2]);
+    cugraph::edgelist_t<vertex_t, edge_t, weight_t> edgelist{p_src, p_dst, opt_ptr_w, num_edges};
 
-  // TODO:
-  //
+    erased_pack_t ep_graph{ptr_handle, &edgelist, &num_vertices, &graph_props, &sorted, &check};
 
-  // create graph_envelope_t
-  // graph_envelope_t* p_g_envl = new ...;
+    DTypes vertex_tid = reverse_dmap_t<vertex_t>::type_id;
+    DTypes edge_tid   = reverse_dmap_t<edge_t>::type_id;
+    DTypes weight_tid = reverse_dmap_t<weight_t>::type_id;
+    bool st_id        = st;
+    bool mg_id        = mg;
+    GTypes graph_tid  = GTypes::GRAPH_T;
 
-  /// result_ = return_t{p_g_envl};
+    graph_envelope_t graph_envelope{
+      vertex_tid, edge_tid, weight_tid, st_id, mg_id, graph_tid, ep_graph};
+
+    result_ = return_t{std::move(graph_envelope)};
+  } else {
+    CUGRAPH_FAIL("Graph factory visitor not currently supported (multi_gpu == true).");
+  }
 }
 
 // EIDir's:
@@ -137,7 +154,9 @@ return_t graph_create(
 
   g.apply(*p_visitor);
 
-  return p_visitor->get_result();  // envelopes raw pointer: graph_envelope_t*
+  return p_visitor->get_result();  // envelopes: graph_envelope_t
+  // conversion to raw pointer:
+  // reinterpret_cast<graph_envelope_t*>(p_visitor->get_result().release());
 }
 
 }  // namespace api
