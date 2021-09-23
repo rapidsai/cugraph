@@ -105,7 +105,10 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   // renumber_map) matching the symtax of symmetrize().
   std::tuple<graph_t<vertex_t, weight_t, !store_transposed, multi_gpu>,
              rmm::device_uvector<vertex_t>>
-  transpose(rmm::device_uvector<vertex_t>&& renumber_map, bool destroy = false);
+  transpose_graph_adjacency_matrix(rmm::device_uvector<vertex_t>&& renumber_map,
+                                   bool destroy = false);
+
+  rmm::device_uvector<vertex_t> transpose(rmm::device_uvector<vertex_t>&& renumber_map);
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
 
@@ -227,7 +230,11 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   // symmetrize().
   std::tuple<graph_t<vertex_t, weight_t, !store_transposed, multi_gpu>,
              std::optional<rmm::device_uvector<vertex_t>>>
-  transpose(std::optional<rmm::device_uvector<vertex_t>>&& renumber_map, bool destroy = false);
+  transpose_graph_adjacency_matrix(std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+                                   bool destroy = false);
+
+  std::optional<rmm::device_uvector<vertex_t>> transpose(
+    std::optional<rmm : device_uvector<vertex_t>>&& renumber_map);
 
   bool is_weighted() const { return weights_.has_value(); }
 
