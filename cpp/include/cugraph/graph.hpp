@@ -98,7 +98,8 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           bool do_expensive_check = false);
 
   // return a new renumber_map
-  rmm::device_uvector<vertex_t> symmetrize(rmm::device_uvector<vertex_t>&& renumber_map,
+  rmm::device_uvector<vertex_t> symmetrize(raft::handle_t const& handle,
+                                           rmm::device_uvector<vertex_t>&& renumber_map,
                                            bool reciprocal = false);
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
@@ -214,7 +215,9 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   // return a new renumber_map if @p renumber_map is valid
   std::optional<rmm::device_uvector<vertex_t>> symmetrize(
-    std::optional<rmm::device_uvector<vertex_t>>&& renumber_map, bool reciprocal = false);
+    raft::handle_t const& handle,
+    std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+    bool reciprocal = false);
 
   bool is_weighted() const { return weights_.has_value(); }
 

@@ -512,4 +512,22 @@ symmetrize_edgelist(raft::handle_t const& handle,
 
 }  // namespace detail
 
+template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+symmetrize_edgelist(raft::handle_t const& handle,
+                    rmm::device_uvector<vertex_t>&& edgelist_rows,
+                    rmm::device_uvector<vertex_t>&& edgelist_cols,
+                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                    bool reciprocal)
+{
+  return detail::symmetrize_edgelist<vertex_t, weight_t, multi_gpu>(
+    handle,
+    store_transposed ? std::move(edgelist_cols) : std::move(edgelist_rows),
+    store_transposed ? std::move(edgelist_rows) : std::move(edgelist_cols),
+    std::move(edgelist_weights),
+    reciprocal);
+}
+
 }  // namespace cugraph

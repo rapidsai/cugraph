@@ -17,17 +17,25 @@
 
 namespace cugraph {
 
-namespace detail {
-
 // MG instantiation
 
 template
 std::tuple<rmm::device_uvector<int32_t>,
            rmm::device_uvector<int32_t>,
            std::optional<rmm::device_uvector<float>>>
-symmetrize_edgelist<int32_t, float, false>(raft::handle_t const& handle,
-                    rmm::device_uvector<int32_t>&& edgelist_majors,
-                    rmm::device_uvector<int32_t>&& edgelist_minors,
+symmetrize_edgelist<int32_t, float, false, false>(raft::handle_t const& handle,
+                    rmm::device_uvector<int32_t>&& edgelist_rows,
+                    rmm::device_uvector<int32_t>&& edgelist_cols,
+                    std::optional<rmm::device_uvector<float>>&& edgelist_weights,
+                    bool reciprocal);
+
+template
+std::tuple<rmm::device_uvector<int32_t>,
+           rmm::device_uvector<int32_t>,
+           std::optional<rmm::device_uvector<float>>>
+symmetrize_edgelist<int32_t, float, true, false>(raft::handle_t const& handle,
+                    rmm::device_uvector<int32_t>&& edgelist_rows,
+                    rmm::device_uvector<int32_t>&& edgelist_cols,
                     std::optional<rmm::device_uvector<float>>&& edgelist_weights,
                     bool reciprocal);
 
@@ -35,9 +43,19 @@ template
 std::tuple<rmm::device_uvector<int32_t>,
            rmm::device_uvector<int32_t>,
            std::optional<rmm::device_uvector<double>>>
-symmetrize_edgelist<int32_t, double, false>(raft::handle_t const& handle,
-                    rmm::device_uvector<int32_t>&& edgelist_majors,
-                    rmm::device_uvector<int32_t>&& edgelist_minors,
+symmetrize_edgelist<int32_t, double, false, false>(raft::handle_t const& handle,
+                    rmm::device_uvector<int32_t>&& edgelist_rows,
+                    rmm::device_uvector<int32_t>&& edgelist_cols,
+                    std::optional<rmm::device_uvector<double>>&& edgelist_weights,
+                    bool reciprocal);
+
+template
+std::tuple<rmm::device_uvector<int32_t>,
+           rmm::device_uvector<int32_t>,
+           std::optional<rmm::device_uvector<double>>>
+symmetrize_edgelist<int32_t, double, true, false>(raft::handle_t const& handle,
+                    rmm::device_uvector<int32_t>&& edgelist_rows,
+                    rmm::device_uvector<int32_t>&& edgelist_cols,
                     std::optional<rmm::device_uvector<double>>&& edgelist_weights,
                     bool reciprocal);
 
@@ -45,9 +63,19 @@ template
 std::tuple<rmm::device_uvector<int64_t>,
            rmm::device_uvector<int64_t>,
            std::optional<rmm::device_uvector<float>>>
-symmetrize_edgelist<int64_t, float, false>(raft::handle_t const& handle,
-                    rmm::device_uvector<int64_t>&& edgelist_majors,
-                    rmm::device_uvector<int64_t>&& edgelist_minors,
+symmetrize_edgelist<int64_t, float, false, false>(raft::handle_t const& handle,
+                    rmm::device_uvector<int64_t>&& edgelist_rows,
+                    rmm::device_uvector<int64_t>&& edgelist_cols,
+                    std::optional<rmm::device_uvector<float>>&& edgelist_weights,
+                    bool reciprocal);
+
+template
+std::tuple<rmm::device_uvector<int64_t>,
+           rmm::device_uvector<int64_t>,
+           std::optional<rmm::device_uvector<float>>>
+symmetrize_edgelist<int64_t, float, true, false>(raft::handle_t const& handle,
+                    rmm::device_uvector<int64_t>&& edgelist_rows,
+                    rmm::device_uvector<int64_t>&& edgelist_cols,
                     std::optional<rmm::device_uvector<float>>&& edgelist_weights,
                     bool reciprocal);
 
@@ -55,12 +83,20 @@ template
 std::tuple<rmm::device_uvector<int64_t>,
            rmm::device_uvector<int64_t>,
            std::optional<rmm::device_uvector<double>>>
-symmetrize_edgelist<int64_t, double, false>(raft::handle_t const& handle,
-                    rmm::device_uvector<int64_t>&& edgelist_majors,
-                    rmm::device_uvector<int64_t>&& edgelist_minors,
+symmetrize_edgelist<int64_t, double, false, false>(raft::handle_t const& handle,
+                    rmm::device_uvector<int64_t>&& edgelist_rows,
+                    rmm::device_uvector<int64_t>&& edgelist_cols,
                     std::optional<rmm::device_uvector<double>>&& edgelist_weights,
                     bool reciprocal);
 
-}  // namespace detail
+template
+std::tuple<rmm::device_uvector<int64_t>,
+           rmm::device_uvector<int64_t>,
+           std::optional<rmm::device_uvector<double>>>
+symmetrize_edgelist<int64_t, double, true, false>(raft::handle_t const& handle,
+                    rmm::device_uvector<int64_t>&& edgelist_rows,
+                    rmm::device_uvector<int64_t>&& edgelist_cols,
+                    std::optional<rmm::device_uvector<double>>&& edgelist_weights,
+                    bool reciprocal);
 
 }  // namespace cugraph
