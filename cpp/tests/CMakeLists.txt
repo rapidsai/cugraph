@@ -226,6 +226,17 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
 
 endfunction()
 
+function(ConfigureCTest CMAKE_TEST_NAME)
+    add_executable(${CMAKE_TEST_NAME} ${ARGN})
+
+    target_link_libraries(${CMAKE_TEST_NAME}
+        PRIVATE
+            cugraph_c
+    )
+
+    add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
+endfunction()
+
 ###################################################################################################
 # - set rapids dataset path ----------------------------------------------------------------------
 
@@ -473,6 +484,12 @@ if(BUILD_CUGRAPH_MG_TESTS)
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()
 endif()
+
+###################################################################################################
+# - C API tests -----------------------------------------------------------------------------------
+
+ConfigureCTest(CAPI_CREATE_SG_GRAPH_TEST c_api/create_sg_graph_test.c)
+ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################
