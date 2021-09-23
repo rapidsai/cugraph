@@ -50,6 +50,21 @@ return_t bfs(graph_envelope_t const& g, erased_pack_t& ep);
  */
 return_t random_walks(graph_envelope_t const& g, erased_pack_t& ep);
 
+/**
+ * @brief Type-erased graph-envelope wrapper.
+ *
+ * @param[in] vertex_tid `vertex_t` type id;
+ * @param[in] edge_tid `edge_t` type id;
+ * @param[in] weight_tid `weight_t` type id;
+ * @param[in] st `store_transpose`;
+ * @param[in] mg `multi_gpu`;
+ * @param[in] ep erased_pack_t pack of constructor erased arguments, that the caller is responsible
+ * to set correctly;
+ * @return return a type-erased unique_ptr<graph_envelope_t>;
+ */
+return_t graph_create(
+  DTypes vertex_tid, DTypes edge_tid, DTypes weight_tid, bool st, bool mg, erased_pack_t& ep_cnstr);
+
 // TODO: more to follow...
 
 }  // namespace api
