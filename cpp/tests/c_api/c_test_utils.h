@@ -17,33 +17,33 @@
 #include <stdio.h>
 #include <time.h>
 
-
 /*
  * Runs the function pointed to by "test" and returns the return code.  Also
  * prints reporting info (using "test_name"): pass/fail and run time, to stdout.
  *
  * Intended to be used by the RUN_TEST macro.
  */
-int run_test(int (*test)(), const char* test_name) {
-   int ret_val = 0;
-   time_t start_time, end_time;
+int run_test(int (*test)(), const char* test_name)
+{
+  int ret_val = 0;
+  time_t start_time, end_time;
 
-   printf("RUNNING: %s...", test_name);
-   fflush(stdout);
+  printf("RUNNING: %s...", test_name);
+  fflush(stdout);
 
-   time(&start_time);
-   ret_val = test();
-   time(&end_time);
+  time(&start_time);
+  ret_val = test();
+  time(&end_time);
 
-   printf("done (%f seconds).", difftime(end_time, start_time));
-   if(ret_val == 0) {
-      printf(" - passed\n");
-   } else {
-      printf(" - FAILED\n");
-   }
-   fflush(stdout);
+  printf("done (%f seconds).", difftime(end_time, start_time));
+  if (ret_val == 0) {
+    printf(" - passed\n");
+  } else {
+    printf(" - FAILED\n");
+  }
+  fflush(stdout);
 
-   return ret_val;
+  return ret_val;
 }
 
 #define RUN_TEST(test_name) run_test(test_name, #test_name)
