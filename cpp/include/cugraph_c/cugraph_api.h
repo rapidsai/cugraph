@@ -31,6 +31,11 @@ typedef enum cugraph_error_ {
 
 typedef int bool_t;
 
+typedef enum data_type_id_ { INT32 = 0, INT64, FLOAT32, FLOAT64, NTYPES } data_type_id_t;
+
+/* sizes in Bytes for data_type_id_t*/
+extern int data_type_sz[];
+
 /* C stub declarations */
 
 typedef struct cugraph_raft_handle_ {
@@ -84,6 +89,7 @@ typedef struct cugraph_rw_ret_ {
 
 /* C algorithm specific wrapper declarations: : should go into separate corresponding headers */
 
+/* Random Walks */
 cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
                                      cugraph_graph_envelope_t* ptr_graph_envelope,
                                      cugraph_device_array_t* ptr_d_start,
@@ -92,6 +98,24 @@ cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
                                      bool_t flag_use_padding,
                                      cugraph_unique_ptr_t* ptr_sampling_strategy,
                                      cugraph_rw_ret_t* ret);
+
+/* SG graph allocator*/
+cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_handle_t* p_handle,
+                                                data_type_id_t vertex_tid,
+                                                data_type_id_t edge_tid,
+                                                data_type_id_t weight_tid,
+                                                bool_t st,
+                                                cugraph_device_array_t* p_src,
+                                                cugraph_device_array_t* p_dst,
+                                                cugraph_device_array_t* p_weights,
+                                                size_t num_vertices,
+                                                size_t num_edges,
+                                                bool_t check,
+                                                bool_t is_symmetric,
+                                                bool_t is_multigraph);
+
+/* graph deallocator*/
+void cugraph_free_graph(cugraph_graph_envelope_t* graph);
 
 #ifdef __cplusplus
 }
