@@ -1126,6 +1126,47 @@ void bfs(raft::handle_t const& handle,
          bool do_expensive_check   = false);
 
 /**
+ * @brief Extract paths from breadth-first search output
+ *
+ * This function extracts paths from the BFS output.  BFS outputs distances
+ * and predecessors.  The path from a vertex v back to the original source vertex
+ * can be extracted by recursively looking up the predecessor vertex until you arrive
+ * back at the original source vertex.
+ * 
+ * If there are multiple source vertices there can be only one per connected component
+ * (as described in the bfs algorithm).
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param distances Pointer to the distance array constructed by bfs.
+ * @param predecessors Pointer to the predecessor array constructed by bfs.
+ * @param destinations Destination vertices, extract path from source to each of these destinations
+ * @param n_destinations number of destinations (one source per component at most).
+ * @param paths Pointer to the output path array (preallocated to max_path_length * n_destinations elements).
+ * Paths will be placed into this array in the same order as the destinations input array.  Unused elements
+ * in the paths * will be set to invalid_vertex_id (-1 for a signed vertex_t,
+ * std::numeric_limits<vertex_t>::max() for an unsigned vertex_t type).
+ * @param max_path_length The maximum length of a path to extract.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void extract_bfs_paths(raft::handle_t const &handle,
+                       graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                       vertex_t const* distances,
+                       vertex_t const* predecessors,
+                       vertex_t const* destinations,
+                       size_t n_destinations,
+                       vertex_t * paths,
+                       size_t max_path_length);
+
+/**
  * @brief Run single-source shortest-path to compute the minimum distances (and predecessors) from
  * the source vertex.
  *
