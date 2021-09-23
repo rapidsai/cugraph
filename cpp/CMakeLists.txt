@@ -29,6 +29,16 @@ rapids_cuda_init_architectures(CUGRAPH)
 
 project(CUGRAPH VERSION 21.10.00 LANGUAGES C CXX CUDA)
 
+if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
+   CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
+    message(FATAL_ERROR "CUDA compiler version must be at least 11.0")
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
+   CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.3)
+    message(FATAL_ERROR "GCC compiler must be at least 9.3")
+endif()
+
 # Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
 # cuhornet currently doesn't support
 #

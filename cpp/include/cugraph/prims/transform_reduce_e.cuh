@@ -424,9 +424,9 @@ T transform_reduce_e(raft::handle_t const& handle,
     auto matrix_partition_row_value_input = adj_matrix_row_value_input;
     auto matrix_partition_col_value_input = adj_matrix_col_value_input;
     if constexpr (GraphViewType::is_adj_matrix_transposed) {
-      matrix_partition_col_value_input.add_offset(matrix_partition.get_major_value_start_offset());
+      matrix_partition_col_value_input.set_local_adj_matrix_partition_idx(i);
     } else {
-      matrix_partition_row_value_input.add_offset(matrix_partition.get_major_value_start_offset());
+      matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
     }
 
     auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
