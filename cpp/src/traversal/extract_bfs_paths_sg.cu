@@ -27,7 +27,7 @@ template void extract_bfs_paths(raft::handle_t const& handle,
                                 int32_t const* destinations,
                                 size_t n_destinations,
                                 int32_t* paths,
-                                size_t max_path_length)
+                                size_t max_path_length);
 
 template void extract_bfs_paths(raft::handle_t const& handle,
                                 graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
@@ -36,7 +36,7 @@ template void extract_bfs_paths(raft::handle_t const& handle,
                                 int32_t const* destinations,
                                 size_t n_destinations,
                                 int32_t* paths,
-                                size_t max_path_length)
+                                size_t max_path_length);
 
 template void extract_bfs_paths(raft::handle_t const& handle,
                                 graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
@@ -45,7 +45,7 @@ template void extract_bfs_paths(raft::handle_t const& handle,
                                 int64_t const* destinations,
                                 size_t n_destinations,
                                 int64_t* paths,
-                                size_t max_path_length)
+                                size_t max_path_length);
 
 template void extract_bfs_paths(raft::handle_t const& handle,
                                 graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
@@ -54,7 +54,7 @@ template void extract_bfs_paths(raft::handle_t const& handle,
                                 int32_t const* destinations,
                                 size_t n_destinations,
                                 int32_t* paths,
-                                size_t max_path_length)
+                                size_t max_path_length);
 
 template void extract_bfs_paths(raft::handle_t const& handle,
                                 graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
@@ -63,7 +63,7 @@ template void extract_bfs_paths(raft::handle_t const& handle,
                                 int32_t const* destinations,
                                 size_t n_destinations,
                                 int32_t* paths,
-                                size_t max_path_length)
+                                size_t max_path_length);
 
 template void extract_bfs_paths(raft::handle_t const& handle,
                                 graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
@@ -72,6 +72,6 @@ template void extract_bfs_paths(raft::handle_t const& handle,
                                 int64_t const* destinations,
                                 size_t n_destinations,
                                 int64_t* paths,
-                                size_t max_path_length)
+                                size_t max_path_length);
 
 }  // namespace cugraph

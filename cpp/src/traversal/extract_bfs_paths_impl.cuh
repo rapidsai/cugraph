@@ -16,6 +16,8 @@
 #pragma once
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/reduce_op.cuh>
@@ -24,6 +26,7 @@
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
+#include <utilities/graph_utils.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/exec_policy.hpp>
@@ -67,8 +70,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<size_t>> shrink_ex
     [invalid_vertex] __device__(auto p) { return thrust::get<0>(p) != invalid_vertex; });
 
   size_t new_size = thrust::distance(out_iter, end_iter);
-  new_vertex_list.resize(new_size);
-  new_path_offset.resize(new_size);
+  new_vertex_list.resize(new_size, handle.get_stream());
+  new_path_offset.resize(new_size, handle.get_stream());
 
   return std::make_tuple(std::move(new_vertex_list), std::move(new_path_offset));
 }
@@ -92,9 +95,9 @@ void extract_bfs_paths(raft::handle_t const& handle,
   CUGRAPH_EXPECTS((n_destinations == 0) || (destinations != nullptr),
                   "Invalid input argument: destinations cannot be null");
 
-  if constexpr (GraphViewType::is_multi_gpu) {
-    auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-      graph_view.get_vertex_partition_view());
+  if constexpr (multi_gpu) {
+    auto vertex_partition =
+      vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.get_vertex_partition_view());
 
     // TODO: Is this necessary?  Perhaps not based on the implementation.
     CUGRAPH_EXPECTS(0 == thrust::count_if(handle.get_thrust_policy(),
@@ -108,12 +111,14 @@ void extract_bfs_paths(raft::handle_t const& handle,
   }
 
   CUGRAPH_EXPECTS(
-    0 == thrust::count_if(
-           handle.get_thrust_policy(),
-           destinations,
-           destinations + n_destinations,
-           [max_path_length, v_local_first = graph_view.get_local_first(), distances] __device__(
-             auto v) { return !(distances[v - v_local_first] <= max_path_length); }),
+    0 == thrust::count_if(handle.get_thrust_policy(),
+                          destinations,
+                          destinations + n_destinations,
+                          [max_path_length,
+                           v_local_first = graph_view.get_local_vertex_first(),
+                           distances] __device__(auto v) {
+                            return !(distances[v - v_local_first] <= max_path_length);
+                          }),
     "Invalid input argument: max_path_length must be > distances[v] for all destination vertices");
 
   //
@@ -123,7 +128,7 @@ void extract_bfs_paths(raft::handle_t const& handle,
 
   thrust::fill(handle.get_thrust_policy(),
                paths,
-               paths + n_destination * (max_path_length + 1),
+               paths + n_destinations * (max_path_length + 1),
                invalid_vertex);
 
   rmm::device_uvector<vertex_t> current_frontier(n_destinations, handle.get_stream());
@@ -134,92 +139,101 @@ void extract_bfs_paths(raft::handle_t const& handle,
                     thrust::make_counting_iterator<size_t>(0),
                     thrust::make_counting_iterator<size_t>(n_destinations),
                     current_position.data(),
-                    [v_local_first = graph_view.get_local_first(),
-                     destination,
+                    [v_local_first = graph_view.get_local_vertex_first(),
+                     destinations,
                      distances,
                      max_path_length] __device__(auto idx) {
                       return (static_cast<size_t>(idx) * max_path_length) +
-                             distances[destination[idx] - v_local_first];
+                             distances[destinations[idx] - v_local_first];
                     });
 
-  std::tie(current_frontier, current_position) =
-    shrink_extraction_list(handle, std::move(current_frontier), std::move(current_position));
+  std::tie(current_frontier, current_position) = detail::shrink_extraction_list(
+    handle, std::move(current_frontier), std::move(current_position));
 
   while (current_frontier.size() > 0) {
-    if constexpr (GraphViewType::is_multi_gpu) {
-      auto tuple_begin = thrust::make_tuple_iterator(
-        thrust::make_tuple(current_frontier.begin(),
-                           thrust::make_counting_iterator<vertex_t>(0),
-                           thrust::make_constant_iterator<int>(handle.get_comms().get_rank())));
+    if constexpr (multi_gpu) {
+      rmm::device_uvector<vertex_t> tmp_frontier(current_frontier.size(), handle.get_stream());
+      rmm::device_uvector<vertex_t> original_position(current_frontier.size(), handle.get_stream());
+      rmm::device_uvector<int> original_rank(current_frontier.size(), handle.get_stream());
 
-      auto [tmp_tuple, tmp_ignore] = groupby_gpuid_and_shuffle_values(
-        handle.get_comms(),
-        tuple_begin,
-        tuple_begin + current_frontier.size(),
-        [key_func =
-           cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{
-             handle.get_comms().get_size()}] __device__(auto val) {
-          return key_func(thrust::get<0>(val));
-        },
-        handle.get_stream());
+      raft::copy(tmp_frontier.data(), current_frontier.begin(), current_frontier.size(), handle.get_stream());
+      detail::sequence_fill(
+        handle.get_stream(), original_position.data(), original_position.size(), vertex_t{0});
+      detail::fill(original_rank.size(), original_rank.data(), handle.get_comms().get_rank());
 
-      rmm::device_uvector<vertex_t> next_vertex(tmp_tuple.size(), handle.get_stream());
-      rmm::device_uvector<vertex_t> original_position(tmp_tuple.size(), handle.get_stream());
-      rmm::device_uvector<int> original_rank(tmp_tuple.size(), handle.get_stream());
+      auto tuple_begin = thrust::make_zip_iterator(thrust::make_tuple(
+        tmp_frontier.begin(), original_position.begin(), original_rank.begin()));
 
-      tuple_begin = thrust::make_tuple_iterator(
-        thrust::make_tuple(next_vertex.begin(), original_position.begin(), original_rank.begin()));
+      std::forward_as_tuple(std::tie(tmp_frontier, original_position, original_rank),
+                            std::ignore) =
+        groupby_gpuid_and_shuffle_values(
+          handle.get_comms(),
+          tuple_begin,
+          tuple_begin + tmp_frontier.size(),
+          [key_func =
+             cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{
+               handle.get_comms().get_size()}] __device__(auto val) {
+            return key_func(thrust::get<0>(val));
+          },
+          handle.get_stream());
+
+      tuple_begin = thrust::make_zip_iterator(thrust::make_tuple(
+        tmp_frontier.begin(), original_position.begin(), original_rank.begin()));
 
       thrust::transform(
         handle.get_thrust_policy(),
-        tmp_tuple.begin(),
-        tmp_tuple.end(),
-        thrust::make_zip_iterator(thrust::make_tuple(
-          next_vertex.begin(), original_position.begin(), original_rank.begin())),
-        [v_local_first = graph_view.get_local_first(), predecessors] __device__(auto tuple) {
+        tuple_begin,
+        tuple_begin + tmp_frontier.size(),
+        tuple_begin,
+        [v_local_first = graph_view.get_local_vertex_first(), predecessors] __device__(auto tuple) {
           auto v = thrust::get<0>(tuple);
           return thrust::make_tuple(
             predecessors[v - v_local_first], thrust::get<1>(tuple), thrust::get<2>(tuple));
         });
 
-      std::tie(tmp_tuple, tmp_ignore) = groupby_gpuid_and_shuffle_values(
-        handle.get_comms(),
-        tuple_begin,
-        tuple_begin + next_vertex.size(),
-        [] __device__(auto val) { return thrust::get<2>(val); },
-        handle.get_stream());
+      std::forward_as_tuple(std::tie(tmp_frontier, original_position, original_rank),
+                            std::ignore) =
+        groupby_gpuid_and_shuffle_values(
+          handle.get_comms(),
+          tuple_begin,
+          tuple_begin + tmp_frontier.size(),
+          [] __device__(auto val) { return thrust::get<2>(val); },
+          handle.get_stream());
 
-      thrust::for_each(handle.get_thrust_policy(),
-                       tmp_tuple.begin(),
-                       tmp_tuple.end(),
-                       [d_current_frontier = current_frontier.data()] __device__ (auto tuple) {
-                         auto v = thrust::get<0>(tuple);
-                         auto position = thrust::get<1>(tuple);
+      thrust::for_each_n(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(thrust::make_tuple(tmp_frontier.begin(), original_position.begin())),
+                         tmp_frontier.size(),
+                         [d_current_frontier = current_frontier.data()] __device__(auto tuple) {
+                           auto v        = thrust::get<0>(tuple);
+                           auto position = thrust::get<1>(tuple);
 
-                         d_current_frontier[position] = v;
-                       });
+                           d_current_frontier[position] = v;
+                         });
     } else {
-      thrust::transform(handle.get_thrust_policy(),
-                        current_frontier.begin(),
-                        current_frontier.end(),
-                        current_frontier.data(),
-                        [v_local_first = graph_view.get_local_first(), predecessors] __device__(
-                          auto v) { return predecessors[v - v_local_first]; });
+      thrust::transform(
+        handle.get_thrust_policy(),
+        current_frontier.begin(),
+        current_frontier.end(),
+        current_frontier.data(),
+        [v_local_first = graph_view.get_local_vertex_first(), predecessors] __device__(auto v) {
+          return predecessors[v - v_local_first];
+        });
     }
 
     auto pair_iter = thrust::make_zip_iterator(
       thrust::make_tuple(current_frontier.begin(), current_position.begin()));
 
-    thrust::for_each_n(
-      handle.get_thrust_policy(),
-      pair_iter,
-      current_frontier.size(),
-      [v_local_first = graph_view.get_local_first(), paths, invalid_vertex] __device__(auto p) {
-        auto next_v = thrust::get<0>(p);
-        auto offset = thrust::get<1>(p);
+    thrust::for_each_n(handle.get_thrust_policy(),
+                       pair_iter,
+                       current_frontier.size(),
+                       [v_local_first = graph_view.get_local_vertex_first(),
+                        paths,
+                        invalid_vertex] __device__(auto p) {
+                         auto next_v = thrust::get<0>(p);
+                         auto offset = thrust::get<1>(p);
 
-        if (next_v != invalid_vertex) paths[offset] = next_v;
-      });
+                         if (next_v != invalid_vertex) paths[offset] = next_v;
+                       });
 
     thrust::transform(handle.get_thrust_policy(),
                       current_position.begin(),
@@ -227,8 +241,8 @@ void extract_bfs_paths(raft::handle_t const& handle,
                       current_position.data(),
                       [] __device__(auto offset) { return offset - 1; });
 
-    std::tie(current_frontier, current_position) =
-      shrink_extraction_list(handle, std::move(current_frontier), std::move(current_position));
+    std::tie(current_frontier, current_position) = detail::shrink_extraction_list(
+      handle, std::move(current_frontier), std::move(current_position));
   }
 }
 
