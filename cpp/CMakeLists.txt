@@ -372,7 +372,12 @@ target_include_directories(cugraph_c
 target_link_libraries(cugraph_c
         PUBLIC
                 cugraph::cugraph
+        PRIVATE
                 FAISS::FAISS
+                CUDA::cublas
+                CUDA::curand
+                CUDA::cusolver
+                CUDA::cusparse
 )
 
 ################################################################################
