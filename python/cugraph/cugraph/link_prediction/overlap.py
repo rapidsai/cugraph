@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pandas as pd
 from cugraph.link_prediction import overlap_wrapper
 import cudf
 from cugraph.utilities import check_nx_graph
@@ -29,7 +28,7 @@ def overlap_coefficient(G, ebunch=None):
     G, isNx = check_nx_graph(G)
 
     if isNx is True and ebunch is not None:
-        vertex_pair = cudf.from_pandas(pd.DataFrame(ebunch))
+        vertex_pair = cudf.DataFrame(ebunch)
 
     df = overlap(G, vertex_pair)
 
@@ -57,7 +56,7 @@ def overlap(input_graph, vertex_pair=None):
     Parameters
     ----------
     graph : cugraph.Graph
-        cuGraph graph descriptor, should contain the connectivity information
+        cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
     vertex_pair : cudf.DataFrame
@@ -93,9 +92,7 @@ def overlap(input_graph, vertex_pair=None):
 
     if type(vertex_pair) == cudf.DataFrame:
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
-    elif vertex_pair is None:
-        pass
-    else:
+    elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
     df = overlap_wrapper.overlap(input_graph, None, vertex_pair)

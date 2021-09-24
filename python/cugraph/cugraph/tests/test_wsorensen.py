@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -54,12 +54,12 @@ def cugraph_call(benchmark_callable, cu_M):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    # cugraph Jaccard Call
-    df = benchmark_callable(cugraph.jaccard_w, G, weights)
+    # cugraph Sorensen Call
+    df = benchmark_callable(cugraph.sorensen_w, G, weights)
 
     df = df.sort_values(["source", "destination"]).reset_index(drop=True)
 
-    return df["jaccard_coeff"]
+    return df["sorensen_coeff"]
 
 
 def networkx_call(M, benchmark_callable=None):
@@ -86,10 +86,14 @@ def networkx_call(M, benchmark_callable=None):
         preds = benchmark_callable(nx.jaccard_coefficient, Gnx, edges)
     else:
         preds = nx.jaccard_coefficient(Gnx, edges)
-
     coeff = []
     for u, v, p in preds:
-        coeff.append(p)
+        # FIXME: Use known correct values of WSorensen for few graphs,
+        # hardcode it and compare to Cugraph WSorensen
+        # to get a more robust test
+
+        # Conversion from Networkx Jaccard to Sorensen
+        coeff.append((2*p)/(1+p))
     return coeff
 
 
@@ -107,7 +111,7 @@ def read_csv(request):
     return M, cu_M
 
 
-def test_wjaccard(gpubenchmark, read_csv):
+def test_wsorensen(gpubenchmark, read_csv):
 
     M, cu_M = read_csv
 
@@ -118,13 +122,13 @@ def test_wjaccard(gpubenchmark, read_csv):
         assert diff < 1.0e-6
 
 
-def test_nx_wjaccard_time(gpubenchmark, read_csv):
+def test_nx_wsorensen_time(gpubenchmark, read_csv):
 
     M, _ = read_csv
     networkx_call(M, gpubenchmark)
 
 
-def test_wjaccard_multi_column_weights(gpubenchmark, read_csv):
+def test_wsorensen_multi_column_weights(gpubenchmark, read_csv):
 
     M, cu_M = read_csv
 
@@ -135,7 +139,7 @@ def test_wjaccard_multi_column_weights(gpubenchmark, read_csv):
         assert diff < 1.0e-6
 
 
-def test_wjaccard_multi_column(read_csv):
+def test_wsorensen_multi_column(read_csv):
 
     M, _ = read_csv
 
@@ -162,10 +166,10 @@ def test_wjaccard_multi_column(read_csv):
     weights['vertex_'] = weights['vertex'] + 1000
     weights['weight'] = weight_arr
 
-    df_res = cugraph.jaccard_w(G1, weights, vertex_pair)
+    df_res = cugraph.sorensen_w(G1, weights, vertex_pair)
 
     weights = weights[['vertex', 'weight']]
-    df_exp = cugraph.jaccard_w(G2, weights, vertex_pair[["src_0", "dst_0"]])
+    df_exp = cugraph.sorensen_w(G2, weights, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    assert df_res["jaccard_coeff"].equals(df_exp["jaccard_coeff"])
+    assert df_res["sorensen_coeff"].equals(df_exp["sorensen_coeff"])
