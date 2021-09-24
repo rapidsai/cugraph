@@ -191,19 +191,19 @@ decompress_matrix_partition_to_edgelist(
   std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
   auto number_of_edges = matrix_partition.get_number_of_edges();
-  rmm::device_uvector<vertex_t> edgelist_major_vertices(number_of_edges, handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minor_vertices(number_of_edges, handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_majors(number_of_edges, handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_minors(number_of_edges, handle.get_stream());
   auto edgelist_weights =
     matrix_partition.get_weights()
       ? std::make_optional<rmm::device_uvector<weight_t>>(number_of_edges, handle.get_stream())
       : std::nullopt;
 
   decompress_matrix_partition_to_fill_edgelist_majors(
-    handle, matrix_partition, edgelist_major_vertices.data(), segment_offsets);
+    handle, matrix_partition, edgelist_majors.data(), segment_offsets);
   thrust::copy(handle.get_thrust_policy(),
                matrix_partition.get_indices(),
                matrix_partition.get_indices() + number_of_edges,
-               edgelist_minor_vertices.begin());
+               edgelist_minors.begin());
   if (edgelist_weights) {
     thrust::copy(handle.get_thrust_policy(),
                  *(matrix_partition.get_weights()),
@@ -211,8 +211,8 @@ decompress_matrix_partition_to_edgelist(
                  (*edgelist_weights).data());
   }
 
-  return std::make_tuple(std::move(edgelist_major_vertices),
-                         std::move(edgelist_minor_vertices),
+  return std::make_tuple(std::move(edgelist_majors),
+                         std::move(edgelist_minors),
                          std::move(edgelist_weights));
 }
 
