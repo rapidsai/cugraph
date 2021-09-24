@@ -18,6 +18,7 @@
 
 #include <cuda_runtime_api.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,11 +26,14 @@ extern "C" {
 
 typedef enum cugraph_error_ {
   CUGRAPH_SUCCESS,
-  CUGRAPH_ERROR_UNKNOWN,
-  CUGRAPH_INVALID_HANDLE
+  CUGRAPH_UNKNOWN_ERROR,
+  CUGRAPH_INVALID_HANDLE,
+  CUGRAPH_ALLOC_ERROR
 } cugraph_error_t;
 
 typedef int bool_t;
+
+typedef int8_t byte_t;
 
 typedef enum data_type_id_ { INT32 = 0, INT64, FLOAT32, FLOAT64, NTYPES } data_type_id_t;
 
@@ -87,7 +91,8 @@ typedef struct cugraph_rw_ret_ {
  * vertex_t_id, cugraph_rw_ret_t* rw_result);
  */
 
-/* C algorithm specific wrapper declarations: : should go into separate corresponding headers */
+/* C algorithm specific wrapper declarations; FIXME: should go into separate corresponding headers
+ */
 
 /* Random Walks */
 cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
@@ -116,6 +121,29 @@ cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_handle_t* p_h
 
 /* graph deallocator*/
 void cugraph_free_graph(cugraph_graph_envelope_t* graph);
+
+/* rmm::device buffer allocator: fill pointer semantics*/
+cugraph_error_t cugraph_make_device_buffer(const cugraph_raft_handle_t* raft_handle,
+                                           data_type_id_t dtype,
+                                           size_t n_elems,
+                                           cugraph_device_buffer_t* ptr_buffer);
+
+/* rmm::device buffer de-allocator*/
+void cugraph_free_device_buffer(cugraph_device_buffer_t* ptr_buffer);
+
+/* update dst device buffer from host src*/
+cugraph_error_t cugraph_update_device_buffer(const cugraph_raft_handle_t* raft_handle,
+                                             data_type_id_t dtype,
+                                             cugraph_device_buffer_t* ptr_dst,
+                                             const byte_t* ptr_h_src,
+                                             size_t n_elems);
+
+/* update src host buffer device src*/
+cugraph_error_t cugraph_update_host_buffer(const cugraph_raft_handle_t* raft_handle,
+                                           data_type_id_t dtype,
+                                           byte_t* ptr_h_dst,
+                                           const cugraph_device_buffer_t* ptr_src,
+                                           size_t n_elems);
 
 #ifdef __cplusplus
 }

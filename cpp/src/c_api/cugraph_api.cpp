@@ -23,6 +23,7 @@
 
 #include <raft/handle.hpp>
 
+#include <rmm/device_buffer.hpp>
 #include <rmm/device_uvector.hpp>
 
 extern "C" {
@@ -50,7 +51,10 @@ extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr
     graph_envelope_t* p_g_env = reinterpret_cast<graph_envelope_t*>(ptr_graph_envelope);
 
     raft::handle_t const* p_raft_handle = reinterpret_cast<raft::handle_t const*>(ptr_handle);
-    void* p_d_start                     = reinterpret_cast<void*>(ptr_d_start);
+
+    if (!p_raft_handle) return CUGRAPH_ALLOC_ERROR;
+
+    void* p_d_start = reinterpret_cast<void*>(ptr_d_start);
 
     bool use_padding = static_cast<bool>(flag_use_padding);
 
@@ -76,12 +80,14 @@ extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr
     ret->p_erased_ret = new return_t(std::move(ret_erased));
 
   } catch (...) {
-    status = CUGRAPH_ERROR_UNKNOWN;
+    status = CUGRAPH_UNKNOWN_ERROR;
   }
 
   return status;
 }
 
+// graph factory: return pointer semantics (because it returns a stub);
+//
 extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_handle_t* p_handle,
                                                            data_type_id_t vertex_tid,
                                                            data_type_id_t edge_tid,
@@ -100,6 +106,8 @@ extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_ha
 
   try {
     raft::handle_t const* p_raft_handle = reinterpret_cast<raft::handle_t const*>(p_handle);
+
+    if (!p_raft_handle) return nullptr;
 
     bool do_check = static_cast<bool>(check);
     bool is_sym   = static_cast<bool>(is_symmetric);
@@ -135,4 +143,81 @@ extern "C" void cugraph_free_graph(cugraph_graph_envelope_t* graph)
   graph_envelope_t* ptr_graph_envelope = reinterpret_cast<graph_envelope_t*>(graph);
 
   delete ptr_graph_envelope;
+}
+
+// device buffer factory: fill pointer semantics (because the pointer is more than a stub);
+//
+extern "C" cugraph_error_t cugraph_make_device_buffer(const cugraph_raft_handle_t* raft_handle,
+                                                      data_type_id_t dtype,
+                                                      size_t n_elems,
+                                                      cugraph_device_buffer_t* ptr_buffer)
+{
+  cugraph_error_t status = CUGRAPH_SUCCESS;
+  try {
+    raft::handle_t const* p_raft_handle = reinterpret_cast<raft::handle_t const*>(raft_handle);
+
+    if (!p_raft_handle) return CUGRAPH_ALLOC_ERROR;
+
+    size_t byte_sz    = n_elems * (::data_type_sz[dtype]);
+    ptr_buffer->data_ = new rmm::device_buffer(byte_sz, p_raft_handle->get_stream());
+    ptr_buffer->size_ = byte_sz;
+  } catch (...) {
+    status = CUGRAPH_ALLOC_ERROR;
+  }
+  return status;
+}
+
+extern "C" void cugraph_free_device_buffer(cugraph_device_buffer_t* ptr_buffer)
+{
+  rmm::device_buffer* ptr_rmm_d_buf = reinterpret_cast<rmm::device_buffer*>(ptr_buffer->data_);
+
+  delete ptr_rmm_d_buf;
+}
+
+extern "C" cugraph_error_t cugraph_update_device_buffer(const cugraph_raft_handle_t* raft_handle,
+                                                        data_type_id_t dtype,
+                                                        cugraph_device_buffer_t* ptr_dst,
+                                                        const byte_t* ptr_h_src,
+                                                        size_t n_elems)
+{
+  cugraph_error_t status = CUGRAPH_SUCCESS;
+
+  try {
+    raft::handle_t const* ptr_raft_handle = reinterpret_cast<raft::handle_t const*>(raft_handle);
+
+    if (!ptr_raft_handle) return CUGRAPH_ALLOC_ERROR;
+
+    size_t byte_sz = n_elems * (::data_type_sz[dtype]);
+
+    raft::update_device(
+      static_cast<byte_t*>(ptr_dst->data_), ptr_h_src, byte_sz, ptr_raft_handle->get_stream());
+  } catch (...) {
+    status = CUGRAPH_UNKNOWN_ERROR;
+  }
+  return status;
+}
+
+extern "C" cugraph_error_t cugraph_update_host_buffer(const cugraph_raft_handle_t* raft_handle,
+                                                      data_type_id_t dtype,
+                                                      byte_t* ptr_h_dst,
+                                                      const cugraph_device_buffer_t* ptr_src,
+                                                      size_t n_elems)
+{
+  cugraph_error_t status = CUGRAPH_SUCCESS;
+
+  try {
+    raft::handle_t const* ptr_raft_handle = reinterpret_cast<raft::handle_t const*>(raft_handle);
+
+    if (!ptr_raft_handle) return CUGRAPH_ALLOC_ERROR;
+
+    size_t byte_sz = n_elems * (::data_type_sz[dtype]);
+
+    raft::update_host(ptr_h_dst,
+                      static_cast<byte_t const*>(ptr_src->data_),
+                      byte_sz,
+                      ptr_raft_handle->get_stream());
+  } catch (...) {
+    status = CUGRAPH_UNKNOWN_ERROR;
+  }
+  return status;
 }
