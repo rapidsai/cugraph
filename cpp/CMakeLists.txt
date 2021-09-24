@@ -373,7 +373,6 @@ target_link_libraries(cugraph_c
         PUBLIC
                 cugraph::cugraph
                 FAISS::FAISS
-        PRIVATE
                 CUDA::cublas
                 CUDA::curand
                 CUDA::cusolver
