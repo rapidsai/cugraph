@@ -372,6 +372,7 @@ target_include_directories(cugraph_c
 target_link_libraries(cugraph_c
         PUBLIC
                 cugraph::cugraph
+                FAISS::FAISS
 )
 
 ################################################################################
