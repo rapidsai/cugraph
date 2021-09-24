@@ -234,7 +234,7 @@ void populate_graph_container(graph_container_t& graph_container,
   CUGRAPH_EXPECTS(graph_container.graph_type == graphTypeEnum::null,
                   "populate_graph_container() can only be called on an empty container.");
 
-  bool do_expensive_check{true};
+  bool do_expensive_check{false};
 
   if (multi_gpu) {
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
