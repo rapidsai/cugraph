@@ -371,12 +371,13 @@ target_include_directories(cugraph_c
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c
         PUBLIC
-                cugraph::cugraph
                 FAISS::FAISS
                 CUDA::cublas
                 CUDA::curand
                 CUDA::cusolver
                 CUDA::cusparse
+        PRIVATE
+                cugraph::cugraph
 )
 
 ################################################################################
