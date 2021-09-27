@@ -142,15 +142,13 @@ void cugraph_free_device_buffer(cugraph_device_buffer_t* ptr_buffer);
 cugraph_error_t cugraph_update_device_buffer(const cugraph_raft_handle_t* raft_handle,
                                              data_type_id_t dtype,
                                              cugraph_device_buffer_t* ptr_dst,
-                                             const byte_t* ptr_h_src,
-                                             size_t n_elems);
+                                             const byte_t* ptr_h_src);
 
 /* update src host buffer device src*/
 cugraph_error_t cugraph_update_host_buffer(const cugraph_raft_handle_t* raft_handle,
                                            data_type_id_t dtype,
                                            byte_t* ptr_h_dst,
-                                           const cugraph_device_buffer_t* ptr_src,
-                                           size_t n_elems);
+                                           const cugraph_device_buffer_t* ptr_src);
 
 /* raft::handle_t allocator (for now; possibly a more encompassing handle in the future)*/
 cugraph_raft_handle_t* cugraph_create_handle(void);
