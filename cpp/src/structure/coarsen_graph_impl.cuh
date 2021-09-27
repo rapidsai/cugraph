@@ -114,8 +114,21 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
   // compressed sparse format to save memory
 
-  auto [edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights] =
-    detail::decompress_matrix_partition_to_edgelist(handle, matrix_partition, segment_offsets);
+  rmm::device_uvector<vertex_t> edgelist_major_vertices(matrix_partition.get_number_of_edges(),
+                                                        handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_minor_vertices(edgelist_major_vertices.size(),
+                                                        handle.get_stream());
+  auto edgelist_weights = matrix_partition.get_weights()
+                            ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                edgelist_major_vertices.size(), handle.get_stream())
+                            : std::nullopt;
+  detail::decompress_matrix_partition_to_edgelist(
+    handle,
+    matrix_partition,
+    edgelist_major_vertices.data(),
+    edgelist_minor_vertices.data(),
+    edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
+    segment_offsets);
 
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));

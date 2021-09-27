@@ -182,38 +182,28 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>>
-decompress_matrix_partition_to_edgelist(
+void decompress_matrix_partition_to_edgelist(
   raft::handle_t const& handle,
   matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
+  vertex_t* edgelist_majors /* [INOUT] */,
+  vertex_t* edgelist_minors /* [INOUT] */,
+  std::optional<weight_t*> edgelist_weights /* [INOUT] */,
   std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
   auto number_of_edges = matrix_partition.get_number_of_edges();
-  rmm::device_uvector<vertex_t> edgelist_majors(number_of_edges, handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minors(number_of_edges, handle.get_stream());
-  auto edgelist_weights =
-    matrix_partition.get_weights()
-      ? std::make_optional<rmm::device_uvector<weight_t>>(number_of_edges, handle.get_stream())
-      : std::nullopt;
 
   decompress_matrix_partition_to_fill_edgelist_majors(
-    handle, matrix_partition, edgelist_majors.data(), segment_offsets);
+    handle, matrix_partition, edgelist_majors, segment_offsets);
   thrust::copy(handle.get_thrust_policy(),
                matrix_partition.get_indices(),
                matrix_partition.get_indices() + number_of_edges,
-               edgelist_minors.begin());
+               edgelist_minors);
   if (edgelist_weights) {
     thrust::copy(handle.get_thrust_policy(),
                  *(matrix_partition.get_weights()),
                  *(matrix_partition.get_weights()) + number_of_edges,
-                 (*edgelist_weights).data());
+                 (*edgelist_weights));
   }
-
-  return std::make_tuple(std::move(edgelist_majors),
-                         std::move(edgelist_minors),
-                         std::move(edgelist_weights));
 }
 
 }  // namespace detail
