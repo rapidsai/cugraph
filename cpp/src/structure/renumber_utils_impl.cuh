@@ -242,7 +242,7 @@ void unrenumber_local_int_edges(
       (vertex_partition_rank == 0 ? vertex_t{0}
                                   : vertex_partition_lasts[vertex_partition_rank - 1]);
   }
-  if ((matrix_partition_minor_size >= number_of_edges / comm_size) &&
+  if ((matrix_partition_minor_size >= static_cast<vertex_t>(number_of_edges / comm_size)) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
     vertex_t max_segment_size{0};
@@ -519,8 +519,6 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                              vertex_t* vertices /* [INOUT] */,
                              size_t num_vertices,
                              vertex_t const* renumber_map_labels,
-                             vertex_t local_int_vertex_first,
-                             vertex_t local_int_vertex_last,
                              std::vector<vertex_t> const& vertex_partition_lasts,
                              bool do_expensive_check)
 {
@@ -542,6 +540,11 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
   if (multi_gpu) {
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
+    auto const comm_rank = comm.get_rank();
+
+    auto local_int_vertex_first =
+      comm_rank == 0 ? vertex_t{0} : vertex_partition_lasts[comm_rank - 1];
+    auto local_int_vertex_last = vertex_partition_lasts[comm_rank];
 
     rmm::device_uvector<vertex_t> sorted_unique_int_vertices(num_vertices,
                                                              handle.get_stream_view());
@@ -628,8 +631,8 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                                   vertices,
                                   num_vertices,
                                   renumber_map_labels,
-                                  local_int_vertex_first,
-                                  local_int_vertex_last,
+                                  vertex_t{0},
+                                  vertex_partition_lasts[0],
                                   do_expensive_check);
   }
 }
@@ -641,8 +644,7 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
   std::vector<vertex_t*> const& edgelist_cols /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   vertex_t const* renumber_map_labels,
-  vertex_t local_int_vertex_first,
-  vertex_t local_int_vertex_last,
+  std::vector<vertex_t> const& vertex_partition_lasts,
   std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check)
 {
@@ -651,8 +653,7 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
                                             store_transposed ? edgelist_rows : edgelist_cols,
                                             edgelist_edge_counts,
                                             renumber_map_labels,
-                                            local_int_vertex_first,
-                                            local_int_vertex_last,
+                                            vertex_partition_lasts,
                                             edgelist_intra_partition_segment_offsets,
                                             do_expensive_check);
 }

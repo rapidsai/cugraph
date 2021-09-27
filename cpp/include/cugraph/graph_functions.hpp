@@ -209,8 +209,6 @@ void unrenumber_local_int_vertices(
   vertex_t local_int_vertex_last,
   bool do_expensive_check = false);
 
-// FIXME: We may add unrenumber_int_rows(or cols) as this will require communication only within a
-// sub-communicator and potentially be more efficient.
 /**
  * @brief Unrenumber (possibly non-local) internal vertices to external vertices based on the
  * providied @p renumber_map_labels.
@@ -227,10 +225,6 @@ void unrenumber_local_int_vertices(
  * @param num_vertices Number of vertices to be unrenumbered.
  * @param renumber_map_labels Pointer to the external vertices corresponding to the internal
  * vertices in the range [@p local_int_vertex_first, @p local_int_vertex_last).
- * @param local_int_vertex_first The first local internal vertex (inclusive, assigned to this
- * process in multi-GPU).
- * @param local_int_vertex_last The last local internal vertex (exclusive, assigned to this process
- * in multi-GPU).
  * @param vertex_partition_lasts Last local internal vertices (exclusive, assigned to each process
  * in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -240,10 +234,38 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                              vertex_t* vertices /* [INOUT] */,
                              size_t num_vertices,
                              vertex_t const* renumber_map_labels,
-                             vertex_t local_int_vertex_first,
-                             vertex_t local_int_vertex_last,
                              std::vector<vertex_t> const& vertex_partition_lasts,
                              bool do_expensive_check = false);
+
+template <typename vertex_t, bool store_transposed, bool multi_gpu>
+std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
+  raft::handle_t const& handle,
+  std::vector<vertex_t*> const& edgelist_rows /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_cols /* [INOUT] */,
+  std::vector<size_t> const& edgelist_edge_counts,
+  vertex_t const* renumber_map_labels,
+  std::vector<vertex_t> const& vertex_partition_lasts,
+  std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
+  bool do_expensive_check = false);
+
+template <typename vertex_t, bool store_transposed, bool multi_gpu>
+std::enable_if_t<!multi_gpu, void> unrenumber_local_int_edges(raft::handle_t const& handle,
+                                                              vertex_t* edgelist_rows /* [INOUT] */,
+                                                              vertex_t* edgelist_cols /* [INOUT] */,
+                                                              size_t num_edgelist_edges,
+                                                              vertex_t const* renumber_map_labels,
+                                                              vertex_t num_vertices,
+                                                              bool do_expensive_check = false);
+
+template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+symmetrize_edgelist(raft::handle_t const& handle,
+                    rmm::device_uvector<vertex_t>&& edgelist_rows,
+                    rmm::device_uvector<vertex_t>&& edgelist_cols,
+                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                    bool reciprocal);
 
 /**
  * @brief Compute the coarsened graph.
