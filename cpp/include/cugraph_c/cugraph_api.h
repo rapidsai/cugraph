@@ -98,6 +98,9 @@ cugraph_unique_ptr_t* cugraph_create_sampling_strategy(int sampling_type_id, dou
 /* Sampling data deallocator*/
 void cugraph_free_sampling_strategy(cugraph_unique_ptr_t* p_sampling);
 
+/* deallocate result returned by RW wrapper*/
+void cugraph_free_rw_result(cugraph_rw_ret_t* p_rw_ret);
+
 /* algorithm wrapper*/
 cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
                                      cugraph_graph_envelope_t* ptr_graph_envelope,

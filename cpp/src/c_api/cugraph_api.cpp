@@ -57,6 +57,13 @@ void cugraph_free_sampling_strategy(cugraph_unique_ptr_t* p_sampling)
   delete p_uniq_sampling;
 }
 
+void cugraph_free_rw_result(cugraph_rw_ret_t* p_rw_ret)
+{
+  using namespace cugraph::visitors;
+  return_t* p_ret = reinterpret_cast<return_t*>(p_rw_ret->p_erased_ret);
+  delete p_ret;
+}
+
 extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
                                                 cugraph_graph_envelope_t* ptr_graph_envelope,
                                                 cugraph_device_buffer_t* ptr_d_start,
@@ -101,8 +108,11 @@ extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr
     return_t ret_erased = cugraph::api::random_walks(*p_g_env, ep);
 
     // caller deffered type-reconstruction: caller has the knoweldge
-    // and means to reconstruct the result:
-    // (CAVEAT: must allocate, because `ret_erased` is local to this function!)
+    // and means to reconstruct the result;
+    // in this case the underlying result (behind type-erased `return_t`)
+    // is `std::tuple<rmm::device_buffer, rmm::device_buffer, rmm::device_buffer>`
+    //
+    // (allocated, because `ret_erased` is local to this function!)
     //
     ret->p_erased_ret = new return_t(std::move(ret_erased));
 
