@@ -38,6 +38,25 @@ extern "C" {
 int data_type_sz[] = {4, 8, 4, 8};
 }
 
+cugraph_unique_ptr_t* cugraph_create_sampling_strategy(int sampling_type_id, double p, double q)
+{
+  using ptr_sampling_t = std::unique_ptr<cugraph::sampling_params_t>;
+  try {
+    ptr_sampling_t ptr_uniq = std::make_unique<cugraph::sampling_params_t>(sampling_type_id, p, q);
+    ptr_sampling_t* p_sampling = new ptr_sampling_t(std::move(ptr_uniq));
+    return reinterpret_cast<cugraph_unique_ptr_t*>(p_sampling);
+  } catch (...) {
+    return nullptr;
+  }
+}
+
+void cugraph_free_sampling_strategy(cugraph_unique_ptr_t* p_sampling)
+{
+  using ptr_sampling_t            = std::unique_ptr<cugraph::sampling_params_t>;
+  ptr_sampling_t* p_uniq_sampling = reinterpret_cast<ptr_sampling_t*>(p_sampling);
+  delete p_uniq_sampling;
+}
+
 extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
                                                 cugraph_graph_envelope_t* ptr_graph_envelope,
                                                 cugraph_device_buffer_t* ptr_d_start,
@@ -236,7 +255,11 @@ extern "C" cugraph_error_t cugraph_update_host_buffer(const cugraph_raft_handle_
 
 cugraph_raft_handle_t* cugraph_create_handle(void)
 {
-  return reinterpret_cast<cugraph_raft_handle_t*>(new raft::handle_t{});
+  try {
+    return reinterpret_cast<cugraph_raft_handle_t*>(new raft::handle_t{});
+  } catch (...) {
+    return nullptr;
+  }
 }
 
 void cugraph_free_handle(cugraph_raft_handle_t* p_handle)

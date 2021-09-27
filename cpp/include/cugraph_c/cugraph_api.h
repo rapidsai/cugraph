@@ -90,7 +90,15 @@ typedef struct cugraph_rw_ret_ {
 /* C algorithm specific wrapper declarations; FIXME: should go into separate corresponding headers
  */
 
-/* Random Walks */
+/* Random Walks functionality*/
+
+/* Sampling data allocator*/
+cugraph_unique_ptr_t* cugraph_create_sampling_strategy(int sampling_type_id, double p, double q);
+
+/* Sampling data deallocator*/
+void cugraph_free_sampling_strategy(cugraph_unique_ptr_t* p_sampling);
+
+/* algorithm wrapper*/
 cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
                                      cugraph_graph_envelope_t* ptr_graph_envelope,
                                      cugraph_device_buffer_t* ptr_d_start,
