@@ -233,3 +233,14 @@ extern "C" cugraph_error_t cugraph_update_host_buffer(const cugraph_raft_handle_
   }
   return status;
 }
+
+cugraph_raft_handle_t* cugraph_create_handle(void)
+{
+  return reinterpret_cast<cugraph_raft_handle_t*>(new raft::handle_t{});
+}
+
+void cugraph_free_handle(cugraph_raft_handle_t* p_handle)
+{
+  raft::handle_t* p_raft_handle = reinterpret_cast<raft::handle_t*>(p_handle);
+  delete p_raft_handle;
+}

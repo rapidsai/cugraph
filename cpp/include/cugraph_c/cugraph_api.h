@@ -141,6 +141,12 @@ cugraph_error_t cugraph_update_host_buffer(const cugraph_raft_handle_t* raft_han
                                            const cugraph_device_buffer_t* ptr_src,
                                            size_t n_elems);
 
+/* raft::handle_t allocator (for now; possibly a more encompassing handle in the future)*/
+cugraph_raft_handle_t* cugraph_create_handle(void);
+
+/* raft::handle_t deallocator*/
+void cugraph_free_handle(cugraph_raft_handle_t* p_handle);
+
 #ifdef __cplusplus
 }
 #endif
