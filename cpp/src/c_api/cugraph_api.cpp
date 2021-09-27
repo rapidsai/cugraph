@@ -38,7 +38,9 @@ extern "C" {
 int data_type_sz[] = {4, 8, 4, 8};
 }
 
-cugraph_unique_ptr_t* cugraph_create_sampling_strategy(int sampling_type_id, double p, double q)
+extern "C" cugraph_unique_ptr_t* cugraph_create_sampling_strategy(int sampling_type_id,
+                                                                  double p,
+                                                                  double q)
 {
   using ptr_sampling_t = std::unique_ptr<cugraph::sampling_params_t>;
   try {
@@ -50,14 +52,14 @@ cugraph_unique_ptr_t* cugraph_create_sampling_strategy(int sampling_type_id, dou
   }
 }
 
-void cugraph_free_sampling_strategy(cugraph_unique_ptr_t* p_sampling)
+extern "C" void cugraph_free_sampling_strategy(cugraph_unique_ptr_t* p_sampling)
 {
   using ptr_sampling_t            = std::unique_ptr<cugraph::sampling_params_t>;
   ptr_sampling_t* p_uniq_sampling = reinterpret_cast<ptr_sampling_t*>(p_sampling);
   delete p_uniq_sampling;
 }
 
-void cugraph_free_rw_result(cugraph_rw_ret_t* p_rw_ret)
+extern "C" void cugraph_free_rw_result(cugraph_rw_ret_t* p_rw_ret)
 {
   using namespace cugraph::visitors;
   return_t* p_ret = reinterpret_cast<return_t*>(p_rw_ret->p_erased_ret);
@@ -263,7 +265,7 @@ extern "C" cugraph_error_t cugraph_update_host_buffer(const cugraph_raft_handle_
   return status;
 }
 
-cugraph_raft_handle_t* cugraph_create_handle(void)
+extern "C" cugraph_raft_handle_t* cugraph_create_handle(void)
 {
   try {
     return reinterpret_cast<cugraph_raft_handle_t*>(new raft::handle_t{});
@@ -272,7 +274,7 @@ cugraph_raft_handle_t* cugraph_create_handle(void)
   }
 }
 
-void cugraph_free_handle(cugraph_raft_handle_t* p_handle)
+extern "C" void cugraph_free_handle(cugraph_raft_handle_t* p_handle)
 {
   raft::handle_t* p_raft_handle = reinterpret_cast<raft::handle_t*>(p_handle);
   delete p_raft_handle;
