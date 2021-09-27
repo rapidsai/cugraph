@@ -26,13 +26,21 @@
 #include <rmm/device_buffer.hpp>
 #include <rmm/device_uvector.hpp>
 
+namespace helpers {
+void* raw_device_ptr(cugraph_device_buffer_t* ptr_buf)
+{
+  rmm::device_buffer* ptr_d_buffer = reinterpret_cast<rmm::device_buffer*>(ptr_buf->data_);
+  return ptr_d_buffer->data();
+}
+}  // namespace helpers
+
 extern "C" {
 int data_type_sz[] = {4, 8, 4, 8};
 }
 
 extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
                                                 cugraph_graph_envelope_t* ptr_graph_envelope,
-                                                cugraph_device_array_t* ptr_d_start,
+                                                cugraph_device_buffer_t* ptr_d_start,
                                                 size_t num_paths,
                                                 size_t max_depth,
                                                 bool_t flag_use_padding,
@@ -54,7 +62,7 @@ extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr
 
     if (!p_raft_handle) return CUGRAPH_ALLOC_ERROR;
 
-    void* p_d_start = reinterpret_cast<void*>(ptr_d_start);
+    void* p_d_start = helpers::raw_device_ptr(ptr_d_start);
 
     bool use_padding = static_cast<bool>(flag_use_padding);
 
@@ -93,9 +101,9 @@ extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_ha
                                                            data_type_id_t edge_tid,
                                                            data_type_id_t weight_tid,
                                                            bool_t st,
-                                                           cugraph_device_array_t* p_src,
-                                                           cugraph_device_array_t* p_dst,
-                                                           cugraph_device_array_t* p_weights,
+                                                           cugraph_device_buffer_t* p_src,
+                                                           cugraph_device_buffer_t* p_dst,
+                                                           cugraph_device_buffer_t* p_weights,
                                                            size_t num_vertices,
                                                            size_t num_edges,
                                                            bool_t check,
@@ -113,10 +121,14 @@ extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_ha
     bool is_sym   = static_cast<bool>(is_symmetric);
     bool is_multi = static_cast<bool>(is_multigraph);
 
+    void* p_d_src     = helpers::raw_device_ptr(p_src);
+    void* p_d_dst     = helpers::raw_device_ptr(p_dst);
+    void* p_d_weights = helpers::raw_device_ptr(p_weights);
+
     erased_pack_t ep_graph_cnstr{const_cast<raft::handle_t*>(p_raft_handle),
-                                 p_src,
-                                 p_dst,
-                                 p_weights,
+                                 p_d_src,
+                                 p_d_dst,
+                                 p_d_weights,
                                  &num_edges,
                                  &num_vertices,
                                  &check,

@@ -50,10 +50,6 @@ typedef struct cugraph_graph_envelope_ {
   int allign_;
 } cugraph_graph_envelope_t;
 
-typedef struct cugraph_erased_device_array_ {
-  int allign_;
-} cugraph_device_array_t;
-
 typedef struct cugraph_erased_unique_ptr_ {
   int allign_;
 } cugraph_unique_ptr_t;
@@ -97,7 +93,7 @@ typedef struct cugraph_rw_ret_ {
 /* Random Walks */
 cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
                                      cugraph_graph_envelope_t* ptr_graph_envelope,
-                                     cugraph_device_array_t* ptr_d_start,
+                                     cugraph_device_buffer_t* ptr_d_start,
                                      size_t num_paths,
                                      size_t max_depth,
                                      bool_t flag_use_padding,
@@ -110,9 +106,9 @@ cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_handle_t* p_h
                                                 data_type_id_t edge_tid,
                                                 data_type_id_t weight_tid,
                                                 bool_t st,
-                                                cugraph_device_array_t* p_src,
-                                                cugraph_device_array_t* p_dst,
-                                                cugraph_device_array_t* p_weights,
+                                                cugraph_device_buffer_t* p_src,
+                                                cugraph_device_buffer_t* p_dst,
+                                                cugraph_device_buffer_t* p_weights,
                                                 size_t num_vertices,
                                                 size_t num_edges,
                                                 bool_t check,
