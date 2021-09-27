@@ -101,6 +101,15 @@ void cugraph_free_sampling_strategy(cugraph_unique_ptr_t* p_sampling);
 /* deallocate result returned by RW wrapper*/
 void cugraph_free_rw_result(cugraph_rw_ret_t* p_rw_ret);
 
+/* RW result vertex extractor*/
+void extract_vertex_rw_result(cugraph_rw_ret_t* p_rw_ret, cugraph_device_buffer_t* p_d_buf_v);
+
+/* RW result weights extractor*/
+void extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret, cugraph_device_buffer_t* p_d_buf_w);
+
+/* RW result size extractor*/
+void extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret, cugraph_device_buffer_t* p_d_buf_sz);
+
 /* algorithm wrapper*/
 cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
                                      cugraph_graph_envelope_t* ptr_graph_envelope,
