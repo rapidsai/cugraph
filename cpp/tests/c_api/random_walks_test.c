@@ -48,8 +48,7 @@ bool_t is_one_of(int32_t value, int32_t* p_cmprsd_path, int max_num_paths)
 }
 
 /* check on host if all obtained paths are possible paths */
-bool_t host_check_paths(
-  int32_t* p_path_v, int32_t* p_path_sz, int num_paths, int32_t* p_cmprsd_path, int max_num_paths)
+bool_t host_check_paths(int32_t* p_path_v, int32_t* p_path_sz, int num_paths)
 {
   int i            = 0;
   int count_passed = 0;
@@ -65,7 +64,7 @@ bool_t host_check_paths(
       ++p_path_v; /* iterate p_path_v*/
     }
 
-    flag_passed = is_one_of(crt_path_accumulator, p_cmprsd_path, max_num_paths);
+    flag_passed = is_one_of(crt_path_accumulator, c_ps_array, N_PATHS);
     if (flag_passed) ++count_passed;
   }
 
