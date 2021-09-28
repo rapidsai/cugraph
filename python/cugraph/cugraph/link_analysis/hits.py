@@ -12,8 +12,9 @@
 # limitations under the License.
 
 from cugraph.link_analysis import hits_wrapper
-from cugraph.utilities import check_nx_graph
-from cugraph.utilities import df_score_to_dictionary
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               )
 
 
 def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
@@ -74,7 +75,7 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     >>> hits = cugraph.hits(G, max_iter = 50)
     """
 
-    G, isNx = check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     df = hits_wrapper.hits(G, max_iter, tol)
 

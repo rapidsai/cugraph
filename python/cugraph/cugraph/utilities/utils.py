@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib
+
 from numba import cuda
 
 import cudf
@@ -27,12 +29,14 @@ try:
     from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
     from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
 
-    CP_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
-    CP_COMPRESSED_MATRIX_TYPES = [cp_csr_matrix, cp_csc_matrix]
+    __cp_matrix_types = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
+    __cp_compressed_matrix_types = [cp_csr_matrix, cp_csc_matrix]
 except ModuleNotFoundError:
     cp = None
-    CP_MATRIX_TYPES = []
-    CP_COMPRESSED_MATRIX_TYPES = []
+    __cp_matrix_types = []
+    __cp_compressed_matrix_types = []
+
+cupy_package = cp
 
 try:
     import scipy as sp
@@ -40,17 +44,23 @@ try:
     from scipy.sparse.csr import csr_matrix as sp_csr_matrix
     from scipy.sparse.csc import csc_matrix as sp_csc_matrix
 
-    SP_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
-    SP_COMPRESSED_MATRIX_TYPES = [sp_csr_matrix, sp_csc_matrix]
+    __sp_matrix_types = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
+    __sp_compressed_matrix_types = [sp_csr_matrix, sp_csc_matrix]
 except ModuleNotFoundError:
     sp = None
-    SP_MATRIX_TYPES = []
-    SP_COMPRESSED_MATRIX_TYPES = []
+    __sp_matrix_types = []
+    __sp_compressed_matrix_types = []
+
+scipy_package = sp
 
 try:
     import networkx as nx
+    __nx_graph_types = [nx.Graph, nx.DiGraph]
 except ModuleNotFoundError:
     nx = None
+    __nx_graph_types = []
+
+nx_package = nx
 
 
 def get_traversed_path(df, id):
@@ -236,6 +246,7 @@ def get_device_memory_info():
 # |      Many NetworkX algorithms designed for weighted graphs use
 # |      an edge attribute (by default `weight`) to hold a numerical value.
 def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
+
     """
     Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
     DiGraph, etc.) and return a tuple of (cugraph Graph-type obj, original
@@ -243,18 +254,18 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
     cugraph Graph-type obj to create when converting from a matrix type.
     """
     # FIXME: importing here to avoid circular import
-    from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
+    from cugraph.structure import Graph, DiGraph
     from cugraph.utilities.nx_factory import convert_from_nx
 
     input_type = type(obj)
-    if input_type in [Graph, DiGraph, MultiGraph, MultiDiGraph]:
+    if is_cugraph_graph_type(input_type):
         return (obj, input_type)
 
-    elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+    elif is_nx_graph_type(input_type):
         return (convert_from_nx(obj, weight=nx_weight_attr), input_type)
 
-    elif (input_type in CP_MATRIX_TYPES) or (input_type in SP_MATRIX_TYPES):
-
+    elif (input_type in __cp_matrix_types) or \
+         (input_type in __sp_matrix_types):
         if matrix_graph_type is None:
             matrix_graph_type = Graph
         elif matrix_graph_type not in [Graph, DiGraph]:
@@ -264,13 +275,13 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
             )
 
         if input_type in (
-            CP_COMPRESSED_MATRIX_TYPES + SP_COMPRESSED_MATRIX_TYPES
+            __cp_compressed_matrix_types + __sp_compressed_matrix_types
         ):
             coo = obj.tocoo(copy=False)
         else:
             coo = obj
 
-        if input_type in CP_MATRIX_TYPES:
+        if input_type in __cp_matrix_types:
             df = cudf.DataFrame(
                 {
                     "source": cp.ascontiguousarray(coo.row),
@@ -296,45 +307,50 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
         raise TypeError(f"obj of type {input_type} is not supported.")
 
 
+# FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
+# set. An additional optional parameter for the weight attr name when accepting
+# Nx graphs may be needed.  From the Nx docs:
+# |      Many NetworkX algorithms designed for weighted graphs use
+# |      an edge attribute (by default `weight`) to hold a numerical value.
+def ensure_cugraph_obj_for_nx(obj, nx_weight_attr=None):
+    """
+    Ensures a cuGraph Graph-type obj is returned for either cuGraph or Nx
+    Graph-type objs. If obj is a Nx type,
+    """
+    # FIXME: importing here to avoid circular import
+    from cugraph.utilities.nx_factory import convert_from_nx
+
+    input_type = type(obj)
+    if is_nx_graph_type(input_type):
+        return (convert_from_nx(obj, weight=nx_weight_attr), True)
+    elif is_cugraph_graph_type(input_type):
+        return (obj, False)
+    else:
+        raise TypeError("input must be either a cuGraph or NetworkX graph "
+                        f"type, got {input_type}")
+
+
 def is_cp_matrix_type(m):
-    return m in CP_MATRIX_TYPES
+    return m in __cp_matrix_types
 
 
 def is_sp_matrix_type(m):
-    return m in SP_MATRIX_TYPES
+    return m in __sp_matrix_types
 
 
 def is_matrix_type(m):
     return is_cp_matrix_type(m) or is_sp_matrix_type(m)
 
 
-def import_optional(mod, import_from=None):
-    """
-    import module or object 'mod', possibly from module 'import_from', and
-    return the module object or object.  If the import raises
-    ModuleNotFoundError, returns None.
+def is_nx_graph_type(g):
+    return g in __nx_graph_types
 
-    This method was written to support importing "optional" dependencies so
-    code can be written to run even if the dependency is not installed.
 
-    >>> nx = import_optional("networkx")  # networkx is not installed
-    >>> if nx:
-    ...    G = nx.Graph()
-    ... else:
-    ...    print("Warning: NetworkX is not installed, using CPUGraph")
-    ...    G = cpu_graph.Graph()
-    >>>
-    """
-    namespace = {}
-    try:
-        if import_from:
-            exec(f"from {import_from} import {mod}", namespace)
-        else:
-            exec(f"import {mod}", namespace)
-    except ModuleNotFoundError:
-        pass
+def is_cugraph_graph_type(g):
+    # FIXME: importing here to avoid circular import
+    from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
 
-    return namespace.get(mod)
+    return g in [Graph, DiGraph, MultiGraph, MultiDiGraph]
 
 
 def renumber_vertex_pair(input_graph, vertex_pair):
@@ -355,3 +371,65 @@ def renumber_vertex_pair(input_graph, vertex_pair):
                 vertex_pair, "dst", columns[vertex_size:]
             )
     return vertex_pair
+
+
+class MissingModule:
+    """
+    Raises RuntimeError when any attribute is accessed on instances of this
+    class.
+
+    Instances of this class are returned by import_optional() when a module
+    cannot be found, which allows for code to import optional dependencies, and
+    have only the code paths that use the module affected.
+    """
+    def __init__(self, mod_name):
+        self.name = mod_name
+
+    def __getattr__(self, attr):
+        raise RuntimeError(f"This feature requires the {self.name} "
+                           "package/module")
+
+
+def import_optional(mod, default_mod_class=MissingModule):
+    """
+    import the "optional" module 'mod' and return the module object or object.
+    If the import raises ModuleNotFoundError, returns an instance of
+    default_mod_class.
+
+    This method was written to support importing "optional" dependencies so
+    code can be written to run even if the dependency is not installed.
+
+    Example
+    -------
+    >>> nx = import_optional("networkx")  # networkx is not installed
+    >>> G = nx.Graph()
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      ...
+    RuntimeError: This feature requires the networkx package/module
+
+    Example
+    -------
+    >>> class CuDFFallback:
+    ...   def __init__(self, mod_name):
+    ...     assert mod_name == "cudf"
+    ...     warnings.warn("cudf could not be imported, using pandas instead!")
+    ...   def __getattr__(self, attr):
+    ...     import pandas
+    ...     return getattr(pandas, attr)
+    ...
+    >>> df_mod = import_optional("cudf", default_mod_class=CuDFFallback)
+    <stdin>:4: UserWarning: cudf could not be imported, using pandas instead!
+    >>> df = df_mod.DataFrame()
+    >>> df
+    Empty DataFrame
+    Columns: []
+    Index: []
+    >>> type(df)
+    <class 'pandas.core.frame.DataFrame'>
+    >>>
+    """
+    try:
+        return importlib.import_module(mod)
+    except ModuleNotFoundError:
+        return default_mod_class(mod_name=mod)
