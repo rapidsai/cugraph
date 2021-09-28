@@ -34,6 +34,20 @@ void* raw_device_ptr(cugraph_device_buffer_t* ptr_buf)
   rmm::device_buffer* ptr_d_buffer = reinterpret_cast<rmm::device_buffer*>(ptr_buf->data_);
   return ptr_d_buffer->data();
 }
+
+cugraph::visitors::graph_envelope_t const& extract_graph_envelope(
+  cugraph_graph_envelope_t* ptr_graph)
+{
+  using namespace cugraph::visitors;
+
+  return_t::base_return_t* p_base_ret = reinterpret_cast<return_t::base_return_t*>(ptr_graph);
+  return_t::generic_return_t<graph_envelope_t>* p_typed_ret =
+    dynamic_cast<return_t::generic_return_t<graph_envelope_t>*>(p_base_ret);
+
+  graph_envelope_t const& graph_envelope = p_typed_ret->get();
+
+  return graph_envelope;
+}
 }  // namespace helpers
 
 extern "C" {

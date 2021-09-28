@@ -156,12 +156,14 @@ return_t graph_create(
 
     g.apply(*p_visitor);
 
-    return p_visitor->get_result();  // envelopes: graph_envelope_t
-    // FIXME: provide extraction mechanism:
+    // graph_envelope_t can be extracted through the following mechanism:
+    //
     // return_t::base_return_t* p_base_ret = p_visitor->get_result().release();
     // return_t::generic_return_t<graph_envelope_t>* p_typed_ret =
-    // dynamic_cast<return_t::generic_return_t<graph_envelope_t>*>(p_base_ret); graph_envelope_t
-    // const& graph_envelope_t graph_envelope = p_typed_ret->get();
+    //        dynamic_cast<return_t::generic_return_t<graph_envelope_t>*>(p_base_ret);
+    // graph_envelope_t const& graph_envelope = p_typed_ret->get();
+    //
+    return p_visitor->get_result();
 
   } catch (std::exception const& ex) {
     std::cerr << "cugraph++: " << ex.what() << "in graph_envelope factory.\n";
