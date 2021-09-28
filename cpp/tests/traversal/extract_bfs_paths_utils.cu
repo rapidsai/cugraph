@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <cugraph/graph.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/graph.hpp>
 
 #include <raft/handle.hpp>
 
@@ -45,25 +45,22 @@ rmm::device_uvector<vertex_t> randomly_select_destinations(
   auto pair_iter =
     thrust::make_zip_iterator(thrust::make_tuple(d_predecessors.begin(), d_probabilities.begin()));
 
-  thrust::transform(
-    handle.get_thrust_policy(),
-    pair_iter,
-    pair_iter + d_predecessors.size(),
-    d_probabilities.begin(),
-    [invalid_vertex] __device__(auto tuple) {
-      vertex_t predecessor = thrust::get<0>(tuple);
-      return (predecessor == invalid_vertex) ? float{1} : thrust::get<1>(tuple);
-    });
+  thrust::transform(handle.get_thrust_policy(),
+                    pair_iter,
+                    pair_iter + d_predecessors.size(),
+                    d_probabilities.begin(),
+                    [invalid_vertex] __device__(auto tuple) {
+                      vertex_t predecessor = thrust::get<0>(tuple);
+                      return (predecessor == invalid_vertex) ? float{1} : thrust::get<1>(tuple);
+                    });
 
   thrust::sort_by_key(
     handle.get_thrust_policy(), d_probabilities.begin(), d_probabilities.end(), d_vertices.data());
 
   size_t num_good_destinations = thrust::count_if(handle.get_thrust_policy(),
-                                                 d_probabilities.begin(),
-                                                 d_probabilities.end(),
-                                                 [] __device__(auto f) {
-                                                   return f < float{1};
-                                                 });
+                                                  d_probabilities.begin(),
+                                                  d_probabilities.end(),
+                                                  [] __device__(auto f) { return f < float{1}; });
 
   d_vertices.resize(std::min(num_paths_to_check, num_good_destinations), handle.get_stream());
   d_vertices.shrink_to_fit(handle.get_stream());

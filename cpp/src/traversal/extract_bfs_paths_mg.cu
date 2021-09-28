@@ -20,58 +20,64 @@ namespace cugraph {
 
 // SG instantiation
 
-template void extract_bfs_paths(raft::handle_t const& handle,
-                                graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
-                                int32_t const* distances,
-                                int32_t const* predecessors,
-                                int32_t const* destinations,
-                                size_t n_destinations,
-                                int32_t* paths,
-                                size_t max_path_length);
+template void extract_bfs_paths(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+  int32_t const* distances,
+  int32_t const* predecessors,
+  int32_t const* destinations,
+  size_t n_destinations,
+  int32_t* paths,
+  size_t max_path_length);
 
-template void extract_bfs_paths(raft::handle_t const& handle,
-                                graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
-                                int32_t const* distances,
-                                int32_t const* predecessors,
-                                int32_t const* destinations,
-                                size_t n_destinations,
-                                int32_t* paths,
-                                size_t max_path_length);
+template void extract_bfs_paths(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+  int32_t const* distances,
+  int32_t const* predecessors,
+  int32_t const* destinations,
+  size_t n_destinations,
+  int32_t* paths,
+  size_t max_path_length);
 
-template void extract_bfs_paths(raft::handle_t const& handle,
-                                graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
-                                int64_t const* distances,
-                                int64_t const* predecessors,
-                                int64_t const* destinations,
-                                size_t n_destinations,
-                                int64_t* paths,
-                                size_t max_path_length);
+template void extract_bfs_paths(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+  int64_t const* distances,
+  int64_t const* predecessors,
+  int64_t const* destinations,
+  size_t n_destinations,
+  int64_t* paths,
+  size_t max_path_length);
 
-template void extract_bfs_paths(raft::handle_t const& handle,
-                                graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
-                                int32_t const* distances,
-                                int32_t const* predecessors,
-                                int32_t const* destinations,
-                                size_t n_destinations,
-                                int32_t* paths,
-                                size_t max_path_length);
+template void extract_bfs_paths(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+  int32_t const* distances,
+  int32_t const* predecessors,
+  int32_t const* destinations,
+  size_t n_destinations,
+  int32_t* paths,
+  size_t max_path_length);
 
-template void extract_bfs_paths(raft::handle_t const& handle,
-                                graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
-                                int32_t const* distances,
-                                int32_t const* predecessors,
-                                int32_t const* destinations,
-                                size_t n_destinations,
-                                int32_t* paths,
-                                size_t max_path_length);
+template void extract_bfs_paths(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+  int32_t const* distances,
+  int32_t const* predecessors,
+  int32_t const* destinations,
+  size_t n_destinations,
+  int32_t* paths,
+  size_t max_path_length);
 
-template void extract_bfs_paths(raft::handle_t const& handle,
-                                graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
-                                int64_t const* distances,
-                                int64_t const* predecessors,
-                                int64_t const* destinations,
-                                size_t n_destinations,
-                                int64_t* paths,
-                                size_t max_path_length);
+template void extract_bfs_paths(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+  int64_t const* distances,
+  int64_t const* predecessors,
+  int64_t const* destinations,
+  size_t n_destinations,
+  int64_t* paths,
+  size_t max_path_length);
 
 }  // namespace cugraph
