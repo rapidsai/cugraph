@@ -55,8 +55,8 @@ typedef struct cugraph_erased_unique_ptr_ {
 } cugraph_unique_ptr_t;
 
 typedef struct cugraph_device_buffer_ {
-  void* data_;
-  size_t size_; /* in bytes */
+  void* data_;  /* (rmm::device_buffer*) */
+  size_t size_; /* rmm::device_buffer::size()  */
 } cugraph_device_buffer_t;
 
 /* C algorithm specific stubs: should go into separate corresponding headers */

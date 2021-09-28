@@ -85,9 +85,8 @@ extern "C" void extract_vertex_rw_result(cugraph_rw_ret_t* p_rw_ret,
   auto const& tpl_erased = p_ret->get<actual_ret_t>();
 
   rmm::device_buffer const& d_vertex = std::get<0>(tpl_erased);
-  p_d_buf_v->data_ =
-    const_cast<void*>(d_vertex.data());  // FIXME: inconsistency; should be &d_vertex
-  p_d_buf_v->size_ = d_vertex.size();
+  p_d_buf_v->data_                   = const_cast<void*>(static_cast<void const*>(&d_vertex));
+  p_d_buf_v->size_                   = d_vertex.size();
 }
 
 extern "C" void extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret,
@@ -100,9 +99,8 @@ extern "C" void extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret,
   auto const& tpl_erased = p_ret->get<actual_ret_t>();
 
   rmm::device_buffer const& d_weights = std::get<1>(tpl_erased);
-  p_d_buf_w->data_ =
-    const_cast<void*>(d_weights.data());  // FIXME: inconsistency; should be &d_weights
-  p_d_buf_w->size_ = d_weights.size();
+  p_d_buf_w->data_                    = const_cast<void*>(static_cast<void const*>(&d_weights));
+  p_d_buf_w->size_                    = d_weights.size();
 }
 
 extern "C" void extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret,
@@ -115,9 +113,8 @@ extern "C" void extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret,
   auto const& tpl_erased = p_ret->get<actual_ret_t>();
 
   rmm::device_buffer const& d_sizes = std::get<2>(tpl_erased);
-  p_d_buf_sz->data_ =
-    const_cast<void*>(d_sizes.data());  // FIXME: inconsistency; should be &d_sizes
-  p_d_buf_sz->size_ = d_sizes.size();
+  p_d_buf_sz->data_                 = const_cast<void*>(static_cast<void const*>(&d_sizes));
+  p_d_buf_sz->size_                 = d_sizes.size();
 }
 
 extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
