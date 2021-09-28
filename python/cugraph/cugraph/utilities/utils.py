@@ -254,7 +254,7 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
     cugraph Graph-type obj to create when converting from a matrix type.
     """
     # FIXME: importing here to avoid circular import
-    from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
+    from cugraph.structure import Graph, DiGraph
     from cugraph.utilities.nx_factory import convert_from_nx
 
     input_type = type(obj)
@@ -264,7 +264,8 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
     elif is_nx_graph_type(input_type):
         return (convert_from_nx(obj, weight=nx_weight_attr), input_type)
 
-    elif (input_type in __cp_matrix_types) or (input_type in __sp_matrix_types):
+    elif (input_type in __cp_matrix_types) or \
+         (input_type in __sp_matrix_types):
         if matrix_graph_type is None:
             matrix_graph_type = Graph
         elif matrix_graph_type not in [Graph, DiGraph]:
@@ -385,7 +386,8 @@ class MissingModule:
         self.name = mod_name
 
     def __getattr__(self, attr):
-        raise RuntimeError(f"This feature requires the {self.name} package/module")
+        raise RuntimeError(f"This feature requires the {self.name} "
+                           "package/module")
 
 
 def import_optional(mod, default_mod_class=MissingModule):

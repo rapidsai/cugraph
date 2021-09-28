@@ -15,7 +15,6 @@ from cugraph.centrality import katz_centrality_wrapper
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
-import cugraph
 
 
 def katz_centrality(

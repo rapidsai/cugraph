@@ -27,6 +27,7 @@ import numpy as np
 # attribute access on a MissingModule instance results in a RuntimeError).
 nx = import_optional("networkx")
 
+
 def convert_from_nx(nxG, weight=None):
     """
     weight, if given, is the string/name of the edge attr in nxG to use for

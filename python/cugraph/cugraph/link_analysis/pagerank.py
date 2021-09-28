@@ -16,7 +16,7 @@ import cudf
 from cugraph.link_analysis import pagerank_wrapper
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
-                              )
+                               )
 
 
 def pagerank(
