@@ -28,6 +28,8 @@
 
 #include <iostream>
 
+#define _DEBUG_
+
 namespace helpers {
 void* raw_device_ptr(cugraph_device_buffer_t* ptr_buf)
 {
@@ -85,8 +87,9 @@ extern "C" void extract_vertex_rw_result(cugraph_rw_ret_t* p_rw_ret,
   auto const& tpl_erased = p_ret->get<actual_ret_t>();
 
   rmm::device_buffer const& d_vertex = std::get<0>(tpl_erased);
-  p_d_buf_v->data_                   = const_cast<void*>(d_vertex.data());
-  p_d_buf_v->size_                   = d_vertex.size();
+  p_d_buf_v->data_ =
+    const_cast<void*>(d_vertex.data());  // FIXME: inconsistency; should be &d_vertex
+  p_d_buf_v->size_ = d_vertex.size();
 }
 
 extern "C" void extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret,
@@ -99,8 +102,9 @@ extern "C" void extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret,
   auto const& tpl_erased = p_ret->get<actual_ret_t>();
 
   rmm::device_buffer const& d_weights = std::get<1>(tpl_erased);
-  p_d_buf_w->data_                    = const_cast<void*>(d_weights.data());
-  p_d_buf_w->size_                    = d_weights.size();
+  p_d_buf_w->data_ =
+    const_cast<void*>(d_weights.data());  // FIXME: inconsistency; should be &d_weights
+  p_d_buf_w->size_ = d_weights.size();
 }
 
 extern "C" void extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret,
@@ -113,8 +117,9 @@ extern "C" void extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret,
   auto const& tpl_erased = p_ret->get<actual_ret_t>();
 
   rmm::device_buffer const& d_sizes = std::get<2>(tpl_erased);
-  p_d_buf_sz->data_                 = const_cast<void*>(d_sizes.data());
-  p_d_buf_sz->size_                 = d_sizes.size();
+  p_d_buf_sz->data_ =
+    const_cast<void*>(d_sizes.data());  // FIXME: inconsistency; should be &d_sizes
+  p_d_buf_sz->size_ = d_sizes.size();
 }
 
 extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
@@ -194,10 +199,18 @@ extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_ha
 {
   using namespace cugraph::visitors;
 
+#ifdef _DEBUG_
+  std::cout << "C-api++: 1. Graph envelope maker entry.\n";
+#endif
+
   try {
     raft::handle_t const* p_raft_handle = reinterpret_cast<raft::handle_t const*>(p_handle);
 
     if (!p_raft_handle) return nullptr;
+
+#ifdef _DEBUG_
+    std::cout << "C-api++: 2. Unpack args.\n";
+#endif
 
     bool do_check = static_cast<bool>(check);
     bool is_sym   = static_cast<bool>(is_symmetric);
@@ -206,6 +219,10 @@ extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_ha
     void* p_d_src     = helpers::raw_device_ptr(p_src);
     void* p_d_dst     = helpers::raw_device_ptr(p_dst);
     void* p_d_weights = helpers::raw_device_ptr(p_weights);
+
+#ifdef _DEBUG_
+    std::cout << "C-api++: 3. Re-pack args.\n";
+#endif
 
     erased_pack_t ep_graph_cnstr{const_cast<raft::handle_t*>(p_raft_handle),
                                  p_d_src,
@@ -217,6 +234,10 @@ extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_ha
                                  &is_sym,
                                  &is_multi};
 
+#ifdef _DEBUG_
+    std::cout << "C-api++: 4. Call graph create.\n";
+#endif
+
     return_t graph_uniq_ptr = cugraph::api::graph_create(static_cast<DTypes>(vertex_tid),
                                                          static_cast<DTypes>(edge_tid),
                                                          static_cast<DTypes>(weight_tid),
@@ -224,19 +245,34 @@ extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_ha
                                                          false,
                                                          ep_graph_cnstr);
 
-    return reinterpret_cast<cugraph_graph_envelope_t*>(graph_uniq_ptr.release());
+#ifdef _DEBUG_
+    std::cout << "C-api++: 5. Return from graph create.\n";
+#endif
+
+    if (graph_uniq_ptr.get_ptr() == nullptr) {
+      std::cerr << "cugraph++: Graph envelope creation failed.";
+      return nullptr;
+    } else {
+      graph_envelope_t const& graph_envelope = graph_uniq_ptr.get<graph_envelope_t>();
+#ifdef _DEBUG_
+      std::cout << "C-api++: 5.1. Return graph_envelope.\n";
+#endif
+
+      return reinterpret_cast<cugraph_graph_envelope_t*>(graph_uniq_ptr.release());
+    }
   } catch (...) {
+    std::cerr << "cugraph++: Graph envelope creation failed.";
     return nullptr;
   }
 }
 
-extern "C" void cugraph_free_graph(cugraph_graph_envelope_t* graph)
+extern "C" void cugraph_free_graph(cugraph_graph_envelope_t* ptr_graph)
 {
   using namespace cugraph::visitors;
 
-  graph_envelope_t* ptr_graph_envelope = reinterpret_cast<graph_envelope_t*>(graph);
+  return_t::base_return_t* p_released_ptr = reinterpret_cast<return_t::base_return_t*>(ptr_graph);
 
-  delete ptr_graph_envelope;
+  delete p_released_ptr;
 }
 
 // device buffer factory: fill pointer semantics (because the pointer is more than a stub);
@@ -280,10 +316,9 @@ extern "C" cugraph_error_t cugraph_update_device_buffer(const cugraph_raft_handl
 
     if (!ptr_raft_handle) return CUGRAPH_ALLOC_ERROR;
 
-    raft::update_device(static_cast<byte_t*>(ptr_dst->data_),
-                        ptr_h_src,
-                        ptr_dst->size_,
-                        ptr_raft_handle->get_stream());
+    void* ptr_d_dst = helpers::raw_device_ptr(ptr_dst);
+    raft::update_device(
+      static_cast<byte_t*>(ptr_d_dst), ptr_h_src, ptr_dst->size_, ptr_raft_handle->get_stream());
   } catch (...) {
     status = CUGRAPH_UNKNOWN_ERROR;
   }
@@ -302,8 +337,9 @@ extern "C" cugraph_error_t cugraph_update_host_buffer(const cugraph_raft_handle_
 
     if (!ptr_raft_handle) return CUGRAPH_ALLOC_ERROR;
 
+    void* ptr_d_src = helpers::raw_device_ptr(const_cast<cugraph_device_buffer_t*>(ptr_src));
     raft::update_host(ptr_h_dst,
-                      static_cast<byte_t const*>(ptr_src->data_),
+                      static_cast<byte_t const*>(ptr_d_src),
                       ptr_src->size_,
                       ptr_raft_handle->get_stream());
   } catch (...) {

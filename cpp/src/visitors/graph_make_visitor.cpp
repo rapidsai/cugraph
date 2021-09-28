@@ -17,6 +17,12 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/visitors/graph_make_visitor.hpp>
 
+#define _DEBUG_
+
+#ifdef _DEBUG_
+#include <iostream>
+#endif
+
 namespace cugraph {
 namespace visitors {
 //
@@ -31,7 +37,14 @@ void graph_maker_visitor<vertex_t,
                          std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>::
   visit_graph(graph_envelope_t::base_graph_t const& graph)
 {
+#ifdef _DEBUG_
+  std::cout << "1. Graph maker visitor entry.\n";
+#endif
   if constexpr (mg == false) {
+#ifdef _DEBUG_
+    std::cout << "2. mg == false.\n";
+#endif
+
     auto const& v_args = ep_.get_args();
 
     auto num_args = v_args.size();
@@ -55,10 +68,14 @@ void graph_maker_visitor<vertex_t,
       if (num_args > 8) is_multigraph = *static_cast<bool*>(v_args[8]);
     }
 
+#ifdef _DEBUG_
+    std::cout << "3. Visitor argument unpacking done...\n";
+#endif
+
     cugraph::graph_properties_t graph_props{is_sym, is_multigraph};
 
-    std::optional<weight_t const*> opt_ptr_w;
-    if (p_weights) { opt_ptr_w = p_weights; }
+    std::optional<weight_t const*> opt_ptr_w =
+      p_weights != nullptr ? std::optional{p_weights} : std::nullopt;
 
     cugraph::edgelist_t<vertex_t, edge_t, weight_t> edgelist{p_src, p_dst, opt_ptr_w, num_edges};
 
@@ -75,7 +92,16 @@ void graph_maker_visitor<vertex_t,
     graph_envelope_t graph_envelope{
       vertex_tid, edge_tid, weight_tid, st_id, mg_id, graph_tid, ep_graph};
 
+#ifdef _DEBUG_
+    std::cout << "4. Graph envelope argument packing done...\n";
+#endif
+
     result_ = return_t{std::move(graph_envelope)};
+
+#ifdef _DEBUG_
+    std::cout << "5. result captured.\n";
+#endif
+
   } else {
     CUGRAPH_FAIL("Graph factory visitor not currently supported (multi_gpu == true).");
   }
@@ -132,31 +158,66 @@ using namespace cugraph::visitors;
 return_t graph_create(
   DTypes vertex_tid, DTypes edge_tid, DTypes weight_tid, bool st, bool mg, erased_pack_t& ep_cnstr)
 {
-  auto const& v_args = ep_cnstr.get_args();
+  try {
+#ifdef _DEBUG_
+    std::cout << "5.1. Enter graph create.\n";
+#endif
 
-  // unpack args:
-  //
-  assert(v_args.size() > 0);  // raft::handle_t, ...
+    auto const& v_args = ep_cnstr.get_args();
 
-  // cnstr. args unpacking:
-  //
-  raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
+    // unpack args:
+    //
+    // assert(v_args.size() > 0);  // raft::handle_t, ...
 
-  erased_pack_t ep_graph{const_cast<raft::handle_t*>(&handle)};
-  GTypes graph_tid = GTypes::GRAPH_T;
+#ifdef _DEBUG_
+    std::cout << "5.2. Unpack args.\n";
+#endif
+    // cnstr. args unpacking:
+    //
+    raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
 
-  // first construct empty graph,
-  // to be able to resolve types at runtime (CDD):
-  //
-  graph_envelope_t g{vertex_tid, edge_tid, weight_tid, st, mg, graph_tid, ep_graph};
+#ifdef _DEBUG_
+    std::cout << "5.3. Re-pack args.\n";
+#endif
 
-  auto p_visitor = g.factory()->make_graph_maker_visitor(ep_cnstr);
+    erased_pack_t ep_graph{const_cast<raft::handle_t*>(&handle)};
+    GTypes graph_tid = GTypes::GRAPH_T;
 
-  g.apply(*p_visitor);
+#ifdef _DEBUG_
+    std::cout << "5.4. Straw graph create...\n";
+#endif
 
-  return p_visitor->get_result();  // envelopes: graph_envelope_t
-  // conversion to raw pointer:
-  // reinterpret_cast<graph_envelope_t*>(p_visitor->get_result().release());
+    // first construct empty graph,
+    // to be able to resolve types at runtime (CDD):
+    //
+    graph_envelope_t g{vertex_tid, edge_tid, weight_tid, false, false, graph_tid, ep_graph};
+
+#ifdef _DEBUG_
+    std::cout << "6. graph envelope factory straw graph...done.\n";
+#endif
+
+    auto p_visitor = g.factory()->make_graph_maker_visitor(ep_cnstr);
+
+#ifdef _DEBUG_
+    std::cout << "7. graph envelope factory visitor creation...done.\n";
+#endif
+
+    g.apply(*p_visitor);
+
+#ifdef _DEBUG_
+    std::cout << "8. graph envelope factory visitor application...done.\n";
+#endif
+
+    return p_visitor->get_result();  // envelopes: graph_envelope_t
+    // conversion to raw pointer:
+    // reinterpret_cast<graph_envelope_t*>(p_visitor->get_result().release());
+  } catch (std::exception const& ex) {
+    std::cerr << "cugraph++: " << ex.what() << "in graph_envelope factory.\n";
+    return return_t{};
+  } catch (...) {
+    std::cerr << "cugraph++: Unknown exception occurred in graph_envelope factory.\n";
+    return return_t{};
+  }
 }
 
 }  // namespace api

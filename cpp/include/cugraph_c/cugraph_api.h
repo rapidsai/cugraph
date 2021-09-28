@@ -31,7 +31,7 @@ typedef enum cugraph_error_ {
   CUGRAPH_ALLOC_ERROR
 } cugraph_error_t;
 
-typedef int bool_t;
+typedef enum bool_ { FALSE = 0, TRUE = 1 } bool_t;
 
 typedef int8_t byte_t;
 

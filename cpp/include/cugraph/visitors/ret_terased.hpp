@@ -109,7 +109,13 @@ struct return_t {
       throw std::runtime_error("ERROR: nullptr impl.");
   }
 
-  void const* get_ptr(void) const { return static_cast<void const*>(p_impl_.get()); }
+  void const* get_ptr(void) const
+  {
+    if (p_impl_)
+      return static_cast<void const*>(p_impl_.get());
+    else
+      return nullptr;
+  }
 
   void* release(void) { return static_cast<void*>(p_impl_.release()); }
 
