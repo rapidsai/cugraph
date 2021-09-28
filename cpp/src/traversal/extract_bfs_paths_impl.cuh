@@ -48,20 +48,6 @@ struct mg_partition_vertices {
 
   int __device__ operator()(vertex_t v) const
   {
-#if 0
-    printf("rank = %d, val = %d, offsets = (%d, %d, %d), return = %d\n",
-           (int)rank_,
-           (int)v,
-           (int)d_partition_offsets_begin_[0],
-           (int)d_partition_offsets_begin_[1],
-           (int)d_partition_offsets_begin_[2],
-           (int)thrust::distance(d_partition_offsets_begin_,
-                                 thrust::upper_bound(thrust::seq,
-                                                     d_partition_offsets_begin_,
-                                                     d_partition_offsets_end_,
-                                                     v)) -
-           1);
-#endif
     return thrust::distance(
              d_partition_offsets_begin_,
              thrust::upper_bound(
@@ -92,10 +78,6 @@ struct update_paths {
   {
     auto next_v = thrust::get<0>(tuple);
     auto offset = thrust::get<1>(tuple);
-
-#if 0
-    printf("next_v = %d, offset = %d\n", (int)next_v, (int)offset);
-#endif
 
     if (next_v != invalid_vertex_) paths_[offset] = next_v;
   }
