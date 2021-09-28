@@ -67,6 +67,21 @@ auto get_dataframe_buffer_cend_tuple_impl(std::index_sequence<I...>, TupleType& 
 
 }  // namespace detail
 
+template <typename T>
+struct dataframe_element {
+  using type = void;
+};
+template <typename... T>
+struct dataframe_element<std::tuple<rmm::device_uvector<T>...>> {
+  using type = thrust::tuple<T...>;
+};
+template <typename T>
+struct dataframe_element<rmm::device_uvector<T>> {
+  using type = T;
+};
+template <typename DataframeType>
+using dataframe_element_t = typename dataframe_element<DataframeType>::type;
+
 template <typename T, typename std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
 auto allocate_dataframe_buffer(size_t buffer_size, rmm::cuda_stream_view stream_view)
 {
