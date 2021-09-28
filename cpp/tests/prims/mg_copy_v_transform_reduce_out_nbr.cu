@@ -432,9 +432,6 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MG_CopyVTransformReduceOutNbr_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{true}),
-#if 0
-    ::testing::Values( cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"))));
-#else
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -453,6 +450,5 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
-#endif
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
