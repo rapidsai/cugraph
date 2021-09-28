@@ -14,9 +14,10 @@
 import cudf
 from cugraph.structure.graph_classes import Graph
 from cugraph.link_prediction import jaccard_wrapper
-from cugraph.utilities import check_nx_graph
-from cugraph.utilities import df_edge_score_to_dictionary
-from cugraph.utilities import renumber_vertex_pair
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_edge_score_to_dictionary,
+                               renumber_vertex_pair,
+                               )
 
 
 def sorensen(input_graph, vertex_pair=None):
@@ -136,7 +137,7 @@ def sorensen_coefficient(G, ebunch=None):
     """
     vertex_pair = None
 
-    G, isNx = check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if isNx is True and ebunch is not None:
         vertex_pair = cudf.DataFrame(ebunch)

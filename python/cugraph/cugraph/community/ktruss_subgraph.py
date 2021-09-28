@@ -13,8 +13,9 @@
 
 from cugraph.community import ktruss_subgraph_wrapper
 from cugraph.structure.graph_classes import Graph
-from cugraph.utilities import check_nx_graph
-from cugraph.utilities import cugraph_to_nx
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               cugraph_to_nx,
+                               )
 
 from numba import cuda
 
@@ -67,7 +68,7 @@ def k_truss(G, k):
 
     _ensure_compatible_cuda_version()
 
-    G, isNx = check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if isNx is True:
         k_sub = ktruss_subgraph(G, k)

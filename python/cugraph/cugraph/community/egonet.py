@@ -15,12 +15,9 @@ from cugraph.community import egonet_wrapper
 import cudf
 from cugraph.utilities import (
     ensure_cugraph_obj,
-    import_optional,
+    is_nx_graph_type,
 )
 from cugraph.utilities import cugraph_to_nx
-
-# optional dependencies used for handling different input types
-nx = import_optional("networkx")
 
 
 def _convert_graph_to_output_type(G, input_type):
@@ -28,7 +25,7 @@ def _convert_graph_to_output_type(G, input_type):
     Given a cugraph.Graph, convert it to a new type appropriate for the
     graph algos in this module, based on input_type.
     """
-    if (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+    if is_nx_graph_type(G):
         return cugraph_to_nx(G)
 
     else:
@@ -40,7 +37,7 @@ def _convert_df_series_to_output_type(df, offsets, input_type):
     Given a cudf.DataFrame df, convert it to a new type appropriate for the
     graph algos in this module, based on input_type.
     """
-    if (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+    if is_nx_graph_type(input_type):
         return df.to_pandas(), offsets.values_host.tolist()
 
     else:

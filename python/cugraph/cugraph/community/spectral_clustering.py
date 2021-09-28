@@ -12,8 +12,9 @@
 # limitations under the License.
 
 from cugraph.community import spectral_clustering_wrapper
-from cugraph.utilities import check_nx_graph
-from cugraph.utilities import df_score_to_dictionary
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               )
 
 
 def spectralBalancedCutClustering(
@@ -75,7 +76,7 @@ def spectralBalancedCutClustering(
 
     # Error checking in C++ code
 
-    G, isNx = check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     df = spectral_clustering_wrapper.spectralBalancedCutClustering(
         G,
@@ -152,7 +153,7 @@ def spectralModularityMaximizationClustering(
 
     # Error checking in C++ code
 
-    G, isNx = check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     df = spectral_clustering_wrapper.spectralModularityMaximizationClustering(
         G,
@@ -222,7 +223,7 @@ def analyzeClustering_modularity(G, n_clusters, clustering,
     if type(cluster_col_name) is not str:
         raise Exception("cluster_col_name must be a string")
 
-    G, isNx = check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if G.renumbered:
         clustering = G.add_internal_vertex_id(clustering,
@@ -288,7 +289,7 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
     if type(cluster_col_name) is not str:
         raise Exception("cluster_col_name must be a string")
 
-    G, isNx = check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if G.renumbered:
         clustering = G.add_internal_vertex_id(clustering,

@@ -13,8 +13,9 @@
 
 from cugraph.community import leiden_wrapper
 from cugraph.structure.graph_classes import Graph
-from cugraph.utilities import check_nx_graph
-from cugraph.utilities import df_score_to_dictionary
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               )
 
 
 def leiden(G, max_iter=100, resolution=1.):
@@ -72,7 +73,7 @@ def leiden(G, max_iter=100, resolution=1.):
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> parts, modularity_score = cugraph.leiden(G)
     """
-    G, isNx = check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if type(G) is not Graph:
         raise Exception(f"input graph must be undirected was {type(G)}")

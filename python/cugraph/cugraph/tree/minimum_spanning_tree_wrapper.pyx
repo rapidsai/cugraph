@@ -22,7 +22,9 @@ from cugraph.structure import graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 
 import cudf
-import rmm
+
+# FIXME: these are transitive dependencies and are not currently listed in the
+# conda recipe. Either make them optional or add them to the conda recipe.
 import numpy as np
 import cupy as cp
 

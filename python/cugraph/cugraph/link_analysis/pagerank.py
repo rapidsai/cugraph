@@ -11,9 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.link_analysis import pagerank_wrapper
-import cugraph
 import cudf
+
+from cugraph.link_analysis import pagerank_wrapper
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                              )
 
 
 def pagerank(
@@ -95,7 +98,7 @@ def pagerank(
     >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
     """
 
-    G, isNx = cugraph.utilities.check_nx_graph(G, weight)
+    G, isNx = ensure_cugraph_obj_for_nx(G, weight)
 
     if personalization is not None:
         if not isinstance(personalization, cudf.DataFrame):
@@ -130,6 +133,6 @@ def pagerank(
         df = G.unrenumber(df, "vertex")
 
     if isNx is True:
-        return cugraph.utilities.df_score_to_dictionary(df, 'pagerank')
+        return df_score_to_dictionary(df, 'pagerank')
     else:
         return df

@@ -13,7 +13,7 @@
 
 import cudf
 from cugraph.sampling import random_walks_wrapper
-import cugraph
+from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 
 def random_walks(G,
@@ -57,7 +57,7 @@ def random_walks(G,
     if max_depth is None:
         raise TypeError("must specify a 'max_depth'")
 
-    G, _ = cugraph.utilities.check_nx_graph(G)
+    G, _ = ensure_cugraph_obj_for_nx(G)
 
     if start_vertices is int:
         start_vertices = [start_vertices]

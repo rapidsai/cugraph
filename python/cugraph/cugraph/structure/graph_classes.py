@@ -298,12 +298,8 @@ class Graph:
         >>> G.from_pandas_edgelist(df, source='0', destination='1',
                                  edge_attr='2', renumber=False)
         """
-        if pd is None:
-            raise RuntimeError("Pandas could not be imported, "
-                               "cannot convert from pandas")
-
         if not isinstance(pdf, pd.core.frame.DataFrame):
-            raise Exception("pdf input is not a Pandas DataFrame")
+            raise TypeError("pdf input is not a Pandas DataFrame")
 
         gdf = cudf.DataFrame.from_pandas(pdf)
         self.from_cudf_edgelist(gdf, source=source, destination=destination,
@@ -318,10 +314,6 @@ class Graph:
         pdf : pandas.DataFrame
             A DataFrame that contains adjacency information
         """
-        if pd is None:
-            raise RuntimeError("Pandas could not be imported, "
-                               "cannot convert from pandas")
-
         if not isinstance(pdf, pd.core.frame.DataFrame):
             raise TypeError("pdf input is not a Pandas DataFrame")
 
