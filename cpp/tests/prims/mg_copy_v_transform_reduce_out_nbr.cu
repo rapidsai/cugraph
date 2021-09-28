@@ -31,7 +31,6 @@
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/row_col_properties.cuh>
-#include <cugraph/prims/transform_reduce_e.cuh>
 
 #include <thrust/count.h>
 #include <thrust/equal.h>
@@ -223,17 +222,17 @@ struct Prims_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_MG_TransformReduceE
+class Tests_MG_CopyVTransformReduceOutNbr
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
-  Tests_MG_TransformReduceE() {}
+  Tests_MG_CopyVTransformReduceOutNbr() {}
   static void SetupTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of reduce_if_v primitive and thrust reduce on a single GPU
+  // Compare the results of copy_v_transform_reduce_out_nbr primitive
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
@@ -320,7 +319,7 @@ class Tests_MG_TransformReduceE
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG transform reduce took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG copy v transform reduce out took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     //// 4. compare SG & MG results
@@ -365,17 +364,19 @@ class Tests_MG_TransformReduceE
   }
 };
 
-using Tests_MG_TransformReduceE_File = Tests_MG_TransformReduceE<cugraph::test::File_Usecase>;
-using Tests_MG_TransformReduceE_Rmat = Tests_MG_TransformReduceE<cugraph::test::Rmat_Usecase>;
+using Tests_MG_CopyVTransformReduceOutNbr_File =
+  Tests_MG_CopyVTransformReduceOutNbr<cugraph::test::File_Usecase>;
+using Tests_MG_CopyVTransformReduceOutNbr_Rmat =
+  Tests_MG_CopyVTransformReduceOutNbr<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MG_TransformReduceE_File, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
+TEST_P(Tests_MG_CopyVTransformReduceOutNbr_File, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(std::get<0>(param),
                                                                            std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformReduceE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
+TEST_P(Tests_MG_CopyVTransformReduceOutNbr_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(
@@ -383,14 +384,14 @@ TEST_P(Tests_MG_TransformReduceE_Rmat, CheckInt32Int32FloatTupleIntFloatTranspos
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformReduceE_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
+TEST_P(Tests_MG_CopyVTransformReduceOutNbr_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(std::get<0>(param),
                                                                           std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformReduceE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
+TEST_P(Tests_MG_CopyVTransformReduceOutNbr_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(
@@ -398,13 +399,13 @@ TEST_P(Tests_MG_TransformReduceE_Rmat, CheckInt32Int32FloatTupleIntFloatTranspos
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformReduceE_File, CheckInt32Int32FloatTransposeFalse)
+TEST_P(Tests_MG_CopyVTransformReduceOutNbr_File, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, false>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformReduceE_Rmat, CheckInt32Int32FloatTransposeFalse)
+TEST_P(Tests_MG_CopyVTransformReduceOutNbr_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, false>(
@@ -412,13 +413,13 @@ TEST_P(Tests_MG_TransformReduceE_Rmat, CheckInt32Int32FloatTransposeFalse)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformReduceE_File, CheckInt32Int32FloatTransposeTrue)
+TEST_P(Tests_MG_CopyVTransformReduceOutNbr_File, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, true>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformReduceE_Rmat, CheckInt32Int32FloatTransposeTrue)
+TEST_P(Tests_MG_CopyVTransformReduceOutNbr_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, true>(
@@ -428,7 +429,7 @@ TEST_P(Tests_MG_TransformReduceE_Rmat, CheckInt32Int32FloatTransposeTrue)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MG_TransformReduceE_File,
+  Tests_MG_CopyVTransformReduceOutNbr_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{true}),
 #if 0
@@ -441,14 +442,14 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_MG_TransformReduceE_Rmat,
+  Tests_MG_CopyVTransformReduceOutNbr_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_large_test,
-  Tests_MG_TransformReduceE_Rmat,
+  Tests_MG_CopyVTransformReduceOutNbr_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
