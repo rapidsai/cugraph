@@ -25,7 +25,7 @@ def _convert_graph_to_output_type(G, input_type):
     Given a cugraph.Graph, convert it to a new type appropriate for the
     graph algos in this module, based on input_type.
     """
-    if is_nx_graph_type(G):
+    if is_nx_graph_type(input_type):
         return cugraph_to_nx(G)
 
     else:
