@@ -57,6 +57,11 @@ def random_walks(G,
     if max_depth is None:
         raise TypeError("must specify a 'max_depth'")
 
+    # FIXME: supporting Nx types should mean having a return type that better
+    # matches Nx expectations (eg. data on the CPU, possibly using a different
+    # data struct like a dictionary, etc.). The 2nd value is ignored here,
+    # which is typically named isNx and used to convert the return type.
+    # Consider a different return type if Nx types are passed in.
     G, _ = ensure_cugraph_obj_for_nx(G)
 
     if start_vertices is int:

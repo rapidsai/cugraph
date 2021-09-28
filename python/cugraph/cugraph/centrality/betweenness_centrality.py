@@ -16,9 +16,10 @@ import numpy as np
 import cudf
 from cugraph.centrality import betweenness_centrality_wrapper
 from cugraph.centrality import edge_betweenness_centrality_wrapper
-from cugraph.utilities import df_edge_score_to_dictionary
-from cugraph.utilities import df_score_to_dictionary
-from cugraph.utilities import ensure_cugraph_obj_for_nx
+from cugraph.utilities import (df_edge_score_to_dictionary,
+                               df_score_to_dictionary,
+                               ensure_cugraph_obj_for_nx,
+                               )
 import cugraph
 
 
