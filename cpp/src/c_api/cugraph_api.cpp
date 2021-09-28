@@ -26,6 +26,8 @@
 #include <rmm/device_buffer.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <iostream>
+
 namespace helpers {
 void* raw_device_ptr(cugraph_device_buffer_t* ptr_buf)
 {
@@ -36,6 +38,13 @@ void* raw_device_ptr(cugraph_device_buffer_t* ptr_buf)
 
 extern "C" {
 int data_type_sz[] = {4, 8, 4, 8};
+}
+
+bool_t runtime_assert(bool_t statement_truth_value, const char* error_msg)
+{
+  if (!statement_truth_value) { std::cerr << "ASSERTION FAILED: " << error_msg << '\n'; }
+
+  return statement_truth_value;
 }
 
 extern "C" cugraph_unique_ptr_t* cugraph_create_sampling_strategy(int sampling_type_id,

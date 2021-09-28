@@ -71,7 +71,10 @@ typedef struct cugraph_rw_ret_ {
   void* p_erased_ret;
 } cugraph_rw_ret_t;
 
-/* TODO:
+/* Runtime production (not just DEBUG) assert */
+bool_t runtime_assert(bool_t statement_truth_value, const char* error_msg);
+
+/* Functionality:
  * (1.) graph_envelope "cnstr" / "destr":
  *
  *      cugraph_graph_envelope_t* make_graph_envelope(...);
