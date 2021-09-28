@@ -28,8 +28,6 @@
 
 #include <iostream>
 
-#define _DEBUG_
-
 namespace helpers {
 void* raw_device_ptr(cugraph_device_buffer_t* ptr_buf)
 {
@@ -199,18 +197,10 @@ extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_ha
 {
   using namespace cugraph::visitors;
 
-#ifdef _DEBUG_
-  std::cout << "C-api++: 1. Graph envelope maker entry.\n";
-#endif
-
   try {
     raft::handle_t const* p_raft_handle = reinterpret_cast<raft::handle_t const*>(p_handle);
 
     if (!p_raft_handle) return nullptr;
-
-#ifdef _DEBUG_
-    std::cout << "C-api++: 2. Unpack args.\n";
-#endif
 
     bool do_check = static_cast<bool>(check);
     bool is_sym   = static_cast<bool>(is_symmetric);
@@ -219,10 +209,6 @@ extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_ha
     void* p_d_src     = helpers::raw_device_ptr(p_src);
     void* p_d_dst     = helpers::raw_device_ptr(p_dst);
     void* p_d_weights = helpers::raw_device_ptr(p_weights);
-
-#ifdef _DEBUG_
-    std::cout << "C-api++: 3. Re-pack args.\n";
-#endif
 
     erased_pack_t ep_graph_cnstr{const_cast<raft::handle_t*>(p_raft_handle),
                                  p_d_src,
@@ -234,10 +220,6 @@ extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_ha
                                  &is_sym,
                                  &is_multi};
 
-#ifdef _DEBUG_
-    std::cout << "C-api++: 4. Call graph create.\n";
-#endif
-
     return_t graph_uniq_ptr = cugraph::api::graph_create(static_cast<DTypes>(vertex_tid),
                                                          static_cast<DTypes>(edge_tid),
                                                          static_cast<DTypes>(weight_tid),
@@ -245,18 +227,13 @@ extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_ha
                                                          false,
                                                          ep_graph_cnstr);
 
-#ifdef _DEBUG_
-    std::cout << "C-api++: 5. Return from graph create.\n";
-#endif
-
     if (graph_uniq_ptr.get_ptr() == nullptr) {
       std::cerr << "cugraph++: Graph envelope creation failed.";
       return nullptr;
     } else {
-      graph_envelope_t const& graph_envelope = graph_uniq_ptr.get<graph_envelope_t>();
-#ifdef _DEBUG_
-      std::cout << "C-api++: 5.1. Return graph_envelope.\n";
-#endif
+      // useful debug check, not dead code:
+      //
+      // graph_envelope_t const& graph_envelope = graph_uniq_ptr.get<graph_envelope_t>();
 
       return reinterpret_cast<cugraph_graph_envelope_t*>(graph_uniq_ptr.release());
     }
