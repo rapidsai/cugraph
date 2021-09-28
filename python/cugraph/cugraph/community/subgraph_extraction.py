@@ -12,9 +12,11 @@
 # limitations under the License.
 
 from cugraph.community import subgraph_extraction_wrapper
-from cugraph.utilities import check_nx_graph
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               cugraph_to_nx,
+                               )
+
 import cudf
-from cugraph.utilities import cugraph_to_nx
 
 
 def subgraph(G, vertices):
@@ -53,7 +55,7 @@ def subgraph(G, vertices):
     >>> Sg = cugraph.subgraph(G, sverts)
     """
 
-    G, isNx = check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if G.renumbered:
         if isinstance(vertices, cudf.DataFrame):

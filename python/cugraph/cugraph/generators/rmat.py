@@ -290,21 +290,21 @@ def rmat(
 
     Examples
     --------
-    import cugraph
-    from cugraph.generators import rmat
-
-    df = rmat(
-        scale,
-        (2**scale)*edgefactor,
-        0.1,
-        0.2,
-        0.3,
-        seed or 42,
-        clip_and_flip=False,
-        scramble_vertex_ids=True,
-        create_using=None,  # return edgelist instead of Graph instance
-        mg=False
-        )
+    >>> import cugraph
+    >>> from cugraph.generators import rmat
+    >>>
+    >>> df = rmat(
+    ...    scale,
+    ...    (2**scale)*edgefactor,
+    ...    0.1,
+    ...    0.2,
+    ...    0.3,
+    ...    seed or 42,
+    ...    clip_and_flip=False,
+    ...    scramble_vertex_ids=True,
+    ...    create_using=None,  # return edgelist instead of Graph instance
+    ...    mg=False
+    ... )
     """
 
     _ensure_args_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,

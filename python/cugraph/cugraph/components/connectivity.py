@@ -16,29 +16,11 @@ from cugraph.utilities import (df_score_to_dictionary,
                                ensure_cugraph_obj,
                                is_matrix_type,
                                is_cp_matrix_type,
-                               import_optional,
+                               is_nx_graph_type,
+                               cupy_package as cp,
                                )
 from cugraph.structure import Graph, DiGraph
 from cugraph.components import connectivity_wrapper
-
-# optional dependencies used for handling different input types
-nx = import_optional("networkx")
-
-cp = import_optional("cupy")
-cp_coo_matrix = import_optional("coo_matrix",
-                                import_from="cupyx.scipy.sparse.coo")
-cp_csr_matrix = import_optional("csr_matrix",
-                                import_from="cupyx.scipy.sparse.csr")
-cp_csc_matrix = import_optional("csc_matrix",
-                                import_from="cupyx.scipy.sparse.csc")
-
-sp = import_optional("scipy")
-sp_coo_matrix = import_optional("coo_matrix",
-                                import_from="scipy.sparse.coo")
-sp_csr_matrix = import_optional("csr_matrix",
-                                import_from="scipy.sparse.csr")
-sp_csc_matrix = import_optional("csc_matrix",
-                                import_from="scipy.sparse.csc")
 
 
 def _ensure_args(api_name, G, directed, connection, return_labels):
@@ -49,8 +31,7 @@ def _ensure_args(api_name, G, directed, connection, return_labels):
     """
     G_type = type(G)
     # Check for Graph-type inputs and set defaults if unset
-    if (G_type in [Graph, DiGraph]) or \
-       ((nx is not None) and (G_type in [nx.Graph, nx.DiGraph])):
+    if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
         exc_value = "'%s' cannot be specified for a Graph-type input"
         if directed is not None:
             raise TypeError(exc_value % "directed")
@@ -92,7 +73,7 @@ def _convert_df_to_output_type(df, input_type, return_labels):
     if input_type in [Graph, DiGraph]:
         return df
 
-    elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+    elif is_nx_graph_type(input_type):
         return df_score_to_dictionary(df, "labels", "vertex")
 
     elif is_matrix_type(input_type):
