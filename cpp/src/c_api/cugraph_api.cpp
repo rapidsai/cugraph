@@ -219,7 +219,7 @@ extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_ha
   try {
     raft::handle_t const* p_raft_handle = reinterpret_cast<raft::handle_t const*>(p_handle);
 
-    if (!p_raft_handle) return nullptr;
+    if (!p_raft_handle || !p_src || !p_dst || !p_weights) return nullptr;
 
     bool do_check = static_cast<bool>(check);
     bool is_sym   = static_cast<bool>(is_symmetric);

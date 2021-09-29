@@ -125,11 +125,6 @@ int test_create_sg_graph_bad_arrays()
   bool_t is_symmetric                  = 0;
   bool_t is_multigraph                 = 0;
 
-  /*
-   * FIXME: return success until this test is finished.
-   */
-  return 0;
-
   G = cugraph_make_sg_graph(&handle,
                             INT32,
                             INT32,
