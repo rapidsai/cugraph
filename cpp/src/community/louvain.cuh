@@ -414,7 +414,8 @@ class Louvain {
         return thrust::make_tuple(sum, subtract);
       },
       thrust::make_tuple(weight_t{0}, weight_t{0}),
-      thrust::make_zip_iterator(old_cluster_sum_v.begin(), cluster_subtract_v.begin()));
+      thrust::make_zip_iterator(
+        thrust::make_tuple(old_cluster_sum_v.begin(), cluster_subtract_v.begin())));
 
     return std::make_tuple(std::move(old_cluster_sum_v), std::move(cluster_subtract_v));
   }
