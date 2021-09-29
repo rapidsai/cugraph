@@ -31,8 +31,12 @@
 namespace helpers {
 void* raw_device_ptr(cugraph_device_buffer_t* ptr_buf)
 {
-  rmm::device_buffer* ptr_d_buffer = reinterpret_cast<rmm::device_buffer*>(ptr_buf->data_);
-  return ptr_d_buffer->data();
+  if (!ptr_buf || !ptr_buf->data_)
+    return nullptr;
+  else {
+    rmm::device_buffer* ptr_d_buffer = reinterpret_cast<rmm::device_buffer*>(ptr_buf->data_);
+    return ptr_d_buffer->data();
+  }
 }
 
 cugraph::visitors::graph_envelope_t const& extract_graph_envelope(
@@ -47,6 +51,29 @@ cugraph::visitors::graph_envelope_t const& extract_graph_envelope(
   graph_envelope_t const& graph_envelope = p_typed_ret->get();
 
   return graph_envelope;
+}
+
+template <size_t index>
+cugraph_error_t extract_rw_result(cugraph_rw_ret_t* p_rw_ret, cugraph_device_buffer_t* p_d_buf)
+{
+  if (!p_rw_ret)
+    return CUGRAPH_ALLOC_ERROR;
+  else
+    try {
+      using namespace cugraph::visitors;
+      using actual_ret_t = std::tuple<rmm::device_buffer, rmm::device_buffer, rmm::device_buffer>;
+      return_t* p_ret    = reinterpret_cast<return_t*>(p_rw_ret->p_erased_ret);
+
+      auto const& tpl_erased = p_ret->get<actual_ret_t>();
+
+      rmm::device_buffer const& d_vertex = std::get<index>(tpl_erased);
+      p_d_buf->data_                     = const_cast<void*>(static_cast<void const*>(&d_vertex));
+      p_d_buf->size_                     = d_vertex.size();
+
+      return CUGRAPH_SUCCESS;
+    } catch (...) {
+      return CUGRAPH_UNKNOWN_ERROR;
+    }
 }
 }  // namespace helpers
 
@@ -89,46 +116,22 @@ extern "C" void cugraph_free_rw_result(cugraph_rw_ret_t* p_rw_ret)
   delete p_ret;
 }
 
-extern "C" void extract_vertex_rw_result(cugraph_rw_ret_t* p_rw_ret,
-                                         cugraph_device_buffer_t* p_d_buf_v)
+extern "C" cugraph_error_t extract_vertex_rw_result(cugraph_rw_ret_t* p_rw_ret,
+                                                    cugraph_device_buffer_t* p_d_buf_v)
 {
-  using namespace cugraph::visitors;
-  using actual_ret_t = std::tuple<rmm::device_buffer, rmm::device_buffer, rmm::device_buffer>;
-  return_t* p_ret    = reinterpret_cast<return_t*>(p_rw_ret->p_erased_ret);
-
-  auto const& tpl_erased = p_ret->get<actual_ret_t>();
-
-  rmm::device_buffer const& d_vertex = std::get<0>(tpl_erased);
-  p_d_buf_v->data_                   = const_cast<void*>(static_cast<void const*>(&d_vertex));
-  p_d_buf_v->size_                   = d_vertex.size();
+  return helpers::extract_rw_result<0>(p_rw_ret, p_d_buf_v);
 }
 
-extern "C" void extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret,
-                                         cugraph_device_buffer_t* p_d_buf_w)
+extern "C" cugraph_error_t extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret,
+                                                    cugraph_device_buffer_t* p_d_buf_w)
 {
-  using namespace cugraph::visitors;
-  using actual_ret_t = std::tuple<rmm::device_buffer, rmm::device_buffer, rmm::device_buffer>;
-  return_t* p_ret    = reinterpret_cast<return_t*>(p_rw_ret->p_erased_ret);
-
-  auto const& tpl_erased = p_ret->get<actual_ret_t>();
-
-  rmm::device_buffer const& d_weights = std::get<1>(tpl_erased);
-  p_d_buf_w->data_                    = const_cast<void*>(static_cast<void const*>(&d_weights));
-  p_d_buf_w->size_                    = d_weights.size();
+  return helpers::extract_rw_result<1>(p_rw_ret, p_d_buf_w);
 }
 
-extern "C" void extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret,
-                                       cugraph_device_buffer_t* p_d_buf_sz)
+extern "C" cugraph_error_t extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret,
+                                                  cugraph_device_buffer_t* p_d_buf_sz)
 {
-  using namespace cugraph::visitors;
-  using actual_ret_t = std::tuple<rmm::device_buffer, rmm::device_buffer, rmm::device_buffer>;
-  return_t* p_ret    = reinterpret_cast<return_t*>(p_rw_ret->p_erased_ret);
-
-  auto const& tpl_erased = p_ret->get<actual_ret_t>();
-
-  rmm::device_buffer const& d_sizes = std::get<2>(tpl_erased);
-  p_d_buf_sz->data_                 = const_cast<void*>(static_cast<void const*>(&d_sizes));
-  p_d_buf_sz->size_                 = d_sizes.size();
+  return helpers::extract_rw_result<2>(p_rw_ret, p_d_buf_sz);
 }
 
 extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
@@ -158,9 +161,13 @@ extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr
 
     void* p_d_start = helpers::raw_device_ptr(ptr_d_start);
 
+    if (!p_d_start) return CUGRAPH_ALLOC_ERROR;
+
     bool use_padding = static_cast<bool>(flag_use_padding);
 
     ptr_sampling_t* p_uniq_sampling = reinterpret_cast<ptr_sampling_t*>(ptr_sampling_strategy);
+
+    if (!p_uniq_sampling) return CUGRAPH_ALLOC_ERROR;
 
     // pack type-erased algorithm arguments:
     //

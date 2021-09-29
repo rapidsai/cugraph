@@ -25,7 +25,7 @@ extern "C" {
 #endif
 
 typedef enum cugraph_error_ {
-  CUGRAPH_SUCCESS,
+  CUGRAPH_SUCCESS = 0,
   CUGRAPH_UNKNOWN_ERROR,
   CUGRAPH_INVALID_HANDLE,
   CUGRAPH_ALLOC_ERROR
@@ -105,13 +105,16 @@ void cugraph_free_sampling_strategy(cugraph_unique_ptr_t* p_sampling);
 void cugraph_free_rw_result(cugraph_rw_ret_t* p_rw_ret);
 
 /* RW result vertex extractor*/
-void extract_vertex_rw_result(cugraph_rw_ret_t* p_rw_ret, cugraph_device_buffer_t* p_d_buf_v);
+cugraph_error_t extract_vertex_rw_result(cugraph_rw_ret_t* p_rw_ret,
+                                         cugraph_device_buffer_t* p_d_buf_v);
 
 /* RW result weights extractor*/
-void extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret, cugraph_device_buffer_t* p_d_buf_w);
+cugraph_error_t extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret,
+                                         cugraph_device_buffer_t* p_d_buf_w);
 
 /* RW result size extractor*/
-void extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret, cugraph_device_buffer_t* p_d_buf_sz);
+cugraph_error_t extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret,
+                                       cugraph_device_buffer_t* p_d_buf_sz);
 
 /* algorithm wrapper*/
 cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
