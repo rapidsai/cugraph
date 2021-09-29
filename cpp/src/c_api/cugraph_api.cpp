@@ -149,7 +149,8 @@ extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr
   try {
     // unpack C stub arguments:
     //
-    graph_envelope_t* p_g_env = reinterpret_cast<graph_envelope_t*>(ptr_graph_envelope);
+    graph_envelope_t& graph_envelope =
+      const_cast<graph_envelope_t&>(helpers::extract_graph_envelope(ptr_graph_envelope));
 
     raft::handle_t const* p_raft_handle = reinterpret_cast<raft::handle_t const*>(ptr_handle);
 
@@ -172,7 +173,7 @@ extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr
 
     // call algorithm:
     //
-    return_t ret_erased = cugraph::api::random_walks(*p_g_env, ep);
+    return_t ret_erased = cugraph::api::random_walks(graph_envelope, ep);
 
     // caller deffered type-reconstruction: caller has the knoweldge
     // and means to reconstruct the result;
