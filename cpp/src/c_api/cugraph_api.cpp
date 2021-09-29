@@ -149,6 +149,10 @@ extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr
 
   cugraph_error_t status = CUGRAPH_SUCCESS;
 
+  if (!ret) return CUGRAPH_ALLOC_ERROR;
+
+  ret->p_erased_ret = nullptr;  // initialize to `nullptr` in case of failure
+
   try {
     // unpack C stub arguments:
     //
