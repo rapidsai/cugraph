@@ -155,7 +155,7 @@ int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_create_sg_graph_simple);
-  /*result |= RUN_TEST(test_free_graph_NULL_ptr);
-    result |= RUN_TEST(test_create_sg_graph_bad_arrays);*/
+  result |= RUN_TEST(test_free_graph_NULL_ptr);
+  result |= RUN_TEST(test_create_sg_graph_bad_arrays);
   return result;
 }
