@@ -222,10 +222,10 @@ struct Prims_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_MG_CopyVTransformReduceOutNbr
+class Tests_MG_CopyVTransformReduceInOutNbr
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
-  Tests_MG_CopyVTransformReduceOutNbr() {}
+  Tests_MG_CopyVTransformReduceInOutNbr() {}
   static void SetupTestCase() {}
   static void TearDownTestCase() {}
 
@@ -281,7 +281,7 @@ class Tests_MG_CopyVTransformReduceOutNbr
     // 3. run MG transform reduce
 
     const int hash_bin_count = 5;
-    const int initial_value  = 0;
+    const int initial_value  = 4;
 
     auto property_initial_value = generate<result_t>::initial_value(initial_value);
     using property_t            = decltype(property_initial_value);
@@ -289,9 +289,40 @@ class Tests_MG_CopyVTransformReduceOutNbr
       generate<result_t>::vertex_property((*d_mg_renumber_map_labels), hash_bin_count, handle);
     auto col_prop =
       generate<result_t>::column_property(handle, mg_graph_view, vertex_property_data);
-    auto row_prop = generate<result_t>::row_property(handle, mg_graph_view, vertex_property_data);
-    auto result   = cugraph::allocate_dataframe_buffer<property_t>(
+    auto row_prop   = generate<result_t>::row_property(handle, mg_graph_view, vertex_property_data);
+    auto out_result = cugraph::allocate_dataframe_buffer<property_t>(
       mg_graph_view.get_number_of_local_vertices(), handle.get_stream());
+    auto in_result = cugraph::allocate_dataframe_buffer<property_t>(
+      mg_graph_view.get_number_of_local_vertices(), handle.get_stream());
+
+    if (cugraph::test::g_perf) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
+      hr_clock.start();
+    }
+
+    copy_v_transform_reduce_in_nbr(
+      handle,
+      mg_graph_view,
+      row_prop.device_view(),
+      col_prop.device_view(),
+      [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
+        if (row_property < col_property) {
+          return row_property;
+        } else {
+          return col_property;
+        }
+      },
+      property_initial_value,
+      cugraph::get_dataframe_buffer_begin(in_result));
+
+    if (cugraph::test::g_perf) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "MG copy v transform reduce in took " << elapsed_time * 1e-6 << " s.\n";
+    }
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -312,7 +343,7 @@ class Tests_MG_CopyVTransformReduceOutNbr
         }
       },
       property_initial_value,
-      cugraph::get_dataframe_buffer_begin(result));
+      cugraph::get_dataframe_buffer_begin(out_result));
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -340,8 +371,9 @@ class Tests_MG_CopyVTransformReduceOutNbr
         generate<result_t>::column_property(handle, sg_graph_view, sg_vertex_property_data);
       auto sg_row_prop =
         generate<result_t>::row_property(handle, sg_graph_view, sg_vertex_property_data);
+      result_compare comp{handle};
 
-      auto global_result = cugraph::allocate_dataframe_buffer<property_t>(
+      auto global_out_result = cugraph::allocate_dataframe_buffer<property_t>(
         sg_graph_view.get_number_of_local_vertices(), handle.get_stream());
       copy_v_transform_reduce_out_nbr(
         handle,
@@ -356,27 +388,47 @@ class Tests_MG_CopyVTransformReduceOutNbr
           }
         },
         property_initial_value,
-        cugraph::get_dataframe_buffer_begin(global_result));
-      auto expected_result = permute_result(handle, global_result, (*d_mg_renumber_map_labels));
-      result_compare comp{handle};
-      ASSERT_TRUE(comp(result, expected_result));
+        cugraph::get_dataframe_buffer_begin(global_out_result));
+      auto expected_out_result =
+        permute_result(handle, global_out_result, (*d_mg_renumber_map_labels));
+      ASSERT_TRUE(comp(out_result, expected_out_result));
+
+      auto global_in_result = cugraph::allocate_dataframe_buffer<property_t>(
+        sg_graph_view.get_number_of_local_vertices(), handle.get_stream());
+      copy_v_transform_reduce_in_nbr(
+        handle,
+        sg_graph_view,
+        sg_row_prop.device_view(),
+        sg_col_prop.device_view(),
+        [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
+          if (row_property < col_property) {
+            return row_property;
+          } else {
+            return col_property;
+          }
+        },
+        property_initial_value,
+        cugraph::get_dataframe_buffer_begin(global_in_result));
+      auto expected_in_result =
+        permute_result(handle, global_in_result, (*d_mg_renumber_map_labels));
+      ASSERT_TRUE(comp(in_result, expected_in_result));
     }
   }
 };
 
-using Tests_MG_CopyVTransformReduceOutNbr_File =
-  Tests_MG_CopyVTransformReduceOutNbr<cugraph::test::File_Usecase>;
-using Tests_MG_CopyVTransformReduceOutNbr_Rmat =
-  Tests_MG_CopyVTransformReduceOutNbr<cugraph::test::Rmat_Usecase>;
+using Tests_MG_CopyVTransformReduceInOutNbr_File =
+  Tests_MG_CopyVTransformReduceInOutNbr<cugraph::test::File_Usecase>;
+using Tests_MG_CopyVTransformReduceInOutNbr_Rmat =
+  Tests_MG_CopyVTransformReduceInOutNbr<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MG_CopyVTransformReduceOutNbr_File, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
+TEST_P(Tests_MG_CopyVTransformReduceInOutNbr_File, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(std::get<0>(param),
                                                                            std::get<1>(param));
 }
 
-TEST_P(Tests_MG_CopyVTransformReduceOutNbr_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
+TEST_P(Tests_MG_CopyVTransformReduceInOutNbr_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(
@@ -384,14 +436,14 @@ TEST_P(Tests_MG_CopyVTransformReduceOutNbr_Rmat, CheckInt32Int32FloatTupleIntFlo
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_CopyVTransformReduceOutNbr_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
+TEST_P(Tests_MG_CopyVTransformReduceInOutNbr_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(std::get<0>(param),
                                                                           std::get<1>(param));
 }
 
-TEST_P(Tests_MG_CopyVTransformReduceOutNbr_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
+TEST_P(Tests_MG_CopyVTransformReduceInOutNbr_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(
@@ -399,13 +451,13 @@ TEST_P(Tests_MG_CopyVTransformReduceOutNbr_Rmat, CheckInt32Int32FloatTupleIntFlo
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_CopyVTransformReduceOutNbr_File, CheckInt32Int32FloatTransposeFalse)
+TEST_P(Tests_MG_CopyVTransformReduceInOutNbr_File, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, false>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_CopyVTransformReduceOutNbr_Rmat, CheckInt32Int32FloatTransposeFalse)
+TEST_P(Tests_MG_CopyVTransformReduceInOutNbr_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, false>(
@@ -413,13 +465,13 @@ TEST_P(Tests_MG_CopyVTransformReduceOutNbr_Rmat, CheckInt32Int32FloatTransposeFa
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_CopyVTransformReduceOutNbr_File, CheckInt32Int32FloatTransposeTrue)
+TEST_P(Tests_MG_CopyVTransformReduceInOutNbr_File, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, true>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_CopyVTransformReduceOutNbr_Rmat, CheckInt32Int32FloatTransposeTrue)
+TEST_P(Tests_MG_CopyVTransformReduceInOutNbr_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, true>(
@@ -429,7 +481,7 @@ TEST_P(Tests_MG_CopyVTransformReduceOutNbr_Rmat, CheckInt32Int32FloatTransposeTr
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MG_CopyVTransformReduceOutNbr_File,
+  Tests_MG_CopyVTransformReduceInOutNbr_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
@@ -439,14 +491,14 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_MG_CopyVTransformReduceOutNbr_Rmat,
+  Tests_MG_CopyVTransformReduceInOutNbr_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_large_test,
-  Tests_MG_CopyVTransformReduceOutNbr_Rmat,
+  Tests_MG_CopyVTransformReduceInOutNbr_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
