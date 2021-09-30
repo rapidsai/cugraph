@@ -317,6 +317,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       majors.begin(), thrust::unique(handle.get_thrust_policy(), majors.begin(), majors.end())));
     auto num_local_unique_edge_minors = static_cast<vertex_t>(thrust::distance(
       minors.begin(), thrust::unique(handle.get_thrust_policy(), minors.begin(), minors.end())));
+    // FIXME: temporarily disable this check as these are currently not used
+    // (row_col_properties_kv_pair_fill_ratio_threshold is set to 0.0, so (key, value) pairs for
+    // row/column properties will be never enabled) and we're not currently exposing this to the
+    // python layer. Should be re-enabled later once we enable the (key, value) pair feature and
+    // hopefully simplify the python graph creation pipeline as well (so no need to pass this
+    // information to the python layer).
+#if 0
     if constexpr (store_transposed) {
       CUGRAPH_EXPECTS(num_local_unique_edge_majors == meta.num_local_unique_edge_cols,
                       "Invalid input argument: num_local_unique_edge_cols is erroneous.");
@@ -328,6 +335,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       CUGRAPH_EXPECTS(num_local_unique_edge_minors == meta.num_local_unique_edge_cols,
                       "Invalid input argument: num_local_unique_edge_cols is erroneous.");
     }
+#endif
   }
 
   // aggregate segment_offsets

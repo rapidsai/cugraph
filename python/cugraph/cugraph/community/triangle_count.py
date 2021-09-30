@@ -13,7 +13,7 @@
 
 from cugraph.community import triangle_count_wrapper
 from cugraph.structure.graph_classes import Graph
-from cugraph.utilities import check_nx_graph
+from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 
 def triangles(G):
@@ -47,7 +47,7 @@ def triangles(G):
     >>> count = cugraph.triangles(G)
     """
 
-    G, _ = check_nx_graph(G)
+    G, _ = ensure_cugraph_obj_for_nx(G)
 
     if type(G) is not Graph:
         raise Exception("input graph must be undirected")

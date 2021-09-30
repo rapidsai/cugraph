@@ -12,8 +12,9 @@
 # limitations under the License.
 
 from cugraph.cores import k_core_wrapper, core_number_wrapper
-from cugraph.utilities import cugraph_to_nx
-from cugraph.utilities import check_nx_graph
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               cugraph_to_nx,
+                               )
 from cugraph.structure.graph_classes import Graph
 
 
@@ -59,7 +60,7 @@ def k_core(G, k=None, core_number=None):
     >>> KCoreGraph = cugraph.k_core(G)
     """
 
-    G, isNx = check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     mytype = type(G)
     KCoreGraph = mytype()

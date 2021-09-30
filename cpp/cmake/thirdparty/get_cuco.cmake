@@ -20,7 +20,7 @@ function(find_and_configure_cuco VERSION)
       GLOBAL_TARGETS cuco::cuco
       CPM_ARGS
         GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
-        GIT_TAG        b1fea0cbe4c384160740af00f7c8760846539abb
+        GIT_TAG        a3c85ee2ea25ddfdd4596c6b9d546f7c7590743f
         OPTIONS        "BUILD_TESTS OFF"
                        "BUILD_BENCHMARKS OFF"
                        "BUILD_EXAMPLES OFF"

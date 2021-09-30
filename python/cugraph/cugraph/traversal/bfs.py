@@ -18,27 +18,9 @@ from cugraph.structure.graph_classes import Graph, DiGraph
 from cugraph.utilities import (ensure_cugraph_obj,
                                is_matrix_type,
                                is_cp_matrix_type,
-                               import_optional,
+                               is_nx_graph_type,
+                               cupy_package as cp,
                                )
-
-# optional dependencies used for handling different input types
-nx = import_optional("networkx")
-
-cp = import_optional("cupy")
-cp_coo_matrix = import_optional("coo_matrix",
-                                import_from="cupyx.scipy.sparse.coo")
-cp_csr_matrix = import_optional("csr_matrix",
-                                import_from="cupyx.scipy.sparse.csr")
-cp_csc_matrix = import_optional("csc_matrix",
-                                import_from="cupyx.scipy.sparse.csc")
-
-sp = import_optional("scipy")
-sp_coo_matrix = import_optional("coo_matrix",
-                                import_from="scipy.sparse.coo")
-sp_csr_matrix = import_optional("csr_matrix",
-                                import_from="scipy.sparse.csr")
-sp_csc_matrix = import_optional("csc_matrix",
-                                import_from="scipy.sparse.csc")
 
 
 def _ensure_args(G, start, i_start, directed):
@@ -55,8 +37,7 @@ def _ensure_args(G, start, i_start, directed):
 
     G_type = type(G)
     # Check for Graph-type inputs
-    if (G_type in [Graph, DiGraph]) or \
-       ((nx is not None) and (G_type in [nx.Graph, nx.DiGraph])):
+    if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
         if directed is not None:
             raise TypeError("'directed' cannot be specified for a "
                             "Graph-type input")
@@ -76,7 +57,7 @@ def _convert_df_to_output_type(df, input_type):
     if input_type in [Graph, DiGraph]:
         return df
 
-    elif (nx is not None) and (input_type in [nx.Graph, nx.DiGraph]):
+    elif is_nx_graph_type(input_type):
         return df.to_pandas()
 
     elif is_matrix_type(input_type):
