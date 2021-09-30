@@ -164,15 +164,15 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       false);
   }
 
- private:
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,
              std::optional<rmm::device_uvector<weight_t>>>
   decompress_to_edgelist(
     raft::handle_t const& handle,
-    std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+    std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
     bool destroy);  // shuffle the edge list before return as well if @p renumber_map is valid
 
+ private:
   std::vector<rmm::device_uvector<edge_t>> adj_matrix_partition_offsets_{};
   std::vector<rmm::device_uvector<vertex_t>> adj_matrix_partition_indices_{};
   std::optional<std::vector<rmm::device_uvector<weight_t>>> adj_matrix_partition_weights_{
@@ -266,6 +266,13 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   //   criterion(offsets_, indices_, weights_);
   // }
 
+  std::tuple<rmm::device_uvector<vertex_t>,
+             rmm::device_uvector<vertex_t>,
+             std::optional<rmm::device_uvector<weight_t>>>
+  decompress_to_edgelist(raft::handle_t const& handle,
+                         std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
+                         bool destroy);
+
  private:
   friend class cugraph::serializer::serializer_t;
 
@@ -287,13 +294,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       segment_offsets_(std::move(segment_offsets))
   {
   }
-
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             std::optional<rmm::device_uvector<weight_t>>>
-  decompress_to_edgelist(raft::handle_t const& handle,
-                         std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
-                         bool destroy);
 
   rmm::device_uvector<edge_t> offsets_;
   rmm::device_uvector<vertex_t> indices_;

@@ -747,7 +747,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
   decompress_to_edgelist(raft::handle_t const& handle,
-                         std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+                         std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
                          bool destroy)
 {
   auto& comm           = handle.get_comms();
@@ -873,7 +873,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
   decompress_to_edgelist(raft::handle_t const& handle,
-                         std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+                         std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
                          bool destroy)
 {
   auto graph_view = this->view();
