@@ -74,7 +74,7 @@ rapids_cmake_build_type(Release)
 
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 set(BLAS_LIBRARIES "" CACHE STRING "Location of BLAS library for FAISS build.")
-option(BUILD_STATIC_FAISS "Build the FAISS library for nearest neighbors search on GPU" OFF)
+option(CUGRAPH_USE_FAISS_STATIC "Build and statically link the FAISS library for nearest neighbors search on GPU" ON)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 

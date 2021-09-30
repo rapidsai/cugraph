@@ -16,7 +16,7 @@
 
 function(find_and_configure_raft)
 
-    set(oneValueArgs VERSION FORK PINNED_TAG)
+    set(oneValueArgs VERSION FORK PINNED_TAG USE_FAISS_STATIC)
     cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN} )
 
     rapids_cpm_find(raft ${PKG_VERSION}
@@ -28,6 +28,7 @@ function(find_and_configure_raft)
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
             OPTIONS "BUILD_TESTS OFF"
+                    "RAFT_USE_FAISS_STATIC ${USE_FAISS_STATIC}"
     )
 
     message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_SOURCE_DIR}")
@@ -44,4 +45,5 @@ set(CUGRAPH_BRANCH_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINO
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         FORK       rapidsai
                         PINNED_TAG branch-${CUGRAPH_BRANCH_VERSION_raft}
+                        USE_FAISS_STATIC ${CUGRAPH_USE_FAISS_STATIC}
                         )
