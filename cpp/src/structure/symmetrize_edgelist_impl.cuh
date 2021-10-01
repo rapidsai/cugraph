@@ -537,12 +537,19 @@ symmetrize_edgelist(raft::handle_t const& handle,
                     std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                     bool reciprocal)
 {
-  return detail::symmetrize_edgelist<vertex_t, weight_t, multi_gpu>(
-    handle,
-    store_transposed ? std::move(edgelist_cols) : std::move(edgelist_rows),
-    store_transposed ? std::move(edgelist_rows) : std::move(edgelist_cols),
-    std::move(edgelist_weights),
-    reciprocal);
+  rmm::device_uvector<vertex_t> edgelist_majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_minors(0, handle.get_stream());
+  std::tie(edgelist_majors, edgelist_minors, edgelist_weights) =
+    detail::symmetrize_edgelist<vertex_t, weight_t, multi_gpu>(
+      handle,
+      store_transposed ? std::move(edgelist_cols) : std::move(edgelist_rows),
+      store_transposed ? std::move(edgelist_rows) : std::move(edgelist_cols),
+      std::move(edgelist_weights),
+      reciprocal);
+
+  return std::make_tuple(store_transposed ? std::move(edgelist_minors) : std::move(edgelist_majors),
+                         store_transposed ? std::move(edgelist_majors) : std::move(edgelist_minors),
+                         std::move(edgelist_weights));
 }
 
 }  // namespace cugraph

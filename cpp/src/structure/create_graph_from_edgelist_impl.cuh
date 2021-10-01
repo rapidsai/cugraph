@@ -41,6 +41,22 @@ namespace cugraph {
 
 namespace {
 
+template <typename vertex_t>
+struct check_edge_t {
+  vertex_t const* sorted_valid_major_first{nullptr};
+  vertex_t const* sorted_valid_major_last{nullptr};
+  vertex_t const* sorted_valid_minor_first{nullptr};
+  vertex_t const* sorted_valid_minor_last{nullptr};
+
+  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> const& e) const
+  {
+    return !thrust::binary_search(
+             thrust::seq, sorted_valid_major_first, sorted_valid_major_last, thrust::get<0>(e)) ||
+           !thrust::binary_search(
+             thrust::seq, sorted_valid_minor_first, sorted_valid_minor_last, thrust::get<1>(e));
+  }
+};
+
 template <typename vertex_t, bool multi_gpu>
 void expensive_check_edgelist(raft::handle_t const& handle,
                               std::optional<rmm::device_uvector<vertex_t>> const& vertices,
@@ -110,20 +126,19 @@ void expensive_check_edgelist(raft::handle_t const& handle,
       comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
-      rmm::device_uvector<vertex_t> sorted_major_vertices(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
       {
         auto recvcounts = host_scalar_allgather(col_comm, (*vertices).size(), handle.get_stream());
         std::vector<size_t> displacements(recvcounts.size(), size_t{0});
         std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
-        sorted_major_vertices.resize(displacements.back() + recvcounts.back(), handle.get_stream());
+        sorted_majors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
         device_allgatherv(col_comm,
                           (*vertices).data(),
-                          sorted_major_vertices.data(),
+                          sorted_majors.data(),
                           recvcounts,
                           displacements,
                           handle.get_stream());
-        thrust::sort(
-          handle.get_thrust_policy(), sorted_major_vertices.begin(), sorted_major_vertices.end());
+        thrust::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
       }
 
       // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
@@ -137,20 +152,19 @@ void expensive_check_edgelist(raft::handle_t const& handle,
       comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
-      rmm::device_uvector<vertex_t> sorted_minor_vertices(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
       {
         auto recvcounts = host_scalar_allgather(row_comm, (*vertices).size(), handle.get_stream());
         std::vector<size_t> displacements(recvcounts.size(), size_t{0});
         std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
-        sorted_minor_vertices.resize(displacements.back() + recvcounts.back(), handle.get_stream());
+        sorted_minors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
         device_allgatherv(row_comm,
                           (*vertices).data(),
-                          sorted_minor_vertices.data(),
+                          sorted_minors.data(),
                           recvcounts,
                           displacements,
                           handle.get_stream());
-        thrust::sort(
-          handle.get_thrust_policy(), sorted_minor_vertices.begin(), sorted_minor_vertices.end());
+        thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
       }
 
       // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
@@ -170,19 +184,10 @@ void expensive_check_edgelist(raft::handle_t const& handle,
         thrust::count_if(handle.get_thrust_policy(),
                          edge_first,
                          edge_first + edgelist_majors.size(),
-                         [num_major_vertices = static_cast<vertex_t>(sorted_major_vertices.size()),
-                          sorted_major_vertices = sorted_major_vertices.data(),
-                          num_minor_vertices = static_cast<vertex_t>(sorted_minor_vertices.size()),
-                          sorted_minor_vertices = sorted_minor_vertices.data()] __device__(auto e) {
-                           return !thrust::binary_search(thrust::seq,
-                                                         sorted_major_vertices,
-                                                         sorted_major_vertices + num_major_vertices,
-                                                         thrust::get<0>(e)) ||
-                                  !thrust::binary_search(thrust::seq,
-                                                         sorted_minor_vertices,
-                                                         sorted_minor_vertices + num_minor_vertices,
-                                                         thrust::get<1>(e));
-                         }) == 0,
+                         check_edge_t<vertex_t>{sorted_majors.data(),
+                                                sorted_majors.data() + sorted_majors.size(),
+                                                sorted_minors.data(),
+                                                sorted_minors.data() + sorted_minors.size()}) == 0,
         "Invalid input argument: edgelist_majors and/or edgelist_minors have invalid vertex "
         "ID(s).");
     }
@@ -197,21 +202,14 @@ void expensive_check_edgelist(raft::handle_t const& handle,
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
       CUGRAPH_EXPECTS(
-        thrust::count_if(
-          handle.get_thrust_policy(),
-          edge_first,
-          edge_first + edgelist_majors.size(),
-          [sorted_vertices     = sorted_vertices.data(),
-           num_sorted_vertices = static_cast<vertex_t>(sorted_vertices.size())] __device__(auto e) {
-            return !thrust::binary_search(thrust::seq,
-                                          sorted_vertices,
-                                          sorted_vertices + num_sorted_vertices,
-                                          thrust::get<0>(e)) ||
-                   !thrust::binary_search(thrust::seq,
-                                          sorted_vertices,
-                                          sorted_vertices + num_sorted_vertices,
-                                          thrust::get<1>(e));
-          }) == 0,
+        thrust::count_if(handle.get_thrust_policy(),
+                         edge_first,
+                         edge_first + edgelist_majors.size(),
+                         check_edge_t<vertex_t>{sorted_vertices.data(),
+                                                sorted_vertices.data() + sorted_vertices.size(),
+                                                sorted_vertices.data(),
+                                                sorted_vertices.data() + sorted_vertices.size()}) ==
+          0,
         "Invalid input argument: edgelist_majors and/or edgelist_minors have invalid vertex "
         "ID(s).");
     }
