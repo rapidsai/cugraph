@@ -402,6 +402,7 @@ extract_induced_subgraphs(
  * @param graph_properties Properties of the graph represented by the input (optional vertex list
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed,
  * multi_gpu>, rmm::device_uvector<vertex_t>> Pair of the generated graph and the renumber map (if
  * @p renumber is true) or std::nullopt (if @p renumber is false).
@@ -419,6 +420,6 @@ create_graph_from_edgelist(raft::handle_t const& handle,
                            rmm::device_uvector<vertex_t>&& edgelist_cols,
                            std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                            graph_properties_t graph_properties,
-                           bool renumber);
+                           bool renumber, bool do_expensive_check = false);
 
 }  // namespace cugraph
