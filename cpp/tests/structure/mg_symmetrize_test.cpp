@@ -192,9 +192,11 @@ class Tests_MGSymmetrize
         }
 
         if (symmetrize_usecase.test_weighted) {
-          std::vector<std::tuple<vertex_t, vertex_t, weight_t>> mg_aggregate_edges(h_mg_aggregate_rows.size());
+          std::vector<std::tuple<vertex_t, vertex_t, weight_t>> mg_aggregate_edges(
+            h_mg_aggregate_rows.size());
           for (size_t i = 0; i < mg_aggregate_edges.size(); ++i) {
-            mg_aggregate_edges[i] = std::make_tuple(h_mg_aggregate_rows[i], h_mg_aggregate_cols[i], (*h_mg_aggregate_weights)[i]);
+            mg_aggregate_edges[i] = std::make_tuple(
+              h_mg_aggregate_rows[i], h_mg_aggregate_cols[i], (*h_mg_aggregate_weights)[i]);
           }
           std::vector<std::tuple<vertex_t, vertex_t, weight_t>> sg_edges(h_sg_rows.size());
           for (size_t i = 0; i < sg_edges.size(); ++i) {
@@ -202,10 +204,11 @@ class Tests_MGSymmetrize
           }
           std::sort(mg_aggregate_edges.begin(), mg_aggregate_edges.end());
           std::sort(sg_edges.begin(), sg_edges.end());
-          ASSERT_TRUE(std::equal(mg_aggregate_edges.begin(), mg_aggregate_edges.end(), sg_edges.begin()));
-        }
-        else {
-          std::vector<std::tuple<vertex_t, vertex_t>> mg_aggregate_edges(h_mg_aggregate_rows.size());
+          ASSERT_TRUE(
+            std::equal(mg_aggregate_edges.begin(), mg_aggregate_edges.end(), sg_edges.begin()));
+        } else {
+          std::vector<std::tuple<vertex_t, vertex_t>> mg_aggregate_edges(
+            h_mg_aggregate_rows.size());
           for (size_t i = 0; i < mg_aggregate_edges.size(); ++i) {
             mg_aggregate_edges[i] = std::make_tuple(h_mg_aggregate_rows[i], h_mg_aggregate_cols[i]);
           }
@@ -215,7 +218,8 @@ class Tests_MGSymmetrize
           }
           std::sort(mg_aggregate_edges.begin(), mg_aggregate_edges.end());
           std::sort(sg_edges.begin(), sg_edges.end());
-          ASSERT_TRUE(std::equal(mg_aggregate_edges.begin(), mg_aggregate_edges.end(), sg_edges.begin()));
+          ASSERT_TRUE(
+            std::equal(mg_aggregate_edges.begin(), mg_aggregate_edges.end(), sg_edges.begin()));
         }
       }
     }

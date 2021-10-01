@@ -491,7 +491,7 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_Symmetrize_Rmat,
   ::testing::Combine(
-    // disable correctness checks for large graphs
+// disable correctness checks for large graphs
 #if 0
     ::testing::Values(Symmetrize_Usecase{false, false, false}),
 #else

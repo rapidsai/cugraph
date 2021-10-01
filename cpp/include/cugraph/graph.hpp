@@ -167,10 +167,9 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,
              std::optional<rmm::device_uvector<weight_t>>>
-  decompress_to_edgelist(
-    raft::handle_t const& handle,
-    std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
-    bool destroy);
+  decompress_to_edgelist(raft::handle_t const& handle,
+                         std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
+                         bool destroy);
 
  private:
   std::vector<rmm::device_uvector<edge_t>> adj_matrix_partition_offsets_{};

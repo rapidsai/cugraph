@@ -647,11 +647,12 @@ renumber_edgelist(
       "Invalid input arguments: erroneous (*edgelist_intra_partition_segment_offsets).size().");
     for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
       CUGRAPH_EXPECTS(
-        (*edgelist_intra_partition_segment_offsets)[i].size() == static_cast<size_t>(row_comm_size + 1),
+        (*edgelist_intra_partition_segment_offsets)[i].size() ==
+          static_cast<size_t>(row_comm_size + 1),
         "Invalid input arguments: erroneous (*edgelist_intra_partition_segment_offsets)[].size().");
       CUGRAPH_EXPECTS(
         std::is_sorted((*edgelist_intra_partition_segment_offsets)[i].begin(),
-        (*edgelist_intra_partition_segment_offsets)[i].end()),
+                       (*edgelist_intra_partition_segment_offsets)[i].end()),
         "Invalid input arguments: (*edgelist_intra_partition_segment_offsets)[] is not sorted.");
       CUGRAPH_EXPECTS(
         ((*edgelist_intra_partition_segment_offsets)[i][0] == 0) &&
