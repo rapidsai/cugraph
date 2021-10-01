@@ -55,7 +55,11 @@ endforeach()
 # arch > 80
 list(POP_BACK usable_arch_values latest_arch)
 list(TRANSFORM usable_arch_values APPEND "-real")
-list(APPEND usable_arch_values ${latest_arch})
+if (usable_arch_values)
+    list(APPEND usable_arch_values ${latest_arch})
+else()
+    list(APPEND usable_arch_values ${latest_arch}-real)
+endif()
 
 set(CMAKE_CUDA_ARCHITECTURES ${usable_arch_values})
 
