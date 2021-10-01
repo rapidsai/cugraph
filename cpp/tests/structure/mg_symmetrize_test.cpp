@@ -139,9 +139,6 @@ class Tests_MGSymmetrize
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
             handle, input_usecase, symmetrize_usecase.test_weighted, false);
 
-        ASSERT_TRUE(mg_graph.get_number_of_vertices() == sg_graph.get_number_of_vertices());
-        ASSERT_TRUE(mg_graph.get_number_of_edges() == sg_graph.get_number_of_edges());
-
         // 4-4. run SG symmetrize Centrality
 
         auto d_sg_renumber_map_labels =
@@ -154,6 +151,9 @@ class Tests_MGSymmetrize
           sg_graph.decompress_to_edgelist(handle, std::nullopt, false);
 
         // 4-6. compare
+
+        ASSERT_TRUE(mg_graph.get_number_of_vertices() == sg_graph.get_number_of_vertices());
+        ASSERT_TRUE(mg_graph.get_number_of_edges() == sg_graph.get_number_of_edges());
 
         std::vector<vertex_t> h_mg_aggregate_rows(d_mg_aggregate_rows.size());
         std::vector<vertex_t> h_mg_aggregate_cols(d_mg_aggregate_rows.size());
@@ -191,14 +191,31 @@ class Tests_MGSymmetrize
                             handle.get_stream());
         }
 
-        ASSERT_TRUE(
-          std::equal(h_mg_aggregate_rows.begin(), h_mg_aggregate_rows.end(), h_sg_rows.begin()));
-        ASSERT_TRUE(
-          std::equal(h_mg_aggregate_cols.begin(), h_mg_aggregate_cols.end(), h_sg_cols.begin()));
         if (symmetrize_usecase.test_weighted) {
-          ASSERT_TRUE(std::equal((*h_mg_aggregate_weights).begin(),
-                                 (*h_mg_aggregate_weights).end(),
-                                 (*h_sg_weights).begin()));
+          std::vector<std::tuple<vertex_t, vertex_t, weight_t>> mg_aggregate_edges(h_mg_aggregate_rows.size());
+          for (size_t i = 0; i < mg_aggregate_edges.size(); ++i) {
+            mg_aggregate_edges[i] = std::make_tuple(h_mg_aggregate_rows[i], h_mg_aggregate_cols[i], (*h_mg_aggregate_weights)[i]);
+          }
+          std::vector<std::tuple<vertex_t, vertex_t, weight_t>> sg_edges(h_sg_rows.size());
+          for (size_t i = 0; i < sg_edges.size(); ++i) {
+            sg_edges[i] = std::make_tuple(h_sg_rows[i], h_sg_cols[i], (*h_sg_weights)[i]);
+          }
+          std::sort(mg_aggregate_edges.begin(), mg_aggregate_edges.end());
+          std::sort(sg_edges.begin(), sg_edges.end());
+          ASSERT_TRUE(std::equal(mg_aggregate_edges.begin(), mg_aggregate_edges.end(), sg_edges.begin()));
+        }
+        else {
+          std::vector<std::tuple<vertex_t, vertex_t>> mg_aggregate_edges(h_mg_aggregate_rows.size());
+          for (size_t i = 0; i < mg_aggregate_edges.size(); ++i) {
+            mg_aggregate_edges[i] = std::make_tuple(h_mg_aggregate_rows[i], h_mg_aggregate_cols[i]);
+          }
+          std::vector<std::tuple<vertex_t, vertex_t>> sg_edges(h_sg_rows.size());
+          for (size_t i = 0; i < sg_edges.size(); ++i) {
+            sg_edges[i] = std::make_tuple(h_sg_rows[i], h_sg_cols[i]);
+          }
+          std::sort(mg_aggregate_edges.begin(), mg_aggregate_edges.end());
+          std::sort(sg_edges.begin(), sg_edges.end());
+          ASSERT_TRUE(std::equal(mg_aggregate_edges.begin(), mg_aggregate_edges.end(), sg_edges.begin()));
         }
       }
     }
