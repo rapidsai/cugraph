@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,43 +11,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.link_prediction import overlap_wrapper
+from cugraph.structure.graph_classes import Graph
+from cugraph.link_prediction import jaccard_wrapper
 import cudf
 from cugraph.utilities import renumber_vertex_pair
 
 
-def overlap_w(input_graph, weights, vertex_pair=None):
+def sorensen_w(input_graph, weights, vertex_pair=None):
     """
-    Compute the weighted Overlap Coefficient between each pair of vertices
+    Compute the weighted Sorensen similarity between each pair of vertices
     connected by an edge, or between arbitrary pairs of vertices specified by
-    the user. Overlap Coefficient is defined between two sets as the ratio of
-    the volume of their intersection divided by the smaller of their volumes.
-    In the context of graphs, the neighborhood of a vertex is seen as a set.
-    The Overlap Coefficient weight of each edge represents the strength of
-    connection between vertices based on the relative similarity of their
-    neighbors. If first is specified but second is not, or vice versa, an
-    exception will be thrown.
+    the user. Sorensen coefficient is defined between two sets as the ratio of
+    twice the volume of their intersection divided by the volume of each set.
 
     Parameters
     ----------
-    input_graph : cugraph.Graph
+    graph : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
 
-    weights : cudf.Series
+    weights : cudf.DataFrame
         Specifies the weights to be used for each vertex.
+        Vertex should be represented by multiple columns for multi-column
+        vertices.
+
+        weights['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        weights['weight'] : cudf.Series
+            Contains the weights of vertices
 
     vertex_pair : cudf.DataFrame
         A GPU dataframe consisting of two columns representing pairs of
-        vertices. If provided, the overlap coefficient is computed for the
+        vertices. If provided, the sorensen coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.
 
     Returns
     -------
     df : cudf.DataFrame
         GPU data frame of size E (the default) or the size of the given pairs
-        (first, second) containing the overlap coefficients. The ordering is
+        (first, second) containing the Sorensen weights. The ordering is
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
@@ -55,8 +58,8 @@ def overlap_w(input_graph, weights, vertex_pair=None):
             The source vertex ID
         df['destination'] : cudf.Series
             The destination vertex ID
-        df['overlap_coeff'] : cudf.Series
-            The computed weighted Overlap coefficient between the source and
+        df['sorensen_coeff'] : cudf.Series
+            The computed weighted Sorensen coefficient between the source and
             destination vertices.
 
     Examples
@@ -77,8 +80,10 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     >>> # Create a weight column with random weights
     >>> weights['weight'] = [random.random() for w in range(
     >>>                      len(weights['vertex']))]
-    >>> df = cugraph.overlap_w(G, weights)
+    >>> df = cugraph.sorensen_w(G, weights)
     """
+    if type(input_graph) is not Graph:
+        raise TypeError("input graph must a Graph")
 
     if type(vertex_pair) == cudf.DataFrame:
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
@@ -96,12 +101,11 @@ def overlap_w(input_graph, weights, vertex_pair=None):
             weights = input_graph.add_internal_vertex_id(
                 weights, 'vertex', cols
             )
-
-    overlap_weights = weights['weight']
-
-    overlap_weights = overlap_weights.astype('float32')
-
-    df = overlap_wrapper.overlap(input_graph, overlap_weights, vertex_pair)
+    jaccard_weights = weights['weight']
+    df = jaccard_wrapper.jaccard(input_graph, jaccard_weights, vertex_pair)
+    df.jaccard_coeff = ((2*df.jaccard_coeff)/(1+df.jaccard_coeff))
+    df.rename(
+        {'jaccard_coeff': 'sorensen_coeff'}, axis=1, inplace=True)
 
     if input_graph.renumbered:
         df = input_graph.unrenumber(df, "source")

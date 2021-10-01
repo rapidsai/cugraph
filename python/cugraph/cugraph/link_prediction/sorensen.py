@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,51 +20,18 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                )
 
 
-def jaccard(input_graph, vertex_pair=None):
+def sorensen(input_graph, vertex_pair=None):
     """
-    Compute the Jaccard similarity between each pair of vertices connected by
+    Compute the Sorensen coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
-    Jaccard similarity is defined between two sets as the ratio of the volume
-    of their intersection divided by the volume of their union. In the context
-    of graphs, the neighborhood of a vertex is seen as a set. The Jaccard
-    similarity weight of each edge represents the strength of connection
-    between vertices based on the relative similarity of their neighbors. If
-    first is specified but second is not, or vice versa, an exception will be
-    thrown.
+    Sorensen coefficient is defined between two sets as the ratio of twice the
+    volume of their intersection divided by the volume of each set.
+    If first is specified but second is not, or vice versa, an exception will
+    be thrown.
 
-    NOTE: If the vertex_pair parameter is not specified then the behavior
-    of cugraph.jaccard is different from the behavior of
-    networkx.jaccard_coefficient.
-
-    cugraph.jaccard, in the absence of a specified vertex pair list, will
+    cugraph.sorensen, in the absence of a specified vertex pair list, will
     use the edges of the graph to construct a vertex pair list and will
-    return the jaccard coefficient for those vertex pairs.
-
-    networkx.jaccard_coefficient, in the absence of a specified vertex
-    pair list, will return an upper triangular dense matrix, excluding
-    the diagonal as well as vertex pairs that are directly connected
-    by an edge in the graph, of jaccard coefficients.  Technically, networkx
-    returns a lazy iterator across this upper triangular matrix where
-    the actual jaccard coefficient is computed when the iterator is
-    dereferenced.  Computing a dense matrix of results is not feasible
-    if the number of vertices in the graph is large (100,000 vertices
-    would result in 4.9 billion values in that iterator).
-
-    If your graph is small enough (or you have enough memory and patience)
-    you can get the interesting (non-zero) values that are part of the networkx
-    solution by doing the following:
-
-    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> pairs = cugraph.get_two_hop_neighbors(G)
-    >>> df = cugraph.jaccard(G, pairs)
-
-    But please remember that cugraph will fill the dataframe with the entire
-    solution you request, so you'll need enough memory to store the 2-hop
-    neighborhood dataframe.
-
+    return the sorensen coefficient for those vertex pairs.
 
     Parameters
     ----------
@@ -76,16 +43,16 @@ def jaccard(input_graph, vertex_pair=None):
         not already present.
     vertex_pair : cudf.DataFrame
         A GPU dataframe consisting of two columns representing pairs of
-        vertices. If provided, the jaccard coefficient is computed for the
+        vertices. If provided, the Sorensen coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
-        current implementation computes the jaccard coefficient for all
+        current implementation computes the Sorensen coefficient for all
         adjacent vertices in the graph.
 
     Returns
     -------
     df  : cudf.DataFrame
         GPU data frame of size E (the default) or the size of the given pairs
-        (first, second) containing the Jaccard weights. The ordering is
+        (first, second) containing the Sorensen index. The ordering is
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
@@ -94,9 +61,9 @@ def jaccard(input_graph, vertex_pair=None):
         df['destination'] : cudf.Series
             The destination vertex ID (will be identical to second if
             specified)
-        df['jaccard_coeff'] : cudf.Series
-            The computed Jaccard coefficient between the source and destination
-            vertices
+        df['sorensen_coeff'] : cudf.Series
+            The computed Sorensen coefficient between the source and
+            destination vertices
 
     Examples
     --------
@@ -104,7 +71,7 @@ def jaccard(input_graph, vertex_pair=None):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> df = cugraph.jaccard(G)
+    >>> df = cugraph.sorensen(G)
     """
     if type(input_graph) is not Graph:
         raise TypeError("input graph must a Graph")
@@ -115,7 +82,9 @@ def jaccard(input_graph, vertex_pair=None):
         raise ValueError("vertex_pair must be a cudf dataframe")
 
     df = jaccard_wrapper.jaccard(input_graph, None, vertex_pair)
-
+    df.jaccard_coeff = ((2*df.jaccard_coeff)/(1+df.jaccard_coeff))
+    df.rename(
+        {'jaccard_coeff': 'sorensen_coeff'}, axis=1, inplace=True)
     if input_graph.renumbered:
         df = input_graph.unrenumber(df, "source")
         df = input_graph.unrenumber(df, "destination")
@@ -123,9 +92,8 @@ def jaccard(input_graph, vertex_pair=None):
     return df
 
 
-def jaccard_coefficient(G, ebunch=None):
+def sorensen_coefficient(G, ebunch=None):
     """
-    For NetworkX Compatability.  See `jaccard`
 
     Parameters
     ----------
@@ -137,16 +105,16 @@ def jaccard_coefficient(G, ebunch=None):
         not already present.
     ebunch : cudf.DataFrame
         A GPU dataframe consisting of two columns representing pairs of
-        vertices. If provided, the jaccard coefficient is computed for the
+        vertices. If provided, the sorensen coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
-        current implementation computes the jaccard coefficient for all
+        current implementation computes the sorensen coefficient for all
         adjacent vertices in the graph.
 
     Returns
     -------
     df  : cudf.DataFrame
         GPU data frame of size E (the default) or the size of the given pairs
-        (first, second) containing the Jaccard weights. The ordering is
+        (first, second) containing the Sorensen weights. The ordering is
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
@@ -155,9 +123,9 @@ def jaccard_coefficient(G, ebunch=None):
         df['destination'] : cudf.Series
             The destination vertex ID (will be identical to second if
             specified)
-        df['jaccard_coeff'] : cudf.Series
-            The computed Jaccard coefficient between the source and destination
-            vertices
+        df['sorensen_coeff'] : cudf.Series
+            The computed sorensen coefficient between the source and
+            destination vertices
 
     Examples
     --------
@@ -165,7 +133,7 @@ def jaccard_coefficient(G, ebunch=None):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> df = cugraph.jaccard_coefficient(G)
+    >>> df = cugraph.sorensen_coefficient(G)
     """
     vertex_pair = None
 
@@ -174,11 +142,11 @@ def jaccard_coefficient(G, ebunch=None):
     if isNx is True and ebunch is not None:
         vertex_pair = cudf.DataFrame(ebunch)
 
-    df = jaccard(G, vertex_pair)
+    df = sorensen(G, vertex_pair)
 
     if isNx is True:
         df = df_edge_score_to_dictionary(df,
-                                         k="jaccard_coeff",
+                                         k="sorensen_coeff",
                                          src="source",
                                          dst="destination")
 

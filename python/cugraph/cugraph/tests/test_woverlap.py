@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-import time
 
 import pytest
 import scipy
@@ -23,7 +22,14 @@ import cugraph
 from cugraph.tests import utils
 
 
-def cugraph_call(cu_M, pairs):
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
+def cugraph_call(benchmark_callable, cu_M, pairs):
     # Device data
     weights_arr = cudf.Series(
         np.ones(max(cu_M["0"].max(), cu_M["1"].max()) + 1, dtype=np.float32)
@@ -36,10 +42,8 @@ def cugraph_call(cu_M, pairs):
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     # cugraph Overlap Call
-    t1 = time.time()
-    df = cugraph.overlap_w(G, weights, pairs)
-    t2 = time.time() - t1
-    print("Time : " + str(t2))
+    df = benchmark_callable(cugraph.overlap_w, G, weights, pairs)
+
     df = df.sort_values(by=["source", "destination"])
     return df["overlap_coeff"].to_array()
 
@@ -88,8 +92,7 @@ def cpu_call(M, first, second):
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_woverlap(graph_file):
-    gc.collect()
+def test_woverlap(gpubenchmark, graph_file):
 
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
@@ -106,7 +109,7 @@ def test_woverlap(graph_file):
         .reset_index(drop=True)
     )
 
-    cu_coeff = cugraph_call(cu_M, pairs)
+    cu_coeff = cugraph_call(gpubenchmark, cu_M, pairs)
     cpu_coeff = cpu_call(M, pairs["first"], pairs["second"])
     assert len(cu_coeff) == len(cpu_coeff)
     for i in range(len(cu_coeff)):
@@ -121,7 +124,6 @@ def test_woverlap(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_woverlap_multi_column(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
 
