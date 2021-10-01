@@ -551,7 +551,7 @@ void expensive_check_edgelist(
                                             sorted_minor_vertices + num_minor_vertices,
                                             thrust::get<1>(e));
             }) == 0,
-          "Invalid input argument: edgelist_major_vertices and/or edgelist_mior_vertices have "
+          "Invalid input argument: edgelist_major_vertices and/or edgelist_minor_vertices have "
           "invalid vertex ID(s).");
       }
 
