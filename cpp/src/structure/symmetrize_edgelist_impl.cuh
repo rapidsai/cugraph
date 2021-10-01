@@ -288,7 +288,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
   // 2. shuffle the (to-be-flipped) upper triangular edges
 
   if constexpr (multi_gpu) {
-    std::tie(upper_triangular_minors, upper_triangular_minors, upper_triangular_weights) =
+    std::tie(upper_triangular_minors, upper_triangular_majors, upper_triangular_weights) =
       detail::shuffle_edgelist_by_gpu_id(handle,
                                          std::move(upper_triangular_minors),
                                          std::move(upper_triangular_majors),

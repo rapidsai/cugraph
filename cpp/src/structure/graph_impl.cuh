@@ -674,8 +674,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto is_multigraph = this->is_multigraph();
 
+  auto wrapped_renumber_map = std::optional<rmm::device_uvector<vertex_t>>(std::move(renumber_map));
+
   auto [edgelist_rows, edgelist_cols, edgelist_weights] =
-    this->decompress_to_edgelist(handle, std::move(renumber_map), true);
+    this->decompress_to_edgelist(handle, wrapped_renumber_map, true);
   std::tie(edgelist_rows, edgelist_cols, edgelist_weights) =
     symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(
       handle,
@@ -687,7 +689,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto [symmetrized_graph, new_renumber_map] =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
-      std::move(renumber_map),
+      std::move(*wrapped_renumber_map),
       std::move(edgelist_rows),
       std::move(edgelist_cols),
       std::move(edgelist_weights),
@@ -713,13 +715,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto number_of_vertices = this->get_number_of_vertices();
   auto is_multigraph      = this->is_multigraph();
+  bool renumber           = renumber_map.has_value();
 
   auto [edgelist_rows, edgelist_cols, edgelist_weights] =
-    this->decompress_to_edgelist(handle, std::move(renumber_map), true);
-  auto vertex_span = renumber_map ? std::move(renumber_map)
-                                  : std::make_optional<rmm::device_uvector<vertex_t>>(
-                                      number_of_vertices, handle.get_stream());
-  if (!renumber_map) {
+    this->decompress_to_edgelist(handle, renumber_map, true);
+  auto vertex_span = renumber ? std::move(renumber_map)
+                              : std::make_optional<rmm::device_uvector<vertex_t>>(
+                                  number_of_vertices, handle.get_stream());
+  if (!renumber) {
     thrust::sequence(
       handle.get_thrust_policy(), (*vertex_span).begin(), (*vertex_span).end(), vertex_t{0});
   }
@@ -739,7 +742,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       std::move(edgelist_cols),
       std::move(edgelist_weights),
       graph_properties_t{is_multigraph, true},
-      renumber_map ? true : false);
+      renumber);
   *this = std::move(symmetrized_graph);
 
   return std::move(new_renumber_map);
@@ -825,10 +828,18 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
       major_ptrs[i] = edgelist_majors.data() + cur_size;
       minor_ptrs[i] = edgelist_minors.data() + cur_size;
-      thrust::sort_by_key(handle.get_thrust_policy(),
-                          minor_ptrs[i],
-                          minor_ptrs[i] + edgelist_edge_counts[i],
-                          major_ptrs[i]);
+      if (edgelist_weights) {
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            minor_ptrs[i],
+                            minor_ptrs[i] + edgelist_edge_counts[i],
+                            thrust::make_zip_iterator(thrust::make_tuple(
+                              major_ptrs[i], (*edgelist_weights).data() + cur_size)));
+      } else {
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            minor_ptrs[i],
+                            minor_ptrs[i] + edgelist_edge_counts[i],
+                            major_ptrs[i]);
+      }
       rmm::device_uvector<size_t> d_segment_offsets(d_thresholds.size(), handle.get_stream());
       thrust::lower_bound(handle.get_thrust_policy(),
                           minor_ptrs[i],
