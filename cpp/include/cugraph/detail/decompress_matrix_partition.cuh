@@ -37,7 +37,6 @@ namespace detail {
 // FIXME: block size requires tuning
 int32_t constexpr decompress_matrix_partition_block_size = 1024;
 
-// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 __global__ void for_all_major_for_all_nbr_mid_degree(
   matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,

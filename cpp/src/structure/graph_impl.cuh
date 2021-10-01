@@ -858,8 +858,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       cur_size += edgelist_edge_counts[i];
     }
 
-    // FIXME: delete once validated
-    bool do_expensive_check = true;
     unrenumber_local_int_edges<vertex_t, store_transposed, multi_gpu>(
       handle,
       store_transposed ? minor_ptrs : major_ptrs,
@@ -869,12 +867,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       vertex_partition_lasts,
       edgelist_intra_partition_segment_offsets,
       do_expensive_check);
-
-    std::tie(edgelist_majors, edgelist_minors, edgelist_weights) =
-      cugraph::detail::shuffle_edgelist_by_gpu_id(handle,
-                                                  std::move(edgelist_majors),
-                                                  std::move(edgelist_minors),
-                                                  std::move(edgelist_weights));
   }
 
   return std::make_tuple(store_transposed ? std::move(edgelist_minors) : std::move(edgelist_majors),
@@ -915,8 +907,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   if (destroy) { *this = graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(handle); }
 
   if (renumber_map) {
-    // FIXME: delete once validated
-    bool do_expensive_check = true;
     unrenumber_local_int_edges<vertex_t, store_transposed, multi_gpu>(
       handle,
       store_transposed ? edgelist_minors.data() : edgelist_majors.data(),

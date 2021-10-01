@@ -170,7 +170,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   decompress_to_edgelist(
     raft::handle_t const& handle,
     std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
-    bool destroy);  // shuffle the edge list before return as well if @p renumber_map is valid
+    bool destroy);
 
  private:
   std::vector<rmm::device_uvector<edge_t>> adj_matrix_partition_offsets_{};

@@ -283,7 +283,8 @@ generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
                                         uint64_t seed = 0);
 
 /**
- * @brief symmetrize an edgelist from the lower triangular part of a graph adjacency matrix
+ * @brief symmetrize an edgelist from the edges in the lower (or upper but not both) triangular part
+ * of a graph adjacency matrix
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam weight_t Type of weights.
@@ -292,7 +293,8 @@ generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
  * @param d_src_v Vector of source vertices
  * @param d_dst_v Vector of destination vertices
  * @param d_weights_v Optional vector of edge weights
- * @param check_diagonal Flag indicating whether to check for diagonal edges or not. If set to true, symmetrize only the edges with source != destination (to avoid duplicating every self-loops).
+ * @param check_diagonal Flag indicating whether to check for diagonal edges or not. If set to true,
+ * symmetrize only the edges with source != destination (to avoid duplicating every self-loops).
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -304,7 +306,8 @@ symmetrize_edgelist_from_triangular(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& d_src_v,
   rmm::device_uvector<vertex_t>&& d_dst_v,
-  std::optional<rmm::device_uvector<weight_t>>&& optional_d_weights_v, bool check_diagonal = false);
+  std::optional<rmm::device_uvector<weight_t>>&& optional_d_weights_v,
+  bool check_diagonal = false);
 
 /**
  * @brief scramble vertex ids in a graph
