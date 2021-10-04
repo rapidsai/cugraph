@@ -13,7 +13,7 @@
 
 import cudf
 from cugraph.sampling import random_walks_wrapper
-import cugraph
+from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 
 def random_walks(G,
@@ -57,7 +57,12 @@ def random_walks(G,
     if max_depth is None:
         raise TypeError("must specify a 'max_depth'")
 
-    G, _ = cugraph.utilities.check_nx_graph(G)
+    # FIXME: supporting Nx types should mean having a return type that better
+    # matches Nx expectations (eg. data on the CPU, possibly using a different
+    # data struct like a dictionary, etc.). The 2nd value is ignored here,
+    # which is typically named isNx and used to convert the return type.
+    # Consider a different return type if Nx types are passed in.
+    G, _ = ensure_cugraph_obj_for_nx(G)
 
     if start_vertices is int:
         start_vertices = [start_vertices]

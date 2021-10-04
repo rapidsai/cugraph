@@ -28,8 +28,14 @@ import warnings
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import community
     import networkx as nx
+
+try:
+    import community
+except ModuleNotFoundError:
+    pytest.exit("community module not found\n"
+                "The python-louvain module needs to be installed\n"
+                "please run `pip install python-louvain`")
 
 
 print("Networkx version : {} ".format(nx.__version__))

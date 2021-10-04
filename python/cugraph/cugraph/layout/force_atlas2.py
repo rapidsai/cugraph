@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from cugraph.layout import force_atlas2_wrapper
-import cugraph
+from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 
 def force_atlas2(
@@ -107,7 +107,7 @@ def force_atlas2(
             GPU data frame of size V containing three columns:
             the vertex identifiers and the x and y positions.
     """
-    input_graph, isNx = cugraph.utilities.check_nx_graph(input_graph)
+    input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph)
 
     if pos_list is not None:
         if input_graph.renumbered is True:

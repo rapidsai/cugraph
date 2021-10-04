@@ -110,7 +110,7 @@ def run(algos,
         funcs.teardown(*setup_objs)
         log("done.")
 
-    return success is True
+    return 0 if success else 1
 
 
 if __name__ == "__main__":
