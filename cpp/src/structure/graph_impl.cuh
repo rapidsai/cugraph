@@ -865,8 +865,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       edgelist_edge_counts,
       (*renumber_map).data(),
       vertex_partition_lasts,
-      edgelist_intra_partition_segment_offsets,
-      do_expensive_check);
+      edgelist_intra_partition_segment_offsets);
   }
 
   return std::make_tuple(store_transposed ? std::move(edgelist_minors) : std::move(edgelist_majors),
@@ -913,8 +912,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       store_transposed ? edgelist_majors.data() : edgelist_minors.data(),
       edgelist_majors.size(),
       (*renumber_map).data(),
-      (*renumber_map).size(),
-      do_expensive_check);
+      (*renumber_map).size());
   }
 
   return std::make_tuple(store_transposed ? std::move(edgelist_minors) : std::move(edgelist_majors),
