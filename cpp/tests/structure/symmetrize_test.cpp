@@ -491,15 +491,11 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_Symmetrize_Rmat,
   ::testing::Combine(
-// disable correctness checks for large graphs
-#if 0
-    ::testing::Values(Symmetrize_Usecase{false, false, false}),
-#else
+    // disable correctness checks for large graphs
     ::testing::Values(Symmetrize_Usecase{false, false, false},
                       Symmetrize_Usecase{true, false, false},
                       Symmetrize_Usecase{false, true, false},
                       Symmetrize_Usecase{true, true, false}),
-#endif
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
