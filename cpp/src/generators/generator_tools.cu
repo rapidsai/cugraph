@@ -186,28 +186,53 @@ template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-symmetrize_edgelist(raft::handle_t const& handle,
-                    rmm::device_uvector<vertex_t>&& d_src_v,
-                    rmm::device_uvector<vertex_t>&& d_dst_v,
-                    std::optional<rmm::device_uvector<weight_t>>&& optional_d_weights_v)
+symmetrize_edgelist_from_triangular(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& d_src_v,
+  rmm::device_uvector<vertex_t>&& d_dst_v,
+  std::optional<rmm::device_uvector<weight_t>>&& optional_d_weights_v,
+  bool check_diagonal)
 {
+  auto num_strictly_triangular_edges = d_src_v.size();
+  if (check_diagonal) {
+    if (optional_d_weights_v) {
+      auto edge_first = thrust::make_zip_iterator(
+        thrust::make_tuple(d_src_v.begin(), d_dst_v.begin(), (*optional_d_weights_v).begin()));
+      auto strictly_triangular_last = thrust::partition(
+        handle.get_thrust_policy(), edge_first, edge_first + d_src_v.size(), [] __device__(auto e) {
+          return thrust::get<0>(e) != thrust::get<1>(e);
+        });
+      num_strictly_triangular_edges =
+        static_cast<size_t>(thrust::distance(edge_first, strictly_triangular_last));
+    } else {
+      auto edge_first =
+        thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin()));
+      auto strictly_triangular_last = thrust::partition(
+        handle.get_thrust_policy(), edge_first, edge_first + d_src_v.size(), [] __device__(auto e) {
+          return thrust::get<0>(e) != thrust::get<1>(e);
+        });
+      num_strictly_triangular_edges =
+        static_cast<size_t>(thrust::distance(edge_first, strictly_triangular_last));
+    }
+  }
+
   auto offset = d_src_v.size();
-  d_src_v.resize(offset * 2, handle.get_stream_view());
-  d_dst_v.resize(offset * 2, handle.get_stream_view());
+  d_src_v.resize(offset + num_strictly_triangular_edges, handle.get_stream_view());
+  d_dst_v.resize(offset + num_strictly_triangular_edges, handle.get_stream_view());
 
   thrust::copy(handle.get_thrust_policy(),
                d_dst_v.begin(),
-               d_dst_v.begin() + offset,
+               d_dst_v.begin() + num_strictly_triangular_edges,
                d_src_v.begin() + offset);
   thrust::copy(handle.get_thrust_policy(),
                d_src_v.begin(),
-               d_src_v.begin() + offset,
+               d_src_v.begin() + num_strictly_triangular_edges,
                d_dst_v.begin() + offset);
   if (optional_d_weights_v) {
     optional_d_weights_v->resize(d_src_v.size(), handle.get_stream_view());
     thrust::copy(handle.get_thrust_policy(),
                  optional_d_weights_v->begin(),
-                 optional_d_weights_v->begin() + offset,
+                 optional_d_weights_v->begin() + num_strictly_triangular_edges,
                  optional_d_weights_v->begin() + offset);
   }
 
@@ -267,31 +292,41 @@ combine_edgelists(raft::handle_t const& handle,
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
-symmetrize_edgelist(raft::handle_t const& handle,
-                    rmm::device_uvector<int32_t>&& d_src_v,
-                    rmm::device_uvector<int32_t>&& d_dst_v,
-                    std::optional<rmm::device_uvector<float>>&& optional_d_weights_v);
+symmetrize_edgelist_from_triangular(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& d_src_v,
+  rmm::device_uvector<int32_t>&& d_dst_v,
+  std::optional<rmm::device_uvector<float>>&& optional_d_weights_v,
+  bool check_diagonal);
+
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
-symmetrize_edgelist(raft::handle_t const& handle,
-                    rmm::device_uvector<int64_t>&& d_src_v,
-                    rmm::device_uvector<int64_t>&& d_dst_v,
-                    std::optional<rmm::device_uvector<float>>&& optional_d_weights_v);
+symmetrize_edgelist_from_triangular(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_src_v,
+  rmm::device_uvector<int64_t>&& d_dst_v,
+  std::optional<rmm::device_uvector<float>>&& optional_d_weights_v,
+  bool check_diagonal);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
-symmetrize_edgelist(raft::handle_t const& handle,
-                    rmm::device_uvector<int32_t>&& d_src_v,
-                    rmm::device_uvector<int32_t>&& d_dst_v,
-                    std::optional<rmm::device_uvector<double>>&& optional_d_weights_v);
+symmetrize_edgelist_from_triangular(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& d_src_v,
+  rmm::device_uvector<int32_t>&& d_dst_v,
+  std::optional<rmm::device_uvector<double>>&& optional_d_weights_v,
+  bool check_diagonal);
+
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
-symmetrize_edgelist(raft::handle_t const& handle,
-                    rmm::device_uvector<int64_t>&& d_src_v,
-                    rmm::device_uvector<int64_t>&& d_dst_v,
-                    std::optional<rmm::device_uvector<double>>&& optional_d_weights_v);
+symmetrize_edgelist_from_triangular(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_src_v,
+  rmm::device_uvector<int64_t>&& d_dst_v,
+  std::optional<rmm::device_uvector<double>>&& optional_d_weights_v,
+  bool check_diagonal);
 
 }  // namespace cugraph
