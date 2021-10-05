@@ -144,7 +144,6 @@ rapids_cpm_init()
 
 
 include(cmake/thirdparty/get_thrust.cmake)
-include(cmake/thirdparty/get_faiss.cmake)
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_rmm.cmake)
 
@@ -292,7 +291,6 @@ target_link_libraries(cugraph
         CUDA::cusolver
         CUDA::cusparse
         cugraph::cuHornet
-        FAISS::FAISS
         gunrock
         NCCL::NCCL
 )
