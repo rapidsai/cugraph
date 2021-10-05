@@ -82,15 +82,14 @@ std::vector<edge_t> update_adj_matrix_partition_edge_counts(
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 rmm::device_uvector<edge_t> compute_minor_degrees(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view)
+  graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view)
 {
   rmm::device_uvector<edge_t> minor_degrees(graph_view.get_number_of_local_vertices(),
                                             handle.get_stream());
-  if (store_transposed) {
+  if (graph_view.storage_transposed()) {
     copy_v_transform_reduce_out_nbr(
       handle,
       graph_view,
@@ -117,15 +116,14 @@ template <bool major,
           typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 rmm::device_uvector<weight_t> compute_weight_sums(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view)
+  graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view)
 {
   rmm::device_uvector<weight_t> weight_sums(graph_view.get_number_of_local_vertices(),
                                             handle.get_stream());
-  if (major == store_transposed) {
+  if (major == graph_view.storage_transposed()) {
     copy_v_transform_reduce_in_nbr(
       handle,
       graph_view,
@@ -153,9 +151,8 @@ rmm::device_uvector<weight_t> compute_weight_sums(
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
-graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>::
   graph_view_t(
     raft::handle_t const& handle,
     std::vector<edge_t const*> const& adj_matrix_partition_offsets,
@@ -332,13 +329,11 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 graph_view_t<
   vertex_t,
   edge_t,
   weight_t,
-  store_transposed,
   multi_gpu,
   std::enable_if_t<!multi_gpu>>::graph_view_t(raft::handle_t const& handle,
                                               edge_t const* offsets,
@@ -407,13 +402,12 @@ graph_view_t<
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 rmm::device_uvector<edge_t>
-graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_in_degrees(raft::handle_t const& handle) const
 {
-  if (store_transposed) {
+  if (this->storage_transposed()) {
     return detail::compute_major_degrees(handle,
                                          this->adj_matrix_partition_offsets_,
                                          this->adj_matrix_partition_dcs_nzd_vertices_,
@@ -428,17 +422,15 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 rmm::device_uvector<edge_t>
 graph_view_t<vertex_t,
              edge_t,
              weight_t,
-             store_transposed,
              multi_gpu,
              std::enable_if_t<!multi_gpu>>::compute_in_degrees(raft::handle_t const& handle) const
 {
-  if (store_transposed) {
+  if (this->storage_transposed()) {
     return detail::compute_major_degrees(
       handle, this->offsets_, this->get_number_of_local_vertices());
   } else {
@@ -449,13 +441,12 @@ graph_view_t<vertex_t,
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 rmm::device_uvector<edge_t>
-graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_out_degrees(raft::handle_t const& handle) const
 {
-  if (store_transposed) {
+  if (this->storage_transposed()) {
     return compute_minor_degrees(handle, *this);
   } else {
     return detail::compute_major_degrees(handle,
@@ -470,17 +461,15 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 rmm::device_uvector<edge_t>
 graph_view_t<vertex_t,
              edge_t,
              weight_t,
-             store_transposed,
              multi_gpu,
              std::enable_if_t<!multi_gpu>>::compute_out_degrees(raft::handle_t const& handle) const
 {
-  if (store_transposed) {
+  if (this->storage_transposed()) {
     return compute_minor_degrees(handle, *this);
   } else {
     return detail::compute_major_degrees(
@@ -491,13 +480,12 @@ graph_view_t<vertex_t,
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 rmm::device_uvector<weight_t>
-graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_in_weight_sums(raft::handle_t const& handle) const
 {
-  if (store_transposed) {
+  if (this->storage_transposed()) {
     return compute_weight_sums<true>(handle, *this);
   } else {
     return compute_weight_sums<false>(handle, *this);
@@ -507,17 +495,15 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 rmm::device_uvector<weight_t> graph_view_t<
   vertex_t,
   edge_t,
   weight_t,
-  store_transposed,
   multi_gpu,
   std::enable_if_t<!multi_gpu>>::compute_in_weight_sums(raft::handle_t const& handle) const
 {
-  if (store_transposed) {
+  if (this->storage_transposed()) {
     return compute_weight_sums<true>(handle, *this);
   } else {
     return compute_weight_sums<false>(handle, *this);
@@ -527,13 +513,12 @@ rmm::device_uvector<weight_t> graph_view_t<
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 rmm::device_uvector<weight_t>
-graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_out_weight_sums(raft::handle_t const& handle) const
 {
-  if (store_transposed) {
+  if (this->storage_transposed()) {
     return compute_weight_sums<false>(handle, *this);
   } else {
     return compute_weight_sums<true>(handle, *this);
@@ -543,17 +528,15 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 rmm::device_uvector<weight_t> graph_view_t<
   vertex_t,
   edge_t,
   weight_t,
-  store_transposed,
   multi_gpu,
   std::enable_if_t<!multi_gpu>>::compute_out_weight_sums(raft::handle_t const& handle) const
 {
-  if (store_transposed) {
+  if (this->storage_transposed()) {
     return compute_weight_sums<false>(handle, *this);
   } else {
     return compute_weight_sums<true>(handle, *this);
@@ -563,10 +546,9 @@ rmm::device_uvector<weight_t> graph_view_t<
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 edge_t
-graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_max_in_degree(raft::handle_t const& handle) const
 {
   auto in_degrees = compute_in_degrees(handle);
@@ -584,12 +566,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 edge_t graph_view_t<vertex_t,
                     edge_t,
                     weight_t,
-                    store_transposed,
                     multi_gpu,
                     std::enable_if_t<!multi_gpu>>::compute_max_in_degree(raft::handle_t const&
                                                                            handle) const
@@ -605,10 +585,9 @@ edge_t graph_view_t<vertex_t,
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 edge_t
-graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_max_out_degree(raft::handle_t const& handle) const
 {
   auto out_degrees = compute_out_degrees(handle);
@@ -626,12 +605,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 edge_t graph_view_t<vertex_t,
                     edge_t,
                     weight_t,
-                    store_transposed,
                     multi_gpu,
                     std::enable_if_t<!multi_gpu>>::compute_max_out_degree(raft::handle_t const&
                                                                             handle) const
@@ -647,10 +624,9 @@ edge_t graph_view_t<vertex_t,
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 weight_t
-graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_max_in_weight_sum(raft::handle_t const& handle) const
 {
   auto in_weight_sums = compute_in_weight_sums(handle);
@@ -669,12 +645,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 weight_t graph_view_t<vertex_t,
                       edge_t,
                       weight_t,
-                      store_transposed,
                       multi_gpu,
                       std::enable_if_t<!multi_gpu>>::compute_max_in_weight_sum(raft::handle_t const&
                                                                                  handle) const
@@ -691,10 +665,9 @@ weight_t graph_view_t<vertex_t,
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 weight_t
-graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_max_out_weight_sum(raft::handle_t const& handle) const
 {
   auto out_weight_sums = compute_out_weight_sums(handle);
@@ -713,13 +686,11 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu>
 weight_t graph_view_t<
   vertex_t,
   edge_t,
   weight_t,
-  store_transposed,
   multi_gpu,
   std::enable_if_t<!multi_gpu>>::compute_max_out_weight_sum(raft::handle_t const& handle) const
 {

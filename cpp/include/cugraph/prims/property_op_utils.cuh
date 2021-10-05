@@ -41,20 +41,19 @@ struct is_valid_edge_op<
   static constexpr bool valid = true;
 };
 
-template <typename GraphViewType,
+template <typename vertex_t,
+          typename weight_t,
           typename key_t,
           typename AdjMatrixRowValueInputWrapper,
           typename AdjMatrixColValueInputWrapper,
           typename EdgeOp>
 struct evaluate_edge_op {
-  using vertex_type    = typename GraphViewType::vertex_type;
-  using weight_type    = typename GraphViewType::weight_type;
   using row_value_type = typename AdjMatrixRowValueInputWrapper::value_type;
   using col_value_type = typename AdjMatrixColValueInputWrapper::value_type;
 
   template <typename K = key_t,
-            typename V = vertex_type,
-            typename W = weight_type,
+            typename V = vertex_t,
+            typename W = weight_t,
             typename R = row_value_type,
             typename C = col_value_type,
             typename E = EdgeOp>
@@ -67,8 +66,8 @@ struct evaluate_edge_op {
   }
 
   template <typename K = key_t,
-            typename V = vertex_type,
-            typename W = weight_type,
+            typename V = vertex_t,
+            typename W = weight_t,
             typename R = row_value_type,
             typename C = col_value_type,
             typename E = EdgeOp>
@@ -80,7 +79,8 @@ struct evaluate_edge_op {
   }
 };
 
-template <typename GraphViewType,
+template <typename vertex_t,
+          typename weight_t,
           typename key_t,
           typename AdjMatrixRowValueInputWrapper,
           typename AdjMatrixColValueInputWrapper,
@@ -88,16 +88,14 @@ template <typename GraphViewType,
           typename T>
 struct cast_edge_op_bool_to_integer {
   static_assert(std::is_integral<T>::value);
-  using vertex_type    = typename GraphViewType::vertex_type;
-  using weight_type    = typename GraphViewType::weight_type;
   using row_value_type = typename AdjMatrixRowValueInputWrapper::value_type;
   using col_value_type = typename AdjMatrixColValueInputWrapper::value_type;
 
   EdgeOp e_op{};
 
   template <typename K = key_t,
-            typename V = vertex_type,
-            typename W = weight_type,
+            typename V = vertex_t,
+            typename W = weight_t,
             typename R = row_value_type,
             typename C = col_value_type,
             typename E = EdgeOp>
@@ -109,7 +107,7 @@ struct cast_edge_op_bool_to_integer {
   }
 
   template <typename K = key_t,
-            typename V = vertex_type,
+            typename V = vertex_t,
             typename R = row_value_type,
             typename C = col_value_type,
             typename E = EdgeOp>

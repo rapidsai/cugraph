@@ -19,17 +19,11 @@ namespace cugraph {
 
 // SG instantiation
 
-template class graph_t<int32_t, int32_t, float, true, false>;
-template class graph_t<int32_t, int32_t, float, false, false>;
-template class graph_t<int32_t, int32_t, double, true, false>;
-template class graph_t<int32_t, int32_t, double, false, false>;
-template class graph_t<int32_t, int64_t, float, true, false>;
-template class graph_t<int32_t, int64_t, float, false, false>;
-template class graph_t<int32_t, int64_t, double, true, false>;
-template class graph_t<int32_t, int64_t, double, false, false>;
-template class graph_t<int64_t, int64_t, float, true, false>;
-template class graph_t<int64_t, int64_t, float, false, false>;
-template class graph_t<int64_t, int64_t, double, true, false>;
-template class graph_t<int64_t, int64_t, double, false, false>;
+template class graph_t<int32_t, int32_t, float, false>;
+template class graph_t<int32_t, int32_t, double, false>;
+template class graph_t<int32_t, int64_t, float, false>;
+template class graph_t<int32_t, int64_t, double, false>;
+template class graph_t<int64_t, int64_t, float, false>;
+template class graph_t<int64_t, int64_t, double, false>;
 
 }  // namespace cugraph

@@ -74,7 +74,7 @@ struct has_nzd_t {
 };
 
 // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
-template <bool store_transposed, typename vertex_t, typename edge_t, typename weight_t>
+template <typename vertex_t, typename edge_t, typename weight_t>
 std::tuple<rmm::device_uvector<edge_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
@@ -85,6 +85,7 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                   vertex_t major_last,
                   vertex_t /* minor_first */,
                   vertex_t /* minor_last */,
+                  bool store_transposed,
                   rmm::cuda_stream_view stream_view)
 {
   rmm::device_uvector<edge_t> offsets((major_last - major_first) + 1, stream_view);
@@ -110,17 +111,17 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
   if (edgelist.p_edge_weights) {
     auto p_weights = (*weights).data();
 
-    auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-      edgelist.p_src_vertices, edgelist.p_dst_vertices, *(edgelist.p_edge_weights)));
+    auto edge_first = thrust::make_zip_iterator(
+      thrust::make_tuple(store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
+                         store_transposed ? edgelist.p_src_vertices : edgelist.p_dst_vertices,
+                         *(edgelist.p_edge_weights)));
     thrust::for_each(rmm::exec_policy(stream_view),
                      edge_first,
                      edge_first + edgelist.number_of_edges,
                      [p_offsets, p_indices, p_weights, major_first] __device__(auto e) {
-                       auto s      = thrust::get<0>(e);
-                       auto d      = thrust::get<1>(e);
+                       auto major  = thrust::get<0>(e);
+                       auto minor  = thrust::get<1>(e);
                        auto w      = thrust::get<2>(e);
-                       auto major  = store_transposed ? d : s;
-                       auto minor  = store_transposed ? s : d;
                        auto start  = p_offsets[major - major_first];
                        auto degree = p_offsets[(major - major_first) + 1] - start;
                        auto idx    = atomicAdd(p_indices + (start + degree - 1),
@@ -134,15 +135,14 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                      });
   } else {
     auto edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(edgelist.p_src_vertices, edgelist.p_dst_vertices));
+      thrust::make_tuple(store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
+                         store_transposed ? edgelist.p_src_vertices : edgelist.p_dst_vertices));
     thrust::for_each(rmm::exec_policy(stream_view),
                      edge_first,
                      edge_first + edgelist.number_of_edges,
                      [p_offsets, p_indices, major_first] __device__(auto e) {
-                       auto s      = thrust::get<0>(e);
-                       auto d      = thrust::get<1>(e);
-                       auto major  = store_transposed ? d : s;
-                       auto minor  = store_transposed ? s : d;
+                       auto major  = thrust::get<0>(e);
+                       auto minor  = thrust::get<1>(e);
                        auto start  = p_offsets[major - major_first];
                        auto degree = p_offsets[(major - major_first) + 1] - start;
                        auto idx    = atomicAdd(p_indices + (start + degree - 1),
@@ -204,16 +204,12 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
 
 }  // namespace
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  graph_t(raft::handle_t const& handle,
-          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
-          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          bool do_expensive_check)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+graph_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>::graph_t(
+  raft::handle_t const& handle,
+  std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
+  graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
+  bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
     partition_(meta.partition)
@@ -272,8 +268,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       number_of_local_edges += edgelists[i].number_of_edges;
 
       auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-        store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices,
-        store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices));
+        meta.store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices,
+        meta.store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices));
       // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
       CUGRAPH_EXPECTS(thrust::count_if(rmm::exec_policy(default_stream_view),
                                        edge_first,
@@ -296,8 +292,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     rmm::device_uvector<vertex_t> minors(number_of_local_edges, handle.get_stream());
     size_t cur_size{0};
     for (size_t i = 0; i < edgelists.size(); ++i) {
-      auto p_majors = store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices;
-      auto p_minors = store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices;
+      auto p_majors =
+        meta.store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices;
+      auto p_minors =
+        meta.store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices;
       thrust::copy(handle.get_thrust_policy(),
                    p_majors,
                    p_majors + edgelists[i].number_of_edges,
@@ -321,7 +319,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     // hopefully simplify the python graph creation pipeline as well (so no need to pass this
     // information to the python layer).
 #if 0
-    if constexpr (store_transposed) {
+    if constexpr (meta.store_transposed) {
       CUGRAPH_EXPECTS(num_local_unique_edge_majors == meta.num_local_unique_edge_cols,
                       "Invalid input argument: num_local_unique_edge_cols is erroneous.");
       CUGRAPH_EXPECTS(num_local_unique_edge_minors == meta.num_local_unique_edge_rows,
@@ -387,14 +385,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                           [(*(meta.segment_offsets)).size() * i +
                                            detail::num_sparse_segments_per_vertex_partition]}
               : std::nullopt;
-    auto [offsets, indices, weights, dcs_nzd_vertices] =
-      compress_edgelist<store_transposed>(edgelists[i],
-                                          major_first,
-                                          major_hypersparse_first,
-                                          major_last,
-                                          minor_first,
-                                          minor_last,
-                                          default_stream_view);
+    auto [offsets, indices, weights, dcs_nzd_vertices] = compress_edgelist(edgelists[i],
+                                                                           major_first,
+                                                                           major_hypersparse_first,
+                                                                           major_last,
+                                                                           minor_first,
+                                                                           minor_last,
+                                                                           meta.store_transposed,
+                                                                           default_stream_view);
 
     adj_matrix_partition_offsets_.push_back(std::move(offsets));
     adj_matrix_partition_indices_.push_back(std::move(indices));
@@ -410,9 +408,9 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   // support storing edge row/column properties in (key, value) pairs.
 
   auto num_local_unique_edge_majors =
-    store_transposed ? meta.num_local_unique_edge_cols : meta.num_local_unique_edge_rows;
+    meta.store_transposed ? meta.num_local_unique_edge_cols : meta.num_local_unique_edge_rows;
   auto num_local_unique_edge_minors =
-    store_transposed ? meta.num_local_unique_edge_rows : meta.num_local_unique_edge_cols;
+    meta.store_transposed ? meta.num_local_unique_edge_rows : meta.num_local_unique_edge_cols;
 
   vertex_t aggregate_major_size{0};
   for (size_t i = 0; i < partition_.get_number_of_matrix_partitions(); ++i) {
@@ -485,7 +483,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     raft::update_host(
       h_key_offsets.data() + 1, d_key_offsets.data(), d_key_offsets.size(), handle.get_stream());
 
-    if constexpr (store_transposed) {
+    if (meta.store_transposed) {
       local_sorted_unique_edge_cols_        = std::move(local_sorted_unique_edge_majors);
       local_sorted_unique_edge_col_offsets_ = std::move(h_key_offsets);
     } else {
@@ -556,7 +554,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     raft::update_host(
       h_key_offsets.data() + 1, d_key_offsets.data(), d_key_offsets.size(), handle.get_stream());
 
-    if constexpr (store_transposed) {
+    if (meta.store_transposed) {
       local_sorted_unique_edge_rows_        = std::move(local_sorted_unique_edge_minors);
       local_sorted_unique_edge_row_offsets_ = std::move(h_key_offsets);
     } else {
@@ -576,16 +574,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   }
 }
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  graph_t(raft::handle_t const& handle,
-          edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
-          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          bool do_expensive_check)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+graph_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<!multi_gpu>>::graph_t(
+  raft::handle_t const& handle,
+  edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
+  graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
+  bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, edgelist.number_of_edges, meta.properties),
     offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream_view())),
@@ -615,9 +609,9 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   // optional expensive checks (part 1/2)
 
   if (do_expensive_check) {
-    auto edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
-                         store_transposed ? edgelist.p_src_vertices : edgelist.p_dst_vertices));
+    auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
+      meta.store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
+      meta.store_transposed ? edgelist.p_src_vertices : edgelist.p_dst_vertices));
     // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
     CUGRAPH_EXPECTS(thrust::count_if(
                       rmm::exec_policy(default_stream_view),
@@ -637,13 +631,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
 
   std::tie(offsets_, indices_, weights_, std::ignore) =
-    compress_edgelist<store_transposed>(edgelist,
-                                        vertex_t{0},
-                                        std::optional<vertex_t>{std::nullopt},
-                                        this->get_number_of_vertices(),
-                                        vertex_t{0},
-                                        this->get_number_of_vertices(),
-                                        default_stream_view);
+    compress_edgelist(edgelist,
+                      vertex_t{0},
+                      std::optional<vertex_t>{std::nullopt},
+                      this->get_number_of_vertices(),
+                      vertex_t{0},
+                      this->get_number_of_vertices(),
+                      meta.store_transposed,
+                      default_stream_view);
 
   // optional expensive checks (part 3/3)
 

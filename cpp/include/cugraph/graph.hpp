@@ -45,6 +45,8 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>> {
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
+
+  bool store_transposed{};
   graph_properties_t properties{};
 
   partition_t<vertex_t> partition{};
@@ -60,6 +62,8 @@ struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>> {
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
   vertex_t number_of_vertices{};
+
+  bool store_transposed{};
   graph_properties_t properties{};
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
@@ -70,25 +74,19 @@ struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
           bool multi_gpu,
           typename Enable = void>
 class graph_t;
 
 // multi-GPU version
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+class graph_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>
   : public detail::graph_base_t<vertex_t, edge_t, weight_t> {
  public:
-  using vertex_type                              = vertex_t;
-  using edge_type                                = edge_t;
-  using weight_type                              = weight_t;
-  static constexpr bool is_adj_matrix_transposed = store_transposed;
-  static constexpr bool is_multi_gpu             = multi_gpu;
+  using vertex_type                  = vertex_t;
+  using edge_type                    = edge_t;
+  using weight_type                  = weight_t;
+  static constexpr bool is_multi_gpu = multi_gpu;
 
   graph_t(raft::handle_t const& handle) : detail::graph_base_t<vertex_t, edge_t, weight_t>() {}
 
@@ -99,7 +97,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
 
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
+  graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> view() const
   {
     std::vector<edge_t const*> offsets(adj_matrix_partition_offsets_.size(), nullptr);
     std::vector<vertex_t const*> indices(adj_matrix_partition_indices_.size(), nullptr);
@@ -126,7 +124,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       }
     }
 
-    return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    return graph_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
       *(this->get_handle_ptr()),
       offsets,
       indices,
@@ -184,19 +182,14 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 };
 
 // single-GPU version
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+class graph_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<!multi_gpu>>
   : public detail::graph_base_t<vertex_t, edge_t, weight_t> {
  public:
-  using vertex_type                              = vertex_t;
-  using edge_type                                = edge_t;
-  using weight_type                              = weight_t;
-  static constexpr bool is_adj_matrix_transposed = store_transposed;
-  static constexpr bool is_multi_gpu             = multi_gpu;
+  using vertex_type                  = vertex_t;
+  using edge_type                    = edge_t;
+  using weight_type                  = weight_t;
+  static constexpr bool is_multi_gpu = multi_gpu;
 
   graph_t(raft::handle_t const& handle)
     : detail::graph_base_t<vertex_t, edge_t, weight_t>(),
@@ -210,9 +203,9 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   bool is_weighted() const { return weights_.has_value(); }
 
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
+  graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> view() const
   {
-    return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    return graph_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
       *(this->get_handle_ptr()),
       offsets_.data(),
       indices_.data(),
