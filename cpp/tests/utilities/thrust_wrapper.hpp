@@ -37,5 +37,10 @@ void populate_vertex_ids(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>& d_vertices_v,
                          vertex_t vertex_id_offset);
 
+template <typename T>
+rmm::device_uvector<T> randomly_select(raft::handle_t const& handle,
+                                       rmm::device_uvector<T> const &input,
+                                       size_t count);
+
 }  // namespace test
 }  // namespace cugraph

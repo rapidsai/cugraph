@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <utilities/thrust_wrapper.hpp>
+
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 
@@ -21,77 +23,59 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/transform.h>
+#include <thrust/remove.h>
 
 template <bool multi_gpu, typename vertex_t>
 rmm::device_uvector<vertex_t> randomly_select_destinations(
   raft::handle_t const& handle,
   vertex_t number_of_vertices,
+  vertex_t local_vertex_first,
   rmm::device_uvector<vertex_t> const& d_predecessors,
-  size_t num_paths_to_check,
-  uint64_t seed)
+  size_t num_paths_to_check)
 {
   constexpr vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
 
   rmm::device_uvector<vertex_t> d_vertices(number_of_vertices, handle.get_stream());
-  rmm::device_uvector<float> d_probabilities(number_of_vertices, handle.get_stream());
-
-  cugraph::detail::uniform_random_fill(
-    handle.get_stream(), d_probabilities.data(), d_probabilities.size(), float{0}, float{1}, seed);
-
   cugraph::detail::sequence_fill(
-    handle.get_stream(), d_vertices.begin(), d_vertices.size(), vertex_t{0});
+    handle.get_stream(), d_vertices.begin(), d_vertices.size(), local_vertex_first);
 
-  auto pair_iter =
-    thrust::make_zip_iterator(thrust::make_tuple(d_predecessors.begin(), d_probabilities.begin()));
+  auto end_iter =
+    thrust::remove_if(handle.get_thrust_policy(),
+                      d_vertices.begin(),
+                      d_vertices.end(),
+                      [invalid_vertex, predecessors = d_predecessors.data(), local_vertex_first] __device__(auto v) {
+                        return predecessors[v - local_vertex_first] == invalid_vertex;
+                      });
 
-  thrust::transform(handle.get_thrust_policy(),
-                    pair_iter,
-                    pair_iter + d_predecessors.size(),
-                    d_probabilities.begin(),
-                    [invalid_vertex] __device__(auto tuple) {
-                      vertex_t predecessor = thrust::get<0>(tuple);
-                      return (predecessor == invalid_vertex) ? float{1} : thrust::get<1>(tuple);
-                    });
+  d_vertices.resize(thrust::distance(d_vertices.begin(), end_iter), handle.get_stream());
 
-  thrust::sort_by_key(
-    handle.get_thrust_policy(), d_probabilities.begin(), d_probabilities.end(), d_vertices.data());
-
-  size_t num_good_destinations = thrust::count_if(handle.get_thrust_policy(),
-                                                  d_probabilities.begin(),
-                                                  d_probabilities.end(),
-                                                  [] __device__(auto f) { return f < float{1}; });
-
-  d_vertices.resize(std::min(num_paths_to_check, num_good_destinations), handle.get_stream());
-  d_vertices.shrink_to_fit(handle.get_stream());
-
-  return d_vertices;
+  return cugraph::test::randomly_select(handle, d_vertices, num_paths_to_check);
 }
 
 template rmm::device_uvector<int32_t> randomly_select_destinations<false>(
   raft::handle_t const& handle,
   int32_t number_of_vertices,
+  int32_t local_vertex_first,
   rmm::device_uvector<int32_t> const& d_predecessors,
-  size_t num_paths_to_check,
-  uint64_t seed);
+  size_t num_paths_to_check);
 
 template rmm::device_uvector<int64_t> randomly_select_destinations<false>(
   raft::handle_t const& handle,
   int64_t number_of_vertices,
+  int64_t local_vertex_first,
   rmm::device_uvector<int64_t> const& d_predecessors,
-  size_t num_paths_to_check,
-  uint64_t seed);
+  size_t num_paths_to_check);
 
 template rmm::device_uvector<int32_t> randomly_select_destinations<true>(
   raft::handle_t const& handle,
   int32_t number_of_vertices,
+  int32_t local_vertex_first,
   rmm::device_uvector<int32_t> const& d_predecessors,
-  size_t num_paths_to_check,
-  uint64_t seed);
+  size_t num_paths_to_check);
 
 template rmm::device_uvector<int64_t> randomly_select_destinations<true>(
   raft::handle_t const& handle,
   int64_t number_of_vertices,
+  int64_t local_vertex_first,
   rmm::device_uvector<int64_t> const& d_predecessors,
-  size_t num_paths_to_check,
-  uint64_t seed);
+  size_t num_paths_to_check);

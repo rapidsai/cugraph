@@ -168,6 +168,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
 
       partition_vertex_firsts[i] = (number_of_vertices / num_partitions) * id;
       partition_vertex_lasts[i]  = (number_of_vertices / num_partitions) * (id + 1);
+
       if (id < number_of_vertices % num_partitions) {
         partition_vertex_firsts[i] += id;
         partition_vertex_lasts[i] += id + 1;
@@ -261,7 +262,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                                      partition_vertex_firsts[i]);
     }
 
-    if (multi_gpu) {
+    if constexpr (multi_gpu) {
       vertices_v = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(vertices_v));
     }
 

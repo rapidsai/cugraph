@@ -435,9 +435,9 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
         ###########################################################################################
         # - Extract BFS Paths tests ---------------------------------------------------------------
-        #ConfigureTestMG(MG_EXTRACT_BFS_PATHS_TEST
-        #                traversal/mg_extract_bfs_paths_test.cpp
-        #                traversal/extract_bfs_paths_utils.cu)
+        ConfigureTestMG(MG_EXTRACT_BFS_PATHS_TEST
+                        traversal/mg_extract_bfs_paths_test.cpp
+                        traversal/extract_bfs_paths_utils.cu)
 
         ###########################################################################################
         # - MG SSSP tests -------------------------------------------------------------------------

@@ -49,9 +49,9 @@ template <bool multi_gpu, typename vertex_t>
 rmm::device_uvector<vertex_t> randomly_select_destinations(
   raft::handle_t const& handle,
   vertex_t number_of_vertices,
+  vertex_t local_vertex_first,
   rmm::device_uvector<vertex_t> const& d_predecessors,
-  size_t num_paths_to_check,
-  uint64_t seed);
+  size_t num_paths_to_check);
 
 template <typename input_usecase_t>
 class Tests_ExtractBfsPaths
@@ -69,12 +69,10 @@ class Tests_ExtractBfsPaths
                         input_usecase_t const& input_usecase)
   {
     constexpr bool renumber = true;
-
-    using weight_t = float;
+    using weight_t          = float;
 
     raft::handle_t handle{};
     HighResClock hr_clock{};
-    uint64_t seed{0};
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -127,26 +125,14 @@ class Tests_ExtractBfsPaths
     raft::update_host(
       h_predecessors.data(), d_predecessors.data(), d_predecessors.size(), handle.get_stream());
 
-    vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
-
-    vertex_t max_path_length =
-      1 + std::transform_reduce(
-            thrust::make_counting_iterator<vertex_t>(0),
-            thrust::make_counting_iterator<vertex_t>(graph_view.get_number_of_vertices()),
-            vertex_t{0},
-            [](auto lhs, auto rhs) { return std::max<vertex_t>(lhs, rhs); },
-            [invalid_vertex, predecessors = h_predecessors.data(), distances = h_distances.data()](
-              vertex_t v) { return (predecessors[v] == invalid_vertex) ? 0 : distances[v]; });
-
     auto d_destinations =
       randomly_select_destinations<false>(handle,
                                           graph_view.get_number_of_vertices(),
+                                          vertex_t{0},
                                           d_predecessors,
-                                          extract_bfs_paths_usecase.num_paths_to_check,
-                                          seed);
+                                          extract_bfs_paths_usecase.num_paths_to_check);
 
-    rmm::device_uvector<vertex_t> d_paths(max_path_length * d_destinations.size(),
-                                          handle.get_stream());
+    rmm::device_uvector<vertex_t> d_paths(0, handle.get_stream());
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -155,14 +141,14 @@ class Tests_ExtractBfsPaths
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    extract_bfs_paths(handle,
-                      graph_view,
-                      d_distances.data(),
-                      d_predecessors.data(),
-                      d_destinations.data(),
-                      d_destinations.size(),
-                      d_paths.data(),
-                      max_path_length);
+    int32_t max_path_length{};
+
+    std::tie(d_paths, max_path_length) = extract_bfs_paths(handle,
+                                                           graph_view,
+                                                           d_distances.data(),
+                                                           d_predecessors.data(),
+                                                           d_destinations.data(),
+                                                           d_destinations.size());
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -172,6 +158,8 @@ class Tests_ExtractBfsPaths
     }
 
     if (extract_bfs_paths_usecase.check_correctness) {
+      vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
+
       std::vector<vertex_t> h_destinations(d_destinations.size());
       std::vector<vertex_t> h_reference_paths(d_paths.size(), invalid_vertex);
       std::vector<vertex_t> h_cugraph_paths(d_paths.size());
