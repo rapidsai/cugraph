@@ -80,7 +80,7 @@ louvain(raft::handle_t const& handle,
         size_t max_level,
         typename graph_view_t::weight_type resolution)
 {
-  return detail::louvain(handle, graph_view, max_level, resolution);
+  CUGRAPH_FAIL("commented out");
 }
 
 template <typename graph_view_t>
@@ -89,7 +89,7 @@ void flatten_dendrogram(raft::handle_t const& handle,
                         Dendrogram<typename graph_view_t::vertex_type> const& dendrogram,
                         typename graph_view_t::vertex_type* clustering)
 {
-  detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
+  CUGRAPH_FAIL("commented out");
 }
 
 template <typename graph_view_t>
@@ -100,19 +100,7 @@ std::pair<size_t, typename graph_view_t::weight_type> louvain(
   size_t max_level,
   typename graph_view_t::weight_type resolution)
 {
-  using vertex_t = typename graph_view_t::vertex_type;
-  using weight_t = typename graph_view_t::weight_type;
-
-  detail::check_clustering(graph_view, clustering);
-
-  std::unique_ptr<Dendrogram<vertex_t>> dendrogram;
-  weight_t modularity;
-
-  std::tie(dendrogram, modularity) = louvain(handle, graph_view, max_level, resolution);
-
-  flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
-
-  return std::make_pair(dendrogram->num_levels(), modularity);
+  CUGRAPH_FAIL("commented out");
 }
 
 }  // namespace cugraph
