@@ -113,7 +113,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   // renumber_map) matching the symtax of symmetrize().
   std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
              rmm::device_uvector<vertex_t>>
-  transpose_graph_storage(raft::handle_t const& handle,
+  transpose_storage(raft::handle_t const& handle,
                           rmm::device_uvector<vertex_t>&& renumber_map,
                           bool destroy = false);
 
@@ -184,7 +184,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
              std::optional<rmm::device_uvector<weight_t>>>
   decompress_to_edgelist(raft::handle_t const& handle,
                          std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
-                         bool destroy);
+                         bool destroy = false);
 
  private:
   std::vector<rmm::device_uvector<edge_t>> adj_matrix_partition_offsets_{};
@@ -253,7 +253,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   // symmetrize().
   std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
              std::optional<rmm::device_uvector<vertex_t>>>
-  transpose_graph_storage(raft::handle_t const& handle,
+  transpose_storage(raft::handle_t const& handle,
                           std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
                           bool destroy = false);
   bool is_weighted() const { return weights_.has_value(); }
@@ -300,7 +300,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
              std::optional<rmm::device_uvector<weight_t>>>
   decompress_to_edgelist(raft::handle_t const& handle,
                          std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
-                         bool destroy);
+                         bool destroy = false);
 
  private:
   friend class cugraph::serializer::serializer_t;

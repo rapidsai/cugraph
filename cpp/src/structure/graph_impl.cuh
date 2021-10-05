@@ -766,6 +766,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto [edgelist_rows, edgelist_cols, edgelist_weights] =
     this->decompress_to_edgelist(handle, wrapped_renumber_map, true);
 
+  std::tie(store_transposed ? edgelist_rows : edgelist_cols,
+           store_transposed ? edgelist_cols : edgelist_rows,
+           edgelist_weights) =
+    detail::shuffle_edgelist_by_gpu_id(handle,
+                                       std::move(store_transposed ? edgelist_rows : edgelist_cols),
+                                       std::move(store_transposed ? edgelist_cols : edgelist_rows),
+                                       std::move(edgelist_weights));
+
   auto [transposed_graph, new_renumber_map] =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
@@ -774,7 +782,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       std::move(edgelist_rows),
       std::move(edgelist_weights),
       graph_properties_t{is_multigraph, false},
-      true);
+      true,
+      true /* FIXME: remove once validated */);
   *this = std::move(transposed_graph);
 
   return std::move(*new_renumber_map);
@@ -828,9 +837,9 @@ template <typename vertex_t,
 std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
            rmm::device_uvector<vertex_t>>
 graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  transpose_graph_storage(raft::handle_t const& handle,
-                          rmm::device_uvector<vertex_t>&& renumber_map,
-                          bool destroy)
+  transpose_storage(raft::handle_t const& handle,
+                    rmm::device_uvector<vertex_t>&& renumber_map,
+                    bool destroy)
 {
   auto is_multigraph = this->is_multigraph();
 
@@ -838,6 +847,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto [edgelist_rows, edgelist_cols, edgelist_weights] =
     this->decompress_to_edgelist(handle, wrapped_renumber_map, destroy);
+
+  std::tie(!store_transposed ? edgelist_cols : edgelist_rows,
+           !store_transposed ? edgelist_rows : edgelist_cols,
+           edgelist_weights) =
+    detail::shuffle_edgelist_by_gpu_id(handle,
+                                       std::move(!store_transposed ? edgelist_cols : edgelist_rows),
+                                       std::move(!store_transposed ? edgelist_rows : edgelist_cols),
+                                       std::move(edgelist_weights));
 
   auto [storage_transposed_graph, new_renumber_map] =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>(
@@ -860,9 +877,9 @@ template <typename vertex_t,
 std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  transpose_graph_storage(raft::handle_t const& handle,
-                          std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
-                          bool destroy)
+  transpose_storage(raft::handle_t const& handle,
+                    std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+                    bool destroy)
 {
   auto number_of_vertices = this->get_number_of_vertices();
   auto is_multigraph      = this->is_multigraph();
