@@ -43,5 +43,5 @@ set(CUGRAPH_BRANCH_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINO
 # RPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         FORK       rapidsai/raft
-                        PINNED_TAG branch-21.12
+                        PINNED_TAG branch-${CUGRAPH_BRANCH_VERSION_raft}
                         )
