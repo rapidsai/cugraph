@@ -115,7 +115,8 @@ class Tests_WeaklyConnectedComponent
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, false, renumber);
 
-    std::cout << "constructed graph, num vertices = " << graph.get_number_of_vertices() << std::endl;
+    std::cout << "constructed graph, num vertices = " << graph.get_number_of_vertices()
+              << std::endl;
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

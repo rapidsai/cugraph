@@ -232,7 +232,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
   if (num_vertices == 0) { return; }
 
   // 1. check input arguments
-std::cout << "step 1" << std::endl;
+  std::cout << "step 1" << std::endl;
 
   CUGRAPH_EXPECTS(
     push_graph_view.is_symmetric(),
@@ -244,7 +244,7 @@ std::cout << "step 1" << std::endl;
 
   // 2. recursively run multi-root frontier expansion
 
-std::cout << "step 2" << std::endl;
+  std::cout << "step 2" << std::endl;
   enum class Bucket {
     cur,
     next,
@@ -721,7 +721,7 @@ std::cout << "step 2" << std::endl;
   }
 
   // 3. recursive update the current level component IDs from the next level component IDs
-std::cout << "step 3" << std::endl;
+  std::cout << "step 3" << std::endl;
 
   for (size_t i = 0; i < num_levels - 1; ++i) {
     size_t next_level    = num_levels - 1 - i;
