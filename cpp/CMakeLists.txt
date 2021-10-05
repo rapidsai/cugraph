@@ -77,8 +77,6 @@ rapids_cmake_build_type(Release)
 # - User Options  ------------------------------------------------------------
 
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
-set(BLAS_LIBRARIES "" CACHE STRING "Location of BLAS library for FAISS build.")
-option(CUGRAPH_USE_FAISS_STATIC "Build and statically link the FAISS library for nearest neighbors search on GPU" ON)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 
@@ -124,16 +122,6 @@ find_package(OpenMP)
 if(OpenMP_FOUND)
     # find_package(OPenMP) does not automatically add OpenMP flags to CUDA
     list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=${OpenMP_CXX_FLAGS})
-endif()
-
-
-###################################################################################################
-# - find blas -------------------------------------------------------------------------------------
-
-if(NOT DEFINED BLAS_LIBRARIES)
-  find_package( BLAS REQUIRED )
-else()
-  message(STATUS "Manually setting BLAS to ${BLAS_LIBRARIES}")
 endif()
 
 ###################################################################################################
