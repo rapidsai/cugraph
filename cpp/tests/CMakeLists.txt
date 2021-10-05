@@ -468,7 +468,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
         ###########################################################################################
         # - MG PRIMS COPY_V_TRANSFORM_REDUCE_OUT tests --------------------------------------------
-        ConfigureTestMG(MG_COPY_V_TRANSFORM_REDUCE_INOUT_NBR_TEST prims/mg_copy_v_transform_reduce_inout_nbr.cu)
+        ConfigureTestMG(MG_COPY_V_TRANSFORM_REDUCE_INOUT_NBR_TEST
+          prims/mg_copy_v_transform_reduce_inout_nbr.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()

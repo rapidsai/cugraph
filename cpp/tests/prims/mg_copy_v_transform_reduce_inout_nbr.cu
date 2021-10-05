@@ -192,20 +192,16 @@ struct result_compare {
   }
 };
 
-template <typename T, typename buffer_type>
-buffer_type permute_result(const raft::handle_t& handle,
-                           buffer_type const& result,
-                           rmm::device_uvector<T> const& index)
+template <typename buffer_type>
+buffer_type aggregate(const raft::handle_t& handle, const buffer_type& result)
 {
-  auto permuted_result =
+  auto aggregated_result =
     cugraph::allocate_dataframe_buffer<cugraph::dataframe_element_t<buffer_type>>(
-      index.size(), handle.get_stream());
-  thrust::gather(handle.get_thrust_policy(),
-                 index.begin(),
-                 index.end(),
-                 cugraph::get_dataframe_buffer_begin(result),
-                 cugraph::get_dataframe_buffer_begin(permuted_result));
-  return permuted_result;
+      0, handle.get_stream());
+  cugraph::transform(result, aggregated_result, [&handle](auto& input, auto& output) {
+    output = cugraph::test::device_gatherv(handle, input.data(), input.size());
+  });
+  return aggregated_result;
 }
 
 template <typename T>
@@ -389,9 +385,6 @@ class Tests_MG_CopyVTransformReduceInOutNbr
         },
         property_initial_value,
         cugraph::get_dataframe_buffer_begin(global_out_result));
-      auto expected_out_result =
-        permute_result(handle, global_out_result, (*d_mg_renumber_map_labels));
-      ASSERT_TRUE(comp(out_result, expected_out_result));
 
       auto global_in_result = cugraph::allocate_dataframe_buffer<property_t>(
         sg_graph_view.get_number_of_local_vertices(), handle.get_stream());
@@ -409,9 +402,17 @@ class Tests_MG_CopyVTransformReduceInOutNbr
         },
         property_initial_value,
         cugraph::get_dataframe_buffer_begin(global_in_result));
-      auto expected_in_result =
-        permute_result(handle, global_in_result, (*d_mg_renumber_map_labels));
-      ASSERT_TRUE(comp(in_result, expected_in_result));
+      auto aggregate_labels      = aggregate(handle, *d_mg_renumber_map_labels);
+      auto aggregate_out_results = aggregate(handle, out_result);
+      auto aggregate_in_results  = aggregate(handle, in_result);
+      if (handle.get_comms().get_rank() == int{0}) {
+        std::tie(std::ignore, aggregate_out_results) =
+          cugraph::test::sort_by_key(handle, aggregate_labels, aggregate_out_results);
+        std::tie(std::ignore, aggregate_in_results) =
+          cugraph::test::sort_by_key(handle, aggregate_labels, aggregate_in_results);
+        ASSERT_TRUE(comp(aggregate_out_results, global_out_result));
+        ASSERT_TRUE(comp(aggregate_in_results, global_in_result));
+      }
     }
   }
 };

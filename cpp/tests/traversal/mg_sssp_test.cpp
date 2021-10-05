@@ -150,16 +150,10 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
           mg_graph_view.get_number_of_vertices(),
           std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
 
-        std::tie(std::ignore, d_mg_aggregate_distances) =
-          cugraph::test::sort_by_key(handle,
-                                     d_mg_aggregate_renumber_map_labels.data(),
-                                     d_mg_aggregate_distances.data(),
-                                     d_mg_aggregate_renumber_map_labels.size());
-        std::tie(std::ignore, d_mg_aggregate_predecessors) =
-          cugraph::test::sort_by_key(handle,
-                                     d_mg_aggregate_renumber_map_labels.data(),
-                                     d_mg_aggregate_predecessors.data(),
-                                     d_mg_aggregate_renumber_map_labels.size());
+        std::tie(std::ignore, d_mg_aggregate_distances) = cugraph::test::sort_by_key(
+          handle, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_distances);
+        std::tie(std::ignore, d_mg_aggregate_predecessors) = cugraph::test::sort_by_key(
+          handle, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_predecessors);
 
         // 4-3. create SG graph
 
