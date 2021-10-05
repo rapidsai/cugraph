@@ -64,6 +64,10 @@ void katz_centrality(raft::handle_t const& handle,
 
   // 1. check input arguments
 
+  CUGRAPH_EXPECTS(
+    graph_view.store_transposed(),
+    "Invalid input argument: graph_view.store_transposed() should be true for Katz Centrality.");
+
   CUGRAPH_EXPECTS((alpha >= 0.0) && (alpha <= 1.0),
                   "Invalid input argument: alpha should be in [0.0, 1.0].");
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");

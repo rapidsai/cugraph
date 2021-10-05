@@ -60,7 +60,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract(raft::handle_t const& handle,
-        cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& csr_view,
+        cugraph::graph_view_t<vertex_t, edge_t, weight_t, false> const& csr_view,
         vertex_t* source_vertex,
         vertex_t n_subgraphs,
         vertex_t radius)
@@ -182,7 +182,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const& handle,
-            graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+            graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
             vertex_t* source_vertex,
             vertex_t n_subgraphs,
             vertex_t radius)
@@ -194,6 +194,10 @@ extract_ego(raft::handle_t const& handle,
                            rmm::device_uvector<weight_t>(0, handle.get_stream()),
                            rmm::device_uvector<size_t>(0, handle.get_stream()));
   }
+  CUGRAPH_EXPECTS(
+    !graph_view.store_transposed(),
+    "Invalid input argument: graph_view.store_transposed() should be false for extract_ego.");
+
   CUGRAPH_EXPECTS(n_subgraphs > 0, "Need at least one source to extract the egonet from");
   CUGRAPH_EXPECTS(n_subgraphs < graph_view.get_number_of_vertices(),
                   "Can't have more sources to extract from than vertices in the graph");

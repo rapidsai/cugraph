@@ -233,6 +233,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
   // 1. check input arguments
 
+  CUGRAPH_EXPECTS(graph_view.store_transposed(),
+                  "Invalid input argument: graph_view.store_transposed() should be false for "
+                  "weakly connected components.");
+
   CUGRAPH_EXPECTS(
     push_graph_view.is_symmetric(),
     "Invalid input argument: input graph should be symmetric for weakly connected components.");

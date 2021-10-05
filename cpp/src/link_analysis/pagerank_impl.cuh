@@ -79,6 +79,10 @@ void pagerank(
 
   // 1. check input arguments
 
+  CUGRAPH_EXPECTS(
+    graph_view.store_transposed(),
+    "Invalid input argument: graph_view.store_transposed() should be true for PageRank.");
+
   CUGRAPH_EXPECTS((personalization_vertices.has_value() == false) ||
                     (personalization_values.has_value() && personalization_vector_size.has_value()),
                   "Invalid input argument: if personalization_vertices.has_value() is true, "

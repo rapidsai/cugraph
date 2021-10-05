@@ -66,6 +66,9 @@ void bfs(raft::handle_t const& handle,
 
   // 1. check input arguments
 
+  CUGRAPH_EXPECTS(!graph_view.store_transposed(),
+                  "Invalid input argument: graph_view.store_transposed() should be false for BFS.");
+
   CUGRAPH_EXPECTS((n_sources == 0) || (sources != nullptr),
                   "Invalid input argument: sources cannot be null");
 

@@ -1116,7 +1116,7 @@ weight_t hungarian(raft::handle_t const& handle,
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void bfs(raft::handle_t const& handle,
-         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+         graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
          vertex_t* distances,
          vertex_t* predecessors,
          vertex_t const* sources,
@@ -1152,7 +1152,7 @@ void bfs(raft::handle_t const& handle,
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void sssp(raft::handle_t const& handle,
-          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+          graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
           weight_t* distances,
           vertex_t* predecessors,
           vertex_t source_vertex,
@@ -1202,7 +1202,7 @@ void sssp(raft::handle_t const& handle,
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void pagerank(raft::handle_t const& handle,
-              graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
+              graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
               std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
               std::optional<vertex_t const*> personalization_vertices,
               std::optional<result_t const*> personalization_values,
@@ -1252,7 +1252,7 @@ void pagerank(raft::handle_t const& handle,
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void katz_centrality(raft::handle_t const& handle,
-                     graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
+                     graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
                      result_t const* betas,
                      result_t* katz_centralities,
                      result_t alpha,
@@ -1288,7 +1288,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const& handle,
-            graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+            graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
             vertex_t* source_vertex,
             vertex_t n_subgraphs,
             vertex_t radius);
@@ -1352,7 +1352,7 @@ random_walks(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void weakly_connected_components(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
   vertex_t* components,
   bool do_expensive_check = false);
 

@@ -69,6 +69,10 @@ void sssp(raft::handle_t const& handle,
 
   // 1. check input arguments
 
+  CUGRAPH_EXPECTS(
+    !graph_view.store_transposed(),
+    "Invalid input argument: graph_view.store_transposed() should be false for SSSP.");
+
   CUGRAPH_EXPECTS(push_graph_view.is_valid_vertex(source_vertex),
                   "Invalid input argument: source vertex out-of-range.");
   CUGRAPH_EXPECTS(push_graph_view.is_weighted(),

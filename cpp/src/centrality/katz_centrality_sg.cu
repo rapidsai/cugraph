@@ -20,7 +20,7 @@ namespace cugraph {
 // SG instantiation
 
 template void katz_centrality(raft::handle_t const& handle,
-                              graph_view_t<int32_t, int32_t, float, true, false> const& graph_view,
+                              graph_view_t<int32_t, int32_t, float, false> const& graph_view,
                               float const* betas,
                               float* katz_centralities,
                               float alpha,
@@ -32,7 +32,7 @@ template void katz_centrality(raft::handle_t const& handle,
                               bool do_expensive_check);
 
 template void katz_centrality(raft::handle_t const& handle,
-                              graph_view_t<int32_t, int32_t, double, true, false> const& graph_view,
+                              graph_view_t<int32_t, int32_t, double, false> const& graph_view,
                               double const* betas,
                               double* katz_centralities,
                               double alpha,
@@ -44,7 +44,7 @@ template void katz_centrality(raft::handle_t const& handle,
                               bool do_expensive_check);
 
 template void katz_centrality(raft::handle_t const& handle,
-                              graph_view_t<int32_t, int64_t, float, true, false> const& graph_view,
+                              graph_view_t<int32_t, int64_t, float, false> const& graph_view,
                               float const* betas,
                               float* katz_centralities,
                               float alpha,
@@ -56,7 +56,7 @@ template void katz_centrality(raft::handle_t const& handle,
                               bool do_expensive_check);
 
 template void katz_centrality(raft::handle_t const& handle,
-                              graph_view_t<int32_t, int64_t, double, true, false> const& graph_view,
+                              graph_view_t<int32_t, int64_t, double, false> const& graph_view,
                               double const* betas,
                               double* katz_centralities,
                               double alpha,
@@ -68,7 +68,7 @@ template void katz_centrality(raft::handle_t const& handle,
                               bool do_expensive_check);
 
 template void katz_centrality(raft::handle_t const& handle,
-                              graph_view_t<int64_t, int64_t, float, true, false> const& graph_view,
+                              graph_view_t<int64_t, int64_t, float, false> const& graph_view,
                               float const* betas,
                               float* katz_centralities,
                               float alpha,
@@ -80,7 +80,7 @@ template void katz_centrality(raft::handle_t const& handle,
                               bool do_expensive_check);
 
 template void katz_centrality(raft::handle_t const& handle,
-                              graph_view_t<int64_t, int64_t, double, true, false> const& graph_view,
+                              graph_view_t<int64_t, int64_t, double, false> const& graph_view,
                               double const* betas,
                               double* katz_centralities,
                               double alpha,
