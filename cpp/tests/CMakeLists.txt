@@ -241,10 +241,6 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 ###################################################################################################
 
 ###################################################################################################
-# - WEAKLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
-ConfigureTest(WCC_TEST components/wcc_test.cpp)
-
-###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
