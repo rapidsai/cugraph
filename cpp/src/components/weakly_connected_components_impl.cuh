@@ -284,6 +284,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     auto degrees = level_graph_view.compute_out_degrees(handle);
 
     // 2-1. filter out isolated vertices
+    std::cout << "step 2-1" << std::endl;
 
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
       thrust::make_counting_iterator(level_graph_view.get_local_vertex_first()), degrees.begin()));
@@ -298,6 +299,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                       });
 
     // 2-2. initialize new root candidates
+    std::cout << "step 2-2" << std::endl;
 
     // Vertices are first partitioned to high-degree vertices and low-degree vertices, we can reach
     // degree_sum_threshold with fewer high-degree vertices leading to a higher compression ratio.
@@ -446,6 +448,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     }
 
     // 2-3. initialize vertex frontier, edge_buffer, and adj_matrix_col_components (if multi-gpu)
+    std::cout << "step 2-3" << std::endl;
 
     VertexFrontier<vertex_t,
                    vertex_t,
@@ -470,6 +473,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     }
 
     // 2.4 iterate till every vertex gets visited
+    std::cout << "step 2-4" << std::endl;
 
     size_t iter{0};
     while (true) {
@@ -653,6 +657,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     }
 
     // 2-5. construct the next level graph from the edges emitted on conflicts
+    std::cout << "step 2-5" << std::endl;
 
     auto num_inserts           = num_edge_inserts.value(handle.get_stream_view());
     auto aggregate_num_inserts = num_inserts;
