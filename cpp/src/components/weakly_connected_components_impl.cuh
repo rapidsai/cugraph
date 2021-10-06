@@ -479,6 +479,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     while (true) {
       if ((edge_count < degree_sum_threshold) &&
           (next_candidate_offset < static_cast<vertex_t>(new_root_candidates.size()))) {
+        std::cout << "  iter = " << iter << ", calling accumulate_new_roots" << std::endl;
+
         auto [new_roots, num_scanned, degree_sum] = accumulate_new_roots<GraphViewType>(
           handle,
           vertex_partition,
@@ -491,8 +493,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         next_candidate_offset += num_scanned;
         edge_count += degree_sum;
 
+        std::cout << "  calling thrust::sort" << std::endl;
         thrust::sort(handle.get_thrust_policy(), new_roots.begin(), new_roots.end());
 
+        std::cout << "  calling thrust::for_each" << std::endl;
         thrust::for_each(
           handle.get_thrust_policy(),
           new_roots.begin(),
@@ -506,6 +510,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
           .insert(pair_first, pair_first + new_roots.size());
       }
+
+      std::cout << "  calling get_bucket" << std::endl;
 
       if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() == 0) {
         break;
@@ -536,6 +542,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       // buffer may be more expensive).
       auto old_num_edge_inserts = num_edge_inserts.value(handle.get_stream_view());
       resize_dataframe_buffer(edge_buffer, old_num_edge_inserts + max_pushes, handle.get_stream());
+
+      std::cout << "  calling update_frontier_v_push_if_out_nbr" << std::endl;
 
       update_frontier_v_push_if_out_nbr(
         handle,
