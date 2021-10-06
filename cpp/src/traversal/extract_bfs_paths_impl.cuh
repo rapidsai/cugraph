@@ -21,6 +21,7 @@
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -177,9 +178,6 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   vertex_t const* destinations,
   size_t n_destinations)
 {
-  int myrank = 0;
-  if constexpr (multi_gpu) { myrank = handle.get_comms().get_rank(); }
-
   CUGRAPH_EXPECTS(distances != nullptr, "Invalid input argument: distances cannot be null");
   CUGRAPH_EXPECTS(predecessors != nullptr, "Invalid input argument: predecessors cannot be null");
 
@@ -269,69 +267,16 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
                       detail::decrement_position{});
 
     if constexpr (multi_gpu) {
-      rmm::device_uvector<vertex_t> tmp_frontier(current_frontier.size(), handle.get_stream());
-      rmm::device_uvector<vertex_t> original_position(current_frontier.size(), handle.get_stream());
-      rmm::device_uvector<int> original_rank(current_frontier.size(), handle.get_stream());
-
-      raft::copy(tmp_frontier.data(),
-                 current_frontier.begin(),
-                 current_frontier.size(),
-                 handle.get_stream());
-      detail::sequence_fill(
-        handle.get_stream(), original_position.data(), original_position.size(), vertex_t{0});
-      thrust::fill(handle.get_thrust_policy(),
-                   original_rank.begin(),
-                   original_rank.end(),
-                   handle.get_comms().get_rank());
-
-      auto tuple_begin = thrust::make_zip_iterator(
-        thrust::make_tuple(tmp_frontier.begin(), original_position.begin(), original_rank.begin()));
-
-      std::forward_as_tuple(std::tie(tmp_frontier, original_position, original_rank), std::ignore) =
-        groupby_gpuid_and_shuffle_values(
-          handle.get_comms(),
-          tuple_begin,
-          tuple_begin + tmp_frontier.size(),
-          [key_func =
-             detail::mg_partition_vertices<vertex_t>{
-               handle.get_comms().get_rank(),
-               d_vertex_partition_offsets.begin(),
-               d_vertex_partition_offsets.end()}] __device__(auto val) {
-            return key_func(thrust::get<0>(val));
-          },
-          handle.get_stream());
-
-      tuple_begin = thrust::make_zip_iterator(
-        thrust::make_tuple(tmp_frontier.begin(), original_position.begin(), original_rank.begin()));
-
-      thrust::transform(
-        handle.get_thrust_policy(),
-        tuple_begin,
-        tuple_begin + tmp_frontier.size(),
-        tuple_begin,
-        detail::mg_lookup_predecessor<vertex_t>{graph_view.get_local_vertex_first(), predecessors});
-
-      tuple_begin = thrust::make_zip_iterator(
-        thrust::make_tuple(tmp_frontier.begin(), original_position.begin(), original_rank.begin()));
-
-      std::forward_as_tuple(std::tie(tmp_frontier, original_position, original_rank), std::ignore) =
-        groupby_gpuid_and_shuffle_values(
-          handle.get_comms(),
-          tuple_begin,
-          tuple_begin + tmp_frontier.size(),
-          [] __device__(auto val) { return thrust::get<2>(val); },
-          handle.get_stream());
-
-      thrust::for_each_n(handle.get_thrust_policy(),
-                         thrust::make_zip_iterator(
-                           thrust::make_tuple(tmp_frontier.begin(), original_position.begin())),
-                         tmp_frontier.size(),
-                         [d_current_frontier = current_frontier.data()] __device__(auto tuple) {
-                           auto v        = thrust::get<0>(tuple);
-                           auto position = thrust::get<1>(tuple);
-
-                           d_current_frontier[position] = v;
-                         });
+      current_frontier = collect_values_for_vertices(
+        handle.get_comms(),
+        current_frontier.begin(),
+        current_frontier.end(),
+        predecessors,
+        detail::mg_partition_vertices<vertex_t>{handle.get_comms().get_rank(),
+                                                d_vertex_partition_offsets.begin(),
+                                                d_vertex_partition_offsets.end()},
+        graph_view.get_local_vertex_first(),
+        handle.get_stream());
     } else {
       thrust::transform(
         handle.get_thrust_policy(),

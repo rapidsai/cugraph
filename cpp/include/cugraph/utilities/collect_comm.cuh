@@ -259,4 +259,72 @@ collect_values_for_unique_keys(raft::comms::comms_t const& comm,
   return value_buffer;
 }
 
+template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
+decltype(allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
+  0, cudaStream_t{nullptr}))
+collect_values_for_vertices(raft::comms::comms_t const& comm,
+                            VertexIterator map_vertex_first,
+                            VertexIterator map_vertex_last,
+                            ValueIterator map_value_first,
+                            KeyToGPUIdOp key_to_gpu_id_op,
+                            size_t local_vertex_first,
+                            rmm::cuda_stream_view stream_view)
+{
+  using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
+  using value_t  = typename std::iterator_traits<ValueIterator>::value_type;
+
+  size_t input_size = thrust::distance(map_vertex_first, map_vertex_last);
+
+  rmm::device_uvector<vertex_t> input_vertices(input_size, stream_view);
+  auto value_buffer = allocate_dataframe_buffer<value_t>(input_size, stream_view);
+
+  raft::copy(input_vertices.data(), map_vertex_first, input_size, stream_view);
+
+  thrust::sort(rmm::exec_policy(stream_view), input_vertices.begin(), input_vertices.end());
+
+  // 1: Shuffle vertices to the correct node
+  auto gpu_counts = groupby_and_count(input_vertices.begin(),
+                                      input_vertices.end(),
+                                      key_to_gpu_id_op,
+                                      comm.get_size(),
+                                      stream_view);
+
+  rmm::device_uvector<vertex_t> shuffled_vertices(0, stream_view);
+  std::vector<size_t> shuffled_counts;
+  std::vector<size_t> h_gpu_counts(gpu_counts.size());
+
+  raft::update_host(h_gpu_counts.data(), gpu_counts.data(), gpu_counts.size(), stream_view);
+
+  std::tie(shuffled_vertices, shuffled_counts) =
+    shuffle_values(comm, input_vertices.begin(), h_gpu_counts, stream_view);
+
+  auto tmp_value_buffer = allocate_dataframe_buffer<value_t>(shuffled_vertices.size(), stream_view);
+
+  thrust::transform(rmm::exec_policy(stream_view),
+                    shuffled_vertices.begin(),
+                    shuffled_vertices.end(),
+                    tmp_value_buffer.begin(),
+                    [map_value_first, local_vertex_first] __device__(auto v) {
+                      return map_value_first[v - local_vertex_first];
+                    });
+
+  std::tie(tmp_value_buffer, std::ignore) =
+    shuffle_values(comm, tmp_value_buffer.begin(), shuffled_counts, stream_view);
+
+  thrust::transform(
+    rmm::exec_policy(stream_view),
+    map_vertex_first,
+    map_vertex_last,
+    value_buffer.begin(),
+    [num_vertices = input_vertices.size(), d_vertices = input_vertices.data(), d_values = tmp_value_buffer.data()]
+    __device__(auto v) {
+      auto pos = thrust::find(thrust::seq, d_vertices, d_vertices + num_vertices, v);
+      auto offset = thrust::distance(d_vertices, pos);
+
+      return d_values[offset];
+    });
+
+  return value_buffer;
+}
+
 }  // namespace cugraph
