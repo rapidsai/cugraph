@@ -22,23 +22,23 @@ namespace cugraph {
 namespace broadcast {
 // Manual template instantiations (EIDir's):
 //
-template graph_t<int32_t, int32_t, float, false, false> graph_broadcast(
-  raft::handle_t const& handle, graph_t<int32_t, int32_t, float, false, false>* graph_ptr);
+template graph_t<int32_t, int32_t, float, false> graph_broadcast(
+  raft::handle_t const& handle, graph_t<int32_t, int32_t, float, false>* graph_ptr);
 
-template graph_t<int32_t, int64_t, float, false, false> graph_broadcast(
-  raft::handle_t const& handle, graph_t<int32_t, int64_t, float, false, false>* graph_ptr);
+template graph_t<int32_t, int64_t, float, false> graph_broadcast(
+  raft::handle_t const& handle, graph_t<int32_t, int64_t, float, false>* graph_ptr);
 
-template graph_t<int64_t, int64_t, float, false, false> graph_broadcast(
-  raft::handle_t const& handle, graph_t<int64_t, int64_t, float, false, false>* graph_ptr);
+template graph_t<int64_t, int64_t, float, false> graph_broadcast(
+  raft::handle_t const& handle, graph_t<int64_t, int64_t, float, false>* graph_ptr);
 
-template graph_t<int32_t, int32_t, double, false, false> graph_broadcast(
-  raft::handle_t const& handle, graph_t<int32_t, int32_t, double, false, false>* graph_ptr);
+template graph_t<int32_t, int32_t, double, false> graph_broadcast(
+  raft::handle_t const& handle, graph_t<int32_t, int32_t, double, false>* graph_ptr);
 
-template graph_t<int32_t, int64_t, double, false, false> graph_broadcast(
-  raft::handle_t const& handle, graph_t<int32_t, int64_t, double, false, false>* graph_ptr);
+template graph_t<int32_t, int64_t, double, false> graph_broadcast(
+  raft::handle_t const& handle, graph_t<int32_t, int64_t, double, false>* graph_ptr);
 
-template graph_t<int64_t, int64_t, double, false, false> graph_broadcast(
-  raft::handle_t const& handle, graph_t<int64_t, int64_t, double, false, false>* graph_ptr);
+template graph_t<int64_t, int64_t, double, false> graph_broadcast(
+  raft::handle_t const& handle, graph_t<int64_t, int64_t, double, false>* graph_ptr);
 
 }  // namespace broadcast
 }  // namespace cugraph
