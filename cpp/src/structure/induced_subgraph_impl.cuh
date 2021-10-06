@@ -36,18 +36,14 @@
 
 namespace cugraph {
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract_induced_subgraphs(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
   size_t const* subgraph_offsets /* size == num_subgraphs + 1 */,
   vertex_t const* subgraph_vertices /* size == subgraph_offsets[num_subgraphs] */,
   size_t num_subgraphs,
@@ -255,10 +251,11 @@ extract_induced_subgraphs(
     hr_timer.stop();
     hr_timer.display(std::cout);
 #endif
-    return std::make_tuple(std::move(edge_majors),
-                           std::move(edge_minors),
-                           std::move(edge_weights),
-                           std::move(subgraph_edge_offsets));
+    return std::make_tuple(
+      std::move(graph_view.storage_transposed() ? edge_minors : edge_majors),
+      std::move(graph_view.storage_transposed() ? edge_majors : edge_minors),
+      std::move(edge_weights),
+      std::move(subgraph_edge_offsets));
   }
 }
 

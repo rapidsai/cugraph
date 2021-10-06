@@ -255,8 +255,6 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam store_transposed Flag indicating whether to store the graph adjacency matrix as is or as
- * transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -264,22 +262,17 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
  * @param graph_view Graph view object of the input graph to be coarsened.
  * @param labels Vertex labels (assigned to this process in multi-GPU) to be used in coarsening.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed,
- * multi_gpu>>, rmm::device_uvector<vertex_t>> Tuple of the coarsened graph and labels mapped to the
- * vertices (assigned to this process in multi-GPU) in the coarsened graph.
+ * @return std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>,
+ * rmm::device_uvector<vertex_t>> Tuple of the coarsened graph and labels mapped to the vertices
+ * (assigned to this process in multi-GPU) in the coarsened graph.
  */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>,
            rmm::device_uvector<vertex_t>>
-coarsen_graph(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  vertex_t const* labels,
-  bool do_expensive_check = false);
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
+              vertex_t const* labels,
+              bool do_expensive_check = false);
 
 /**
  * @brief Relabel old labels to new labels.
@@ -318,8 +311,6 @@ void relabel(raft::handle_t const& handle,
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights.
- * @tparam store_transposed Flag indicating whether to store the graph adjacency matrix as is or as
- * transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -332,25 +323,20 @@ void relabel(raft::handle_t const& handle,
  * @param num_subgraphs Number of induced subgraphs to extract.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>,
- * rmm::device_uvector<weight_t>, rmm::device_uvector<size_t>> Quadraplet of edge major (destination
- * if @p store_transposed is true, source otherwise) vertices, edge minor (source if @p
- * store_transposed  is true, destination otherwise) vertices, edge weights, and edge offsets for
- * each induced subgraphs (size == num_subgraphs + 1). The sizes of the edge major & minor vertices
- * are edge_offsets[num_subgraphs]. The size of the edge weights is either
- * edge_offsets[num_subgraphs] (if @p graph_view is weighted) or 0 (if @p graph_view is unweighted).
+ * rmm::device_uvector<weight_t>, rmm::device_uvector<size_t>> Quadraplet of edge rows (source
+ * vertices), edge columns (destination vertices), edge weights, and edge offsets for each induced
+ * subgraphs (size == num_subgraphs + 1). The sizes of the edge rows and columns are
+ * edge_offsets[num_subgraphs]. The size of the edge weights is edge_offsets[num_subgraphs] if valid
+ * (valid if @p graph_view.is_weighted() is true).
  */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract_induced_subgraphs(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
   size_t const* subgraph_offsets /* size == num_subgraphs + 1 */,
   vertex_t const* subgraph_vertices /* size == subgraph_offsets[num_subgraphs] */,
   size_t num_subgraphs,
@@ -362,8 +348,6 @@ extract_induced_subgraphs(
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam store_transposed Flag indicating whether to store the graph adjacency matrix as is or as
- * transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -378,16 +362,12 @@ extract_induced_subgraphs(
  * @param graph_properties Properties of the graph represented by the input (optional vertex list
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not.
- * @return std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed,
- * multi_gpu>, rmm::device_uvector<vertex_t>> Pair of the generated graph and the renumber map (if
- * @p renumber is true) or std::nullopt (if @p renumber is false).
+ * @return std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, multi_gpu>,
+ * rmm::device_uvector<vertex_t>> Pair of the generated graph and the renumber map (if @p renumber
+ * is true) or std::nullopt (if @p renumber is false).
  */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(raft::handle_t const& handle,
                            std::optional<rmm::device_uvector<vertex_t>>&& vertex_span,
