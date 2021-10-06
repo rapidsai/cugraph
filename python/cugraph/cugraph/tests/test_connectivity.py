@@ -417,9 +417,8 @@ def test_scipy_api_compat_strong(single_dataset_nxresults_strong):
     assert_scipy_api_compat(graph_file, api_type)
 
 
-# FIXME: removing "weak" due to Ampere crash
-# @pytest.mark.parametrize("connection_type", ["strong", "weak"])
-@pytest.mark.parametrize("connection_type", ["strong"])
+@pytest.mark.skipif(is_ampere, reason="skipping on Ampere")
+@pytest.mark.parametrize("connection_type", ["strong", "weak"])
 def test_scipy_api_compat(connection_type):
     if connection_type == "strong":
         graph_file = utils.STRONGDATASETS[0]
