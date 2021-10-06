@@ -17,9 +17,10 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 #include <cugraph/graph_generators.hpp>
 
+#include <thrust/execution_policy.h>
 #include <thrust/sort.h>
 
 #include <gtest/gtest.h>
@@ -76,13 +77,13 @@ void er_test(size_t num_vertices, float p)
   ASSERT_EQ(std::count_if(h_src_v.begin(),
                           h_src_v.end(),
                           [n = static_cast<vertex_t>(num_vertices)](auto v) {
-                            return !cugraph::experimental::is_valid_vertex(n, v);
+                            return !cugraph::is_valid_vertex(n, v);
                           }),
             0);
   ASSERT_EQ(std::count_if(h_dst_v.begin(),
                           h_dst_v.end(),
                           [n = static_cast<vertex_t>(num_vertices)](auto v) {
-                            return !cugraph::experimental::is_valid_vertex(n, v);
+                            return !cugraph::is_valid_vertex(n, v);
                           }),
             0);
 }

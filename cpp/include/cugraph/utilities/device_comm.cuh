@@ -28,7 +28,6 @@
 #include <type_traits>
 
 namespace cugraph {
-namespace experimental {
 
 namespace detail {
 
@@ -377,11 +376,8 @@ device_bcast_impl(raft::comms::comms_t const& comm,
 {
   static_assert(std::is_same<typename std::iterator_traits<InputIterator>::value_type,
                              typename std::iterator_traits<OutputIterator>::value_type>::value);
-  if (comm.get_rank() == root) {
-    comm.bcast(iter_to_raw_ptr(input_first), count, root, stream_view.value());
-  } else {
-    comm.bcast(iter_to_raw_ptr(output_first), count, root, stream_view.value());
-  }
+  comm.bcast(
+    iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, root, stream_view.value());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -1091,5 +1087,4 @@ device_gatherv(raft::comms::comms_t const& comm,
     .run(comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream_view);
 }
 
-}  // namespace experimental
 }  // namespace cugraph

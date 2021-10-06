@@ -15,9 +15,9 @@
  */
 
 #pragma once
-#include <rmm/thrust_rmm_allocator.h>
 #include <cugraph/utilities/error.hpp>
 #include <raft/handle.hpp>
+#include <rmm/device_vector.hpp>
 
 namespace cugraph {
 namespace mg {

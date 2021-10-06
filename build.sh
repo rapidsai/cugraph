@@ -19,14 +19,15 @@ ARGS=$*
 REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 
-VALIDARGS="clean uninstall libcugraph cugraph cpp-mgtests docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn -h --help"
+VALIDARGS="clean uninstall libcugraph cugraph pylibcugraph cpp-mgtests docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn --skip_cpp_tests -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
    uninstall        - uninstall libcugraph and cugraph from a prior build/install (see also -n)
-   libcugraph       - build the cugraph C++ code
+   libcugraph       - build libcugraph.so and SG test binaries
    cugraph          - build the cugraph Python package
-   cpp-mgtests      - build libcugraph mnmg tests. Builds MPI communicator, adding MPI as a dependency.
+   pylibcugraph     - build the pylibcugraph Python package
+   cpp-mgtests      - build libcugraph MG tests. Builds MPI communicator, adding MPI as a dependency.
    docs             - build the docs
  and <flag> is:
    -v               - verbose build mode
@@ -35,6 +36,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --allgpuarch     - build for all supported GPU architectures
    --buildfaiss     - build faiss statically into cugraph
    --show_depr_warn - show cmake deprecation warnings
+   --skip_cpp_tests - do not build the SG test binaries as part of the libcugraph target
    -h               - print this text
 
  default action (no args) is to build and install 'libcugraph' then 'cugraph' then 'docs' targets
@@ -51,6 +53,7 @@ VERBOSE_FLAG=""
 BUILD_TYPE=Release
 INSTALL_TARGET=install
 BUILD_DISABLE_DEPRECATION_WARNING=ON
+BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_STATIC_FAISS=OFF
 BUILD_ALL_GPU_ARCH=0
@@ -104,6 +107,9 @@ fi
 if hasArg --show_depr_warn; then
     BUILD_DISABLE_DEPRECATION_WARNING=OFF
 fi
+if hasArg --skip_cpp_tests; then
+    BUILD_CPP_TESTS=OFF
+fi
 if hasArg cpp-mgtests; then
     BUILD_CPP_MG_TESTS=ON
 fi
@@ -120,11 +126,14 @@ if hasArg uninstall; then
     if [ -e ${LIBCUGRAPH_BUILD_DIR}/install_manifest.txt ]; then
         xargs rm -f < ${LIBCUGRAPH_BUILD_DIR}/install_manifest.txt > /dev/null 2>&1
     fi
-    # uninstall cugraph installed from a prior "setup.py install"
-    pip uninstall -y cugraph
+    # uninstall cugraph and pylibcugraph installed from a prior "setup.py
+    # install"
+    pip uninstall -y cugraph pylibcugraph
 fi
 
 if hasArg clean; then
+    # Ignore errors for clean since missing files, etc. are not failures
+    set +e
     # remove artifacts generated inplace
     # FIXME: ideally the "setup.py clean" command would be used for this, but
     # currently running any setup.py command has side effects (eg. cloning
@@ -149,6 +158,8 @@ if hasArg clean; then
 	    rmdir ${bd} || true
 	fi
     done
+    # Go back to failing on first error for all other operations
+    set -e
 fi
 
 ################################################################################
@@ -168,14 +179,28 @@ if buildAll || hasArg libcugraph; then
           -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DBUILD_STATIC_FAISS=${BUILD_STATIC_FAISS} \
+          -DBUILD_TESTS=${BUILD_CPP_TESTS} \
           -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
           ${REPODIR}/cpp
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
 fi
 
+# Build, and install pylibcugraph
+if buildAll || hasArg pylibcugraph; then
+    cd ${REPODIR}/python/pylibcugraph
+    # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
+    # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
+    CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
+    env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py build_ext --inplace --library-dir=${LIBCUGRAPH_BUILD_DIR}
+    if [[ ${INSTALL_TARGET} != "" ]]; then
+	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py install
+    fi
+fi
+
 # Build and install the cugraph Python package
 if buildAll || hasArg cugraph; then
-    cd ${REPODIR}/python
+    cd ${REPODIR}/python/cugraph
+    # FIXME: this needs to eventually reference the pylibcugraph build
     # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
     # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
     CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}

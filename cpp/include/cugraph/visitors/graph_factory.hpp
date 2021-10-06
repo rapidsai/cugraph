@@ -30,7 +30,7 @@
 // just to make happy the clang-format policy
 // of header inclusion to be order-independent...
 //
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #define _DEBUG_
@@ -41,8 +41,6 @@
 
 namespace cugraph {
 namespace visitors {
-
-using namespace cugraph::experimental;
 
 struct graph_factory_base_t {
   virtual ~graph_factory_base_t(void) {}
@@ -161,15 +159,11 @@ struct graph_factory_t<
     std::optional<std::vector<vertex_t>>
       opt_seg_off{};  // FIXME: may needd to pass/extract segment_offsets vector
 
+    graph_meta_t<vertex_t, edge_t, multi_gpu> meta{
+      num_global_vertices, num_global_edges, graph_props, partition, opt_seg_off};
+
     return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
-      handle,
-      edgelist,
-      partition,
-      num_global_vertices,
-      num_global_edges,
-      graph_props,
-      opt_seg_off,
-      do_expensive_check);
+      handle, edgelist, meta, do_expensive_check);
   }
 };
 
@@ -186,24 +180,18 @@ struct graph_factory_t<
     /// std::cout << "Single-GPU factory.\n";
     std::vector<void*> const& v_args{ep.get_args()};
 
-    assert(v_args.size() == 6);
+    assert(v_args.size() == 4);
 
     raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
 
     auto const& elist = *static_cast<edgelist_t<vertex_t, edge_t, weight_t> const*>(v_args[1]);
 
-    auto nv = *static_cast<vertex_t*>(v_args[2]);
+    auto meta = *static_cast<graph_meta_t<vertex_t, edge_t, multi_gpu> const*>(v_args[2]);
 
-    auto props = *static_cast<graph_properties_t*>(v_args[3]);
-
-    bool sorted = *static_cast<bool*>(v_args[4]);  // FIXME: no need to pass this!
-
-    bool check = *static_cast<bool*>(v_args[5]);
-
-    std::optional<std::vector<vertex_t>> opt_seg_off{};  // should not be needed for (!multi_gpu)
+    bool check = *static_cast<bool*>(v_args[3]);
 
     return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
-      handle, elist, nv, props, opt_seg_off, check);
+      handle, elist, meta, check);
   }
 };
 

@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -33,7 +33,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace experimental {
 
 // for key = [map_key_first, map_key_last), key_to_gpu_id_op(key) should be coincide with
 // comm.get_rank()
@@ -144,8 +143,7 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
     thrust::distance(collect_key_first, collect_key_last), stream_view);
-  kv_map_ptr->find(
-    collect_key_first, collect_key_last, get_dataframe_buffer_begin<value_t>(value_buffer));
+  kv_map_ptr->find(collect_key_first, collect_key_last, get_dataframe_buffer_begin(value_buffer));
 
   return value_buffer;
 }
@@ -255,12 +253,10 @@ collect_values_for_unique_keys(raft::comms::comms_t const& comm,
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
     thrust::distance(collect_unique_key_first, collect_unique_key_last), stream_view);
-  kv_map_ptr->find(collect_unique_key_first,
-                   collect_unique_key_last,
-                   get_dataframe_buffer_begin<value_t>(value_buffer));
+  kv_map_ptr->find(
+    collect_unique_key_first, collect_unique_key_last, get_dataframe_buffer_begin(value_buffer));
 
   return value_buffer;
 }
 
-}  // namespace experimental
 }  // namespace cugraph

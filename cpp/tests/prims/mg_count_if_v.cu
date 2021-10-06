@@ -25,7 +25,7 @@
 #include <cugraph/partition_manager.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
-#include <cugraph/experimental/graph_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/count_if_v.cuh>
 
 #include <thrust/count.h>
@@ -38,11 +38,6 @@
 #include <gtest/gtest.h>
 
 #include <random>
-
-// do the perf measurements
-// enabled by command line parameter s'--perf'
-//
-static int PERF = 0;
 
 template <typename vertex_t>
 struct test_predicate {
@@ -93,16 +88,16 @@ class Tests_MG_CountIfV
 
     // 2. create MG graph
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
     auto [mg_graph, d_mg_renumber_map_labels] =
-      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
-        handle, true, true);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
+        handle, input_usecase, true, true);
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -116,7 +111,7 @@ class Tests_MG_CountIfV
 
     // 3. run MG count if
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
@@ -126,7 +121,7 @@ class Tests_MG_CountIfV
     auto vertex_count =
       count_if_v(handle, mg_graph_view, data, test_predicate<vertex_t>(hash_bin_count));
 
-    if (PERF) {
+    if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
@@ -137,14 +132,13 @@ class Tests_MG_CountIfV
     // 4. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(
-        handle);
+      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
       std::tie(sg_graph, std::ignore) =
-        input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-          handle, true, false);
+        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
+          handle, input_usecase, true, false);
       auto sg_graph_view = sg_graph.view();
       auto expected_vertex_count =
-        thrust::count_if(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::count_if(handle.get_thrust_policy(),
                          thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
                          thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
                          test_predicate<vertex_t>(hash_bin_count));
@@ -165,7 +159,22 @@ TEST_P(Tests_MG_CountIfV_File, CheckInt32Int32FloatTransposeFalse)
 TEST_P(Tests_MG_CountIfV_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, false>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, false>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_CountIfV_Rmat, CheckInt32Int64FloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, false>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_CountIfV_Rmat, CheckInt64Int64FloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, false>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 TEST_P(Tests_MG_CountIfV_File, CheckInt32Int32FloatTransposeTrue)
@@ -177,7 +186,22 @@ TEST_P(Tests_MG_CountIfV_File, CheckInt32Int32FloatTransposeTrue)
 TEST_P(Tests_MG_CountIfV_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, true>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, true>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_CountIfV_Rmat, CheckInt32Int64FloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, true>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_CountIfV_Rmat, CheckInt64Int64FloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, true>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -198,7 +222,11 @@ INSTANTIATE_TEST_SUITE_P(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_large_test,
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
   Tests_MG_CountIfV_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(

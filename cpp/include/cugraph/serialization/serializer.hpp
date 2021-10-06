@@ -18,7 +18,7 @@
 //
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 
 #include <rmm/device_uvector.hpp>
 
@@ -29,8 +29,6 @@
 
 namespace cugraph {
 namespace serializer {
-
-using namespace cugraph::experimental;
 
 class serializer_t {
  public:

@@ -41,7 +41,6 @@ template <typename graph_t>
 graph_t graph_broadcast(raft::handle_t const& handle, graph_t* graph_ptr)
 {
   using namespace cugraph::serializer;
-  using namespace cugraph::experimental;
 
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;

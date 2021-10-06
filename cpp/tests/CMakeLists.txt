@@ -1,5 +1,4 @@
-﻿#=============================================================================
-#
+﻿#
 # Copyright (c) 2019-2021, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +20,6 @@
 
 add_library(cugraphtestutil STATIC
             utilities/matrix_market_file_utilities.cu
-            utilities/rmat_utilities.cpp
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
             components/wcc_graphs.cu
@@ -50,7 +48,7 @@ target_link_libraries(cugraphtestutil
 
 
 add_library(cugraphmgtestutil STATIC
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/device_comm_wrapper.cu")
+            utilities/device_comm_wrapper.cu)
 
 set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
 
@@ -219,11 +217,13 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
 
     add_test(NAME ${CMAKE_TEST_NAME}
              COMMAND ${MPIEXEC_EXECUTABLE}
+             "--noprefix"
              ${MPIEXEC_NUMPROC_FLAG}
              ${GPU_COUNT}
              ${MPIEXEC_PREFLAGS}
              ${CMAKE_TEST_NAME}
              ${MPIEXEC_POSTFLAGS})
+
 endfunction()
 
 ###################################################################################################
@@ -242,36 +242,28 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 
 ###################################################################################################
 # - graph generator tests -------------------------------------------------------------------------
-
-set(GRAPH_GENERATORS_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/generators/generators_test.cpp")
-
-  ConfigureTest(GRAPH_GENERATORS_TEST "${GRAPH_GENERATORS_TEST_SRC}")
+ConfigureTest(GRAPH_GENERATORS_TEST generators/generators_test.cpp)
 
 ###################################################################################################
 # - erdos renyi graph generator tests -------------------------------------------------------------
-
-set(ERDOS_RENYI_GENERATOR_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/generators/erdos_renyi_test.cpp")
-
-  ConfigureTest(ERDOS_RENYI_GENERATOR_TEST "${ERDOS_RENYI_GENERATOR_TEST_SRC}")
+ConfigureTest(ERDOS_RENYI_GENERATOR_TEST generators/erdos_renyi_test.cpp)
 
 ###################################################################################################
 # - katz centrality tests -------------------------------------------------------------------------
-ConfigureTest(KATZ_TEST centrality/katz_centrality_test.cu)
+ConfigureTest(LEGACY_KATZ_TEST centrality/legacy/katz_centrality_test.cu)
 
 ###################################################################################################
 # - betweenness centrality tests ------------------------------------------------------------------
-ConfigureTest(BETWEENNESS_TEST centrality/betweenness_centrality_test.cu)
-ConfigureTest(EDGE_BETWEENNESS_TEST centrality/edge_betweenness_centrality_test.cu)
+ConfigureTest(LEGACY_BETWEENNESS_TEST centrality/legacy/betweenness_centrality_test.cu)
+ConfigureTest(LEGACY_EDGE_BETWEENNESS_TEST centrality/legacy/edge_betweenness_centrality_test.cu)
 
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
-ConfigureTest(SSSP_TEST traversal/sssp_test.cu)
+ConfigureTest(LEGACY_SSSP_TEST traversal/legacy/sssp_test.cu)
 
 ###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
-ConfigureTest(BFS_TEST traversal/bfs_test.cu)
+ConfigureTest(LEGACY_BFS_TEST traversal/legacy/bfs_test.cu)
 
 ###################################################################################################
 # - LOUVAIN tests ---------------------------------------------------------------------------------
@@ -302,10 +294,6 @@ ConfigureTest(EGO_TEST community/egonet_test.cu)
 ConfigureTest(FA2_TEST layout/force_atlas2_test.cu)
 
 ###################################################################################################
-# - TSP  tests --------------------------------------------------------------------------
-ConfigureTest(TSP_TEST traversal/tsp_test.cu)
-
-###################################################################################################
 # - CONNECTED COMPONENTS  tests -------------------------------------------------------------------
 ConfigureTest(CONNECT_TEST components/con_comp_test.cu)
 
@@ -327,63 +315,63 @@ ConfigureTest(MST_TEST tree/mst_test.cu)
 
 ###################################################################################################
 # - Experimental stream tests -----------------------------------------------------
-ConfigureTest(EXPERIMENTAL_STREAM experimental/streams.cu)
+ConfigureTest(STREAM_TEST structure/streams.cu)
 
 ###################################################################################################
 # - Experimental R-mat graph generation tests -----------------------------------------------------
-ConfigureTest(EXPERIMENTAL_GENERATE_RMAT_TEST experimental/generate_rmat_test.cpp)
+ConfigureTest(GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 
 ###################################################################################################
 # - Experimental Graph tests ----------------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_GRAPH_TEST experimental/graph_test.cpp)
+ConfigureTest(GRAPH_TEST structure/graph_test.cpp)
 
 ###################################################################################################
 # - Experimental weight-sum tests -----------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_WEIGHT_SUM_TEST experimental/weight_sum_test.cpp)
+ConfigureTest(WEIGHT_SUM_TEST structure/weight_sum_test.cpp)
 
 ###################################################################################################
 # - Experimental degree tests ---------------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_DEGREE_TEST experimental/degree_test.cpp)
+ConfigureTest(DEGREE_TEST structure/degree_test.cpp)
 
 ###################################################################################################
 # - Experimental coarsening tests -----------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_COARSEN_GRAPH_TEST experimental/coarsen_graph_test.cpp)
+ConfigureTest(COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 
 ###################################################################################################
 # - Experimental induced subgraph tests -----------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_INDUCED_SUBGRAPH_TEST experimental/induced_subgraph_test.cpp)
+ConfigureTest(INDUCED_SUBGRAPH_TEST community/induced_subgraph_test.cpp)
 
 ###################################################################################################
 # - Experimental BFS tests ------------------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_BFS_TEST experimental/bfs_test.cpp)
+ConfigureTest(BFS_TEST traversal/bfs_test.cpp)
 
 ###################################################################################################
-# - Experimental Multi-source BFS tests -----------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_MSBFS_TEST experimental/ms_bfs_test.cpp)
+# - Experimental Multi-source BFS tests ----------------------------------------------------------
+ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu)
 
 ###################################################################################################
 # - Experimental SSSP tests -----------------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_SSSP_TEST experimental/sssp_test.cpp)
+ConfigureTest(SSSP_TEST traversal/sssp_test.cpp)
 
 ###################################################################################################
 # - Experimental PAGERANK tests -------------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_PAGERANK_TEST experimental/pagerank_test.cpp)
+ConfigureTest(PAGERANK_TEST link_analysis/pagerank_test.cpp)
 
 ###################################################################################################
 # - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------
-ConfigureTest(EXPERIMENTAL_KATZ_CENTRALITY_TEST experimental/katz_centrality_test.cpp)
+ConfigureTest(KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp)
 
 ###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
-
-set(WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/components/weakly_connected_components_test.cpp")
-
-ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST "${WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS}")
+ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
 ###################################################################################################
 # - Experimental RANDOM_WALKS tests ---------------------------------------------------------------
 ConfigureTest(RANDOM_WALKS_TEST sampling/random_walks_test.cu)
+
+###################################################################################################
+# - Experimental RANDOM_WALKS Segmented Sort tests ------------------------------------------------
+ConfigureTest(RANDOM_WALKS_SEG_SORT_TEST sampling/rw_biased_seg_sort.cu)
 
 ###################################################################################################
 ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
@@ -396,20 +384,18 @@ ConfigureTest(RANDOM_WALKS_PROFILING sampling/random_walks_profiling.cu)
 
 ###################################################################################################
 # - Serialization tests ---------------------------------------------------------------------------
+ConfigureTest(SERIALIZATION_TEST serialization/un_serialize_test.cpp)
 
-set(SERIALIZATION_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/serialization/un_serialize_test.cpp")
+###################################################################################################
+# - Experimental renumber tests -------------------------------------------------------------------
+set(RENUMBERING_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/structure/renumbering_test.cpp")
 
-ConfigureTest(SERIALIZATION_TEST "${SERIALIZATION_TEST_SRCS}")
-
+ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
 
 ###################################################################################################
 # - BFS Visitor tests -----------------------------------------------------------------------------
-
-set(BFS_VISITOR_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/visitors/bfs_test.cpp")
-
-ConfigureTest(BFS_VISITOR_TEST "${BFS_VISITOR_TEST_SRCS}")
+ConfigureTest(BFS_VISITOR_TEST visitors/bfs_test.cpp)
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
@@ -431,19 +417,19 @@ if(BUILD_CUGRAPH_MG_TESTS)
     if(MPI_CXX_FOUND)
         ###########################################################################################
         # - MG PAGERANK tests ---------------------------------------------------------------------
-        ConfigureTestMG(MG_PAGERANK_TEST pagerank/mg_pagerank_test.cpp)
+        ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
 
         ###########################################################################################
         # - MG KATZ CENTRALITY tests --------------------------------------------------------------
-        ConfigureTestMG(MG_KATZ_CENTRALITY_TEST experimental/mg_katz_centrality_test.cpp)
+        ConfigureTestMG(MG_KATZ_CENTRALITY_TEST centrality/mg_katz_centrality_test.cpp)
 
         ###########################################################################################
         # - MG BFS tests --------------------------------------------------------------------------
-        ConfigureTestMG(MG_BFS_TEST experimental/mg_bfs_test.cpp)
+        ConfigureTestMG(MG_BFS_TEST traversal/mg_bfs_test.cpp)
 
         ###########################################################################################
         # - MG SSSP tests -------------------------------------------------------------------------
-        ConfigureTestMG(MG_SSSP_TEST experimental/mg_sssp_test.cpp)
+        ConfigureTestMG(MG_SSSP_TEST traversal/mg_sssp_test.cpp)
 
         ###########################################################################################
         # - MG LOUVAIN tests ----------------------------------------------------------------------
@@ -467,6 +453,18 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
         ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
+
+        ###########################################################################################
+        # - MG PRIMS TRANSFORM_REDUCE_V tests -----------------------------------------------------
+        ConfigureTestMG(MG_TRANSFORM_REDUCE_V_TEST prims/mg_transform_reduce_v.cu)
+
+        ###########################################################################################
+        # - MG PRIMS TRANSFORM_REDUCE_E tests -----------------------------------------------------
+        ConfigureTestMG(MG_TRANSFORM_REDUCE_E_TEST prims/mg_transform_reduce_e.cu)
+
+        ###########################################################################################
+        # - MG PRIMS COUNT_IF_E tests -------------------------------------------------------------
+        ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()

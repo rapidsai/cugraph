@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
+#include <cugraph/graph.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/graph_traits.hpp>
@@ -112,7 +112,7 @@ struct graph_container_t {
   int col_comm_size;
   int row_comm_rank;
   int col_comm_rank;
-  experimental::graph_properties_t graph_props;
+  graph_properties_t graph_props;
 };
 
 /**
@@ -259,7 +259,7 @@ struct renum_tuple_t {
     return std::make_pair(std::make_unique<rmm::device_buffer>(dv_.release()), sizeof(vertex_t));
   }
 
-  cugraph::experimental::partition_t<vertex_t>& get_partition(void) { return part_; }
+  cugraph::partition_t<vertex_t>& get_partition(void) { return part_; }
   vertex_t& get_num_vertices(void) { return nv_; }
   edge_t& get_num_edges(void) { return ne_; }
 
@@ -360,7 +360,7 @@ struct renum_tuple_t {
 
  private:
   rmm::device_uvector<vertex_t> dv_;
-  cugraph::experimental::partition_t<vertex_t> part_;
+  cugraph::partition_t<vertex_t> part_;
   vertex_t nv_{0};
   edge_t ne_{0};
   std::vector<vertex_t> segment_offsets_;
@@ -497,7 +497,8 @@ void call_bfs(raft::handle_t const& handle,
               vertex_t* distances,
               vertex_t* predecessors,
               vertex_t depth_limit,
-              const vertex_t start_vertex,
+              vertex_t* sources,
+              size_t n_sources,
               bool direction_optimizing);
 
 // Wrapper for calling SSSP through a graph container
@@ -550,7 +551,7 @@ call_generate_rmat_edgelists(raft::handle_t const& handle,
 // wrapper for random_walks.
 //
 template <typename vertex_t, typename edge_t>
-std::enable_if_t<cugraph::experimental::is_vertex_edge_combo<vertex_t, edge_t>::value,
+std::enable_if_t<cugraph::is_vertex_edge_combo<vertex_t, edge_t>::value,
                  std::unique_ptr<random_walk_ret_t>>
 call_random_walks(raft::handle_t const& handle,
                   graph_container_t const& graph_container,

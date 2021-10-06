@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/experimental/graph.hpp>
-#include <cugraph/experimental/graph_functions.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/legacy/graph.hpp>
 
 #include <thrust/iterator/zip_iterator.h>
@@ -113,10 +113,11 @@ static const std::string& get_rapids_dataset_root_dir()
 }
 
 // returns a tuple of (rows, columns, weights, number_of_vertices, is_symmetric)
-template <typename vertex_t, typename weight_t>
+template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
+           rmm::device_uvector<vertex_t>,
            vertex_t,
            bool>
 read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
@@ -129,33 +130,12 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    std::string const& graph_file_full_path,
                                    bool test_weighted,
                                    bool renumber);
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           std::optional<rmm::device_uvector<vertex_t>>>
-generate_graph_from_rmat_params(raft::handle_t const& handle,
-                                size_t scale,
-                                size_t edge_factor,
-                                double a,
-                                double b,
-                                double c,
-                                uint64_t seed,
-                                bool undirected,
-                                bool scramble_vertex_ids,
-                                bool test_weighted,
-                                bool renumber,
-                                std::vector<size_t> const& partition_ids,
-                                size_t num_partitions);
 
 // alias for easy customization for debug purposes:
 //
@@ -170,8 +150,6 @@ decltype(auto) make_graph(raft::handle_t const& handle,
                           vertex_t num_vertices,
                           edge_t num_edges)
 {
-  using namespace cugraph::experimental;
-
   vector_test_t<vertex_t> d_src(num_edges, handle.get_stream());
   vector_test_t<vertex_t> d_dst(num_edges, handle.get_stream());
   auto d_w = v_w ? std::make_optional<vector_test_t<weight_t>>(num_edges, handle.get_stream())
@@ -183,15 +161,15 @@ decltype(auto) make_graph(raft::handle_t const& handle,
     raft::update_device((*d_w).data(), (*v_w).data(), (*d_w).size(), handle.get_stream());
   }
 
-  cugraph::experimental::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+  cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
   std::tie(graph, std::ignore) =
-    cugraph::experimental::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+    cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
       handle,
       std::nullopt,
       std::move(d_src),
       std::move(d_dst),
       std::move(d_w),
-      cugraph::experimental::graph_properties_t{false, false},
+      cugraph::graph_properties_t{false, false},
       false);
 
   return graph;
