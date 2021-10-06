@@ -42,7 +42,7 @@ with warnings.catch_warnings():
 
 
 # FIXME: WCC currently crashes on Ampere. Detect the GPU arch here and use it
-# for conditional skipping.  Remove this code when the Ampere crash is resolved.
+# for conditional skipping. Remove this code when the Ampere crash is resolved.
 from numba import cuda
 is_ampere = False
 device = cuda.get_current_device()
@@ -418,7 +418,7 @@ def test_scipy_api_compat_strong(single_dataset_nxresults_strong):
 
 
 # FIXME: removing "weak" due to Ampere crash
-#@pytest.mark.parametrize("connection_type", ["strong", "weak"])
+# @pytest.mark.parametrize("connection_type", ["strong", "weak"])
 @pytest.mark.parametrize("connection_type", ["strong"])
 def test_scipy_api_compat(connection_type):
     if connection_type == "strong":
