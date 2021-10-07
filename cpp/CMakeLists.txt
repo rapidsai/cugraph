@@ -63,25 +63,25 @@ endif()
 
 set(CMAKE_CUDA_ARCHITECTURES ${usable_arch_values})
 
-
 # Write the version header
 rapids_cmake_write_version_file(include/cugraph/version_config.hpp)
+rapids_cmake_write_version_file(include/cugraph_c/version_config.hpp)
 
-###################################################################################################
-# - build type ------------------------------------------------------------------------------------
+################################################################################
+# - build type -----------------------------------------------------------------
 
 # Set a default build type if none was specified
 rapids_cmake_build_type(Release)
 
-##############################################################################
-# - User Options  ------------------------------------------------------------
+################################################################################
+# - User Options  --------------------------------------------------------------
 
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 
-###################################################################################################
-# - compiler options ------------------------------------------------------------------------------
+################################################################################
+# - compiler options -----------------------------------------------------------
 
 rapids_find_package(CUDAToolkit REQUIRED
     BUILD_EXPORT_SET    cugraph-exports
@@ -115,8 +115,8 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     list(APPEND CUGRAPH_CUDA_FLAGS -G -Xcompiler=-rdynamic)
 endif()
 
-###################################################################################################
-# - find openmp -----------------------------------------------------------------------------------
+################################################################################
+# - find openmp ----------------------------------------------------------------
 
 find_package(OpenMP)
 if(OpenMP_FOUND)
@@ -134,8 +134,8 @@ include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
 include(cmake/thirdparty/get_gunrock.cmake)
 
-###################################################################################################
-# - library targets -------------------------------------------------------------------------------
+################################################################################
+# - libcugraph library target --------------------------------------------------
 
 add_library(cugraph SHARED
     src/detail/utility_wrappers.cu
@@ -206,6 +206,8 @@ add_library(cugraph SHARED
     src/visitors/graph_envelope.cpp
     src/visitors/visitors_factory.cpp
     src/visitors/bfs_visitor.cpp
+    src/visitors/rw_visitor.cpp
+    src/visitors/graph_make_visitor.cpp
 )
 
 set_target_properties(cugraph
@@ -240,8 +242,9 @@ target_link_options(cugraph PRIVATE "${CUGRAPH_BINARY_DIR}/fatbin.ld")
 
 add_library(cugraph::cugraph ALIAS cugraph)
 
-###################################################################################################
-# - include paths ---------------------------------------------------------------------------------
+################################################################################
+# - include paths --------------------------------------------------------------
+
 target_include_directories(cugraph
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
@@ -252,8 +255,8 @@ target_include_directories(cugraph
         "$<INSTALL_INTERFACE:include>"
 )
 
-###################################################################################################
-# - link libraries --------------------------------------------------------------------------------
+################################################################################
+# - link libraries -------------------------------------------------------------
 target_link_libraries(cugraph
     PUBLIC
         raft::raft
@@ -265,7 +268,7 @@ target_link_libraries(cugraph
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
-###################################################################################################
+################################################################################
 ###   Use ${OpenMP_CXX_LIB_NAMES} instead of OpenMP::OpenMP_CXX to avoid the following warnings.
 ###
 ###   Cannot generate a safe runtime search path for target TARGET_NAME
@@ -314,17 +317,62 @@ target_link_libraries(cugraph PRIVATE
     ${OpenMP_CXX_LIB_NAMES})
 endif()
 
+################################################################################
+# - C-API library --------------------------------------------------------------
 
-###################################################################################################
-# - generate tests --------------------------------------------------------------------------------
+add_library(cugraph_c SHARED
+        src/c_api/cugraph_api.cpp
+        )
+add_library(cugraph::cugraph_c ALIAS cugraph_c)
+
+# Currently presuming we aren't calling any CUDA kernels in cugraph_c
+
+set_target_properties(cugraph_c
+    PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+               INSTALL_RPATH                       "\$ORIGIN"
+               # set target compile options
+               CXX_STANDARD                        17
+               CXX_STANDARD_REQUIRED               ON
+               INTERFACE_POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_options(cugraph_c
+            PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+)
+
+################################################################################
+# - C-API include paths --------------------------------------------------------
+target_include_directories(cugraph_c
+    PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+        "$<INSTALL_INTERFACE:include>"
+)
+
+################################################################################
+# - C-API link libraries -------------------------------------------------------
+target_link_libraries(cugraph_c
+        PUBLIC
+                FAISS::FAISS
+                CUDA::cublas
+                CUDA::curand
+                CUDA::cusolver
+                CUDA::cusparse
+        PRIVATE
+                cugraph::cugraph
+)
+
+################################################################################
+# - generate tests -------------------------------------------------------------
 
 if(BUILD_TESTS)
   include(CTest)
   add_subdirectory(tests)
 endif()
 
-###################################################################################################
-# - install targets -------------------------------------------------------------------------------
+################################################################################
+# - install targets ------------------------------------------------------------
 rapids_cmake_install_lib_dir( lib_dir )
 include(CPack)
 
@@ -338,8 +386,18 @@ install(DIRECTORY include/cugraph/
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph/version_config.hpp
         DESTINATION include/cugraph)
 
-################################################################################################
-# - install export -------------------------------------------------------------------------------
+install(TARGETS cugraph_c
+        DESTINATION ${lib_dir})
+
+install(DIRECTORY include/cugraph_c/
+        DESTINATION include/cugraph_c)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph_c/version_config.hpp
+        DESTINATION include/cugraph_c)
+
+################################################################################
+# - install export -------------------------------------------------------------
+
 set(doc_string
 [=[
 Provide targets for cuGraph.
@@ -353,24 +411,24 @@ set(code_string "")
 
 rapids_export(INSTALL cugraph
     EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph
+    GLOBAL_TARGETS cugraph cugraph_c
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
     FINAL_CODE_BLOCK code_string
     )
 
-################################################################################################
-# - build export -------------------------------------------------------------------------------
+################################################################################
+# - build export ---------------------------------------------------------------
 rapids_export(BUILD cugraph
     EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph
+    GLOBAL_TARGETS cugraph cugraph_c
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
     FINAL_CODE_BLOCK code_string
     )
 
-###################################################################################################
-# - make documentation ----------------------------------------------------------------------------
+################################################################################
+# - make documentation ---------------------------------------------------------
 # requires doxygen and graphviz to be installed
 # from build directory, run make docs_cugraph
 
