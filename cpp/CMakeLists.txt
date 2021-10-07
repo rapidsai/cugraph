@@ -354,7 +354,6 @@ target_include_directories(cugraph_c
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c
         PUBLIC
-                FAISS::FAISS
                 CUDA::cublas
                 CUDA::curand
                 CUDA::cusolver
