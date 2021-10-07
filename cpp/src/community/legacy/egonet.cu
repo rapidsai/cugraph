@@ -195,8 +195,8 @@ extract_ego(raft::handle_t const& handle,
                            rmm::device_uvector<size_t>(0, handle.get_stream()));
   }
   CUGRAPH_EXPECTS(
-    !graph_view.store_transposed(),
-    "Invalid input argument: graph_view.store_transposed() should be false for extract_ego.");
+    !graph_view.storage_transposed(),
+    "Invalid input argument: graph_view.storage_transposed() should be false for extract_ego.");
 
   CUGRAPH_EXPECTS(n_subgraphs > 0, "Need at least one source to extract the egonet from");
   CUGRAPH_EXPECTS(n_subgraphs < graph_view.get_number_of_vertices(),
@@ -215,7 +215,7 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const&,
-            graph_view_t<int32_t, int32_t, float, false, false> const&,
+            graph_view_t<int32_t, int32_t, float, false> const&,
             int32_t*,
             int32_t,
             int32_t);
@@ -224,7 +224,7 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const&,
-            graph_view_t<int32_t, int64_t, float, false, false> const&,
+            graph_view_t<int32_t, int64_t, float, false> const&,
             int32_t*,
             int32_t,
             int32_t);
@@ -233,7 +233,7 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const&,
-            graph_view_t<int64_t, int64_t, float, false, false> const&,
+            graph_view_t<int64_t, int64_t, float, false> const&,
             int64_t*,
             int64_t,
             int64_t);
@@ -244,7 +244,7 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const&,
-            graph_view_t<int32_t, int32_t, double, false, false> const&,
+            graph_view_t<int32_t, int32_t, double, false> const&,
             int32_t*,
             int32_t,
             int32_t);
@@ -253,7 +253,7 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const&,
-            graph_view_t<int32_t, int64_t, double, false, false> const&,
+            graph_view_t<int32_t, int64_t, double, false> const&,
             int32_t*,
             int32_t,
             int32_t);
@@ -262,7 +262,7 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const&,
-            graph_view_t<int64_t, int64_t, double, false, false> const&,
+            graph_view_t<int64_t, int64_t, double, false> const&,
             int64_t*,
             int64_t,
             int64_t);

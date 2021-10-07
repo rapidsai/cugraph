@@ -245,10 +245,12 @@ class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ 
   graph_base_t(raft::handle_t const& handle,
                vertex_t number_of_vertices,
                edge_t number_of_edges,
+               bool storage_transposed,
                graph_properties_t properties)
     : handle_ptr_(&handle),
       number_of_vertices_(number_of_vertices),
       number_of_edges_(number_of_edges),
+      storage_transposed_(storage_transposed),
       properties_(properties){};
 
   vertex_t get_number_of_vertices() const { return number_of_vertices_; }
@@ -301,9 +303,10 @@ struct graph_view_meta_t;
 // multi-GPU version
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 struct graph_view_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>> {
-  vertex_t number_of_vertices;
-  edge_t number_of_edges;
-  graph_properties_t properties;
+  vertex_t number_of_vertices{};
+  edge_t number_of_edges{};
+  bool storage_transposed{};
+  graph_properties_t properties{};
 
   partition_t<vertex_t> partition{};
 
@@ -321,8 +324,9 @@ struct graph_view_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu
 // single-GPU version
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 struct graph_view_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
-  vertex_t number_of_vertices;
-  edge_t number_of_edges;
+  vertex_t number_of_vertices{};
+  edge_t number_of_edges{};
+  bool storage_transposed{};
   graph_properties_t properties;
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered

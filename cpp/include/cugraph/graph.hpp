@@ -134,6 +134,7 @@ class graph_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>
       graph_view_meta_t<vertex_t, edge_t, multi_gpu>{
         this->get_number_of_vertices(),
         this->get_number_of_edges(),
+        this->storage_transposed(),
         this->get_graph_properties(),
         partition_,
         adj_matrix_partition_segment_offsets_,
@@ -212,6 +213,7 @@ class graph_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<!multi_gpu
       weights_ ? std::optional<weight_t const*>{(*weights_).data()} : std::nullopt,
       graph_view_meta_t<vertex_t, edge_t, multi_gpu>{this->get_number_of_vertices(),
                                                      this->get_number_of_edges(),
+                                                     this->storage_transposed(),
                                                      this->get_graph_properties(),
                                                      segment_offsets_},
       false);
@@ -246,19 +248,19 @@ class graph_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<!multi_gpu
   // cnstr. to be used _only_ for un/serialization purposes:
   //
   graph_t(raft::handle_t const& handle,
-          vertex_t number_of_vertices,
-          edge_t number_of_edges,
-          graph_properties_t properties,
           rmm::device_uvector<edge_t>&& offsets,
           rmm::device_uvector<vertex_t>&& indices,
           std::optional<rmm::device_uvector<weight_t>>&& weights,
-          std::optional<std::vector<vertex_t>>&& segment_offsets)
-    : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-        handle, number_of_vertices, number_of_edges, properties),
+          graph_meta_t<vertex_t, edge_t, multi_gpu> meta)
+    : detail::graph_base_t<vertex_t, edge_t, weight_t>(handle,
+                                                       meta.number_of_vertices,
+                                                       static_cast<edge_t>(indices.size()),
+                                                       meta.store_transposed,
+                                                       meta.properties),
       offsets_(std::move(offsets)),
       indices_(std::move(indices)),
       weights_(std::move(weights)),
-      segment_offsets_(std::move(segment_offsets))
+      segment_offsets_(std::move(meta.segment_offsets))
   {
   }
 

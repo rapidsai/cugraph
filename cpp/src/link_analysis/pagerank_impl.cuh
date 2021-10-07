@@ -62,8 +62,6 @@ void pagerank(
                 "GraphViewType::vertex_type should be integral.");
   static_assert(std::is_floating_point<result_t>::value,
                 "result_t should be a floating-point type.");
-  static_assert(GraphViewType::is_adj_matrix_transposed,
-                "GraphViewType should support the pull model.");
 
   auto const num_vertices = pull_graph_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
@@ -80,8 +78,8 @@ void pagerank(
   // 1. check input arguments
 
   CUGRAPH_EXPECTS(
-    graph_view.store_transposed(),
-    "Invalid input argument: graph_view.store_transposed() should be true for PageRank.");
+    pull_graph_view.storage_transposed(),
+    "Invalid input argument: pull_graph_view.storage_transposed() should be true for PageRank.");
 
   CUGRAPH_EXPECTS((personalization_vertices.has_value() == false) ||
                     (personalization_values.has_value() && personalization_vector_size.has_value()),
@@ -285,7 +283,7 @@ void pagerank(
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void pagerank(raft::handle_t const& handle,
-              graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
+              graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
               std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
               std::optional<vertex_t const*> personalization_vertices,
               std::optional<result_t const*> personalization_values,

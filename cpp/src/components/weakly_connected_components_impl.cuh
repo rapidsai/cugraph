@@ -231,9 +231,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
   // 1. check input arguments
 
-  CUGRAPH_EXPECTS(push_graph_view.storage_transposed(),
-                  "Invalid input argument: push_graph_view.storage_transposed() should be false for "
-                  "weakly connected components.");
+  CUGRAPH_EXPECTS(
+    push_graph_view.storage_transposed(),
+    "Invalid input argument: push_graph_view.storage_transposed() should be false for "
+    "weakly connected components.");
 
   CUGRAPH_EXPECTS(
     push_graph_view.is_symmetric(),
@@ -258,10 +259,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     static_cast<edge_t>(handle.get_device_properties().multiProcessorCount) * edge_t{1024};
 
   size_t num_levels{0};
-  graph_t<vertex_t,
-          edge_t,
-          typename GraphViewType::weight_type,
-          GraphViewType::is_multi_gpu>
+  graph_t<vertex_t, edge_t, typename GraphViewType::weight_type, GraphViewType::is_multi_gpu>
     level_graph(handle);
   rmm::device_uvector<vertex_t> level_renumber_map(0, handle.get_stream_view());
   std::vector<rmm::device_uvector<vertex_t>> level_component_vectors{};
@@ -702,16 +700,15 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
       std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
       std::tie(level_graph, tmp_renumber_map) =
-        create_graph_from_edgelist<vertex_t,
-                                   edge_t,
-                                   weight_t,
-                                   GraphViewType::is_multi_gpu>(handle,
-                                                                std::nullopt,
-                                                                std::move(std::get<0>(edge_buffer)),
-                                                                std::move(std::get<1>(edge_buffer)),
-                                                                std::nullopt,
-                                                                graph_properties_t{true, false},
-                                                                true);
+        create_graph_from_edgelist<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+          handle,
+          std::nullopt,
+          std::move(std::get<0>(edge_buffer)),
+          std::move(std::get<1>(edge_buffer)),
+          std::nullopt,
+          push_graph_view.storage_transposed(),
+          graph_properties_t{true, false},
+          true);
       level_renumber_map = std::move(*tmp_renumber_map);
     } else {
       break;

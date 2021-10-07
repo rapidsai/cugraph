@@ -29,21 +29,15 @@ namespace visitors {
 
 // primary empty template:
 //
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool st,
-          bool mg,
-          typename Enable = void>
+template <typename vertex_t, typename edge_t, typename weight_t, bool mg, typename Enable = void>
 struct bfs_visitor;
 
 // dummy out non-candidate instantiation paths:
 //
-template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
+template <typename vertex_t, typename edge_t, typename weight_t, bool mg>
 struct bfs_visitor<vertex_t,
                    edge_t,
                    weight_t,
-                   st,
                    mg,
                    std::enable_if_t<(!is_candidate<vertex_t, edge_t, weight_t>::value)>>
   : visitor_t {
@@ -58,11 +52,10 @@ struct bfs_visitor<vertex_t,
   }
 };
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
+template <typename vertex_t, typename edge_t, typename weight_t, bool mg>
 struct bfs_visitor<vertex_t,
                    edge_t,
                    weight_t,
-                   st,
                    mg,
                    std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>> : visitor_t {
   bfs_visitor(erased_pack_t& ep) : ep_(ep) {}

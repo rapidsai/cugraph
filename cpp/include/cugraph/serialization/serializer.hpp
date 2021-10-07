@@ -73,6 +73,7 @@ class serializer_t {
     explicit graph_meta_t(graph_t const& graph)
       : num_vertices_(graph.get_number_of_vertices()),
         num_edges_(graph.get_number_of_edges()),
+        storage_transposed_(graph.storage_transposed()),
         properties_(graph.get_graph_properties()),
         is_weighted_(graph.is_weighted()),
         segment_offsets_(graph.view().get_local_adj_matrix_partition_segment_offsets(0))
@@ -81,19 +82,22 @@ class serializer_t {
 
     graph_meta_t(size_t num_vertices,
                  size_t num_edges,
+                 bool storage_transposed,
                  graph_properties_t const& properties,
                  bool is_weighted,
                  std::optional<std::vector<vertex_t>> const& segment_offsets)
       : num_vertices_(num_vertices),
         num_edges_(num_edges),
+        storage_transposed_(storage_transposed),
         properties_(properties),
         is_weighted_(is_weighted),
         segment_offsets_(segment_offsets)
     {
     }
 
-    size_t num_vertices_;
-    size_t num_edges_;
+    size_t num_vertices_{};
+    size_t num_edges_{};
+    bool storage_transposed_{};
     graph_properties_t properties_{};
     bool is_weighted_{};
     std::optional<std::vector<vertex_t>> segment_offsets_{};
@@ -102,7 +106,7 @@ class serializer_t {
     {
       return 2 * sizeof(size_t) +
              (segment_offsets_ ? (*segment_offsets_).size() : size_t{0}) * sizeof(vertex_t) +
-             3 * sizeof(bool_ser_t);
+             4 * sizeof(bool_ser_t);
     }
   };
 

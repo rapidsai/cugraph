@@ -30,20 +30,16 @@ namespace cugraph {
 
 namespace {
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::enable_if_t<
-  multi_gpu,
-  std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-             std::optional<rmm::device_uvector<vertex_t>>>>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::enable_if_t<multi_gpu,
+                 std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, multi_gpu>,
+                            std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(raft::handle_t const& handle,
                                 std::optional<rmm::device_uvector<vertex_t>>&& local_vertex_span,
                                 rmm::device_uvector<vertex_t>&& edgelist_rows,
                                 rmm::device_uvector<vertex_t>&& edgelist_cols,
                                 std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                                bool store_transposed,
                                 graph_properties_t graph_properties,
                                 bool renumber)
 {
@@ -124,12 +120,13 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   }
 
   return std::make_tuple(
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    cugraph::graph_t<vertex_t, edge_t, weight_t, multi_gpu>(
       handle,
       edgelists,
       cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{
         meta.number_of_vertices,
         meta.number_of_edges,
+        store_transposed,
         graph_properties,
         meta.partition,
         meta.segment_offsets,
@@ -138,20 +135,16 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
     std::optional<rmm::device_uvector<vertex_t>>{std::move(renumber_map_labels)});
 }
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::enable_if_t<
-  !multi_gpu,
-  std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-             std::optional<rmm::device_uvector<vertex_t>>>>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::enable_if_t<!multi_gpu,
+                 std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, multi_gpu>,
+                            std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(raft::handle_t const& handle,
                                 std::optional<rmm::device_uvector<vertex_t>>&& vertex_span,
                                 rmm::device_uvector<vertex_t>&& edgelist_rows,
                                 rmm::device_uvector<vertex_t>&& edgelist_cols,
                                 std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                                bool store_transposed,
                                 graph_properties_t graph_properties,
                                 bool renumber)
 {
@@ -184,7 +177,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   }
 
   return std::make_tuple(
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    cugraph::graph_t<vertex_t, edge_t, weight_t, multi_gpu>(
       handle,
       cugraph::edgelist_t<vertex_t, edge_t, weight_t>{
         edgelist_rows.data(),
@@ -194,6 +187,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
         static_cast<edge_t>(edgelist_rows.size())},
       cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{
         num_vertices,
+        store_transposed,
         graph_properties,
         renumber ? std::optional<std::vector<vertex_t>>{meta.segment_offsets} : std::nullopt}),
     std::move(renumber_map_labels));
@@ -201,27 +195,25 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
 
 }  // namespace
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(raft::handle_t const& handle,
                            std::optional<rmm::device_uvector<vertex_t>>&& vertex_span,
                            rmm::device_uvector<vertex_t>&& edgelist_rows,
                            rmm::device_uvector<vertex_t>&& edgelist_cols,
                            std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                           bool store_transposed,
                            graph_properties_t graph_properties,
                            bool renumber)
 {
-  return create_graph_from_edgelist_impl<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+  return create_graph_from_edgelist_impl<vertex_t, edge_t, weight_t, multi_gpu>(
     handle,
     std::move(vertex_span),
     std::move(edgelist_rows),
     std::move(edgelist_cols),
     std::move(edgelist_weights),
+    store_transposed,
     graph_properties,
     renumber);
 }

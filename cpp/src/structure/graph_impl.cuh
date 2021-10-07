@@ -210,8 +210,11 @@ graph_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>::gra
   std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
   graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
   bool do_expensive_check)
-  : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-      handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
+  : detail::graph_base_t<vertex_t, edge_t, weight_t>(handle,
+                                                     meta.number_of_vertices,
+                                                     meta.number_of_edges,
+                                                     meta.store_transposed,
+                                                     meta.properties),
     partition_(meta.partition)
 {
   // cheap error checks
@@ -580,8 +583,11 @@ graph_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<!multi_gpu>>::gr
   edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
   graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
   bool do_expensive_check)
-  : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-      handle, meta.number_of_vertices, edgelist.number_of_edges, meta.properties),
+  : detail::graph_base_t<vertex_t, edge_t, weight_t>(handle,
+                                                     meta.number_of_vertices,
+                                                     edgelist.number_of_edges,
+                                                     meta.store_transposed,
+                                                     meta.properties),
     offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream_view())),
     indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream_view())),
     segment_offsets_(meta.segment_offsets)

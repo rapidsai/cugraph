@@ -99,13 +99,8 @@ struct graph_envelope_t {
 
   std::unique_ptr<visitor_factory_t> const& factory(void) const { return p_impl_fact_.second; }
 
-  graph_envelope_t(DTypes vertex_tid,
-                   DTypes edge_tid,
-                   DTypes weight_tid,
-                   bool,
-                   bool,
-                   GTypes graph_tid,
-                   erased_pack_t&);
+  graph_envelope_t(
+    DTypes vertex_tid, DTypes edge_tid, DTypes weight_tid, bool, GTypes graph_tid, erased_pack_t&);
 
  private:
   // need it to hide the parameterization of
@@ -137,21 +132,15 @@ struct dependent_graph_t : graph_envelope_t::base_graph_t {
 
 // primary empty template:
 //
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool st,
-          bool mg,
-          typename Enable = void>
+template <typename vertex_t, typename edge_t, typename weight_t, bool mg, typename Enable = void>
 struct dependent_factory_t;
 
 // dummy out non-candidate instantiation paths:
 //
-template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
+template <typename vertex_t, typename edge_t, typename weight_t, bool mg>
 struct dependent_factory_t<vertex_t,
                            edge_t,
                            weight_t,
-                           st,
                            mg,
                            std::enable_if_t<!is_candidate<vertex_t, edge_t, weight_t>::value>>
   : graph_envelope_t::visitor_factory_t {
@@ -164,11 +153,10 @@ struct dependent_factory_t<vertex_t,
   std::unique_ptr<visitor_t> make_bfs_visitor(erased_pack_t&) const override { return nullptr; }
 };
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
+template <typename vertex_t, typename edge_t, typename weight_t, bool mg>
 struct dependent_factory_t<vertex_t,
                            edge_t,
                            weight_t,
-                           st,
                            mg,
                            std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>
   : graph_envelope_t::visitor_factory_t {
@@ -194,10 +182,9 @@ std::unique_ptr<visitor_t> make_visitor(
   using vertex_t    = typename graph_type::vertex_type;
   using edge_t      = typename graph_type::edge_type;
   using weight_t    = typename graph_type::weight_type;
-  constexpr bool st = graph_type::is_adj_matrix_transposed;
   constexpr bool mg = graph_type::is_multi_gpu;
 
-  dependent_factory_t<vertex_t, edge_t, weight_t, st, mg> factory;
+  dependent_factory_t<vertex_t, edge_t, weight_t, mg> factory;
 
   return f(factory, ep);
 }

@@ -44,7 +44,6 @@ using pair_uniques_t = graph_envelope_t::pair_uniques_t;
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool tr,
           bool mg,
           std::enable_if_t<!is_candidate<vertex_t, edge_t, weight_t>::value, void*> = nullptr>
 constexpr pair_uniques_t graph_dispatcher(GTypes graph_type, erased_pack_t& ep)
@@ -58,19 +57,18 @@ constexpr pair_uniques_t graph_dispatcher(GTypes graph_type, erased_pack_t& ep)
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool tr,
           bool mg,
           std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value, void*> = nullptr>
 constexpr pair_uniques_t graph_dispatcher(GTypes graph_type, erased_pack_t& ep)
 {
   switch (graph_type) {
     case GTypes::GRAPH_T: {
-      using graph_t = typename GMapType<vertex_t, edge_t, weight_t, tr, mg, GTypes::GRAPH_T>::type;
+      using graph_t = typename GMapType<vertex_t, edge_t, weight_t, mg, GTypes::GRAPH_T>::type;
       graph_factory_t<graph_t> factory;
 
       pair_uniques_t p_uniques =
         std::make_pair(factory.make_graph(ep),
-                       std::make_unique<dependent_factory_t<vertex_t, edge_t, weight_t, tr, mg>>());
+                       std::make_unique<dependent_factory_t<vertex_t, edge_t, weight_t, mg>>());
 
       return p_uniques;
     } break;
@@ -89,37 +87,15 @@ constexpr pair_uniques_t graph_dispatcher(GTypes graph_type, erased_pack_t& ep)
 // cascades into next level
 // graph_dispatcher()
 //
-template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+template <typename vertex_t, typename edge_t, typename weight_t>
 constexpr decltype(auto) multi_gpu_dispatcher(bool multi_gpu, GTypes graph_type, erased_pack_t& ep)
 {
   switch (multi_gpu) {
     case true: {
-      return graph_dispatcher<vertex_t, edge_t, weight_t, store_transposed, true>(graph_type, ep);
+      return graph_dispatcher<vertex_t, edge_t, weight_t, true>(graph_type, ep);
     } break;
     case false: {
-      return graph_dispatcher<vertex_t, edge_t, weight_t, store_transposed, false>(graph_type, ep);
-    }
-  }
-}
-
-// transpose bool dispatcher:
-// resolves bool `store_transpose`
-// and using template arguments vertex_t, edge_t, weight_t
-// cascades into next level
-// multi_gpu_dispatcher()
-//
-template <typename vertex_t, typename edge_t, typename weight_t>
-constexpr decltype(auto) transp_dispatcher(bool store_transposed,
-                                           bool multi_gpu,
-                                           GTypes graph_type,
-                                           erased_pack_t& ep)
-{
-  switch (store_transposed) {
-    case true: {
-      return multi_gpu_dispatcher<vertex_t, edge_t, weight_t, true>(multi_gpu, graph_type, ep);
-    } break;
-    case false: {
-      return multi_gpu_dispatcher<vertex_t, edge_t, weight_t, false>(multi_gpu, graph_type, ep);
+      return graph_dispatcher<vertex_t, edge_t, weight_t, false>(graph_type, ep);
     }
   }
 }
@@ -128,32 +104,30 @@ constexpr decltype(auto) transp_dispatcher(bool store_transposed,
 // resolves weigth_t from weight_type enum
 // and using template arguments vertex_t, edge_t
 // cascades into next level
-// transp_dispatcher()
+// multi_gpu_dispatcher()
 //
 template <typename vertex_t, typename edge_t>
-constexpr decltype(auto) weight_dispatcher(
-  DTypes weight_type, bool store_transposed, bool multi_gpu, GTypes graph_type, erased_pack_t& ep)
+constexpr decltype(auto) weight_dispatcher(DTypes weight_type,
+                                           bool multi_gpu,
+                                           GTypes graph_type,
+                                           erased_pack_t& ep)
 {
   switch (weight_type) {
     case DTypes::INT32: {
       using weight_t = typename DMapType<DTypes::INT32>::type;
-      return transp_dispatcher<vertex_t, edge_t, weight_t>(
-        store_transposed, multi_gpu, graph_type, ep);
+      return multi_gpu_dispatcher<vertex_t, edge_t, weight_t>(multi_gpu, graph_type, ep);
     } break;
     case DTypes::INT64: {
       using weight_t = typename DMapType<DTypes::INT64>::type;
-      return transp_dispatcher<vertex_t, edge_t, weight_t>(
-        store_transposed, multi_gpu, graph_type, ep);
+      return multi_gpu_dispatcher<vertex_t, edge_t, weight_t>(multi_gpu, graph_type, ep);
     } break;
     case DTypes::FLOAT32: {
       using weight_t = typename DMapType<DTypes::FLOAT32>::type;
-      return transp_dispatcher<vertex_t, edge_t, weight_t>(
-        store_transposed, multi_gpu, graph_type, ep);
+      return multi_gpu_dispatcher<vertex_t, edge_t, weight_t>(multi_gpu, graph_type, ep);
     } break;
     case DTypes::FLOAT64: {
       using weight_t = typename DMapType<DTypes::FLOAT64>::type;
-      return transp_dispatcher<vertex_t, edge_t, weight_t>(
-        store_transposed, multi_gpu, graph_type, ep);
+      return multi_gpu_dispatcher<vertex_t, edge_t, weight_t>(multi_gpu, graph_type, ep);
     } break;
     default: {
       std::stringstream ss;
@@ -170,33 +144,25 @@ constexpr decltype(auto) weight_dispatcher(
 // weight_dispatcher();
 //
 template <typename vertex_t>
-constexpr decltype(auto) edge_dispatcher(DTypes edge_type,
-                                         DTypes weight_type,
-                                         bool store_transposed,
-                                         bool multi_gpu,
-                                         GTypes graph_type,
-                                         erased_pack_t& ep)
+constexpr decltype(auto) edge_dispatcher(
+  DTypes edge_type, DTypes weight_type, bool multi_gpu, GTypes graph_type, erased_pack_t& ep)
 {
   switch (edge_type) {
     case DTypes::INT32: {
       using edge_t = typename DMapType<DTypes::INT32>::type;
-      return weight_dispatcher<vertex_t, edge_t>(
-        weight_type, store_transposed, multi_gpu, graph_type, ep);
+      return weight_dispatcher<vertex_t, edge_t>(weight_type, multi_gpu, graph_type, ep);
     } break;
     case DTypes::INT64: {
       using edge_t = typename DMapType<DTypes::INT64>::type;
-      return weight_dispatcher<vertex_t, edge_t>(
-        weight_type, store_transposed, multi_gpu, graph_type, ep);
+      return weight_dispatcher<vertex_t, edge_t>(weight_type, multi_gpu, graph_type, ep);
     } break;
     case DTypes::FLOAT32: {
       using edge_t = typename DMapType<DTypes::FLOAT32>::type;
-      return weight_dispatcher<vertex_t, edge_t>(
-        weight_type, store_transposed, multi_gpu, graph_type, ep);
+      return weight_dispatcher<vertex_t, edge_t>(weight_type, multi_gpu, graph_type, ep);
     } break;
     case DTypes::FLOAT64: {
       using edge_t = typename DMapType<DTypes::FLOAT64>::type;
-      return weight_dispatcher<vertex_t, edge_t>(
-        weight_type, store_transposed, multi_gpu, graph_type, ep);
+      return weight_dispatcher<vertex_t, edge_t>(weight_type, multi_gpu, graph_type, ep);
     } break;
     default: {
       std::stringstream ss;
@@ -215,7 +181,6 @@ constexpr decltype(auto) edge_dispatcher(DTypes edge_type,
 inline decltype(auto) vertex_dispatcher(DTypes vertex_type,
                                         DTypes edge_type,
                                         DTypes weight_type,
-                                        bool store_transposed,
                                         bool multi_gpu,
                                         GTypes graph_type,
                                         erased_pack_t& ep)
@@ -223,23 +188,19 @@ inline decltype(auto) vertex_dispatcher(DTypes vertex_type,
   switch (vertex_type) {
     case DTypes::INT32: {
       using vertex_t = typename DMapType<DTypes::INT32>::type;
-      return edge_dispatcher<vertex_t>(
-        edge_type, weight_type, store_transposed, multi_gpu, graph_type, ep);
+      return edge_dispatcher<vertex_t>(edge_type, weight_type, multi_gpu, graph_type, ep);
     } break;
     case DTypes::INT64: {
       using vertex_t = typename DMapType<DTypes::INT64>::type;
-      return edge_dispatcher<vertex_t>(
-        edge_type, weight_type, store_transposed, multi_gpu, graph_type, ep);
+      return edge_dispatcher<vertex_t>(edge_type, weight_type, multi_gpu, graph_type, ep);
     } break;
     case DTypes::FLOAT32: {
       using vertex_t = typename DMapType<DTypes::FLOAT32>::type;
-      return edge_dispatcher<vertex_t>(
-        edge_type, weight_type, store_transposed, multi_gpu, graph_type, ep);
+      return edge_dispatcher<vertex_t>(edge_type, weight_type, multi_gpu, graph_type, ep);
     } break;
     case DTypes::FLOAT64: {
       using vertex_t = typename DMapType<DTypes::FLOAT64>::type;
-      return edge_dispatcher<vertex_t>(
-        edge_type, weight_type, store_transposed, multi_gpu, graph_type, ep);
+      return edge_dispatcher<vertex_t>(edge_type, weight_type, multi_gpu, graph_type, ep);
     } break;
     default: {
       std::stringstream ss;

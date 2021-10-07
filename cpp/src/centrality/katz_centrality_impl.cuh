@@ -56,17 +56,15 @@ void katz_centrality(raft::handle_t const& handle,
                 "GraphViewType::vertex_type should be integral.");
   static_assert(std::is_floating_point<result_t>::value,
                 "result_t should be a floating-point type.");
-  static_assert(GraphViewType::is_adj_matrix_transposed,
-                "GraphViewType should support the pull model.");
 
   auto const num_vertices = pull_graph_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
 
   // 1. check input arguments
 
-  CUGRAPH_EXPECTS(
-    graph_view.store_transposed(),
-    "Invalid input argument: graph_view.store_transposed() should be true for Katz Centrality.");
+  CUGRAPH_EXPECTS(pull_graph_view.storage_transposed(),
+                  "Invalid input argument: pull_graph_view.storage_transposed() should be true for "
+                  "Katz Centrality.");
 
   CUGRAPH_EXPECTS((alpha >= 0.0) && (alpha <= 1.0),
                   "Invalid input argument: alpha should be in [0.0, 1.0].");
@@ -177,7 +175,7 @@ void katz_centrality(raft::handle_t const& handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void katz_centrality(raft::handle_t const& handle,
-                     graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
+                     graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
                      result_t const* betas,
                      result_t* katz_centralities,
                      result_t alpha,

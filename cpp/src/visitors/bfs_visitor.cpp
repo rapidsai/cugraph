@@ -26,101 +26,78 @@ namespace visitors {
 //
 // wrapper code:
 //
-template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
+template <typename vertex_t, typename edge_t, typename weight_t, bool mg>
 void bfs_visitor<vertex_t,
                  edge_t,
                  weight_t,
-                 st,  // FIXME: can only be false for BFS
                  mg,
                  std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>::
   visit_graph(graph_envelope_t::base_graph_t const& graph)
 {
-  // Note: this must be called only on:
-  // graph_view_t<vertex_t, edge_t, weight_t, false, mg>
+  // unless algorithms only call virtual graph methods
+  // under the hood, the algos require this conversion:
   //
-  if constexpr (st == false) {
-    // unless algorithms only call virtual graph methods
-    // under the hood, the algos require this conversion:
-    //
-    graph_t<vertex_t, edge_t, weight_t, false, mg> const* p_g =
-      static_cast<graph_t<vertex_t, edge_t, weight_t, st, mg> const*>(&graph);
+  graph_t<vertex_t, edge_t, weight_t, mg> const* p_g =
+    static_cast<graph_t<vertex_t, edge_t, weight_t, mg> const*>(&graph);
 
-    auto gview = p_g->view();
+  CUGRAPH_EXPECTS(!p_g->storage_transposed(),
+                  "Invalid input argument: p_g->storage_transposed() should be false for BFS.");
 
-    auto const& v_args = ep_.get_args();
+  auto gview = p_g->view();
 
-    // unpack bfs() args:
-    //
-    assert(v_args.size() == 8);
+  auto const& v_args = ep_.get_args();
 
-    // cnstr. args unpacking:
-    //
-    raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
+  // unpack bfs() args:
+  //
+  assert(v_args.size() == 8);
 
-    vertex_t* p_d_dist = static_cast<vertex_t*>(v_args[1]);
+  // cnstr. args unpacking:
+  //
+  raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
 
-    vertex_t* p_d_predec = static_cast<vertex_t*>(v_args[2]);
+  vertex_t* p_d_dist = static_cast<vertex_t*>(v_args[1]);
 
-    vertex_t const* p_d_src = static_cast<vertex_t const*>(v_args[3]);
+  vertex_t* p_d_predec = static_cast<vertex_t*>(v_args[2]);
 
-    size_t n_sources = *static_cast<size_t*>(v_args[4]);
+  vertex_t const* p_d_src = static_cast<vertex_t const*>(v_args[3]);
 
-    bool dir_opt = *static_cast<bool*>(v_args[5]);
+  size_t n_sources = *static_cast<size_t*>(v_args[4]);
 
-    auto depth_l = *static_cast<vertex_t*>(v_args[6]);
+  bool dir_opt = *static_cast<bool*>(v_args[5]);
 
-    bool check = *static_cast<bool*>(v_args[7]);
+  auto depth_l = *static_cast<vertex_t*>(v_args[6]);
 
-    // call algorithm
-    // (no result; void)
-    //
-    bfs(handle, gview, p_d_dist, p_d_predec, p_d_src, n_sources, dir_opt, depth_l, check);
-  } else {
-    CUGRAPH_FAIL("Unsupported BFS algorithm (store_transposed == true).");
-  }
+  bool check = *static_cast<bool*>(v_args[7]);
+
+  // call algorithm
+  // (no result; void)
+  //
+  bfs(handle, gview, p_d_dist, p_d_predec, p_d_src, n_sources, dir_opt, depth_l, check);
 }
 
 // EIDir's:
 //
-template class bfs_visitor<int, int, float, true, true>;
-template class bfs_visitor<int, int, double, true, true>;
+template class bfs_visitor<int, int, float, true>;
+template class bfs_visitor<int, int, double, true>;
 
-template class bfs_visitor<int, int, float, true, false>;
-template class bfs_visitor<int, int, double, true, false>;
-
-template class bfs_visitor<int, int, float, false, true>;
-template class bfs_visitor<int, int, double, false, true>;
-
-template class bfs_visitor<int, int, float, false, false>;
-template class bfs_visitor<int, int, double, false, false>;
+template class bfs_visitor<int, int, float, false>;
+template class bfs_visitor<int, int, double, false>;
 
 //------
 
-template class bfs_visitor<int, long, float, true, true>;
-template class bfs_visitor<int, long, double, true, true>;
+template class bfs_visitor<int, long, float, true>;
+template class bfs_visitor<int, long, double, true>;
 
-template class bfs_visitor<int, long, float, true, false>;
-template class bfs_visitor<int, long, double, true, false>;
-
-template class bfs_visitor<int, long, float, false, true>;
-template class bfs_visitor<int, long, double, false, true>;
-
-template class bfs_visitor<int, long, float, false, false>;
-template class bfs_visitor<int, long, double, false, false>;
+template class bfs_visitor<int, long, float, false>;
+template class bfs_visitor<int, long, double, false>;
 
 //------
 
-template class bfs_visitor<long, long, float, true, true>;
-template class bfs_visitor<long, long, double, true, true>;
+template class bfs_visitor<long, long, float, true>;
+template class bfs_visitor<long, long, double, true>;
 
-template class bfs_visitor<long, long, float, true, false>;
-template class bfs_visitor<long, long, double, true, false>;
-
-template class bfs_visitor<long, long, float, false, true>;
-template class bfs_visitor<long, long, double, false, true>;
-
-template class bfs_visitor<long, long, float, false, false>;
-template class bfs_visitor<long, long, double, false, false>;
+template class bfs_visitor<long, long, float, false>;
+template class bfs_visitor<long, long, double, false>;
 
 }  // namespace visitors
 

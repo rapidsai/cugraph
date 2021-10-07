@@ -191,7 +191,7 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
   void visit_graph(graph_envelope_t::base_graph_t const& graph_v) override
   {
     auto const& graph_view =
-      static_cast<graph_view_t<vertex_t, edge_t, weight_t, false, false> const&>(graph_v);
+      static_cast<graph_view_t<vertex_t, edge_t, weight_t, false> const&>(graph_v);
 
     auto opt_weights = graph_view.get_matrix_partition_view().get_weights();
     CUGRAPH_EXPECTS(opt_weights.has_value(), "Cannot aggregate weights of un-weighted graph.");

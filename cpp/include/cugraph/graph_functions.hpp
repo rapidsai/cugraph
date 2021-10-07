@@ -359,6 +359,9 @@ extract_induced_subgraphs(
  * @param edgelist_rows Vector of edge row (source) vertex IDs.
  * @param edgelist_cols Vector of edge column (destination) vertex IDs.
  * @param edgelist_weights Vector of edge weights.
+ * @param store_transposed Flag indicating whether to store the graph adjacency matrix as is (CSR in
+ * single-GPU, we internally use more complex data formats in multi-GPU) or as transposed (CSC in
+ * single-GPU).
  * @param graph_properties Properties of the graph represented by the input (optional vertex list
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not.
@@ -374,6 +377,7 @@ create_graph_from_edgelist(raft::handle_t const& handle,
                            rmm::device_uvector<vertex_t>&& edgelist_rows,
                            rmm::device_uvector<vertex_t>&& edgelist_cols,
                            std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                           bool store_transposed,
                            graph_properties_t graph_properties,
                            bool renumber);
 
