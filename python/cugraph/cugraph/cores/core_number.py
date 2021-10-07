@@ -12,8 +12,9 @@
 # limitations under the License.
 
 from cugraph.cores import core_number_wrapper
-from cugraph.utilities import check_nx_graph
-from cugraph.utilities import df_score_to_dictionary
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               )
 
 
 def core_number(G):
@@ -52,7 +53,7 @@ def core_number(G):
     >>> cn = cugraph.core_number(G)
     """
 
-    G, isNx = check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     df = core_number_wrapper.core_number(G)
 

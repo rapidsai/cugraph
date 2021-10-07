@@ -13,8 +13,9 @@
 
 from cugraph.community import louvain_wrapper
 from cugraph.structure.graph_classes import Graph
-from cugraph.utilities import check_nx_graph
-from cugraph.utilities import df_score_to_dictionary
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               )
 
 
 def louvain(G, max_iter=100, resolution=1.):
@@ -73,7 +74,7 @@ def louvain(G, max_iter=100, resolution=1.):
     >>> parts, modularity_score = cugraph.louvain(G)
     """
 
-    G, isNx = check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if type(G) is not Graph:
         raise Exception("input graph must be undirected")

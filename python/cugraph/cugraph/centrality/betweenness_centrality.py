@@ -16,8 +16,10 @@ import numpy as np
 import cudf
 from cugraph.centrality import betweenness_centrality_wrapper
 from cugraph.centrality import edge_betweenness_centrality_wrapper
-from cugraph.utilities import df_edge_score_to_dictionary
-from cugraph.utilities import df_score_to_dictionary
+from cugraph.utilities import (df_edge_score_to_dictionary,
+                               df_score_to_dictionary,
+                               ensure_cugraph_obj_for_nx,
+                               )
 import cugraph
 
 
@@ -127,7 +129,7 @@ def betweenness_centrality(
     if result_dtype not in [np.float32, np.float64]:
         raise TypeError("result type can only be np.float32 or np.float64")
 
-    G, isNx = cugraph.utilities.check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     vertices = _initialize_vertices(G, k, seed)
 
@@ -249,7 +251,7 @@ def edge_betweenness_centrality(
     if result_dtype not in [np.float32, np.float64]:
         raise TypeError("result type can only be np.float32 or np.float64")
 
-    G, isNx = cugraph.utilities.check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
     vertices = _initialize_vertices(G, k, seed)
 
     df = edge_betweenness_centrality_wrapper.edge_betweenness_centrality(

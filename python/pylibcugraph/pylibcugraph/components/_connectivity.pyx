@@ -40,8 +40,74 @@ def _ensure_arg_types(**kwargs):
 
 def strongly_connected_components(offsets, indices, weights, num_verts, num_edges, labels):
     """
-    This is the docstring for strongly_connected_components
-    FIXME: write this docstring
+    Generate the Strongly Connected Components and attach a component label to
+    each vertex.
+
+    Parameters
+    ----------
+    offsets : object supporting a __cuda_array_interface__ interface
+        Array containing the offsets values of a Compressed Sparse Row matrix
+        that represents the graph.
+
+    indices : object supporting a __cuda_array_interface__ interface
+        Array containing the indices values of a Compressed Sparse Row matrix
+        that represents the graph.
+
+    weights : object supporting a __cuda_array_interface__ interface
+        Array containing the weights values of a Compressed Sparse Row matrix
+        that represents the graph.
+
+        NOTE: weighted graphs are currently unsupported, and because of this the
+        weights parameter can only be set to None.
+
+    num_verts : int
+        The number of vertices present in the graph represented by the CSR
+        arrays above.
+
+    num_edges : int
+        The number of edges present in the graph represented by the CSR arrays
+        above.
+
+    labels : object supporting a __cuda_array_interface__ interface
+        Array of size num_verts that will be populated with component label
+        values. The component lables in the array are ordered based on the
+        sorted vertex ID values of the graph.  For example, labels [9, 9, 7]
+        mean vertex 0 is labelled 9, vertex 1 is labelled 9, and vertex 2 is
+        labelled 7.
+
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    >>> import cupy as cp
+    >>> import numpy as np
+    >>> from scipy.sparse import csr_matrix
+    >>>
+    >>> graph = [
+    ... [0, 1, 1, 0, 0],
+    ... [0, 0, 1, 0, 0],
+    ... [0, 0, 0, 0, 0],
+    ... [0, 0, 0, 0, 1],
+    ... [0, 0, 0, 0, 0],
+    ... ]
+    >>> scipy_csr = csr_matrix(graph)
+    >>> num_verts = scipy_csr.get_shape()[0]
+    >>> num_edges = scipy_csr.nnz
+    >>>
+    >>> cp_offsets = cp.asarray(scipy_csr.indptr)
+    >>> cp_indices = cp.asarray(scipy_csr.indices, dtype=np.int32)
+    >>> cp_labels = cp.asarray(np.zeros(num_verts, dtype=np.int32))
+    >>>
+    >>> strongly_connected_components(offsets=cp_offsets,
+    ...                               indices=cp_indices,
+    ...                               weights=None,
+    ...                               num_verts=num_verts,
+    ...                               num_edges=num_edges,
+    ...                               labels=cp_labels)
+    >>> print(f"{len(set(cp_labels.tolist()))} - {cp_labels}")
+    5 - [0 1 2 3 4]
     """
     _ensure_arg_types(offsets=offsets, indices=indices,
                       weights=weights, labels=labels)
@@ -65,8 +131,74 @@ def strongly_connected_components(offsets, indices, weights, num_verts, num_edge
 
 def weakly_connected_components(offsets, indices, weights, num_verts, num_edges, labels):
     """
-    This is the docstring for weakly_connected_components
-    FIXME: write this docstring
+    Generate the Weakly Connected Components and attach a component label to
+    each vertex.
+
+    Parameters
+    ----------
+    offsets : object supporting a __cuda_array_interface__ interface
+        Array containing the offsets values of a Compressed Sparse Row matrix
+        that represents the graph.
+
+    indices : object supporting a __cuda_array_interface__ interface
+        Array containing the indices values of a Compressed Sparse Row matrix
+        that represents the graph.
+
+    weights : object supporting a __cuda_array_interface__ interface
+        Array containing the weights values of a Compressed Sparse Row matrix
+        that represents the graph.
+
+        NOTE: weighted graphs are currently unsupported, and because of this the
+        weights parameter can only be set to None.
+
+    num_verts : int
+        The number of vertices present in the graph represented by the CSR
+        arrays above.
+
+    num_edges : int
+        The number of edges present in the graph represented by the CSR arrays
+        above.
+
+    labels : object supporting a __cuda_array_interface__ interface
+        Array of size num_verts that will be populated with component label
+        values. The component lables in the array are ordered based on the
+        sorted vertex ID values of the graph.  For example, labels [9, 9, 7]
+        mean vertex 0 is labelled 9, vertex 1 is labelled 9, and vertex 2 is
+        labelled 7.
+
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    >>> import cupy as cp
+    >>> import numpy as np
+    >>> from scipy.sparse import csr_matrix
+    >>>
+    >>> graph = [
+    ... [0, 1, 1, 0, 0],
+    ... [0, 0, 1, 0, 0],
+    ... [0, 0, 0, 0, 0],
+    ... [0, 0, 0, 0, 1],
+    ... [0, 0, 0, 0, 0],
+    ... ]
+    >>> scipy_csr = csr_matrix(graph)
+    >>> num_verts = scipy_csr.get_shape()[0]
+    >>> num_edges = scipy_csr.nnz
+    >>>
+    >>> cp_offsets = cp.asarray(scipy_csr.indptr)
+    >>> cp_indices = cp.asarray(scipy_csr.indices, dtype=np.int32)
+    >>> cp_labels = cp.asarray(np.zeros(num_verts, dtype=np.int32))
+    >>>
+    >>> weakly_connected_components(offsets=cp_offsets,
+    ...                             indices=cp_indices,
+    ...                             weights=None,
+    ...                             num_verts=num_verts,
+    ...                             num_edges=num_edges,
+    ...                             labels=cp_labels)
+    >>> print(f"{len(set(cp_labels.tolist()))} - {cp_labels}")
+    2 - [1 1 1 4 4]
     """
     _ensure_arg_types(offsets=offsets, indices=indices,
                       weights=weights, labels=labels)

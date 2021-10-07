@@ -12,7 +12,9 @@
 # limitations under the License.
 
 from cugraph.centrality import katz_centrality_wrapper
-import cugraph
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               )
 
 
 def katz_centrality(
@@ -112,7 +114,7 @@ def katz_centrality(
                 "currently not supported"
         )
 
-    G, isNx = cugraph.utilities.check_nx_graph(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if nstart is not None:
         if G.renumbered is True:
@@ -130,7 +132,7 @@ def katz_centrality(
         df = G.unrenumber(df, "vertex")
 
     if isNx is True:
-        dict = cugraph.utilities.df_score_to_dictionary(df, 'katz_centrality')
+        dict = df_score_to_dictionary(df, 'katz_centrality')
         return dict
     else:
         return df
