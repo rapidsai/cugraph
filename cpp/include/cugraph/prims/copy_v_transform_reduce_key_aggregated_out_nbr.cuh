@@ -361,11 +361,13 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   T init,
   VertexValueOutputIterator vertex_value_output_first)
 {
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
-                "GraphViewType should support the push model.");
   static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
                              typename GraphViewType::vertex_type>::value);
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
+  CUGRAPH_EXPECTS(!graph_view.storage_transposed(),
+                  "Invalid input argument: grpah_view.storage_transposed() should be false for "
+                  "copy_v_transform_reduce_key_aggregated_out_nbr.");
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;

@@ -30,7 +30,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void check_clustering(graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+void check_clustering(graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
                       vertex_t* clustering)
 {
   if (graph_view.get_number_of_local_vertices() > 0)
@@ -40,11 +40,15 @@ void check_clustering(graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
   size_t max_level,
   weight_t resolution)
 {
-  Louvain<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>> runner(handle, graph_view);
+  CUGRAPH_EXPECTS(
+    !graph_view.storage_transposed(),
+    "Invalid input argument: graph_view.storage_transposed() should be false for Louvain.");
+
+  Louvain<graph_view_t<vertex_t, edge_t, weight_t, multi_gpu>> runner(handle, graph_view);
 
   weight_t wt = runner(max_level, resolution);
 
@@ -52,12 +56,15 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void flatten_dendrogram(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  Dendrogram<vertex_t> const& dendrogram,
-  vertex_t* clustering)
+void flatten_dendrogram(raft::handle_t const& handle,
+                        graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
+                        Dendrogram<vertex_t> const& dendrogram,
+                        vertex_t* clustering)
 {
+  CUGRAPH_EXPECTS(
+    !graph_view.storage_transposed(),
+    "Invalid input argument: graph_view.storage_transposed() should be false for Louvain.");
+
   rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.get_number_of_vertices(),
                                              handle.get_stream());
 

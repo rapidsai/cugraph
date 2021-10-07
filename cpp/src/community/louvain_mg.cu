@@ -20,59 +20,47 @@ namespace cugraph {
 
 // Explicit template instantations
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
-  raft::handle_t const&, graph_view_t<int32_t, int32_t, float, false, true> const&, size_t, float);
+  raft::handle_t const&, graph_view_t<int32_t, int32_t, float, true> const&, size_t, float);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, float> louvain(
-  raft::handle_t const&, graph_view_t<int32_t, int64_t, float, false, true> const&, size_t, float);
+  raft::handle_t const&, graph_view_t<int32_t, int64_t, float, true> const&, size_t, float);
 template std::pair<std::unique_ptr<Dendrogram<int64_t>>, float> louvain(
-  raft::handle_t const&, graph_view_t<int64_t, int64_t, float, false, true> const&, size_t, float);
+  raft::handle_t const&, graph_view_t<int64_t, int64_t, float, true> const&, size_t, float);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
-  raft::handle_t const&,
-  graph_view_t<int32_t, int32_t, double, false, true> const&,
-  size_t,
-  double);
+  raft::handle_t const&, graph_view_t<int32_t, int32_t, double, true> const&, size_t, double);
 template std::pair<std::unique_ptr<Dendrogram<int32_t>>, double> louvain(
-  raft::handle_t const&,
-  graph_view_t<int32_t, int64_t, double, false, true> const&,
-  size_t,
-  double);
+  raft::handle_t const&, graph_view_t<int32_t, int64_t, double, true> const&, size_t, double);
 template std::pair<std::unique_ptr<Dendrogram<int64_t>>, double> louvain(
-  raft::handle_t const&,
-  graph_view_t<int64_t, int64_t, double, false, true> const&,
-  size_t,
-  double);
+  raft::handle_t const&, graph_view_t<int64_t, int64_t, double, true> const&, size_t, double);
 
 template std::pair<size_t, float> louvain(raft::handle_t const&,
-                                          graph_view_t<int32_t, int32_t, float, false, true> const&,
+                                          graph_view_t<int32_t, int32_t, float, true> const&,
                                           int32_t*,
                                           size_t,
                                           float);
-template std::pair<size_t, double> louvain(
-  raft::handle_t const&,
-  graph_view_t<int32_t, int32_t, double, false, true> const&,
-  int32_t*,
-  size_t,
-  double);
+template std::pair<size_t, double> louvain(raft::handle_t const&,
+                                           graph_view_t<int32_t, int32_t, double, true> const&,
+                                           int32_t*,
+                                           size_t,
+                                           double);
 template std::pair<size_t, float> louvain(raft::handle_t const&,
-                                          graph_view_t<int32_t, int64_t, float, false, true> const&,
+                                          graph_view_t<int32_t, int64_t, float, true> const&,
                                           int32_t*,
                                           size_t,
                                           float);
-template std::pair<size_t, double> louvain(
-  raft::handle_t const&,
-  graph_view_t<int32_t, int64_t, double, false, true> const&,
-  int32_t*,
-  size_t,
-  double);
+template std::pair<size_t, double> louvain(raft::handle_t const&,
+                                           graph_view_t<int32_t, int64_t, double, true> const&,
+                                           int32_t*,
+                                           size_t,
+                                           double);
 template std::pair<size_t, float> louvain(raft::handle_t const&,
-                                          graph_view_t<int64_t, int64_t, float, false, true> const&,
+                                          graph_view_t<int64_t, int64_t, float, true> const&,
                                           int64_t*,
                                           size_t,
                                           float);
-template std::pair<size_t, double> louvain(
-  raft::handle_t const&,
-  graph_view_t<int64_t, int64_t, double, false, true> const&,
-  int64_t*,
-  size_t,
-  double);
+template std::pair<size_t, double> louvain(raft::handle_t const&,
+                                           graph_view_t<int64_t, int64_t, double, true> const&,
+                                           int64_t*,
+                                           size_t,
+                                           double);
 
 }  // namespace cugraph

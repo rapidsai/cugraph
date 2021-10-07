@@ -77,7 +77,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
 #endif
 
     if (matrix_major_value_output.key_first()) {
-      auto key_offsets = GraphViewType::is_adj_matrix_transposed
+      auto key_offsets = graph_view.storage_transposed()
                            ? *(graph_view.get_local_sorted_unique_edge_col_offsets())
                            : *(graph_view.get_local_sorted_unique_edge_row_offsets());
 
@@ -106,7 +106,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
                        v_offset_first,
                        v_offset_first + (key_offsets[i + 1] - key_offsets[i]),
                        rx_value_first,
-                       matrix_major_value_output.value_data() + key_offsets[i]);
+                       matrix_major_value_output.value_first() + key_offsets[i]);
       }
     } else {
       std::vector<size_t> rx_counts(col_comm_size, size_t{0});
@@ -117,7 +117,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
       }
       device_allgatherv(col_comm,
                         vertex_value_input_first,
-                        matrix_major_value_output.value_data(),
+                        matrix_major_value_output.value_first(),
                         rx_counts,
                         displacements,
                         handle.get_stream());
@@ -135,13 +135,13 @@ void copy_to_matrix_major(raft::handle_t const& handle,
 #endif
   } else {
     assert(!(matrix_major_value_output.key_first()));
-    assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
+    assert(graph_view.get_number_of_local_vertices() == graph_view.storage_transposed()
              ? graph_view.get_number_of_local_adj_matrix_partition_cols()
              : graph_view.get_number_of_local_adj_matrix_partition_rows());
     thrust::copy(handle.get_thrust_policy(),
                  vertex_value_input_first,
                  vertex_value_input_first + graph_view.get_number_of_local_vertices(),
-                 matrix_major_value_output.value_data());
+                 matrix_major_value_output.value_first());
   }
 }
 
@@ -195,7 +195,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
                                                                            handle.get_stream());
     auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
-    auto key_offsets = GraphViewType::is_adj_matrix_transposed
+    auto key_offsets = graph_view.storage_transposed()
                          ? graph_view.get_local_sorted_unique_edge_col_offsets()
                          : graph_view.get_local_sorted_unique_edge_row_offsets();
 
@@ -237,7 +237,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
            rx_value_first,
            output_key_first = *(matrix_major_value_output.key_first()) + (*key_offsets)[i],
            output_value_first =
-             matrix_major_value_output.value_data() + (*key_offsets)[i]] __device__(auto i) {
+             matrix_major_value_output.value_first() + (*key_offsets)[i]] __device__(auto i) {
             auto major = *(output_key_first + i);
             auto it    = thrust::lower_bound(thrust::seq, rx_vertex_first, rx_vertex_last, major);
             if ((it != rx_vertex_last) && (*it == major)) {
@@ -252,12 +252,12 @@ void copy_to_matrix_major(raft::handle_t const& handle,
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
-        thrust::scatter(
-          handle.get_thrust_policy(),
-          rx_value_first,
-          rx_value_first + rx_counts[i],
-          map_first,
-          matrix_major_value_output.value_data() + matrix_partition.get_major_value_start_offset());
+        thrust::scatter(handle.get_thrust_policy(),
+                        rx_value_first,
+                        rx_value_first + rx_counts[i],
+                        map_first,
+                        matrix_major_value_output.value_first() +
+                          matrix_partition.get_major_value_start_offset());
       }
     }
 
@@ -273,7 +273,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
 #endif
   } else {
     assert(!(matrix_major_value_output.key_first()));
-    assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
+    assert(graph_view.get_number_of_local_vertices() == graph_view.storage_transposed()
              ? graph_view.get_number_of_local_adj_matrix_partition_cols()
              : graph_view.get_number_of_local_adj_matrix_partition_rows());
     auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
@@ -281,7 +281,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
                     val_first,
                     val_first + thrust::distance(vertex_first, vertex_last),
                     vertex_first,
-                    matrix_major_value_output.value_data());
+                    matrix_major_value_output.value_first());
   }
 }
 
@@ -317,7 +317,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
 #endif
 
     if (matrix_minor_value_output.key_first()) {
-      auto key_offsets = GraphViewType::is_adj_matrix_transposed
+      auto key_offsets = graph_view.storage_transposed()
                            ? *(graph_view.get_local_sorted_unique_edge_row_offsets())
                            : *(graph_view.get_local_sorted_unique_edge_col_offsets());
 
@@ -346,7 +346,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                        v_offset_first,
                        v_offset_first + (key_offsets[i + 1] - key_offsets[i]),
                        rx_value_first,
-                       matrix_minor_value_output.value_data() + key_offsets[i]);
+                       matrix_minor_value_output.value_first() + key_offsets[i]);
       }
     } else {
       std::vector<size_t> rx_counts(row_comm_size, size_t{0});
@@ -357,7 +357,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       }
       device_allgatherv(row_comm,
                         vertex_value_input_first,
-                        matrix_minor_value_output.value_data(),
+                        matrix_minor_value_output.value_first(),
                         rx_counts,
                         displacements,
                         handle.get_stream());
@@ -375,13 +375,13 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
 #endif
   } else {
     assert(!(matrix_minor_value_output.key_first()));
-    assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
+    assert(graph_view.get_number_of_local_vertices() == graph_view.storage_transposed()
              ? graph_view.get_number_of_local_adj_matrix_partition_rows()
              : graph_view.get_number_of_local_adj_matrix_partition_cols());
     thrust::copy(handle.get_thrust_policy(),
                  vertex_value_input_first,
                  vertex_value_input_first + graph_view.get_number_of_local_vertices(),
-                 matrix_minor_value_output.value_data());
+                 matrix_minor_value_output.value_first());
   }
 }
 
@@ -435,7 +435,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                                                                            handle.get_stream());
     auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
-    auto key_offsets = GraphViewType::is_adj_matrix_transposed
+    auto key_offsets = graph_view.storage_transposed()
                          ? graph_view.get_local_sorted_unique_edge_row_offsets()
                          : graph_view.get_local_sorted_unique_edge_col_offsets();
 
@@ -476,7 +476,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
            rx_value_first,
            output_key_first = *(matrix_minor_value_output.key_first()) + (*key_offsets)[i],
            output_value_first =
-             matrix_minor_value_output.value_data() + (*key_offsets)[i]] __device__(auto i) {
+             matrix_minor_value_output.value_first() + (*key_offsets)[i]] __device__(auto i) {
             auto minor = *(output_key_first + i);
             auto it    = thrust::lower_bound(thrust::seq, rx_vertex_first, rx_vertex_last, minor);
             if ((it != rx_vertex_last) && (*it == minor)) {
@@ -495,7 +495,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                         rx_value_first,
                         rx_value_first + rx_counts[i],
                         map_first,
-                        matrix_minor_value_output.value_data());
+                        matrix_minor_value_output.value_first());
       }
     }
 
@@ -518,7 +518,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                     val_first,
                     val_first + thrust::distance(vertex_first, vertex_last),
                     vertex_first,
-                    matrix_minor_value_output.value_data());
+                    matrix_minor_value_output.value_first());
   }
 }
 
@@ -550,7 +550,7 @@ void copy_to_adj_matrix_row(
                    typename std::iterator_traits<VertexValueInputIterator>::value_type>&
     adj_matrix_row_value_output)
 {
-  if constexpr (GraphViewType::is_adj_matrix_transposed) {
+  if (graph_view.storage_transposed()) {
     copy_to_matrix_minor(handle, graph_view, vertex_value_input_first, adj_matrix_row_value_output);
   } else {
     copy_to_matrix_major(handle, graph_view, vertex_value_input_first, adj_matrix_row_value_output);
@@ -592,7 +592,7 @@ void copy_to_adj_matrix_row(
                    typename std::iterator_traits<VertexValueInputIterator>::value_type>&
     adj_matrix_row_value_output)
 {
-  if constexpr (GraphViewType::is_adj_matrix_transposed) {
+  if (graph_view.storage_transposed()) {
     copy_to_matrix_minor(handle,
                          graph_view,
                          vertex_first,
@@ -635,7 +635,7 @@ void copy_to_adj_matrix_col(
                    typename std::iterator_traits<VertexValueInputIterator>::value_type>&
     adj_matrix_col_value_output)
 {
-  if constexpr (GraphViewType::is_adj_matrix_transposed) {
+  if (graph_view.storage_transposed()) {
     copy_to_matrix_major(handle, graph_view, vertex_value_input_first, adj_matrix_col_value_output);
   } else {
     copy_to_matrix_minor(handle, graph_view, vertex_value_input_first, adj_matrix_col_value_output);
@@ -677,7 +677,7 @@ void copy_to_adj_matrix_col(
                    typename std::iterator_traits<VertexValueInputIterator>::value_type>&
     adj_matrix_col_value_output)
 {
-  if constexpr (GraphViewType::is_adj_matrix_transposed) {
+  if (graph_view.storage_transposed()) {
     copy_to_matrix_major(handle,
                          graph_view,
                          vertex_first,

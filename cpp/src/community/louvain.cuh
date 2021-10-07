@@ -122,13 +122,7 @@ class Louvain {
   using vertex_t     = typename graph_view_t::vertex_type;
   using edge_t       = typename graph_view_t::edge_type;
   using weight_t     = typename graph_view_t::weight_type;
-  using graph_t      = graph_t<vertex_t,
-                          edge_t,
-                          weight_t,
-                          graph_view_t::is_adj_matrix_transposed,
-                          graph_view_t::is_multi_gpu>;
-
-  static_assert(!graph_view_t::is_adj_matrix_transposed);
+  using graph_t      = graph_t<vertex_t, edge_t, weight_t, graph_view_t::is_multi_gpu>;
 
   Louvain(raft::handle_t const& handle, graph_view_t const& graph_view)
     :
@@ -146,6 +140,9 @@ class Louvain {
       src_clusters_cache_(),
       dst_clusters_cache_()
   {
+    CUGRAPH_EXPECTS(
+      !graph_view.storage_transposed(),
+      "Invalid input argument: graph_view.store_transposed() should be false for Louvain.");
   }
 
   Dendrogram<vertex_t> const& get_dendrogram() const { return *dendrogram_; }
@@ -260,11 +257,11 @@ class Louvain {
       current_graph_view_,
       graph_view_t::is_multi_gpu
         ? src_clusters_cache_.device_view()
-        : detail::major_properties_device_view_t<vertex_t, vertex_t const*>(
+        : detail::rowcol_properties_device_view_t<vertex_t, vertex_t const*>(
             next_clusters_v_.begin()),
       graph_view_t::is_multi_gpu
         ? dst_clusters_cache_.device_view()
-        : detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(
+        : detail::rowcol_properties_device_view_t<vertex_t, vertex_t const*>(
             next_clusters_v_.begin()),
       [] __device__(auto, auto, weight_t wt, auto src_cluster, auto nbr_cluster) {
         if (src_cluster == nbr_cluster) {
@@ -396,11 +393,11 @@ class Louvain {
       current_graph_view_,
       graph_view_t::is_multi_gpu
         ? src_clusters_cache_.device_view()
-        : detail::major_properties_device_view_t<vertex_t, vertex_t const*>(
+        : detail::rowcol_properties_device_view_t<vertex_t, vertex_t const*>(
             next_clusters_v_.data()),
       graph_view_t::is_multi_gpu
         ? dst_clusters_cache_.device_view()
-        : detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(
+        : detail::rowcol_properties_device_view_t<vertex_t, vertex_t const*>(
             next_clusters_v_.data()),
       [] __device__(auto src, auto dst, auto wt, auto src_cluster, auto nbr_cluster) {
         weight_t sum{0};
@@ -492,14 +489,14 @@ class Louvain {
                              src_cluster_weights.device_view(),
                              src_old_cluster_sum_subtract_pairs.device_view())
         : device_view_concat(
-            detail::major_properties_device_view_t<vertex_t, weight_t const*>(
+            detail::rowcol_properties_device_view_t<vertex_t, weight_t const*>(
               vertex_weights_v_.data()),
-            detail::major_properties_device_view_t<vertex_t, vertex_t const*>(
+            detail::rowcol_properties_device_view_t<vertex_t, vertex_t const*>(
               next_clusters_v_.data()),
-            detail::major_properties_device_view_t<vertex_t, weight_t const*>(
+            detail::rowcol_properties_device_view_t<vertex_t, weight_t const*>(
               vertex_cluster_weights_v.data()),
-            detail::major_properties_device_view_t<vertex_t,
-                                                   decltype(cluster_old_sum_subtract_pair_first)>(
+            detail::rowcol_properties_device_view_t<vertex_t,
+                                                    decltype(cluster_old_sum_subtract_pair_first)>(
               cluster_old_sum_subtract_pair_first));
 
     copy_v_transform_reduce_key_aggregated_out_nbr(
@@ -508,7 +505,7 @@ class Louvain {
       zipped_src_device_view,
       graph_view_t::is_multi_gpu
         ? dst_clusters_cache_.device_view()
-        : detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(
+        : detail::rowcol_properties_device_view_t<vertex_t, vertex_t const*>(
             next_clusters_v_.data()),
       cluster_keys_v_.begin(),
       cluster_keys_v_.end(),
@@ -540,7 +537,7 @@ class Louvain {
         dummy_properties_t<vertex_t>{}.device_view(),
         graph_view_t::is_multi_gpu
           ? src_clusters_cache_.device_view()
-          : detail::major_properties_device_view_t<vertex_t, vertex_t const*>(
+          : detail::rowcol_properties_device_view_t<vertex_t, vertex_t const*>(
               next_clusters_v_.data()),
         detail::return_edge_weight_t<vertex_t, weight_t>{},
         weight_t{0});

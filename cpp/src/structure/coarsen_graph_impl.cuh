@@ -187,20 +187,14 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
 }
 
 // multi-GPU version
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::enable_if_t<
-  multi_gpu,
-  std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
-             rmm::device_uvector<vertex_t>>>
-coarsen_graph(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  vertex_t const* labels,
-  bool do_expensive_check)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::enable_if_t<multi_gpu,
+                 std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>,
+                            rmm::device_uvector<vertex_t>>>
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
+              vertex_t const* labels,
+              bool do_expensive_check)
 {
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
@@ -218,16 +212,18 @@ coarsen_graph(
 
   // 1. construct coarsened edge list
 
-  std::conditional_t<
-    store_transposed,
-    row_properties_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                     vertex_t>,
-    col_properties_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                     vertex_t>>
-    adj_matrix_minor_labels(handle, graph_view);
+  std::variant<row_properties_t<graph_view_t<vertex_t, edge_t, weight_t, multi_gpu>, vertex_t>,
+               col_properties_t<graph_view_t<vertex_t, edge_t, weight_t, multi_gpu>, vertex_t>>
+    adj_matrix_minor_labels{};
   if constexpr (store_transposed) {
+    adj_matrix_minor_labels =
+      row_properties_t<graph_view_t<vertex_t, edge_t, weight_t, multi_gpu>, vertex_t>(handle,
+                                                                                      graph_view);
     copy_to_adj_matrix_row(handle, graph_view, labels, adj_matrix_minor_labels);
   } else {
+    adj_matrix_minor_labels =
+      col_properties_t<graph_view_t<vertex_t, edge_t, weight_t, multi_gpu>, vertex_t>(handle,
+                                                                                      graph_view);
     copy_to_adj_matrix_col(handle, graph_view, labels, adj_matrix_minor_labels);
   }
 
@@ -452,7 +448,7 @@ coarsen_graph(
   }
 
   return std::make_tuple(
-    std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
+    std::make_unique<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>(
       handle,
       edgelists,
       graph_meta_t<vertex_t, edge_t, multi_gpu>{
@@ -467,20 +463,14 @@ coarsen_graph(
 }
 
 // single-GPU version
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::enable_if_t<
-  !multi_gpu,
-  std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
-             rmm::device_uvector<vertex_t>>>
-coarsen_graph(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  vertex_t const* labels,
-  bool do_expensive_check)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::enable_if_t<!multi_gpu,
+                 std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>,
+                            rmm::device_uvector<vertex_t>>>
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
+              vertex_t const* labels,
+              bool do_expensive_check)
 {
   if (do_expensive_check) {
     // currently, nothing to do
@@ -527,31 +517,25 @@ coarsen_graph(
                                : std::nullopt;
   edgelist.number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices.size());
 
-  return std::make_tuple(
-    std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
-      handle,
-      edgelist,
-      graph_meta_t<vertex_t, edge_t, multi_gpu>{
-        static_cast<vertex_t>(renumber_map_labels.size()),
-        graph_properties_t{graph_view.is_symmetric(), false},
-        meta.segment_offsets}),
-    std::move(renumber_map_labels));
+  return std::make_tuple(std::make_unique<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>(
+                           handle,
+                           edgelist,
+                           graph_meta_t<vertex_t, edge_t, multi_gpu>{
+                             static_cast<vertex_t>(renumber_map_labels.size()),
+                             graph_properties_t{graph_view.is_symmetric(), false},
+                             meta.segment_offsets}),
+                         std::move(renumber_map_labels));
 }
 
 }  // namespace detail
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>,
            rmm::device_uvector<vertex_t>>
-coarsen_graph(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  vertex_t const* labels,
-  bool do_expensive_check)
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
+              vertex_t const* labels,
+              bool do_expensive_check)
 {
   return detail::coarsen_graph(handle, graph_view, labels, do_expensive_check);
 }
