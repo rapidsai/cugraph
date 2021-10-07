@@ -37,6 +37,16 @@ import rmm
 
 from .params import FIXTURE_PARAMS
 
+# FIXME: WCC currently crashes on Ampere. Detect the GPU arch here and use it
+# for conditional skipping. Remove this code when the Ampere crash is resolved.
+from numba import cuda
+is_ampere = False
+device = cuda.get_current_device()
+# check for the attribute using both pre and post numba 0.53 names
+cc = getattr(device, 'COMPUTE_CAPABILITY', None) or \
+     getattr(device, 'compute_capability')
+if (cc[0] >= 8):
+    is_ampere = True
 
 ###############################################################################
 # Helpers
@@ -219,6 +229,7 @@ def bench_louvain(gpubenchmark, graphWithAdjListComputed):
     gpubenchmark(cugraph.louvain, graphWithAdjListComputed)
 
 
+@pytest.mark.skipif(is_ampere, reason="skipping on Ampere")
 def bench_weakly_connected_components(gpubenchmark,
                                       anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.weakly_connected_components,
