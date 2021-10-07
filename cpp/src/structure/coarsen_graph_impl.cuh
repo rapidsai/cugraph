@@ -41,6 +41,7 @@
 #include <numeric>
 #include <tuple>
 #include <utility>
+#include <variant>
 
 namespace cugraph {
 namespace detail {
@@ -215,16 +216,16 @@ coarsen_graph(raft::handle_t const& handle,
   std::variant<row_properties_t<graph_view_t<vertex_t, edge_t, weight_t, multi_gpu>, vertex_t>,
                col_properties_t<graph_view_t<vertex_t, edge_t, weight_t, multi_gpu>, vertex_t>>
     adj_matrix_minor_labels{};
-  if constexpr (store_transposed) {
+  if (graph_view.storage_transposed()) {
     adj_matrix_minor_labels =
       row_properties_t<graph_view_t<vertex_t, edge_t, weight_t, multi_gpu>, vertex_t>(handle,
                                                                                       graph_view);
-    copy_to_adj_matrix_row(handle, graph_view, labels, adj_matrix_minor_labels);
+    copy_to_adj_matrix_row(handle, graph_view, labels, std::get<0>(adj_matrix_minor_labels));
   } else {
     adj_matrix_minor_labels =
       col_properties_t<graph_view_t<vertex_t, edge_t, weight_t, multi_gpu>, vertex_t>(handle,
                                                                                       graph_view);
-    copy_to_adj_matrix_col(handle, graph_view, labels, adj_matrix_minor_labels);
+    copy_to_adj_matrix_col(handle, graph_view, labels, std::get<1>(adj_matrix_minor_labels));
   }
 
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_major_vertices{};
@@ -262,8 +263,8 @@ coarsen_graph(raft::handle_t const& handle,
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
     rmm::device_uvector<vertex_t> major_labels(
-      store_transposed ? graph_view.get_number_of_local_adj_matrix_partition_cols(i)
-                       : graph_view.get_number_of_local_adj_matrix_partition_rows(i),
+      graph_view.storage_transposed() ? graph_view.get_number_of_local_adj_matrix_partition_cols(i)
+                                      : graph_view.get_number_of_local_adj_matrix_partition_rows(i),
       handle.get_stream());
     device_bcast(col_comm,
                  labels,
@@ -288,7 +289,8 @@ coarsen_graph(raft::handle_t const& handle,
         matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
           graph_view.get_matrix_partition_view(i)),
         major_labels.data(),
-        adj_matrix_minor_labels.device_view(),
+        graph_view.storage_transposed() ? std::get<0>(adj_matrix_minor_labels).device_view()
+                                        : std::get<1>(adj_matrix_minor_labels).device_view(),
         graph_view.get_local_adj_matrix_partition_segment_offsets(i));
 
     // 1-2. globally shuffle
@@ -436,10 +438,12 @@ coarsen_graph(raft::handle_t const& handle,
   std::vector<edgelist_t<vertex_t, edge_t, weight_t>> edgelists{};
   edgelists.resize(graph_view.get_number_of_local_adj_matrix_partitions());
   for (size_t i = 0; i < edgelists.size(); ++i) {
-    edgelists[i].p_src_vertices = store_transposed ? coarsened_edgelist_minor_vertices[i].data()
-                                                   : coarsened_edgelist_major_vertices[i].data();
-    edgelists[i].p_dst_vertices = store_transposed ? coarsened_edgelist_major_vertices[i].data()
-                                                   : coarsened_edgelist_minor_vertices[i].data();
+    edgelists[i].p_src_vertices = graph_view.storage_transposed()
+                                    ? coarsened_edgelist_minor_vertices[i].data()
+                                    : coarsened_edgelist_major_vertices[i].data();
+    edgelists[i].p_dst_vertices = graph_view.storage_transposed()
+                                    ? coarsened_edgelist_major_vertices[i].data()
+                                    : coarsened_edgelist_minor_vertices[i].data();
     edgelists[i].p_edge_weights =
       coarsened_edgelist_weights
         ? std::optional<weight_t const*>{(*coarsened_edgelist_weights)[i].data()}
@@ -447,19 +451,21 @@ coarsen_graph(raft::handle_t const& handle,
     edgelists[i].number_of_edges = static_cast<edge_t>(coarsened_edgelist_major_vertices[i].size());
   }
 
-  return std::make_tuple(
-    std::make_unique<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>(
-      handle,
-      edgelists,
-      graph_meta_t<vertex_t, edge_t, multi_gpu>{
-        meta.number_of_vertices,
-        meta.number_of_edges,
-        graph_properties_t{graph_view.is_symmetric(), false},
-        meta.partition,
-        meta.segment_offsets,
-        store_transposed ? meta.num_local_unique_edge_minors : meta.num_local_unique_edge_majors,
-        store_transposed ? meta.num_local_unique_edge_majors : meta.num_local_unique_edge_minors}),
-    std::move(renumber_map_labels));
+  return std::make_tuple(std::make_unique<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>(
+                           handle,
+                           edgelists,
+                           graph_meta_t<vertex_t, edge_t, multi_gpu>{
+                             meta.number_of_vertices,
+                             meta.number_of_edges,
+                             graph_view.storage_transposed(),
+                             graph_properties_t{graph_view.is_symmetric(), false},
+                             meta.partition,
+                             meta.segment_offsets,
+                             graph_view.storage_transposed() ? meta.num_local_unique_edge_minors
+                                                             : meta.num_local_unique_edge_majors,
+                             graph_view.storage_transposed() ? meta.num_local_unique_edge_majors
+                                                             : meta.num_local_unique_edge_minors}),
+                         std::move(renumber_map_labels));
 }
 
 // single-GPU version
@@ -484,7 +490,7 @@ coarsen_graph(raft::handle_t const& handle,
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
         graph_view.get_matrix_partition_view()),
       labels,
-      detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(labels),
+      detail::rowcol_properties_device_view_t<vertex_t, vertex_t const*>(labels),
       graph_view.get_local_adj_matrix_partition_segment_offsets(0));
 
   rmm::device_uvector<vertex_t> unique_labels(graph_view.get_number_of_vertices(),
@@ -508,10 +514,12 @@ coarsen_graph(raft::handle_t const& handle,
     do_expensive_check);
 
   edgelist_t<vertex_t, edge_t, weight_t> edgelist{};
-  edgelist.p_src_vertices  = store_transposed ? coarsened_edgelist_minor_vertices.data()
-                                              : coarsened_edgelist_major_vertices.data();
-  edgelist.p_dst_vertices  = store_transposed ? coarsened_edgelist_major_vertices.data()
-                                              : coarsened_edgelist_minor_vertices.data();
+  edgelist.p_src_vertices  = graph_view.storage_transposed()
+                               ? coarsened_edgelist_minor_vertices.data()
+                               : coarsened_edgelist_major_vertices.data();
+  edgelist.p_dst_vertices  = graph_view.storage_transposed()
+                               ? coarsened_edgelist_major_vertices.data()
+                               : coarsened_edgelist_minor_vertices.data();
   edgelist.p_edge_weights  = coarsened_edgelist_weights
                                ? std::optional<weight_t const*>{(*coarsened_edgelist_weights).data()}
                                : std::nullopt;
@@ -522,6 +530,7 @@ coarsen_graph(raft::handle_t const& handle,
                            edgelist,
                            graph_meta_t<vertex_t, edge_t, multi_gpu>{
                              static_cast<vertex_t>(renumber_map_labels.size()),
+                             graph_view.storage_transposed(),
                              graph_properties_t{graph_view.is_symmetric(), false},
                              meta.segment_offsets}),
                          std::move(renumber_map_labels));

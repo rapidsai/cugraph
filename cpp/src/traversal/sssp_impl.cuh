@@ -56,8 +56,6 @@ void sssp(raft::handle_t const& handle,
 
   static_assert(std::is_integral<vertex_t>::value,
                 "GraphViewType::vertex_type should be integral.");
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
-                "GraphViewType should support the push model.");
 
   auto const num_vertices = push_graph_view.get_number_of_vertices();
   auto const num_edges    = push_graph_view.get_number_of_edges();
@@ -70,8 +68,8 @@ void sssp(raft::handle_t const& handle,
   // 1. check input arguments
 
   CUGRAPH_EXPECTS(
-    !graph_view.store_transposed(),
-    "Invalid input argument: graph_view.store_transposed() should be false for SSSP.");
+    !push_graph_view.storage_transposed(),
+    "Invalid input argument: push_graph_view.storage_transposed() should be false for SSSP.");
 
   CUGRAPH_EXPECTS(push_graph_view.is_valid_vertex(source_vertex),
                   "Invalid input argument: source vertex out-of-range.");
@@ -256,7 +254,7 @@ void sssp(raft::handle_t const& handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void sssp(raft::handle_t const& handle,
-          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+          graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
           weight_t* distances,
           vertex_t* predecessors,
           vertex_t source_vertex,

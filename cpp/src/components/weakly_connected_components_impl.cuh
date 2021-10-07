@@ -225,16 +225,14 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
   static_assert(std::is_integral<vertex_t>::value,
                 "GraphViewType::vertex_type should be integral.");
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
-                "GraphViewType should support the push model.");
 
   auto const num_vertices = push_graph_view.get_number_of_vertices();
   if (num_vertices == 0) { return; }
 
   // 1. check input arguments
 
-  CUGRAPH_EXPECTS(graph_view.store_transposed(),
-                  "Invalid input argument: graph_view.store_transposed() should be false for "
+  CUGRAPH_EXPECTS(push_graph_view.storage_transposed(),
+                  "Invalid input argument: push_graph_view.storage_transposed() should be false for "
                   "weakly connected components.");
 
   CUGRAPH_EXPECTS(
@@ -263,7 +261,6 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
   graph_t<vertex_t,
           edge_t,
           typename GraphViewType::weight_type,
-          GraphViewType::is_adj_matrix_transposed,
           GraphViewType::is_multi_gpu>
     level_graph(handle);
   rmm::device_uvector<vertex_t> level_renumber_map(0, handle.get_stream_view());
@@ -548,7 +545,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         [col_components =
            GraphViewType::is_multi_gpu
              ? adj_matrix_col_components.mutable_device_view()
-             : detail::minor_properties_device_view_t<vertex_t, vertex_t*>(level_components),
+             : detail::rowcol_properties_device_view_t<vertex_t, vertex_t*>(level_components),
          col_first         = level_graph_view.get_local_adj_matrix_partition_col_first(),
          edge_buffer_first = get_dataframe_buffer_begin(edge_buffer),
          num_edge_inserts =
@@ -708,7 +705,6 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         create_graph_from_edgelist<vertex_t,
                                    edge_t,
                                    weight_t,
-                                   GraphViewType::is_adj_matrix_transposed,
                                    GraphViewType::is_multi_gpu>(handle,
                                                                 std::nullopt,
                                                                 std::move(std::get<0>(edge_buffer)),
@@ -758,7 +754,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void weakly_connected_components(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view,
   vertex_t* components,
   bool do_expensive_check)
 {

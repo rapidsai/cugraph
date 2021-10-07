@@ -67,12 +67,14 @@ typename GraphViewType::edge_type count_if_e(
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = typename GraphViewType::weight_type;
 
   return transform_reduce_e(handle,
                             graph_view,
                             adj_matrix_row_value_input,
                             adj_matrix_col_value_input,
-                            cast_edge_op_bool_to_integer<GraphViewType,
+                            cast_edge_op_bool_to_integer<vertex_t,
+                                                         weight_t,
                                                          vertex_t,
                                                          AdjMatrixRowValueInputWrapper,
                                                          AdjMatrixColValueInputWrapper,
