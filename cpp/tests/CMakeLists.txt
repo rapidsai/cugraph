@@ -41,8 +41,7 @@ target_include_directories(cugraphtestutil
 
 target_link_libraries(cugraphtestutil
     PUBLIC
-        cugraph
-        cuco::cuco
+        cugraph::cugraph
         NCCL::NCCL
 )
 
@@ -78,16 +77,12 @@ function(ConfigureTest CMAKE_TEST_NAME)
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
             cugraphtestutil
-            cugraph
+            cugraph::cugraph
             GTest::gmock
             GTest::gmock_main
             GTest::gtest
             GTest::gtest_main
             NCCL::NCCL
-            CUDA::cublas
-            CUDA::cusparse
-            CUDA::cusolver
-            CUDA::curand
     )
 
     if(OpenMP_CXX_FOUND)
@@ -151,16 +146,12 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         PRIVATE
         cugraphmgtestutil
         cugraphtestutil
-        cugraph
+        cugraph::cugraph
         GTest::gmock
         GTest::gmock_main
         GTest::gtest
         GTest::gtest_main
         NCCL::NCCL
-        CUDA::cublas
-        CUDA::cusparse
-        CUDA::cusolver
-        CUDA::curand
         MPI::MPI_CXX
     )
 

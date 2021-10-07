@@ -127,25 +127,12 @@ endif()
 ###################################################################################################
 # - find CPM based dependencies  ------------------------------------------------------------------
 
-
 rapids_cpm_init()
 
-
-include(cmake/thirdparty/get_thrust.cmake)
-include(cmake/thirdparty/get_nccl.cmake)
-include(cmake/thirdparty/get_rmm.cmake)
-
 include(cmake/thirdparty/get_raft.cmake)
-
-include(cmake/thirdparty/get_cuco.cmake)
+include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
-
 include(cmake/thirdparty/get_gunrock.cmake)
-
-if(BUILD_TESTS)
-  include(cmake/thirdparty/get_gtest.cmake)
-endif()
-
 
 ###################################################################################################
 # - library targets -------------------------------------------------------------------------------
@@ -269,15 +256,8 @@ target_include_directories(cugraph
 # - link libraries --------------------------------------------------------------------------------
 target_link_libraries(cugraph
     PUBLIC
-        rmm::rmm
-        cugraph::Thrust
         raft::raft
     PRIVATE
-        cuco::cuco
-        CUDA::cublas
-        CUDA::curand
-        CUDA::cusolver
-        CUDA::cusparse
         cugraph::cuHornet
         gunrock
         NCCL::NCCL
@@ -369,12 +349,9 @@ cuGraph library is a collection of GPU accelerated graph algorithms that process
 
 ]=])
 
-set(code_string
-[=[
-thrust_create_target(cugraph::Thrust FROM_OPTIONS)
-]=])
+set(code_string "")
 
- rapids_export(INSTALL cugraph
+rapids_export(INSTALL cugraph
     EXPORT_SET cugraph-exports
     GLOBAL_TARGETS cugraph
     NAMESPACE cugraph::
