@@ -77,6 +77,9 @@ accumulate_new_roots(raft::handle_t const& handle,
   vertex_t max_scan_size =
     static_cast<vertex_t>(handle.get_device_properties().multiProcessorCount) * vertex_t{16384};
 
+  std::cout << "in accumulate_new_roots, scan_size = " << scan_size
+            << ", max_new_roots = " << max_new_roots << std::endl;
+
   rmm::device_uvector<vertex_t> new_roots(max_new_roots, handle.get_stream_view());
   vertex_t num_new_roots{0};
   vertex_t num_scanned{0};
@@ -112,6 +115,7 @@ accumulate_new_roots(raft::handle_t const& handle,
     if (tmp_new_roots.size() > 0) {
       rmm::device_uvector<edge_t> tmp_cumulative_degrees(tmp_new_roots.size(),
                                                          handle.get_stream_view());
+      std::cout << "  call transform" << std::endl;
       thrust::transform(
         handle.get_thrust_policy(),
         tmp_new_roots.begin(),
@@ -120,10 +124,12 @@ accumulate_new_roots(raft::handle_t const& handle,
         [vertex_partition, degrees] __device__(auto v) {
           return degrees[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)];
         });
+      std::cout << "  call inclusive scan" << std::endl;
       thrust::inclusive_scan(handle.get_thrust_policy(),
                              tmp_cumulative_degrees.begin(),
                              tmp_cumulative_degrees.end(),
                              tmp_cumulative_degrees.begin());
+      std::cout << "  call lower bound" << std::endl;
       auto last = thrust::lower_bound(handle.get_thrust_policy(),
                                       tmp_cumulative_degrees.begin(),
                                       tmp_cumulative_degrees.end(),
@@ -133,6 +139,7 @@ accumulate_new_roots(raft::handle_t const& handle,
         std::min(static_cast<vertex_t>(thrust::distance(tmp_cumulative_degrees.begin(), last)),
                  max_new_roots - num_new_roots);
 
+      std::cout << "  call copy" << std::endl;
       thrust::copy(handle.get_thrust_policy(),
                    tmp_new_roots.begin(),
                    tmp_new_roots.begin() + tmp_num_new_roots,
@@ -146,6 +153,7 @@ accumulate_new_roots(raft::handle_t const& handle,
         raft::update_host(
           &tmp_num_scanned, tmp_indices.data() + tmp_num_new_roots, size_t{1}, handle.get_stream());
       }
+      std::cout << "  call update_host" << std::endl;
       raft::update_host(&tmp_degree_sum,
                         tmp_cumulative_degrees.data() + (tmp_num_new_roots - 1),
                         size_t{1},
@@ -157,6 +165,8 @@ accumulate_new_roots(raft::handle_t const& handle,
       num_scanned += scan_size;
     }
   }
+
+  std::cout << "num_new_roots = " << num_new_roots << std::endl;
 
   new_roots.resize(num_new_roots, handle.get_stream_view());
   new_roots.shrink_to_fit(handle.get_stream_view());
