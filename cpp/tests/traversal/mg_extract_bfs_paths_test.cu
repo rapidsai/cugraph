@@ -13,6 +13,7 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
+#include "randomly_select_destinations.cuh"
 
 #include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
@@ -47,14 +48,6 @@ struct ExtractBfsPaths_Usecase {
   size_t num_paths_to_check{0};
   bool check_correctness{true};
 };
-
-template <bool multi_gpu, typename vertex_t>
-rmm::device_uvector<vertex_t> randomly_select_destinations(
-  raft::handle_t const& handle,
-  vertex_t number_of_vertices,
-  vertex_t local_vertex_first,
-  rmm::device_uvector<vertex_t> const& d_predecessors,
-  size_t num_paths_to_check);
 
 template <typename input_usecase_t>
 class Tests_ExtractBfsPaths
@@ -148,12 +141,12 @@ class Tests_ExtractBfsPaths
 
     vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
 
-    auto d_mg_destinations =
-      randomly_select_destinations<false>(handle,
-                                          mg_graph_view.get_number_of_local_vertices(),
-                                          mg_graph_view.get_local_vertex_first(),
-                                          d_mg_predecessors,
-                                          extract_bfs_paths_usecase.num_paths_to_check);
+    auto d_mg_destinations = cugraph::test::randomly_select_destinations<false>(
+      handle,
+      mg_graph_view.get_number_of_local_vertices(),
+      mg_graph_view.get_local_vertex_first(),
+      d_mg_predecessors,
+      extract_bfs_paths_usecase.num_paths_to_check);
 
     rmm::device_uvector<vertex_t> d_mg_paths(0, handle.get_stream());
 

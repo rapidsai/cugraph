@@ -348,8 +348,7 @@ ConfigureTest(BFS_TEST traversal/bfs_test.cpp)
 ###################################################################################################
 # - Extract BFS Paths tests ------------------------------------------------------------------------
 ConfigureTest(EXTRACT_BFS_PATHS_TEST
-              traversal/extract_bfs_paths_test.cpp
-              traversal/extract_bfs_paths_utils.cu)
+              traversal/extract_bfs_paths_test.cu)
 
 ###################################################################################################
 # - Multi-source BFS tests -----------------------------------------------------------------------
@@ -437,8 +436,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - Extract BFS Paths tests ---------------------------------------------------------------
         ConfigureTestMG(MG_EXTRACT_BFS_PATHS_TEST
-                        traversal/mg_extract_bfs_paths_test.cpp
-                        traversal/extract_bfs_paths_utils.cu)
+                        traversal/mg_extract_bfs_paths_test.cu)
 
         ###########################################################################################
         # - MG SSSP tests -------------------------------------------------------------------------
