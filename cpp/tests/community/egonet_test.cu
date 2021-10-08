@@ -42,12 +42,17 @@ typedef struct InducedEgo_Usecase_t {
   std::vector<int32_t> ego_sources{};
   int32_t radius;
   bool test_weighted{false};
+  bool store_transposed{false};
 
   InducedEgo_Usecase_t(std::string const& graph_file_path,
                        std::vector<int32_t> const& ego_sources,
                        int32_t radius,
-                       bool test_weighted)
-    : ego_sources(ego_sources), radius(radius), test_weighted(test_weighted)
+                       bool test_weighted,
+                       bool store_transposed)
+    : ego_sources(ego_sources),
+      radius(radius),
+      test_weighted(test_weighted),
+      store_transposed(store_transposed)
   {
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
       graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
@@ -66,7 +71,7 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+  template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(InducedEgo_Usecase const& configuration)
   {
     int n_streams = std::min(configuration.ego_sources.size(), static_cast<std::size_t>(128));
@@ -78,7 +83,7 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
         handle,
         configuration.graph_file_full_path,
         configuration.test_weighted,
-        store_transposed,
+        configuration.store_transposed,
         false);
     auto graph_view = graph.view();
 
@@ -133,22 +138,22 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
   }
 };
 
-TEST_P(Tests_InducedEgo, CheckInt32Int32FloatUntransposed)
+TEST_P(Tests_InducedEgo, CheckInt32Int32Float)
 {
-  run_current_test<int32_t, int32_t, float, false>(GetParam());
+  run_current_test<int32_t, int32_t, float>(GetParam());
 }
 
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_InducedEgo,
   ::testing::Values(
-    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 1, false),
-    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 2, false),
-    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{1}, 3, false),
-    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{10, 0, 5}, 2, false),
-    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{9, 3, 10}, 2, false),
+    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 1, false, false),
+    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{0}, 2, false, false),
+    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{1}, 3, false, false),
+    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{10, 0, 5}, 2, false, false),
+    InducedEgo_Usecase("test/datasets/karate.mtx", std::vector<int32_t>{9, 3, 10}, 2, false, false),
     InducedEgo_Usecase(
-      "test/datasets/karate.mtx", std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true)));
+      "test/datasets/karate.mtx", std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true, false)));
 
 // For perf analysis
 /*
