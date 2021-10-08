@@ -18,6 +18,7 @@
 //
 #pragma once
 
+#include <cugraph/api_helpers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/visitors/graph_envelope.hpp>
 #include <cugraph/visitors/ret_terased.hpp>
@@ -43,8 +44,6 @@
 namespace cugraph {
 
 namespace detail {
-
-enum class sampling_t : int { UNIFORM = 0, BIASED };  // sampling strategy; others: NODE2VEC
 
 template <typename T>
 using device_vec_t = rmm::device_uvector<T>;
@@ -238,6 +237,8 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
   // no need for type-erasure, as this is only used internally:
   //
   visitors::return_t const& get_result(void) const override { return ret_unused_; }
+
+  visitors::return_t&& get_result(void) override { return std::move(ret_unused_); }
 
   rmm::device_uvector<weight_t>&& get_aggregated_weights(void)
   {

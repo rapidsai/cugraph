@@ -85,13 +85,15 @@ bool host_check_path(std::vector<edge_t> const& row_offsets,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename index_t = edge_t>
-bool host_check_rw_paths(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, false> const& graph_view,
-  vector_test_t<vertex_t> const& d_coalesced_v,
-  vector_test_t<weight_t> const& d_coalesced_w,
-  vector_test_t<index_t> const& d_sizes,
-  index_t num_paths = 0)  // only relevant for the padded case (in which case it must be non-zero)
+bool host_check_rw_paths(raft::handle_t const& handle,
+                         cugraph::graph_view_t<vertex_t, edge_t, weight_t, false> const& graph_view,
+                         vertex_t const* ptr_d_coalesced_v,
+                         size_t num_path_vertices,
+                         weight_t const* ptr_d_coalesced_w,
+                         size_t num_path_edges,
+                         index_t const* ptr_d_sizes,
+                         size_t path_sizes,
+                         index_t num_paths)
 {
   edge_t num_edges      = graph_view.get_number_of_edges();
   vertex_t num_vertices = graph_view.get_number_of_vertices();
@@ -110,22 +112,15 @@ bool host_check_rw_paths(
 
   if (values) { raft::update_host(v_vals.data(), *values, v_vals.size(), handle.get_stream()); }
 
-  std::vector<vertex_t> v_coalesced(d_coalesced_v.size());
-  std::vector<weight_t> w_coalesced(d_coalesced_w.size());
-  std::vector<index_t> v_sizes(d_sizes.size());
+  std::vector<vertex_t> v_coalesced(num_path_vertices);
+  std::vector<weight_t> w_coalesced(num_path_edges);
+  std::vector<index_t> v_sizes(path_sizes);
 
-  raft::update_host(v_coalesced.data(),
-                    cugraph::detail::raw_const_ptr(d_coalesced_v),
-                    d_coalesced_v.size(),
-                    handle.get_stream());
-  raft::update_host(w_coalesced.data(),
-                    cugraph::detail::raw_const_ptr(d_coalesced_w),
-                    d_coalesced_w.size(),
-                    handle.get_stream());
+  raft::update_host(v_coalesced.data(), ptr_d_coalesced_v, num_path_vertices, handle.get_stream());
+  raft::update_host(w_coalesced.data(), ptr_d_coalesced_w, num_path_edges, handle.get_stream());
 
   if (v_sizes.size() > 0) {  // coalesced case
-    raft::update_host(
-      v_sizes.data(), cugraph::detail::raw_const_ptr(d_sizes), d_sizes.size(), handle.get_stream());
+    raft::update_host(v_sizes.data(), ptr_d_sizes, path_sizes, handle.get_stream());
   } else {  // padded case
     if (num_paths == 0) {
       std::cerr << "ERROR: padded case requires `num_paths` info.\n";
@@ -175,6 +170,29 @@ bool host_check_rw_paths(
     }
   }
   return true;
+}
+
+// convenience trampoline function for when `device_uvector`'s are readily available;
+// (e.g., returned by an algorithm);
+//
+template <typename vertex_t, typename edge_t, typename weight_t, typename index_t = edge_t>
+bool host_check_rw_paths(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, false> const& graph_view,
+  vector_test_t<vertex_t> const& d_coalesced_v,
+  vector_test_t<weight_t> const& d_coalesced_w,
+  vector_test_t<index_t> const& d_sizes,
+  index_t num_paths = 0)  // only relevant for the padded case (in which case it must be non-zero)
+{
+  return host_check_rw_paths(handle,
+                             graph_view,
+                             d_coalesced_v.data(),
+                             d_coalesced_v.size(),
+                             d_coalesced_w.data(),
+                             d_coalesced_w.size(),
+                             d_sizes.data(),
+                             d_sizes.size(),
+                             num_paths);
 }
 
 template <typename index_t>

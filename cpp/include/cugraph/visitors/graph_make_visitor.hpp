@@ -14,9 +14,6 @@
  * limitations under the License.
  */
 
-// Andrei Schaffer, aschaffer@nvidia.com
-//
-
 #pragma once
 #include "erased_pack.hpp"
 #include "graph_envelope.hpp"
@@ -24,22 +21,19 @@
 
 namespace cugraph {
 namespace visitors {
-
-// macro option: MAKE_VISITOR(bfs)
-
 // primary empty template:
 //
 template <typename vertex_t, typename edge_t, typename weight_t, bool mg, typename Enable = void>
-struct bfs_visitor;
+struct graph_maker_visitor;
 
 // dummy out non-candidate instantiation paths:
 //
 template <typename vertex_t, typename edge_t, typename weight_t, bool mg>
-struct bfs_visitor<vertex_t,
-                   edge_t,
-                   weight_t,
-                   mg,
-                   std::enable_if_t<(!is_candidate<vertex_t, edge_t, weight_t>::value)>>
+struct graph_maker_visitor<vertex_t,
+                           edge_t,
+                           weight_t,
+                           mg,
+                           std::enable_if_t<(!is_candidate<vertex_t, edge_t, weight_t>::value)>>
   : visitor_t {
   void visit_graph(graph_envelope_t::base_graph_t const&) override
   {
@@ -59,17 +53,17 @@ struct bfs_visitor<vertex_t,
 };
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool mg>
-struct bfs_visitor<vertex_t,
-                   edge_t,
-                   weight_t,
-                   mg,
-                   std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>> : visitor_t {
-  bfs_visitor(erased_pack_t& ep) : ep_(ep) {}
+struct graph_maker_visitor<vertex_t,
+                           edge_t,
+                           weight_t,
+                           mg,
+                           std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>
+  : visitor_t {
+  graph_maker_visitor(erased_pack_t& ep) : ep_(ep) {}
 
   void visit_graph(graph_envelope_t::base_graph_t const&) override;
 
   return_t const& get_result(void) const override { return result_; }
-
   return_t&& get_result(void) override { return std::move(result_); }
 
  private:

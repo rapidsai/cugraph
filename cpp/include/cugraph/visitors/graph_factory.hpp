@@ -105,26 +105,39 @@ struct graph_factory_t<graph_t<vertex_t, edge_t, weight_t, multi_gpu, std::enabl
   : graph_factory_base_t {
   std::unique_ptr<graph_envelope_t::base_graph_t> make_graph(erased_pack_t& ep) const override
   {
+#ifdef _DEBUG_
+    std::cout << "Enter graph factory...\n";
+#endif
+
     /// std::cout << "Multi-GPU factory.\n";
     std::vector<void*> const& v_args{ep.get_args()};
 
-    // invoke cnstr. using cython arg pack:
+    // branch on various constructors based on
+    // number of arguments in the pack:
     //
-    assert(v_args.size() == 4);
+    auto pack_arg_sz = v_args.size();
+    assert(pack_arg_sz > 0);  // need at least the raft handle
 
     // cnstr. args unpacking:
     //
     raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
 
-    auto const& edgelists =
-      *static_cast<std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const*>(v_args[1]);
+    if (pack_arg_sz == 1) {
+      // invoke graph_t(handle);
+      return std::make_unique<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>(handle);
+    } else {
+      assert(pack_arg_sz == 4);
 
-    auto meta = *static_cast<graph_meta_t<vertex_t, edge_t, multi_gpu> const*>(v_args[2]);
+      auto const& edgelists =
+        *static_cast<std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const*>(v_args[1]);
 
-    bool check = *static_cast<bool*>(v_args[3]);
+      auto meta = *static_cast<graph_meta_t<vertex_t, edge_t, multi_gpu> const*>(v_args[2]);
 
-    return std::make_unique<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>(
-      handle, edgelists, meta, check);
+      bool check = *static_cast<bool*>(v_args[3]);
+
+      return std::make_unique<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>(
+        handle, edgelists, meta, check);
+    }
   }
 };
 
@@ -134,20 +147,34 @@ struct graph_factory_t<graph_t<vertex_t, edge_t, weight_t, multi_gpu, std::enabl
   std::unique_ptr<graph_envelope_t::base_graph_t> make_graph(erased_pack_t& ep) const override
   {
     /// std::cout << "Single-GPU factory.\n";
+
     std::vector<void*> const& v_args{ep.get_args()};
 
-    assert(v_args.size() == 4);
+    // branch on various constructors based on
+    // number of arguments in the pack:
+    //
+    auto pack_arg_sz = v_args.size();
+    assert(pack_arg_sz > 0);  // need at least the raft handle
 
+    // cnstr. args unpacking:
+    //
     raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
 
-    auto const& elist = *static_cast<edgelist_t<vertex_t, edge_t, weight_t> const*>(v_args[1]);
+    if (pack_arg_sz == 1) {
+      // invoke graph_t(handle);
+      return std::make_unique<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>(handle);
+    } else {
+      assert(pack_arg_sz == 4);
 
-    auto meta = *static_cast<graph_meta_t<vertex_t, edge_t, multi_gpu> const*>(v_args[2]);
+      auto const& elist = *static_cast<edgelist_t<vertex_t, edge_t, weight_t> const*>(v_args[1]);
 
-    bool check = *static_cast<bool*>(v_args[3]);
+      auto meta = *static_cast<graph_meta_t<vertex_t, edge_t, multi_gpu> const*>(v_args[2]);
 
-    return std::make_unique<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>(
-      handle, elist, meta, check);
+      bool check = *static_cast<bool*>(v_args[3]);
+
+      return std::make_unique<graph_t<vertex_t, edge_t, weight_t, multi_gpu>>(
+        handle, elist, meta, check);
+    }
   }
 };
 
