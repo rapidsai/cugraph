@@ -77,7 +77,7 @@ accumulate_new_roots(raft::handle_t const& handle,
   vertex_t max_scan_size =
     static_cast<vertex_t>(handle.get_device_properties().multiProcessorCount) * vertex_t{16384};
 
-  std::cout << "in accumulate_new_roots, scan_size = " << scan_size
+  std::cout << "in accumulate_new_roots, scan_size = " << max_scan_size
             << ", max_new_roots = " << max_new_roots << std::endl;
 
   rmm::device_uvector<vertex_t> new_roots(max_new_roots, handle.get_stream_view());
