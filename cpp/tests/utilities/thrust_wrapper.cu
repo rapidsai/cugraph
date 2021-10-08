@@ -20,8 +20,8 @@
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
-#include <thrust/sort.h>
 #include <thrust/shuffle.h>
+#include <thrust/sort.h>
 
 namespace cugraph {
 namespace test {

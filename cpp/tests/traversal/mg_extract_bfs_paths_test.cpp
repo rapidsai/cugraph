@@ -244,17 +244,18 @@ class Tests_ExtractBfsPaths
       ASSERT_EQ(d_mg_paths.size(), mg_max_path_length * d_mg_destinations.size());
       ASSERT_EQ(d_sg_paths.size(), sg_max_path_length * d_sg_destinations.size());
 
-      for (size_t dest_id = 0 ; dest_id < d_mg_destinations.size() ; ++dest_id) {
-        for (vertex_t offset = 0 ; offset < std::min(sg_max_path_length, mg_max_path_length) ; ++offset) {
+      for (size_t dest_id = 0; dest_id < d_mg_destinations.size(); ++dest_id) {
+        for (vertex_t offset = 0; offset < std::min(sg_max_path_length, mg_max_path_length);
+             ++offset) {
           ASSERT_EQ(h_mg_paths[dest_id * mg_max_path_length + offset],
                     h_sg_paths[dest_id * sg_max_path_length + offset]);
         }
 
-        for (vertex_t offset = sg_max_path_length ; offset < mg_max_path_length ; ++offset) {
+        for (vertex_t offset = sg_max_path_length; offset < mg_max_path_length; ++offset) {
           ASSERT_EQ(h_mg_paths[dest_id * mg_max_path_length + offset], invalid_vertex);
         }
 
-        for (vertex_t offset = mg_max_path_length ; offset < sg_max_path_length ; ++offset) {
+        for (vertex_t offset = mg_max_path_length; offset < sg_max_path_length; ++offset) {
           ASSERT_EQ(h_sg_paths[dest_id * sg_max_path_length + offset], invalid_vertex);
         }
       }

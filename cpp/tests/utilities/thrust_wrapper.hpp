@@ -39,7 +39,7 @@ void populate_vertex_ids(raft::handle_t const& handle,
 
 template <typename T>
 rmm::device_uvector<T> randomly_select(raft::handle_t const& handle,
-                                       rmm::device_uvector<T> const &input,
+                                       rmm::device_uvector<T> const& input,
                                        size_t count);
 
 }  // namespace test

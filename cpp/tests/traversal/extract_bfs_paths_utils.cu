@@ -39,13 +39,13 @@ rmm::device_uvector<vertex_t> randomly_select_destinations(
   cugraph::detail::sequence_fill(
     handle.get_stream(), d_vertices.begin(), d_vertices.size(), local_vertex_first);
 
-  auto end_iter =
-    thrust::remove_if(handle.get_thrust_policy(),
-                      d_vertices.begin(),
-                      d_vertices.end(),
-                      [invalid_vertex, predecessors = d_predecessors.data(), local_vertex_first] __device__(auto v) {
-                        return predecessors[v - local_vertex_first] == invalid_vertex;
-                      });
+  auto end_iter = thrust::remove_if(
+    handle.get_thrust_policy(),
+    d_vertices.begin(),
+    d_vertices.end(),
+    [invalid_vertex, predecessors = d_predecessors.data(), local_vertex_first] __device__(auto v) {
+      return predecessors[v - local_vertex_first] == invalid_vertex;
+    });
 
   d_vertices.resize(thrust::distance(d_vertices.begin(), end_iter), handle.get_stream());
 

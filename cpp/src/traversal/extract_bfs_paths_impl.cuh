@@ -42,21 +42,25 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t>
+struct compute_max {
+  vertex_t __device__ operator()(vertex_t lhs, vertex_t rhs)
+  {
+    return thrust::max<vertex_t>(lhs, rhs);
+  }
+};
+
+template <typename vertex_t, bool is_multi_gpu>
 struct compute_max_distance {
-  vertex_t local_first_;
+  vertex_partition_device_view_t<vertex_t, is_multi_gpu> vertex_partition_;
   vertex_t invalid_vertex_;
   vertex_t const* predecessors_;
   vertex_t const* distances_;
 
   vertex_t __device__ operator()(vertex_t v)
   {
-    return (predecessors_[v - local_first_] == invalid_vertex_) ? vertex_t{0}
-                                                                : distances_[v - local_first_];
-  }
+    auto offset = vertex_partition_.get_local_vertex_offset_from_vertex_nocheck(v);
 
-  vertex_t __device__ operator()(vertex_t lhs, vertex_t rhs)
-  {
-    return thrust::max<vertex_t>(lhs, rhs);
+    return (predecessors_[offset] == invalid_vertex_) ? vertex_t{0} : distances_[offset];
   }
 };
 
@@ -76,16 +80,18 @@ struct mg_partition_vertices {
   }
 };
 
-template <typename vertex_t>
+template <typename vertex_t, bool is_multi_gpu>
 struct map_index_to_path_offset {
-  vertex_t v_local_first_;
+  vertex_partition_device_view_t<vertex_t, is_multi_gpu> vertex_partition_;
   vertex_t max_path_length_;
   vertex_t const* distances_;
   vertex_t const* destinations_;
 
   size_t __device__ operator()(size_t idx)
   {
-    return (idx * max_path_length_) + distances_[destinations_[idx] - v_local_first_];
+    return (idx * max_path_length_) +
+           distances_[vertex_partition_.get_local_vertex_offset_from_vertex_nocheck(
+             destinations_[idx])];
   }
 };
 
@@ -103,40 +109,37 @@ struct update_paths {
   }
 };
 
-template <typename vertex_t>
+template <typename vertex_t, bool is_multi_gpu>
 struct mg_lookup_distance {
-  vertex_t v_local_first_;
+  vertex_partition_device_view_t<vertex_t, is_multi_gpu> vertex_partition_;
   vertex_t const* distances_;
 
   thrust::tuple<vertex_t, vertex_t, int> __device__
   operator()(thrust::tuple<vertex_t, vertex_t, int> const& tuple)
   {
-    auto v = thrust::get<0>(tuple);
-    return thrust::make_tuple(
-      distances_[v - v_local_first_], thrust::get<1>(tuple), thrust::get<2>(tuple));
+    auto v = vertex_partition_.get_local_vertex_offset_from_vertex_nocheck(thrust::get<0>(tuple));
+    return thrust::make_tuple(distances_[v], thrust::get<1>(tuple), thrust::get<2>(tuple));
   }
 };
 
-template <typename vertex_t>
+template <typename vertex_t, bool is_multi_gpu>
 struct mg_lookup_predecessor {
-  vertex_t v_local_first_;
+  vertex_partition_device_view_t<vertex_t, is_multi_gpu> vertex_partition_;
   vertex_t const* predecessors_;
 
   thrust::tuple<vertex_t, vertex_t, int> __device__
   operator()(thrust::tuple<vertex_t, vertex_t, int> const& tuple)
   {
-    auto v = thrust::get<0>(tuple);
-    return thrust::make_tuple(
-      predecessors_[v - v_local_first_], thrust::get<1>(tuple), thrust::get<2>(tuple));
+    auto v = vertex_partition_.get_local_vertex_offset_from_vertex_nocheck(thrust::get<0>(tuple));
+    return thrust::make_tuple(predecessors_[v], thrust::get<1>(tuple), thrust::get<2>(tuple));
   }
 };
 
 template <typename vertex_t>
 struct sg_lookup_predecessor {
-  vertex_t v_local_first_;
   vertex_t const* predecessors_;
 
-  vertex_t __device__ operator()(vertex_t v) { return predecessors_[v - v_local_first_]; }
+  vertex_t __device__ operator()(vertex_t v) { return predecessors_[v]; }
 };
 
 struct decrement_position {
@@ -184,10 +187,10 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   CUGRAPH_EXPECTS((n_destinations == 0) || (destinations != nullptr),
                   "Invalid input argument: destinations cannot be null");
 
-  if constexpr (multi_gpu) {
-    vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition_device_view(
-      graph_view.get_vertex_partition_view());
+  vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition_device_view(
+    graph_view.get_vertex_partition_view());
 
+  if constexpr (multi_gpu) {
     CUGRAPH_EXPECTS(0 == thrust::count_if(handle.get_thrust_policy(),
                                           destinations,
                                           destinations + n_destinations,
@@ -207,10 +210,10 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
           handle.get_thrust_policy(),
           destinations,
           destinations + n_destinations,
-          detail::compute_max_distance<vertex_t>{
-            graph_view.get_local_vertex_first(), invalid_vertex, predecessors, distances},
+          detail::compute_max_distance<vertex_t, multi_gpu>{
+            vertex_partition_device_view, invalid_vertex, predecessors, distances},
           vertex_t{0},
-          detail::compute_max_distance<vertex_t>{});
+          detail::compute_max<vertex_t>{});
 
   if constexpr (multi_gpu) {
     max_path_length = cugraph::host_scalar_allreduce(
@@ -243,12 +246,11 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
                         handle.get_stream());
   }
 
-  thrust::tabulate(
-    handle.get_thrust_policy(),
-    current_position.begin(),
-    current_position.end(),
-    detail::map_index_to_path_offset<vertex_t>{
-      graph_view.get_local_vertex_first(), max_path_length, distances, destinations});
+  thrust::tabulate(handle.get_thrust_policy(),
+                   current_position.begin(),
+                   current_position.end(),
+                   detail::map_index_to_path_offset<vertex_t, multi_gpu>{
+                     vertex_partition_device_view, max_path_length, distances, destinations});
 
   std::tie(current_frontier, current_position) = detail::shrink_extraction_list(
     handle, std::move(current_frontier), std::move(current_position));
@@ -275,15 +277,14 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
         detail::mg_partition_vertices<vertex_t>{handle.get_comms().get_rank(),
                                                 d_vertex_partition_offsets.begin(),
                                                 d_vertex_partition_offsets.end()},
-        graph_view.get_local_vertex_first(),
+        vertex_partition_device_view,
         handle.get_stream());
     } else {
-      thrust::transform(
-        handle.get_thrust_policy(),
-        current_frontier.begin(),
-        current_frontier.end(),
-        current_frontier.data(),
-        detail::sg_lookup_predecessor<vertex_t>{graph_view.get_local_vertex_first(), predecessors});
+      thrust::transform(handle.get_thrust_policy(),
+                        current_frontier.begin(),
+                        current_frontier.end(),
+                        current_frontier.data(),
+                        detail::sg_lookup_predecessor<vertex_t>{predecessors});
     }
 
     std::tie(current_frontier, current_position) = detail::shrink_extraction_list(
