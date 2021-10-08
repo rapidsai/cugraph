@@ -115,6 +115,7 @@ accumulate_new_roots(raft::handle_t const& handle,
     if (tmp_new_roots.size() > 0) {
       rmm::device_uvector<edge_t> tmp_cumulative_degrees(tmp_new_roots.size(),
                                                          handle.get_stream_view());
+      handle.get_stream_view().synchronize();
       std::cout << "  call transform" << std::endl;
       thrust::transform(
         handle.get_thrust_policy(),
@@ -124,12 +125,22 @@ accumulate_new_roots(raft::handle_t const& handle,
         [vertex_partition, degrees] __device__(auto v) {
           return degrees[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)];
         });
+      handle.get_stream_view().synchronize();
       std::cout << "  call inclusive scan" << std::endl;
+      raft::print_device_vector("tmp_cumulative_degrees",
+                                tmp_cumulative_degrees.begin(),
+                                tmp_cumulative_degrees.size(),
+                                std::cout);
       thrust::inclusive_scan(handle.get_thrust_policy(),
                              tmp_cumulative_degrees.begin(),
                              tmp_cumulative_degrees.end(),
                              tmp_cumulative_degrees.begin());
+      handle.get_stream_view().synchronize();
       std::cout << "  call lower bound" << std::endl;
+      raft::print_device_vector("tmp_cumulative_degrees",
+                                tmp_cumulative_degrees.begin(),
+                                tmp_cumulative_degrees.size(),
+                                std::cout);
       auto last = thrust::lower_bound(handle.get_thrust_policy(),
                                       tmp_cumulative_degrees.begin(),
                                       tmp_cumulative_degrees.end(),
@@ -139,6 +150,7 @@ accumulate_new_roots(raft::handle_t const& handle,
         std::min(static_cast<vertex_t>(thrust::distance(tmp_cumulative_degrees.begin(), last)),
                  max_new_roots - num_new_roots);
 
+      handle.get_stream_view().synchronize();
       std::cout << "  call copy" << std::endl;
       thrust::copy(handle.get_thrust_policy(),
                    tmp_new_roots.begin(),
