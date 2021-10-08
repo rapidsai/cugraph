@@ -232,13 +232,13 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   if constexpr (multi_gpu) {
     // FIXME: There should be a better way to do this
     std::vector<vertex_t> h_vertex_partition_offsets(handle.get_comms().get_size() + 1);
+    d_vertex_partition_offsets.resize(handle.get_comms().get_size() + 1, handle.get_stream());
+
     for (int i = 0; i < handle.get_comms().get_size(); ++i)
       h_vertex_partition_offsets[i] = graph_view.get_vertex_partition_first(i);
 
     h_vertex_partition_offsets[handle.get_comms().get_size()] =
       graph_view.get_vertex_partition_last(handle.get_comms().get_size() - 1);
-
-    d_vertex_partition_offsets.resize(handle.get_comms().get_size() + 1, handle.get_stream());
 
     raft::update_device(d_vertex_partition_offsets.data(),
                         h_vertex_partition_offsets.data(),
