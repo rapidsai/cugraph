@@ -117,10 +117,8 @@ accumulate_new_roots(raft::handle_t const& handle,
                                                          handle.get_stream_view());
       handle.get_stream_view().synchronize();
       std::cout << "  call transform" << std::endl;
-      raft::print_device_vector("tmp_new_roots",
-                                tmp_new_roots.begin(),
-                                tmp_new_roots.size(),
-                                std::cout);
+      raft::print_device_vector(
+        "tmp_new_roots", tmp_new_roots.begin(), tmp_new_roots.size(), std::cout);
       thrust::transform(
         handle.get_thrust_policy(),
         tmp_new_roots.begin(),
