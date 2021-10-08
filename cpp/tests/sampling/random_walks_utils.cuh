@@ -87,7 +87,7 @@ bool host_check_path(std::vector<edge_t> const& row_offsets,
 template <typename vertex_t, typename edge_t, typename weight_t, typename index_t = edge_t>
 bool host_check_rw_paths(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& graph_view,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, false> const& graph_view,
   vector_test_t<vertex_t> const& d_coalesced_v,
   vector_test_t<weight_t> const& d_coalesced_w,
   vector_test_t<index_t> const& d_sizes,

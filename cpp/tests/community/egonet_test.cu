@@ -72,10 +72,14 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
     int n_streams = std::min(configuration.ego_sources.size(), static_cast<std::size_t>(128));
     raft::handle_t handle(n_streams);
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
-    std::tie(graph, std::ignore) = cugraph::test::
-      read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted, false);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, false> graph(handle);
+    std::tie(graph, std::ignore) =
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
+        handle,
+        configuration.graph_file_full_path,
+        configuration.test_weighted,
+        store_transposed,
+        false);
     auto graph_view = graph.view();
 
     rmm::device_uvector<vertex_t> d_ego_sources(configuration.ego_sources.size(),

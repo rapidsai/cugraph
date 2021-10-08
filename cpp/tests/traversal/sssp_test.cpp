@@ -111,8 +111,8 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     }
 
     auto [graph, d_renumber_map_labels] =
-      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, true, renumber);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false>(
+        handle, input_usecase, true, false, renumber);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -152,11 +152,11 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     }
 
     if (sssp_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, weight_t, false> unrenumbered_graph(handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, input_usecase, true, false);
+          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false>(
+            handle, input_usecase, true, false, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 

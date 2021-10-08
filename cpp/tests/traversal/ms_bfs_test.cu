@@ -144,7 +144,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     raft::copy(d_sources.data(), h_sources.data(), h_sources.size(), handle.get_stream());
 
     // create the graph
-    cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, false> graph(handle);
     rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
     rmm::device_uvector<vertex_t> d_vertices(n_vertices, handle.get_stream());
     rmm::device_uvector<weight_t> d_weights(n_edges, handle.get_stream());
@@ -152,12 +152,13 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
       rmm::exec_policy(handle.get_stream()), d_vertices.begin(), d_vertices.end(), vertex_t{0});
 
     std::tie(graph, std::ignore) =
-      cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+      cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false>(
         handle,
         std::move(d_vertices),
         std::move(d_srcs),
         std::move(d_dst),
         std::nullopt,
+        false,
         cugraph::graph_properties_t{false, false},
         false);
 

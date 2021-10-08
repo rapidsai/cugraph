@@ -259,7 +259,7 @@ std::unique_ptr<cugraph::legacy::GraphCSR<vertex_t, edge_t, weight_t>> generate_
   return cugraph::coo_to_csr(cooview);
 }
 
-template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
@@ -268,7 +268,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            bool>
 read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                                       std::string const& graph_file_full_path,
-                                      bool test_weighted)
+                                      bool test_weighted,
+                                      bool store_transposed)
 {
   MM_typecode mc{};
   vertex_t m{};
@@ -318,7 +319,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
   thrust::sequence(execution_policy, d_vertices.begin(), d_vertices.end(), vertex_t{0});
   handle.get_stream_view().synchronize();
 
-  if (multi_gpu) {
+  if constexpr (multi_gpu) {
     auto& comm               = handle.get_comms();
     auto const comm_size     = comm.get_size();
     auto const comm_rank     = comm.get_rank();
@@ -342,8 +343,10 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
       comm_size, row_comm_size, col_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
-      auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(
-        d_edgelist_rows.begin(), d_edgelist_cols.begin(), (*d_edgelist_weights).begin()));
+      auto edge_first = thrust::make_zip_iterator(
+        thrust::make_tuple(store_transposed ? d_edgelist_cols.begin() : d_edgelist_rows.begin(),
+                           store_transposed ? d_edgelist_rows.begin() : d_edgelist_cols.begin(),
+                           (*d_edgelist_weights).begin()));
       number_of_local_edges = thrust::distance(
         edge_first,
         thrust::remove_if(execution_policy,
@@ -352,12 +355,12 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                           [comm_rank, key_func = edge_key_func] __device__(auto e) {
                             auto major = thrust::get<0>(e);
                             auto minor = thrust::get<1>(e);
-                            return store_transposed ? key_func(minor, major) != comm_rank
-                                                    : key_func(major, minor) != comm_rank;
+                            return key_func(major, minor) != comm_rank;
                           }));
     } else {
       auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(d_edgelist_rows.begin(), d_edgelist_cols.begin()));
+        thrust::make_tuple(store_transposed ? d_edgelist_cols.begin() : d_edgelist_rows.begin(),
+                           store_transposed ? d_edgelist_rows.begin() : d_edgelist_cols.begin()));
       number_of_local_edges = thrust::distance(
         edge_first,
         thrust::remove_if(execution_policy,
@@ -366,8 +369,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                           [comm_rank, key_func = edge_key_func] __device__(auto e) {
                             auto major = thrust::get<0>(e);
                             auto minor = thrust::get<1>(e);
-                            return store_transposed ? key_func(minor, major) != comm_rank
-                                                    : key_func(major, minor) != comm_rank;
+                            return key_func(major, minor) != comm_rank;
                           }));
     }
 
@@ -391,16 +393,13 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                          is_symmetric);
 }
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    std::string const& graph_file_full_path,
                                    bool test_weighted,
+                                   bool store_transposed,
                                    bool renumber)
 {
   auto [d_edgelist_rows,
@@ -409,18 +408,18 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
         d_vertices,
         number_of_vertices,
         is_symmetric] =
-    read_edgelist_from_matrix_market_file<vertex_t, weight_t, store_transposed, multi_gpu>(
-      handle, graph_file_full_path, test_weighted);
+    read_edgelist_from_matrix_market_file<vertex_t, weight_t, multi_gpu>(
+      handle, graph_file_full_path, test_weighted, store_transposed);
 
-  return cugraph::
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-      handle,
-      std::move(d_vertices),
-      std::move(d_edgelist_rows),
-      std::move(d_edgelist_cols),
-      std::move(d_edgelist_weights),
-      cugraph::graph_properties_t{is_symmetric, false},
-      renumber);
+  return cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, multi_gpu>(
+    handle,
+    std::move(d_vertices),
+    std::move(d_edgelist_rows),
+    std::move(d_edgelist_cols),
+    std::move(d_edgelist_weights),
+    store_transposed,
+    cugraph::graph_properties_t{is_symmetric, false},
+    renumber);
 }
 
 // explicit instantiations
@@ -461,196 +460,112 @@ generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 template std::unique_ptr<cugraph::legacy::GraphCSR<int64_t, int64_t, float>>
 generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
-template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, false>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int32_t, float, false, false>(
+read_graph_from_matrix_market_file<int32_t, int32_t, float, false>(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,
   bool test_weighted,
+  bool store_transposed,
   bool renumber);
 
-template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, true>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int32_t, float, false, true>(
+read_graph_from_matrix_market_file<int32_t, int32_t, float, true>(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,
   bool test_weighted,
+  bool store_transposed,
   bool renumber);
 
-template std::tuple<cugraph::graph_t<int32_t, int32_t, float, true, false>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int32_t, float, true, false>(
+read_graph_from_matrix_market_file<int32_t, int32_t, double, false>(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,
   bool test_weighted,
+  bool store_transposed,
   bool renumber);
 
-template std::tuple<cugraph::graph_t<int32_t, int32_t, float, true, true>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int32_t, float, true, true>(
+read_graph_from_matrix_market_file<int32_t, int32_t, double, true>(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,
   bool test_weighted,
+  bool store_transposed,
   bool renumber);
 
-template std::tuple<cugraph::graph_t<int32_t, int32_t, double, false, false>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int32_t, double, false, false>(
+read_graph_from_matrix_market_file<int32_t, int64_t, float, false>(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,
   bool test_weighted,
+  bool store_transposed,
   bool renumber);
 
-template std::tuple<cugraph::graph_t<int32_t, int32_t, double, false, true>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int32_t, double, false, true>(
+read_graph_from_matrix_market_file<int32_t, int64_t, float, true>(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,
   bool test_weighted,
+  bool store_transposed,
   bool renumber);
 
-template std::tuple<cugraph::graph_t<int32_t, int32_t, double, true, false>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int32_t, double, true, false>(
+read_graph_from_matrix_market_file<int32_t, int64_t, double, false>(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,
   bool test_weighted,
+  bool store_transposed,
   bool renumber);
 
-template std::tuple<cugraph::graph_t<int32_t, int32_t, double, true, true>,
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, true>,
                     std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int32_t, double, true, true>(
+read_graph_from_matrix_market_file<int32_t, int64_t, double, true>(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,
   bool test_weighted,
+  bool store_transposed,
   bool renumber);
 
-template std::tuple<cugraph::graph_t<int32_t, int64_t, float, false, false>,
-                    std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int64_t, float, false, false>(
-  raft::handle_t const& handle,
-  std::string const& graph_file_full_path,
-  bool test_weighted,
-  bool renumber);
-
-template std::tuple<cugraph::graph_t<int32_t, int64_t, float, false, true>,
-                    std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int64_t, float, false, true>(
-  raft::handle_t const& handle,
-  std::string const& graph_file_full_path,
-  bool test_weighted,
-  bool renumber);
-
-template std::tuple<cugraph::graph_t<int32_t, int64_t, float, true, false>,
-                    std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int64_t, float, true, false>(
-  raft::handle_t const& handle,
-  std::string const& graph_file_full_path,
-  bool test_weighted,
-  bool renumber);
-
-template std::tuple<cugraph::graph_t<int32_t, int64_t, float, true, true>,
-                    std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int64_t, float, true, true>(
-  raft::handle_t const& handle,
-  std::string const& graph_file_full_path,
-  bool test_weighted,
-  bool renumber);
-
-template std::tuple<cugraph::graph_t<int32_t, int64_t, double, false, false>,
-                    std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int64_t, double, false, false>(
-  raft::handle_t const& handle,
-  std::string const& graph_file_full_path,
-  bool test_weighted,
-  bool renumber);
-
-template std::tuple<cugraph::graph_t<int32_t, int64_t, double, false, true>,
-                    std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int64_t, double, false, true>(
-  raft::handle_t const& handle,
-  std::string const& graph_file_full_path,
-  bool test_weighted,
-  bool renumber);
-
-template std::tuple<cugraph::graph_t<int32_t, int64_t, double, true, false>,
-                    std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int64_t, double, true, false>(
-  raft::handle_t const& handle,
-  std::string const& graph_file_full_path,
-  bool test_weighted,
-  bool renumber);
-
-template std::tuple<cugraph::graph_t<int32_t, int64_t, double, true, true>,
-                    std::optional<rmm::device_uvector<int32_t>>>
-read_graph_from_matrix_market_file<int32_t, int64_t, double, true, true>(
-  raft::handle_t const& handle,
-  std::string const& graph_file_full_path,
-  bool test_weighted,
-  bool renumber);
-
-template std::tuple<cugraph::graph_t<int64_t, int64_t, float, false, false>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
-read_graph_from_matrix_market_file<int64_t, int64_t, float, false, false>(
+read_graph_from_matrix_market_file<int64_t, int64_t, float, false>(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,
   bool test_weighted,
+  bool store_transposed,
   bool renumber);
 
-template std::tuple<cugraph::graph_t<int64_t, int64_t, float, false, true>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
-read_graph_from_matrix_market_file<int64_t, int64_t, float, false, true>(
+read_graph_from_matrix_market_file<int64_t, int64_t, float, true>(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,
   bool test_weighted,
+  bool store_transposed,
   bool renumber);
 
-template std::tuple<cugraph::graph_t<int64_t, int64_t, float, true, false>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, false>,
                     std::optional<rmm::device_uvector<int64_t>>>
-read_graph_from_matrix_market_file<int64_t, int64_t, float, true, false>(
+read_graph_from_matrix_market_file<int64_t, int64_t, double, false>(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,
   bool test_weighted,
+  bool store_transposed,
   bool renumber);
 
-template std::tuple<cugraph::graph_t<int64_t, int64_t, float, true, true>,
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, true>,
                     std::optional<rmm::device_uvector<int64_t>>>
-read_graph_from_matrix_market_file<int64_t, int64_t, float, true, true>(
+read_graph_from_matrix_market_file<int64_t, int64_t, double, true>(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,
   bool test_weighted,
-  bool renumber);
-
-template std::tuple<cugraph::graph_t<int64_t, int64_t, double, false, false>,
-                    std::optional<rmm::device_uvector<int64_t>>>
-read_graph_from_matrix_market_file<int64_t, int64_t, double, false, false>(
-  raft::handle_t const& handle,
-  std::string const& graph_file_full_path,
-  bool test_weighted,
-  bool renumber);
-
-template std::tuple<cugraph::graph_t<int64_t, int64_t, double, false, true>,
-                    std::optional<rmm::device_uvector<int64_t>>>
-read_graph_from_matrix_market_file<int64_t, int64_t, double, false, true>(
-  raft::handle_t const& handle,
-  std::string const& graph_file_full_path,
-  bool test_weighted,
-  bool renumber);
-
-template std::tuple<cugraph::graph_t<int64_t, int64_t, double, true, false>,
-                    std::optional<rmm::device_uvector<int64_t>>>
-read_graph_from_matrix_market_file<int64_t, int64_t, double, true, false>(
-  raft::handle_t const& handle,
-  std::string const& graph_file_full_path,
-  bool test_weighted,
-  bool renumber);
-
-template std::tuple<cugraph::graph_t<int64_t, int64_t, double, true, true>,
-                    std::optional<rmm::device_uvector<int64_t>>>
-read_graph_from_matrix_market_file<int64_t, int64_t, double, true, true>(
-  raft::handle_t const& handle,
-  std::string const& graph_file_full_path,
-  bool test_weighted,
+  bool store_transposed,
   bool renumber);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -659,8 +574,10 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     int32_t,
                     bool>
-read_edgelist_from_matrix_market_file<int32_t, float, true, true>(
-  raft::handle_t const& handle, std::string const& graph_file_full_path, bool test_weighted);
+read_edgelist_from_matrix_market_file<int32_t, float, true>(raft::handle_t const& handle,
+                                                            std::string const& graph_file_full_path,
+                                                            bool test_weighted,
+                                                            bool store_transposed);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -668,26 +585,11 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     int32_t,
                     bool>
-read_edgelist_from_matrix_market_file<int32_t, float, true, false>(
-  raft::handle_t const& handle, std::string const& graph_file_full_path, bool test_weighted);
-
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    rmm::device_uvector<int32_t>,
-                    int32_t,
-                    bool>
-read_edgelist_from_matrix_market_file<int32_t, float, false, true>(
-  raft::handle_t const& handle, std::string const& graph_file_full_path, bool test_weighted);
-
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    rmm::device_uvector<int32_t>,
-                    int32_t,
-                    bool>
-read_edgelist_from_matrix_market_file<int32_t, float, false, false>(
-  raft::handle_t const& handle, std::string const& graph_file_full_path, bool test_weighted);
+read_edgelist_from_matrix_market_file<int32_t, float, false>(
+  raft::handle_t const& handle,
+  std::string const& graph_file_full_path,
+  bool test_weighted,
+  bool store_transposed);
 
 }  // namespace test
 }  // namespace cugraph

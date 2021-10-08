@@ -257,10 +257,14 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
       return;
     }
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
-    std::tie(graph, std::ignore) = cugraph::test::
-      read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted, false);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, false> graph(handle);
+    std::tie(graph, std::ignore) =
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
+        handle,
+        configuration.graph_file_full_path,
+        configuration.test_weighted,
+        store_transposed,
+        false);
     auto graph_view = graph.view();
 
     if (graph_view.get_number_of_vertices() == 0) { return; }
@@ -281,8 +285,7 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
 
     CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
-    std::unique_ptr<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
-      coarse_graph{};
+    std::unique_ptr<cugraph::graph_t<vertex_t, edge_t, weight_t, false>> coarse_graph{};
     rmm::device_uvector<vertex_t> coarse_vertices_to_labels(0, handle.get_stream());
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

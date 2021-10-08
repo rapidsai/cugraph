@@ -77,7 +77,7 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
   void run_test(const GraphBcast_Usecase& param)
   {
     using namespace cugraph::broadcast;
-    using sg_graph_t = cugraph::graph_t<vertex_t, edge_t, weight_t, false, false>;
+    using sg_graph_t = cugraph::graph_t<vertex_t, edge_t, weight_t, false>;
 
     raft::handle_t handle;
 
@@ -87,8 +87,8 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
     auto const comm_rank = comm.get_rank();
 
     auto [sg_graph, d_renumber_map_labels] =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-        handle, param.graph_file_full_path, true, /*renumber=*/false);
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
+        handle, param.graph_file_full_path, true, false, /*renumber=*/false);
 
     if (comm_rank == 0) {
       graph_broadcast(handle, &sg_graph);

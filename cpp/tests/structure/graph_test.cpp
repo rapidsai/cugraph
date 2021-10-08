@@ -95,9 +95,9 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
   {
     raft::handle_t handle{};
 
-    auto [d_rows, d_cols, d_weights, d_vertices, number_of_vertices, is_symmetric] = cugraph::test::
-      read_edgelist_from_matrix_market_file<vertex_t, weight_t, store_transposed, false>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted);
+    auto [d_rows, d_cols, d_weights, d_vertices, number_of_vertices, is_symmetric] =
+      cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t, false>(
+        handle, configuration.graph_file_full_path, configuration.test_weighted, store_transposed);
     edge_t number_of_edges = static_cast<edge_t>(d_rows.size());
 
     std::vector<vertex_t> h_rows(number_of_edges);
@@ -129,11 +129,14 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    auto graph = cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>(
+    auto graph = cugraph::graph_t<vertex_t, edge_t, weight_t, false>(
       handle,
       edgelist,
       cugraph::graph_meta_t<vertex_t, edge_t, false>{
-        number_of_vertices, cugraph::graph_properties_t{is_symmetric, false}, std::nullopt},
+        number_of_vertices,
+        store_transposed,
+        cugraph::graph_properties_t{is_symmetric, false},
+        std::nullopt},
       true);
 
     auto graph_view = graph.view();

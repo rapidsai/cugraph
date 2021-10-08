@@ -22,15 +22,12 @@
 namespace cugraph {
 namespace test {
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
                                    bool test_weighted,
+                                   bool store_transposed,
                                    bool renumber) const
 {
   uint64_t seed{0};
@@ -66,20 +63,20 @@ LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
 
   handle.get_stream_view().synchronize();
 
-  return cugraph::
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-      handle,
-      std::move(vertices_v),
-      std::move(src_v),
-      std::move(dst_v),
-      std::nullopt,
-      cugraph::graph_properties_t{true, false},
-      false);
+  return cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, multi_gpu>(
+    handle,
+    std::move(vertices_v),
+    std::move(src_v),
+    std::move(dst_v),
+    std::nullopt,
+    store_transposed,
+    cugraph::graph_properties_t{true, false},
+    false);
 }
 
-template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, false>,
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
-LineGraph_Usecase::construct_graph(raft::handle_t const&, bool, bool) const;
+LineGraph_Usecase::construct_graph(raft::handle_t const&, bool, bool, bool) const;
 
 }  // namespace test
 }  // namespace cugraph

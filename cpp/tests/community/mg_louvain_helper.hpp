@@ -41,11 +41,10 @@ void single_gpu_renumber_edgelist_given_number_map(
   rmm::device_uvector<T>& d_edgelist_cols,
   rmm::device_uvector<T>& d_renumber_map_gathered_v);
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-std::unique_ptr<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
-coarsen_graph(
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::unique_ptr<cugraph::graph_t<vertex_t, edge_t, weight_t, false>> coarsen_graph(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, false> const& graph_view,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, false> const& graph_view,
   vertex_t const* labels);
 
 }  // namespace test

@@ -71,8 +71,8 @@ class Tests_Renumbering
     vertex_t number_of_vertices{};
 
     std::tie(src_v, dst_v, std::ignore, std::ignore, number_of_vertices, std::ignore) =
-      input_usecase.template construct_edgelist<vertex_t, edge_t, weight_t, false, false>(handle,
-                                                                                          false);
+      input_usecase.template construct_edgelist<vertex_t, edge_t, weight_t, false>(
+        handle, false, false);
 
     if (renumbering_usecase.check_correctness) {
       h_original_src_v.resize(src_v.size());

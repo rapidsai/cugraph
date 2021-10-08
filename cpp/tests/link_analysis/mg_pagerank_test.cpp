@@ -84,8 +84,8 @@ class Tests_MGPageRank
     }
 
     auto [mg_graph, d_mg_renumber_map_labels] =
-      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, true>(
-        handle, input_usecase, pagerank_usecase.test_weighted, true);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true>(
+        handle, input_usecase, pagerank_usecase.test_weighted, true, true);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -233,10 +233,10 @@ class Tests_MGPageRank
 
         // 5-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(handle);
+        cugraph::graph_t<vertex_t, edge_t, weight_t, false> sg_graph(handle);
         std::tie(sg_graph, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            handle, input_usecase, pagerank_usecase.test_weighted, false);
+          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false>(
+            handle, input_usecase, pagerank_usecase.test_weighted, true, false);
 
         auto sg_graph_view = sg_graph.view();
 

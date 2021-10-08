@@ -116,13 +116,14 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     raft::handle_t handle{};
 
-    bool test_weighted = false;
+    bool test_weighted    = false;
+    bool store_transposed = false;
 
     // extract graph data from graph matrix file:
     //
     auto&& [d_src, d_dst, opt_d_w, opt_v, num_vertices, is_sym] =
-      cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t, false, false>(
-        handle, configuration.graph_file_full_path, test_weighted);
+      cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t, false>(
+        handle, configuration.graph_file_full_path, test_weighted, store_transposed);
 
     cugraph::graph_properties_t graph_props{is_sym, false};
     edge_t num_edges = d_dst.size();
@@ -137,21 +138,20 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     bool sorted{false};
     bool check{false};
 
-    cugraph::graph_meta_t<vertex_t, edge_t, false> meta{num_vertices, graph_props, std::nullopt};
+    cugraph::graph_meta_t<vertex_t, edge_t, false> meta{
+      num_vertices, store_transposed, graph_props, std::nullopt};
     erased_pack_t ep_graph{&handle, &edgelist, &meta, &check};
 
     DTypes vertex_tid = reverse_dmap_t<vertex_t>::type_id;
     DTypes edge_tid   = reverse_dmap_t<edge_t>::type_id;
     DTypes weight_tid = reverse_dmap_t<weight_t>::type_id;
-    bool st           = false;
     bool mg           = false;
     GTypes graph_tid  = GTypes::GRAPH_T;
 
-    graph_envelope_t graph_envelope{vertex_tid, edge_tid, weight_tid, st, mg, graph_tid, ep_graph};
+    graph_envelope_t graph_envelope{vertex_tid, edge_tid, weight_tid, mg, graph_tid, ep_graph};
 
-    auto const* p_graph =
-      dynamic_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> const*>(
-        graph_envelope.graph().get());
+    auto const* p_graph = dynamic_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false> const*>(
+      graph_envelope.graph().get());
 
     auto graph_view = p_graph->view();
 
@@ -232,7 +232,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       // (2.) if a graph object already exists, alternatively we can
       //      explicitly instantiate the factory and call its make method:
       //
-      // dependent_factory_t<vertex_t, edge_t, weight_t, false, false> visitor_factory{}; // okay
+      // dependent_factory_t<vertex_t, edge_t, weight_t, false> visitor_factory{}; // okay
       // auto v_uniq_ptr = visitor_factory.make_bfs_visitor(ep); // okay
       // p_graph->apply(*v_uniq_ptr);
 

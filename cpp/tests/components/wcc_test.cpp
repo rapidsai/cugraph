@@ -40,13 +40,13 @@ class Tests_WCC : public ::testing::TestWithParam<std::tuple<WCC_Usecase, input_
   {
     raft::handle_t handle{};
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, false> graph(handle);
 
     std::cout << "calling construct_graph" << std::endl;
 
     std::tie(graph, std::ignore) =
-      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, false, false);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false>(
+        handle, input_usecase, false, false, false);
 
     std::cout << "back from construct_graph" << std::endl;
 

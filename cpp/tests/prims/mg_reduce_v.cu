@@ -212,8 +212,8 @@ class Tests_MG_ReduceV
     }
 
     auto [mg_graph, d_mg_renumber_map_labels] =
-      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
-        handle, input_usecase, true, true);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true>(
+        handle, input_usecase, true, store_transposed, true);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -258,10 +258,10 @@ class Tests_MG_ReduceV
     //// 4. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, weight_t, false> sg_graph(handle);
       std::tie(sg_graph, std::ignore) =
-        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-          handle, input_usecase, true, false);
+        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false>(
+          handle, input_usecase, true, store_transposed, false);
       auto sg_graph_view = sg_graph.view();
 
       auto sg_property_data = generate<result_t>::property(

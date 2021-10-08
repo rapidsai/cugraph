@@ -98,8 +98,7 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
                           int rank,
                           weight_t mg_modularity)
   {
-    auto sg_graph =
-      std::make_unique<cugraph::graph_t<vertex_t, edge_t, weight_t, false, false>>(handle);
+    auto sg_graph = std::make_unique<cugraph::graph_t<vertex_t, edge_t, weight_t, false>>(handle);
     rmm::device_uvector<vertex_t> d_clustering_v(0, handle.get_stream());
     weight_t sg_modularity{-1.0};
 
@@ -112,8 +111,8 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
             d_vertices,
             number_of_vertices,
             is_symmetric] =
-        cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t, false, false>(
-          handle, graph_filename, true);
+        cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t, false>(
+          handle, graph_filename, true, false);
 
       d_clustering_v.resize(d_vertices.size(), handle.get_stream());
 
@@ -122,12 +121,13 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
         handle, d_edgelist_rows, d_edgelist_cols, d_renumber_map_gathered_v);
 
       std::tie(*sg_graph, std::ignore) =
-        cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+        cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false>(
           handle,
           std::move(d_vertices),
           std::move(d_edgelist_rows),
           std::move(d_edgelist_cols),
           std::move(d_edgelist_weights),
+          false,
           cugraph::graph_properties_t{is_symmetric, false},
           false);
     }
@@ -185,8 +185,8 @@ class Louvain_MG_Testfixture : public ::testing::TestWithParam<Louvain_Usecase> 
     cudaStream_t stream = handle.get_stream();
 
     auto [mg_graph, d_renumber_map_labels] =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, true>(
-        handle, param.graph_file_full_path, true, true);
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, true>(
+        handle, param.graph_file_full_path, true, false, true);
 
     auto mg_graph_view = mg_graph.view();
 

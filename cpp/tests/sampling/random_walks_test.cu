@@ -98,10 +98,10 @@ class Tests_RandomWalks
     int sampling_id       = std::get<1>(configuration);
     auto const& target    = std::get<2>(configuration);
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, false> graph(handle);
     std::tie(graph, std::ignore) =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-        handle, target.graph_file_full_path, target.test_weighted, false);
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
+        handle, target.graph_file_full_path, target.test_weighted, false, false);
 
     auto graph_view = graph.view();
 

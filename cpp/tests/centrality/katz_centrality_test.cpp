@@ -123,8 +123,8 @@ class Tests_KatzCentrality
     }
 
     auto [graph, d_renumber_map_labels] =
-      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
-        handle, input_usecase, katz_usecase.test_weighted, renumber);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false>(
+        handle, input_usecase, katz_usecase.test_weighted, true, renumber);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -172,12 +172,12 @@ class Tests_KatzCentrality
     }
 
     if (katz_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, weight_t, false> unrenumbered_graph(handle);
       if (renumber) {
         std::cout << "renumber = true" << std::endl;
         std::tie(unrenumbered_graph, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            handle, input_usecase, katz_usecase.test_weighted, false);
+          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false>(
+            handle, input_usecase, katz_usecase.test_weighted, true, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 

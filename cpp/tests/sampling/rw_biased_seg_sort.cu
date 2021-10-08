@@ -70,10 +70,10 @@ class Tests_RWSegSort : public ::testing::TestWithParam<RandomWalks_Usecase> {
     // debuf info:
     //
     // std::cout << "read graph file: " << configuration.graph_file_full_path << std::endl;
-    cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, false> graph(handle);
     std::tie(graph, std::ignore) =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-        handle, target.graph_file_full_path, target.test_weighted, false);
+      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
+        handle, target.graph_file_full_path, target.test_weighted, false, false);
 
     size_t num_vertices = graph.get_number_of_vertices();
     size_t num_edges    = graph.get_number_of_edges();

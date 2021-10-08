@@ -113,7 +113,7 @@ static const std::string& get_rapids_dataset_root_dir()
 }
 
 // returns a tuple of (rows, columns, weights, number_of_vertices, is_symmetric)
-template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
@@ -122,19 +122,17 @@ std::tuple<rmm::device_uvector<vertex_t>,
            bool>
 read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                                       std::string const& graph_file_full_path,
-                                      bool test_weighted);
+                                      bool test_weighted,
+                                      bool store_transposed);
 
 // renumber must be true if multi_gpu is true
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    std::string const& graph_file_full_path,
                                    bool test_weighted,
+                                   bool store_transposed,
                                    bool renumber);
 
 // alias for easy customization for debug purposes:
@@ -161,14 +159,15 @@ decltype(auto) make_graph(raft::handle_t const& handle,
     raft::update_device((*d_w).data(), (*v_w).data(), (*d_w).size(), handle.get_stream());
   }
 
-  cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+  cugraph::graph_t<vertex_t, edge_t, weight_t, false> graph(handle);
   std::tie(graph, std::ignore) =
-    cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+    cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false>(
       handle,
       std::nullopt,
       std::move(d_src),
       std::move(d_dst),
       std::move(d_w),
+      false,
       cugraph::graph_properties_t{false, false},
       false);
 

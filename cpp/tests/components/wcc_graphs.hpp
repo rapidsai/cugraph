@@ -22,14 +22,13 @@ class LineGraph_Usecase {
 
   LineGraph_Usecase(size_t num_vertices) : num_vertices_(num_vertices) {}
 
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            bool store_transposed,
-            bool multi_gpu>
-  std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, multi_gpu>,
              std::optional<rmm::device_uvector<vertex_t>>>
-  construct_graph(raft::handle_t const& handle, bool test_weighted, bool renumber = true) const;
+  construct_graph(raft::handle_t const& handle,
+                  bool test_weighted,
+                  bool store_transposed,
+                  bool renumber = true) const;
 
  private:
   size_t num_vertices_{0};
