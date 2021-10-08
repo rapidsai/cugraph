@@ -115,7 +115,7 @@ accumulate_new_roots(raft::handle_t const& handle,
     if (tmp_new_roots.size() > 0) {
       rmm::device_uvector<edge_t> tmp_cumulative_degrees(tmp_new_roots.size(),
                                                          handle.get_stream_view());
-      handle.get_stream_view().synchronize();
+      cudaDeviceSynchronize();
       std::cout << "  call transform" << std::endl;
       raft::print_device_vector(
         "tmp_new_roots", tmp_new_roots.begin(), tmp_new_roots.size(), std::cout);
@@ -127,7 +127,7 @@ accumulate_new_roots(raft::handle_t const& handle,
         [vertex_partition, degrees] __device__(auto v) {
           return degrees[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)];
         });
-      handle.get_stream_view().synchronize();
+      cudaDeviceSynchronize();
       std::cout << "  call inclusive scan" << std::endl;
       raft::print_device_vector("tmp_cumulative_degrees",
                                 tmp_cumulative_degrees.begin(),
@@ -137,7 +137,7 @@ accumulate_new_roots(raft::handle_t const& handle,
                              tmp_cumulative_degrees.begin(),
                              tmp_cumulative_degrees.end(),
                              tmp_cumulative_degrees.begin());
-      handle.get_stream_view().synchronize();
+      cudaDeviceSynchronize();
       std::cout << "  call lower bound, degree_sum_threshold = " << degree_sum_threshold
                 << ", degree_sum = " << degree_sum
                 << ", tmp_cumulative_degrees ptr = " << tmp_cumulative_degrees.data()
