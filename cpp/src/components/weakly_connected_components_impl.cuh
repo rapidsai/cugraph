@@ -139,9 +139,11 @@ accumulate_new_roots(raft::handle_t const& handle,
                              tmp_cumulative_degrees.begin());
       handle.get_stream_view().synchronize();
       std::cout << "  call lower bound, degree_sum_threshold = " << degree_sum_threshold
-                << ", degree_sum = " << degree_sum << std::endl;
+                << ", degree_sum = " << degree_sum
+                << ", tmp_cumulative_degrees ptr = " << tmp_cumulative_degrees.data()
+                << ", size = " << tmp_cumulative_degrees.size() << std::endl;
       raft::print_device_vector("tmp_cumulative_degrees",
-                                tmp_cumulative_degrees.begin(),
+                                tmp_cumulative_degrees.data(),
                                 tmp_cumulative_degrees.size(),
                                 std::cout);
       auto last = thrust::lower_bound(handle.get_thrust_policy(),
