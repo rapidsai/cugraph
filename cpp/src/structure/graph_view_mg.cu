@@ -25,7 +25,5 @@ template class graph_view_t<int32_t, int64_t, float, true>;
 template class graph_view_t<int32_t, int64_t, double, true>;
 template class graph_view_t<int64_t, int64_t, float, true>;
 template class graph_view_t<int64_t, int64_t, double, true>;
-template class graph_view_t<int64_t, int32_t, float, true>;
-template class graph_view_t<int64_t, int32_t, double, true>;
 
 }  // namespace cugraph
