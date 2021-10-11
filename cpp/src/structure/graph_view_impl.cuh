@@ -109,10 +109,10 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
   return minor_degrees;
 }
 
-template <bool major, typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> compute_weight_sums(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view)
+  graph_view_t<vertex_t, edge_t, weight_t, multi_gpu> const& graph_view, bool major)
 {
   rmm::device_uvector<weight_t> weight_sums(graph_view.get_number_of_local_vertices(),
                                             handle.get_stream());
@@ -453,9 +453,9 @@ graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>
   compute_in_weight_sums(raft::handle_t const& handle) const
 {
   if (this->storage_transposed()) {
-    return compute_weight_sums<true>(handle, *this);
+    return compute_weight_sums(handle, *this, true);
   } else {
-    return compute_weight_sums<false>(handle, *this);
+    return compute_weight_sums(handle, *this, false);
   }
 }
 
@@ -465,9 +465,9 @@ graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<!multi_gpu>
   compute_in_weight_sums(raft::handle_t const& handle) const
 {
   if (this->storage_transposed()) {
-    return compute_weight_sums<true>(handle, *this);
+    return compute_weight_sums(handle, *this, true);
   } else {
-    return compute_weight_sums<false>(handle, *this);
+    return compute_weight_sums(handle, *this, false);
   }
 }
 
@@ -477,9 +477,9 @@ graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>
   compute_out_weight_sums(raft::handle_t const& handle) const
 {
   if (this->storage_transposed()) {
-    return compute_weight_sums<false>(handle, *this);
+    return compute_weight_sums(handle, *this, false);
   } else {
-    return compute_weight_sums<true>(handle, *this);
+    return compute_weight_sums(handle, *this, true);
   }
 }
 
@@ -489,9 +489,9 @@ graph_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<!multi_gpu>
   compute_out_weight_sums(raft::handle_t const& handle) const
 {
   if (this->storage_transposed()) {
-    return compute_weight_sums<false>(handle, *this);
+    return compute_weight_sums(handle, *this, false);
   } else {
-    return compute_weight_sums<true>(handle, *this);
+    return compute_weight_sums(handle, *this, true);
   }
 }
 
