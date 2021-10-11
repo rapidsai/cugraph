@@ -27,6 +27,7 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
+#include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -108,8 +109,8 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
     }
 
     auto [graph, d_renumber_map_labels] =
-      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, true, renumber);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+        handle, input_usecase, true, renumber);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -133,11 +134,14 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
       hr_clock.start();
     }
 
+    rmm::device_scalar<vertex_t> const d_source(bfs_usecase.source, handle.get_stream());
+
     cugraph::bfs(handle,
                  graph_view,
                  d_distances.data(),
                  d_predecessors.data(),
-                 static_cast<vertex_t>(bfs_usecase.source),
+                 d_source.data(),
+                 size_t{1},
                  false,
                  std::numeric_limits<vertex_t>::max());
 
@@ -152,8 +156,8 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
       cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
-          input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, true, false);
+          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+            handle, input_usecase, true, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 

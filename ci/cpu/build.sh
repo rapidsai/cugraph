@@ -6,7 +6,12 @@
 set -e
 
 # Set path and build parallel level
-export PATH=/opt/conda/bin:/usr/local/cuda/bin:$PATH
+# openmpi dir is required on CentOS for finding MPI libs from cmake
+if [[ -e /etc/os-release ]] && (grep -qi centos /etc/os-release); then
+    export PATH=/opt/conda/bin:/usr/local/cuda/bin:/usr/lib64/openmpi/bin:$PATH
+else
+    export PATH=/opt/conda/bin:/usr/local/cuda/bin:$PATH
+fi
 export PARALLEL_LEVEL=${PARALLEL_LEVEL:-4}
 
 # Set home to the job's workspace
@@ -61,7 +66,7 @@ conda config --set ssl_verify False
 # BUILD - Conda package builds
 ###############################################################################
 
-gpuci_logger "Build conda pkg for libcugraph"
+gpuci_logger "Build conda package for libcugraph"
 if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph
@@ -72,11 +77,13 @@ if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
   fi
 fi
 
-gpuci_logger "Build conda pkg for cugraph"
+gpuci_logger "Build conda packages for pylibcugraph and cugraph"
 if [ "$BUILD_CUGRAPH" == "1" ]; then
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
+    gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON
     gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON
   else
+    gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph -c ci/artifacts/cugraph/cpu/.conda-bld/ --dirty --no-remove-work-dir --python=$PYTHON
     gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph -c ci/artifacts/cugraph/cpu/.conda-bld/ --dirty --no-remove-work-dir --python=$PYTHON
   fi
 fi

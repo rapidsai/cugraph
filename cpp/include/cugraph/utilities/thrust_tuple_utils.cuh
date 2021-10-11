@@ -17,6 +17,7 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/device_atomics.cuh>
+#include <rmm/device_uvector.hpp>
 
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/tuple.h>
@@ -59,6 +60,20 @@ template <typename TupleType, size_t I>
 struct compute_thrust_tuple_element_sizes_impl<TupleType, I, I> {
   void compute(std::array<size_t, thrust::tuple_size<TupleType>::value>& arr) const {}
 };
+
+template <typename TupleType, std::size_t... Is>
+auto thrust_tuple_to_std_tuple(TupleType tup, std::index_sequence<Is...>)
+{
+  return std::make_tuple(thrust::get<Is>(tup)...);
+}
+
+template <typename TupleType, std::size_t... Is>
+auto std_tuple_to_thrust_tuple(TupleType tup, std::index_sequence<Is...>)
+{
+  constexpr size_t maximum_thrust_tuple_size = 10;
+  static_assert(std::tuple_size_v<TupleType> <= maximum_thrust_tuple_size);
+  return thrust::make_tuple(std::get<Is>(tup)...);
+}
 
 template <typename T>
 __device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(
@@ -132,19 +147,44 @@ template <typename... Ts>
 struct is_thrust_tuple<thrust::tuple<Ts...>> : std::true_type {
 };
 
-template <typename TupleType, typename Enable = void>
+template <typename TupleType>
 struct is_thrust_tuple_of_arithmetic : std::false_type {
 };
 
-template <typename TupleType>
-struct is_thrust_tuple_of_arithmetic<TupleType,
-                                     std::enable_if_t<is_thrust_tuple<TupleType>::value>> {
-  static constexpr bool value =
-    detail::is_thrust_tuple_of_arithemetic_impl<TupleType,
-                                                0,
-                                                static_cast<size_t>(
-                                                  thrust::tuple_size<TupleType>::value)>()
-      .evaluate();
+template <typename... Args>
+struct is_thrust_tuple_of_arithmetic<thrust::tuple<Args...>> {
+ private:
+  template <typename T>
+  static constexpr bool is_valid = std::is_arithmetic_v<T> || std::is_same_v<T, thrust::null_type>;
+
+ public:
+  static constexpr bool value = (... && is_valid<Args>);
+};
+
+template <typename T>
+struct is_std_tuple : std::false_type {
+};
+
+template <typename... Ts>
+struct is_std_tuple<std::tuple<Ts...>> : std::true_type {
+};
+
+template <typename T, template <typename> typename Vector>
+struct is_arithmetic_vector : std::false_type {
+};
+
+template <template <typename> typename Vector, typename T>
+struct is_arithmetic_vector<Vector<T>, Vector>
+  : std::integral_constant<bool, std::is_arithmetic<T>::value> {
+};
+
+template <typename T>
+struct is_std_tuple_of_arithmetic_vectors : std::false_type {
+};
+
+template <typename... Args>
+struct is_std_tuple_of_arithmetic_vectors<std::tuple<rmm::device_uvector<Args>...>> {
+  static constexpr bool value = (... && std::is_arithmetic<Args>::value);
 };
 
 template <typename T>
@@ -177,6 +217,30 @@ struct compute_thrust_tuple_element_sizes {
     return ret;
   }
 };
+
+template <typename TupleType>
+auto thrust_tuple_to_std_tuple(TupleType tup)
+{
+  return detail::thrust_tuple_to_std_tuple(
+    tup, std::make_index_sequence<thrust::tuple_size<TupleType>::value>{});
+}
+
+template <typename TupleType>
+auto std_tuple_to_thrust_tuple(TupleType tup)
+{
+  constexpr size_t maximum_thrust_tuple_size = 10;
+  static_assert(std::tuple_size_v<TupleType> <= maximum_thrust_tuple_size);
+  return detail::std_tuple_to_thrust_tuple(
+    tup, std::make_index_sequence<std::tuple_size_v<TupleType>>{});
+}
+
+// a temporary function to emulate thrust::tuple_cat (not supported) using std::tuple_cat (should
+// retire once thrust::tuple is replaced with cuda::std::tuple)
+template <typename... TupleTypes>
+auto thrust_tuple_cat(TupleTypes... tups)
+{
+  return std_tuple_to_thrust_tuple(std::tuple_cat(thrust_tuple_to_std_tuple(tups)...));
+}
 
 template <typename Iterator, typename TupleType>
 struct atomic_accumulate_thrust_tuple {

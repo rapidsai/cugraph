@@ -92,7 +92,7 @@ struct generate_impl {
   {
     auto data = std::make_tuple(rmm::device_uvector<Args>(labels.size(), handle.get_stream())...);
     auto zip  = get_zip_iterator(data);
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::transform(handle.get_thrust_policy(),
                       labels.begin(),
                       labels.end(),
                       zip,
@@ -108,7 +108,7 @@ struct generate_impl {
     auto length = thrust::distance(begin, end);
     auto data   = std::make_tuple(rmm::device_uvector<Args>(length, handle.get_stream())...);
     auto zip    = get_zip_iterator(data);
-    thrust::transform(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+    thrust::transform(handle.get_thrust_policy(),
                       begin,
                       end,
                       zip,
@@ -210,9 +210,10 @@ class Tests_MG_ReduceV
       handle.get_comms().barrier();
       hr_clock.start();
     }
+
     auto [mg_graph, d_mg_renumber_map_labels] =
-      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
-        handle, true, true);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
+        handle, input_usecase, true, true);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -259,8 +260,8 @@ class Tests_MG_ReduceV
     if (prims_usecase.check_correctness) {
       cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
       std::tie(sg_graph, std::ignore) =
-        input_usecase.template construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-          handle, true, false);
+        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
+          handle, input_usecase, true, false);
       auto sg_graph_view = sg_graph.view();
 
       auto sg_property_data = generate<result_t>::property(
@@ -272,7 +273,7 @@ class Tests_MG_ReduceV
       using property_t      = decltype(property_initial_value);
 
       auto expected_result =
-        thrust::reduce(rmm::exec_policy(handle.get_stream())->on(handle.get_stream()),
+        thrust::reduce(handle.get_thrust_policy(),
                        sg_property_iter,
                        sg_property_iter + sg_graph_view.get_number_of_local_vertices(),
                        property_initial_value,
@@ -379,7 +380,6 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
-
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MG_ReduceV_Rmat,

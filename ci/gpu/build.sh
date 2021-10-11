@@ -53,17 +53,16 @@ gpuci_logger "Activate conda env"
 . /opt/conda/etc/profile.d/conda.sh
 conda activate rapids
 
-# FIXME: return librmm and RMM to ${MINOR_VERSION}
 gpuci_logger "Install dependencies"
 gpuci_mamba_retry install -y \
       "libcudf=${MINOR_VERSION}" \
       "cudf=${MINOR_VERSION}" \
-      "librmm=21.10.00a210812" \
-      "rmm=21.10.00a210813" \
+      "librmm=${MINOR_VERSION}" \
+      "rmm=${MINOR_VERSION}" \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
-      "ucx-py=0.21.*" \
+      "ucx-py=0.22.*" \
       "ucx-proc=*=gpu" \
       "rapids-build-env=$MINOR_VERSION.*" \
       "rapids-notebook-env=$MINOR_VERSION.*" \
@@ -84,12 +83,12 @@ conda config --show-sources
 conda list --show-channel-urls
 
 ################################################################################
-# BUILD - Build libcugraph and cuGraph from source
+# BUILD
 ################################################################################
 
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_logger "Build from source"
-    $WORKSPACE/build.sh -v clean libcugraph cugraph
+    $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph
 else
     export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build"
 
@@ -109,12 +108,12 @@ else
     pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
     pip install "git+https://github.com/dask/dask.git" --upgrade --no-deps
 
-    echo "Build cugraph..."
-    $WORKSPACE/build.sh cugraph
+    echo "Build pylibcugraph and cugraph..."
+    $WORKSPACE/build.sh pylibcugraph cugraph
 fi
 
 ################################################################################
-# TEST - Run GoogleTest and py.tests for libcugraph and cuGraph
+# TEST
 ################################################################################
 
 # Switch to +e to allow failing commands to continue the script, which is needed

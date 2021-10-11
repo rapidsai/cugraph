@@ -1,1 +1,2 @@
-cugraph/_version.py export-subst
+cugraph/cugraph/_version.py export-subst
+pylibcugraph/pylibcugraph/_version.py export-subst

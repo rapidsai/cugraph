@@ -51,7 +51,7 @@ void bfs_visitor<vertex_t,
 
     // unpack bfs() args:
     //
-    assert(v_args.size() == 7);
+    assert(v_args.size() == 8);
 
     // cnstr. args unpacking:
     //
@@ -61,18 +61,20 @@ void bfs_visitor<vertex_t,
 
     vertex_t* p_d_predec = static_cast<vertex_t*>(v_args[2]);
 
-    vertex_t src_v = *static_cast<vertex_t*>(v_args[3]);
+    vertex_t const* p_d_src = static_cast<vertex_t const*>(v_args[3]);
 
-    bool dir_opt = *static_cast<bool*>(v_args[4]);
+    size_t n_sources = *static_cast<size_t*>(v_args[4]);
 
-    auto depth_l = *static_cast<vertex_t*>(v_args[5]);
+    bool dir_opt = *static_cast<bool*>(v_args[5]);
 
-    bool check = *static_cast<bool*>(v_args[6]);
+    auto depth_l = *static_cast<vertex_t*>(v_args[6]);
+
+    bool check = *static_cast<bool*>(v_args[7]);
 
     // call algorithm
     // (no result; void)
     //
-    bfs(handle, gview, p_d_dist, p_d_predec, src_v, dir_opt, depth_l, check);
+    bfs(handle, gview, p_d_dist, p_d_predec, p_d_src, n_sources, dir_opt, depth_l, check);
   } else {
     CUGRAPH_FAIL("Unsupported BFS algorithm (store_transposed == true).");
   }
@@ -133,9 +135,7 @@ return_t bfs(graph_envelope_t const& g, erased_pack_t& ep)
 
   g.apply(*p_visitor);
 
-  return_t ret{p_visitor->get_result()};
-
-  return ret;  // RVO-ed;
+  return p_visitor->get_result();
 }
 
 }  // namespace api

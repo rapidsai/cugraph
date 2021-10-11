@@ -31,7 +31,7 @@ template std::
                int32_t num_paths,
                int32_t max_depth,
                bool use_padding,
-               int selector_type);
+               std::unique_ptr<sampling_params_t> sampling_strategy);
 
 template std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>, rmm::device_uvector<int64_t>>
@@ -41,7 +41,7 @@ template std::
                int64_t num_paths,
                int64_t max_depth,
                bool use_padding,
-               int selector_type);
+               std::unique_ptr<sampling_params_t> sampling_strategy);
 
 template std::
   tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>, rmm::device_uvector<int64_t>>
@@ -51,7 +51,7 @@ template std::
                int64_t num_paths,
                int64_t max_depth,
                bool use_padding,
-               int selector_type);
+               std::unique_ptr<sampling_params_t> sampling_strategy);
 //}
 //
 // SG FP64{
@@ -63,7 +63,7 @@ template std::
                int32_t num_paths,
                int32_t max_depth,
                bool use_padding,
-               int selector_type);
+               std::unique_ptr<sampling_params_t> sampling_strategy);
 
 template std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>, rmm::device_uvector<int64_t>>
@@ -73,7 +73,7 @@ template std::
                int64_t num_paths,
                int64_t max_depth,
                bool use_padding,
-               int selector_type);
+               std::unique_ptr<sampling_params_t> sampling_strategy);
 
 template std::
   tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>, rmm::device_uvector<int64_t>>
@@ -83,7 +83,7 @@ template std::
                int64_t num_paths,
                int64_t max_depth,
                bool use_padding,
-               int selector_type);
+               std::unique_ptr<sampling_params_t> sampling_strategy);
 //}
 
 template std::

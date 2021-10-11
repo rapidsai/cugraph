@@ -95,8 +95,8 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
   {
     raft::handle_t handle{};
 
-    auto [d_rows, d_cols, d_weights, number_of_vertices, is_symmetric] =
-      cugraph::test::read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
+    auto [d_rows, d_cols, d_weights, d_vertices, number_of_vertices, is_symmetric] = cugraph::test::
+      read_edgelist_from_matrix_market_file<vertex_t, weight_t, store_transposed, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted);
     edge_t number_of_edges = static_cast<edge_t>(d_rows.size());
 
@@ -132,9 +132,8 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
     auto graph = cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>(
       handle,
       edgelist,
-      number_of_vertices,
-      cugraph::graph_properties_t{is_symmetric, false},
-      std::nullopt,
+      cugraph::graph_meta_t<vertex_t, edge_t, false>{
+        number_of_vertices, cugraph::graph_properties_t{is_symmetric, false}, std::nullopt},
       true);
 
     auto graph_view = graph.view();

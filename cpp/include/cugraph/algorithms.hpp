@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <cugraph/api_helpers.hpp>
+
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
@@ -198,44 +200,6 @@ void force_atlas2(raft::handle_t const& handle,
                   const float gravity                           = 1.0,
                   bool verbose                                  = false,
                   internals::GraphBasedDimRedCallback* callback = nullptr);
-
-/**
- * @brief Finds an approximate solution to the traveling salesperson problem (TSP).
- *        cuGraph computes an approximation of the TSP problem using hill climbing
- *        optimization.
- *
- *        The current implementation does not support a weighted graph.
- *
- * @throws                                    cugraph::logic_error when an error occurs.
- * @param[in] handle                          Library handle (RAFT). If a communicator is set in the
- * handle, the multi GPU version will be selected.
- * @param[in] vtx_ptr                         Device array containing the vertex identifiers used
- * to initialize the route.
- * @param[in] x_pos                           Device array containing starting x-axis positions.
- * @param[in] y_pos                           Device array containing starting y-axis positions.
- * @param[in] nodes                           Number of cities.
- * @param[in] restarts                        Number of starts to try. The more restarts,
- * the better the solution will be approximated. The number of restarts depends on the problem
- * size and should be kept low for instances above 2k cities.
- * @param[in] beam_search                     Specify if the initial solution should use KNN
- * for an approximation solution.
- * @param[in] k                               Beam width to use in the search.
- * @param[in] nstart                          Start from a specific position.
- * @param[in] verbose                         Logs configuration and iterative improvement.
- * @param[out] route                          Device array containing the returned route.
- *
- */
-float traveling_salesperson(raft::handle_t const& handle,
-                            int const* vtx_ptr,
-                            float const* x_pos,
-                            float const* y_pos,
-                            int nodes,
-                            int restarts,
-                            bool beam_search,
-                            int k,
-                            int nstart,
-                            bool verbose,
-                            int* route);
 
 /**
  * @brief     Compute betweenness centrality for a graph
@@ -592,7 +556,8 @@ void bfs(raft::handle_t const& handle,
  * 32-bit)
  * @tparam weight_t                  Type of edge weights. Supported values : float or double.
  *
- * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the
+ * handle,
  * @param[in]  graph                 cuGRAPH COO graph
  * @param[in]  num_workers           number of vertices in the worker set
  * @param[in]  workers               device pointer to an array of worker vertex ids
@@ -1140,8 +1105,9 @@ weight_t hungarian(raft::handle_t const& handle,
  * @param graph_view Graph view object.
  * @param distances Pointer to the output distance array.
  * @param predecessors Pointer to the output predecessor array or `nullptr`.
- * @param source_vertex Source vertex to start breadth-first search (root vertex of the breath-first
- * search tree).
+ * @param sources Source vertices to start breadth-first search (root vertex of the breath-first
+ * search tree). If more than one source is passed, there must be a single source per component.
+ * @param n_sources number of sources (one source per component at most).
  * @param direction_optimizing If set to true, this algorithm switches between the push based
  * breadth-first search and pull based breadth-first search depending on the size of the
  * breadth-first search frontier (currently unsupported). This option is valid only for symmetric
@@ -1155,7 +1121,8 @@ void bfs(raft::handle_t const& handle,
          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
          vertex_t* distances,
          vertex_t* predecessors,
-         vertex_t source_vertex,
+         vertex_t const* sources,
+         size_t n_sources          = 1,
          bool direction_optimizing = false,
          vertex_t depth_limit      = std::numeric_limits<vertex_t>::max(),
          bool do_expensive_check   = false);
@@ -1344,8 +1311,8 @@ extract_ego(raft::handle_t const& handle,
  * (compressed) format; when padding is used the output is a matrix of vertex paths and a matrix of
  * edges paths (weights); in this case the matrices are stored in row major order; the vertex path
  * matrix is padded with `num_vertices` values and the weight matrix is padded with `0` values;
- * @param selector_type identifier for sampling strategy: uniform, biased, etc.; possible
- * values{0==uniform, 1==biased}; defaults to 0 == uniform;
+ * @param sampling_strategy pointer for sampling strategy: uniform, biased, etc.; possible
+ * values{0==uniform, 1==biased, 2==node2vec}; defaults to nullptr == uniform;
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
  * rmm::device_uvector<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced
  * case (default), the return consists of corresponding vertex and edge weights for each, and
@@ -1365,8 +1332,8 @@ random_walks(raft::handle_t const& handle,
              typename graph_t::vertex_type const* ptr_d_start,
              index_t num_paths,
              index_t max_depth,
-             bool use_padding  = false,
-             int selector_type = 0);
+             bool use_padding                                     = false,
+             std::unique_ptr<sampling_params_t> sampling_strategy = nullptr);
 
 /**
  * @brief Finds (weakly-connected-)component IDs of each vertices in the input graph.

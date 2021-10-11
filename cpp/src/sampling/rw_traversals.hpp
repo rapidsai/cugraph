@@ -18,6 +18,7 @@
 //
 #pragma once
 
+#include <cugraph/api_helpers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/visitors/graph_envelope.hpp>
 #include <cugraph/visitors/ret_terased.hpp>
@@ -31,7 +32,6 @@
 #include <raft/random/rng.cuh>
 
 #include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
 
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
@@ -44,8 +44,6 @@
 namespace cugraph {
 
 namespace detail {
-
-enum class sampling_t : int { UNIFORM = 0, BIASED };  // sampling strategy; others: NODE2VEC
 
 template <typename T>
 using device_vec_t = rmm::device_uvector<T>;
@@ -239,6 +237,8 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
   // no need for type-erasure, as this is only used internally:
   //
   visitors::return_t const& get_result(void) const override { return ret_unused_; }
+
+  visitors::return_t&& get_result(void) override { return std::move(ret_unused_); }
 
   rmm::device_uvector<weight_t>&& get_aggregated_weights(void)
   {
@@ -459,7 +459,7 @@ struct horizontal_traversal_t {
 
     // start from 1, as 0-th was initialized above:
     //
-    thrust::for_each(rmm::exec_policy(handle.get_stream_view()),
+    thrust::for_each(handle.get_thrust_policy(),
                      thrust::make_counting_iterator<index_t>(0),
                      thrust::make_counting_iterator<index_t>(num_paths_),
                      [max_depth       = max_depth_,

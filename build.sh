@@ -19,13 +19,14 @@ ARGS=$*
 REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 
-VALIDARGS="clean uninstall libcugraph cugraph cpp-mgtests docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn --skip_cpp_tests -h --help"
+VALIDARGS="clean uninstall libcugraph cugraph pylibcugraph cpp-mgtests docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn --skip_cpp_tests -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
    uninstall        - uninstall libcugraph and cugraph from a prior build/install (see also -n)
    libcugraph       - build libcugraph.so and SG test binaries
    cugraph          - build the cugraph Python package
+   pylibcugraph     - build the pylibcugraph Python package
    cpp-mgtests      - build libcugraph MG tests. Builds MPI communicator, adding MPI as a dependency.
    docs             - build the docs
  and <flag> is:
@@ -118,18 +119,23 @@ if hasArg uninstall; then
     # uninstall libcugraph
     if [[ "$INSTALL_PREFIX" != "" ]]; then
         rm -rf ${INSTALL_PREFIX}/include/cugraph
+        rm -rf ${INSTALL_PREFIX}/include/cugraph_c
         rm -f ${INSTALL_PREFIX}/lib/libcugraph.so
+        rm -f ${INSTALL_PREFIX}/lib/libcugraph_c.so
     fi
     # This may be redundant given the above, but can also be used in case
     # there are other installed files outside of the locations above.
     if [ -e ${LIBCUGRAPH_BUILD_DIR}/install_manifest.txt ]; then
         xargs rm -f < ${LIBCUGRAPH_BUILD_DIR}/install_manifest.txt > /dev/null 2>&1
     fi
-    # uninstall cugraph installed from a prior "setup.py install"
-    pip uninstall -y cugraph
+    # uninstall cugraph and pylibcugraph installed from a prior "setup.py
+    # install"
+    pip uninstall -y cugraph pylibcugraph
 fi
 
 if hasArg clean; then
+    # Ignore errors for clean since missing files, etc. are not failures
+    set +e
     # remove artifacts generated inplace
     # FIXME: ideally the "setup.py clean" command would be used for this, but
     # currently running any setup.py command has side effects (eg. cloning
@@ -154,6 +160,8 @@ if hasArg clean; then
 	    rmdir ${bd} || true
 	fi
     done
+    # Go back to failing on first error for all other operations
+    set -e
 fi
 
 ################################################################################
@@ -179,9 +187,22 @@ if buildAll || hasArg libcugraph; then
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
 fi
 
+# Build, and install pylibcugraph
+if buildAll || hasArg pylibcugraph; then
+    cd ${REPODIR}/python/pylibcugraph
+    # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
+    # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
+    CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
+    env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py build_ext --inplace --library-dir=${LIBCUGRAPH_BUILD_DIR}
+    if [[ ${INSTALL_TARGET} != "" ]]; then
+	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py install
+    fi
+fi
+
 # Build and install the cugraph Python package
 if buildAll || hasArg cugraph; then
-    cd ${REPODIR}/python
+    cd ${REPODIR}/python/cugraph
+    # FIXME: this needs to eventually reference the pylibcugraph build
     # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
     # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
     CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}

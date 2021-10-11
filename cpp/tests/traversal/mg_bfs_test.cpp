@@ -84,8 +84,8 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
     }
 
     auto [mg_graph, d_mg_renumber_map_labels] =
-      input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        handle, false, true);
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
+        handle, input_usecase, false, true);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -114,11 +114,17 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
       hr_clock.start();
     }
 
+    auto const d_mg_source =
+      mg_graph_view.is_local_vertex_nocheck(bfs_usecase.source)
+        ? std::make_optional<rmm::device_scalar<vertex_t>>(bfs_usecase.source, handle.get_stream())
+        : std::nullopt;
+
     cugraph::bfs(handle,
                  mg_graph_view,
                  d_mg_distances.data(),
                  d_mg_predecessors.data(),
-                 static_cast<vertex_t>(bfs_usecase.source),
+                 d_mg_source ? (*d_mg_source).data() : static_cast<vertex_t const*>(nullptr),
+                 d_mg_source ? size_t{1} : size_t{0},
                  false,
                  std::numeric_limits<vertex_t>::max());
 
@@ -169,8 +175,8 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
 
         cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
         std::tie(sg_graph, std::ignore) =
-          input_usecase.template construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, false, false);
+          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+            handle, input_usecase, false, false);
 
         auto sg_graph_view = sg_graph.view();
 
@@ -191,11 +197,13 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                           handle.get_stream());
         handle.get_stream_view().synchronize();
 
+        rmm::device_scalar<vertex_t> const d_sg_source(unrenumbered_source, handle.get_stream());
         cugraph::bfs(handle,
                      sg_graph_view,
                      d_sg_distances.data(),
                      d_sg_predecessors.data(),
-                     unrenumbered_source,
+                     d_sg_source.data(),
+                     size_t{1},
                      false,
                      std::numeric_limits<vertex_t>::max());
         // 4-5. compare

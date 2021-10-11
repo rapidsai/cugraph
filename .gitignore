@@ -76,8 +76,12 @@ datasets/*
 cpp/doxygen/html
 
 # Raft symlink
-python/cugraph/raft
+python/cugraph/cugraph/raft
+python/pylibcugraph/pylibcugraph/raft
 python/_external_repositories/
 
 # created by Dask tests
 python/dask-worker-space
+
+# Sphinx docs & build artifacts
+docs/cugraph/source/api_docs/api/*

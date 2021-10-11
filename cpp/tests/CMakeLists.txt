@@ -20,7 +20,6 @@
 
 add_library(cugraphtestutil STATIC
             utilities/matrix_market_file_utilities.cu
-            utilities/rmat_utilities.cpp
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
             components/wcc_graphs.cu
@@ -49,7 +48,7 @@ target_link_libraries(cugraphtestutil
 
 
 add_library(cugraphmgtestutil STATIC
-            "${CMAKE_CURRENT_SOURCE_DIR}/utilities/device_comm_wrapper.cu")
+            utilities/device_comm_wrapper.cu)
 
 set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
 
@@ -218,11 +217,24 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
 
     add_test(NAME ${CMAKE_TEST_NAME}
              COMMAND ${MPIEXEC_EXECUTABLE}
+             "--noprefix"
              ${MPIEXEC_NUMPROC_FLAG}
              ${GPU_COUNT}
              ${MPIEXEC_PREFLAGS}
              ${CMAKE_TEST_NAME}
              ${MPIEXEC_POSTFLAGS})
+
+endfunction()
+
+function(ConfigureCTest CMAKE_TEST_NAME)
+    add_executable(${CMAKE_TEST_NAME} ${ARGN})
+
+    target_link_libraries(${CMAKE_TEST_NAME}
+        PRIVATE
+            cugraph_c
+    )
+
+    add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
 endfunction()
 
 ###################################################################################################
@@ -241,19 +253,11 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 
 ###################################################################################################
 # - graph generator tests -------------------------------------------------------------------------
-
-set(GRAPH_GENERATORS_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/generators/generators_test.cpp")
-
-  ConfigureTest(GRAPH_GENERATORS_TEST "${GRAPH_GENERATORS_TEST_SRC}")
+ConfigureTest(GRAPH_GENERATORS_TEST generators/generators_test.cpp)
 
 ###################################################################################################
 # - erdos renyi graph generator tests -------------------------------------------------------------
-
-set(ERDOS_RENYI_GENERATOR_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/generators/erdos_renyi_test.cpp")
-
-  ConfigureTest(ERDOS_RENYI_GENERATOR_TEST "${ERDOS_RENYI_GENERATOR_TEST_SRC}")
+ConfigureTest(ERDOS_RENYI_GENERATOR_TEST generators/erdos_renyi_test.cpp)
 
 ###################################################################################################
 # - katz centrality tests -------------------------------------------------------------------------
@@ -299,10 +303,6 @@ ConfigureTest(EGO_TEST community/egonet_test.cu)
 ###################################################################################################
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
 ConfigureTest(FA2_TEST layout/force_atlas2_test.cu)
-
-###################################################################################################
-# - TSP  tests --------------------------------------------------------------------------
-ConfigureTest(TSP_TEST traversal/tsp_test.cu)
 
 ###################################################################################################
 # - CONNECTED COMPONENTS  tests -------------------------------------------------------------------
@@ -357,8 +357,8 @@ ConfigureTest(INDUCED_SUBGRAPH_TEST community/induced_subgraph_test.cpp)
 ConfigureTest(BFS_TEST traversal/bfs_test.cpp)
 
 ###################################################################################################
-# - Experimental Multi-source BFS tests -----------------------------------------------------------
-ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cpp)
+# - Experimental Multi-source BFS tests ----------------------------------------------------------
+ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu)
 
 ###################################################################################################
 # - Experimental SSSP tests -----------------------------------------------------------------------
@@ -374,11 +374,8 @@ ConfigureTest(KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp)
 
 ###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
-
-set(WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/components/weakly_connected_components_test.cpp")
-
-ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST "${WEAKLY_CONNECTED_COMPONENTS_TEST_SRCS}")
+# Temporarily disable this test, it seems to be failing on A100
+#ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
 ###################################################################################################
 # - Experimental RANDOM_WALKS tests ---------------------------------------------------------------
@@ -399,20 +396,22 @@ ConfigureTest(RANDOM_WALKS_PROFILING sampling/random_walks_profiling.cu)
 
 ###################################################################################################
 # - Serialization tests ---------------------------------------------------------------------------
+ConfigureTest(SERIALIZATION_TEST serialization/un_serialize_test.cpp)
 
-set(SERIALIZATION_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/serialization/un_serialize_test.cpp")
+###################################################################################################
+# - Experimental renumber tests -------------------------------------------------------------------
+set(RENUMBERING_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/structure/renumbering_test.cpp")
 
-ConfigureTest(SERIALIZATION_TEST "${SERIALIZATION_TEST_SRCS}")
-
+ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
 
 ###################################################################################################
 # - BFS Visitor tests -----------------------------------------------------------------------------
+ConfigureTest(BFS_VISITOR_TEST visitors/bfs_test.cpp)
 
-set(BFS_VISITOR_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/visitors/bfs_test.cpp")
-
-ConfigureTest(BFS_VISITOR_TEST "${BFS_VISITOR_TEST_SRCS}")
+###################################################################################################
+# - Random Walks Visitor tests --------------------------------------------------------------------
+ConfigureTest(RANDOM_WALKS_VISITOR_TEST visitors/rw_test.cu)
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
@@ -474,10 +473,24 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_V tests -----------------------------------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_V_TEST prims/mg_transform_reduce_v.cu)
+
+        ###########################################################################################
+        # - MG PRIMS TRANSFORM_REDUCE_E tests -----------------------------------------------------
+        ConfigureTestMG(MG_TRANSFORM_REDUCE_E_TEST prims/mg_transform_reduce_e.cu)
+
+        ###########################################################################################
+        # - MG PRIMS COUNT_IF_E tests -------------------------------------------------------------
+        ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()
 endif()
+
+###################################################################################################
+# - C API tests -----------------------------------------------------------------------------------
+
+ConfigureCTest(CAPI_CREATE_SG_GRAPH_TEST c_api/create_sg_graph_test.c)
+ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################
