@@ -128,7 +128,9 @@ accumulate_new_roots(raft::handle_t const& handle,
           return degrees[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)];
         });
       cudaDeviceSynchronize();
-      std::cout << "  call inclusive scan" << std::endl;
+      std::cout << "  call inclusive scan"
+                << ", tmp_cumulative_degrees ptr = " << tmp_cumulative_degrees.data()
+                << ", size = " << tmp_cumulative_degrees.size() << std::endl;
       raft::print_device_vector("tmp_cumulative_degrees",
                                 tmp_cumulative_degrees.begin(),
                                 tmp_cumulative_degrees.size(),
