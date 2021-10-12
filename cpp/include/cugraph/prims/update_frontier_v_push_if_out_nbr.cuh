@@ -250,7 +250,7 @@ template <typename vertex_t,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
 __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>& matrix_partition,
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,
   vertex_t major_hypersparse_first,
   KeyIterator key_first,
   KeyIterator key_last,
@@ -321,7 +321,7 @@ template <typename vertex_t,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
 __global__ void for_all_frontier_row_for_all_nbr_low_degree(
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>& matrix_partition,
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,
   KeyIterator key_first,
   KeyIterator key_last,
   AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
@@ -382,7 +382,7 @@ template <typename vertex_t,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
 __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>& matrix_partition,
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,
   KeyIterator key_first,
   KeyIterator key_last,
   AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
@@ -446,7 +446,7 @@ template <typename vertex_t,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
 __global__ void for_all_frontier_row_for_all_nbr_high_degree(
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>& matrix_partition,
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,
   KeyIterator key_first,
   KeyIterator key_last,
   AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
