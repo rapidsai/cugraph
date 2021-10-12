@@ -17,6 +17,7 @@
 function(find_and_configure_thrust)
   include(${rapids-cmake-dir}/cpm/thrust.cmake)
 
+  set(CPM_DOWNLOAD_ALL ON)
   rapids_cpm_thrust(
     NAMESPACE cugraph
     BUILD_EXPORT_SET raft-exports
