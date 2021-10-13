@@ -112,6 +112,11 @@ class partition_t {
     return vertex_partition_offsets_;
   }
 
+  std::vector<vertex_t> get_vertex_partition_lasts() const
+  {
+    return std::vector<vertex_t>(vertex_partition_offsets_.begin() + 1, vertex_partition_offsets_.end());
+  }
+
   std::tuple<vertex_t, vertex_t> get_local_vertex_range() const
   {
     return std::make_tuple(vertex_partition_offsets_[comm_rank_],
@@ -365,6 +370,11 @@ class graph_view_t<vertex_t,
     bool do_expensive_check = false);
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
+
+  std::vector<vertex_t> get_vertex_partition_lasts() const
+  {
+    return partition_.get_vertex_partition_lasts();
+  }
 
   vertex_t get_number_of_local_vertices() const
   {
@@ -675,6 +685,10 @@ class graph_view_t<vertex_t,
   bool is_weighted() const { return weights_.has_value(); }
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
+
+  std::vector<vertex_t> get_vertex_partition_lasts() const {
+    return std::vector<vertex_t>{get_local_vertex_last()};
+  }
 
   constexpr vertex_t get_local_vertex_first() const { return vertex_t{0}; }
 

@@ -64,22 +64,6 @@ struct compute_max_distance {
   }
 };
 
-template <typename vertex_t>
-struct mg_partition_vertices {
-  int rank_;
-  vertex_t const* d_partition_offsets_begin_;
-  vertex_t const* d_partition_offsets_end_;
-
-  int __device__ operator()(vertex_t v) const
-  {
-    return thrust::distance(
-             d_partition_offsets_begin_,
-             thrust::upper_bound(
-               thrust::seq, d_partition_offsets_begin_, d_partition_offsets_end_, v)) -
-           1;
-  }
-};
-
 template <typename vertex_t, bool is_multi_gpu>
 struct map_index_to_path_offset {
   vertex_partition_device_view_t<vertex_t, is_multi_gpu> vertex_partition_;
@@ -106,32 +90,6 @@ struct update_paths {
     auto offset = thrust::get<1>(tuple);
 
     if (next_v != invalid_vertex_) paths_[offset] = next_v;
-  }
-};
-
-template <typename vertex_t, bool is_multi_gpu>
-struct mg_lookup_distance {
-  vertex_partition_device_view_t<vertex_t, is_multi_gpu> vertex_partition_;
-  vertex_t const* distances_;
-
-  thrust::tuple<vertex_t, vertex_t, int> __device__
-  operator()(thrust::tuple<vertex_t, vertex_t, int> const& tuple)
-  {
-    auto v = vertex_partition_.get_local_vertex_offset_from_vertex_nocheck(thrust::get<0>(tuple));
-    return thrust::make_tuple(distances_[v], thrust::get<1>(tuple), thrust::get<2>(tuple));
-  }
-};
-
-template <typename vertex_t, bool is_multi_gpu>
-struct mg_lookup_predecessor {
-  vertex_partition_device_view_t<vertex_t, is_multi_gpu> vertex_partition_;
-  vertex_t const* predecessors_;
-
-  thrust::tuple<vertex_t, vertex_t, int> __device__
-  operator()(thrust::tuple<vertex_t, vertex_t, int> const& tuple)
-  {
-    auto v = vertex_partition_.get_local_vertex_offset_from_vertex_nocheck(thrust::get<0>(tuple));
-    return thrust::make_tuple(predecessors_[v], thrust::get<1>(tuple), thrust::get<2>(tuple));
   }
 };
 
@@ -227,24 +185,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   thrust::fill(handle.get_thrust_policy(), paths.begin(), paths.end(), invalid_vertex);
   raft::copy(current_frontier.data(), destinations, n_destinations, handle.get_stream());
 
-  rmm::device_uvector<vertex_t> d_vertex_partition_offsets(0, handle.get_stream());
-
-  if constexpr (multi_gpu) {
-    // FIXME: There should be a better way to do this
-    std::vector<vertex_t> h_vertex_partition_offsets(handle.get_comms().get_size() + 1);
-    d_vertex_partition_offsets.resize(handle.get_comms().get_size() + 1, handle.get_stream());
-
-    for (int i = 0; i < handle.get_comms().get_size(); ++i)
-      h_vertex_partition_offsets[i] = graph_view.get_vertex_partition_first(i);
-
-    h_vertex_partition_offsets[handle.get_comms().get_size()] =
-      graph_view.get_vertex_partition_last(handle.get_comms().get_size() - 1);
-
-    raft::update_device(d_vertex_partition_offsets.data(),
-                        h_vertex_partition_offsets.data(),
-                        h_vertex_partition_offsets.size(),
-                        handle.get_stream());
-  }
+  auto h_vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
 
   thrust::tabulate(handle.get_thrust_policy(),
                    current_position.begin(),
@@ -274,9 +215,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
         current_frontier.begin(),
         current_frontier.end(),
         predecessors,
-        detail::mg_partition_vertices<vertex_t>{handle.get_comms().get_rank(),
-                                                d_vertex_partition_offsets.begin(),
-                                                d_vertex_partition_offsets.end()},
+        h_vertex_partition_lasts,
         vertex_partition_device_view,
         handle.get_stream());
     } else {
