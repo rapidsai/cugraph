@@ -262,7 +262,7 @@ def edge_betweenness_centrality(
         df = G.unrenumber(df, "src")
         df = G.unrenumber(df, "dst")
 
-    if type(G) is cugraph.Graph:
+    if G.is_directed() is False:
         # select the lower triangle of the df based on src/dst vertex value
         lower_triangle = df['src'] >= df['dst']
         # swap the src and dst vertices for the lower triangle only. Because
