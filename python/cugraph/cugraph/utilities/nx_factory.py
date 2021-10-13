@@ -28,7 +28,7 @@ import numpy as np
 nx = import_optional("networkx")
 
 
-def convert_from_nx(nxG, weight=None):
+def convert_from_nx(nxG, weight=None, do_renumber=True):
     """
     weight, if given, is the string/name of the edge attr in nxG to use for
     weights in the resulting cugraph obj.  If nxG has no edge attributes,
@@ -72,10 +72,11 @@ def convert_from_nx(nxG, weight=None):
     gdf = from_pandas(pdf)
 
     if num_col == 2:
-        G.from_cudf_edgelist(gdf, source="source", destination="target")
+        G.from_cudf_edgelist(gdf, source="source", destination="target",
+                             renumber=do_renumber)
     else:
         G.from_cudf_edgelist(gdf, source="source", destination="target",
-                             edge_attr=weight)
+                             edge_attr=weight, renumber=do_renumber)
 
     del gdf
     del pdf
