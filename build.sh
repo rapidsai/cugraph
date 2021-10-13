@@ -119,7 +119,9 @@ if hasArg uninstall; then
     # uninstall libcugraph
     if [[ "$INSTALL_PREFIX" != "" ]]; then
         rm -rf ${INSTALL_PREFIX}/include/cugraph
+        rm -rf ${INSTALL_PREFIX}/include/cugraph_c
         rm -f ${INSTALL_PREFIX}/lib/libcugraph.so
+        rm -f ${INSTALL_PREFIX}/lib/libcugraph_c.so
     fi
     # This may be redundant given the above, but can also be used in case
     # there are other installed files outside of the locations above.

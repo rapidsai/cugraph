@@ -133,8 +133,14 @@ class Tests_RandomWalks
 
     edge_t max_depth{10};
     if (trv_id == traversal_id_t::HORIZONTAL) {
-      auto ret_tuple = cugraph::random_walks(
-        handle, graph_view, d_start_view.begin(), num_paths, max_depth, false, sampling_id);
+      auto ret_tuple =
+        cugraph::random_walks(handle,
+                              graph_view,
+                              d_start_view.begin(),
+                              num_paths,
+                              max_depth,
+                              false,
+                              std::make_unique<cugraph::sampling_params_t>(sampling_id));
 
       // check results:
       //
