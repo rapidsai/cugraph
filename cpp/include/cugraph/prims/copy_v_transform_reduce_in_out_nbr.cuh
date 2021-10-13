@@ -45,7 +45,6 @@ namespace detail {
 int32_t constexpr copy_v_transform_reduce_nbr_for_all_block_size = 512;
 
 template <bool update_major,
-          bool storage_transposed,
           typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -62,7 +61,8 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
   AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   ResultValueOutputIterator result_value_output_first,
   EdgeOp e_op,
-  T init /* relevent only if update_major == true */)
+  T init /* relevent only if update_major == true */,
+  bool storage_transposed)
 {
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   auto major_start_offset =
@@ -75,6 +75,7 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
   while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
     auto major =
       *(matrix_partition.get_major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
+    auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
     auto major_idx =
       major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
     vertex_t const* indices{nullptr};
@@ -86,10 +87,11 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
                          &adj_matrix_row_value_input,
                          &adj_matrix_col_value_input,
                          &e_op,
+                         storage_transposed,
                          major,
+                         major_offset,
                          indices,
                          weights] __device__(auto i) {
-      auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
       auto minor        = indices[i];
       auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
@@ -136,7 +138,6 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
 }
 
 template <bool update_major,
-          bool storage_transposed,
           typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -154,7 +155,8 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   ResultValueOutputIterator result_value_output_first,
   EdgeOp e_op,
-  T init /* relevent only if update_major == true */)
+  T init /* relevent only if update_major == true */,
+  bool storage_transposed)
 {
   auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
@@ -163,6 +165,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   property_add<T> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
+    auto major        = matrix_partition.get_major_from_major_offset_nocheck(major_offset);
     vertex_t const* indices{nullptr};
     thrust::optional<weight_t const*> weights{nullptr};
     edge_t local_degree{};
@@ -171,19 +174,17 @@ __global__ void for_all_major_for_all_nbr_low_degree(
     auto transform_op = [&matrix_partition,
                          &adj_matrix_row_value_input,
                          &adj_matrix_col_value_input,
+                         storage_transposed,
                          &e_op,
+                         major,
                          major_offset,
                          indices,
                          weights] __device__(auto i) {
       auto minor        = indices[i];
       auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
-      auto row          = storage_transposed
-                            ? minor
-                            : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
-      auto col          = storage_transposed
-                            ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
-                            : minor;
+      auto row          = storage_transposed ? minor : major;
+      auto col          = storage_transposed ? major : minor;
       auto row_offset   = storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
       auto col_offset   = storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
       return evaluate_edge_op<vertex_t,
@@ -225,7 +226,6 @@ __global__ void for_all_major_for_all_nbr_low_degree(
 }
 
 template <bool update_major,
-          bool storage_transposed,
           typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -243,7 +243,8 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   ResultValueOutputIterator result_value_output_first,
   EdgeOp e_op,
-  T init /* relevent only if update_major == true */)
+  T init /* relevent only if update_major == true */,
+  bool storage_transposed)
 {
   using e_op_result_t = T;
 
@@ -256,6 +257,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   property_add<e_op_result_t> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
+    auto major        = matrix_partition.get_major_from_major_offset_nocheck(major_offset);
     vertex_t const* indices{nullptr};
     thrust::optional<weight_t const*> weights{nullptr};
     edge_t local_degree{};
@@ -266,12 +268,8 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
       auto minor        = indices[i];
       auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
-      auto row          = storage_transposed
-                            ? minor
-                            : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
-      auto col          = storage_transposed
-                            ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
-                            : minor;
+      auto row          = storage_transposed ? minor : major;
+      auto col          = storage_transposed ? major : minor;
       auto row_offset   = storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
       auto col_offset   = storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
       auto e_op_result  = evaluate_edge_op<vertex_t,
@@ -302,7 +300,6 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 }
 
 template <bool update_major,
-          bool storage_transposed,
           typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -320,7 +317,8 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
   ResultValueOutputIterator result_value_output_first,
   EdgeOp e_op,
-  T init /* relevent only if update_major == true */)
+  T init /* relevent only if update_major == true */,
+  bool storage_transposed)
 {
   using e_op_result_t = T;
 
@@ -330,6 +328,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   property_add<e_op_result_t> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
+    auto major        = matrix_partition.get_major_from_major_offset_nocheck(major_offset);
     vertex_t const* indices{nullptr};
     thrust::optional<weight_t const*> weights{nullptr};
     edge_t local_degree{};
@@ -340,12 +339,8 @@ __global__ void for_all_major_for_all_nbr_high_degree(
       auto minor        = indices[i];
       auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
-      auto row          = storage_transposed
-                            ? minor
-                            : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
-      auto col          = storage_transposed
-                            ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
-                            : minor;
+      auto row          = storage_transposed ? minor : major;
+      auto col          = storage_transposed ? major : minor;
       auto row_offset   = storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
       auto col_offset   = storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
       auto e_op_result  = evaluate_edge_op<vertex_t,
@@ -378,7 +373,6 @@ __global__ void for_all_major_for_all_nbr_high_degree(
 }
 
 template <bool update_major,
-          bool storage_transposed,
           typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -396,7 +390,8 @@ void traverse_matrix_partition_edges(
   ResultValueOutputIterator output_buffer_first,
   EdgeOp e_op,
   T major_init /* relevent only if update_major == true */,
-  std::optional<std::vector<vertex_t>> const& segment_offsets)
+  std::optional<std::vector<vertex_t>> const& segment_offsets,
+  bool storage_transposed)
 {
   if (segment_offsets) {
     // FIXME: we may further improve performance by 1) concurrently running kernels on different
@@ -407,7 +402,7 @@ void traverse_matrix_partition_edges(
       raft::grid_1d_block_t update_grid((*segment_offsets)[1],
                                         detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                         handle.get_device_properties().maxGridSize[0]);
-      detail::for_all_major_for_all_nbr_high_degree<update_major, storage_transposed>
+      detail::for_all_major_for_all_nbr_high_degree<update_major>
         <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
           matrix_partition,
           matrix_partition.get_major_first(),
@@ -416,13 +411,13 @@ void traverse_matrix_partition_edges(
           matrix_partition_col_value_input,
           output_buffer_first,
           e_op,
-          major_init);
+          major_init, storage_transposed);
     }
     if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
       raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
                                        detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
-      detail::for_all_major_for_all_nbr_mid_degree<update_major, storage_transposed>
+      detail::for_all_major_for_all_nbr_mid_degree<update_major>
         <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
           matrix_partition,
           matrix_partition.get_major_first() + (*segment_offsets)[1],
@@ -431,13 +426,13 @@ void traverse_matrix_partition_edges(
           matrix_partition_col_value_input,
           output_buffer_first + (update_major ? (*segment_offsets)[1] : vertex_t{0}),
           e_op,
-          major_init);
+          major_init, storage_transposed);
     }
     if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
       raft::grid_1d_thread_t update_grid((*segment_offsets)[3] - (*segment_offsets)[2],
                                          detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
-      detail::for_all_major_for_all_nbr_low_degree<update_major, storage_transposed>
+      detail::for_all_major_for_all_nbr_low_degree<update_major>
         <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
           matrix_partition,
           matrix_partition.get_major_first() + (*segment_offsets)[2],
@@ -446,7 +441,7 @@ void traverse_matrix_partition_edges(
           matrix_partition_col_value_input,
           output_buffer_first + (update_major ? (*segment_offsets)[2] : vertex_t{0}),
           e_op,
-          major_init);
+          major_init, storage_transposed);
     }
     if (matrix_partition.get_dcs_nzd_vertex_count()) {
       if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the
@@ -461,7 +456,7 @@ void traverse_matrix_partition_edges(
         raft::grid_1d_thread_t update_grid(*(matrix_partition.get_dcs_nzd_vertex_count()),
                                            detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-        detail::for_all_major_for_all_nbr_hypersparse<update_major, storage_transposed>
+        detail::for_all_major_for_all_nbr_hypersparse<update_major>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
             matrix_partition.get_major_first() + (*segment_offsets)[3],
@@ -469,7 +464,7 @@ void traverse_matrix_partition_edges(
             matrix_partition_col_value_input,
             output_buffer_first + (update_major ? (*segment_offsets)[3] : vertex_t{0}),
             e_op,
-            major_init);
+            major_init, storage_transposed);
       }
     }
   } else {
@@ -477,7 +472,7 @@ void traverse_matrix_partition_edges(
       raft::grid_1d_thread_t update_grid(matrix_partition.get_major_size(),
                                          detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
-      detail::for_all_major_for_all_nbr_low_degree<update_major, storage_transposed>
+      detail::for_all_major_for_all_nbr_low_degree<update_major>
         <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
           matrix_partition,
           matrix_partition.get_major_first(),
@@ -486,12 +481,12 @@ void traverse_matrix_partition_edges(
           matrix_partition_col_value_input,
           output_buffer_first,
           e_op,
-          major_init);
+          major_init, storage_transposed);
     }
   }
 }
 
-template <bool in,  // iterate over incoming edges (in == true) or outgoing edges (in == false)
+template <
           typename GraphViewType,
           typename AdjMatrixRowValueInputWrapper,
           typename AdjMatrixColValueInputWrapper,
@@ -504,15 +499,13 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                                  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
                                  EdgeOp e_op,
                                  T init,
-                                 VertexValueOutputIterator vertex_value_output_first)
+                                 VertexValueOutputIterator vertex_value_output_first, bool update_major)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-
-  auto update_major = (in == graph_view.storage_transposed());
 
   auto minor_tmp_buffer_size = (GraphViewType::is_multi_gpu && !update_major)
                                  ? graph_view.storage_transposed()
@@ -587,25 +580,14 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       } else {
         output_buffer_first = vertex_value_output_first;
       }
-      if (graph_view.storage_transposed()) {
-        traverse_matrix_partition_edges<true, true>(handle,
+        traverse_matrix_partition_edges<true>(handle,
                                                     matrix_partition,
                                                     matrix_partition_row_value_input,
                                                     matrix_partition_col_value_input,
                                                     output_buffer_first,
                                                     e_op,
                                                     major_init,
-                                                    segment_offsets);
-      } else {
-        traverse_matrix_partition_edges<true, false>(handle,
-                                                     matrix_partition,
-                                                     matrix_partition_row_value_input,
-                                                     matrix_partition_col_value_input,
-                                                     output_buffer_first,
-                                                     e_op,
-                                                     major_init,
-                                                     segment_offsets);
-      }
+                                                    segment_offsets, graph_view.storage_transposed());
     } else {
       std::conditional_t<GraphViewType::is_multi_gpu,
                          decltype(minor_buffer_first),
@@ -616,25 +598,14 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       } else {
         output_buffer_first = vertex_value_output_first;
       }
-      if (graph_view.storage_transposed()) {
-        traverse_matrix_partition_edges<false, true>(handle,
+        traverse_matrix_partition_edges<false>(handle,
                                                      matrix_partition,
                                                      matrix_partition_row_value_input,
                                                      matrix_partition_col_value_input,
                                                      output_buffer_first,
                                                      e_op,
                                                      major_init,
-                                                     segment_offsets);
-      } else {
-        traverse_matrix_partition_edges<false, false>(handle,
-                                                      matrix_partition,
-                                                      matrix_partition_row_value_input,
-                                                      matrix_partition_col_value_input,
-                                                      output_buffer_first,
-                                                      e_op,
-                                                      major_init,
-                                                      segment_offsets);
-      }
+                                                     segment_offsets, graph_view.storage_transposed());
     }
 
     if (GraphViewType::is_multi_gpu && update_major) {
@@ -777,13 +748,14 @@ void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
                                     T init,
                                     VertexValueOutputIterator vertex_value_output_first)
 {
-  detail::copy_v_transform_reduce_nbr<true>(handle,
+  auto update_major = (graph_view.storage_transposed() == true);
+  detail::copy_v_transform_reduce_nbr(handle,
                                             graph_view,
                                             adj_matrix_row_value_input,
                                             adj_matrix_col_value_input,
                                             e_op,
                                             init,
-                                            vertex_value_output_first);
+                                            vertex_value_output_first, update_major);
 }
 
 /**
@@ -837,13 +809,14 @@ void copy_v_transform_reduce_out_nbr(raft::handle_t const& handle,
                                      T init,
                                      VertexValueOutputIterator vertex_value_output_first)
 {
-  detail::copy_v_transform_reduce_nbr<false>(handle,
+  auto update_major = (graph_view.storage_transposed() == false);
+  detail::copy_v_transform_reduce_nbr(handle,
                                              graph_view,
                                              adj_matrix_row_value_input,
                                              adj_matrix_col_value_input,
                                              e_op,
                                              init,
-                                             vertex_value_output_first);
+                                             vertex_value_output_first, update_major);
 }
 
 }  // namespace cugraph
