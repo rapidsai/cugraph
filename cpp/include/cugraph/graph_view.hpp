@@ -114,7 +114,8 @@ class partition_t {
 
   std::vector<vertex_t> get_vertex_partition_lasts() const
   {
-    return std::vector<vertex_t>(vertex_partition_offsets_.begin() + 1, vertex_partition_offsets_.end());
+    return std::vector<vertex_t>(vertex_partition_offsets_.begin() + 1,
+                                 vertex_partition_offsets_.end());
   }
 
   std::tuple<vertex_t, vertex_t> get_local_vertex_range() const
@@ -686,7 +687,8 @@ class graph_view_t<vertex_t,
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
 
-  std::vector<vertex_t> get_vertex_partition_lasts() const {
+  std::vector<vertex_t> get_vertex_partition_lasts() const
+  {
     return std::vector<vertex_t>{get_local_vertex_last()};
   }
 

@@ -26,8 +26,8 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
-#include <thrust/distance.h>
 #include <thrust/binary_search.h>
+#include <thrust/distance.h>
 
 #include <iterator>
 #include <memory>
@@ -260,26 +260,29 @@ collect_values_for_unique_keys(raft::comms::comms_t const& comm,
   return value_buffer;
 }
 
-template <typename vertex_t,
-          typename VertexPartitionDeviceViewType,
-          typename ValueIterator>
+template <typename vertex_t, typename VertexPartitionDeviceViewType, typename ValueIterator>
 decltype(allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
   0, cudaStream_t{nullptr}))
-collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
-                                          vertex_t const *collect_unique_vertex_first,
-                                          vertex_t num_vertices,
-                                          ValueIterator local_value_first,
-                                          std::vector<vertex_t> const& vertex_partition_lasts,
-                                          VertexPartitionDeviceViewType vertex_partition_device_view,
-                                          rmm::cuda_stream_view stream_view)
+collect_values_for_sorted_unique_vertices(
+  raft::comms::comms_t const& comm,
+  vertex_t const* collect_unique_vertex_first,
+  vertex_t num_vertices,
+  ValueIterator local_value_first,
+  std::vector<vertex_t> const& vertex_partition_lasts,
+  VertexPartitionDeviceViewType vertex_partition_device_view,
+  rmm::cuda_stream_view stream_view)
 {
-  using value_t  = typename std::iterator_traits<ValueIterator>::value_type;
+  using value_t = typename std::iterator_traits<ValueIterator>::value_type;
 
   // 1: Compute bounds of values
-  rmm::device_uvector<vertex_t> d_vertex_partition_lasts(vertex_partition_lasts.size(), stream_view);
+  rmm::device_uvector<vertex_t> d_vertex_partition_lasts(vertex_partition_lasts.size(),
+                                                         stream_view);
   rmm::device_uvector<size_t> d_local_counts(vertex_partition_lasts.size(), stream_view);
-  
-  raft::copy(d_vertex_partition_lasts.data(), vertex_partition_lasts.data(), vertex_partition_lasts.size(), stream_view);
+
+  raft::copy(d_vertex_partition_lasts.data(),
+             vertex_partition_lasts.data(),
+             vertex_partition_lasts.size(),
+             stream_view);
 
   thrust::lower_bound(rmm::exec_policy(stream_view),
                       collect_unique_vertex_first,
@@ -292,10 +295,11 @@ collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
                               d_local_counts.begin(),
                               d_local_counts.end(),
                               d_local_counts.begin());
-                      
+
   std::vector<size_t> h_local_counts(d_local_counts.size());
 
-  raft::update_host(h_local_counts.data(), d_local_counts.data(), d_local_counts.size(), stream_view);
+  raft::update_host(
+    h_local_counts.data(), d_local_counts.data(), d_local_counts.size(), stream_view);
 
   // 2: Shuffle data
   auto [shuffled_vertices, shuffled_counts] =
@@ -320,18 +324,18 @@ collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
   return value_buffer;
 }
 
-template <typename VertexIterator,
-          typename ValueIterator,
-          typename VertexPartitionDeviceViewType>
+template <typename VertexIterator, typename ValueIterator, typename VertexPartitionDeviceViewType>
 decltype(allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
   0, cudaStream_t{nullptr}))
-collect_values_for_vertices(raft::comms::comms_t const& comm,
-                            VertexIterator collect_vertex_first,
-                            VertexIterator collect_vertex_last,
-                            ValueIterator local_value_first,
-                            std::vector<typename std::iterator_traits<VertexIterator>::value_type> const& vertex_partition_lasts,
-                            VertexPartitionDeviceViewType vertex_partition_device_view,
-                            rmm::cuda_stream_view stream_view)
+collect_values_for_vertices(
+  raft::comms::comms_t const& comm,
+  VertexIterator collect_vertex_first,
+  VertexIterator collect_vertex_last,
+  ValueIterator local_value_first,
+  std::vector<typename std::iterator_traits<VertexIterator>::value_type> const&
+    vertex_partition_lasts,
+  VertexPartitionDeviceViewType vertex_partition_device_view,
+  rmm::cuda_stream_view stream_view)
 {
   using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
   using value_t  = typename std::iterator_traits<ValueIterator>::value_type;
@@ -350,7 +354,7 @@ collect_values_for_vertices(raft::comms::comms_t const& comm,
     thrust::unique(rmm::exec_policy(stream_view), input_vertices.begin(), input_vertices.end());
   input_vertices.resize(thrust::distance(input_vertices.begin(), input_end), stream_view);
 
-  auto tmp_value_buffer = 
+  auto tmp_value_buffer =
     collect_values_for_sorted_unique_vertices(comm,
                                               input_vertices.data(),
                                               static_cast<vertex_t>(input_vertices.size()),
