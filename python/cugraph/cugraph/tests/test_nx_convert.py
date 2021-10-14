@@ -42,7 +42,8 @@ def _compare_graphs(nxG, cuG, has_wt=True):
 
     out_of_order = cu_df[cu_df['src'] > cu_df['dst']]
     if len(out_of_order) > 0:
-        out_of_order = out_of_order.rename(columns={"src": "dst", "dst": "src"})
+        out_of_order = out_of_order.rename(
+            columns={"src": "dst", "dst": "src"})
         right_order = cu_df[cu_df['src'] < cu_df['dst']]
         cu_df = pd.concat([out_of_order, right_order])
         del out_of_order
@@ -57,7 +58,8 @@ def _compare_graphs(nxG, cuG, has_wt=True):
 
     out_of_order = nx_df[nx_df['src'] > nx_df['dst']]
     if len(out_of_order) > 0:
-        out_of_order = out_of_order.rename(columns={"src": "dst", "dst": "src"})
+        out_of_order = out_of_order.rename(
+                                    columns={"src": "dst", "dst": "src"})
         right_order = nx_df[nx_df['src'] < nx_df['dst']]
 
         nx_df = pd.concat([out_of_order, right_order])
@@ -105,12 +107,12 @@ def test_nx_convert_undirected(graph_file):
     # read data and create a Nx Graph
     nx_df = utils.read_csv_for_nx(graph_file)
     nxG = nx.from_pandas_edgelist(nx_df, "0", "1", create_using=nx.Graph)
-    assert nx.is_directed(nxG) == False
-    assert nx.is_weighted(nxG) == False
+    assert nx.is_directed(nxG) is False
+    assert nx.is_weighted(nxG) is False
 
     cuG = cugraph.utilities.convert_from_nx(nxG)
-    assert cuG.is_directed() == False
-    assert cuG.is_weighted() == False
+    assert cuG.is_directed() is False
+    assert cuG.is_weighted() is False
 
     _compare_graphs(nxG, cuG, has_wt=False)
 
@@ -122,12 +124,11 @@ def test_nx_convert_directed(graph_file):
     # read data and create a Nx Graph
     nx_df = utils.read_csv_for_nx(graph_file)
     nxG = nx.from_pandas_edgelist(nx_df, "0", "1", create_using=nx.DiGraph)
-
-    assert nxG.is_directed() == True
+    assert nxG.is_directed() is True
 
     cuG = cugraph.utilities.convert_from_nx(nxG)
-    assert cuG.is_directed() == True
-    assert cuG.is_weighted() == False
+    assert cuG.is_directed() is True
+    assert cuG.is_weighted() is False
 
     _compare_graphs(nxG, cuG, has_wt=False)
 
@@ -138,15 +139,17 @@ def test_nx_convert_weighted(graph_file):
 
     # read data and create a Nx Graph
     nx_df = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
-    nxG = nx.from_pandas_edgelist(nx_df, "0", "1", "weight", create_using=nx.DiGraph)
-    assert nx.is_directed(nxG) == True
-    assert nx.is_weighted(nxG) == True
+    nxG = nx.from_pandas_edgelist(nx_df, "0", "1", "weight",
+                                  create_using=nx.DiGraph)
+    assert nx.is_directed(nxG) is True
+    assert nx.is_weighted(nxG) is True
 
     cuG = cugraph.utilities.convert_from_nx(nxG)
-    assert cugraph.is_directed(cuG) == True
-    assert cugraph.is_weighted(cuG) == True
+    assert cugraph.is_directed(cuG) is True
+    assert cugraph.is_weighted(cuG) is True
 
     _compare_graphs(nxG, cuG, has_wt=True)
+
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_nx_convert_multicol(graph_file):

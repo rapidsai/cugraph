@@ -96,14 +96,12 @@ def test_modularity_clustering_nx(graph_file, partitions):
             edge_attr="weight",
             create_using=nx.DiGraph(),
         )
-    assert nx.is_directed(nxG) == True
-    assert nx.is_weighted(nxG) == True
-
+    assert nx.is_directed(nxG) is True
+    assert nx.is_weighted(nxG) is True
 
     cuG, isNx = ensure_cugraph_obj_for_nx(nxG)
-    assert cugraph.is_directed(cuG) == True
-    assert cugraph.is_weighted(cuG) == True
-
+    assert cugraph.is_directed(cuG) is True
+    assert cugraph.is_weighted(cuG) is True
 
     # Get the modularity score for partitioning versus random assignment
     cu_score = cugraph_call(cuG, partitions)
