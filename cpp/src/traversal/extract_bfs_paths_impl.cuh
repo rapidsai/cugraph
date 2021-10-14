@@ -215,7 +215,6 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
                                                      current_frontier.end(),
                                                      predecessors,
                                                      h_vertex_partition_lasts,
-                                                     vertex_partition_device_view,
                                                      handle.get_stream());
     } else {
       thrust::transform(handle.get_thrust_policy(),

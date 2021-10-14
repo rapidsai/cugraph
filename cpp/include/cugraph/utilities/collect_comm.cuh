@@ -260,17 +260,15 @@ collect_values_for_unique_keys(raft::comms::comms_t const& comm,
   return value_buffer;
 }
 
-template <typename vertex_t, typename VertexPartitionDeviceViewType, typename ValueIterator>
+template <typename vertex_t, typename ValueIterator>
 decltype(allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
   0, cudaStream_t{nullptr}))
-collect_values_for_sorted_unique_vertices(
-  raft::comms::comms_t const& comm,
-  vertex_t const* collect_unique_vertex_first,
-  vertex_t num_vertices,
-  ValueIterator local_value_first,
-  std::vector<vertex_t> const& vertex_partition_lasts,
-  VertexPartitionDeviceViewType vertex_partition_device_view,
-  rmm::cuda_stream_view stream_view)
+collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
+                                          vertex_t const* collect_unique_vertex_first,
+                                          vertex_t num_vertices,
+                                          ValueIterator local_value_first,
+                                          std::vector<vertex_t> const& vertex_partition_lasts,
+                                          rmm::cuda_stream_view stream_view)
 {
   using value_t = typename std::iterator_traits<ValueIterator>::value_type;
 
@@ -308,14 +306,17 @@ collect_values_for_sorted_unique_vertices(
   auto value_buffer = allocate_dataframe_buffer<value_t>(shuffled_vertices.size(), stream_view);
 
   // 3: Lookup return values
-  thrust::transform(rmm::exec_policy(stream_view),
-                    shuffled_vertices.begin(),
-                    shuffled_vertices.end(),
-                    value_buffer.begin(),
-                    [local_value_first, vertex_partition_device_view] __device__(auto v) {
-                      return local_value_first[vertex_partition_device_view
-                                                 .get_local_vertex_offset_from_vertex_nocheck(v)];
-                    });
+  thrust::transform(
+    rmm::exec_policy(stream_view),
+    shuffled_vertices.begin(),
+    shuffled_vertices.end(),
+    value_buffer.begin(),
+    [local_value_first,
+     vertex_local_first =
+       (comm.get_rank() == 0 ? vertex_t{0}
+                             : vertex_partition_lasts[comm.get_rank() - 1])] __device__(auto v) {
+      return local_value_first[v - vertex_local_first];
+    });
 
   // 4: Shuffle results back to original GPU
   std::tie(value_buffer, std::ignore) =
@@ -324,7 +325,7 @@ collect_values_for_sorted_unique_vertices(
   return value_buffer;
 }
 
-template <typename VertexIterator, typename ValueIterator, typename VertexPartitionDeviceViewType>
+template <typename VertexIterator, typename ValueIterator>
 decltype(allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
   0, cudaStream_t{nullptr}))
 collect_values_for_vertices(
@@ -334,7 +335,6 @@ collect_values_for_vertices(
   ValueIterator local_value_first,
   std::vector<typename std::iterator_traits<VertexIterator>::value_type> const&
     vertex_partition_lasts,
-  VertexPartitionDeviceViewType vertex_partition_device_view,
   rmm::cuda_stream_view stream_view)
 {
   using vertex_t = typename std::iterator_traits<VertexIterator>::value_type;
@@ -360,7 +360,6 @@ collect_values_for_vertices(
                                               static_cast<vertex_t>(input_vertices.size()),
                                               local_value_first,
                                               vertex_partition_lasts,
-                                              vertex_partition_device_view,
                                               stream_view);
 
   thrust::transform(rmm::exec_policy(stream_view),

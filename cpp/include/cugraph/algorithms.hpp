@@ -1149,7 +1149,7 @@ void bfs(raft::handle_t const& handle,
  * @param distances Pointer to the distance array constructed by bfs.
  * @param predecessors Pointer to the predecessor array constructed by bfs.
  * @param destinations Destination vertices, extract path from source to each of these destinations
- * In a multi-gpu context the source vertex should be local to this GPU.
+ * In a multi-gpu context the destination vertex should be local to this GPU.
  * @param n_destinations number of destinations (one source per component at most).
  *
  * @return std::tuple<rmm::device_uvector<vertex_t>, vertex_t> pair containing
