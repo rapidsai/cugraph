@@ -188,6 +188,8 @@ add_library(cugraph SHARED
     src/structure/induced_subgraph_sg.cu
     ## FIXME: Not currently supported
     ##src/structure/induced_subgraph_mg.cu
+    src/traversal/extract_bfs_paths_sg.cu
+    src/traversal/extract_bfs_paths_mg.cu
     src/traversal/bfs_sg.cu
     src/traversal/bfs_mg.cu
     src/traversal/sssp_sg.cu
