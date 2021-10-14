@@ -368,12 +368,15 @@ struct node2vec_selector_t {
     vertex_t const* col_indices_;
     weight_t const* values_;
 
-    // alpha scaling coalesced buffers per path:
+    // alpha scaling coalesced buffer (per path):
     // (use as cache since the per-path alpha-buffer
-    //  is used twice for each node transition: (1) for computing sum_scaled weights; (2) for using
-    //  scaled_weights for the biased next vertex selection)
+    //  is used twice for each node transition:
+    //  (1) for computing sum_scaled weights;
+    //  (2) for using scaled_weights for the biased next vertex selection)
+    // this is information related to a scratchpad buffer, used as cache, hence mutable;
+    // (necessary, because get_strategy() is const)
     //
-    thrust::optional<thrust::tuple<vertex_t, edge_t, weight_t*>>
+    mutable thrust::optional<thrust::tuple<vertex_t, edge_t, weight_t*>>
       coalesced_alpha_;  // tuple<max_vertex_degree,
                          // num_paths, alpha_buffer[max_vertex_degree*num_paths]>
   };
@@ -383,23 +386,39 @@ struct node2vec_selector_t {
   node2vec_selector_t(raft::handle_t const& handle,
                       graph_type const& graph,
                       real_t tag,
-                      vertex_t max_deg  = 0,
-                      edge_t num_paths  = 0,
-                      weight_t* p_alpha = nullptr)
-    : sampler_{graph.get_matrix_partition_view().get_offsets(),
+                      edge_t num_paths = 0)
+    : max_out_degree_{num_paths > 0 ? get_max_out_degree(handle, graph) : 0},
+      d_coalesced_alpha_{max_out_degree_ * num_paths, handle.get_stream()},
+      sampler_{graph.get_matrix_partition_view().get_offsets(),
                graph.get_matrix_partition_view().get_indices(),
                graph.get_matrix_partition_view().get_weights()
                  ? *(graph.get_matrix_partition_view().get_weights())
                  : static_cast<weight_t*>(nullptr),
-               max_deg,
+               max_out_degree_,
                num_paths,
-               p_alpha}
+               raw_ptr(d_coalesced_alpha_)}
   {
   }
 
   sampler_t const& get_strategy(void) const { return sampler_; }
 
+  static size_t get_max_out_degree(raft::handle_t const& handle, graph_type const& graph)
+  {
+    // TODO:
+    //
+    return 0;  // for now
+  }
+
  private:
+  size_t max_out_degree_{0};
+
+  // alpha scaling coalesced buffer (per path):
+  // (use as cache since the per-path alpha-buffer
+  //  is used twice for each node transition:
+  //  (1) for computing sum_scaled weights;
+  //  (2) for using scaled_weights for the biased next vertex selection)
+  //
+  rmm::device_uvector<weight_t> d_coalesced_alpha_;
   sampler_t sampler_;
 };
 
