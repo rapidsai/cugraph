@@ -260,10 +260,6 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
 
 // Biased RW selection logic:
 //
-// FIXME:
-// 1. move sum weights calculation into selector;
-// 2. pass graph_view to constructor;
-//
 template <typename graph_type, typename real_t>
 struct biased_selector_t {
   using vertex_t = typename graph_type::vertex_type;
@@ -335,6 +331,75 @@ struct biased_selector_t {
 
  private:
   visitor_aggregate_weights_t<vertex_t, edge_t, weight_t> sum_calculator_;
+  sampler_t sampler_;
+};
+
+// node2vec RW selection logic:
+//
+template <typename graph_type, typename real_t>
+struct node2vec_selector_t {
+  using vertex_t = typename graph_type::vertex_type;
+  using edge_t   = typename graph_type::edge_type;
+  using weight_t = typename graph_type::weight_type;
+
+  struct sampler_t {
+    sampler_t(edge_t const* ro,
+              vertex_t const* ci,
+              weight_t const* w,
+              vertex_t max_degree,
+              edge_t num_paths,
+              weight_t* ptr_alpha)
+      : row_offsets_(ro),
+        col_indices_(ci),
+        values_(w),
+        coalesced_alpha_{(max_degree > 0) && (num_paths > 0) && (ptr_alpha != nullptr)
+                           ? thrust::make_tuple(max_degree, num_paths, ptr_alpha)
+                           : thrust::nullopt}
+    {
+    }
+
+    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(vertex_t src_v,
+                                                                              real_t rnd_val) const
+    {
+    }
+
+   private:
+    edge_t const* row_offsets_;
+    vertex_t const* col_indices_;
+    weight_t const* values_;
+
+    // alpha scaling coalesced buffers per path:
+    // (use as cache since the per-path alpha-buffer
+    //  is used twice for each node transition: (1) for computing sum_scaled weights; (2) for using
+    //  scaled_weights for the biased next vertex selection)
+    //
+    thrust::optional<thrust::tuple<vertex_t, edge_t, weight_t*>>
+      coalesced_alpha_;  // tuple<max_vertex_degree,
+                         // num_paths, alpha_buffer[max_vertex_degree*num_paths]>
+  };
+
+  using sampler_type = sampler_t;
+
+  node2vec_selector_t(raft::handle_t const& handle,
+                      graph_type const& graph,
+                      real_t tag,
+                      vertex_t max_deg  = 0,
+                      edge_t num_paths  = 0,
+                      weight_t* p_alpha = nullptr)
+    : sampler_{graph.get_matrix_partition_view().get_offsets(),
+               graph.get_matrix_partition_view().get_indices(),
+               graph.get_matrix_partition_view().get_weights()
+                 ? *(graph.get_matrix_partition_view().get_weights())
+                 : static_cast<weight_t*>(nullptr),
+               max_deg,
+               num_paths,
+               p_alpha}
+  {
+  }
+
+  sampler_t const& get_strategy(void) const { return sampler_; }
+
+ private:
   sampler_t sampler_;
 };
 
@@ -502,7 +567,7 @@ struct horizontal_traversal_t {
  private:
   size_t num_paths_;
   size_t max_depth_;
-};  // namespace detail
+};
 
 }  // namespace detail
 }  // namespace cugraph
