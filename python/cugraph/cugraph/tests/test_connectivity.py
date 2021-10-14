@@ -41,18 +41,6 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-# FIXME: WCC currently crashes on Ampere. Detect the GPU arch here and use it
-# for conditional skipping. Remove this code when the Ampere crash is resolved.
-from numba import cuda
-is_ampere = False
-device = cuda.get_current_device()
-# check for the attribute using both pre and post numba 0.53 names
-cc = getattr(device, 'COMPUTE_CAPABILITY', None) or \
-     getattr(device, 'compute_capability')
-if (cc[0] >= 8):
-    is_ampere = True
-
-
 print("Networkx version : {} ".format(nx.__version__))
 
 # Map of cuGraph input types to the expected output type for cuGraph
@@ -302,7 +290,6 @@ def single_dataset_nxresults_strong(request):
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.skipif(is_ampere, reason="skipping on Ampere")
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_weak_cc(gpubenchmark, dataset_nxresults_weak, cugraph_input_type):
     (graph_file, netx_labels,
@@ -342,7 +329,6 @@ def test_weak_cc(gpubenchmark, dataset_nxresults_weak, cugraph_input_type):
     assert nx_vertices == cg_vertices
 
 
-@pytest.mark.skipif(is_ampere, reason="skipping on Ampere")
 @pytest.mark.parametrize("cugraph_input_type",
                          utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
 def test_weak_cc_nonnative_inputs(gpubenchmark,
@@ -406,7 +392,6 @@ def test_strong_cc_nonnative_inputs(gpubenchmark,
                    cugraph_input_type)
 
 
-@pytest.mark.skipif(is_ampere, reason="skipping on Ampere")
 def test_scipy_api_compat_weak(single_dataset_nxresults_weak):
     (graph_file, _, _, _, api_type) = single_dataset_nxresults_weak
     assert_scipy_api_compat(graph_file, api_type)
@@ -417,7 +402,6 @@ def test_scipy_api_compat_strong(single_dataset_nxresults_strong):
     assert_scipy_api_compat(graph_file, api_type)
 
 
-@pytest.mark.skipif(is_ampere, reason="skipping on Ampere")
 @pytest.mark.parametrize("connection_type", ["strong", "weak"])
 def test_scipy_api_compat(connection_type):
     if connection_type == "strong":

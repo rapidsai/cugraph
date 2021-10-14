@@ -379,8 +379,7 @@ ConfigureTest(KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp)
 
 ###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
-# Temporarily disable this test, it seems to be failing on A100
-#ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
+ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
 ###################################################################################################
 # - RANDOM_WALKS tests ----------------------------------------------------------------------------
