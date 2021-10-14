@@ -20,6 +20,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
+#include <thrust/shuffle.h>
 #include <thrust/sort.h>
 
 namespace cugraph {
@@ -125,5 +126,29 @@ template void populate_vertex_ids(raft::handle_t const& handle,
                                   rmm::device_uvector<int64_t>& d_vertices_v,
                                   int64_t vertex_id_offset);
 
+template <typename T>
+rmm::device_uvector<T> randomly_select(raft::handle_t const& handle,
+                                       rmm::device_uvector<T> const& input,
+                                       size_t count)
+{
+  thrust::default_random_engine random_engine;
+
+  rmm::device_uvector<T> tmp(input.size(), handle.get_stream());
+
+  thrust::copy(handle.get_thrust_policy(), input.begin(), input.end(), tmp.begin());
+  thrust::shuffle(handle.get_thrust_policy(), tmp.begin(), tmp.end(), random_engine);
+
+  tmp.resize(std::min(count, tmp.size()), handle.get_stream());
+  tmp.shrink_to_fit(handle.get_stream());
+
+  return tmp;
+}
+
+template rmm::device_uvector<int32_t> randomly_select(raft::handle_t const& handle,
+                                                      rmm::device_uvector<int32_t> const& input,
+                                                      size_t count);
+template rmm::device_uvector<int64_t> randomly_select(raft::handle_t const& handle,
+                                                      rmm::device_uvector<int64_t> const& input,
+                                                      size_t count);
 }  // namespace test
 }  // namespace cugraph

@@ -93,5 +93,19 @@ template int64_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_v
                                            rmm::device_uvector<int64_t> const& d_edgelist_rows,
                                            rmm::device_uvector<int64_t> const& d_edgelist_cols);
 
+template <typename value_t>
+void normalize(rmm::cuda_stream_view const& stream_view, value_t* d_value, size_t size)
+{
+  auto sum = thrust::reduce(rmm::exec_policy(stream_view), d_value, d_value + size);
+
+  thrust::transform(
+    rmm::exec_policy(stream_view), d_value, d_value + size, d_value, [sum] __device__(auto v) {
+      return v / sum;
+    });
+}
+
+template void normalize(rmm::cuda_stream_view const& stream_view, float* d_value, size_t size);
+template void normalize(rmm::cuda_stream_view const& stream_view, double* d_value, size_t size);
+
 }  // namespace detail
 }  // namespace cugraph

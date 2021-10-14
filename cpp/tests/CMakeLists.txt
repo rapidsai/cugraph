@@ -321,19 +321,19 @@ ConfigureTest(WCC_TEST components/wcc_test.cpp)
 ConfigureTest(HUNGARIAN_TEST linear_assignment/hungarian_test.cu)
 
 ###################################################################################################
-# - MST tests ----------------------------------------------------------------------------
+# - MST tests -------------------------------------------------------------------------------------
 ConfigureTest(MST_TEST tree/mst_test.cu)
 
 ###################################################################################################
-# - Experimental stream tests -----------------------------------------------------
+# - Stream tests ----------------------------------------------------------------------------------
 ConfigureTest(STREAM_TEST structure/streams.cu)
 
 ###################################################################################################
-# - Experimental R-mat graph generation tests -----------------------------------------------------
+# - R-mat graph generation tests ------------------------------------------------------------------
 ConfigureTest(GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 
 ###################################################################################################
-# - Experimental Graph tests ----------------------------------------------------------------------
+# - Graph tests -----------------------------------------------------------------------------------
 ConfigureTest(GRAPH_TEST structure/graph_test.cpp)
 
 ###################################################################################################
@@ -341,52 +341,56 @@ ConfigureTest(GRAPH_TEST structure/graph_test.cpp)
 ConfigureTest(SYMMETRIZE_TEST structure/symmetrize_test.cpp)
 
 ###################################################################################################
-# - Experimental weight-sum tests -----------------------------------------------------------------
+# - Weight-sum tests ------------------------------------------------------------------------------
 ConfigureTest(WEIGHT_SUM_TEST structure/weight_sum_test.cpp)
 
 ###################################################################################################
-# - Experimental degree tests ---------------------------------------------------------------------
+# - Degree tests ----------------------------------------------------------------------------------
 ConfigureTest(DEGREE_TEST structure/degree_test.cpp)
 
 ###################################################################################################
-# - Experimental coarsening tests -----------------------------------------------------------------
+# - Coarsening tests ------------------------------------------------------------------------------
 ConfigureTest(COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 
 ###################################################################################################
-# - Experimental induced subgraph tests -----------------------------------------------------------
+# - Induced subgraph tests ------------------------------------------------------------------------
 ConfigureTest(INDUCED_SUBGRAPH_TEST community/induced_subgraph_test.cpp)
 
 ###################################################################################################
-# - Experimental BFS tests ------------------------------------------------------------------------
+# - BFS tests -------------------------------------------------------------------------------------
 ConfigureTest(BFS_TEST traversal/bfs_test.cpp)
 
 ###################################################################################################
-# - Experimental Multi-source BFS tests ----------------------------------------------------------
+# - Extract BFS Paths tests ------------------------------------------------------------------------
+ConfigureTest(EXTRACT_BFS_PATHS_TEST
+              traversal/extract_bfs_paths_test.cu)
+
+###################################################################################################
+# - Multi-source BFS tests -----------------------------------------------------------------------
 ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu)
 
 ###################################################################################################
-# - Experimental SSSP tests -----------------------------------------------------------------------
+# - SSSP tests ------------------------------------------------------------------------------------
 ConfigureTest(SSSP_TEST traversal/sssp_test.cpp)
 
 ###################################################################################################
-# - Experimental PAGERANK tests -------------------------------------------------------------------
+# - PAGERANK tests --------------------------------------------------------------------------------
 ConfigureTest(PAGERANK_TEST link_analysis/pagerank_test.cpp)
 
 ###################################################################################################
-# - Experimental KATZ_CENTRALITY tests ------------------------------------------------------------
+# - KATZ_CENTRALITY tests -------------------------------------------------------------------------
 ConfigureTest(KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp)
 
 ###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
-# Temporarily disable this test, it seems to be failing on A100
-#ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
+ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
 ###################################################################################################
-# - Experimental RANDOM_WALKS tests ---------------------------------------------------------------
+# - RANDOM_WALKS tests ----------------------------------------------------------------------------
 ConfigureTest(RANDOM_WALKS_TEST sampling/random_walks_test.cu)
 
 ###################################################################################################
-# - Experimental RANDOM_WALKS Segmented Sort tests ------------------------------------------------
+# - RANDOM_WALKS Segmented Sort tests -------------------------------------------------------------
 ConfigureTest(RANDOM_WALKS_SEG_SORT_TEST sampling/rw_biased_seg_sort.cu)
 
 ###################################################################################################
@@ -403,7 +407,7 @@ ConfigureTest(RANDOM_WALKS_PROFILING sampling/random_walks_profiling.cu)
 ConfigureTest(SERIALIZATION_TEST serialization/un_serialize_test.cpp)
 
 ###################################################################################################
-# - Experimental renumber tests -------------------------------------------------------------------
+# - Renumber tests --------------------------------------------------------------------------------
 set(RENUMBERING_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/structure/renumbering_test.cpp")
 
@@ -450,6 +454,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG BFS tests --------------------------------------------------------------------------
         ConfigureTestMG(MG_BFS_TEST traversal/mg_bfs_test.cpp)
+
+        ###########################################################################################
+        # - Extract BFS Paths tests ---------------------------------------------------------------
+        ConfigureTestMG(MG_EXTRACT_BFS_PATHS_TEST
+                        traversal/mg_extract_bfs_paths_test.cu)
 
         ###########################################################################################
         # - MG SSSP tests -------------------------------------------------------------------------
