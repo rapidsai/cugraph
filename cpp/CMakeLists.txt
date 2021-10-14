@@ -426,13 +426,12 @@ target_include_directories(cugraph_etl
 ################################################################################
 # - ETL link libraries -------------------------------------------------------
 target_link_libraries(cugraph_etl
-        PUBLIC
+        PRIVATE
                 FAISS::FAISS
                 CUDA::cublas
                 CUDA::curand
                 CUDA::cusolver
                 CUDA::cusparse
-        PRIVATE
                 cugraph::cugraph
 )
 
