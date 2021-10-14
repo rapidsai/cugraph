@@ -391,6 +391,52 @@ target_link_libraries(cugraph_c
 )
 
 ################################################################################
+# - ETL library --------------------------------------------------------------
+
+add_library(cugraph_etl SHARED
+            src/etl/renumbering.cu
+           )
+add_library(cugraph::cugraph_etl ALIAS cugraph_etl)
+
+# Currently presuming we aren't calling any CUDA kernels in cugraph_c
+
+set_target_properties(cugraph_etl
+               PROPERTIES BUILD_RPATH              "\$ORIGIN"
+               INSTALL_RPATH                       "\$ORIGIN"
+               # set target compile options
+               CXX_STANDARD                        17
+               CXX_STANDARD_REQUIRED               ON
+               INTERFACE_POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_options(cugraph_etl
+            PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+)
+
+################################################################################
+# - ETL include paths --------------------------------------------------------
+target_include_directories(cugraph_etl
+    PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+        "$<INSTALL_INTERFACE:include>"
+)
+
+################################################################################
+# - ETL link libraries -------------------------------------------------------
+target_link_libraries(cugraph_etl
+        PUBLIC
+                FAISS::FAISS
+                CUDA::cublas
+                CUDA::curand
+                CUDA::cusolver
+                CUDA::cusparse
+        PRIVATE
+                cugraph::cugraph
+)
+
+################################################################################
 # - generate tests -------------------------------------------------------------
 
 if(BUILD_TESTS)
