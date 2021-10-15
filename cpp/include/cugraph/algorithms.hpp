@@ -1387,6 +1387,7 @@ random_walks(raft::handle_t const& handle,
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param components Pointer to the output component ID array.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
