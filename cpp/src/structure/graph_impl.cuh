@@ -30,6 +30,7 @@
 #include <thrust/binary_search.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
+#include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
@@ -71,6 +72,14 @@ struct has_nzd_t {
     auto major_offset = major - major_first;
     return offsets[major_offset + 1] - offsets[major_offset] > 0;
   }
+};
+
+// can't use lambda due to nvcc limitations (The enclosing parent function ("graph_t") for an
+// extended __device__ lambda must allow its address to be taken)
+template <typename edge_t>
+struct rebase_offset_t {
+  edge_t base_offset{};
+  __device__ edge_t operator()(edge_t offset) const { return offset - base_offset; }
 };
 
 // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
@@ -200,6 +209,141 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
 
   return std::make_tuple(
     std::move(offsets), std::move(indices), std::move(weights), std::move(dcs_nzd_vertices));
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sort_adjacency_list(raft::handle_t const& handle,
+                         edge_t const* offsets,
+                         vertex_t* indices /* [INOUT} */,
+                         std::optional<weight_t*> weights /* [INOUT] */,
+                         vertex_t num_vertices,
+                         edge_t num_edges)
+{
+  // Note that the current cub's segmented sort based implementation is slower than the global sort
+  // based approach, but we expect cub's segmented sort performance will get significantly better in
+  // few months. We need to reevaluate performance overhead of this routine in several months.
+
+  // 1. We segmented sort edges in chunks, and we need to adjust chunk offsets as we need to sort
+  // each vertex's neighbors at once.
+
+  // to limit memory footprint ((1 << 20) is a tuning parameter)
+  auto approx_edges_to_sort_per_iteration =
+    static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
+  auto search_offset_first =
+    thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
+                                    [approx_edges_to_sort_per_iteration] __device__(auto i) {
+                                      return i * approx_edges_to_sort_per_iteration;
+                                    });
+  auto num_chunks =
+    (num_edges + approx_edges_to_sort_per_iteration - 1) / approx_edges_to_sort_per_iteration;
+  rmm::device_uvector<vertex_t> d_vertex_offsets(num_chunks - 1, handle.get_stream());
+  thrust::lower_bound(handle.get_thrust_policy(),
+                      offsets,
+                      offsets + num_vertices + 1,
+                      search_offset_first,
+                      search_offset_first + d_vertex_offsets.size(),
+                      d_vertex_offsets.begin());
+  rmm::device_uvector<edge_t> d_edge_offsets(d_vertex_offsets.size(), handle.get_stream());
+  thrust::gather(handle.get_thrust_policy(),
+                 d_vertex_offsets.begin(),
+                 d_vertex_offsets.end(),
+                 offsets,
+                 d_edge_offsets.begin());
+  std::vector<edge_t> h_edge_offsets(num_chunks + 1, edge_t{0});
+  h_edge_offsets.back() = num_edges;
+  raft::update_host(
+    h_edge_offsets.data() + 1, d_edge_offsets.data(), d_edge_offsets.size(), handle.get_stream());
+  std::vector<vertex_t> h_vertex_offsets(num_chunks + 1, vertex_t{0});
+  h_vertex_offsets.back() = num_vertices;
+  raft::update_host(h_vertex_offsets.data() + 1,
+                    d_vertex_offsets.data(),
+                    d_vertex_offsets.size(),
+                    handle.get_stream());
+
+  // 2. Segmented sort each vertex's neighbors
+
+  size_t max_chunk_size{0};
+  for (size_t i = 0; i < num_chunks; ++i) {
+    max_chunk_size =
+      std::max(max_chunk_size, static_cast<size_t>(h_edge_offsets[i + 1] - h_edge_offsets[i]));
+  }
+  rmm::device_uvector<vertex_t> segment_sorted_indices(max_chunk_size, handle.get_stream());
+  auto segment_sorted_weights =
+    weights ? std::make_optional<rmm::device_uvector<weight_t>>(max_chunk_size, handle.get_stream())
+            : std::nullopt;
+  rmm::device_uvector<std::byte> d_temp_storage(0, handle.get_stream());
+  for (size_t i = 0; i < num_chunks; ++i) {
+    size_t temp_storage_bytes{0};
+    auto offset_first = thrust::make_transform_iterator(offsets + h_vertex_offsets[i],
+                                                        rebase_offset_t<edge_t>{h_edge_offsets[i]});
+    if (weights) {
+      cub::DeviceSegmentedRadixSort::SortPairs(static_cast<void*>(nullptr),
+                                               temp_storage_bytes,
+                                               indices + h_edge_offsets[i],
+                                               segment_sorted_indices.data(),
+                                               (*weights) + h_edge_offsets[i],
+                                               (*segment_sorted_weights).data(),
+                                               h_edge_offsets[i + 1] - h_edge_offsets[i],
+                                               h_vertex_offsets[i + 1] - h_vertex_offsets[i],
+                                               offset_first,
+                                               offset_first + 1,
+                                               0,
+                                               sizeof(vertex_t) * 8,
+                                               handle.get_stream());
+    } else {
+      cub::DeviceSegmentedRadixSort::SortKeys(static_cast<void*>(nullptr),
+                                              temp_storage_bytes,
+                                              indices + h_edge_offsets[i],
+                                              segment_sorted_indices.data(),
+                                              h_edge_offsets[i + 1] - h_edge_offsets[i],
+                                              h_vertex_offsets[i + 1] - h_vertex_offsets[i],
+                                              offset_first,
+                                              offset_first + 1,
+                                              0,
+                                              sizeof(vertex_t) * 8,
+                                              handle.get_stream());
+    }
+    if (temp_storage_bytes > d_temp_storage.size()) {
+      d_temp_storage = rmm::device_uvector<std::byte>(temp_storage_bytes, handle.get_stream());
+    }
+    if (weights) {
+      cub::DeviceSegmentedRadixSort::SortPairs(d_temp_storage.data(),
+                                               temp_storage_bytes,
+                                               indices + h_edge_offsets[i],
+                                               segment_sorted_indices.data(),
+                                               (*weights) + h_edge_offsets[i],
+                                               (*segment_sorted_weights).data(),
+                                               h_edge_offsets[i + 1] - h_edge_offsets[i],
+                                               h_vertex_offsets[i + 1] - h_vertex_offsets[i],
+                                               offset_first,
+                                               offset_first + 1,
+                                               0,
+                                               sizeof(vertex_t) * 8,
+                                               handle.get_stream());
+    } else {
+      cub::DeviceSegmentedRadixSort::SortKeys(d_temp_storage.data(),
+                                              temp_storage_bytes,
+                                              indices + h_edge_offsets[i],
+                                              segment_sorted_indices.data(),
+                                              h_edge_offsets[i + 1] - h_edge_offsets[i],
+                                              h_vertex_offsets[i + 1] - h_vertex_offsets[i],
+                                              offset_first,
+                                              offset_first + 1,
+                                              0,
+                                              sizeof(vertex_t) * 8,
+                                              handle.get_stream());
+    }
+    thrust::copy(handle.get_thrust_policy(),
+                 segment_sorted_indices.begin(),
+                 segment_sorted_indices.begin() + (h_edge_offsets[i + 1] - h_edge_offsets[i]),
+                 indices + h_edge_offsets[i]);
+    if (weights) {
+      thrust::copy(handle.get_thrust_policy(),
+                   (*segment_sorted_weights).begin(),
+                   (*segment_sorted_weights).begin() + (h_edge_offsets[i + 1] - h_edge_offsets[i]),
+                   (*weights) + h_edge_offsets[i]);
+    }
+  }
 }
 
 }  // namespace
@@ -404,6 +548,19 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       (*adj_matrix_partition_dcs_nzd_vertices_).push_back(std::move(*dcs_nzd_vertices));
       (*adj_matrix_partition_dcs_nzd_vertex_counts_).push_back(dcs_nzd_vertex_count);
     }
+  }
+
+  // segmented sort neighbors
+
+  for (size_t i = 0; i < adj_matrix_partition_offsets_.size(); ++i) {
+    sort_adjacency_list(handle,
+                        adj_matrix_partition_offsets_[i].data(),
+                        adj_matrix_partition_indices_[i].data(),
+                        adj_matrix_partition_weights_
+                          ? std::optional<weight_t*>{(*adj_matrix_partition_weights_)[i].data()}
+                          : std::nullopt,
+                        static_cast<vertex_t>(adj_matrix_partition_offsets_[i].size() - 1),
+                        static_cast<edge_t>(adj_matrix_partition_indices_[i].size()));
   }
 
   // if # unique edge rows/cols << V / row_comm_size|col_comm_size, store unique edge rows/cols to
@@ -644,6 +801,15 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                         vertex_t{0},
                                         this->get_number_of_vertices(),
                                         default_stream_view);
+
+  // segmented sort neighbors
+
+  sort_adjacency_list(handle,
+                      offsets_.data(),
+                      indices_.data(),
+                      weights_ ? std::optional<weight_t*>{(*weights_).data()} : std::nullopt,
+                      static_cast<vertex_t>(offsets_.size() - 1),
+                      static_cast<edge_t>(indices_.size()));
 
   // optional expensive checks (part 3/3)
 
