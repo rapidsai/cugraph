@@ -267,6 +267,10 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   auto idx                = static_cast<size_t>(tid / raft::warp_size());
 
+  using WarpReduce = cub::WarpReduce<e_op_result_t>;
+  __shared__ typename WarpReduce::TempStorage
+    temp_storage[copy_v_transform_reduce_nbr_for_all_block_size / raft::warp_size()];
+
   property_add<e_op_result_t> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
@@ -310,7 +314,8 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
       }
     }
     if (update_major) {
-      e_op_result_sum = warp_reduce_edge_op_result<e_op_result_t>().compute(e_op_result_sum);
+      e_op_result_sum = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
+                          .Reduce(e_op_result_sum, edge_property_add);
       if (lane_id == 0) { *(result_value_output_first + idx) = e_op_result_sum; }
     }
 
@@ -345,6 +350,10 @@ __global__ void for_all_major_for_all_nbr_high_degree(
 
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   auto idx                = static_cast<size_t>(blockIdx.x);
+
+  using BlockReduce =
+    cub::BlockReduce<e_op_result_t, copy_v_transform_reduce_nbr_for_all_block_size>;
+  __shared__ typename BlockReduce::TempStorage temp_storage;
 
   property_add<e_op_result_t> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
@@ -389,9 +398,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
       }
     }
     if (update_major) {
-      e_op_result_sum =
-        block_reduce_edge_op_result<e_op_result_t, copy_v_transform_reduce_nbr_for_all_block_size>()
-          .compute(e_op_result_sum);
+      e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
       if (threadIdx.x == 0) { *(result_value_output_first + idx) = e_op_result_sum; }
     }
 
