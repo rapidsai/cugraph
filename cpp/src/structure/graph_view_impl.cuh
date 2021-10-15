@@ -79,6 +79,112 @@ std::vector<edge_t> update_adj_matrix_partition_edge_counts(
   return adj_matrix_partition_edge_counts;
 }
 
+// compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
+// false) or columns (of the graph adjacency matrix, if store_transposed = true)
+template <typename vertex_t, typename edge_t>
+rmm::device_uvector<edge_t> compute_major_degrees(
+  raft::handle_t const& handle,
+  std::vector<edge_t const*> const& adj_matrix_partition_offsets,
+  std::optional<std::vector<vertex_t const*>> const& adj_matrix_partition_dcs_nzd_vertices,
+  std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
+  partition_t<vertex_t> const& partition,
+  std::optional<std::vector<vertex_t>> const& adj_matrix_partition_segment_offsets)
+{
+  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto const row_comm_rank = row_comm.get_rank();
+  auto const row_comm_size = row_comm.get_size();
+  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto const col_comm_rank = col_comm.get_rank();
+  auto const col_comm_size = col_comm.get_size();
+
+  auto use_dcs = adj_matrix_partition_dcs_nzd_vertices.has_value();
+
+  rmm::device_uvector<edge_t> local_degrees(0, handle.get_stream());
+  rmm::device_uvector<edge_t> degrees(0, handle.get_stream());
+
+  vertex_t max_num_local_degrees{0};
+  for (int i = 0; i < col_comm_size; ++i) {
+    auto vertex_partition_idx  = static_cast<size_t>(i * row_comm_size + row_comm_rank);
+    auto vertex_partition_size = partition.get_vertex_partition_size(vertex_partition_idx);
+    max_num_local_degrees      = std::max(max_num_local_degrees, vertex_partition_size);
+    if (i == col_comm_rank) { degrees.resize(vertex_partition_size, handle.get_stream()); }
+  }
+  local_degrees.resize(max_num_local_degrees, handle.get_stream());
+  for (int i = 0; i < col_comm_size; ++i) {
+    auto vertex_partition_idx = static_cast<size_t>(i * row_comm_size + row_comm_rank);
+    vertex_t major_first{};
+    vertex_t major_last{};
+    std::tie(major_first, major_last) = partition.get_vertex_partition_range(vertex_partition_idx);
+    auto p_offsets                    = adj_matrix_partition_offsets[i];
+    auto major_hypersparse_first =
+      use_dcs ? major_first + (*adj_matrix_partition_segment_offsets)
+                                [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
+                                 detail::num_sparse_segments_per_vertex_partition]
+              : major_last;
+    auto execution_policy = handle.get_thrust_policy();
+    thrust::transform(execution_policy,
+                      thrust::make_counting_iterator(vertex_t{0}),
+                      thrust::make_counting_iterator(major_hypersparse_first - major_first),
+                      local_degrees.begin(),
+                      [p_offsets] __device__(auto i) { return p_offsets[i + 1] - p_offsets[i]; });
+    if (use_dcs) {
+      auto p_dcs_nzd_vertices   = (*adj_matrix_partition_dcs_nzd_vertices)[i];
+      auto dcs_nzd_vertex_count = (*adj_matrix_partition_dcs_nzd_vertex_counts)[i];
+      thrust::fill(execution_policy,
+                   local_degrees.begin() + (major_hypersparse_first - major_first),
+                   local_degrees.begin() + (major_last - major_first),
+                   edge_t{0});
+      thrust::for_each(execution_policy,
+                       thrust::make_counting_iterator(vertex_t{0}),
+                       thrust::make_counting_iterator(dcs_nzd_vertex_count),
+                       [p_offsets,
+                        p_dcs_nzd_vertices,
+                        major_first,
+                        major_hypersparse_first,
+                        local_degrees = local_degrees.data()] __device__(auto i) {
+                         auto d = p_offsets[(major_hypersparse_first - major_first) + i + 1] -
+                                  p_offsets[(major_hypersparse_first - major_first) + i];
+                         auto v                         = p_dcs_nzd_vertices[i];
+                         local_degrees[v - major_first] = d;
+                       });
+    }
+    col_comm.reduce(local_degrees.data(),
+                    i == col_comm_rank ? degrees.data() : static_cast<edge_t*>(nullptr),
+                    static_cast<size_t>(major_last - major_first),
+                    raft::comms::op_t::SUM,
+                    i,
+                    handle.get_stream());
+  }
+
+  return degrees;
+}
+
+// compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
+// false) or columns (of the graph adjacency matrix, if store_transposed = true)
+template <typename vertex_t, typename edge_t>
+rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const& handle,
+                                                  edge_t const* offsets,
+                                                  vertex_t number_of_vertices)
+{
+  rmm::device_uvector<edge_t> degrees(number_of_vertices, handle.get_stream());
+  thrust::tabulate(
+    handle.get_thrust_policy(), degrees.begin(), degrees.end(), [offsets] __device__(auto i) {
+      return offsets[i + 1] - offsets[i];
+    });
+  return degrees;
+}
+
+template <typename vertex_t>
+struct compute_gpu_id_from_vertex_t {
+  int comm_size{0};
+
+  __device__ int operator()(vertex_t v) const
+  {
+    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    return hash_func(v) % comm_size;
+  }
+};
+
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -282,12 +388,12 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                     "number_of_local_edges.");
 
     if (meta.adj_matrix_partition_segment_offsets) {
-      auto degrees = detail::compute_major_degrees(handle,
-                                                   adj_matrix_partition_offsets,
-                                                   adj_matrix_partition_dcs_nzd_vertices,
-                                                   adj_matrix_partition_dcs_nzd_vertex_counts,
-                                                   partition_,
-                                                   meta.adj_matrix_partition_segment_offsets);
+      auto degrees = compute_major_degrees(handle,
+                                           adj_matrix_partition_offsets,
+                                           adj_matrix_partition_dcs_nzd_vertices,
+                                           adj_matrix_partition_dcs_nzd_vertex_counts,
+                                           partition_,
+                                           meta.adj_matrix_partition_segment_offsets);
       CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream_view),
                                         degrees.begin(),
                                         degrees.end(),
@@ -379,7 +485,7 @@ graph_view_t<
       "Internal Error: adj_matrix_partition_indices[] have out-of-range vertex IDs.");
 
     if (meta.segment_offsets) {
-      auto degrees = detail::compute_major_degrees(handle, offsets, this->get_number_of_vertices());
+      auto degrees = compute_major_degrees(handle, offsets, this->get_number_of_vertices());
       CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream_view),
                                         degrees.begin(),
                                         degrees.end(),
@@ -414,12 +520,12 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   compute_in_degrees(raft::handle_t const& handle) const
 {
   if (store_transposed) {
-    return detail::compute_major_degrees(handle,
-                                         this->adj_matrix_partition_offsets_,
-                                         this->adj_matrix_partition_dcs_nzd_vertices_,
-                                         this->adj_matrix_partition_dcs_nzd_vertex_counts_,
-                                         this->partition_,
-                                         this->adj_matrix_partition_segment_offsets_);
+    return compute_major_degrees(handle,
+                                 this->adj_matrix_partition_offsets_,
+                                 this->adj_matrix_partition_dcs_nzd_vertices_,
+                                 this->adj_matrix_partition_dcs_nzd_vertex_counts_,
+                                 this->partition_,
+                                 this->adj_matrix_partition_segment_offsets_);
   } else {
     return compute_minor_degrees(handle, *this);
   }
@@ -439,8 +545,7 @@ graph_view_t<vertex_t,
              std::enable_if_t<!multi_gpu>>::compute_in_degrees(raft::handle_t const& handle) const
 {
   if (store_transposed) {
-    return detail::compute_major_degrees(
-      handle, this->offsets_, this->get_number_of_local_vertices());
+    return compute_major_degrees(handle, this->offsets_, this->get_number_of_local_vertices());
   } else {
     return compute_minor_degrees(handle, *this);
   }
@@ -458,12 +563,12 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   if (store_transposed) {
     return compute_minor_degrees(handle, *this);
   } else {
-    return detail::compute_major_degrees(handle,
-                                         this->adj_matrix_partition_offsets_,
-                                         this->adj_matrix_partition_dcs_nzd_vertices_,
-                                         this->adj_matrix_partition_dcs_nzd_vertex_counts_,
-                                         this->partition_,
-                                         this->adj_matrix_partition_segment_offsets_);
+    return compute_major_degrees(handle,
+                                 this->adj_matrix_partition_offsets_,
+                                 this->adj_matrix_partition_dcs_nzd_vertices_,
+                                 this->adj_matrix_partition_dcs_nzd_vertex_counts_,
+                                 this->partition_,
+                                 this->adj_matrix_partition_segment_offsets_);
   }
 }
 
@@ -483,8 +588,7 @@ graph_view_t<vertex_t,
   if (store_transposed) {
     return compute_minor_degrees(handle, *this);
   } else {
-    return detail::compute_major_degrees(
-      handle, this->offsets_, this->get_number_of_local_vertices());
+    return compute_major_degrees(handle, this->offsets_, this->get_number_of_local_vertices());
   }
 }
 
