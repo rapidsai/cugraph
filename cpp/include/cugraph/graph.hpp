@@ -98,7 +98,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           bool do_expensive_check = false);
 
   /**
-   * @brief symmetrize this graph.
+   * @brief Symmetrize this graph.
    *
    * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
    * handles to various CUDA libraries) to run graph algorithms.
@@ -266,7 +266,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           bool do_expensive_check = false);
 
   /**
-   * @brief symmetrize this graph.
+   * @brief Symmetrize this graph.
    *
    * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
    * handles to various CUDA libraries) to run graph algorithms.

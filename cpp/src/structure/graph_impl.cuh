@@ -199,8 +199,6 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
     }
   }
 
-  // FIXME: need to add an option to sort neighbor lists
-
   return std::make_tuple(
     std::move(offsets), std::move(indices), std::move(weights), std::move(dcs_nzd_vertices));
 }
@@ -782,8 +780,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       std::move(edgelist_rows),
       std::move(edgelist_weights),
       graph_properties_t{is_multigraph, false},
-      true,
-      true /* FIXME: remove once validated */);
+      true);
   *this = std::move(transposed_graph);
 
   return std::move(*new_renumber_map);
