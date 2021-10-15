@@ -335,6 +335,13 @@ struct biased_selector_t {
 };
 
 // node2vec RW selection logic:
+// uses biased selector on scaled weights,
+// to be computed (and possibly cached) according to
+// `node2vec` logic (see `get_alpha()`);
+// works on unweighted graphs (for which unscalled weights are 1.0);
+//
+// TODO: need to decide logic on very 1st step of traversal
+//       (which has no `prev_v` vertex);
 //
 template <typename graph_type, typename real_t>
 struct node2vec_selector_t {
@@ -397,25 +404,45 @@ struct node2vec_selector_t {
       if (col_indx_begin == col_indx_end) return thrust::nullopt;  // src_v is a sink
 
       if (coalesced_alpha_.has_value()) {
-        auto&& [max_out_deg, num_paths, ptr_d_alpha] = *coalesced_alpha_;
+        auto&& [max_out_deg, num_paths, ptr_d_scaled_weights] = *coalesced_alpha_;
 
         weight_t sum_scaled_weights{0};
 
-        auto col_indx      = col_indx_begin;
-        auto prev_col_indx = col_indx;
+        auto col_indx = col_indx_begin;
 
+        // sum-scaled-weights reduction loop:
+        //
         for (; col_indx < col_indx_end; ++col_indx) {
           auto crt_alpha = get_alpha(prev_v, src_v, col_indices_[col_indx]);
 
-          // if caching is available cache the alpha's for next step
-          // (the actual sampling step);
-          //
-          ptr_d_alpha[max_out_deg * path_index + col_indx] = crt_alpha;
-
           weight_t crt_weight = (values_ == nullptr ? weight_t{1} : values_[col_indx]);
 
-          sum_scaled_weights += crt_weight * crt_alpha;
+          auto scaled_weight = crt_weight * crt_alpha;
+
+          // caching is available, hence cache the alpha's for next step
+          // (the actual sampling step);
+          //
+          ptr_d_scaled_weights[max_out_deg * path_index + col_indx] = scaled_weight;
+
+          sum_scaled_weights += scaled_weight;
         }
+
+        weight_t run_sum_w{0};
+        auto rnd_sum_weights = rnd_val * sum_scaled_weights;
+        col_indx             = col_indx_begin;
+        auto prev_col_indx   = col_indx;
+
+        // biased sampling selection loop:
+        //
+        for (; col_indx < col_indx_end; ++col_indx) {
+          if (rnd_sum_weights < run_sum_w) break;
+
+          run_sum_w += ptr_d_scaled_weights[max_out_deg * path_index + col_indx];
+          prev_col_indx = col_indx;
+        }
+        return thrust::optional{thrust::make_tuple(
+          col_indices_[prev_col_indx], values_ == nullptr ? weight_t{1} : values_[prev_col_indx])};
+
       } else {
       }
     }
