@@ -37,6 +37,17 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t>
+struct compute_gpu_id_from_vertex_t {
+  int comm_size{0};
+
+  __device__ int operator()(vertex_t v) const
+  {
+    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
+    return hash_func(v) % comm_size;
+  }
+};
+
+template <typename vertex_t>
 struct compute_gpu_id_from_edge_t {
   int comm_size{0};
   int row_comm_size{0};

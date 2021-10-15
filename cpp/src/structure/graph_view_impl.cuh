@@ -174,17 +174,6 @@ rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const& handle,
   return degrees;
 }
 
-template <typename vertex_t>
-struct compute_gpu_id_from_vertex_t {
-  int comm_size{0};
-
-  __device__ int operator()(vertex_t v) const
-  {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    return hash_func(v) % comm_size;
-  }
-};
-
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
