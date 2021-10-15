@@ -20,7 +20,6 @@ from cugraph.utilities import (df_edge_score_to_dictionary,
                                df_score_to_dictionary,
                                ensure_cugraph_obj_for_nx,
                                )
-import cugraph
 
 
 # NOTE: result_type=float could be an intuitive way to indicate the result type
