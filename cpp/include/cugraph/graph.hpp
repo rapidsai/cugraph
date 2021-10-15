@@ -97,10 +97,55 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
-  // return a new renumber_map
+  /**
+   * @brief Symmetrize this graph.
+   *
+   * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+   * handles to various CUDA libraries) to run graph algorithms.
+   * @param renumber_map Renumber map to recover the original vertex IDs from the renumbered vertex
+   * IDs.
+   * @param reciprocal If true, an edge is kept only when the reversed edge also exists. If false,
+   * keep (and symmetrize) all the edges that appear only in one direction.
+   * @return rmm::device_uvector<vertex_t> Return a new renumber map (to recover the original vertex
+   * IDs).
+   */
   rmm::device_uvector<vertex_t> symmetrize(raft::handle_t const& handle,
                                            rmm::device_uvector<vertex_t>&& renumber_map,
                                            bool reciprocal = false);
+
+  /**
+   * @brief Transpose this graph.
+   *
+   * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+   * handles to various CUDA libraries) to run graph algorithms.
+   * @param renumber_map Renumber map to recover the original vertex IDs from the renumbered vertex
+   * IDs.
+   * @return rmm::device_uvector<vertex_t> Return a new renumber map (to recover the original vertex
+   * IDs).
+   */
+  rmm::device_uvector<vertex_t> transpose(raft::handle_t const& handle,
+                                          rmm::device_uvector<vertex_t>&& renumber_map);
+
+  /**
+   * @brief Transpose the storage format (no change in actual graph).
+   *
+   * In SG, convert between CSR and CSC. In multi-GPU, currently convert between CSR + DCSR hybrid
+   * and CSC + DCSC hybrid (but the internal representation in multi-GPU is subject to change).
+   *
+   * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+   * handles to various CUDA libraries) to run graph algorithms.
+   * @param renumber_map Renumber map to recover the original vertex IDs from the renumbered vertex
+   * IDs.
+   * @param destroy If true, destroy this graph to free-up memory.
+   * @return std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
+   * rmm::device_uvector<vertex_t>> Return a storage transposed graph and a new renumber map (to
+   * recover the original vertex IDs for the returned graph).
+   */
+  std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
+             rmm::device_uvector<vertex_t>>
+  transpose_storage(raft::handle_t const& handle,
+                    rmm::device_uvector<vertex_t>&& renumber_map,
+                    bool destroy = false);
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
 
@@ -169,7 +214,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
              std::optional<rmm::device_uvector<weight_t>>>
   decompress_to_edgelist(raft::handle_t const& handle,
                          std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
-                         bool destroy);
+                         bool destroy = false);
 
  private:
   std::vector<rmm::device_uvector<edge_t>> adj_matrix_partition_offsets_{};
@@ -220,11 +265,60 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
-  // return a new renumber_map if @p renumber_map is valid
+  /**
+   * @brief Symmetrize this graph.
+   *
+   * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+   * handles to various CUDA libraries) to run graph algorithms.
+   * @param renumber_map Optional renumber map to recover the original vertex IDs from the
+   * renumbered vertex IDs. If @p renuber_map.has_value() is false, this function assumes that
+   * vertex IDs are not renumbered.
+   * @param reciprocal If true, an edge is kept only when the reversed edge also exists. If false,
+   * keep (and symmetrize) all the edges that appear only in one direction.
+   * @return rmm::device_uvector<vertex_t> Return a new renumber map (to recover the original vertex
+   * IDs) if @p renumber_map.has_value() is true.
+   */
   std::optional<rmm::device_uvector<vertex_t>> symmetrize(
     raft::handle_t const& handle,
     std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
     bool reciprocal = false);
+
+  /**
+   * @brief Transpose this graph.
+   *
+   * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+   * handles to various CUDA libraries) to run graph algorithms.
+   * @param renumber_map Optional renumber map to recover the original vertex IDs from the
+   * renumbered vertex IDs. If @p renuber_map.has_value() is false, this function assumes that
+   * vertex IDs are not renumbered.
+   * @return rmm::device_uvector<vertex_t> Return a new renumber map (to recover the original vertex
+   * IDs) if @p renumber_map.has_value() is true.
+   */
+  std::optional<rmm::device_uvector<vertex_t>> transpose(
+    raft::handle_t const& handle, std::optional<rmm::device_uvector<vertex_t>>&& renumber_map);
+
+  /**
+   * @brief Transpose the storage format (no change in actual graph).
+   *
+   * In SG, convert between CSR and CSC. In multi-GPU, currently convert between CSR + DCSR hybrid
+   * and CSC + DCSC hybrid (but the internal representation in multi-GPU is subject to change).
+   *
+   * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+   * handles to various CUDA libraries) to run graph algorithms.
+   * @param renumber_map Optional renumber map to recover the original vertex IDs from the
+   * renumbered vertex IDs. If @p renuber_map.has_value() is false, this function assumes that
+   * vertex IDs are not renumbered.
+   * @param destroy If true, destroy this graph to free-up memory.
+   * @return std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
+   * rmm::device_uvector<vertex_t>> Return a storage transposed graph and a optional new renumber
+   * map (to recover the original vertex IDs for the returned graph) The returned optional new
+   * renumber map is valid only if @p renumber_map.has_value() is true.
+   */
+  std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
+             std::optional<rmm::device_uvector<vertex_t>>>
+  transpose_storage(raft::handle_t const& handle,
+                    std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+                    bool destroy = false);
 
   bool is_weighted() const { return weights_.has_value(); }
 
@@ -270,7 +364,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
              std::optional<rmm::device_uvector<weight_t>>>
   decompress_to_edgelist(raft::handle_t const& handle,
                          std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
-                         bool destroy);
+                         bool destroy = false);
 
  private:
   friend class cugraph::serializer::serializer_t;

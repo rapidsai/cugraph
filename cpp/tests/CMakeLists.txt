@@ -341,6 +341,14 @@ ConfigureTest(GRAPH_TEST structure/graph_test.cpp)
 ConfigureTest(SYMMETRIZE_TEST structure/symmetrize_test.cpp)
 
 ###################################################################################################
+# - Transpose tests ------------------------------------------------------------------------------
+ConfigureTest(TRANSPOSE_TEST structure/transpose_test.cpp)
+
+###################################################################################################
+# - Transpose Storage tests -----------------------------------------------------------------------
+ConfigureTest(TRANSPOSE_STORAGE_TEST structure/transpose_storage_test.cpp)
+
+###################################################################################################
 # - Weight-sum tests ------------------------------------------------------------------------------
 ConfigureTest(WEIGHT_SUM_TEST structure/weight_sum_test.cpp)
 
@@ -440,8 +448,16 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     if(MPI_CXX_FOUND)
         ###########################################################################################
-        # - MG SYMMETRIZE tests ---------------------------------------------------------------------
+        # - MG SYMMETRIZE tests -------------------------------------------------------------------
         ConfigureTestMG(MG_SYMMETRIZE_TEST structure/mg_symmetrize_test.cpp)
+
+        ###########################################################################################
+        # - MG Transpose tests --------------------------------------------------------------------
+        ConfigureTestMG(MG_TRANSPOSE_TEST structure/mg_transpose_test.cpp)
+
+        ###########################################################################################
+        # - MG Transpose Storage tests ------------------------------------------------------------
+        ConfigureTestMG(MG_TRANSPOSE_STORAGE_TEST structure/mg_transpose_storage_test.cpp)
 
         ###########################################################################################
         # - MG PAGERANK tests ---------------------------------------------------------------------

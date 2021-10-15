@@ -34,17 +34,16 @@
 
 #include <random>
 
-struct Symmetrize_Usecase {
-  bool reciprocal{false};
+struct TransposeStorage_Usecase {
   bool test_weighted{false};
   bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
-class Tests_MGSymmetrize
-  : public ::testing::TestWithParam<std::tuple<Symmetrize_Usecase, input_usecase_t>> {
+class Tests_MGTransposeStorage
+  : public ::testing::TestWithParam<std::tuple<TransposeStorage_Usecase, input_usecase_t>> {
  public:
-  Tests_MGSymmetrize() {}
+  Tests_MGTransposeStorage() {}
   static void SetupTestCase() {}
   static void TearDownTestCase() {}
 
@@ -52,7 +51,7 @@ class Tests_MGSymmetrize
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-  void run_current_test(Symmetrize_Usecase const& symmetrize_usecase,
+  void run_current_test(TransposeStorage_Usecase const& transpose_storage_usecase,
                         input_usecase_t const& input_usecase)
   {
     // 1. initialize handle
@@ -82,7 +81,7 @@ class Tests_MGSymmetrize
 
     auto [mg_graph, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
-        handle, input_usecase, symmetrize_usecase.test_weighted, true);
+        handle, input_usecase, transpose_storage_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -92,7 +91,7 @@ class Tests_MGSymmetrize
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    // 3. run MG symmetrize
+    // 3. run MG transpose storage
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -100,24 +99,26 @@ class Tests_MGSymmetrize
       hr_clock.start();
     }
 
-    *d_mg_renumber_map_labels = mg_graph.symmetrize(
-      handle, std::move(*d_mg_renumber_map_labels), symmetrize_usecase.reciprocal);
+    cugraph::graph_t<vertex_t, edge_t, weight_t, !store_transposed, true>
+      mg_storage_transposed_graph(handle);
+    std::tie(mg_storage_transposed_graph, *d_mg_renumber_map_labels) =
+      mg_graph.transpose_storage(handle, std::move(*d_mg_renumber_map_labels));
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG symmetrize took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG transpose storage took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     // 4. copmare SG & MG results
 
-    if (symmetrize_usecase.check_correctness) {
+    if (transpose_storage_usecase.check_correctness) {
       // 4-1. decompress MG results
 
       auto [d_mg_rows, d_mg_cols, d_mg_weights] =
-        mg_graph.decompress_to_edgelist(handle, d_mg_renumber_map_labels, false);
+        mg_storage_transposed_graph.decompress_to_edgelist(handle, d_mg_renumber_map_labels, false);
 
       // 4-2. aggregate MG results
 
@@ -137,20 +138,14 @@ class Tests_MGSymmetrize
         cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
         std::tie(sg_graph, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-            handle, input_usecase, symmetrize_usecase.test_weighted, false);
+            handle, input_usecase, transpose_storage_usecase.test_weighted, false);
 
-        // 4-4. run SG symmetrize
-
-        auto d_sg_renumber_map_labels =
-          sg_graph.symmetrize(handle, std::nullopt, symmetrize_usecase.reciprocal);
-        ASSERT_FALSE(d_sg_renumber_map_labels.has_value());
-
-        // 4-5. decompress SG results
+        // 4-4. decompress SG results
 
         auto [d_sg_rows, d_sg_cols, d_sg_weights] =
           sg_graph.decompress_to_edgelist(handle, std::nullopt, false);
 
-        // 4-6. compare
+        // 4-5. compare
 
         ASSERT_TRUE(mg_graph.get_number_of_vertices() == sg_graph.get_number_of_vertices());
         ASSERT_TRUE(mg_graph.get_number_of_edges() == sg_graph.get_number_of_edges());
@@ -191,7 +186,7 @@ class Tests_MGSymmetrize
                             handle.get_stream());
         }
 
-        if (symmetrize_usecase.test_weighted) {
+        if (transpose_storage_usecase.test_weighted) {
           std::vector<std::tuple<vertex_t, vertex_t, weight_t>> mg_aggregate_edges(
             h_mg_aggregate_rows.size());
           for (size_t i = 0; i < mg_aggregate_edges.size(); ++i) {
@@ -226,57 +221,57 @@ class Tests_MGSymmetrize
   }
 };
 
-using Tests_MGSymmetrize_File = Tests_MGSymmetrize<cugraph::test::File_Usecase>;
-using Tests_MGSymmetrize_Rmat = Tests_MGSymmetrize<cugraph::test::Rmat_Usecase>;
+using Tests_MGTransposeStorage_File = Tests_MGTransposeStorage<cugraph::test::File_Usecase>;
+using Tests_MGTransposeStorage_Rmat = Tests_MGTransposeStorage<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGSymmetrize_File, CheckInt32Int32FloatTransposedFalse)
+TEST_P(Tests_MGTransposeStorage_File, CheckInt32Int32FloatTransposeStoragedFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, false>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGSymmetrize_File, CheckInt32Int32FloatTransposedTrue)
+TEST_P(Tests_MGTransposeStorage_File, CheckInt32Int32FloatTransposeStoragedTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, true>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGSymmetrize_Rmat, CheckInt32Int32FloatTransposedFalse)
+TEST_P(Tests_MGTransposeStorage_Rmat, CheckInt32Int32FloatTransposeStoragedFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, false>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGSymmetrize_Rmat, CheckInt32Int32FloatTransposedTrue)
+TEST_P(Tests_MGTransposeStorage_Rmat, CheckInt32Int32FloatTransposeStoragedTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, true>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGSymmetrize_Rmat, CheckInt32Int64FloatTransposedFalse)
+TEST_P(Tests_MGTransposeStorage_Rmat, CheckInt32Int64FloatTransposeStoragedFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float, false>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGSymmetrize_Rmat, CheckInt32Int64FloatTransposedTrue)
+TEST_P(Tests_MGTransposeStorage_Rmat, CheckInt32Int64FloatTransposeStoragedTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float, true>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGSymmetrize_Rmat, CheckInt64Int64FloatTransposedFalse)
+TEST_P(Tests_MGTransposeStorage_Rmat, CheckInt64Int64FloatTransposeStoragedFalse)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, false>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGSymmetrize_Rmat, CheckInt64Int64FloatTransposedTrue)
+TEST_P(Tests_MGTransposeStorage_Rmat, CheckInt64Int64FloatTransposeStoragedTrue)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, true>(
@@ -285,25 +280,20 @@ TEST_P(Tests_MGSymmetrize_Rmat, CheckInt64Int64FloatTransposedTrue)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MGSymmetrize_File,
+  Tests_MGTransposeStorage_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(Symmetrize_Usecase{false, false},
-                      Symmetrize_Usecase{true, false},
-                      Symmetrize_Usecase{false, true},
-                      Symmetrize_Usecase{true, true}),
+    ::testing::Values(TransposeStorage_Usecase{false}, TransposeStorage_Usecase{true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGSymmetrize_Rmat,
+                         Tests_MGTransposeStorage_Rmat,
                          ::testing::Combine(
                            // enable correctness checks
-                           ::testing::Values(Symmetrize_Usecase{false, false},
-                                             Symmetrize_Usecase{true, false},
-                                             Symmetrize_Usecase{false, true},
-                                             Symmetrize_Usecase{true, true}),
+                           ::testing::Values(TransposeStorage_Usecase{false},
+                                             TransposeStorage_Usecase{true}),
                            ::testing::Values(cugraph::test::Rmat_Usecase(
                              10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
@@ -313,13 +303,11 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MGSymmetrize_Rmat,
+  Tests_MGTransposeStorage_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Symmetrize_Usecase{false, false, false},
-                      Symmetrize_Usecase{true, false, false},
-                      Symmetrize_Usecase{false, true, false},
-                      Symmetrize_Usecase{true, true, false}),
+    ::testing::Values(TransposeStorage_Usecase{false, false},
+                      TransposeStorage_Usecase{true, false}),
     ::testing::Values(
       cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
