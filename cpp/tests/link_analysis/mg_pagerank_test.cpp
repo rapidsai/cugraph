@@ -216,8 +216,6 @@ class Tests_MGPageRank
             (*d_mg_aggregate_personalization_vertices).data(),
             (*d_mg_aggregate_personalization_vertices).size(),
             d_mg_aggregate_renumber_map_labels.data(),
-            vertex_t{0},
-            mg_graph_view.get_number_of_vertices(),
             std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
           std::tie(d_mg_aggregate_personalization_vertices, d_mg_aggregate_personalization_values) =
             cugraph::test::sort_by_key(handle,

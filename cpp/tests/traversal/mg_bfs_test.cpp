@@ -156,8 +156,6 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
           d_mg_aggregate_predecessors.data(),
           d_mg_aggregate_predecessors.size(),
           d_mg_aggregate_renumber_map_labels.data(),
-          vertex_t{0},
-          mg_graph_view.get_number_of_vertices(),
           std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
 
         std::tie(std::ignore, d_mg_aggregate_distances) = cugraph::test::sort_by_key(

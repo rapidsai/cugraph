@@ -97,6 +97,11 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
+  // return a new renumber_map
+  rmm::device_uvector<vertex_t> symmetrize(raft::handle_t const& handle,
+                                           rmm::device_uvector<vertex_t>&& renumber_map,
+                                           bool reciprocal = false);
+
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
 
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
@@ -159,6 +164,13 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       false);
   }
 
+  std::tuple<rmm::device_uvector<vertex_t>,
+             rmm::device_uvector<vertex_t>,
+             std::optional<rmm::device_uvector<weight_t>>>
+  decompress_to_edgelist(raft::handle_t const& handle,
+                         std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
+                         bool destroy);
+
  private:
   std::vector<rmm::device_uvector<edge_t>> adj_matrix_partition_offsets_{};
   std::vector<rmm::device_uvector<vertex_t>> adj_matrix_partition_indices_{};
@@ -208,6 +220,12 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
+  // return a new renumber_map if @p renumber_map is valid
+  std::optional<rmm::device_uvector<vertex_t>> symmetrize(
+    raft::handle_t const& handle,
+    std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+    bool reciprocal = false);
+
   bool is_weighted() const { return weights_.has_value(); }
 
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
@@ -246,6 +264,13 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   // {
   //   criterion(offsets_, indices_, weights_);
   // }
+
+  std::tuple<rmm::device_uvector<vertex_t>,
+             rmm::device_uvector<vertex_t>,
+             std::optional<rmm::device_uvector<weight_t>>>
+  decompress_to_edgelist(raft::handle_t const& handle,
+                         std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
+                         bool destroy);
 
  private:
   friend class cugraph::serializer::serializer_t;
