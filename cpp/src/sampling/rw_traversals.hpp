@@ -346,27 +346,87 @@ struct node2vec_selector_t {
     sampler_t(edge_t const* ro,
               vertex_t const* ci,
               weight_t const* w,
+              weight_t p,
+              weight_t q,
               vertex_t max_degree,
               edge_t num_paths,
               weight_t* ptr_alpha)
       : row_offsets_(ro),
         col_indices_(ci),
         values_(w),
+        p_(p),
+        q_(q),
         coalesced_alpha_{(max_degree > 0) && (num_paths > 0) && (ptr_alpha != nullptr)
                            ? thrust::make_tuple(max_degree, num_paths, ptr_alpha)
                            : thrust::nullopt}
     {
     }
 
-    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(vertex_t src_v,
-                                                                              real_t rnd_val) const
+    // node2vec alpha scalling logic:
+    // pre-condition: assume column_indices[] is seg-sorted;
+    // (each row has column_indices[] sorted)
+    //
+    __device__ weight_t get_alpha(vertex_t prev_v, vertex_t src_v, vertex_t next_v) const
     {
+      if (next_v == prev_v) {
+        return 1.0 / p_;
+      } else {
+        // binary-search `next_v` in the adj(prev_v)
+        //
+        auto prev_indx_begin = row_offsets_[prev_v];
+        auto prev_indx_end   = row_offsets_[prev_v + 1];
+
+        auto found_next_from_prev = thrust::binary_search(
+          thrust::seq, col_indices_ + prev_indx_begin, col_indices_ + prev_indx_end, next_v);
+
+        if (found_next_from_prev) {
+          return 1;
+        } else {
+          return 1.0 / q_;
+        }
+      }
+    }
+
+    // FIXME: alpha[] requires `index_path`;
+    //
+    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(
+      vertex_t src_v, real_t rnd_val, vertex_t prev_v, edge_t path_index) const
+    {
+      auto col_indx_begin = row_offsets_[src_v];
+      auto col_indx_end   = row_offsets_[src_v + 1];
+      if (col_indx_begin == col_indx_end) return thrust::nullopt;  // src_v is a sink
+
+      if (coalesced_alpha_.has_value()) {
+        auto&& [max_out_deg, num_paths, ptr_d_alpha] = *coalesced_alpha_;
+
+        weight_t sum_scaled_weights{0};
+
+        auto col_indx      = col_indx_begin;
+        auto prev_col_indx = col_indx;
+
+        for (; col_indx < col_indx_end; ++col_indx) {
+          auto crt_alpha = get_alpha(prev_v, src_v, col_indices_[col_indx]);
+
+          // if caching is available cache the alpha's for next step
+          // (the actual sampling step);
+          //
+          ptr_d_alpha[max_out_deg * path_index + col_indx] = crt_alpha;
+
+          weight_t crt_weight = (values_ == nullptr ? weight_t{1} : values_[col_indx]);
+
+          sum_scaled_weights += crt_weight * crt_alpha;
+        }
+      } else {
+      }
     }
 
    private:
     edge_t const* row_offsets_;
     vertex_t const* col_indices_;
     weight_t const* values_;
+
+    weight_t const p_;
+    weight_t const q_;
 
     // alpha scaling coalesced buffer (per path):
     // (use as cache since the per-path alpha-buffer
@@ -386,6 +446,8 @@ struct node2vec_selector_t {
   node2vec_selector_t(raft::handle_t const& handle,
                       graph_type const& graph,
                       real_t tag,
+                      weight_t p,
+                      weight_t q,
                       edge_t num_paths = 0)
     : max_out_degree_{num_paths > 0 ? get_max_out_degree(handle, graph) : 0},
       d_coalesced_alpha_{max_out_degree_ * num_paths, handle.get_stream()},
@@ -394,6 +456,8 @@ struct node2vec_selector_t {
                graph.get_matrix_partition_view().get_weights()
                  ? *(graph.get_matrix_partition_view().get_weights())
                  : static_cast<weight_t*>(nullptr),
+               p,
+               q,
                max_out_degree_,
                num_paths,
                raw_ptr(d_coalesced_alpha_)}
