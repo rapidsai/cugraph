@@ -132,11 +132,8 @@ class Tests_MGWeaklyConnectedComponents
       if (handle.get_comms().get_rank() == int{0}) {
         // 4-2. unrenumbr MG results
 
-        std::tie(std::ignore, d_mg_aggregate_components) =
-          cugraph::test::sort_by_key(handle,
-                                     d_mg_aggregate_renumber_map_labels.data(),
-                                     d_mg_aggregate_components.data(),
-                                     d_mg_aggregate_renumber_map_labels.size());
+        std::tie(std::ignore, d_mg_aggregate_components) = cugraph::test::sort_by_key(
+          handle, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_components);
 
         // 4-3. create SG graph
 

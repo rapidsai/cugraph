@@ -55,9 +55,9 @@ T reduce_v(raft::handle_t const& handle,
     handle.get_thrust_policy(),
     vertex_value_input_first,
     vertex_value_input_first + graph_view.get_number_of_local_vertices(),
-    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
+    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? T{} : init,
     property_add<T>());
-  if (GraphViewType::is_multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
     ret =
       host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream());
   }
@@ -93,9 +93,9 @@ T reduce_v(raft::handle_t const& handle,
     handle.get_thrust_policy(),
     input_first,
     input_last,
-    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
+    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? T{} : init,
     property_add<T>());
-  if (GraphViewType::is_multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
     ret =
       host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream());
   }

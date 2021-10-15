@@ -22,9 +22,10 @@
 namespace cugraph {
 namespace test {
 
-template <typename vertex_t, typename value_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>> sort_by_key(
-  raft::handle_t const& handle, vertex_t const* keys, value_t const* values, size_t num_pairs);
+template <typename key_buffer_type, typename value_buffer_type>
+std::tuple<key_buffer_type, value_buffer_type> sort_by_key(raft::handle_t const& handle,
+                                                           key_buffer_type const& keys,
+                                                           value_buffer_type const& values);
 
 template <typename vertex_t>
 void translate_vertex_ids(raft::handle_t const& handle,

@@ -226,10 +226,7 @@ class Tests_KatzCentrality
         rmm::device_uvector<result_t> d_unrenumbered_katz_centralities(size_t{0},
                                                                        handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_katz_centralities) =
-          cugraph::test::sort_by_key(handle,
-                                     (*d_renumber_map_labels).data(),
-                                     d_katz_centralities.data(),
-                                     (*d_renumber_map_labels).size());
+          cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_katz_centralities);
         raft::update_host(h_cugraph_katz_centralities.data(),
                           d_unrenumbered_katz_centralities.data(),
                           d_unrenumbered_katz_centralities.size(),
