@@ -551,7 +551,7 @@ void expensive_check_edgelist(
                                             sorted_minor_vertices + num_minor_vertices,
                                             thrust::get<1>(e));
             }) == 0,
-          "Invalid input argument: edgelist_major_vertices and/or edgelist_mior_vertices have "
+          "Invalid input argument: edgelist_major_vertices and/or edgelist_minor_vertices have "
           "invalid vertex ID(s).");
       }
 
@@ -634,6 +634,34 @@ renumber_edgelist(
   auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_size = col_comm.get_size();
   auto const col_comm_rank = col_comm.get_rank();
+
+  CUGRAPH_EXPECTS(edgelist_major_vertices.size() == static_cast<size_t>(col_comm_size),
+                  "Invalid input arguments: erroneous edgelist_major_vertices.size().");
+  CUGRAPH_EXPECTS(edgelist_minor_vertices.size() == static_cast<size_t>(col_comm_size),
+                  "Invalid input arguments: erroneous edgelist_minor_vertices.size().");
+  CUGRAPH_EXPECTS(edgelist_edge_counts.size() == static_cast<size_t>(col_comm_size),
+                  "Invalid input arguments: erroneous edgelist_edge_counts.size().");
+  if (edgelist_intra_partition_segment_offsets) {
+    CUGRAPH_EXPECTS(
+      (*edgelist_intra_partition_segment_offsets).size() == static_cast<size_t>(col_comm_size),
+      "Invalid input arguments: erroneous (*edgelist_intra_partition_segment_offsets).size().");
+    for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
+      CUGRAPH_EXPECTS(
+        (*edgelist_intra_partition_segment_offsets)[i].size() ==
+          static_cast<size_t>(row_comm_size + 1),
+        "Invalid input arguments: erroneous (*edgelist_intra_partition_segment_offsets)[].size().");
+      CUGRAPH_EXPECTS(
+        std::is_sorted((*edgelist_intra_partition_segment_offsets)[i].begin(),
+                       (*edgelist_intra_partition_segment_offsets)[i].end()),
+        "Invalid input arguments: (*edgelist_intra_partition_segment_offsets)[] is not sorted.");
+      CUGRAPH_EXPECTS(
+        ((*edgelist_intra_partition_segment_offsets)[i][0] == 0) &&
+          ((*edgelist_intra_partition_segment_offsets)[i].back() == edgelist_edge_counts[i]),
+        "Invalid input arguments: (*edgelist_intra_partition_segment_offsets)[][0] should be 0 and "
+        "(*edgelist_intra_partition_segment_offsets)[].back() should coincide with "
+        "edgelist_edge_counts[].");
+    }
+  }
 
   std::vector<vertex_t const*> edgelist_const_major_vertices(edgelist_major_vertices.size());
   std::vector<vertex_t const*> edgelist_const_minor_vertices(edgelist_const_major_vertices.size());

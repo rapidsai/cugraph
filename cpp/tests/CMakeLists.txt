@@ -337,6 +337,10 @@ ConfigureTest(GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 ConfigureTest(GRAPH_TEST structure/graph_test.cpp)
 
 ###################################################################################################
+# - Symmetrize tests ------------------------------------------------------------------------------
+ConfigureTest(SYMMETRIZE_TEST structure/symmetrize_test.cpp)
+
+###################################################################################################
 # - Weight-sum tests ------------------------------------------------------------------------------
 ConfigureTest(WEIGHT_SUM_TEST structure/weight_sum_test.cpp)
 
@@ -435,6 +439,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     MESSAGE(STATUS "GPU_COUNT: " ${GPU_COUNT})
 
     if(MPI_CXX_FOUND)
+        ###########################################################################################
+        # - MG SYMMETRIZE tests ---------------------------------------------------------------------
+        ConfigureTestMG(MG_SYMMETRIZE_TEST structure/mg_symmetrize_test.cpp)
+
         ###########################################################################################
         # - MG PAGERANK tests ---------------------------------------------------------------------
         ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
