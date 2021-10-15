@@ -21,41 +21,41 @@ namespace detail {
 
 // MG instantiation
 
-template
-std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<float>>>
-transpose_edgelist<int32_t, float, false>(raft::handle_t const& handle,
-                    rmm::device_uvector<int32_t>&& edgelist_majors,
-                    rmm::device_uvector<int32_t>&& edgelist_minors,
-                    std::optional<rmm::device_uvector<float>>&& edgelist_weights);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>>
+transpose_edgelist<int32_t, float, false>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& edgelist_majors,
+  rmm::device_uvector<int32_t>&& edgelist_minors,
+  std::optional<rmm::device_uvector<float>>&& edgelist_weights);
 
-template
-std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<double>>>
-transpose_edgelist<int32_t, double, false>(raft::handle_t const& handle,
-                    rmm::device_uvector<int32_t>&& edgelist_majors,
-                    rmm::device_uvector<int32_t>&& edgelist_minors,
-                    std::optional<rmm::device_uvector<double>>&& edgelist_weights);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>>
+transpose_edgelist<int32_t, double, false>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& edgelist_majors,
+  rmm::device_uvector<int32_t>&& edgelist_minors,
+  std::optional<rmm::device_uvector<double>>&& edgelist_weights);
 
-template
-std::tuple<rmm::device_uvector<int64_t>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<float>>>
-transpose_edgelist<int64_t, float, false>(raft::handle_t const& handle,
-                    rmm::device_uvector<int64_t>&& edgelist_majors,
-                    rmm::device_uvector<int64_t>&& edgelist_minors,
-                    std::optional<rmm::device_uvector<float>>&& edgelist_weights);
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<float>>>
+transpose_edgelist<int64_t, float, false>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& edgelist_majors,
+  rmm::device_uvector<int64_t>&& edgelist_minors,
+  std::optional<rmm::device_uvector<float>>&& edgelist_weights);
 
-template
-std::tuple<rmm::device_uvector<int64_t>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<double>>>
-transpose_edgelist<int64_t, double, false>(raft::handle_t const& handle,
-                    rmm::device_uvector<int64_t>&& edgelist_majors,
-                    rmm::device_uvector<int64_t>&& edgelist_minors,
-                    std::optional<rmm::device_uvector<double>>&& edgelist_weights);
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<double>>>
+transpose_edgelist<int64_t, double, false>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& edgelist_majors,
+  rmm::device_uvector<int64_t>&& edgelist_minors,
+  std::optional<rmm::device_uvector<double>>&& edgelist_weights);
 
 }  // namespace detail
 

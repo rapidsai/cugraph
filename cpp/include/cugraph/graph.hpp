@@ -108,8 +108,8 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
              rmm::device_uvector<vertex_t>>
   transpose_storage(raft::handle_t const& handle,
-                          rmm::device_uvector<vertex_t>&& renumber_map,
-                          bool destroy = false);
+                    rmm::device_uvector<vertex_t>&& renumber_map,
+                    bool destroy = false);
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
 
@@ -241,8 +241,8 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
              std::optional<rmm::device_uvector<vertex_t>>>
   transpose_storage(raft::handle_t const& handle,
-                          std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
-                          bool destroy = false);
+                    std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+                    bool destroy = false);
 
   bool is_weighted() const { return weights_.has_value(); }
 

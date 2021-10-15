@@ -46,9 +46,9 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 transpose_edgelist(raft::handle_t const& handle,
-                    rmm::device_uvector<vertex_t>&& edgelist_majors,
-                    rmm::device_uvector<vertex_t>&& edgelist_minors,
-                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights)
+                   rmm::device_uvector<vertex_t>&& edgelist_majors,
+                   rmm::device_uvector<vertex_t>&& edgelist_minors,
+                   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights)
 {
   std::swap(edgelist_majors, edgelist_minors);
 
