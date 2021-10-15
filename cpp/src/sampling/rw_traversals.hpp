@@ -404,9 +404,15 @@ struct node2vec_selector_t {
 
   static size_t get_max_out_degree(raft::handle_t const& handle, graph_type const& graph)
   {
-    // TODO:
-    //
-    return 0;  // for now
+    using edge_t = node2vec_selector_t::edge_t;
+
+    auto&& d_out_degs = graph.compute_out_degrees(handle);
+
+    return thrust::reduce(handle.get_thrust_policy(),
+                          d_out_degs.begin(),
+                          d_out_degs.end(),
+                          edge_t{0},
+                          thrust::maximum<edge_t>{});
   }
 
  private:
@@ -418,7 +424,7 @@ struct node2vec_selector_t {
   //  (1) for computing sum_scaled weights;
   //  (2) for using scaled_weights for the biased next vertex selection)
   //
-  rmm::device_uvector<weight_t> d_coalesced_alpha_;
+  device_vec_t<weight_t> d_coalesced_alpha_;
   sampler_t sampler_;
 };
 
