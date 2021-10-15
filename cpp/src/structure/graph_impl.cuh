@@ -31,6 +31,7 @@
 
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
+#include <thrust/equal.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -75,6 +76,153 @@ struct has_nzd_t {
     return offsets[major_offset + 1] - offsets[major_offset] > 0;
   }
 };
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+bool check_symmetric(raft::handle_t const& handle,
+                     std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists)
+{
+  size_t number_of_local_edges{0};
+  for (size_t i = 0; i < edgelists.size(); ++i) {
+    number_of_local_edges += edgelists[i].number_of_edges;
+  }
+
+  auto is_weighted = edgelists[0].p_edge_weights.has_value();
+
+  rmm::device_uvector<vertex_t> org_rows(number_of_local_edges, handle.get_stream());
+  rmm::device_uvector<vertex_t> org_cols(number_of_local_edges, handle.get_stream());
+  auto org_weights = is_weighted ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                     number_of_local_edges, handle.get_stream())
+                                 : std::nullopt;
+  size_t offset{0};
+  for (size_t i = 0; i < edgelists.size(); ++i) {
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelists[i].p_src_vertices,
+                 edgelists[i].p_src_vertices + edgelists[i].number_of_edges,
+                 org_rows.begin() + offset);
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelists[i].p_dst_vertices,
+                 edgelists[i].p_dst_vertices + edgelists[i].number_of_edges,
+                 org_cols.begin() + offset);
+    if (is_weighted) {
+      thrust::copy(handle.get_thrust_policy(),
+                   *(edgelists[i].p_edge_weights),
+                   *(edgelists[i].p_edge_weights) + edgelists[i].number_of_edges,
+                   (*org_weights).begin() + offset);
+    }
+    offset += edgelists[i].number_of_edges;
+  }
+
+  rmm::device_uvector<vertex_t> symmetrized_rows(org_rows.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> symmetrized_cols(org_cols.size(), handle.get_stream());
+  auto symmetrized_weights = org_weights ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                             (*org_weights).size(), handle.get_stream())
+                                         : std::nullopt;
+  thrust::copy(
+    handle.get_thrust_policy(), org_rows.begin(), org_rows.end(), symmetrized_rows.begin());
+  thrust::copy(
+    handle.get_thrust_policy(), org_cols.begin(), org_cols.end(), symmetrized_cols.begin());
+  if (org_weights) {
+    thrust::copy(handle.get_thrust_policy(),
+                 (*org_weights).begin(),
+                 (*org_weights).end(),
+                 (*symmetrized_weights).begin());
+  }
+  std::tie(symmetrized_rows, symmetrized_cols, symmetrized_weights) =
+    symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(
+      handle,
+      std::move(symmetrized_rows),
+      std::move(symmetrized_cols),
+      std::move(symmetrized_weights),
+      true);
+
+  if (org_rows.size() != symmetrized_rows.size()) { return false; }
+
+  if (org_weights) {
+    auto org_edge_first = thrust::make_zip_iterator(
+      thrust::make_tuple(org_rows.begin(), org_cols.begin(), (*org_weights).begin()));
+    thrust::sort(handle.get_thrust_policy(), org_edge_first, org_edge_first + org_rows.size());
+    auto symmetrized_edge_first = thrust::make_zip_iterator(thrust::make_tuple(
+      symmetrized_rows.begin(), symmetrized_cols.begin(), (*symmetrized_weights).begin()));
+    thrust::sort(handle.get_thrust_policy(),
+                 symmetrized_edge_first,
+                 symmetrized_edge_first + symmetrized_rows.size());
+
+    return thrust::equal(handle.get_thrust_policy(),
+                         org_edge_first,
+                         org_edge_first + org_rows.size(),
+                         symmetrized_edge_first);
+  } else {
+    auto org_edge_first =
+      thrust::make_zip_iterator(thrust::make_tuple(org_rows.begin(), org_cols.begin()));
+    thrust::sort(handle.get_thrust_policy(), org_edge_first, org_edge_first + org_rows.size());
+    auto symmetrized_edge_first = thrust::make_zip_iterator(
+      thrust::make_tuple(symmetrized_rows.begin(), symmetrized_cols.begin()));
+    thrust::sort(handle.get_thrust_policy(),
+                 symmetrized_edge_first,
+                 symmetrized_edge_first + symmetrized_rows.size());
+
+    return thrust::equal(handle.get_thrust_policy(),
+                         org_edge_first,
+                         org_edge_first + org_rows.size(),
+                         symmetrized_edge_first);
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+bool check_no_parallel_edge(raft::handle_t const& handle,
+                            std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists)
+{
+  size_t number_of_local_edges{0};
+  for (size_t i = 0; i < edgelists.size(); ++i) {
+    number_of_local_edges += edgelists[i].number_of_edges;
+  }
+
+  auto is_weighted = edgelists[0].p_edge_weights.has_value();
+
+  rmm::device_uvector<vertex_t> edgelist_rows(number_of_local_edges, handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_cols(number_of_local_edges, handle.get_stream());
+  auto edgelist_weights = is_weighted ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                     number_of_local_edges, handle.get_stream())
+                                 : std::nullopt;
+  size_t offset{0};
+  for (size_t i = 0; i < edgelists.size(); ++i) {
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelists[i].p_src_vertices,
+                 edgelists[i].p_src_vertices + edgelists[i].number_of_edges,
+                 edgelist_rows.begin() + offset);
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelists[i].p_dst_vertices,
+                 edgelists[i].p_dst_vertices + edgelists[i].number_of_edges,
+                 edgelist_cols.begin() + offset);
+    if (is_weighted) {
+      thrust::copy(handle.get_thrust_policy(),
+                   *(edgelists[i].p_edge_weights),
+                   *(edgelists[i].p_edge_weights) + edgelists[i].number_of_edges,
+                   (*edgelist_weights).begin() + offset);
+    }
+    offset += edgelists[i].number_of_edges;
+  }
+
+  if (edgelist_weights) {
+    auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
+      edgelist_rows.begin(), edgelist_cols.begin(), (*edgelist_weights).begin()));
+    thrust::sort(handle.get_thrust_policy(), edge_first, edge_first + edgelist_rows.size());
+    return thrust::unique(handle.get_thrust_policy(),
+                          edge_first,
+                          edge_first + edgelist_rows.size()) == (edge_first + edgelist_rows.size());
+  } else {
+    auto edge_first =
+      thrust::make_zip_iterator(thrust::make_tuple(edgelist_rows.begin(), edgelist_cols.begin()));
+    thrust::sort(handle.get_thrust_policy(), edge_first, edge_first + edgelist_rows.size());
+    return thrust::unique(handle.get_thrust_policy(),
+                          edge_first,
+                          edge_first + edgelist_rows.size()) == (edge_first + edgelist_rows.size());
+  }
+}
 
 // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
 template <bool store_transposed, typename vertex_t, typename edge_t, typename weight_t>
@@ -264,7 +412,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     "be nullptr if edgelists[].number_of_edges > 0 and edgelists[].p_edge_weights should be "
     "neither std::nullopt nor nullptr if weighted and edgelists[].number_of_edges >  0.");
 
-  // optional expensive checks (part 1/2)
+  // optional expensive checks
 
   if (do_expensive_check) {
     edge_t number_of_local_edges{0};
@@ -294,6 +442,20 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     CUGRAPH_EXPECTS(
       partition_.get_vertex_partition_last(comm_size - 1) == meta.number_of_vertices,
       "Invalid input argument: vertex partition should cover [0, meta.number_of_vertices).");
+
+    if (this->is_symmetric()) {
+      CUGRAPH_EXPECTS(
+        (check_symmetric<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(handle,
+                                                                                  edgelists)),
+        "Invalid input argument: meta.property.is_symmetric is true but the input edge list is not "
+        "symmetric.");
+    }
+    if (!this->is_multigraph()) {
+      CUGRAPH_EXPECTS(
+        check_no_parallel_edge(handle, edgelists),
+        "Invalid input argument: meta.property.is_multigraph is false but the input edge list has "
+        "parallel edges.");
+    }
 
     rmm::device_uvector<vertex_t> majors(number_of_local_edges, handle.get_stream());
     rmm::device_uvector<vertex_t> minors(number_of_local_edges, handle.get_stream());
@@ -567,16 +729,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       local_sorted_unique_edge_col_offsets_ = std::move(h_key_offsets);
     }
   }
-
-  // optional expensive checks (part 2/2)
-
-  if (do_expensive_check) {
-    // FIXME: check for symmetricity may better be implemetned with transpose().
-    if (this->is_symmetric()) {}
-    // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
-    // neighbor list or not.
-    if (!this->is_multigraph()) {}
-  }
 }
 
 template <typename vertex_t,
@@ -615,7 +767,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       ((*segment_offsets_).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
     "Invalid input argument: (*(meta.segment_offsets)).size() returns an invalid value.");
 
-  // optional expensive checks (part 1/2)
+  // optional expensive checks
 
   if (do_expensive_check) {
     auto edge_first = thrust::make_zip_iterator(
@@ -630,11 +782,20 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                         0, this->get_number_of_vertices(), 0, this->get_number_of_vertices()}) == 0,
                     "Invalid input argument: edgelist have out-of-range values.");
 
-    // FIXME: check for symmetricity may better be implemetned with transpose().
-    if (this->is_symmetric()) {}
-    // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
-    // neighbor list or not.
-    if (!this->is_multigraph()) {}
+    if (this->is_symmetric()) {
+      CUGRAPH_EXPECTS(
+        (check_symmetric<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+          handle, std::vector<edgelist_t<vertex_t, edge_t, weight_t>>{edgelist})),
+        "Invalid input argument: meta.property.is_symmetric is true but the input edge list is not "
+        "symmetric.");
+    }
+    if (!this->is_multigraph()) {
+      CUGRAPH_EXPECTS(
+        check_no_parallel_edge(
+          handle, std::vector<edgelist_t<vertex_t, edge_t, weight_t>>{edgelist}),
+        "Invalid input argument: meta.property.is_multigraph is false but the input edge list has "
+        "parallel edges.");
+    }
   }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
@@ -647,16 +808,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                                         vertex_t{0},
                                         this->get_number_of_vertices(),
                                         default_stream_view);
-
-  // optional expensive checks (part 3/3)
-
-  if (do_expensive_check) {
-    // FIXME: check for symmetricity may better be implemetned with transpose().
-    if (this->is_symmetric()) {}
-    // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
-    // neighbor list or not.
-    if (!this->is_multigraph()) {}
-  }
 }
 
 template <typename vertex_t,
