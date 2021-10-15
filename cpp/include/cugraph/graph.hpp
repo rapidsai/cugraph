@@ -256,6 +256,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   transpose_storage(raft::handle_t const& handle,
                           std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
                           bool destroy = false);
+
   bool is_weighted() const { return weights_.has_value(); }
 
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const

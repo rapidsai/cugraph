@@ -1107,6 +1107,7 @@ weight_t hungarian(raft::handle_t const& handle,
  * @param predecessors Pointer to the output predecessor array or `nullptr`.
  * @param sources Source vertices to start breadth-first search (root vertex of the breath-first
  * search tree). If more than one source is passed, there must be a single source per component.
+ * In a multi-gpu context the source vertices should be local to this GPU.
  * @param n_sources number of sources (one source per component at most).
  * @param direction_optimizing If set to true, this algorithm switches between the push based
  * breadth-first search and pull based breadth-first search depending on the size of the
@@ -1126,6 +1127,44 @@ void bfs(raft::handle_t const& handle,
          bool direction_optimizing = false,
          vertex_t depth_limit      = std::numeric_limits<vertex_t>::max(),
          bool do_expensive_check   = false);
+
+/**
+ * @brief Extract paths from breadth-first search output
+ *
+ * This function extracts paths from the BFS output.  BFS outputs distances
+ * and predecessors.  The path from a vertex v back to the original source vertex
+ * can be extracted by recursively looking up the predecessor vertex until you arrive
+ * back at the original source vertex.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param distances Pointer to the distance array constructed by bfs.
+ * @param predecessors Pointer to the predecessor array constructed by bfs.
+ * @param destinations Destination vertices, extract path from source to each of these destinations
+ * In a multi-gpu context the destination vertex should be local to this GPU.
+ * @param n_destinations number of destinations (one source per component at most).
+ *
+ * @return std::tuple<rmm::device_uvector<vertex_t>, vertex_t> pair containing
+ *       the paths as a dense matrix in the vector and the maximum path length.
+ *       Unused elements in the paths * will be set to invalid_vertex_id (-1 for a signed
+ *       vertex_t, std::numeric_limits<vertex_t>::max() for an unsigned vertex_t type).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  vertex_t const* distances,
+  vertex_t const* predecessors,
+  vertex_t const* destinations,
+  size_t n_destinations);
 
 /**
  * @brief Run single-source shortest-path to compute the minimum distances (and predecessors) from
@@ -1148,6 +1187,7 @@ void bfs(raft::handle_t const& handle,
  * @param distances Pointer to the output distance array.
  * @param predecessors Pointer to the output predecessor array or `nullptr`.
  * @param source_vertex Source vertex to start single-source shortest-path.
+ * In a multi-gpu context the source vertex should be local to this GPU.
  * @param cutoff Single-source shortest-path terminates if no more vertices are reachable within the
  * distance of @p cutoff. Any vertex farther than @p cutoff will be marked as unreachable.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).

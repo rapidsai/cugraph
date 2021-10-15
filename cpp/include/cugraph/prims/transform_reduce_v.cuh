@@ -60,7 +60,7 @@ T transform_reduce_v(raft::handle_t const& handle,
     vertex_value_input_first,
     vertex_value_input_first + graph_view.get_number_of_local_vertices(),
     v_op,
-    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
+    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? T{} : init,
     property_add<T>());
   if (GraphViewType::is_multi_gpu) {
     ret =
@@ -104,7 +104,7 @@ T transform_reduce_v(raft::handle_t const& handle,
     input_first,
     input_last,
     v_op,
-    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
+    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? T{} : init,
     property_add<T>());
   if (GraphViewType::is_multi_gpu) {
     ret =
