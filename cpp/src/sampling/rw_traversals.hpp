@@ -394,10 +394,8 @@ struct node2vec_selector_t {
       }
     }
 
-    // FIXME: alpha[] requires `index_path`;
-    //
     __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(
-      vertex_t src_v, real_t rnd_val, vertex_t prev_v, edge_t path_index) const
+      vertex_t src_v, real_t rnd_val, vertex_t prev_v, edge_t path_index, bool start_path) const
     {
       auto const offset_indx_begin = row_offsets_[src_v];
       auto const offset_indx_end   = row_offsets_[src_v + 1];
@@ -406,6 +404,35 @@ struct node2vec_selector_t {
       auto offset_indx = offset_indx_begin;
 
       if (offset_indx_begin == offset_indx_end) return thrust::nullopt;  // src_v is a sink
+
+      // for 1st vertex in path just use biased random selection:
+      //
+      if (start_path) {  // `src_v` is starting vertex in path
+        for (; offset_indx < offset_indx_end; ++offset_indx) {
+          weight_t crt_weight = (values_ == nullptr ? weight_t{1} : values_[offset_indx]);
+
+          sum_scaled_weights += crt_weight;
+        }
+
+        weight_t run_sum_w{0};
+        auto rnd_sum_weights  = rnd_val * sum_scaled_weights;
+        offset_indx           = offset_indx_begin;
+        auto prev_offset_indx = offset_indx;
+
+        // biased sampling selection loop:
+        // (Note: re-compute `scaled_weight`, since no cache is available);
+        //
+        for (; offset_indx < offset_indx_end; ++offset_indx) {
+          if (rnd_sum_weights < run_sum_w) break;
+
+          weight_t crt_weight = (values_ == nullptr ? weight_t{1} : values_[offset_indx]);
+          run_sum_w += crt_weight;
+          prev_offset_indx = offset_indx;
+        }
+        return thrust::optional{
+          thrust::make_tuple(col_indices_[prev_offset_indx],
+                             values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
+      }
 
       // cached solution, for increased performance, but memory expensive:
       //
