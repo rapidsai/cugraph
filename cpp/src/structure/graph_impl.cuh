@@ -115,6 +115,14 @@ bool check_symmetric(raft::handle_t const& handle,
     }
     offset += edgelists[i].number_of_edges;
   }
+  if constexpr (multi_gpu) {
+    std::tie(
+      store_transposed ? org_cols : org_rows, store_transposed ? org_rows : org_cols, org_weights) =
+      detail::shuffle_edgelist_by_gpu_id(handle,
+                                         std::move(store_transposed ? org_cols : org_rows),
+                                         std::move(store_transposed ? org_rows : org_cols),
+                                         std::move(org_weights));
+  }
 
   rmm::device_uvector<vertex_t> symmetrized_rows(org_rows.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> symmetrized_cols(org_cols.size(), handle.get_stream());
@@ -186,8 +194,8 @@ bool check_no_parallel_edge(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> edgelist_rows(number_of_local_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_cols(number_of_local_edges, handle.get_stream());
   auto edgelist_weights = is_weighted ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                     number_of_local_edges, handle.get_stream())
-                                 : std::nullopt;
+                                          number_of_local_edges, handle.get_stream())
+                                      : std::nullopt;
   size_t offset{0};
   for (size_t i = 0; i < edgelists.size(); ++i) {
     thrust::copy(handle.get_thrust_policy(),
@@ -789,8 +797,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     }
     if (!this->is_multigraph()) {
       CUGRAPH_EXPECTS(
-        check_no_parallel_edge(
-          handle, std::vector<edgelist_t<vertex_t, edge_t, weight_t>>{edgelist}),
+        check_no_parallel_edge(handle,
+                               std::vector<edgelist_t<vertex_t, edge_t, weight_t>>{edgelist}),
         "Invalid input argument: meta.property.is_multigraph is false but the input edge list has "
         "parallel edges.");
     }
