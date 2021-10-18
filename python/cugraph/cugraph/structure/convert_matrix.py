@@ -233,11 +233,14 @@ def from_pandas_edgelist(df,
 
     Examples
     --------
+    >>  Download dataset from
+    >>  https://github.com/rapidsai/cugraph/datasets/...
     >>> df = pandas.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>>                 header=None, names=["0", "1", "2"],
+    >>>                 dtype={"0": "int32", "1": "int32", "2": "float32"})
     >>> G = cugraph.Graph()
     >>> G.from_pandas_edgelist(df, source='0', destination='1',
-                               edge_attr='2', renumber=False)
+                             edge_attr='2', renumber=False)
     """
     if create_using is Graph:
         G = Graph()

@@ -35,8 +35,15 @@ def overlap_w(input_graph, weights, vertex_pair=None):
         as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
 
-    weights : cudf.Series
+    weights : cudf.DataFrame
         Specifies the weights to be used for each vertex.
+        Vertex should be represented by multiple columns for multi-column
+        vertices.
+
+        weights['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        weights['weight'] : cudf.Series
+            Contains the weights of vertices
 
     vertex_pair : cudf.DataFrame
         A GPU dataframe consisting of two columns representing pairs of
