@@ -399,26 +399,26 @@ struct node2vec_selector_t {
     __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(
       vertex_t src_v, real_t rnd_val, vertex_t prev_v, edge_t path_index) const
     {
-      auto offset_indx_begin = row_offsets_[src_v];
-      auto offset_indx_end   = row_offsets_[src_v + 1];
+      auto const offset_indx_begin = row_offsets_[src_v];
+      auto const offset_indx_end   = row_offsets_[src_v + 1];
+
+      weight_t sum_scaled_weights{0};
+      auto offset_indx = offset_indx_begin;
+
       if (offset_indx_begin == offset_indx_end) return thrust::nullopt;  // src_v is a sink
 
+      // cached solution, for increased performance, but memory expensive:
+      //
       if (coalesced_alpha_.has_value()) {
         auto&& [max_out_deg, num_paths, ptr_d_scaled_weights] = *coalesced_alpha_;
-
-        weight_t sum_scaled_weights{0};
-
-        auto offset_indx = offset_indx_begin;
 
         // sum-scaled-weights reduction loop:
         //
         auto const start_alpha_offset = max_out_deg * path_index;
         for (vertex_t nghbr_indx = 0; offset_indx < offset_indx_end; ++offset_indx, ++nghbr_indx) {
-          auto crt_alpha = get_alpha(prev_v, src_v, col_indices_[offset_indx]);
-
+          auto crt_alpha      = get_alpha(prev_v, src_v, col_indices_[offset_indx]);
           weight_t crt_weight = (values_ == nullptr ? weight_t{1} : values_[offset_indx]);
-
-          auto scaled_weight = crt_weight * crt_alpha;
+          auto scaled_weight  = crt_weight * crt_alpha;
 
           // caching is available, hence cache the alpha's for next step
           // (the actual sampling step);
@@ -445,7 +445,38 @@ struct node2vec_selector_t {
           thrust::make_tuple(col_indices_[prev_offset_indx],
                              values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
 
-      } else {
+      } else {  // uncached solution, with much lower memory footprint but not as efficient
+
+        for (; offset_indx < offset_indx_end; ++offset_indx) {
+          auto crt_alpha = get_alpha(prev_v, src_v, col_indices_[offset_indx]);
+
+          weight_t crt_weight = (values_ == nullptr ? weight_t{1} : values_[offset_indx]);
+
+          auto scaled_weight = crt_weight * crt_alpha;
+          sum_scaled_weights += scaled_weight;
+        }
+
+        weight_t run_sum_w{0};
+        auto rnd_sum_weights  = rnd_val * sum_scaled_weights;
+        offset_indx           = offset_indx_begin;
+        auto prev_offset_indx = offset_indx;
+
+        // biased sampling selection loop:
+        // (Note: re-compute `scaled_weight`, since no cache is available);
+        //
+        for (; offset_indx < offset_indx_end; ++offset_indx) {
+          if (rnd_sum_weights < run_sum_w) break;
+
+          auto crt_alpha      = get_alpha(prev_v, src_v, col_indices_[offset_indx]);
+          weight_t crt_weight = (values_ == nullptr ? weight_t{1} : values_[offset_indx]);
+          auto scaled_weight  = crt_weight * crt_alpha;
+
+          run_sum_w += scaled_weight;
+          prev_offset_indx = offset_indx;
+        }
+        return thrust::optional{
+          thrust::make_tuple(col_indices_[prev_offset_indx],
+                             values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
       }
     }
 
