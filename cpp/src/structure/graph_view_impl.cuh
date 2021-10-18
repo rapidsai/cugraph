@@ -350,52 +350,8 @@ graph_view_t<
     !(meta.segment_offsets).has_value() ||
       ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
     "Internal Error: (*(meta.segment_offsets)).size() returns an invalid value.");
-<<<<<<< HEAD
-=======
 
-  // optional expensive checks
-
-  if (do_expensive_check) {
-    auto default_stream_view = this->get_handle_ptr()->get_stream_view();
-
-    CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream_view),
-                                      offsets,
-                                      offsets + (this->get_number_of_vertices() + 1)),
-                    "Internal Error: offsets is not sorted.");
-
-    // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
-    CUGRAPH_EXPECTS(
-      thrust::count_if(rmm::exec_policy(default_stream_view),
-                       indices,
-                       indices + this->get_number_of_edges(),
-                       out_of_range_t<vertex_t>{0, this->get_number_of_vertices()}) == 0,
-      "Internal Error: adj_matrix_partition_indices[] have out-of-range vertex IDs.");
-
-    if (meta.segment_offsets) {
-      auto degrees = compute_major_degrees(handle, offsets, this->get_number_of_vertices());
-      CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream_view),
-                                        degrees.begin(),
-                                        degrees.end(),
-                                        thrust::greater<edge_t>{}),
-                      "Invalid Invalid input argument: meta.segment_offsets is valid, but degrees "
-                      "are not in descending order.");
-
-      CUGRAPH_EXPECTS(
-        std::is_sorted((*(meta.segment_offsets)).begin(), (*(meta.segment_offsets)).end()),
-        "Internal Error: erroneous meta.segment_offsets.");
-      CUGRAPH_EXPECTS((*(meta.segment_offsets))[0] == 0,
-                      "Invalid input argument meta.segment_offsets.");
-      CUGRAPH_EXPECTS((*(meta.segment_offsets)).back() == this->get_number_of_vertices(),
-                      "Invalid input argument: meta.segment_offsets.");
-    }
-
-    // FIXME: check for symmetricity may better be implemetned with transpose().
-    if (this->is_symmetric()) {}
-    // FIXME: check for duplicate edges may better be implemented after deciding whether to sort
-    // neighbor list or not.
-    if (!this->is_multigraph()) {}
-  }
->>>>>>> 33361d09cce5b48ec80995c2ffd2b9f24d645923
+  // skip expensive error checks as this function is only called by graph_t
 }
 
 template <typename vertex_t,
