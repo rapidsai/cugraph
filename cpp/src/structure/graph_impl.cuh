@@ -219,9 +219,13 @@ void sort_adjacency_list(raft::handle_t const& handle,
                          vertex_t num_vertices,
                          edge_t num_edges)
 {
-  // Note that the current cub's segmented sort based implementation is slower than the global sort
+  // FIXME: The current cub's segmented sort based implementation is slower than the global sort
   // based approach, but we expect cub's segmented sort performance will get significantly better in
-  // few months. We need to reevaluate performance overhead of this routine in several months.
+  // few months. We also need to re-evaluate performance & memory overhead of presorting edge list
+  // and running thrust::reduce to update offset vs the current approach after updating the python
+  // interface. If we take r-values of rmm::device_uvector edge list, we can do indcies_ =
+  // std::move(minors) & weights_ = std::move (weights). This affects peak memory use and we may
+  // find the presorting approach more attractive under this scenario.
 
   // 1. We segmented sort edges in chunks, and we need to adjust chunk offsets as we need to sort
   // each vertex's neighbors at once.
