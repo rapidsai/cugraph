@@ -62,6 +62,7 @@ set(CMAKE_CUDA_ARCHITECTURES ${usable_arch_values})
 # Write the version header
 rapids_cmake_write_version_file(include/cugraph/version_config.hpp)
 rapids_cmake_write_version_file(include/cugraph_c/version_config.hpp)
+rapids_cmake_write_version_file(include/cugraph_etl/version_config.hpp)
 
 ################################################################################
 # - build type -----------------------------------------------------------------
@@ -467,6 +468,15 @@ install(DIRECTORY include/cugraph_c/
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph_c/version_config.hpp
         DESTINATION include/cugraph_c)
 
+install(TARGETS cugraph_etl
+        DESTINATION ${lib_dir})
+
+install(DIRECTORY include/cugraph_etl/
+        DESTINATION include/cugraph_etl)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph_etl/version_config.hpp
+        DESTINATION include/cugraph_etl)
+
 ################################################################################
 # - install export -------------------------------------------------------------
 
@@ -486,7 +496,7 @@ thrust_create_target(cugraph::Thrust FROM_OPTIONS)
 
  rapids_export(INSTALL cugraph
     EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph cugraph_c
+    GLOBAL_TARGETS cugraph cugraph_c cugraph_etl
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
     FINAL_CODE_BLOCK code_string
@@ -496,7 +506,7 @@ thrust_create_target(cugraph::Thrust FROM_OPTIONS)
 # - build export ---------------------------------------------------------------
 rapids_export(BUILD cugraph
     EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph cugraph_c
+    GLOBAL_TARGETS cugraph cugraph_c cugraph_etl
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
     FINAL_CODE_BLOCK code_string
