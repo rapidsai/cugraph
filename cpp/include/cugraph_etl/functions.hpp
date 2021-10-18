@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <cudf/types.hpp>
 #include <cudf/column/column.hpp>
 #include <cudf/table/table.hpp>
+#include <cudf/types.hpp>
 
 namespace cugraph {
 namespace etl {
