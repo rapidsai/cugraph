@@ -328,6 +328,18 @@ ConfigureTest(GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 ConfigureTest(GRAPH_TEST structure/graph_test.cpp)
 
 ###################################################################################################
+# - Symmetrize tests ------------------------------------------------------------------------------
+ConfigureTest(SYMMETRIZE_TEST structure/symmetrize_test.cpp)
+
+###################################################################################################
+# - Transpose tests ------------------------------------------------------------------------------
+ConfigureTest(TRANSPOSE_TEST structure/transpose_test.cpp)
+
+###################################################################################################
+# - Transpose Storage tests -----------------------------------------------------------------------
+ConfigureTest(TRANSPOSE_STORAGE_TEST structure/transpose_storage_test.cpp)
+
+###################################################################################################
 # - Weight-sum tests ------------------------------------------------------------------------------
 ConfigureTest(WEIGHT_SUM_TEST structure/weight_sum_test.cpp)
 
@@ -370,8 +382,7 @@ ConfigureTest(KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp)
 
 ###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
-# Temporarily disable this test, it seems to be failing on A100
-#ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
+ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
 ###################################################################################################
 # - RANDOM_WALKS tests ----------------------------------------------------------------------------
@@ -428,6 +439,18 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     if(MPI_CXX_FOUND)
         ###########################################################################################
+        # - MG SYMMETRIZE tests -------------------------------------------------------------------
+        ConfigureTestMG(MG_SYMMETRIZE_TEST structure/mg_symmetrize_test.cpp)
+
+        ###########################################################################################
+        # - MG Transpose tests --------------------------------------------------------------------
+        ConfigureTestMG(MG_TRANSPOSE_TEST structure/mg_transpose_test.cpp)
+
+        ###########################################################################################
+        # - MG Transpose Storage tests ------------------------------------------------------------
+        ConfigureTestMG(MG_TRANSPOSE_STORAGE_TEST structure/mg_transpose_storage_test.cpp)
+
+        ###########################################################################################
         # - MG PAGERANK tests ---------------------------------------------------------------------
         ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
 
@@ -482,6 +505,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS COUNT_IF_E tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
+
+        ###########################################################################################
+        # - MG PRIMS COPY_V_TRANSFORM_REDUCE_OUT tests --------------------------------------------
+        ConfigureTestMG(MG_COPY_V_TRANSFORM_REDUCE_INOUT_NBR_TEST
+          prims/mg_copy_v_transform_reduce_inout_nbr.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()

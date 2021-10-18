@@ -237,8 +237,9 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     translate(handle, src_v, dst_v);
 
     if (undirected_)
-      std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, weight_t>(
-        handle, std::move(src_v), std::move(dst_v), std::nullopt);
+      std::tie(src_v, dst_v, std::ignore) =
+        cugraph::symmetrize_edgelist_from_triangular<vertex_t, weight_t>(
+          handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
     if (multi_gpu) {
       std::tie(store_transposed ? dst_v : src_v, store_transposed ? src_v : dst_v, weights_v) =
@@ -325,8 +326,9 @@ class PathGraph_Usecase {
     });
 
     auto [src_v, dst_v] = cugraph::generate_path_graph_edgelist<vertex_t>(handle, converted_parms);
-    std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, weight_t>(
-      handle, std::move(src_v), std::move(dst_v), std::nullopt);
+    std::tie(src_v, dst_v, std::ignore) =
+      cugraph::symmetrize_edgelist_from_triangular<vertex_t, weight_t>(
+        handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
     rmm::device_uvector<vertex_t> d_vertices(num_vertices_, handle.get_stream());
     cugraph::detail::sequence_fill(

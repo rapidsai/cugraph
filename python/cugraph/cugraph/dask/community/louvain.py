@@ -58,6 +58,7 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
     >>> import cugraph.dask as dcg
     >>> ... Init a DASK Cluster
     >>    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
+    >>  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
     >>> chunksize = dcg.get_chunksize(input_data_path)
     >>> ddf = dask_cudf.read_csv('datasets/karate.csv', chunksize=chunksize,
                                  delimiter=' ',
