@@ -616,9 +616,9 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   }
@@ -652,8 +652,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
 
-      rmm::device_uvector<vertex_t> frontier_vertices(local_frontier_sizes[i],
-                                                      handle.get_stream_view());
+      rmm::device_uvector<vertex_t> frontier_vertices(local_frontier_sizes[i], handle.get_stream());
       device_bcast(col_comm,
                    local_frontier_vertex_first,
                    frontier_vertices.data(),
@@ -726,9 +725,9 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   }
@@ -848,9 +847,9 @@ void update_frontier_v_push_if_out_nbr(
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   }
@@ -1105,9 +1104,9 @@ void update_frontier_v_push_if_out_nbr(
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   }
@@ -1133,9 +1132,9 @@ void update_frontier_v_push_if_out_nbr(
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -1166,7 +1165,7 @@ void update_frontier_v_push_if_out_nbr(
                       d_tx_buffer_last_boundaries.data(),
                       d_tx_buffer_last_boundaries.size(),
                       handle.get_stream());
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     std::vector<size_t> tx_counts(h_tx_buffer_last_boundaries.size());
     std::adjacent_difference(
       h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
@@ -1195,9 +1194,9 @@ void update_frontier_v_push_if_out_nbr(
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   }

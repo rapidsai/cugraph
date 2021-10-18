@@ -77,7 +77,7 @@ generate_path_graph_edgelist(raft::handle_t const& handle,
     dst_iterator += num_edges;
   }
 
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   return std::make_tuple(std::move(d_src_v), std::move(d_dst_v));
 }
@@ -141,7 +141,7 @@ generate_2d_mesh_graph_edgelist(
                                       });
   }
 
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   return std::make_tuple(std::move(d_src_v), std::move(d_dst_v));
 }
@@ -219,7 +219,7 @@ generate_3d_mesh_graph_edgelist(
                                       });
   }
 
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   return std::make_tuple(std::move(d_src_v), std::move(d_dst_v));
 }
@@ -289,7 +289,7 @@ generate_complete_graph_edgelist(
                                       });
   }
 
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   return std::make_tuple(std::move(d_src_v), std::move(d_dst_v));
 }

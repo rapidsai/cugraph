@@ -72,7 +72,7 @@ extract_induced_subgraphs(
     raft::update_host(&should_be_zero, subgraph_offsets, 1, handle.get_stream());
     raft::update_host(
       &num_aggregate_subgraph_vertices, subgraph_offsets + num_subgraphs, 1, handle.get_stream());
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     CUGRAPH_EXPECTS(should_be_zero == 0,
                     "Invalid input argument: subgraph_offsets[0] should be 0.");
 
@@ -117,21 +117,21 @@ extract_induced_subgraphs(
 
   if (multi_gpu) {
     CUGRAPH_FAIL("Unimplemented.");
-    return std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream_view()),
-                           rmm::device_uvector<vertex_t>(0, handle.get_stream_view()),
-                           rmm::device_uvector<weight_t>(0, handle.get_stream_view()),
-                           rmm::device_uvector<size_t>(0, handle.get_stream_view()));
+    return std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                           rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                           rmm::device_uvector<weight_t>(0, handle.get_stream()),
+                           rmm::device_uvector<size_t>(0, handle.get_stream()));
   } else {
     // 2-1. Phase 1: calculate memory requirements
 
     size_t num_aggregate_subgraph_vertices{};
     raft::update_host(
       &num_aggregate_subgraph_vertices, subgraph_offsets + num_subgraphs, 1, handle.get_stream());
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
 
     rmm::device_uvector<size_t> subgraph_vertex_output_offsets(
       num_aggregate_subgraph_vertices + 1,
-      handle.get_stream_view());  // for each element of subgraph_vertices
+      handle.get_stream());  // for each element of subgraph_vertices
 
     auto matrix_partition = matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
       graph_view.get_matrix_partition_view());
@@ -174,15 +174,15 @@ extract_induced_subgraphs(
                       subgraph_vertex_output_offsets.data() + num_aggregate_subgraph_vertices,
                       1,
                       handle.get_stream());
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
 
     // 2-2. Phase 2: find the edges in the induced subgraphs
 
-    rmm::device_uvector<vertex_t> edge_majors(num_aggregate_edges, handle.get_stream_view());
-    rmm::device_uvector<vertex_t> edge_minors(num_aggregate_edges, handle.get_stream_view());
+    rmm::device_uvector<vertex_t> edge_majors(num_aggregate_edges, handle.get_stream());
+    rmm::device_uvector<vertex_t> edge_minors(num_aggregate_edges, handle.get_stream());
     auto edge_weights = graph_view.is_weighted()
-                          ? std::make_optional<rmm::device_uvector<weight_t>>(
-                              num_aggregate_edges, handle.get_stream_view())
+                          ? std::make_optional<rmm::device_uvector<weight_t>>(num_aggregate_edges,
+                                                                              handle.get_stream())
                           : std::nullopt;
 
     // fill the edge list buffer (to be returned) for each vetex in the aggregate subgraph vertex
@@ -245,7 +245,7 @@ extract_induced_subgraphs(
         }
       });
 
-    rmm::device_uvector<size_t> subgraph_edge_offsets(num_subgraphs + 1, handle.get_stream_view());
+    rmm::device_uvector<size_t> subgraph_edge_offsets(num_subgraphs + 1, handle.get_stream());
     thrust::gather(handle.get_thrust_policy(),
                    subgraph_offsets,
                    subgraph_offsets + (num_subgraphs + 1),

@@ -168,7 +168,7 @@ class Tests_MGWeaklyConnectedComponents
                           d_sg_components.size(),
                           handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.get_stream().synchronize();
 
         std::unordered_map<vertex_t, vertex_t> mg_to_sg_map{};
         for (size_t i = 0; i < h_sg_components.size(); ++i) {

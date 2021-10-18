@@ -247,9 +247,9 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -278,7 +278,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                    handle.get_stream());
     }
 
-    handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
+    handle.get_stream().synchronize();  // cuco::static_map currently does not take stream
 
     kv_map_ptr.reset();
 
@@ -296,7 +296,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       thrust::make_tuple(map_keys.begin(), get_dataframe_buffer_begin(map_value_buffer)));
     kv_map_ptr->insert(pair_first, pair_first + map_keys.size());
   } else {
-    handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
+    handle.get_stream().synchronize();  // cuco::static_map currently does not take stream
 
     kv_map_ptr.reset();
 
@@ -328,9 +328,9 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   }
@@ -554,9 +554,9 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
   }

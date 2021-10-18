@@ -120,9 +120,9 @@ void expensive_check_edgelist(raft::handle_t const& handle,
 #if 1
       // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
       // DASK and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
+      host_barrier(comm, handle.get_stream());
 #else
-      handle.get_stream_view().synchronize();
+      handle.get_stream().synchronize();
       comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -146,9 +146,9 @@ void expensive_check_edgelist(raft::handle_t const& handle,
 #if 1
       // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
       // DASK and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
+      host_barrier(comm, handle.get_stream());
 #else
-      handle.get_stream_view().synchronize();
+      handle.get_stream().synchronize();
       comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -172,9 +172,9 @@ void expensive_check_edgelist(raft::handle_t const& handle,
 #if 1
       // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
       // DASK and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
+      host_barrier(comm, handle.get_stream());
 #else
-      handle.get_stream_view().synchronize();
+      handle.get_stream().synchronize();
       comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -265,7 +265,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   std::vector<size_t> h_edge_counts(edge_counts.size());
   raft::update_host(
     h_edge_counts.data(), edge_counts.data(), edge_counts.size(), handle.get_stream());
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   std::vector<edge_t> edgelist_edge_counts(col_comm_size, edge_t{0});
   auto edgelist_intra_partition_segment_offsets =
@@ -386,7 +386,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
       num_vertices = static_cast<vertex_t>((*vertex_span).size());
     } else {
       num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
-                           handle.get_stream_view(), edgelist_rows, edgelist_cols);
+                           handle.get_stream(), edgelist_rows, edgelist_cols);
     }
   }
 

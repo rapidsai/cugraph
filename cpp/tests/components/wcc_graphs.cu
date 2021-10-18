@@ -46,7 +46,7 @@ LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
   thrust::sequence(execution_policy, vertices_v.begin(), vertices_v.end(), vertex_t{0});
 
   cugraph::detail::uniform_random_fill(
-    handle.get_stream_view(), order_v.data(), num_vertices_, double{0.0}, double{1.0}, seed);
+    handle.get_stream(), order_v.data(), num_vertices_, double{0.0}, double{1.0}, seed);
 
   thrust::sort_by_key(execution_policy, order_v.begin(), order_v.end(), vertices_v.begin());
 
@@ -64,7 +64,7 @@ LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
 
   thrust::sequence(execution_policy, vertices_v.begin(), vertices_v.end(), vertex_t{0});
 
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   return cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(

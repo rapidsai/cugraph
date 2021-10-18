@@ -138,7 +138,7 @@ struct rrandom_gen_t {
   static void generate_random(raft::handle_t const& handle, real_t* p_d_rnd, size_t sz, seed_t seed)
   {
     cugraph::detail::uniform_random_fill(
-      handle.get_stream_view(), p_d_rnd, sz, real_t{0.0}, real_t{1.0}, seed);
+      handle.get_stream(), p_d_rnd, sz, real_t{0.0}, real_t{1.0}, seed);
   }
 
  private:
@@ -521,7 +521,7 @@ struct random_walker_t {
                                        thrust::make_counting_iterator<index_t>(0),
                                        predicate_w);
 
-    handle_.get_stream_view().synchronize();
+    handle_.get_stream().synchronize();
 
     d_coalesced_v.resize(thrust::distance(d_coalesced_v.begin(), new_end_v), handle_.get_stream());
     d_coalesced_w.resize(thrust::distance(d_coalesced_w.begin(), new_end_w), handle_.get_stream());
@@ -1231,7 +1231,7 @@ query_rw_sizes_offsets(raft::handle_t const& handle, index_t num_paths, index_t 
                     d_weight_sizes.begin(),
                     [] __device__(auto vertex_path_sz) { return vertex_path_sz - 1; });
 
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
 
   thrust::exclusive_scan(handle.get_thrust_policy(),
                          d_weight_sizes.begin(),

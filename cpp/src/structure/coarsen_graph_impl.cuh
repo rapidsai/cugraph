@@ -243,9 +243,9 @@ coarsen_graph(
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
     rmm::device_uvector<vertex_t> major_labels(
@@ -263,9 +263,9 @@ coarsen_graph(
 #if 1
     // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
     // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
+    host_barrier(comm, handle.get_stream());
 #else
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
     comm.barrier();  // currently, this is ncclAllReduce
 #endif
 
@@ -297,7 +297,7 @@ coarsen_graph(
 
     std::vector<size_t> h_counts(counts.size());
     raft::update_host(h_counts.data(), counts.data(), counts.size(), handle.get_stream());
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
 
     std::vector<size_t> h_displacements(h_counts.size(), size_t{0});
     std::partial_sum(h_counts.begin(), h_counts.end() - 1, h_displacements.begin() + 1);

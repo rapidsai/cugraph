@@ -176,7 +176,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
                         unrenumbered_graph_view.get_number_of_edges(),
                         handle.get_stream());
 
-      handle.get_stream_view().synchronize();
+      handle.get_stream().synchronize();
 
       auto unrenumbered_source = static_cast<vertex_t>(sssp_usecase.source);
       if (renumber) {
@@ -186,7 +186,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
                           (*d_renumber_map_labels).size(),
                           handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.get_stream().synchronize();
 
         unrenumbered_source = h_renumber_map_labels[sssp_usecase.source];
       }
@@ -231,7 +231,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
                           d_unrenumbered_predecessors.size(),
                           handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.get_stream().synchronize();
       } else {
         raft::update_host(
           h_cugraph_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());
@@ -240,7 +240,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
                           d_predecessors.size(),
                           handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.get_stream().synchronize();
       }
 
       auto max_weight_element = std::max_element(h_weights.begin(), h_weights.end());

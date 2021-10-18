@@ -326,7 +326,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   // optional expensive checks
 
   if (do_expensive_check) {
-    auto default_stream_view = this->get_handle_ptr()->get_stream_view();
+    auto default_stream_view = this->get_handle_ptr()->get_stream();
 
     auto const row_comm_rank = this->get_handle_ptr()
                                  ->get_subcomm(cugraph::partition_2d::key_naming_t().row_name())
@@ -458,7 +458,7 @@ graph_view_t<
   // optional expensive checks
 
   if (do_expensive_check) {
-    auto default_stream_view = this->get_handle_ptr()->get_stream_view();
+    auto default_stream_view = this->get_handle_ptr()->get_stream();
 
     CUGRAPH_EXPECTS(thrust::is_sorted(rmm::exec_policy(default_stream_view),
                                       offsets,
@@ -691,7 +691,7 @@ edge_t graph_view_t<vertex_t,
   auto it = thrust::max_element(handle.get_thrust_policy(), in_degrees.begin(), in_degrees.end());
   edge_t ret{0};
   if (it != in_degrees.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
   return ret;
 }
 
@@ -733,7 +733,7 @@ edge_t graph_view_t<vertex_t,
   auto it = thrust::max_element(handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end());
   edge_t ret{0};
   if (it != out_degrees.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
   return ret;
 }
 
@@ -777,7 +777,7 @@ weight_t graph_view_t<vertex_t,
     thrust::max_element(handle.get_thrust_policy(), in_weight_sums.begin(), in_weight_sums.end());
   weight_t ret{0.0};
   if (it != in_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
   return ret;
 }
 
@@ -821,7 +821,7 @@ weight_t graph_view_t<
     thrust::max_element(handle.get_thrust_policy(), out_weight_sums.begin(), out_weight_sums.end());
   weight_t ret{0.0};
   if (it != out_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
-  handle.get_stream_view().synchronize();
+  handle.get_stream().synchronize();
   return ret;
 }
 

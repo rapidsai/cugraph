@@ -53,7 +53,7 @@ void barnes_hut(raft::handle_t const& handle,
                 bool verbose                                  = false,
                 internals::GraphBasedDimRedCallback* callback = nullptr)
 {
-  rmm::cuda_stream_view stream_view(handle.get_stream_view());
+  rmm::cuda_stream_view stream_view(handle.get_stream());
   const edge_t e   = graph.number_of_edges;
   const vertex_t n = graph.number_of_vertices;
 
@@ -135,7 +135,7 @@ void barnes_hut(raft::handle_t const& handle,
     raft::copy(nodes_pos + nnodes + 1, y_start, n, stream_view.value());
   } else {
     uniform_random_fill(
-      handle.get_stream_view(), nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, random_state);
+      handle.get_stream(), nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, random_state);
   }
 
   // Allocate arrays for force computation

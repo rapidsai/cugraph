@@ -207,7 +207,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                                                                             handle.get_stream());
         }
 
-        cugraph::detail::uniform_random_fill(handle.get_stream_view(),
+        cugraph::detail::uniform_random_fill(handle.get_stream(),
                                              i == 0 ? weights_v->data() : tmp_weights_v->data(),
                                              i == 0 ? weights_v->size() : tmp_weights_v->size(),
                                              weight_t{0.0},
@@ -257,7 +257,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       auto start_offset = vertices_v.size();
       vertices_v.resize(start_offset + (partition_vertex_lasts[i] - partition_vertex_firsts[i]),
                         handle.get_stream());
-      cugraph::detail::sequence_fill(handle.get_stream_view(),
+      cugraph::detail::sequence_fill(handle.get_stream(),
                                      vertices_v.begin() + start_offset,
                                      vertices_v.size() - start_offset,
                                      partition_vertex_firsts[i]);
@@ -333,7 +333,7 @@ class PathGraph_Usecase {
     rmm::device_uvector<vertex_t> d_vertices(num_vertices_, handle.get_stream());
     cugraph::detail::sequence_fill(
       handle.get_stream(), d_vertices.data(), num_vertices_, vertex_t{0});
-    handle.get_stream_view().synchronize();
+    handle.get_stream().synchronize();
 
     return std::make_tuple(std::move(src_v),
                            std::move(dst_v),
