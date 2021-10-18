@@ -278,9 +278,19 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
                        auto start_v_pos  = chunk_offset + delta;
                        auto start_w_pos  = chunk_offset - path_indx + delta;
 
-                       auto src_v         = ptr_coalesced_v[start_v_pos];
-                       auto rnd_val       = ptr_d_random[path_indx];
-                       auto opt_tpl_vn_wn = sampler(src_v, rnd_val);
+                       auto src_v   = ptr_coalesced_v[start_v_pos];
+                       auto rnd_val = ptr_d_random[path_indx];
+
+                       // `node2vec` info:
+                       //
+                       bool start_path = true;
+                       auto prev_v     = src_v;
+                       if (delta > 0) {
+                         start_path = false;
+                         prev_v     = ptr_coalesced_v[start_v_pos - 1];
+                       }
+
+                       auto opt_tpl_vn_wn = sampler(src_v, rnd_val, prev_v, path_indx, start_path);
 
                        if (opt_tpl_vn_wn.has_value()) {
                          auto src_vertex = thrust::get<0>(*opt_tpl_vn_wn);
