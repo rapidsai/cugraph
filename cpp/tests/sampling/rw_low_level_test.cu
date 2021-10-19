@@ -37,10 +37,12 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
+#include <map>
 #include <numeric>
+#include <optional>
 #include <utilities/high_res_timer.hpp>
 #include <vector>
-
+//
 template <typename value_t>
 using vector_test_t = cugraph::detail::device_vec_t<value_t>;  // for debug purposes
 
@@ -82,6 +84,57 @@ void next_biased(raft::handle_t const& handle,
                       auto next_vw = sampler(src_v_indx, rnd_val);
                       return (next_vw.has_value() ? thrust::get<0>(*next_vw) : src_v_indx);
                     });
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::map<vertex_t, std::vector<std::optional<weight_t>>> alpha_node2vec(
+  std::vector<edge_t> const& row_offsets,
+  std::vector<vertex_t> const& col_indices,
+  std::vector<std::optional<vertex_t>> const& v_pred,
+  std::vector<vertex_t> const& v_crt,
+  weight_t p,
+  weight_t q)
+{
+  std::map<vertex_t, std::vector<std::optional<weight_t>>> map_v2alpha;
+
+  auto num_vs = v_crt.size();
+  for (size_t indx = 0; indx < num_vs; ++indx) {
+    std::vector<std::optional<weight_t>> v_p1q;
+
+    auto src_v = v_crt[indx];
+
+    size_t num_neighbors = row_offsets[src_v + 1] - row_offsets[src_v];
+    v_p1q.reserve(num_neighbors);
+
+    if (v_pred[indx].has_value()) {
+      auto pred_v = *(v_pred[indx]);
+
+      for (auto offset_indx = row_offsets[src_v]; offset_indx < row_offsets[src_v + 1];
+           ++offset_indx) {
+        auto next_v = col_indices[offset_indx];
+
+        if (next_v == pred_v) {
+          v_p1q.push_back(1.0 / p);
+        } else {
+          auto const* begin = col_indices + row_offsets[pred_v];
+          auto const* end   = col_indices + row_offsets[pred_v + 1];
+          auto it_found     = std::find(begin, end, next_v);
+
+          if (it_found != end) {
+            v_p1q.push_back(1.0);
+          } else {
+            v_p1q.push_back(1.0 / q);
+          }
+        }
+      }
+    } else {
+      v_p1q.push_back(std::nullopt);
+    }
+
+    map_v2alpha[src_v] = v_p1q;
+  }
+
+  return map_v2alpha;
 }
 
 }  // namespace
