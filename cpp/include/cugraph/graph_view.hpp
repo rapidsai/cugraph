@@ -367,8 +367,7 @@ class graph_view_t<vertex_t,
     std::optional<std::vector<weight_t const*>> const& adj_matrix_partition_weights,
     std::optional<std::vector<vertex_t const*>> const& adj_matrix_partition_dcs_nzd_vertices,
     std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
-    graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
-    bool do_expensive_check = false);
+    graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta);
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
 
@@ -680,8 +679,7 @@ class graph_view_t<vertex_t,
                edge_t const* offsets,
                vertex_t const* indices,
                std::optional<weight_t const*> weights,
-               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
-               bool do_expensive_check = false);
+               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta);
 
   bool is_weighted() const { return weights_.has_value(); }
 
