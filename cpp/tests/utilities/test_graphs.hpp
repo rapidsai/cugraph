@@ -551,7 +551,7 @@ construct_graph(raft::handle_t const& handle,
       std::move(d_src_v),
       std::move(d_dst_v),
       std::move(d_weights_v),
-      cugraph::graph_properties_t{is_symmetric, false},
+      cugraph::graph_properties_t{is_symmetric, true},
       renumber);
 }
 

@@ -205,8 +205,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
                                            (*local_sorted_unique_edge_cols_).size()}
           : std::nullopt,
         local_sorted_unique_edge_col_offsets_,
-      },
-      false);
+      });
   }
 
   std::tuple<rmm::device_uvector<vertex_t>,
@@ -332,8 +331,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       graph_view_meta_t<vertex_t, edge_t, multi_gpu>{this->get_number_of_vertices(),
                                                      this->get_number_of_edges(),
                                                      this->get_graph_properties(),
-                                                     segment_offsets_},
-      false);
+                                                     segment_offsets_});
   }
 
   // FIXME: possibley to be added later;
