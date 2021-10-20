@@ -371,9 +371,11 @@ struct node2vec_selector_t {
         values_(w),
         p_(p),
         q_(q),
-        coalesced_alpha_{(max_degree > 0) && (num_paths > 0) && (ptr_alpha != nullptr)
-                           ? thrust::make_tuple(max_degree, num_paths, ptr_alpha)
-                           : thrust::nullopt}
+        coalesced_alpha_{
+          (max_degree > 0) && (num_paths > 0) && (ptr_alpha != nullptr)
+            ? thrust::optional<thrust::tuple<vertex_t, edge_t, weight_t*>>{thrust::make_tuple(
+                max_degree, num_paths, ptr_alpha)}
+            : thrust::nullopt}
     {
     }
 
@@ -553,7 +555,7 @@ struct node2vec_selector_t {
                  : static_cast<weight_t*>(nullptr),
                p,
                q,
-               max_out_degree_,
+               static_cast<vertex_t>(max_out_degree_),
                num_paths,
                raw_ptr(d_coalesced_alpha_)}
   {

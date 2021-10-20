@@ -42,7 +42,7 @@
 #include <optional>
 #include <utilities/high_res_timer.hpp>
 #include <vector>
-//
+
 template <typename value_t>
 using vector_test_t = cugraph::detail::device_vec_t<value_t>;  // for debug purposes
 
@@ -87,24 +87,21 @@ void next_biased(raft::handle_t const& handle,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::map<vertex_t, std::vector<std::optional<weight_t>>> alpha_node2vec(
-  std::vector<edge_t> const& row_offsets,
-  std::vector<vertex_t> const& col_indices,
-  std::vector<std::optional<vertex_t>> const& v_pred,
-  std::vector<vertex_t> const& v_crt,
-  weight_t p,
-  weight_t q)
+void alpha_node2vec(std::vector<edge_t> const& row_offsets,
+                    std::vector<vertex_t> const& col_indices,
+                    std::vector<weight_t>& weights,  // to be scaled!
+                    std::vector<std::optional<vertex_t>> const& v_pred,
+                    std::vector<vertex_t> const& v_crt,
+                    weight_t p,
+                    weight_t q)
 {
-  std::map<vertex_t, std::vector<std::optional<weight_t>>> map_v2alpha;
-
   auto num_vs = v_crt.size();
   for (size_t indx = 0; indx < num_vs; ++indx) {
-    std::vector<std::optional<weight_t>> v_p1q;
-
     auto src_v = v_crt[indx];
 
     size_t num_neighbors = row_offsets[src_v + 1] - row_offsets[src_v];
-    v_p1q.reserve(num_neighbors);
+
+    if (num_neighbors == 0) { continue; }
 
     if (v_pred[indx].has_value()) {
       auto pred_v = *(v_pred[indx]);
@@ -113,28 +110,26 @@ std::map<vertex_t, std::vector<std::optional<weight_t>>> alpha_node2vec(
            ++offset_indx) {
         auto next_v = col_indices[offset_indx];
 
+        weight_t alpha{0};
+
         if (next_v == pred_v) {
-          v_p1q.push_back(1.0 / p);
+          alpha = 1.0 / p;
         } else {
-          auto const* begin = col_indices + row_offsets[pred_v];
-          auto const* end   = col_indices + row_offsets[pred_v + 1];
-          auto it_found     = std::find(begin, end, next_v);
+          auto begin    = col_indices.begin() + row_offsets[pred_v];
+          auto end      = col_indices.begin() + row_offsets[pred_v + 1];
+          auto it_found = std::find(begin, end, next_v);
 
           if (it_found != end) {
-            v_p1q.push_back(1.0);
+            alpha = 1.0;
           } else {
-            v_p1q.push_back(1.0 / q);
+            alpha = 1.0 / q;
           }
         }
+
+        weights[offset_indx] *= alpha;  // scale weights
       }
-    } else {
-      v_p1q.push_back(std::nullopt);
     }
-
-    map_v2alpha[src_v] = v_p1q;
   }
-
-  return map_v2alpha;
 }
 
 }  // namespace
@@ -1269,4 +1264,99 @@ TEST(BiasedRandomWalks, SelectorSmallGraph)
                        5}; /*<-5*/
 
   EXPECT_EQ(v_next_v, h_next_v);
+}
+
+TEST(Node2VecRandomWalks, DISABLED_Node2VecSmallGraph)
+{
+  namespace topo = cugraph::topology;
+
+  raft::handle_t handle{};
+
+  using vertex_t = int32_t;
+  using edge_t   = vertex_t;
+  using weight_t = float;
+  using index_t  = vertex_t;
+  using real_t   = weight_t;
+
+  weight_t p = 2.0;
+  weight_t q = 4.0;
+
+  edge_t num_edges      = 8;
+  vertex_t num_vertices = 6;
+
+  /*
+    0 --(.1)--> 1 --(1.1)--> 4
+   /|\       /\ |            |
+    |       /   |            |
+   (5.1) (3.1)(2.1)        (3.2)
+    |   /       |            |
+    | /        \|/          \|/
+    2 --(4.1)-->3 --(7.2)--> 5
+   */
+  std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
+  std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
+  std::vector<weight_t> v_w{0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+
+  auto graph = cugraph::test::make_graph(
+    handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
+
+  std::vector<real_t> v_rnd{0.2, 0.5, 1.0, 0.1, 0.8};
+  std::vector<vertex_t> v_src_v{0, 1, 3, 4, 5};
+  std::vector<std::optional<vertex_t>> v_pred_v{2, 0, 1, 1, 4};
+
+  vector_test_t<real_t> d_rnd(v_rnd.size(), handle.get_stream());
+  vector_test_t<vertex_t> d_src_v(v_src_v.size(), handle.get_stream());
+
+  EXPECT_EQ(d_rnd.size(), d_src_v.size());
+
+  raft::update_device(d_rnd.data(), v_rnd.data(), d_rnd.size(), handle.get_stream());
+  raft::update_device(d_src_v.data(), v_src_v.data(), d_src_v.size(), handle.get_stream());
+
+  auto graph_view = graph.view();
+
+  edge_t const* offsets = graph_view.get_matrix_partition_view().get_offsets();
+
+  vertex_t const* indices = graph_view.get_matrix_partition_view().get_indices();
+
+  weight_t const* values = *(graph_view.get_matrix_partition_view().get_weights());
+
+  // TODO: do a `next_node2vec()` with `node2vec` selector on `graph_view`, v_crt_v, v_prev_v,
+  // and compare the resulting next_v with the one below resulting from
+  // `next_biased()` using biased selector on `node2vec` alpha scaled weights;
+
+  cugraph::detail::node2vec_selector_t n2v_selector{handle, graph_view, 0.0f, p, q};
+
+  std::vector<weight_t> scaled_weights(v_w);
+  std::vector<edge_t> row_offsets(num_vertices + 1);
+  std::vector<vertex_t> col_indices(num_edges);
+
+  raft::update_host(
+    row_offsets.data(), offsets, static_cast<size_t>(num_vertices + 1), handle.get_stream());
+
+  raft::update_host(
+    col_indices.data(), indices, static_cast<size_t>(num_edges), handle.get_stream());
+
+  alpha_node2vec(row_offsets, col_indices, scaled_weights, v_pred_v, v_src_v, p, q);
+
+  auto scaled_graph =
+    cugraph::test::make_graph(handle,
+                              v_src,
+                              v_dst,
+                              std::optional<std::vector<weight_t>>{scaled_weights},
+                              num_vertices,
+                              num_edges);
+
+  auto scaled_graph_view = scaled_graph.view();
+
+  cugraph::detail::biased_selector_t selector{handle, scaled_graph_view, 0.0f};
+
+  vector_test_t<vertex_t> d_next_v(v_src_v.size(), handle.get_stream());
+
+  next_biased(handle, d_src_v, d_rnd, d_next_v, selector);
+
+  std::vector<edge_t> v_next_v(v_src_v.size());
+
+  raft::update_host(v_next_v.data(), d_next_v.data(), v_src_v.size(), handle.get_stream());
+
+  // EXPECT_EQ(v_next_v, h_next_v);
 }
