@@ -86,11 +86,41 @@ void next_biased(raft::handle_t const& handle,
                     });
 }
 
+template <typename vertex_t, typename real_t, typename selector_t>
+void next_node2vec(raft::handle_t const& handle,
+                   vector_test_t<vertex_t> const& d_src_v,
+                   vector_test_t<thrust::optional<vertex_t>> const& d_prev_v,
+                   vector_test_t<real_t> const& d_rnd,
+                   vector_test_t<vertex_t>& d_next_v,
+                   selector_t const& selector)
+{
+  auto begin = thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_prev_v.begin()));
+  auto end   = thrust::make_zip_iterator(thrust::make_tuple(d_src_v.end(), d_prev_v.end()));
+
+  thrust::transform(handle.get_thrust_policy(),
+                    begin,
+                    end,
+                    d_rnd.begin(),
+                    d_next_v.begin(),
+                    [sampler = selector.get_strategy()] __device__(auto tpl, auto rnd_val) {
+                      vertex_t src_v = thrust::get<0>(tpl);
+
+                      if (thrust::get<1>(tpl) != thrust::nullopt) {
+                        vertex_t prev_v = *thrust::get<1>(tpl);
+
+                        auto next_vw = sampler(src_v, rnd_val, prev_v, 0, false);
+                        return (next_vw.has_value() ? thrust::get<0>(*next_vw) : src_v);
+                      } else {
+                        return src_v;
+                      }
+                    });
+}
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 void alpha_node2vec(std::vector<edge_t> const& row_offsets,
                     std::vector<vertex_t> const& col_indices,
                     std::vector<weight_t>& weights,  // to be scaled!
-                    std::vector<std::optional<vertex_t>> const& v_pred,
+                    std::vector<thrust::optional<vertex_t>> const& v_pred,
                     std::vector<vertex_t> const& v_crt,
                     weight_t p,
                     weight_t q)
@@ -1284,6 +1314,8 @@ TEST(Node2VecRandomWalks, DISABLED_Node2VecSmallGraph)
   edge_t num_edges      = 8;
   vertex_t num_vertices = 6;
 
+  // Step 1: graph construction:
+  //
   /*
     0 --(.1)--> 1 --(1.1)--> 4
    /|\       /\ |            |
@@ -1295,14 +1327,14 @@ TEST(Node2VecRandomWalks, DISABLED_Node2VecSmallGraph)
    */
   std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
-  std::vector<weight_t> v_w{0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  std::vector<weight_t> v_w(1.0, num_edges);  //{0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
   auto graph = cugraph::test::make_graph(
     handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   std::vector<real_t> v_rnd{0.2, 0.5, 1.0, 0.1, 0.8};
   std::vector<vertex_t> v_src_v{0, 1, 3, 4, 5};
-  std::vector<std::optional<vertex_t>> v_pred_v{2, 0, 1, 1, 4};
+  std::vector<thrust::optional<vertex_t>> v_pred_v{2, 0, 1, 1, 4};
 
   vector_test_t<real_t> d_rnd(v_rnd.size(), handle.get_stream());
   vector_test_t<vertex_t> d_src_v(v_src_v.size(), handle.get_stream());
@@ -1320,12 +1352,26 @@ TEST(Node2VecRandomWalks, DISABLED_Node2VecSmallGraph)
 
   weight_t const* values = *(graph_view.get_matrix_partition_view().get_weights());
 
-  // TODO: do a `next_node2vec()` with `node2vec` selector on `graph_view`, v_crt_v, v_prev_v,
-  // and compare the resulting next_v with the one below resulting from
-  // `next_biased()` using biased selector on `node2vec` alpha scaled weights;
-
+  // Step 2: `node2vec` selection on original graph:
+  //
   cugraph::detail::node2vec_selector_t n2v_selector{handle, graph_view, 0.0f, p, q};
 
+  vector_test_t<thrust::optional<vertex_t>> d_pred_v(v_pred_v.size(), handle.get_stream());
+
+  raft::update_device(d_pred_v.data(), v_pred_v.data(), v_pred_v.size(), handle.get_stream());
+
+  vector_test_t<vertex_t> d_next_v(v_src_v.size(), handle.get_stream());
+
+  // `node2vec` stepping:
+  //
+  next_node2vec(handle, d_src_v, d_pred_v, d_rnd, d_next_v, n2v_selector);
+
+  std::vector<vertex_t> n2v_next_v(v_src_v.size());
+  raft::update_host(n2v_next_v.data(), d_next_v.data(), v_src_v.size(), handle.get_stream());
+
+  // Step 3: construct similar graph, just with
+  //         alpha scaled weights;
+  //
   std::vector<weight_t> scaled_weights(v_w);
   std::vector<edge_t> row_offsets(num_vertices + 1);
   std::vector<vertex_t> col_indices(num_edges);
@@ -1348,15 +1394,17 @@ TEST(Node2VecRandomWalks, DISABLED_Node2VecSmallGraph)
 
   auto scaled_graph_view = scaled_graph.view();
 
+  // Step 4: biased selection on alpha scaled graph:
+  //
   cugraph::detail::biased_selector_t selector{handle, scaled_graph_view, 0.0f};
-
-  vector_test_t<vertex_t> d_next_v(v_src_v.size(), handle.get_stream());
 
   next_biased(handle, d_src_v, d_rnd, d_next_v, selector);
 
-  std::vector<edge_t> v_next_v(v_src_v.size());
+  std::vector<vertex_t> biased_next_v(v_src_v.size());
+  raft::update_host(biased_next_v.data(), d_next_v.data(), v_src_v.size(), handle.get_stream());
 
-  raft::update_host(v_next_v.data(), d_next_v.data(), v_src_v.size(), handle.get_stream());
-
-  // EXPECT_EQ(v_next_v, h_next_v);
+  // Step 5: compare `node2vec` on original graph
+  //         with biased on graph with alpha scaled weights:
+  //
+  EXPECT_EQ(biased_next_v, n2v_next_v);
 }
