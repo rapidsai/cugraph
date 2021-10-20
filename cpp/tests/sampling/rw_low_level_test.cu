@@ -1296,7 +1296,7 @@ TEST(BiasedRandomWalks, SelectorSmallGraph)
   EXPECT_EQ(v_next_v, h_next_v);
 }
 
-TEST(Node2VecRandomWalks, DISABLED_Node2VecSmallGraph)
+TEST(Node2VecRandomWalks, Node2VecSmallGraph)
 {
   namespace topo = cugraph::topology;
 
@@ -1327,7 +1327,7 @@ TEST(Node2VecRandomWalks, DISABLED_Node2VecSmallGraph)
    */
   std::vector<vertex_t> v_src{0, 1, 1, 2, 2, 2, 3, 4};
   std::vector<vertex_t> v_dst{1, 3, 4, 0, 1, 3, 5, 5};
-  std::vector<weight_t> v_w(1.0, num_edges);  //{0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  std::vector<weight_t> v_w(num_edges, 1.0);  //{0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
   auto graph = cugraph::test::make_graph(
     handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
@@ -1369,6 +1369,8 @@ TEST(Node2VecRandomWalks, DISABLED_Node2VecSmallGraph)
   std::vector<vertex_t> n2v_next_v(v_src_v.size());
   raft::update_host(n2v_next_v.data(), d_next_v.data(), v_src_v.size(), handle.get_stream());
 
+  EXPECT_EQ(n2v_next_v.size(), d_src_v.size());
+
   // Step 3: construct similar graph, just with
   //         alpha scaled weights;
   //
@@ -1381,6 +1383,13 @@ TEST(Node2VecRandomWalks, DISABLED_Node2VecSmallGraph)
 
   raft::update_host(
     col_indices.data(), indices, static_cast<size_t>(num_edges), handle.get_stream());
+
+  std::vector<edge_t> v_ro{0, 1, 3, 6, 7, 8, 8};
+  std::vector<vertex_t> v_ci{1, 3, 4, 0, 1, 3, 5, 5};
+
+  EXPECT_EQ(row_offsets, v_ro);
+  EXPECT_EQ(col_indices, v_ci);
+  EXPECT_EQ(scaled_weights.size(), static_cast<size_t>(num_edges));
 
   alpha_node2vec(row_offsets, col_indices, scaled_weights, v_pred_v, v_src_v, p, q);
 
@@ -1402,6 +1411,8 @@ TEST(Node2VecRandomWalks, DISABLED_Node2VecSmallGraph)
 
   std::vector<vertex_t> biased_next_v(v_src_v.size());
   raft::update_host(biased_next_v.data(), d_next_v.data(), v_src_v.size(), handle.get_stream());
+
+  EXPECT_EQ(biased_next_v.size(), d_src_v.size());
 
   // Step 5: compare `node2vec` on original graph
   //         with biased on graph with alpha scaled weights:
