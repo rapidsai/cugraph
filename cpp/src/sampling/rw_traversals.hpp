@@ -447,7 +447,11 @@ struct node2vec_selector_t {
       // cached solution, for increased performance, but memory expensive:
       //
       if (coalesced_alpha_.has_value()) {
-        auto&& [max_out_deg, num_paths, ptr_d_scaled_weights] = *coalesced_alpha_;
+        auto&& tpl = *coalesced_alpha_;
+
+        auto max_out_deg           = thrust::get<0>(tpl);
+        auto num_paths             = thrust::get<1>(tpl);
+        auto* ptr_d_scaled_weights = thrust::get<2>(tpl);
 
         // sum-scaled-weights reduction loop:
         //
