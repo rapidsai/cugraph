@@ -49,6 +49,8 @@
 #include <cassert>
 #include <cstdlib>  // FIXME: requirement for temporary std::getenv()
 #include <ctime>
+#include <limits>
+//
 #include <optional>
 #include <tuple>
 #include <type_traits>
@@ -1141,6 +1143,11 @@ random_walks(raft::handle_t const& handle,
       weight_t p(sampling_strategy->p_);
       weight_t q(sampling_strategy->q_);
 
+      weight_t roundoff = std::numeric_limits<weight_t>::epsilon();
+      CUGRAPH_EXPECTS(p > roundoff, "node2vec p parameter is too small.");
+
+      CUGRAPH_EXPECTS(q > roundoff, "node2vec q parameter is too small.");
+
       detail::node2vec_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}, p, q};
 
       auto quad_tuple =
@@ -1180,6 +1187,11 @@ random_walks(raft::handle_t const& handle,
     } else if (selector_type == static_cast<int>(sampling_strategy_t::NODE2VEC)) {
       weight_t p(sampling_strategy->p_);
       weight_t q(sampling_strategy->q_);
+
+      weight_t roundoff = std::numeric_limits<weight_t>::epsilon();
+      CUGRAPH_EXPECTS(p > roundoff, "node2vec p parameter is too small.");
+
+      CUGRAPH_EXPECTS(q > roundoff, "node2vec q parameter is too small.");
 
       detail::node2vec_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}, p, q};
 
