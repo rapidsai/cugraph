@@ -449,9 +449,9 @@ struct node2vec_selector_t {
       if (coalesced_alpha_.has_value()) {
         auto&& tpl = *coalesced_alpha_;
 
-        auto max_out_deg           = thrust::get<0>(tpl);
-        auto num_paths             = thrust::get<1>(tpl);
-        auto* ptr_d_scaled_weights = thrust::get<2>(tpl);
+        auto max_out_deg               = thrust::get<0>(tpl);
+        auto num_paths                 = thrust::get<1>(tpl);
+        weight_t* ptr_d_scaled_weights = thrust::get<2>(tpl);
 
         // sum-scaled-weights reduction loop:
         //
@@ -521,6 +521,8 @@ struct node2vec_selector_t {
       }
     }
 
+    decltype(auto) get_alpha_buffer(void) const { return coalesced_alpha_; }
+
    private:
     edge_t const* row_offsets_;
     vertex_t const* col_indices_;
@@ -579,6 +581,8 @@ struct node2vec_selector_t {
                           edge_t{0},
                           thrust::maximum<edge_t>{});
   }
+
+  device_vec_t<weight_t> const& get_alpha_cache(void) const { return d_coalesced_alpha_; }
 
  private:
   size_t max_out_degree_{0};
