@@ -287,12 +287,11 @@ class matrix_partition_device_view_t<vertex_t,
 
   __host__ __device__ thrust::optional<vertex_t const*> get_dcs_nzd_vertices() const
   {
-    assert(false);
     return thrust::nullopt;
   }
+
   __host__ __device__ thrust::optional<vertex_t> get_dcs_nzd_vertex_count() const
   {
-    assert(false);
     return thrust::nullopt;
   }
 

@@ -58,7 +58,7 @@ def jaccard(input_graph, vertex_pair=None):
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> pairs = cugraph.get_two_hop_neighbors(G)
+    >>> pairs = G.get_two_hop_neighbors()
     >>> df = cugraph.jaccard(G, pairs)
 
     But please remember that cugraph will fill the dataframe with the entire

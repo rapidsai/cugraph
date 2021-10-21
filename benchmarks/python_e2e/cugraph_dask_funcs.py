@@ -23,6 +23,7 @@ import cugraph
 from cugraph.comms import comms as Comms
 from cugraph.dask.common.mg_utils import get_visible_devices
 from cugraph.generators import rmat
+import tempfile
 
 
 def generate_edgelist(scale,
@@ -165,8 +166,12 @@ def setup(dask_scheduler_file=None):
         client = Client(scheduler_file=dask_scheduler_file)
 
     else:
-        cluster = LocalCUDACluster()
+        tempdir_object = tempfile.TemporaryDirectory()
+        cluster = LocalCUDACluster(local_directory=tempdir_object.name)
         client = Client(cluster)
+        # add the obj to the client so it doesn't get deleted until
+        # the 'client' obj gets cleaned up
+        client.tempdir_object = tempdir_object
         client.wait_for_workers(len(get_visible_devices()))
 
     Comms.initialize(p2p=True)

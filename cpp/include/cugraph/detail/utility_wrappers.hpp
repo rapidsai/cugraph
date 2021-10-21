@@ -46,6 +46,19 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                          uint64_t seed);
 
 /**
+ * @brief    Normalize the values in an array
+ *
+ * @tparam      value_t      type of the value to operate on
+ *
+ * @param[in]   stream_view  stream view
+ * @param[out]  d_value      device array to reduce
+ * @param[in]   size         number of elements in array
+ *
+ */
+template <typename value_t>
+void normalize(rmm::cuda_stream_view const& stream_view, value_t* d_value, size_t size);
+
+/**
  * @brief    Fill a buffer with a sequence of values
  *
  * Fills the buffer with the sequence:

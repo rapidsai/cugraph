@@ -112,6 +112,12 @@ class partition_t {
     return vertex_partition_offsets_;
   }
 
+  std::vector<vertex_t> get_vertex_partition_lasts() const
+  {
+    return std::vector<vertex_t>(vertex_partition_offsets_.begin() + 1,
+                                 vertex_partition_offsets_.end());
+  }
+
   std::tuple<vertex_t, vertex_t> get_local_vertex_range() const
   {
     return std::make_tuple(vertex_partition_offsets_[comm_rank_],
@@ -361,10 +367,14 @@ class graph_view_t<vertex_t,
     std::optional<std::vector<weight_t const*>> const& adj_matrix_partition_weights,
     std::optional<std::vector<vertex_t const*>> const& adj_matrix_partition_dcs_nzd_vertices,
     std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
-    graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
-    bool do_expensive_check = false);
+    graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta);
 
   bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
+
+  std::vector<vertex_t> get_vertex_partition_lasts() const
+  {
+    return partition_.get_vertex_partition_lasts();
+  }
 
   vertex_t get_number_of_local_vertices() const
   {
@@ -669,12 +679,16 @@ class graph_view_t<vertex_t,
                edge_t const* offsets,
                vertex_t const* indices,
                std::optional<weight_t const*> weights,
-               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
-               bool do_expensive_check = false);
+               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta);
 
   bool is_weighted() const { return weights_.has_value(); }
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
+
+  std::vector<vertex_t> get_vertex_partition_lasts() const
+  {
+    return std::vector<vertex_t>{get_local_vertex_last()};
+  }
 
   constexpr vertex_t get_local_vertex_first() const { return vertex_t{0}; }
 
@@ -707,7 +721,7 @@ class graph_view_t<vertex_t,
     return this->get_number_of_vertices();
   }
 
-  edge_t get_number_of_local_adj_matrix_partition_edges(size_t adj_matrix_partition_idx) const
+  edge_t get_number_of_local_adj_matrix_partition_edges(size_t adj_matrix_partition_idx = 0) const
   {
     assert(adj_matrix_partition_idx == 0);
     return this->get_number_of_edges();
@@ -731,20 +745,20 @@ class graph_view_t<vertex_t,
     return get_number_of_local_adj_matrix_partition_rows(0);
   }
 
-  vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx) const
+  vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx = 0) const
   {
     assert(adj_matrix_partition_idx == 0);
     return vertex_t{0};
   }
 
-  vertex_t get_local_adj_matrix_partition_row_last(size_t adj_matrix_partition_idx) const
+  vertex_t get_local_adj_matrix_partition_row_last(size_t adj_matrix_partition_idx = 0) const
   {
     assert(adj_matrix_partition_idx == 0);
     return this->get_number_of_vertices();
   }
 
   vertex_t get_local_adj_matrix_partition_row_value_start_offset(
-    size_t adj_matrix_partition_idx) const
+    size_t adj_matrix_partition_idx = 0) const
   {
     assert(adj_matrix_partition_idx == 0);
     return vertex_t{0};
@@ -768,27 +782,27 @@ class graph_view_t<vertex_t,
     return get_number_of_local_adj_matrix_partition_cols(0);
   }
 
-  vertex_t get_local_adj_matrix_partition_col_first(size_t adj_matrix_partition_idx) const
+  vertex_t get_local_adj_matrix_partition_col_first(size_t adj_matrix_partition_idx = 0) const
   {
     assert(adj_matrix_partition_idx == 0);
     return vertex_t{0};
   }
 
-  vertex_t get_local_adj_matrix_partition_col_last(size_t adj_matrix_partition_idx) const
+  vertex_t get_local_adj_matrix_partition_col_last(size_t adj_matrix_partition_idx = 0) const
   {
     assert(adj_matrix_partition_idx == 0);
     return this->get_number_of_vertices();
   }
 
   vertex_t get_local_adj_matrix_partition_col_value_start_offset(
-    size_t adj_matrix_partition_idx) const
+    size_t adj_matrix_partition_idx = 0) const
   {
     assert(adj_matrix_partition_idx == 0);
     return vertex_t{0};
   }
 
   std::optional<std::vector<vertex_t>> get_local_adj_matrix_partition_segment_offsets(
-    size_t adj_matrix_partition_idx) const
+    size_t adj_matrix_partition_idx = 0) const
   {
     assert(adj_matrix_partition_idx == 0);
     return segment_offsets_;

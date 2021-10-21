@@ -53,15 +53,11 @@ def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
 
     Examples
     --------
-    >>> import cugraph.dask as dcg
-    >>> Comms.initialize()
-    >>> chunksize = dcg.get_chunksize(input_data_path)
-    >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
-                                 delimiter=' ',
-                                 names=['src', 'dst', 'weight'],
-                                 dtype=['int32', 'int32', 'float32'])
-    >>> sym_ddf = cugraph.symmetrize_ddf(ddf, "src", "dst", "weight")
-    >>> Comms.destroy()
+    >>> from cugraph.structure.symmetrize import symmetrize_df
+    >>  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sym_df = symmetrize(M, '0', '1')
     """
     #
     #  Now append the columns.  We add sources to the end of destinations,
@@ -127,9 +123,17 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sym_df = cugraph.symmetrize(M, '0', '1')
+    >>> import cugraph.dask as dcg
+    >>> from cugraph.structure.symmetrize import symmetrize_ddf
+    >>> ... Init a DASK Cluster
+    >>  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
+    >>> chunksize = dcg.get_chunksize(input_data_path)
+    >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
+                                 delimiter=' ',
+                                 names=['src', 'dst', 'weight'],
+                                 dtype=['int32', 'int32', 'float32'])
+    >>> sym_ddf = symmetrize_ddf(ddf, "src", "dst", "weight")
+    >>> Comms.destroy()
     """
     if weight_name:
         ddf2 = df[[dst_name, src_name, weight_name]]
@@ -180,12 +184,14 @@ def symmetrize(source_col, dest_col, value_col=None, multi=False,
 
     Examples
     --------
+    >>> from cugraph.structure.symmetrize import symmetrize
+    >>  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
     >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
     >>>                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> sources = cudf.Series(M['0'])
     >>> destinations = cudf.Series(M['1'])
     >>> values = cudf.Series(M['2'])
-    >>> src, dst, val = cugraph.symmetrize(sources, destinations, values)
+    >>> src, dst, val = symmetrize(sources, destinations, values)
     """
 
     input_df = None

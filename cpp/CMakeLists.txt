@@ -207,6 +207,8 @@ add_library(cugraph SHARED
     src/structure/induced_subgraph_sg.cu
     ## FIXME: Not currently supported
     ##src/structure/induced_subgraph_mg.cu
+    src/traversal/extract_bfs_paths_sg.cu
+    src/traversal/extract_bfs_paths_mg.cu
     src/traversal/bfs_sg.cu
     src/traversal/bfs_mg.cu
     src/traversal/sssp_sg.cu
@@ -219,8 +221,10 @@ add_library(cugraph SHARED
     src/tree/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
-    src/structure/create_graph_from_edgelist_sg.cpp
-    src/structure/create_graph_from_edgelist_mg.cpp
+    src/structure/create_graph_from_edgelist_sg.cu
+    src/structure/create_graph_from_edgelist_mg.cu
+    src/structure/symmetrize_edgelist_sg.cu
+    src/structure/symmetrize_edgelist_mg.cu
     src/utilities/host_barrier.cpp
     src/visitors/graph_envelope.cpp
     src/visitors/visitors_factory.cpp
