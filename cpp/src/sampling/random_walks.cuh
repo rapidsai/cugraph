@@ -1137,6 +1137,21 @@ random_walks(raft::handle_t const& handle,
       return std::make_tuple(std::move(std::get<0>(quad_tuple)),
                              std::move(std::get<1>(quad_tuple)),
                              std::move(std::get<2>(quad_tuple)));
+    } else if (selector_type == static_cast<int>(sampling_strategy_t::NODE2VEC)) {
+      weight_t p(sampling_strategy->p_);
+      weight_t q(sampling_strategy->q_);
+
+      detail::node2vec_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}, p, q};
+
+      auto quad_tuple =
+        detail::random_walks_impl<graph_t, decltype(selector), detail::vertical_traversal_t>(
+          handle, graph, d_v_start, max_depth, selector, use_padding);
+      // ignore last element of the quad, seed,
+      // since it's meant for testing / debugging, only:
+      //
+      return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                             std::move(std::get<1>(quad_tuple)),
+                             std::move(std::get<2>(quad_tuple)));
     } else {
       detail::uniform_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
 
@@ -1150,9 +1165,23 @@ random_walks(raft::handle_t const& handle,
                              std::move(std::get<1>(quad_tuple)),
                              std::move(std::get<2>(quad_tuple)));
     }
-  } else {
+  } else {  // horizontal traversal strategy
     if (selector_type == static_cast<int>(sampling_strategy_t::BIASED)) {
       detail::biased_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
+
+      auto quad_tuple =
+        detail::random_walks_impl(handle, graph, d_v_start, max_depth, selector, use_padding);
+      // ignore last element of the quad, seed,
+      // since it's meant for testing / debugging, only:
+      //
+      return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                             std::move(std::get<1>(quad_tuple)),
+                             std::move(std::get<2>(quad_tuple)));
+    } else if (selector_type == static_cast<int>(sampling_strategy_t::NODE2VEC)) {
+      weight_t p(sampling_strategy->p_);
+      weight_t q(sampling_strategy->q_);
+
+      detail::node2vec_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}, p, q};
 
       auto quad_tuple =
         detail::random_walks_impl(handle, graph, d_v_start, max_depth, selector, use_padding);

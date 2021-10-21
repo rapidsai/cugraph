@@ -1519,8 +1519,6 @@ TEST(Node2VecRandomWalks, CachedNode2VecSmallGraph)
   //         if ignored, this creates a data race on the cached
   //         alpha buffer!
   //
-  // <- FIXME: PROBLEM here: BUG to be fixed for cached alpha testing
-  //
   next_node2vec(handle, d_src_v, d_pred_v, d_rnd, d_next_v, n2v_selector);
 
   std::vector<vertex_t> n2v_next_v(v_src_v.size());
