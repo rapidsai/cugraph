@@ -30,6 +30,7 @@ requirements:
     - ucx-py 0.23
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
+    - rmm {{ minor_version }}.*
   run:
     - python x.x
     - libcugraph={{ version }}
