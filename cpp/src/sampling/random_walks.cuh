@@ -1126,6 +1126,13 @@ random_walks(raft::handle_t const& handle,
   int selector_type{0};
   if (sampling_strategy) selector_type = static_cast<int>(sampling_strategy->sampling_type_);
 
+  // node2vec is only possible for weight_t being a floating-point type:
+  //
+  if constexpr (!std::is_floating_point_v<weight_t>) {
+    CUGRAPH_EXPECTS(selector_type != static_cast<int>(sampling_strategy_t::NODE2VEC),
+                    "node2vec requires floating point type for weights.");
+  }
+
   if (use_vertical_strategy) {
     if (selector_type == static_cast<int>(sampling_strategy_t::BIASED)) {
       detail::biased_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
