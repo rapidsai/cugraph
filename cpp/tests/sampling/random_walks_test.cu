@@ -137,14 +137,14 @@ class Tests_RandomWalks
     weight_t q{8};
 
     if (trv_id == traversal_id_t::HORIZONTAL) {
-      auto ret_tuple =
-        cugraph::random_walks(handle,
-                              graph_view,
-                              d_start_view.begin(),
-                              num_paths,
-                              max_depth,
-                              false,
-                              std::make_unique<cugraph::sampling_params_t>(sampling_id, p, q));
+      auto ret_tuple = cugraph::random_walks(
+        handle,
+        graph_view,
+        d_start_view.begin(),
+        num_paths,
+        max_depth,
+        false,
+        std::make_unique<cugraph::sampling_params_t>(sampling_id, p, q, true));
 
       // check results:
       //
@@ -203,7 +203,7 @@ class Tests_RandomWalks
         ASSERT_TRUE(test_all_paths);
       } else {
         impl_details::node2vec_selector_t<graph_vt, real_t> selector{
-          handle, graph_view, real_t{0}, p, q};
+          handle, graph_view, real_t{0}, p, q, num_paths};
 
         auto ret_tuple = impl_details::random_walks_impl<graph_vt,
                                                          decltype(selector),

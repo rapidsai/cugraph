@@ -1150,12 +1150,15 @@ random_walks(raft::handle_t const& handle,
       weight_t p(sampling_strategy->p_);
       weight_t q(sampling_strategy->q_);
 
+      edge_t alpha_num_paths = sampling_strategy->use_alpha_cache_ ? num_paths : 0;
+
       weight_t roundoff = std::numeric_limits<weight_t>::epsilon();
       CUGRAPH_EXPECTS(p > roundoff, "node2vec p parameter is too small.");
 
       CUGRAPH_EXPECTS(q > roundoff, "node2vec q parameter is too small.");
 
-      detail::node2vec_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}, p, q};
+      detail::node2vec_selector_t<graph_t, real_t> selector{
+        handle, graph, real_t{0}, p, q, alpha_num_paths};
 
       auto quad_tuple =
         detail::random_walks_impl<graph_t, decltype(selector), detail::vertical_traversal_t>(
@@ -1195,12 +1198,15 @@ random_walks(raft::handle_t const& handle,
       weight_t p(sampling_strategy->p_);
       weight_t q(sampling_strategy->q_);
 
+      edge_t alpha_num_paths = sampling_strategy->use_alpha_cache_ ? num_paths : 0;
+
       weight_t roundoff = std::numeric_limits<weight_t>::epsilon();
       CUGRAPH_EXPECTS(p > roundoff, "node2vec p parameter is too small.");
 
       CUGRAPH_EXPECTS(q > roundoff, "node2vec q parameter is too small.");
 
-      detail::node2vec_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}, p, q};
+      detail::node2vec_selector_t<graph_t, real_t> selector{
+        handle, graph, real_t{0}, p, q, alpha_num_paths};
 
       auto quad_tuple =
         detail::random_walks_impl(handle, graph, d_v_start, max_depth, selector, use_padding);
