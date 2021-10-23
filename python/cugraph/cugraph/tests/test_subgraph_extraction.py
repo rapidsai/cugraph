@@ -22,13 +22,13 @@ import cugraph
 from cugraph.tests import utils
 
 
-################################################################################
+###############################################################################
 # pytest setup - called for each test function
 def setup_function():
     gc.collect()
 
 
-################################################################################
+###############################################################################
 def compare_edges(cg, nxg):
     edgelist_df = cg.view_edge_list()
     assert cg.edgelist.weights is False
@@ -67,7 +67,7 @@ def nx_call(M, verts, directed=True):
     return nx.subgraph(G, verts)
 
 
-################################################################################
+###############################################################################
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_DiGraph(graph_file):
     M = utils.read_csv_for_nx(graph_file)
@@ -154,14 +154,14 @@ def test_subgraph_extraction_multi_column(graph_file):
                             edgelist_df_res["0_dst"].iloc[i])
 
 
-# FIXME: the coverage provided by this test could probably be handled by another
-# test that also checks using renumber=False
+# FIXME: the coverage provided by this test could probably be handled by
+# another test that also checks using renumber=False
 def test_subgraph_extraction_graph_not_renumbered():
     """
     Ensure subgraph() works with a Graph that has not been renumbered
     """
     graph_file = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"
-    gdf = cudf.read_csv(graph_file, delimiter = " ",
+    gdf = cudf.read_csv(graph_file, delimiter=" ",
                         dtype=["int32", "int32", "float32"], header=None)
     verts = np.array([0, 1, 2], dtype=np.int32)
     sverts = cudf.Series(verts)

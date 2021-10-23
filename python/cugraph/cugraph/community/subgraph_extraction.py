@@ -22,9 +22,10 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
 def subgraph(G, vertices):
     """
     Compute a subgraph of the existing graph including only the specified
-    vertices.  This algorithm works with both directed and undirected graphs and
-    does not actually traverse the edges, but instead simply pulls out any edges
-    that are incident on vertices that are both contained in the vertices list.
+    vertices.  This algorithm works with both directed and undirected graphs
+    and does not actually traverse the edges, but instead simply pulls out any
+    edges that are incident on vertices that are both contained in the vertices
+    list.
 
     Parameters
     ----------
