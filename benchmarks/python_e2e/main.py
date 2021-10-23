@@ -40,7 +40,7 @@ def store_results_json(benchmark_dir=None,
     benchmark_result['result'] = algo_time
     benchmark_result['argNameValuePairs'] = [('scale', scale), ('ngpus', n_gpus)]
 
-    json_object = json.dumps(benchmark_result, indent = 4)
+    json_object = json.dumps(benchmark_result, indent=4)
 
     benchmark_dir_path = Path(benchmark_dir)
 
@@ -104,7 +104,7 @@ def run(algos,
 
     # If the number of GPUs is None, This is a MNMG run
     # Extract the number of gpus from the client
-    if not n_gpus:
+    if n_gpus is None:
         n_gpus = len(setup_objs[0].scheduler_info()['workers'])
     log("done.")
 
