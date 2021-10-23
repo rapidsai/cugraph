@@ -11,19 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cudf
+
 from cugraph.community import subgraph_extraction_wrapper
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                cugraph_to_nx,
                                )
 
-import cudf
-
 
 def subgraph(G, vertices):
     """
     Compute a subgraph of the existing graph including only the specified
-    vertices.  This algorithm works for both directed and undirected graphs,
-    it does not actually traverse the edges, simply pulls out any edges that
+    vertices.  This algorithm works for both directed and undirected graphs, and
+    does not traverse the edges, but instead it simply pulls out any edges that
     are incident on vertices that are both contained in the vertices list.
 
     Parameters
@@ -66,10 +66,12 @@ def subgraph(G, vertices):
     result_graph = type(G)()
 
     df = subgraph_extraction_wrapper.subgraph(G, vertices)
+    src_names = "src"
+    dst_names = "dst"
 
     if G.renumbered:
-        df, src_names = G.unrenumber(df, "src", get_column_names=True)
-        df, dst_names = G.unrenumber(df, "dst", get_column_names=True)
+        df, src_names = G.unrenumber(df, src_names, get_column_names=True)
+        df, dst_names = G.unrenumber(df, dst_names, get_column_names=True)
 
     if G.edgelist.weights:
         result_graph.from_cudf_edgelist(
