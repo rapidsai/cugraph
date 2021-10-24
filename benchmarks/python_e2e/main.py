@@ -132,7 +132,8 @@ def run(algos,
         algo_name = benchmark.results[1].name
         algo_time = benchmark.results[1].runtime
         # Generate json files containing the benchmark results
-        store_results_json(benchmark_dir, algo_name, algo_time, n_gpus, scale)
+        if benchmark_dir is not None:
+            store_results_json(benchmark_dir, algo_name, algo_time, n_gpus, scale)
         
         # Report results
         print(generate_console_report(benchmark.results))
