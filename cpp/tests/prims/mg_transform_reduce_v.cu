@@ -70,7 +70,10 @@ struct result_compare {
   constexpr auto operator()(const T& t1, const T& t2)
   {
     if constexpr (std::is_floating_point_v<T>) {
-      return std::abs(t1 - t2) < (std::max(t1, t2) * threshold_ratio);
+      bool passed = (t1 == t2)  // when t1 == t2 == 0
+                    ||
+                    (std::abs(t1 - t2) < (std::max(std::abs(t1), std::abs(t2)) * threshold_ratio));
+      return passed;
     }
     return t1 == t2;
   }
@@ -91,7 +94,10 @@ struct result_compare<thrust::tuple<Args...>> {
   constexpr bool equal(T t1, T t2)
   {
     if constexpr (std::is_floating_point_v<T>) {
-      return std::abs(t1 - t2) < (std::max(t1, t2) * threshold_ratio);
+      bool passed = (t1 == t2)  // when t1 == t2 == 0
+                    ||
+                    (std::abs(t1 - t2) < (std::max(std::abs(t1), std::abs(t2)) * threshold_ratio));
+      return passed;
     }
     return t1 == t2;
   }
@@ -182,22 +188,31 @@ class Tests_MG_TransformReduceV
 
     property_transform<vertex_t, result_t> prop(hash_bin_count);
     auto property_initial_value = generate<result_t>::initial_value(initial_value);
+    using property_t            = decltype(property_initial_value);
+    raft::comms::op_t ops[]     = {raft::comms::op_t::SUM,
+                               // raft::comms::op_t::PROD,
+                               raft::comms::op_t::MIN,
+                               raft::comms::op_t::MAX};
 
-    if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
-      hr_clock.start();
-    }
+    std::unordered_map<raft::comms::op_t, property_t> results;
 
-    auto result = transform_reduce_v(
-      handle, mg_graph_view, d_mg_renumber_map_labels->begin(), prop, property_initial_value);
+    for (auto op : ops) {
+      if (cugraph::test::g_perf) {
+        CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+        handle.get_comms().barrier();
+        hr_clock.start();
+      }
 
-    if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG transform reduce took " << elapsed_time * 1e-6 << " s.\n";
+      results[op] = transform_reduce_v(
+        handle, mg_graph_view, d_mg_renumber_map_labels->begin(), prop, property_initial_value, op);
+
+      if (cugraph::test::g_perf) {
+        CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+        handle.get_comms().barrier();
+        double elapsed_time{0.0};
+        hr_clock.stop(&elapsed_time);
+        std::cout << "MG transform reduce took " << elapsed_time * 1e-6 << " s.\n";
+      }
     }
 
     //// 4. compare SG & MG results
@@ -208,17 +223,21 @@ class Tests_MG_TransformReduceV
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
           handle, input_usecase, true, false);
       auto sg_graph_view = sg_graph.view();
-      using property_t   = decltype(property_initial_value);
 
-      auto expected_result = thrust::transform_reduce(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
-        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
-        prop,
-        property_initial_value,
-        cugraph::property_add<property_t>());
-      result_compare<property_t> compare{};
-      ASSERT_TRUE(compare(expected_result, result));
+      for (auto op : ops) {
+        auto expected_result = cugraph::op_dispatch<property_t>(
+          op, [&handle, &sg_graph_view, prop, property_initial_value](auto op) {
+            return thrust::transform_reduce(
+              handle.get_thrust_policy(),
+              thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
+              thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
+              prop,
+              property_initial_value,
+              op);
+          });
+        result_compare<property_t> compare{};
+        ASSERT_TRUE(compare(expected_result, results[op]));
+      }
     }
   }
 };
