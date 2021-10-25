@@ -137,21 +137,53 @@ class Tests_RandomWalks
     weight_t q{8};
 
     if (trv_id == traversal_id_t::HORIZONTAL) {
-      auto ret_tuple = cugraph::random_walks(
-        handle,
-        graph_view,
-        d_start_view.begin(),
-        num_paths,
-        max_depth,
-        false,
-        std::make_unique<cugraph::sampling_params_t>(sampling_id, p, q, true));
-
-      // check results:
+      // `node2vec` without alpha buffer:
       //
-      bool test_all_paths = cugraph::test::host_check_rw_paths(
-        handle, graph_view, std::get<0>(ret_tuple), std::get<1>(ret_tuple), std::get<2>(ret_tuple));
+      if (sampling_id == 2) {
+        auto ret_tuple = cugraph::random_walks(
+          handle,
+          graph_view,
+          d_start_view.begin(),
+          num_paths,
+          max_depth,
+          false,
+          std::make_unique<cugraph::sampling_params_t>(sampling_id, p, q, false));
 
-      ASSERT_TRUE(test_all_paths);
+        // check results:
+        //
+        bool test_all_paths = cugraph::test::host_check_rw_paths(handle,
+                                                                 graph_view,
+                                                                 std::get<0>(ret_tuple),
+                                                                 std::get<1>(ret_tuple),
+                                                                 std::get<2>(ret_tuple));
+
+        ASSERT_TRUE(test_all_paths);
+      }
+
+      // the alpha buffer case should also be tested for `node2vec`
+      // and for the others is irrelevant, so this block is necessary
+      // for any sampling method:
+      //
+      {
+        auto ret_tuple = cugraph::random_walks(
+          handle,
+          graph_view,
+          d_start_view.begin(),
+          num_paths,
+          max_depth,
+          false,
+          std::make_unique<cugraph::sampling_params_t>(sampling_id, p, q, true));
+
+        // check results:
+        //
+        bool test_all_paths = cugraph::test::host_check_rw_paths(handle,
+                                                                 graph_view,
+                                                                 std::get<0>(ret_tuple),
+                                                                 std::get<1>(ret_tuple),
+                                                                 std::get<2>(ret_tuple));
+
+        ASSERT_TRUE(test_all_paths);
+      }
     } else {  // VERTICAL: needs to be force-called via detail
       if (sampling_id == 0) {
         impl_details::uniform_selector_t<graph_vt, real_t> selector{handle, graph_view, real_t{0}};
