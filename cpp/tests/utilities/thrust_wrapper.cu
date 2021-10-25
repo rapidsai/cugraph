@@ -57,6 +57,16 @@ std::tuple<key_buffer_type, value_buffer_type> sort_by_key(raft::handle_t const&
   return std::make_tuple(std::move(sorted_keys), std::move(sorted_values));
 }
 
+template std::tuple<rmm::device_uvector<float>, rmm::device_uvector<int32_t>> sort_by_key(
+  raft::handle_t const& handle,
+  rmm::device_uvector<float> const& keys,
+  rmm::device_uvector<int32_t> const& values);
+
+template std::tuple<rmm::device_uvector<double>, rmm::device_uvector<int32_t>> sort_by_key(
+  raft::handle_t const& handle,
+  rmm::device_uvector<double> const& keys,
+  rmm::device_uvector<int32_t> const& values);
+
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> sort_by_key(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t> const& keys,
