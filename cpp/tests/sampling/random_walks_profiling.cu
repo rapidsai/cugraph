@@ -130,10 +130,31 @@ void output_random_walks_time(graph_vt const& graph_view,
 
       cudaProfilerStop();
       hr_timer.stop();
-    } else {
-      label = std::string("RandomWalks; Horizontal traversal; node2vec sampling - ");
+    } else if (sampling_id == 2) {
+      label =
+        std::string("RandomWalks; Horizontal traversal; node2vec sampling with alpha cache - ");
       impl_details::node2vec_selector_t<graph_vt, real_t> selector{
         handle, graph_view, real_t{0}, p, q, num_paths};
+
+      hr_timer.start(label);
+      cudaProfilerStart();
+
+      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+                                                       decltype(selector),
+                                                       impl_details::horizontal_traversal_t>(
+        handle,  // prevent clang-format to separate function name from its namespace
+        graph_view,
+        d_start_view,
+        max_depth,
+        selector);
+
+      cudaProfilerStop();
+      hr_timer.stop();
+    } else {
+      label =
+        std::string("RandomWalks; Horizontal traversal; node2vec sampling without alpha cache - ");
+      impl_details::node2vec_selector_t<graph_vt, real_t> selector{
+        handle, graph_view, real_t{0}, p, q};
 
       hr_timer.start(label);
       cudaProfilerStart();
@@ -185,10 +206,30 @@ void output_random_walks_time(graph_vt const& graph_view,
 
       cudaProfilerStop();
       hr_timer.stop();
-    } else {
-      label = std::string("RandomWalks; Vertical traversal; node2vec sampling - ");
+    } else if (sampling_id == 2) {
+      label = std::string("RandomWalks; Vertical traversal; node2vec sampling with alpha cache - ");
       impl_details::node2vec_selector_t<graph_vt, real_t> selector{
         handle, graph_view, real_t{0}, p, q, num_paths};
+
+      hr_timer.start(label);
+      cudaProfilerStart();
+
+      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+                                                       decltype(selector),
+                                                       impl_details::vertical_traversal_t>(
+        handle,  // prevent clang-format to separate function name from its namespace
+        graph_view,
+        d_start_view,
+        max_depth,
+        selector);
+
+      cudaProfilerStop();
+      hr_timer.stop();
+    } else {
+      label =
+        std::string("RandomWalks; Vertical traversal; node2vec sampling without alpha cache - ");
+      impl_details::node2vec_selector_t<graph_vt, real_t> selector{
+        handle, graph_view, real_t{0}, p, q};
 
       hr_timer.start(label);
       cudaProfilerStart();
@@ -338,6 +379,7 @@ int main(int argc, char** argv)
 
   std::cout << "### Node2Vec sampling strategy:\n";
   run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true), traversal_id_t::HORIZONTAL, 2);
+  run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true), traversal_id_t::HORIZONTAL, 3);
 
   std::cout << "##### Vertical traversal strategy:\n";
 
@@ -349,6 +391,7 @@ int main(int argc, char** argv)
 
   std::cout << "### Node2Vec sampling strategy:\n";
   run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true), traversal_id_t::VERTICAL, 2);
+  run<int32_t, int32_t, float>(RandomWalks_Usecase(dataset, true), traversal_id_t::VERTICAL, 3);
 
   // FIXME: consider returning non-zero for situations that warrant it (eg. if
   // the algo ran but the results are invalid, if a benchmark threshold is
