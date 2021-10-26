@@ -16,19 +16,19 @@
 
 #include <cugraph_c/graph.h>
 
-extern "C" cugraph_graph_t* cugraph_sg_graph_create(
-  const cugraph_raft_handle_t* p_handle,
+extern "C" cugraph_error_t cugraph_sg_graph_create(
+  const cugraph_raft_handle_t* handle,
+  const cugraph_graph_properties_t* properties,
   const cugraph_type_erased_device_array_t* src,
   const cugraph_type_erased_device_array_t* dst,
   const cugraph_type_erased_device_array_t* weights,
   bool_t store_transposed,
-  size_t num_vertices,
-  size_t num_edges,
+  bool_t renumber,
   bool_t check,
-  bool_t is_symmetric,
-  bool_t is_multigraph)
+  cugraph_graph_t** graph)
 {
-  return nullptr;
+  *graph = nullptr;
+  return CUGRAPH_UNKNOWN_ERROR;
 }
 
 extern "C" void cugraph_sg_graph_free(cugraph_graph_t* ptr_graph) {}
