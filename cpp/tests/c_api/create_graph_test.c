@@ -40,6 +40,10 @@ int test_create_sg_graph_simple()
 
   cugraph_raft_handle_t* p_handle = NULL;
   cugraph_graph_t* p_graph        = NULL;
+  cugraph_graph_properties_t properties;
+
+  properties.is_symmetric  = FALSE;
+  properties.is_multigraph = FALSE;
 
   data_type_id_t vertex_tid = INT32;
   data_type_id_t edge_tid   = INT32;
@@ -65,9 +69,16 @@ int test_create_sg_graph_simple()
   ret_code = cugraph_type_erased_device_array_copy_from_host(p_handle, wgt, (byte_t*)h_wgt);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  p_graph = cugraph_sg_graph_create(
-    p_handle, src, dst, wgt, FALSE, num_vertices, num_edges, FALSE, FALSE, FALSE);
-  TEST_ASSERT(test_ret_value, p_graph != NULL, "graph creation failed.");
+  ret_code = cugraph_sg_graph_create(p_handle,
+                                     &properties,
+                                     src,
+                                     dst,
+                                     wgt,
+                                     FALSE,
+                                     FALSE,
+                                     FALSE,
+                                     &p_graph);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   cugraph_sg_graph_free(p_graph);
 

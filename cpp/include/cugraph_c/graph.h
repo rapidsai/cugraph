@@ -28,8 +28,8 @@ typedef struct {
 } cugraph_graph_t;
 
 typedef struct {
-  bool is_symmetric;
-  bool is_multigraph;
+  bool_t is_symmetric;
+  bool_t is_multigraph;
 } cugraph_graph_properties_t;
 
 /**
