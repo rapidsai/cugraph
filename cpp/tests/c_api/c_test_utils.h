@@ -17,11 +17,11 @@
 #include <stdio.h>
 #include <time.h>
 
-#define TEST_ASSERT(RETURN_VALUE, STATEMENT, MESSAGE) \
-  { \
-    (RETURN_VALUE) = !(STATEMENT); \
+#define TEST_ASSERT(RETURN_VALUE, STATEMENT, MESSAGE)                    \
+  {                                                                      \
+    (RETURN_VALUE) = !(STATEMENT);                                       \
     if ((RETURN_VALUE)) { printf("ASSERTION FAILED: %s\n", (MESSAGE)); } \
-  } 
+  }
 
 /*
  * Runs the function pointed to by "test" and returns the return code.  Also
