@@ -38,13 +38,18 @@ typedef struct {
 
 }  // namespace c_api
 
-extern "C" cugraph_type_erased_device_array_t* cugraph_type_erased_device_array_create(
-  const cugraph_raft_handle_t* handle, data_type_id_t dtype, size_t n_elems)
+extern "C" cugraph_error_t cugraph_type_erased_device_array_create(
+  const cugraph_handle_t* handle,
+  data_type_id_t dtype,
+  size_t n_elems,
+  cugraph_type_erased_device_array_t** array)
 {
+  *array = nullptr;
+
   try {
     raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
 
-    if (!raft_handle) return nullptr;
+    if (!raft_handle) return CUGRAPH_INVALID_HANDLE;
 
     size_t nbytes = n_elems * (::data_type_sz[dtype]);
 
@@ -52,9 +57,10 @@ extern "C" cugraph_type_erased_device_array_t* cugraph_type_erased_device_array_
       new c_api::cugraph_type_erased_device_array_t{
         new rmm::device_buffer(nbytes, raft_handle->get_stream()), n_elems, nbytes, dtype};
 
-    return reinterpret_cast<cugraph_type_erased_device_array_t*>(ret_value);
+    *array = reinterpret_cast<cugraph_type_erased_device_array_t*>(ret_value);
+    return CUGRAPH_SUCCESS;
   } catch (...) {
-    return nullptr;
+    return CUGRAPH_UNKNOWN_ERROR;
   }
 }
 
@@ -85,22 +91,28 @@ extern "C" void* cugraph_type_erased_device_array_pointer(
   return internal_pointer->data_->data();
 }
 
-extern "C" cugraph_type_erased_host_array_t* cugraph_type_erased_host_array_create(
-  const cugraph_raft_handle_t* handle, data_type_id_t dtype, size_t n_elems)
+extern "C" cugraph_error_t cugraph_type_erased_host_array_create(
+  const cugraph_handle_t* handle,
+  data_type_id_t dtype,
+  size_t n_elems,
+  cugraph_type_erased_host_array_t** array)
 {
+  *array = nullptr;
+
   try {
     raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
 
-    if (!raft_handle) return nullptr;
+    if (!raft_handle) return CUGRAPH_INVALID_HANDLE;
 
     size_t nbytes = n_elems * (::data_type_sz[dtype]);
 
     c_api::cugraph_type_erased_host_array_t* ret_value =
       new c_api::cugraph_type_erased_host_array_t{new uint8_t[nbytes], n_elems, nbytes, dtype};
 
-    return reinterpret_cast<cugraph_type_erased_host_array_t*>(ret_value);
+    *array = reinterpret_cast<cugraph_type_erased_host_array_t*>(ret_value);
+    return CUGRAPH_SUCCESS;
   } catch (...) {
-    return nullptr;
+    return CUGRAPH_UNKNOWN_ERROR;
   }
 }
 
@@ -131,7 +143,7 @@ extern "C" void* cugraph_type_erased_host_array_pointer(const cugraph_type_erase
 }
 
 extern "C" cugraph_error_t cugraph_type_erased_device_array_copy_from_host(
-  const cugraph_raft_handle_t* handle, cugraph_type_erased_device_array_t* dst, const byte_t* h_src)
+  const cugraph_handle_t* handle, cugraph_type_erased_device_array_t* dst, const byte_t* h_src)
 {
   try {
     raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
@@ -151,7 +163,7 @@ extern "C" cugraph_error_t cugraph_type_erased_device_array_copy_from_host(
 }
 
 extern "C" cugraph_error_t cugraph_type_erased_device_array_copy_to_host(
-  const cugraph_raft_handle_t* handle, byte_t* h_dst, const cugraph_type_erased_device_array_t* src)
+  const cugraph_handle_t* handle, byte_t* h_dst, const cugraph_type_erased_device_array_t* src)
 {
   try {
     raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);

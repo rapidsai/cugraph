@@ -36,7 +36,7 @@ int test_create_sg_graph_simple()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
-  cugraph_raft_handle_t* p_handle = NULL;
+  cugraph_handle_t* p_handle = NULL;
   cugraph_device_buffer_t dbuf_src;
   cugraph_device_buffer_t dbuf_dst;
   cugraph_device_buffer_t dbuf_wgt;
@@ -114,7 +114,7 @@ int test_create_sg_graph_bad_arrays()
   int test_failed = 0;
 
   cugraph_graph_envelope_t* G = NULL;
-  cugraph_raft_handle_t handle;
+  cugraph_handle_t handle;
   cugraph_device_buffer_t* src_ptr     = NULL;
   cugraph_device_buffer_t* dst_ptr     = NULL;
   cugraph_device_buffer_t* weights_ptr = NULL;

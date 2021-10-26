@@ -46,7 +46,7 @@ int test_random_walks_1()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
-  cugraph_raft_handle_t* p_handle = NULL;
+  cugraph_handle_t* p_handle = NULL;
   cugraph_device_buffer_t dbuf_src;
   cugraph_device_buffer_t dbuf_dst;
   cugraph_device_buffer_t dbuf_wgt;
@@ -199,7 +199,7 @@ int test_random_walks_2()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
-  cugraph_raft_handle_t* p_handle = NULL;
+  cugraph_handle_t* p_handle = NULL;
   cugraph_device_buffer_t dbuf_src;
   cugraph_device_buffer_t dbuf_dst;
   cugraph_device_buffer_t dbuf_wgt;
@@ -326,7 +326,7 @@ int test_random_walks_3()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
-  cugraph_raft_handle_t* p_handle = NULL;
+  cugraph_handle_t* p_handle = NULL;
   cugraph_device_buffer_t dbuf_src;
   cugraph_device_buffer_t dbuf_dst;
   cugraph_device_buffer_t dbuf_wgt;

@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cugraph_c/cugraph_api.h>
+#include <cugraph_c/graph.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,8 +28,6 @@ extern "C" {
  *
  * @param [in]  handle      Handle for accessing resources
  * @param [in]  graph       Pointer to graph
- * @param [out] vertex_ids  Returns device pointer to vertex ids
- * @param [out] pageranks   Returns device pointer to pagerank scores
  * @param [in]  precomputed_vertex_out_weight_sums
  *                          Optionally send in precomputed sume of vertex out weights
  *                          (a performance optimization).  Set to NULL if
@@ -43,26 +42,27 @@ extern "C" {
  * @p pageranks) is used as initial PageRank values. If false, initial PageRank values are set
  * to 1.0 divided by the number of vertices in the graph.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @param [out] vertex_ids  Returns device pointer to vertex ids
+ * @param [out] pageranks   Returns device pointer to pagerank scores
+ * @return error code
  */
 cugraph_error_t pagerank(
-  const cugraph_raft_handle_t* handle,
+  const cugraph_handle_t* handle,
   const cugraph_graph_t* graph,
-  cugraph_type_erased_device_array_t** vertex_ids,
-  cugraph_type_erased_device_array_t** pageranks,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
   double alpha,
   double epsilon,
   size_t max_iterations,
   bool has_initial_guess,
-  bool do_expensive_check);
+  bool do_expensive_check,
+  cugraph_type_erased_device_array_t** vertex_ids,
+  cugraph_type_erased_device_array_t** pageranks);
 
 /**
  * @brief     Compute personalized pagerank
  *
  * @param [in]  handle      Handle for accessing resources
  * @param [in]  graph       Pointer to graph
- * @param [out] vertex_ids  Returns device pointer to vertex ids
- * @param [out] pageranks   Returns device pointer to pagerank scores
  * @param [in]  precomputed_vertex_out_weight_sums
  *                          Optionally send in precomputed sume of vertex out weights
  *                          (a performance optimization).  Set to NULL if
@@ -81,12 +81,13 @@ cugraph_error_t pagerank(
  * @p pageranks) is used as initial PageRank values. If false, initial PageRank values are set
  * to 1.0 divided by the number of vertices in the graph.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @param [out] vertex_ids  Returns device pointer to vertex ids
+ * @param [out] pageranks   Returns device pointer to pagerank scores
+ * @return error code
  */
 cugraph_error_t personalized_pagerank(
-  const cugraph_raft_handle_t* handle,
+  const cugraph_handle_t* handle,
   const cugraph_graph_t* graph,
-  cugraph_type_erased_device_array_t** vertex_ids,
-  cugraph_type_erased_device_array_t** pageranks,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
   const cugraph_type_erased_device_array_t* personalization_vertices,
   const cugraph_type_erased_device_array_t* personalization_values,
@@ -94,7 +95,9 @@ cugraph_error_t personalized_pagerank(
   double epsilon,
   size_t max_iterations,
   bool has_initial_guess,
-  bool do_expensive_check);
+  bool do_expensive_check,
+  cugraph_type_erased_device_array_t** vertex_ids,
+  cugraph_type_erased_device_array_t** pageranks);
 
 /**
  * @brief     Perform a breadth first search from a set of seed vertices.
@@ -105,9 +108,6 @@ cugraph_error_t personalized_pagerank(
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph
- * @param [out] vertex_ids   Returns device pointer to vertex ids
- * @param [out] distances    Returns device pointer to distance from the seeds
- * @param [out] predecessors Returns device pointer to distance from the seeds
  * @param [in]  sources      Array of source vertices
  * @param [in]  direction_optimizing If set to true, this algorithm switches between the push based
  * breadth-first search and pull based breadth-first search depending on the size of the
@@ -116,16 +116,20 @@ cugraph_error_t personalized_pagerank(
  * @param depth_limit Sets the maximum number of breadth-first search iterations. Any vertices
  * farther than @p depth_limit hops from @p source_vertex will be marked as unreachable.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @param [out] vertex_ids   Returns device pointer to vertex ids
+ * @param [out] distances    Returns device pointer to distance from the seeds
+ * @param [out] predecessors Returns device pointer to distance from the seeds
+ * @return error code
  */
-cugraph_error_t bfs(const cugraph_raft_handle_t* handle,
+cugraph_error_t bfs(const cugraph_handle_t* handle,
                     const cugraph_graph_t* graph,
-                    cugraph_type_erased_device_array_t** vertex_ids,
-                    cugraph_type_erased_device_array_t** distances,
-                    cugraph_type_erased_device_array_t** predecessors,
                     const cugraph_type_erased_device_array_t* sources,
                     bool direction_optimizing,
-                    vertex_t depth_limit,
-                    bool do_expensive_check);
+                    size_t depth_limit,
+                    bool do_expensive_check,
+                    cugraph_type_erased_device_array_t** vertex_ids,
+                    cugraph_type_erased_device_array_t** distances,
+                    cugraph_type_erased_device_array_t** predecessors);
 
 #ifdef __cplusplus
 }

@@ -38,7 +38,7 @@ int test_create_sg_graph_simple()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
-  cugraph_raft_handle_t* p_handle = NULL;
+  cugraph_handle_t* p_handle = NULL;
   cugraph_graph_t* p_graph        = NULL;
   cugraph_graph_properties_t properties;
 
@@ -56,9 +56,14 @@ int test_create_sg_graph_simple()
   cugraph_type_erased_device_array_t* dst;
   cugraph_type_erased_device_array_t* wgt;
 
-  src = cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges);
-  dst = cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges);
-  wgt = cugraph_type_erased_device_array_create(p_handle, weight_tid, num_edges);
+  ret_code = cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges, &src);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
+
+  ret_code = cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges, &dst);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
+
+  ret_code = cugraph_type_erased_device_array_create(p_handle, weight_tid, num_edges, &wgt);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
 
   ret_code = cugraph_type_erased_device_array_copy_from_host(p_handle, src, (byte_t*)h_src);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
