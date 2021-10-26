@@ -22,33 +22,106 @@
 extern "C" {
 #endif
 
-cugraph_error_t pagerank(const cugraph_raft_handle_t* handle,
-                         const cugraph_graph_t* graph,
-                         cugraph_type_erased_device_array_t* pageranks,
-                         cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
-                         double alpha,
-                         double epsilon,
-                         size_t max_iterations,
-                         bool has_initial_guess,
-                         bool do_expensive_check);
-
-cugraph_error_t personalized_pagerank(
+/**
+ * @brief     Compute pagerank
+ *
+ * @param [in]  handle      Handle for accessing resources
+ * @param [in]  graph       Pointer to graph
+ * @param [out] vertex_ids  Returns device pointer to vertex ids
+ * @param [out] pageranks   Returns device pointer to pagerank scores
+ * @param [in]  precomputed_vertex_out_weight_sums
+ *                          Optionally send in precomputed sume of vertex out weights
+ *                          (a performance optimization).  Set to NULL if
+ *                          no value is passed.
+ * @param [in]  alpha       PageRank damping factor.
+ * @param [in]  epsilon     Error tolerance to check convergence. Convergence is assumed
+ *                          if the sum of the differences in PageRank values between two
+ *                          consecutive iterations is less than the number of vertices
+ *                          in the graph multiplied by @p epsilon.
+ * @param [in]  max_iterations Maximum number of PageRank iterations.
+ * @param [in]  has_initial_guess If set to `true`, values in the PageRank output array (pointed by
+ * @p pageranks) is used as initial PageRank values. If false, initial PageRank values are set
+ * to 1.0 divided by the number of vertices in the graph.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+cugraph_error_t pagerank(
   const cugraph_raft_handle_t* handle,
   const cugraph_graph_t* graph,
-  cugraph_type_erased_device_array_t* pageranks,
-  cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
-  cugraph_type_erased_device_array_t* personalization_vertices,
-  cugraph_type_erased_device_array_t* personalization_values,
+  cugraph_type_erased_device_array_t** vertex_ids,
+  cugraph_type_erased_device_array_t** pageranks,
+  const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
   double alpha,
   double epsilon,
   size_t max_iterations,
   bool has_initial_guess,
   bool do_expensive_check);
 
+/**
+ * @brief     Compute personalized pagerank
+ *
+ * @param [in]  handle      Handle for accessing resources
+ * @param [in]  graph       Pointer to graph
+ * @param [out] vertex_ids  Returns device pointer to vertex ids
+ * @param [out] pageranks   Returns device pointer to pagerank scores
+ * @param [in]  precomputed_vertex_out_weight_sums
+ *                          Optionally send in precomputed sume of vertex out weights
+ *                          (a performance optimization).  Set to NULL if
+ *                          no value is passed.
+ * @param [in]  personalization_vertices Pointer to an array storing personalization vertex
+ * identifiers (compute personalized PageRank)
+ * @param [in]  personalization_values Pointer to an array storing personalization values for the
+ * vertices in the personalization set.
+ * @param [in]  alpha       PageRank damping factor.
+ * @param [in]  epsilon     Error tolerance to check convergence. Convergence is assumed
+ *                          if the sum of the differences in PageRank values between two
+ *                          consecutive iterations is less than the number of vertices
+ *                          in the graph multiplied by @p epsilon.
+ * @param [in]  max_iterations Maximum number of PageRank iterations.
+ * @param [in]  has_initial_guess If set to `true`, values in the PageRank output array (pointed by
+ * @p pageranks) is used as initial PageRank values. If false, initial PageRank values are set
+ * to 1.0 divided by the number of vertices in the graph.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+cugraph_error_t personalized_pagerank(
+  const cugraph_raft_handle_t* handle,
+  const cugraph_graph_t* graph,
+  cugraph_type_erased_device_array_t** vertex_ids,
+  cugraph_type_erased_device_array_t** pageranks,
+  const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
+  const cugraph_type_erased_device_array_t* personalization_vertices,
+  const cugraph_type_erased_device_array_t* personalization_values,
+  double alpha,
+  double epsilon,
+  size_t max_iterations,
+  bool has_initial_guess,
+  bool do_expensive_check);
+
+/**
+ * @brief     Perform a breadth first search from a set of seed vertices.
+ *
+ * This function computes the distances (minimum number of hops to reach the vertex) from the source
+ * vertex. If @p predecessors is not NULL, this function calculates the predecessor of each
+ * vertex (parent vertex in the breadth-first search tree) as well.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph
+ * @param [out] vertex_ids   Returns device pointer to vertex ids
+ * @param [out] distances    Returns device pointer to distance from the seeds
+ * @param [out] predecessors Returns device pointer to distance from the seeds
+ * @param [in]  sources      Array of source vertices
+ * @param [in]  direction_optimizing If set to true, this algorithm switches between the push based
+ * breadth-first search and pull based breadth-first search depending on the size of the
+ * breadth-first search frontier (currently unsupported). This option is valid only for symmetric
+ * input graphs.
+ * @param depth_limit Sets the maximum number of breadth-first search iterations. Any vertices
+ * farther than @p depth_limit hops from @p source_vertex will be marked as unreachable.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
 cugraph_error_t bfs(const cugraph_raft_handle_t* handle,
                     const cugraph_graph_t* graph,
-                    cugraph_type_erased_device_array_t* distances,
-                    cugraph_type_erased_device_array_t* predecessors,
+                    cugraph_type_erased_device_array_t** vertex_ids,
+                    cugraph_type_erased_device_array_t** distances,
+                    cugraph_type_erased_device_array_t** predecessors,
                     const cugraph_type_erased_device_array_t* sources,
                     bool direction_optimizing,
                     vertex_t depth_limit,

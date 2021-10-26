@@ -23,15 +23,11 @@ extern "C" {
 #endif
 
 typedef struct {
-  void* data_;
-  size_t size_;
-  data_type_id_t type_;
+  int align_;
 } cugraph_type_erased_device_array_t;
 
 typedef struct {
-  void* data_;
-  size_t size_;
-  data_type_id_t type_;
+  int align_;
 } cugraph_type_erased_host_array_t;
 
 cugraph_type_erased_device_array_t* cugraph_type_erased_device_array_create(
