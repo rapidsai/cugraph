@@ -26,6 +26,7 @@
 
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/prims/reduce_v.cuh>
 
 #include <thrust/reduce.h>
@@ -119,11 +120,14 @@ struct generate_impl {
 
 template <typename T>
 struct result_compare {
-  static constexpr double threshold_ratio{1e-3};
+  static constexpr double threshold_ratio{1e-2};
   constexpr auto operator()(const T& t1, const T& t2)
   {
     if constexpr (std::is_floating_point_v<T>) {
-      return std::abs(t1 - t2) < (std::max(t1, t2) * threshold_ratio);
+      bool passed = (t1 == t2)  // when t1 == t2 == 0
+                    ||
+                    (std::abs(t1 - t2) < (std::max(std::abs(t1), std::abs(t2)) * threshold_ratio));
+      return passed;
     }
     return t1 == t2;
   }
@@ -144,7 +148,10 @@ struct result_compare<thrust::tuple<Args...>> {
   constexpr bool equal(T t1, T t2)
   {
     if constexpr (std::is_floating_point_v<T>) {
-      return std::abs(t1 - t2) < (std::max(t1, t2) * threshold_ratio);
+      bool passed = (t1 == t2)  // when t1 == t2 == 0
+                    ||
+                    (std::abs(t1 - t2) < (std::max(std::abs(t1), std::abs(t2)) * threshold_ratio));
+      return passed;
     }
     return t1 == t2;
   }
@@ -231,28 +238,37 @@ class Tests_MG_ReduceV
     const int initial_value  = 10;
 
     auto property_initial_value = generate<result_t>::initial_value(initial_value);
+    using property_t            = decltype(property_initial_value);
     auto property_data =
       generate<result_t>::property((*d_mg_renumber_map_labels), hash_bin_count, handle);
     auto property_iter = get_property_iterator(property_data);
 
-    if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
-      hr_clock.start();
-    }
+    raft::comms::op_t ops[] = {
+      raft::comms::op_t::SUM, raft::comms::op_t::MIN, raft::comms::op_t::MAX};
 
-    auto result = reduce_v(handle,
-                           mg_graph_view,
-                           property_iter,
-                           property_iter + (*d_mg_renumber_map_labels).size(),
-                           property_initial_value);
+    std::unordered_map<raft::comms::op_t, property_t> results;
 
-    if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG reduce_v took " << elapsed_time * 1e-6 << " s.\n";
+    for (auto op : ops) {
+      if (cugraph::test::g_perf) {
+        CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+        handle.get_comms().barrier();
+        hr_clock.start();
+      }
+
+      results[op] = reduce_v(handle,
+                             mg_graph_view,
+                             property_iter,
+                             property_iter + (*d_mg_renumber_map_labels).size(),
+                             property_initial_value,
+                             op);
+
+      if (cugraph::test::g_perf) {
+        CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+        handle.get_comms().barrier();
+        double elapsed_time{0.0};
+        hr_clock.stop(&elapsed_time);
+        std::cout << "MG reduce_v took " << elapsed_time * 1e-6 << " s.\n";
+      }
     }
 
     //// 4. compare SG & MG results
@@ -270,16 +286,19 @@ class Tests_MG_ReduceV
         hash_bin_count,
         handle);
       auto sg_property_iter = get_property_iterator(sg_property_data);
-      using property_t      = decltype(property_initial_value);
 
-      auto expected_result =
-        thrust::reduce(handle.get_thrust_policy(),
-                       sg_property_iter,
-                       sg_property_iter + sg_graph_view.get_number_of_local_vertices(),
-                       property_initial_value,
-                       cugraph::property_add<property_t>());
-      result_compare<property_t> compare{};
-      ASSERT_TRUE(compare(expected_result, result));
+      for (auto op : ops) {
+        auto expected_result = cugraph::op_dispatch<property_t>(
+          op, [&handle, &sg_graph_view, sg_property_iter, property_initial_value](auto op) {
+            return thrust::reduce(handle.get_thrust_policy(),
+                                  sg_property_iter,
+                                  sg_property_iter + sg_graph_view.get_number_of_local_vertices(),
+                                  property_initial_value,
+                                  op);
+          });
+        result_compare<property_t> compare{};
+        ASSERT_TRUE(compare(expected_result, results[op]));
+      }
     }
   }
 };
