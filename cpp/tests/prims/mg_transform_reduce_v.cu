@@ -189,10 +189,8 @@ class Tests_MG_TransformReduceV
     property_transform<vertex_t, result_t> prop(hash_bin_count);
     auto property_initial_value = generate<result_t>::initial_value(initial_value);
     using property_t            = decltype(property_initial_value);
-    raft::comms::op_t ops[]     = {raft::comms::op_t::SUM,
-                               // raft::comms::op_t::PROD,
-                               raft::comms::op_t::MIN,
-                               raft::comms::op_t::MAX};
+    raft::comms::op_t ops[]     = {
+      raft::comms::op_t::SUM, raft::comms::op_t::MIN, raft::comms::op_t::MAX};
 
     std::unordered_map<raft::comms::op_t, property_t> results;
 

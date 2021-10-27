@@ -243,10 +243,8 @@ class Tests_MG_ReduceV
       generate<result_t>::property((*d_mg_renumber_map_labels), hash_bin_count, handle);
     auto property_iter = get_property_iterator(property_data);
 
-    raft::comms::op_t ops[] = {raft::comms::op_t::SUM,
-                               // raft::comms::op_t::PROD,
-                               raft::comms::op_t::MIN,
-                               raft::comms::op_t::MAX};
+    raft::comms::op_t ops[] = {
+      raft::comms::op_t::SUM, raft::comms::op_t::MIN, raft::comms::op_t::MAX};
 
     std::unordered_map<raft::comms::op_t, property_t> results;
 

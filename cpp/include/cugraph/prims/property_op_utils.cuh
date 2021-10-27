@@ -155,7 +155,8 @@ constexpr auto op_dispatch(raft::comms::op_t op, F&& f)
       return std::invoke(f, property_op<T, thrust::plus>());
     } break;
     case raft::comms::op_t::PROD: {
-      return std::invoke(f, property_op<T, thrust::multiplies>());
+      CUGRAPH_FAIL("raft::comms::op_t::PROD is not supported for op_dispatch");
+      return std::invoke_result_t<F, property_op<T, thrust::multiplies>>{};
     } break;
     case raft::comms::op_t::MIN: {
       return std::invoke(f, property_op<T, thrust::less>());
