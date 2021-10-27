@@ -552,7 +552,7 @@ struct node2vec_selector_t {
                       weight_t p,
                       weight_t q,
                       edge_t num_paths = 0)
-    : max_out_degree_{num_paths > 0 ? get_max_out_degree(handle, graph) : 0},
+    : max_out_degree_(num_paths > 0 ? graph.compute_max_out_degree(handle) : 0),
       d_coalesced_alpha_{max_out_degree_ * num_paths, handle.get_stream()},
       sampler_{graph.get_matrix_partition_view().get_offsets(),
                graph.get_matrix_partition_view().get_indices(),
@@ -568,19 +568,6 @@ struct node2vec_selector_t {
   }
 
   sampler_t const& get_strategy(void) const { return sampler_; }
-
-  static size_t get_max_out_degree(raft::handle_t const& handle, graph_type const& graph)
-  {
-    using edge_t = node2vec_selector_t::edge_t;
-
-    auto&& d_out_degs = graph.compute_out_degrees(handle);
-
-    return thrust::reduce(handle.get_thrust_policy(),
-                          d_out_degs.begin(),
-                          d_out_degs.end(),
-                          edge_t{0},
-                          thrust::maximum<edge_t>{});
-  }
 
   device_vec_t<weight_t> const& get_alpha_cache(void) const { return d_coalesced_alpha_; }
 
