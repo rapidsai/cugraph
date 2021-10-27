@@ -45,8 +45,11 @@ namespace etl {
  *       and/or dst_table that correspond to the vertex id
  *
  */
-std::tuple<cudf::column, cudf::column, cudf::table> renumber_cudf_tables(
-  cudf::table_view const& src_table, cudf::table_view const& dst_table, cudf::type_id dtype);
+std::
+  tuple<std::unique_ptr<cudf::column>, std::unique_ptr<cudf::column>, std::unique_ptr<cudf::table>>
+  renumber_cudf_tables(cudf::table_view const& src_table,
+                       cudf::table_view const& dst_table,
+                       cudf::type_id dtype);
 
 }  // namespace etl
 }  // namespace cugraph
