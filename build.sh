@@ -15,6 +15,7 @@ set -e
 # by the CI runner (https://github.com/gpuopenanalytics/remote-docker-plugin/issues/47)
 if [ "$CC" = "/usr/local/gcc9/bin/gcc" ]; then
     export PATH="/usr/local/gcc9/bin:$PATH"
+    echo -e "build.sh custom gcc9 binaries:\n$(ls -all /usr/local/gcc9/bin)"
 fi
 
 echo -e "build.sh PATH:\n$PATH"
