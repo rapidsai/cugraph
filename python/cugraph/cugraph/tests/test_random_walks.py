@@ -29,6 +29,13 @@ DATASETS = [pytest.param(d) for d in utils.DATASETS]
 DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
 def calc_random_walks(graph_file,
                       directed=False,
                       max_depth=None,
@@ -114,14 +121,6 @@ def check_random_walks(path_data, seeds, df_G=None):
     assert invalid_edge == 0
     assert invalid_seeds == 0
 
-# =============================================================================
-# Pytest Setup / Teardown - called for each test function
-# =============================================================================
-
-
-def prepare_test():
-    gc.collect()
-
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
@@ -129,7 +128,6 @@ def prepare_test():
 def test_random_walks_invalid_max_dept(graph_file,
                                        directed,
                                        max_depth):
-    prepare_test()
     with pytest.raises(TypeError):
         df, offsets, seeds = calc_random_walks(
             graph_file,

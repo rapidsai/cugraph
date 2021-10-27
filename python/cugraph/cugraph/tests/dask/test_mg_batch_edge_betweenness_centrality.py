@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gc
+
 import pytest
 import numpy as np
 
@@ -28,7 +30,6 @@ from cugraph.tests.test_edge_betweenness_centrality import (
 )
 
 from cugraph.tests.test_edge_betweenness_centrality import (
-    prepare_test,
     calc_edge_betweenness_centrality,
     compare_scores,
 )
@@ -41,6 +42,13 @@ DATASETS = [(RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()]
 # FIXME: The "preset_gpu_count" from 21.08 and below are not supported and have
 # been removed
 RESULT_DTYPE_OPTIONS = [np.float64]
+
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
 
 @pytest.mark.skipif(
@@ -64,7 +72,6 @@ def test_mg_edge_betweenness_centrality(
     result_dtype,
     dask_client
 ):
-    prepare_test()
     sorted_df = calc_edge_betweenness_centrality(
         graph_file,
         directed=directed,
