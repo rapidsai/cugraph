@@ -52,6 +52,7 @@ nvidia-smi
 gpuci_logger "Activate conda env"
 . /opt/conda/etc/profile.d/conda.sh
 conda activate rapids
+export PATH=$(conda info --base)/envs/rapids/bin:$PATH
 
 gpuci_logger "Install dependencies"
 gpuci_mamba_retry install -y \

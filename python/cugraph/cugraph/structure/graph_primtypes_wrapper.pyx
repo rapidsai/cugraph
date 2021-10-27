@@ -23,8 +23,6 @@ from libcpp cimport bool
 import enum
 from libc.stdint cimport uintptr_t
 
-from rmm._lib.device_buffer cimport device_buffer, DeviceBuffer
-
 import dask_cudf as dc
 import cugraph.comms.comms as Comms
 from dask.distributed import wait, default_client

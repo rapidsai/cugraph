@@ -23,8 +23,6 @@ from libc.stdint cimport uintptr_t
 
 import cudf
 import numpy as np
-from rmm._lib.device_buffer cimport DeviceBuffer
-from cudf.core.buffer import Buffer
 
 
 def weight_type(weights):

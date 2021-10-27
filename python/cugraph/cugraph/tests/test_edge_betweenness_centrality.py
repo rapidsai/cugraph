@@ -53,6 +53,13 @@ RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
 
 
 # =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
+# =============================================================================
 # Comparison functions
 # =============================================================================
 def calc_edge_betweenness_centrality(
@@ -296,10 +303,6 @@ def generate_upper_triangle(dataframe):
     return dataframe
 
 
-def prepare_test():
-    gc.collect()
-
-
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
@@ -318,7 +321,6 @@ def test_edge_betweenness_centrality(
     result_dtype,
     edgevals
 ):
-    prepare_test()
     sorted_df = calc_edge_betweenness_centrality(
         graph_file,
         directed=directed,
@@ -355,7 +357,6 @@ def test_edge_betweenness_centrality_k_full(
 ):
     """Tests full edge betweenness centrality by using k = G.number_of_vertices()
     instead of k=None, checks that k scales properly"""
-    prepare_test()
     sorted_df = calc_edge_betweenness_centrality(
         graph_file,
         directed=directed,
@@ -397,7 +398,6 @@ def test_edge_betweenness_centrality_fixed_sample(
 
     Only k sources are considered for an approximate Betweenness Centrality
     """
-    prepare_test()
     sorted_df = calc_edge_betweenness_centrality(
         graph_file,
         directed=directed,
@@ -435,7 +435,6 @@ def test_edge_betweenness_centrality_weight_except(
     As of 05/28/2020, weight is not supported and should raise
     a NotImplementedError
     """
-    prepare_test()
     with pytest.raises(NotImplementedError):
         sorted_df = calc_edge_betweenness_centrality(
             graph_file,
@@ -470,7 +469,6 @@ def test_edge_betweenness_invalid_dtype(
 ):
     """Test calls edge_betwenness_centrality an invalid type"""
 
-    prepare_test()
     with pytest.raises(TypeError):
         sorted_df = calc_edge_betweenness_centrality(
             graph_file,
@@ -493,8 +491,6 @@ def test_edge_betweenness_centrality_nx(
         directed,
         edgevals
 ):
-    prepare_test()
-
     Gnx = utils.generate_nx_graph_from_file(graph_file, directed, edgevals)
 
     nx_bc = nx.edge_betweenness_centrality(Gnx)
