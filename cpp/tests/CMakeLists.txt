@@ -53,20 +53,16 @@ set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(cugraphmgtestutil
     PRIVATE
-    "${CUB_INCLUDE_DIR}"
-    "${THRUST_INCLUDE_DIR}"
-    "${CUCO_INCLUDE_DIR}"
-    "${LIBCUDACXX_INCLUDE_DIR}"
-    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-    "${RMM_INCLUDE}"
-    "${NCCL_INCLUDE_DIRS}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${RAFT_DIR}/cpp/include"
 )
 
-target_link_libraries(cugraphmgtestutil cugraph)
+target_link_libraries(cugraphmgtestutil
+    PUBLIC
+        cugraph::cugraph
+        NCCL::NCCL
+)
 
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------

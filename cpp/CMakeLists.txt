@@ -253,7 +253,6 @@ target_include_directories(cugraph
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
-        "${NCCL_INCLUDE_DIRS}"
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         "$<INSTALL_INTERFACE:include>"
