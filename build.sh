@@ -11,11 +11,14 @@
 # Abort script on first error
 set -e
 
-# HACK: Add custom gcc9 bin dir to the path if running in CI because is being
-# overridden by the CI runner (https://github.com/gpuopenanalytics/remote-docker-plugin/issues/47)
+# HACK: Add custom gcc9 bin dir to PATH if running in CI because it's overridden
+# by the CI runner (https://github.com/gpuopenanalytics/remote-docker-plugin/issues/47)
 if [ "$CC" = "/usr/local/gcc9/bin/gcc" ]; then
     export PATH="/usr/local/gcc9/bin:$PATH"
 fi
+
+echo -e "build.sh PATH:\n$PATH"
+echo -e "build.sh ld executables:\n$(which -a ld)"
 
 NUMARGS=$#
 ARGS=$*
