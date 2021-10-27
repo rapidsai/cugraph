@@ -21,16 +21,10 @@ import cugraph
 from cugraph.tests import utils
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+import networkx as nx
 
 
 def cugraph_call(G, partitions):
-    print(type(G))
     df = cugraph.spectralModularityMaximizationClustering(
         G, partitions, num_eigen_vects=(partitions - 1)
     )
@@ -60,7 +54,6 @@ def random_call(G, partitions):
 PARTITIONS = [2, 4, 8]
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering(graph_file, partitions):
@@ -80,12 +73,9 @@ def test_modularity_clustering(graph_file, partitions):
     assert cu_score > rand_score
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering_nx(graph_file, partitions):
-    gc.collect()
-
     # Read in the graph and get a cugraph object
     csv_data = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
 
@@ -112,12 +102,9 @@ def test_modularity_clustering_nx(graph_file, partitions):
     assert cu_score > rand_score
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering_multi_column(graph_file, partitions):
-    gc.collect()
-
     # Read in the graph and get a cugraph object
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
     cu_M.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
@@ -154,8 +141,6 @@ def test_modularity_clustering_multi_column(graph_file, partitions):
 
 
 def test_digraph_rejected():
-    gc.collect()
-
     df = cudf.DataFrame()
     df["src"] = cudf.Series(range(10))
     df["dst"] = cudf.Series(range(10))
