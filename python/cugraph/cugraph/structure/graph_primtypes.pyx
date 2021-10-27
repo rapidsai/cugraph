@@ -16,16 +16,17 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from rmm._lib.device_buffer cimport DeviceBuffer
-from cudf.core.buffer import Buffer
-import cudf
 import numpy as np
 from libc.stdint cimport uintptr_t
 from libcpp.utility cimport move
 
+from rmm._lib.device_buffer cimport DeviceBuffer
+from cudf.core.buffer import Buffer
+import cudf
 
-cdef move_device_buffer_to_cudf_series(unique_ptr[device_buffer] device_buffer_unique_ptr,
-                                       dtype, series_name):
+
+cdef move_device_buffer_to_series(unique_ptr[device_buffer] device_buffer_unique_ptr,
+                                  dtype, series_name):
     """
     Transfers ownership of device_buffer_unique_ptr to a cuDF Buffer which is
     used to construct a cudf.Series object, which is then returned. If the
@@ -43,10 +44,10 @@ cdef move_device_buffer_to_cudf_series(unique_ptr[device_buffer] device_buffer_u
 
 cdef coo_to_df(GraphCOOPtrType graph):
     contents = move(graph.get()[0].release())
-    src = move_device_buffer_to_cudf_series(move(contents.src_indices),
-                                            "int32", "src")
-    dst = move_device_buffer_to_cudf_series(move(contents.dst_indices),
-                                            "int32", "dst")
+    src = move_device_buffer_to_series(move(contents.src_indices),
+                                       "int32", "src")
+    dst = move_device_buffer_to_series(move(contents.dst_indices),
+                                       "int32", "dst")
 
     if GraphCOOPtrType is GraphCOOPtrFloat:
         weight_type = "float32"
@@ -55,8 +56,8 @@ cdef coo_to_df(GraphCOOPtrType graph):
     else:
         raise TypeError("Invalid GraphCOOPtrType")
 
-    wgt = move_device_buffer_to_cudf_series(move(contents.edge_data),
-                                            weight_type, "wgt")
+    wgt = move_device_buffer_to_series(move(contents.edge_data),
+                                       weight_type, "wgt")
 
     df = cudf.DataFrame()
     df['src'] = src
@@ -69,10 +70,10 @@ cdef coo_to_df(GraphCOOPtrType graph):
 
 cdef csr_to_series(GraphCSRPtrType graph):
     contents = move(graph.get()[0].release())
-    csr_offsets = move_device_buffer_to_cudf_series(move(contents.offsets),
-                                                    "int32", "csr_offsets")
-    csr_indices = move_device_buffer_to_cudf_series(move(contents.indices),
-                                                    "int32", "csr_indices")
+    csr_offsets = move_device_buffer_to_series(move(contents.offsets),
+                                               "int32", "csr_offsets")
+    csr_indices = move_device_buffer_to_series(move(contents.indices),
+                                               "int32", "csr_indices")
 
     if GraphCSRPtrType is GraphCSRPtrFloat:
         weight_type = "float32"
@@ -81,8 +82,8 @@ cdef csr_to_series(GraphCSRPtrType graph):
     else:
         raise TypeError("Invalid GraphCSRPtrType")
 
-    csr_weights = move_device_buffer_to_cudf_series(move(contents.edge_data),
-                                                    weight_type, "csr_weights")
+    csr_weights = move_device_buffer_to_series(move(contents.edge_data),
+                                               weight_type, "csr_weights")
 
     return (csr_offsets, csr_indices, csr_weights)
 

@@ -32,7 +32,7 @@ from cugraph.structure.graph_utilities cimport (shuffled_vertices_t,
                                                 call_shuffle,
                                                 call_renumber,
                                                 )
-from cugraph.structure.graph_primtypes cimport move_device_buffer_to_cudf_series
+from cugraph.structure.graph_primtypes cimport move_device_buffer_to_series
 
 
 cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w, vertex_t, weights):
@@ -42,10 +42,10 @@ cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w, vertex_t, weights):
     cdef pair[unique_ptr[device_buffer], size_t] pair_s_minor   = deref(ptr_maj_min_w).get_minor_wrap()
     cdef pair[unique_ptr[device_buffer], size_t] pair_s_weights = deref(ptr_maj_min_w).get_weights_wrap()
 
-    shuffled_major_series = move_device_buffer_to_cudf_series(
+    shuffled_major_series = move_device_buffer_to_series(
         move(pair_s_major.first), vertex_t, "shuffled_major")
 
-    shuffled_minor_series = move_device_buffer_to_cudf_series(
+    shuffled_minor_series = move_device_buffer_to_series(
         move(pair_s_minor.first), vertex_t, "shuffled_minor")
 
     shuffled_df = cudf.DataFrame()
@@ -54,7 +54,7 @@ cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w, vertex_t, weights):
 
     if weights is not None:
         weight_t = weights.dtype
-        shuffled_weights_series = move_device_buffer_to_cudf_series(
+        shuffled_weights_series = move_device_buffer_to_series(
             move(pair_s_weights.first), weight_t, "shuffled_weights")
         shuffled_df['value']= shuffled_weights_series
 
@@ -187,7 +187,7 @@ def renumber(input_df,           # maybe use cpdef ?
 
                 pair_original = ptr_renum_tuple_32_32.get().get_dv_wrap() # original vertices: see helper
 
-                original_series = move_device_buffer_to_cudf_series(
+                original_series = move_device_buffer_to_series(
                     move(pair_original.first), vertex_t, "original")
 
                 # extract unique_ptr[partition_offsets]:
@@ -252,7 +252,7 @@ def renumber(input_df,           # maybe use cpdef ?
 
                 pair_original = ptr_renum_tuple_32_32.get().get_dv_wrap() # original vertices: see helper
 
-                original_series = move_device_buffer_to_cudf_series(
+                original_series = move_device_buffer_to_series(
                     move(pair_original.first), vertex_t, "original")
 
                 # extract unique_ptr[partition_offsets]:
@@ -319,7 +319,7 @@ def renumber(input_df,           # maybe use cpdef ?
 
                 pair_original = ptr_renum_tuple_32_64.get().get_dv_wrap() # original vertices: see helper
 
-                original_series = move_device_buffer_to_cudf_series(
+                original_series = move_device_buffer_to_series(
                     move(pair_original.first), vertex_t, "original")
 
                 # extract unique_ptr[partition_offsets]:
@@ -384,7 +384,7 @@ def renumber(input_df,           # maybe use cpdef ?
 
                 pair_original = ptr_renum_tuple_32_64.get().get_dv_wrap() # original vertices: see helper
 
-                original_series = move_device_buffer_to_cudf_series(
+                original_series = move_device_buffer_to_series(
                     move(pair_original.first), vertex_t, "original")
 
                 # extract unique_ptr[partition_offsets]:
@@ -451,7 +451,7 @@ def renumber(input_df,           # maybe use cpdef ?
 
                 pair_original = ptr_renum_tuple_64_64.get().get_dv_wrap() # original vertices: see helper
 
-                original_series = move_device_buffer_to_cudf_series(
+                original_series = move_device_buffer_to_series(
                     move(pair_original.first), vertex_t, "original")
 
                 # extract unique_ptr[partition_offsets]:
@@ -517,7 +517,7 @@ def renumber(input_df,           # maybe use cpdef ?
 
                 pair_original = ptr_renum_tuple_64_64.get().get_dv_wrap() # original vertices: see helper
 
-                original_series = move_device_buffer_to_cudf_series(
+                original_series = move_device_buffer_to_series(
                     move(pair_original.first), vertex_t, "original")
 
                 # extract unique_ptr[partition_offsets]:
