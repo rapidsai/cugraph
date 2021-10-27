@@ -30,7 +30,7 @@ typedef struct {
 } cugraph_type_erased_device_array_t;
 
 typedef struct {
-  uint8_t* data_;
+  std::byte* data_;
   size_t size_;
   size_t nbytes_;
   data_type_id_t type_;
@@ -107,7 +107,7 @@ extern "C" cugraph_error_t cugraph_type_erased_host_array_create(
     size_t nbytes = n_elems * (::data_type_sz[dtype]);
 
     c_api::cugraph_type_erased_host_array_t* ret_value =
-      new c_api::cugraph_type_erased_host_array_t{new uint8_t[nbytes], n_elems, nbytes, dtype};
+      new c_api::cugraph_type_erased_host_array_t{new std::byte[nbytes], n_elems, nbytes, dtype};
 
     *array = reinterpret_cast<cugraph_type_erased_host_array_t*>(ret_value);
     return CUGRAPH_SUCCESS;

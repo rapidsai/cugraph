@@ -14,24 +14,17 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/graph.h>
+#include <cugraph_c/algorithms.h>
 
-extern "C" cugraph_error_t cugraph_mg_graph_create(
-  const cugraph_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_t* src,
-  const cugraph_type_erased_device_array_t* dst,
-  const cugraph_type_erased_device_array_t* weights,
-  const cugraph_type_erased_host_array_t* vertex_partition_offsets,
-  const cugraph_type_erased_host_array_t* segment_offsets,
-  bool_t store_transposed,
-  size_t num_vertices,
-  size_t num_edges,
-  bool_t check,
-  cugraph_graph_t** graph)
+cugraph_error_t bfs(const cugraph_handle_t* handle,
+                    const cugraph_graph_t* graph,
+                    const cugraph_type_erased_device_array_t* sources,
+                    bool direction_optimizing,
+                    size_t depth_limit,
+                    bool do_expensive_check,
+                    cugraph_type_erased_device_array_t** vertex_ids,
+                    cugraph_type_erased_device_array_t** distances,
+                    cugraph_type_erased_device_array_t** predecessors);
 {
-  *graph = nullptr;
   return CUGRAPH_NOT_IMPLEMENTED;
 }
-
-extern "C" void cugraph_mg_graph_free(cugraph_graph_t* ptr_graph) {}

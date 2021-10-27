@@ -28,7 +28,7 @@ extern "C" cugraph_error_t cugraph_sg_graph_create(
   cugraph_graph_t** graph)
 {
   *graph = nullptr;
-  return CUGRAPH_UNKNOWN_ERROR;
+  return CUGRAPH_NOT_IMPLEMENTED;
 }
 
 extern "C" void cugraph_sg_graph_free(cugraph_graph_t* ptr_graph) {}
