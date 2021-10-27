@@ -168,6 +168,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
 
       partition_vertex_firsts[i] = (number_of_vertices / num_partitions) * id;
       partition_vertex_lasts[i]  = (number_of_vertices / num_partitions) * (id + 1);
+
       if (id < number_of_vertices % num_partitions) {
         partition_vertex_firsts[i] += id;
         partition_vertex_lasts[i] += id + 1;
@@ -236,8 +237,9 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     translate(handle, src_v, dst_v);
 
     if (undirected_)
-      std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, weight_t>(
-        handle, std::move(src_v), std::move(dst_v), std::nullopt);
+      std::tie(src_v, dst_v, std::ignore) =
+        cugraph::symmetrize_edgelist_from_triangular<vertex_t, weight_t>(
+          handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
     if (multi_gpu) {
       std::tie(store_transposed ? dst_v : src_v, store_transposed ? src_v : dst_v, weights_v) =
@@ -261,7 +263,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                                      partition_vertex_firsts[i]);
     }
 
-    if (multi_gpu) {
+    if constexpr (multi_gpu) {
       vertices_v = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(vertices_v));
     }
 
@@ -324,8 +326,9 @@ class PathGraph_Usecase {
     });
 
     auto [src_v, dst_v] = cugraph::generate_path_graph_edgelist<vertex_t>(handle, converted_parms);
-    std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, weight_t>(
-      handle, std::move(src_v), std::move(dst_v), std::nullopt);
+    std::tie(src_v, dst_v, std::ignore) =
+      cugraph::symmetrize_edgelist_from_triangular<vertex_t, weight_t>(
+        handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
     rmm::device_uvector<vertex_t> d_vertices(num_vertices_, handle.get_stream());
     cugraph::detail::sequence_fill(
@@ -541,7 +544,7 @@ construct_graph(raft::handle_t const& handle,
       std::move(d_src_v),
       std::move(d_dst_v),
       std::move(d_weights_v),
-      cugraph::graph_properties_t{is_symmetric, false},
+      cugraph::graph_properties_t{is_symmetric, true},
       renumber);
 }
 

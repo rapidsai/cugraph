@@ -158,7 +158,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
         std::move(d_srcs),
         std::move(d_dst),
         std::nullopt,
-        cugraph::graph_properties_t{false, false},
+        cugraph::graph_properties_t{false, true},
         false);
 
     auto graph_view = graph.view();

@@ -259,8 +259,9 @@ TEST_F(GeneratorsTest, LineGraphTestSymmetric)
   std::vector<std::tuple<vertex_t, vertex_t>> parameters({{5, 0}});
 
   std::tie(src_v, dst_v) = cugraph::generate_path_graph_edgelist<vertex_t>(handle, parameters);
-  std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, float>(
-    handle, std::move(src_v), std::move(dst_v), std::nullopt);
+  std::tie(src_v, dst_v, std::ignore) =
+    cugraph::symmetrize_edgelist_from_triangular<vertex_t, float>(
+      handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
   actual_src_v.resize(src_v.size());
   actual_dst_v.resize(src_v.size());
@@ -312,8 +313,9 @@ TEST_F(GeneratorsTest, Mesh2DGraphTestSymmetric)
     {{4, 2, 0}, {4, 2, 8}, {4, 2, 16}});
 
   std::tie(src_v, dst_v) = cugraph::generate_2d_mesh_graph_edgelist<vertex_t>(handle, parameters);
-  std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, float>(
-    handle, std::move(src_v), std::move(dst_v), std::nullopt);
+  std::tie(src_v, dst_v, std::ignore) =
+    cugraph::symmetrize_edgelist_from_triangular<vertex_t, float>(
+      handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
   actual_src_v.resize(src_v.size());
   actual_dst_v.resize(src_v.size());
@@ -390,8 +392,9 @@ TEST_F(GeneratorsTest, Mesh3DGraphTestSymmetric)
     {{3, 3, 3, 0}, {3, 3, 3, 27}, {3, 3, 3, 54}});
 
   std::tie(src_v, dst_v) = cugraph::generate_3d_mesh_graph_edgelist<vertex_t>(handle, parameters);
-  std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, float>(
-    handle, std::move(src_v), std::move(dst_v), std::nullopt);
+  std::tie(src_v, dst_v, std::ignore) =
+    cugraph::symmetrize_edgelist_from_triangular<vertex_t, float>(
+      handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
   actual_src_v.resize(src_v.size());
   actual_dst_v.resize(src_v.size());
@@ -435,8 +438,9 @@ TEST_F(GeneratorsTest, CompleteGraphTestTrianglesSymmetric)
   std::vector<std::tuple<vertex_t, vertex_t>> parameters({{3, 0}, {3, 3}, {3, 6}});
 
   std::tie(src_v, dst_v) = cugraph::generate_complete_graph_edgelist<vertex_t>(handle, parameters);
-  std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, float>(
-    handle, std::move(src_v), std::move(dst_v), std::nullopt);
+  std::tie(src_v, dst_v, std::ignore) =
+    cugraph::symmetrize_edgelist_from_triangular<vertex_t, float>(
+      handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
   actual_src_v.resize(src_v.size());
   actual_dst_v.resize(src_v.size());
@@ -486,8 +490,9 @@ TEST_F(GeneratorsTest, CompleteGraphTest5Symmetric)
   std::vector<std::tuple<vertex_t, vertex_t>> parameters({{5, 0}, {5, 5}, {5, 10}});
 
   std::tie(src_v, dst_v) = cugraph::generate_complete_graph_edgelist<vertex_t>(handle, parameters);
-  std::tie(src_v, dst_v, std::ignore) = cugraph::symmetrize_edgelist<vertex_t, float>(
-    handle, std::move(src_v), std::move(dst_v), std::nullopt);
+  std::tie(src_v, dst_v, std::ignore) =
+    cugraph::symmetrize_edgelist_from_triangular<vertex_t, float>(
+      handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
   actual_src_v.resize(src_v.size());
   actual_dst_v.resize(src_v.size());

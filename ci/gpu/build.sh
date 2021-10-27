@@ -52,6 +52,7 @@ nvidia-smi
 gpuci_logger "Activate conda env"
 . /opt/conda/etc/profile.d/conda.sh
 conda activate rapids
+export PATH=$(conda info --base)/envs/rapids/bin:$PATH
 
 gpuci_logger "Install dependencies"
 gpuci_mamba_retry install -y \
@@ -62,7 +63,7 @@ gpuci_mamba_retry install -y \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
-      "ucx-py=0.22.*" \
+      "ucx-py=0.23.*" \
       "ucx-proc=*=gpu" \
       "rapids-build-env=$MINOR_VERSION.*" \
       "rapids-notebook-env=$MINOR_VERSION.*" \

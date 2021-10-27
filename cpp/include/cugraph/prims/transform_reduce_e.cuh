@@ -410,11 +410,10 @@ T transform_reduce_e(raft::handle_t const& handle,
   property_add<T> edge_property_add{};
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
-  thrust::fill(
-    handle.get_thrust_policy(),
-    get_dataframe_buffer_begin(result_buffer),
-    get_dataframe_buffer_begin(result_buffer) + 1,
-    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{});
+  thrust::fill(handle.get_thrust_policy(),
+               get_dataframe_buffer_begin(result_buffer),
+               get_dataframe_buffer_begin(result_buffer) + 1,
+               T{});
 
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     auto matrix_partition =
@@ -510,13 +509,14 @@ T transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
-  auto result = thrust::reduce(handle.get_thrust_policy(),
-                               get_dataframe_buffer_begin(result_buffer),
-                               get_dataframe_buffer_begin(result_buffer) + 1,
-                               T{},
-                               edge_property_add);
+  auto result = thrust::reduce(
+    handle.get_thrust_policy(),
+    get_dataframe_buffer_begin(result_buffer),
+    get_dataframe_buffer_begin(result_buffer) + 1,
+    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? T{} : init,
+    edge_property_add);
 
-  if (GraphViewType::is_multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
     result = host_scalar_allreduce(
       handle.get_comms(), result, raft::comms::op_t::SUM, handle.get_stream());
   }

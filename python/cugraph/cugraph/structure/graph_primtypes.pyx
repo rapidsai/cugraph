@@ -16,55 +16,75 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
+import numpy as np
+from libc.stdint cimport uintptr_t
+from libcpp.utility cimport move
+
 from rmm._lib.device_buffer cimport DeviceBuffer
 from cudf.core.buffer import Buffer
 import cudf
-import numpy as np
-from libc.stdint cimport uintptr_t
+
+
+cdef move_device_buffer_to_series(unique_ptr[device_buffer] device_buffer_unique_ptr,
+                                  dtype, series_name):
+    """
+    Transfers ownership of device_buffer_unique_ptr to a cuDF Buffer which is
+    used to construct a cudf.Series object, which is then returned. If the
+    intermediate Buffer is empty, the device_buffer_unique_ptr is still
+    transfered but None is returned.
+    """
+    buff = DeviceBuffer.c_from_unique_ptr(move(device_buffer_unique_ptr))
+    buff = Buffer(buff)
+    if buff.nbytes != 0:
+        column = cudf.core.column.build_column(buff, dtype=dtype)
+        series = cudf.Series._from_data({series_name: column})
+        return series
+    return None
 
 
 cdef coo_to_df(GraphCOOPtrType graph):
     contents = move(graph.get()[0].release())
-    src = DeviceBuffer.c_from_unique_ptr(move(contents.src_indices))
-    dst = DeviceBuffer.c_from_unique_ptr(move(contents.dst_indices))
-    wgt = DeviceBuffer.c_from_unique_ptr(move(contents.edge_data))
-    src = Buffer(src)
-    dst = Buffer(dst)
-    wgt = Buffer(wgt)
+    src = move_device_buffer_to_series(move(contents.src_indices),
+                                       "int32", "src")
+    dst = move_device_buffer_to_series(move(contents.dst_indices),
+                                       "int32", "dst")
 
-    src = cudf.Series(data=src, dtype="int32")
-    dst = cudf.Series(data=dst, dtype="int32")
+    if GraphCOOPtrType is GraphCOOPtrFloat:
+        weight_type = "float32"
+    elif GraphCOOPtrType is GraphCOOPtrDouble:
+        weight_type = "float64"
+    else:
+        raise TypeError("Invalid GraphCOOPtrType")
+
+    wgt = move_device_buffer_to_series(move(contents.edge_data),
+                                       weight_type, "wgt")
 
     df = cudf.DataFrame()
     df['src'] = src
     df['dst'] = dst
-    if wgt.nbytes != 0:
-        if GraphCOOPtrType is GraphCOOPtrFloat:
-            wgt = cudf.Series(data=wgt, dtype="float32")
-        elif GraphCOOPtrType is GraphCOOPtrDouble:
-            wgt = cudf.Series(data=wgt, dtype="float64")
+    if wgt is not None:
         df['weight'] = wgt
+
     return df
 
 
 cdef csr_to_series(GraphCSRPtrType graph):
     contents = move(graph.get()[0].release())
-    offsets = DeviceBuffer.c_from_unique_ptr(move(contents.offsets))
-    indices = DeviceBuffer.c_from_unique_ptr(move(contents.indices))
-    weights = DeviceBuffer.c_from_unique_ptr(move(contents.edge_data))
-    offsets = Buffer(offsets)
-    indices = Buffer(indices)
-    weights = Buffer(weights)
+    csr_offsets = move_device_buffer_to_series(move(contents.offsets),
+                                               "int32", "csr_offsets")
+    csr_indices = move_device_buffer_to_series(move(contents.indices),
+                                               "int32", "csr_indices")
 
-    csr_offsets = cudf.Series(data=offsets, dtype="int32")
-    csr_indices = cudf.Series(data=indices, dtype="int32")
+    if GraphCSRPtrType is GraphCSRPtrFloat:
+        weight_type = "float32"
+    elif GraphCSRPtrType is GraphCSRPtrDouble:
+        weight_type = "float64"
+    else:
+        raise TypeError("Invalid GraphCSRPtrType")
 
-    csr_weights = None
-    if weights.nbytes != 0:
-        if GraphCSRPtrType is GraphCSRPtrFloat:
-            csr_weights = cudf.Series(data=weights, dtype="float32")
-        elif GraphCSRPtrType is GraphCSRPtrDouble:
-            csr_weights = cudf.Series(data=weights, dtype="float64")
+    csr_weights = move_device_buffer_to_series(move(contents.edge_data),
+                                               weight_type, "csr_weights")
+
     return (csr_offsets, csr_indices, csr_weights)
 
 

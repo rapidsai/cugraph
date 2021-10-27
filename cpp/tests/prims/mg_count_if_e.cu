@@ -221,10 +221,7 @@ class Tests_MG_TransformCountIfE
     // 3. run MG count_if_e
 
     const int hash_bin_count = 5;
-    const int initial_value  = 0;
 
-    auto property_initial_value = generate<result_t>::initial_value(initial_value);
-    using property_t            = decltype(property_initial_value);
     auto vertex_property_data =
       generate<result_t>::vertex_property((*d_mg_renumber_map_labels), hash_bin_count, handle);
     auto col_prop =

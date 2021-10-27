@@ -212,16 +212,10 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
 
         rmm::device_uvector<vertex_t> d_unrenumbered_distances(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_distances) =
-          cugraph::test::sort_by_key(handle,
-                                     (*d_renumber_map_labels).data(),
-                                     d_distances.data(),
-                                     (*d_renumber_map_labels).size());
+          cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_distances);
         rmm::device_uvector<vertex_t> d_unrenumbered_predecessors(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_predecessors) =
-          cugraph::test::sort_by_key(handle,
-                                     (*d_renumber_map_labels).data(),
-                                     d_predecessors.data(),
-                                     (*d_renumber_map_labels).size());
+          cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_predecessors);
         raft::update_host(h_cugraph_distances.data(),
                           d_unrenumbered_distances.data(),
                           d_unrenumbered_distances.size(),
