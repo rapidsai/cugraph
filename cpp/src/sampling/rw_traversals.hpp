@@ -122,9 +122,9 @@ struct uniform_selector_t {
     __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(
       vertex_t src_v,
       real_t rnd_val,
-      vertex_t prev_v   = 0 /* not used*/,
-      edge_t path_index = 0 /* not used*/,
-      bool start_path   = false /* not used*/) const
+      vertex_t = 0 /* not used*/,
+      edge_t   = 0 /* not used*/,
+      bool     = false /* not used*/) const
     {
       auto crt_out_deg = ptr_d_cache_out_degs_[src_v];
       if (crt_out_deg == 0) return thrust::nullopt;  // src_v is a sink
@@ -287,9 +287,9 @@ struct biased_selector_t {
     __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(
       vertex_t src_v,
       real_t rnd_val,
-      vertex_t prev_v   = 0 /* not used*/,
-      edge_t path_index = 0 /* not used*/,
-      bool start_path   = false /* not used*/) const
+      vertex_t = 0 /* not used*/,
+      edge_t   = 0 /* not used*/,
+      bool     = false /* not used*/) const
     {
       weight_t run_sum_w{0};
       auto rnd_sum_weights = rnd_val * ptr_d_sum_weights_[src_v];
