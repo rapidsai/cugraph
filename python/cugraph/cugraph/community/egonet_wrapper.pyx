@@ -20,6 +20,8 @@ import cudf
 import numpy as np
 from rmm._lib.device_buffer cimport DeviceBuffer
 from cudf.core.buffer import Buffer
+from cugraph.raft.common.handle cimport handle_t
+from cugraph.raft.common.handle import Handle
 
 
 def egonet(input_graph, vertices, radius=1):
