@@ -179,6 +179,7 @@ if buildAll || hasArg libcugraph; then
     mkdir -p ${LIBCUGRAPH_BUILD_DIR}
     cd ${LIBCUGRAPH_BUILD_DIR}
     env
+    set +e
     cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
           -DCMAKE_CUDA_ARCHITECTURES=${CUGRAPH_CMAKE_CUDA_ARCHITECTURES} \
           -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
@@ -188,6 +189,8 @@ if buildAll || hasArg libcugraph; then
           -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
           ${REPODIR}/cpp
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
+    cmake --system-information
+    set -e
 fi
 
 # Build, and install pylibcugraph
