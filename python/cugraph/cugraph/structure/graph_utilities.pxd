@@ -16,13 +16,15 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-
-from cugraph.raft.common.handle cimport *
 from libcpp cimport bool
 from libcpp.memory cimport unique_ptr
 from libcpp.utility cimport pair
 from libcpp.vector cimport vector
+
 from rmm._lib.device_buffer cimport device_buffer
+
+from cugraph.raft.common.handle cimport handle_t
+
 
 # C++ graph utilities
 cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":

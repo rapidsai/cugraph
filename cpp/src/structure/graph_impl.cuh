@@ -384,7 +384,11 @@ void sort_adjacency_list(raft::handle_t const& handle,
   // std::move(minors) & weights_ = std::move (weights). This affects peak memory use and we may
   // find the presorting approach more attractive under this scenario.
 
-  // 1. We segmented sort edges in chunks, and we need to adjust chunk offsets as we need to sort
+  // 1. Check if there is anything to sort
+
+  if (num_edges == 0) { return; }
+
+  // 2. We segmented sort edges in chunks, and we need to adjust chunk offsets as we need to sort
   // each vertex's neighbors at once.
 
   // to limit memory footprint ((1 << 20) is a tuning parameter)
@@ -421,7 +425,7 @@ void sort_adjacency_list(raft::handle_t const& handle,
                     d_vertex_offsets.size(),
                     handle.get_stream());
 
-  // 2. Segmented sort each vertex's neighbors
+  // 3. Segmented sort each vertex's neighbors
 
   size_t max_chunk_size{0};
   for (size_t i = 0; i < num_chunks; ++i) {
