@@ -220,8 +220,7 @@ TEST_P(Louvain_MG_Testfixture, CheckInt32Int32Float)
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Louvain_MG_Testfixture,
-  ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true, 100, 1)
-                    //,Louvain_Usecase("test/datasets/smallworld.mtx", true, 100, 1)
-                    ));
+  ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true, 100, 1),
+                    Louvain_Usecase("test/datasets/dolphins.mtx", true, 100, 1)));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

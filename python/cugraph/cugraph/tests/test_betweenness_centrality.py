@@ -22,16 +22,8 @@ import numpy as np
 import cudf
 import cupy
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
+import networkx as nx
 
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
 
 # =============================================================================
 # Parameters
@@ -49,6 +41,13 @@ SUBSET_SEED_OPTIONS = [42]
 # datasets that are used are too small to compare, but it ensures that both
 # path are actually sane
 RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
+
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
 
 # =============================================================================
@@ -282,10 +281,6 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
     )
 
 
-def prepare_test():
-    gc.collect()
-
-
 # =============================================================================
 # Tests
 # =============================================================================
@@ -309,7 +304,6 @@ def test_betweenness_centrality(
     result_dtype,
     edgevals
 ):
-    prepare_test()
     sorted_df = calc_betweenness_centrality(
         graph_file,
         directed=directed,
@@ -349,7 +343,6 @@ def test_betweenness_centrality_k_full(
 ):
     """Tests full betweenness centrality by using k = G.number_of_vertices()
     instead of k=None, checks that k scales properly"""
-    prepare_test()
     sorted_df = calc_betweenness_centrality(
         graph_file,
         directed=directed,
@@ -393,7 +386,6 @@ def test_betweenness_centrality_fixed_sample(
     """Test Betweenness Centrality using a subset
     Only k sources are considered for an approximate Betweenness Centrality
     """
-    prepare_test()
     sorted_df = calc_betweenness_centrality(
         graph_file,
         directed=directed,
@@ -433,7 +425,6 @@ def test_betweenness_centrality_weight_except(
     As of 05/28/2020, weight is not supported and should raise
     a NotImplementedError
     """
-    prepare_test()
     with pytest.raises(NotImplementedError):
         sorted_df = calc_betweenness_centrality(
             graph_file,
@@ -471,7 +462,6 @@ def test_betweenness_invalid_dtype(
 ):
     """Test calls edge_betwenness_centrality an invalid type"""
 
-    prepare_test()
     with pytest.raises(TypeError):
         sorted_df = calc_betweenness_centrality(
             graph_file,
@@ -495,7 +485,6 @@ def test_betweenness_centrality_nx(
         directed,
         edgevals
 ):
-    prepare_test()
 
     Gnx = utils.generate_nx_graph_from_file(graph_file, directed, edgevals)
 

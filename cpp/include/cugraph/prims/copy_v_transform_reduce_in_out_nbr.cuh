@@ -74,7 +74,7 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
 
   auto dcs_nzd_vertex_count = *(matrix_partition.get_dcs_nzd_vertex_count());
 
-  property_add<T> edge_property_add{};
+  property_op<T, thrust::plus> edge_property_add{};
   while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
     auto major =
       *(matrix_partition.get_major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
@@ -169,7 +169,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   auto idx                = static_cast<size_t>(tid);
 
-  property_add<T> edge_property_add{};
+  property_op<T, thrust::plus> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
@@ -271,7 +271,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   __shared__ typename WarpReduce::TempStorage
     temp_storage[copy_v_transform_reduce_nbr_for_all_block_size / raft::warp_size()];
 
-  property_add<e_op_result_t> edge_property_add{};
+  property_op<e_op_result_t, thrust::plus> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
@@ -355,7 +355,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
     cub::BlockReduce<e_op_result_t, copy_v_transform_reduce_nbr_for_all_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
 
-  property_add<e_op_result_t> edge_property_add{};
+  property_op<e_op_result_t, thrust::plus> edge_property_add{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
