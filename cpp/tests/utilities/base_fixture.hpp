@@ -193,11 +193,9 @@ inline auto parse_test_options(int argc, char** argv)
     int comm_size{};                                                                  \
     MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));                               \
     MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));                               \
-    int num_gpus{};                                                                   \
-    CUDA_TRY(cudaGetDeviceCount(&num_gpus));                                          \
-    CUGRAPH_EXPECTS(                                                                  \
-      comm_size <= num_gpus, "# MPI ranks (%d) > # GPUs (%d).", comm_size, num_gpus); \
-    CUDA_TRY(cudaSetDevice(comm_rank));                                               \
+    int num_gpus_per_node{};                                                          \
+    CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));                                 \
+    CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));                           \
     ::testing::InitGoogleTest(&argc, argv);                                           \
     auto const cmd_opts = parse_test_options(argc, argv);                             \
     auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                     \
