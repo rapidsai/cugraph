@@ -49,6 +49,8 @@
 #include <cassert>
 #include <cstdlib>  // FIXME: requirement for temporary std::getenv()
 #include <ctime>
+#include <limits>
+//
 #include <optional>
 #include <tuple>
 #include <type_traits>
@@ -278,9 +280,19 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
                        auto start_v_pos  = chunk_offset + delta;
                        auto start_w_pos  = chunk_offset - path_indx + delta;
 
-                       auto src_v         = ptr_coalesced_v[start_v_pos];
-                       auto rnd_val       = ptr_d_random[path_indx];
-                       auto opt_tpl_vn_wn = sampler(src_v, rnd_val);
+                       auto src_v   = ptr_coalesced_v[start_v_pos];
+                       auto rnd_val = ptr_d_random[path_indx];
+
+                       // `node2vec` info:
+                       //
+                       bool start_path = true;
+                       auto prev_v     = src_v;
+                       if (delta > 0) {
+                         start_path = false;
+                         prev_v     = ptr_coalesced_v[start_v_pos - 1];
+                       }
+
+                       auto opt_tpl_vn_wn = sampler(src_v, rnd_val, prev_v, path_indx, start_path);
 
                        if (opt_tpl_vn_wn.has_value()) {
                          auto src_vertex = thrust::get<0>(*opt_tpl_vn_wn);
@@ -1114,9 +1126,39 @@ random_walks(raft::handle_t const& handle,
   int selector_type{0};
   if (sampling_strategy) selector_type = static_cast<int>(sampling_strategy->sampling_type_);
 
+  // node2vec is only possible for weight_t being a floating-point type:
+  //
+  if constexpr (!std::is_floating_point_v<weight_t>) {
+    CUGRAPH_EXPECTS(selector_type != static_cast<int>(sampling_strategy_t::NODE2VEC),
+                    "node2vec requires floating point type for weights.");
+  }
+
   if (use_vertical_strategy) {
     if (selector_type == static_cast<int>(sampling_strategy_t::BIASED)) {
       detail::biased_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
+
+      auto quad_tuple =
+        detail::random_walks_impl<graph_t, decltype(selector), detail::vertical_traversal_t>(
+          handle, graph, d_v_start, max_depth, selector, use_padding);
+      // ignore last element of the quad, seed,
+      // since it's meant for testing / debugging, only:
+      //
+      return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                             std::move(std::get<1>(quad_tuple)),
+                             std::move(std::get<2>(quad_tuple)));
+    } else if (selector_type == static_cast<int>(sampling_strategy_t::NODE2VEC)) {
+      weight_t p(sampling_strategy->p_);
+      weight_t q(sampling_strategy->q_);
+
+      edge_t alpha_num_paths = sampling_strategy->use_alpha_cache_ ? num_paths : 0;
+
+      weight_t roundoff = std::numeric_limits<weight_t>::epsilon();
+      CUGRAPH_EXPECTS(p > roundoff, "node2vec p parameter is too small.");
+
+      CUGRAPH_EXPECTS(q > roundoff, "node2vec q parameter is too small.");
+
+      detail::node2vec_selector_t<graph_t, real_t> selector{
+        handle, graph, real_t{0}, p, q, alpha_num_paths};
 
       auto quad_tuple =
         detail::random_walks_impl<graph_t, decltype(selector), detail::vertical_traversal_t>(
@@ -1140,9 +1182,31 @@ random_walks(raft::handle_t const& handle,
                              std::move(std::get<1>(quad_tuple)),
                              std::move(std::get<2>(quad_tuple)));
     }
-  } else {
+  } else {  // horizontal traversal strategy
     if (selector_type == static_cast<int>(sampling_strategy_t::BIASED)) {
       detail::biased_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
+
+      auto quad_tuple =
+        detail::random_walks_impl(handle, graph, d_v_start, max_depth, selector, use_padding);
+      // ignore last element of the quad, seed,
+      // since it's meant for testing / debugging, only:
+      //
+      return std::make_tuple(std::move(std::get<0>(quad_tuple)),
+                             std::move(std::get<1>(quad_tuple)),
+                             std::move(std::get<2>(quad_tuple)));
+    } else if (selector_type == static_cast<int>(sampling_strategy_t::NODE2VEC)) {
+      weight_t p(sampling_strategy->p_);
+      weight_t q(sampling_strategy->q_);
+
+      edge_t alpha_num_paths = sampling_strategy->use_alpha_cache_ ? num_paths : 0;
+
+      weight_t roundoff = std::numeric_limits<weight_t>::epsilon();
+      CUGRAPH_EXPECTS(p > roundoff, "node2vec p parameter is too small.");
+
+      CUGRAPH_EXPECTS(q > roundoff, "node2vec q parameter is too small.");
+
+      detail::node2vec_selector_t<graph_t, real_t> selector{
+        handle, graph, real_t{0}, p, q, alpha_num_paths};
 
       auto quad_tuple =
         detail::random_walks_impl(handle, graph, d_v_start, max_depth, selector, use_padding);
