@@ -16,7 +16,38 @@
 
 #include <cugraph_c/algorithms.h>
 
-cugraph_error_t pagerank(
+namespace c_api {
+
+struct cugraph_pagerank_result_t {
+  cugraph_type_erased_device_array_t* vertex_ids_;
+  cugraph_type_erased_device_array_t* pageranks_;
+};
+
+}  // namespace c_api
+
+extern "C" cugraph_type_erased_device_array_t* cugraph_pagerank_result_get_vertices(
+  cugraph_pagerank_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<c_api::cugraph_pagerank_result_t*>(result);
+  return internal_pointer->vertex_ids_;
+}
+
+extern "C" cugraph_type_erased_device_array_t* cugraph_pagerank_result_get_pageranks(
+  cugraph_pagerank_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<c_api::cugraph_pagerank_result_t*>(result);
+  return internal_pointer->pageranks_;
+}
+
+extern "C" void cugraph_pagerank_result_free(cugraph_pagerank_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<c_api::cugraph_pagerank_result_t*>(result);
+  delete internal_pointer->vertex_ids_;
+  delete internal_pointer->pageranks_;
+  delete internal_pointer;
+}
+
+extern "C" cugraph_error_t compute_pagerank(
   const cugraph_handle_t* handle,
   const cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
@@ -25,8 +56,7 @@ cugraph_error_t pagerank(
   size_t max_iterations,
   bool has_initial_guess,
   bool do_expensive_check,
-  cugraph_type_erased_device_array_t** vertex_ids,
-  cugraph_type_erased_device_array_t** pageranks)
+  cugraph_pagerank_result_t** result)
 {
   //
   //  TODO:  (all algorithms will have this
@@ -43,7 +73,7 @@ cugraph_error_t pagerank(
   return CUGRAPH_NOT_IMPLEMENTED;
 }
 
-cugraph_error_t personalized_pagerank(
+extern "C" cugraph_error_t cugraph_personalized_pagerank(
   const cugraph_handle_t* handle,
   const cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
@@ -54,8 +84,7 @@ cugraph_error_t personalized_pagerank(
   size_t max_iterations,
   bool has_initial_guess,
   bool do_expensive_check,
-  cugraph_type_erased_device_array_t** vertex_ids,
-  cugraph_type_erased_device_array_t** pageranks)
+  cugraph_pagerank_result_t** result)
 {
   return CUGRAPH_NOT_IMPLEMENTED;
 }

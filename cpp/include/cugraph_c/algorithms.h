@@ -24,6 +24,38 @@ extern "C" {
 #endif
 
 /**
+ * @brief     Opaque pagerank result type
+ */
+typedef struct {
+  int align_;
+} cugraph_pagerank_result_t;
+
+/**
+ * @brief     Get the vertex ids from the pagerank result
+ *
+ * @param [in]   result   The result from pagerank
+ * @return type erased array of vertex ids
+ */
+cugraph_type_erased_device_array_t* cugraph_pagerank_result_get_vertices(
+  cugraph_pagerank_result_t* result);
+
+/**
+ * @brief     Get the pagerank values from the pagerank result
+ *
+ * @param [in]   result   The result from pagerank
+ * @return type erased array of pagerank values
+ */
+cugraph_type_erased_device_array_t* cugraph_pagerank_result_get_pageranks(
+  cugraph_pagerank_result_t* result);
+
+/**
+ * @brief     Free pagerank result
+ *
+ * @param [in]   result   The result from pagerank
+ */
+void cugraph_pagerank_result_free(cugraph_pagerank_result_t* result);
+
+/**
  * @brief     Compute pagerank
  *
  * @param [in]  handle      Handle for accessing resources
@@ -42,11 +74,10 @@ extern "C" {
  * @p pageranks) is used as initial PageRank values. If false, initial PageRank values are set
  * to 1.0 divided by the number of vertices in the graph.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @param [out] vertex_ids  Returns device pointer to vertex ids
- * @param [out] pageranks   Returns device pointer to pagerank scores
+ * @param [out] result      Opaque pointer to pagerank results
  * @return error code
  */
-cugraph_error_t pagerank(
+cugraph_error_t cugraph_pagerank(
   const cugraph_handle_t* handle,
   const cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
@@ -55,8 +86,7 @@ cugraph_error_t pagerank(
   size_t max_iterations,
   bool has_initial_guess,
   bool do_expensive_check,
-  cugraph_type_erased_device_array_t** vertex_ids,
-  cugraph_type_erased_device_array_t** pageranks);
+  cugraph_pagerank_result_t** result);
 
 /**
  * @brief     Compute personalized pagerank
@@ -81,11 +111,10 @@ cugraph_error_t pagerank(
  * @p pageranks) is used as initial PageRank values. If false, initial PageRank values are set
  * to 1.0 divided by the number of vertices in the graph.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @param [out] vertex_ids  Returns device pointer to vertex ids
- * @param [out] pageranks   Returns device pointer to pagerank scores
+ * @param [out] result      Opaque pointer to pagerank results
  * @return error code
  */
-cugraph_error_t personalized_pagerank(
+cugraph_error_t cugraph_personalized_pagerank(
   const cugraph_handle_t* handle,
   const cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
@@ -96,8 +125,48 @@ cugraph_error_t personalized_pagerank(
   size_t max_iterations,
   bool has_initial_guess,
   bool do_expensive_check,
-  cugraph_type_erased_device_array_t** vertex_ids,
-  cugraph_type_erased_device_array_t** pageranks);
+  cugraph_pagerank_result_t** result);
+
+/**
+ * @brief     Opaque bfs result type
+ */
+typedef struct {
+  int align_;
+} cugraph_bfs_result_t;
+
+/**
+ * @brief     Get the vertex ids from the bfs result
+ *
+ * @param [in]   result   The result from bfs
+ * @return type erased array of vertex ids
+ */
+cugraph_type_erased_device_array_t* cugraph_bfs_result_get_vertices(cugraph_bfs_result_t* result);
+
+/**
+ * @brief     Get the distances from the bfs result
+ *
+ * @param [in]   result   The result from bfs
+ * @return type erased array of distances
+ */
+cugraph_type_erased_device_array_t* cugraph_bfs_result_get_distances(cugraph_bfs_result_t* result);
+
+/**
+ * @brief     Get the predecessors from the bfs result
+ *
+ * @param [in]   result   The result from bfs
+ * @return type erased array of predecessors.  Value will be NULL if
+ *         compute_predecessors was FALSE in the call to bfs that
+ *         produced this result.
+ */
+cugraph_type_erased_device_array_t* cugraph_bfs_result_get_predecessors(
+  cugraph_bfs_result_t* result);
+
+/**
+ * @brief     Free bfs result
+ *
+ * @param [in]   result   The result from bfs
+ */
+void cugraph_bfs_result_free(cugraph_bfs_result_t* result);
 
 /**
  * @brief     Perform a breadth first search from a set of seed vertices.
@@ -121,15 +190,14 @@ cugraph_error_t personalized_pagerank(
  * @param [out] predecessors Returns device pointer to distance from the seeds
  * @return error code
  */
-cugraph_error_t bfs(const cugraph_handle_t* handle,
-                    const cugraph_graph_t* graph,
-                    const cugraph_type_erased_device_array_t* sources,
-                    bool direction_optimizing,
-                    size_t depth_limit,
-                    bool do_expensive_check,
-                    cugraph_type_erased_device_array_t** vertex_ids,
-                    cugraph_type_erased_device_array_t** distances,
-                    cugraph_type_erased_device_array_t** predecessors);
+cugraph_error_t cugraph_bfs(const cugraph_handle_t* handle,
+                            const cugraph_graph_t* graph,
+                            const cugraph_type_erased_device_array_t* sources,
+                            bool direction_optimizing,
+                            size_t depth_limit,
+                            bool do_expensive_check,
+                            bool compute_predecessors,
+                            cugraph_bfs_result_t** result);
 
 #ifdef __cplusplus
 }
