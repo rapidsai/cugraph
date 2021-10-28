@@ -70,7 +70,7 @@ class Graph:
                                         edge_attr=weights)
             else:
                 msg = (
-                    "Graph can only be initialized using MultiGraph "
+                    "Graph can only be initialized using cuGraph or networkX MultiGraph object."
                 )
                 raise Exception(msg)
 
