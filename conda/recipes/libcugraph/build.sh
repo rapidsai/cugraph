@@ -9,4 +9,5 @@
 # openmpi build dependencies). The conda package does NOT include these test
 # binaries or extra dependencies, but these are built here for use in CI runs.
 
+env
 ./build.sh libcugraph cpp-mgtests -v --allgpuarch
