@@ -20,7 +20,6 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_barrier.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -58,22 +57,6 @@ compute_renumber_map(raft::handle_t const& handle,
   // footprint
 
   // 1. acquire (unique major label, count) pairs
-
-  if (multi_gpu) {
-    auto& comm = handle.get_comms();
-
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (beginning of col_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
-#else
-    handle.get_stream_view().synchronize();
-    ;
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
-  }
 
   rmm::device_uvector<vertex_t> major_labels(0, handle.get_stream());
   rmm::device_uvector<edge_t> major_counts(0, handle.get_stream());
@@ -202,17 +185,6 @@ compute_renumber_map(raft::handle_t const& handle,
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
     auto const row_comm_size = row_comm.get_size();
 
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (beginning of row_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
-#else
-    handle.get_stream_view().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
     if (row_comm_size > 1) {
       rmm::device_uvector<vertex_t> rx_minor_labels(0, handle.get_stream());
       std::tie(rx_minor_labels, std::ignore) = groupby_gpuid_and_shuffle_values(
@@ -230,18 +202,6 @@ compute_renumber_map(raft::handle_t const& handle,
                              handle.get_stream());
       minor_labels = std::move(rx_minor_labels);
     }
-
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (end of row_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    //
-    host_barrier(comm, handle.get_stream_view());
-#else
-    handle.get_stream_view().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
   }
   minor_labels.shrink_to_fit(handle.get_stream_view());
 
@@ -474,19 +434,6 @@ void expensive_check_edgelist(
         auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
         auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
-        // FIXME: this barrier is unnecessary if the above host_scalar_allreduce is a true host
-        // operation (as it serves as a barrier) barrier is necessary here to avoid potential
-        // overlap (which can leads to deadlock) between two different communicators (beginning of
-        // col_comm)
-#if 1
-        // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
-        // DASK and MPI barrier with MPI)
-        host_barrier(comm, handle.get_stream_view());
-#else
-        handle.get_stream_view().synchronize();
-        comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
         rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
         {
           auto recvcounts =
@@ -503,17 +450,6 @@ void expensive_check_edgelist(
           thrust::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
         }
 
-        // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
-        // between two different communicators (beginning of row_comm)
-#if 1
-        // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
-        // DASK and MPI barrier with MPI)
-        host_barrier(comm, handle.get_stream_view());
-#else
-        handle.get_stream_view().synchronize();
-        comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
         rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
         {
           auto recvcounts =
@@ -529,17 +465,6 @@ void expensive_check_edgelist(
                             handle.get_stream());
           thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
         }
-
-        // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
-        // between two different communicators (end of row_comm)
-#if 1
-        // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
-        // DASK and MPI barrier with MPI)
-        host_barrier(comm, handle.get_stream_view());
-#else
-        handle.get_stream_view().synchronize();
-        comm.barrier();  // currently, this is ncclAllReduce
-#endif
 
         auto edge_first =
           thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
@@ -724,18 +649,6 @@ renumber_edgelist(
   // FIXME: compare this hash based approach with a binary search based approach in both memory
   // footprint and execution time
 
-  // FIXME: this barrier is unnecessary if the above host_scalar_allgather is a true host operation
-  // (as it serves as a barrier) barrier is necessary here to avoid potential overlap (which can
-  // leads to deadlock) between two different communicators (beginning of col_comm)
-#if 1
-  // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
-  // MPI barrier with MPI)
-  host_barrier(comm, handle.get_stream_view());
-#else
-  handle.get_stream_view().synchronize();
-  comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
   {
     vertex_t max_matrix_partition_major_size{0};
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
@@ -778,16 +691,6 @@ renumber_edgelist(
     }
   }
 
-  // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
-  // different communicators (beginning of row_comm)
-#if 1
-  // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
-  // MPI barrier with MPI)
-  host_barrier(comm, handle.get_stream_view());
-#else
-  handle.get_stream_view().synchronize();
-  comm.barrier();  // currently, this is ncclAllReduce
-#endif
   if ((partition.get_matrix_partition_minor_size() >= number_of_edges / comm_size) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
@@ -870,16 +773,6 @@ renumber_edgelist(
         edgelist_minors[i], edgelist_minors[i] + edgelist_edge_counts[i], edgelist_minors[i]);
     }
   }
-  // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
-  // different communicators (end of row_comm)
-#if 1
-  // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
-  // MPI barrier with MPI)
-  host_barrier(comm, handle.get_stream_view());
-#else
-  handle.get_stream_view().synchronize();
-  comm.barrier();  // currently, this is ncclAllReduce
-#endif
 
   return std::make_tuple(
     std::move(renumber_map_labels),

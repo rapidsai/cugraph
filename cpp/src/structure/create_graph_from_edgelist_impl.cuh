@@ -22,7 +22,6 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_barrier.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <raft/handle.hpp>
@@ -113,19 +112,6 @@ void expensive_check_edgelist(raft::handle_t const& handle,
       "Invalid input argument: edgelist_majors & edgelist_minors should be pre-shuffled.");
 
     if (vertices) {
-      // FIXME: this barrier is unnecessary if the above host_scalar_allreduce is a true host
-      // operation (as it serves as a barrier) barrier is necessary here to avoid potential
-      // overlap (which can leads to deadlock) between two different communicators (beginning of
-      // col_comm)
-#if 1
-      // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
-      // DASK and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
-#else
-      handle.get_stream_view().synchronize();
-      comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
       rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
       {
         auto recvcounts = host_scalar_allgather(col_comm, (*vertices).size(), handle.get_stream());
@@ -141,17 +127,6 @@ void expensive_check_edgelist(raft::handle_t const& handle,
         thrust::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
       }
 
-      // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
-      // between two different communicators (beginning of row_comm)
-#if 1
-      // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
-      // DASK and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
-#else
-      handle.get_stream_view().synchronize();
-      comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
       {
         auto recvcounts = host_scalar_allgather(row_comm, (*vertices).size(), handle.get_stream());
@@ -166,17 +141,6 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                           handle.get_stream());
         thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
       }
-
-      // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
-      // between two different communicators (end of row_comm)
-#if 1
-      // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
-      // DASK and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
-#else
-      handle.get_stream_view().synchronize();
-      comm.barrier();  // currently, this is ncclAllReduce
-#endif
 
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
