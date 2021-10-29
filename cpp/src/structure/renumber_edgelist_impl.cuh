@@ -174,20 +174,30 @@ compute_renumber_map(raft::handle_t const& handle,
     edgelist_edge_counts.begin(), edgelist_edge_counts.end() - 1, minor_displs.begin() + 1);
   rmm::device_uvector<vertex_t> minor_labels(minor_displs.back() + edgelist_edge_counts.back(),
                                              handle.get_stream());
-  vertex_t num_local_unique_edge_minors{0};
+  vertex_t minor_offset{0};
   for (size_t i = 0; i < edgelist_minor_vertices.size(); ++i) {
     thrust::copy(handle.get_thrust_policy(),
                  edgelist_minor_vertices[i],
                  edgelist_minor_vertices[i] + edgelist_edge_counts[i],
-                 minor_labels.begin() + minor_displs[i]);
+                 minor_labels.begin() + minor_offset);
+    thrust::sort(handle.get_thrust_policy(),
+                 minor_labels.begin() + minor_offset,
+                 minor_labels.begin() + minor_offset + edgelist_edge_counts[i]);
+    minor_offset +=
+      thrust::distance(minor_labels.begin() + minor_offset,
+                       thrust::unique(handle.get_thrust_policy(),
+                                      minor_labels.begin() + minor_offset,
+                                      minor_labels.begin() + minor_offset +
+                                        edgelist_edge_counts[i]));
   }
+  minor_labels.resize(minor_offset, handle.get_stream());
   thrust::sort(handle.get_thrust_policy(), minor_labels.begin(), minor_labels.end());
   minor_labels.resize(
     thrust::distance(
       minor_labels.begin(),
       thrust::unique(handle.get_thrust_policy(), minor_labels.begin(), minor_labels.end())),
     handle.get_stream());
-  num_local_unique_edge_minors += static_cast<vertex_t>(minor_labels.size());
+  auto num_local_unique_edge_minors = static_cast<vertex_t>(minor_labels.size());
   if (multi_gpu) {
     auto& comm               = handle.get_comms();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
