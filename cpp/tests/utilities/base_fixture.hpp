@@ -185,32 +185,32 @@ inline auto parse_test_options(int argc, char** argv)
     return RUN_ALL_TESTS();                                                     \
   }
 
-#define CUGRAPH_MG_TEST_PROGRAM_MAIN()                                                \
-  int main(int argc, char** argv)                                                     \
-  {                                                                                   \
-    MPI_TRY(MPI_Init(&argc, &argv));                                                  \
-    int comm_rank{};                                                                  \
-    int comm_size{};                                                                  \
-    MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));                               \
-    MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));                               \
-    int num_gpus_per_node{};                                                          \
-    CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));                                 \
-    CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));                           \
-    ::testing::InitGoogleTest(&argc, argv);                                           \
-    auto const cmd_opts = parse_test_options(argc, argv);                             \
-    auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                     \
-    auto resource       = cugraph::test::create_memory_resource(rmm_mode);            \
-    rmm::mr::set_current_device_resource(resource.get());                             \
-    cugraph::test::g_perf = cmd_opts["perf"].as<bool>();                              \
-    cugraph::test::g_rmat_scale =                                                     \
-      (cmd_opts.count("rmat_scale") > 0)                                              \
-        ? std::make_optional<size_t>(cmd_opts["rmat_scale"].as<size_t>())             \
-        : std::nullopt;                                                               \
-    cugraph::test::g_rmat_edge_factor =                                               \
-      (cmd_opts.count("rmat_edge_factor") > 0)                                        \
-        ? std::make_optional<size_t>(cmd_opts["rmat_edge_factor"].as<size_t>())       \
-        : std::nullopt;                                                               \
-    auto ret = RUN_ALL_TESTS();                                                       \
-    MPI_TRY(MPI_Finalize());                                                          \
-    return ret;                                                                       \
+#define CUGRAPH_MG_TEST_PROGRAM_MAIN()                                          \
+  int main(int argc, char** argv)                                               \
+  {                                                                             \
+    MPI_TRY(MPI_Init(&argc, &argv));                                            \
+    int comm_rank{};                                                            \
+    int comm_size{};                                                            \
+    MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));                         \
+    MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));                         \
+    int num_gpus_per_node{};                                                    \
+    CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));                           \
+    CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));                     \
+    ::testing::InitGoogleTest(&argc, argv);                                     \
+    auto const cmd_opts = parse_test_options(argc, argv);                       \
+    auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();               \
+    auto resource       = cugraph::test::create_memory_resource(rmm_mode);      \
+    rmm::mr::set_current_device_resource(resource.get());                       \
+    cugraph::test::g_perf = cmd_opts["perf"].as<bool>();                        \
+    cugraph::test::g_rmat_scale =                                               \
+      (cmd_opts.count("rmat_scale") > 0)                                        \
+        ? std::make_optional<size_t>(cmd_opts["rmat_scale"].as<size_t>())       \
+        : std::nullopt;                                                         \
+    cugraph::test::g_rmat_edge_factor =                                         \
+      (cmd_opts.count("rmat_edge_factor") > 0)                                  \
+        ? std::make_optional<size_t>(cmd_opts["rmat_edge_factor"].as<size_t>()) \
+        : std::nullopt;                                                         \
+    auto ret = RUN_ALL_TESTS();                                                 \
+    MPI_TRY(MPI_Finalize());                                                    \
+    return ret;                                                                 \
   }
