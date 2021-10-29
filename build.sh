@@ -21,6 +21,7 @@ if [ "$CC" = "/usr/local/gcc9/bin/gcc" ]; then
         export PATH="/usr/local/binutils/bin:$PATH"
     fi
     echo -e "build.sh PATH:\n$PATH"
+    echo -e "build.sh ld:\n$(which -a ld)"
 fi
 
 NUMARGS=$#
