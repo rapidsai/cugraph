@@ -439,6 +439,7 @@ target_link_libraries(cugraph_etl
                 CUDA::cusolver
                 CUDA::cusparse
                 cugraph::cugraph
+                cudf::cudf
 )
 
 ################################################################################
