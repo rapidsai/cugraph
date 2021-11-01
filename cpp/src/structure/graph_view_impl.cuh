@@ -185,7 +185,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
 {
   rmm::device_uvector<edge_t> minor_degrees(graph_view.get_number_of_local_vertices(),
                                             handle.get_stream());
-  if constexpr (store_transposed) {
+  if (store_transposed) {
     copy_v_transform_reduce_out_nbr(
       handle,
       graph_view,
@@ -220,7 +220,7 @@ rmm::device_uvector<weight_t> compute_weight_sums(
 {
   rmm::device_uvector<weight_t> weight_sums(graph_view.get_number_of_local_vertices(),
                                             handle.get_stream());
-  if constexpr (major == store_transposed) {
+  if (major == store_transposed) {
     copy_v_transform_reduce_in_nbr(
       handle,
       graph_view,
