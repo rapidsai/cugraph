@@ -144,6 +144,7 @@ include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_rmm.cmake)
 
 include(cmake/thirdparty/get_raft.cmake)
+include(cmake/thirdparty/get_cudf.cmake)
 
 include(cmake/thirdparty/get_cuco.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
