@@ -152,7 +152,7 @@ class simpleGraphImpl:
         dest_col = elist[destination]
 
         if edge_attr is not None:
-            self.weighted = True
+            self.properties.weighted = True
             value_col = elist[edge_attr]
         else:
             value_col = None
