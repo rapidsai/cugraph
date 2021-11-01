@@ -686,12 +686,47 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
-    for (int i = 0; i < row_comm_size; ++i) {
-      auto offset = (graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i) -
-                     graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size));
-      if (minor_tmp_buffer.key_first()) {
-        CUGRAPH_FAIL("unimplemented.");
-      } else {
+    if (minor_tmp_buffer.key_first()) {
+      vertex_t max_vertex_partition_size{0};
+      for (int i = 0; i < row_comm_size; ++i) {
+        max_vertex_partition_size =
+          std::max(max_vertex_partition_size,
+                   graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i));
+      }
+      auto tx_buffer = allocate_dataframe_buffer<T>(max_vertex_partition_size, handle.get_stream());
+      auto tx_first  = get_dataframe_buffer_begin(tx_buffer);
+      auto minor_key_offsets = GraphViewType::is_adj_matrix_transposed
+                                 ? graph_view.get_local_sorted_unique_edge_row_offsets()
+                                 : graph_view.get_local_sorted_unique_edge_col_offsets();
+      for (int i = 0; i < row_comm_size; ++i) {
+        thrust::fill(
+          handle.get_thrust_policy(),
+          tx_first,
+          tx_first + graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i),
+          T{});
+        thrust::scatter(handle.get_thrust_policy(),
+                        minor_tmp_buffer.value_data() + (*minor_key_offsets)[i],
+                        minor_tmp_buffer.value_data() + (*minor_key_offsets)[i + 1],
+                        thrust::make_transform_iterator(
+                          *(minor_tmp_buffer.key_first()) + (*minor_key_offsets)[i],
+                          [key_first = graph_view.get_vertex_partition_first(
+                             col_comm_rank * row_comm_size + i)] __device__(auto key) {
+                            return key - key_first;
+                          }),
+                        tx_first);
+        device_reduce(row_comm,
+                      tx_first,
+                      vertex_value_output_first,
+                      static_cast<size_t>(
+                        graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i)),
+                      raft::comms::op_t::SUM,
+                      i,
+                      handle.get_stream());
+      }
+    } else {
+      for (int i = 0; i < row_comm_size; ++i) {
+        auto offset = (graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i) -
+                       graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size));
         device_reduce(row_comm,
                       minor_tmp_buffer.value_data() + offset,
                       vertex_value_output_first,
