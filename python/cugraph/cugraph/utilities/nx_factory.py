@@ -20,6 +20,7 @@ ensure code using these utilities has done the proper checks prior to calling.
 
 import cugraph
 from .utils import import_optional
+import cudf
 from cudf import from_pandas
 import numpy as np
 
@@ -28,7 +29,82 @@ import numpy as np
 nx = import_optional("networkx")
 
 
+def convert_unweighted_to_gdf(NX_G):
+    _edges = NX_G.edges(data=False)
+    src = [s for s, _ in _edges]
+    dst = [d for _, d in _edges]
+    
+    _gdf = cudf.DataFrame()
+    _gdf['src'] = src
+    _gdf['dst'] = dst
+
+    return _gdf
+
+
+def convert_weighted_named_to_gdf(NX_G, weight):
+    _edges = NX_G.edges(data=weight)
+
+    src = [s for s, _, _ in _edges]
+    dst = [d for _, d, _ in _edges]
+    wt =  [w for _, _, w in _edges]
+
+    _gdf = cudf.DataFrame()
+    _gdf['src'] = src
+    _gdf['dst'] = dst
+    _gdf['weight'] = wt
+
+    return _gdf
+
+
+def convert_weighted_unnamed_to_gdf(NX_G):
+    _pdf = nx.to_pandas_edgelist(NX_G)
+    nx_col = ["source", "target"]
+    wt_col = [col for col in _pdf.columns if col not in nx_col]
+    if len(wt_col) != 1:
+        raise ValueError(
+            "Unable to determine weight column name")
+
+    if wt_col[0] != "weight":
+        _pdf.rename(columns={wt_col[0]:"weight"})
+
+    _gdf = from_pandas(_pdf)
+    return _gdf
+
+
 def convert_from_nx(nxG, weight=None, do_renumber=True):
+    """
+    weight: weight column name. Only used if 
+    nxG.is_weighted() is True
+    """
+
+    if isinstance(nxG, nx.classes.digraph.DiGraph):
+        G = cugraph.Graph(directed=True)
+    elif isinstance(nxG, nx.classes.graph.Graph):
+        G = cugraph.Graph()
+    else:
+        raise ValueError(
+            "input is not a supported NetworkX graph type")
+
+    is_weighted = nx.is_weighted(nxG)
+
+    if is_weighted is False:
+        _gdf = convert_unweighted_to_gdf(nxG)
+        G.from_cudf_edgelist(_gdf, source="src", destination="dst",
+                             edge_attr=None, renumber=do_renumber)
+    else:
+        if weight is None:
+            _gdf = convert_weighted_unnamed_to_gdf(nxG)
+            G.from_cudf_edgelist(_gdf, source="source", destination="target",
+                             edge_attr='weight', renumber=do_renumber)
+        else:
+            _gdf = convert_weighted_named_to_gdf(nxG, weight)
+            G.from_cudf_edgelist(_gdf, source="src", destination="dst",
+                             edge_attr='weight', renumber=do_renumber)
+
+    return G
+
+
+def convert_from_nx_old(nxG, weight=None, do_renumber=True):
     """
     weight, if given, is the string/name of the edge attr in nxG to use for
     weights in the resulting cugraph obj.  If nxG has no edge attributes,
@@ -153,16 +229,3 @@ def df_edge_score_to_dictionary(df, k, src="src", dst="dst"):
         d[(pdf[src][i], pdf[dst][i])] = pdf[k][i]
 
     return d
-
-
-def cugraph_to_nx(G):
-    pdf = G.view_edge_list().to_pandas()
-    num_col = len(pdf.columns)
-
-    if num_col == 2:
-        Gnx = nx.from_pandas_edgelist(pdf, source="src", target="dst")
-    else:
-        Gnx = nx.from_pandas_edgelist(pdf, source="src", target="dst",
-                                      edge_attr="weights")
-
-    return Gnx
