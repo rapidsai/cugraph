@@ -488,9 +488,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     minor_tmp_buffer{};  // relevant only when (GraphViewType::is_multi_gpu && !update_major
   if constexpr (GraphViewType::is_multi_gpu && !update_major) {
     if constexpr (GraphViewType::is_adj_matrix_transposed) {
-      auto minor_tmp_buffer = row_properties_t<GraphViewType, T>(handle, graph_view);
+      minor_tmp_buffer = row_properties_t<GraphViewType, T>(handle, graph_view);
     } else {
-      auto minor_tmp_buffer = col_properties_t<GraphViewType, T>(handle, graph_view);
+      minor_tmp_buffer = col_properties_t<GraphViewType, T>(handle, graph_view);
     }
   }
 
