@@ -22,6 +22,7 @@ if [ "$CC" = "/usr/local/gcc9/bin/gcc" ]; then
     fi
     echo -e "build.sh PATH:\n$PATH"
     echo -e "build.sh ld:\n$(which -a ld)"
+    echo -e "build.sh env:\n$(env)"
 fi
 
 NUMARGS=$#
