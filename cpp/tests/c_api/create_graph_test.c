@@ -38,7 +38,7 @@ int test_create_sg_graph_simple()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
-  cugraph_handle_t* p_handle = NULL;
+  cugraph_resource_handle_t* p_handle = NULL;
   cugraph_graph_t* p_graph        = NULL;
   cugraph_graph_properties_t properties;
 

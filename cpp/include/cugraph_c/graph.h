@@ -50,7 +50,7 @@ typedef struct {
  *
  * @return error code
  */
-cugraph_error_t cugraph_sg_graph_create(const cugraph_handle_t* handle,
+cugraph_error_t cugraph_sg_graph_create(const cugraph_resource_handle_t* handle,
                                         const cugraph_graph_properties_t* properties,
                                         const cugraph_type_erased_device_array_t* src,
                                         const cugraph_type_erased_device_array_t* dst,
@@ -90,7 +90,7 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
  * @param [out] graph       A pointer to the graph object
  */
 cugraph_error_t cugraph_mg_graph_create(
-  const cugraph_handle_t* handle,
+  const cugraph_resource_handle_t* handle,
   const cugraph_graph_properties_t* properties,
   const cugraph_type_erased_device_array_t* src,
   const cugraph_type_erased_device_array_t* dst,

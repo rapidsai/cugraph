@@ -55,7 +55,7 @@ extern "C" void cugraph_bfs_result_free(cugraph_bfs_result_t* result)
   delete internal_pointer_;
 }
 
-extern "C" cugraph_error_t cugraph_bfs(const cugraph_handle_t* handle,
+extern "C" cugraph_error_t cugraph_bfs(const cugraph_resource_handle_t* handle,
                                        const cugraph_graph_t* graph,
                                        const cugraph_type_erased_device_array_t* sources,
                                        bool direction_optimizing,

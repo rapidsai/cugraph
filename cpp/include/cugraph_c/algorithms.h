@@ -78,7 +78,7 @@ void cugraph_pagerank_result_free(cugraph_pagerank_result_t* result);
  * @return error code
  */
 cugraph_error_t cugraph_pagerank(
-  const cugraph_handle_t* handle,
+  const cugraph_resource_handle_t* handle,
   const cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
   double alpha,
@@ -115,7 +115,7 @@ cugraph_error_t cugraph_pagerank(
  * @return error code
  */
 cugraph_error_t cugraph_personalized_pagerank(
-  const cugraph_handle_t* handle,
+  const cugraph_resource_handle_t* handle,
   const cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
   const cugraph_type_erased_device_array_t* personalization_vertices,
@@ -190,7 +190,7 @@ void cugraph_bfs_result_free(cugraph_bfs_result_t* result);
  * @param [out] predecessors Returns device pointer to distance from the seeds
  * @return error code
  */
-cugraph_error_t cugraph_bfs(const cugraph_handle_t* handle,
+cugraph_error_t cugraph_bfs(const cugraph_resource_handle_t* handle,
                             const cugraph_graph_t* graph,
                             const cugraph_type_erased_device_array_t* sources,
                             bool direction_optimizing,
