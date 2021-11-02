@@ -82,7 +82,7 @@ def convert_from_nx(nxG, weight=None, do_renumber=True):
     elif isinstance(nxG, nx.classes.graph.Graph):
         G = cugraph.Graph()
     else:
-        raise ValueError(
+        raise TypeError(f"nxG must be either a NetworkX Graph or DiGraph, got {type(nxG)}")
             "input is not a supported NetworkX graph type")
 
     is_weighted = nx.is_weighted(nxG)
