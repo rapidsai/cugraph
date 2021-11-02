@@ -492,6 +492,7 @@ def test_edge_betweenness_centrality_nx(
         edgevals
 ):
     Gnx = utils.generate_nx_graph_from_file(graph_file, directed, edgevals)
+    assert nx.is_directed(Gnx) == directed
 
     nx_bc = nx.edge_betweenness_centrality(Gnx)
     cu_bc = cugraph.edge_betweenness_centrality(Gnx)
@@ -500,7 +501,8 @@ def test_edge_betweenness_centrality_nx(
     networkx_bc = sorted(nx_bc.items(), key=lambda x: x[0])
     cugraph_bc = sorted(cu_bc.items(), key=lambda x: x[0])
     err = 0
-    assert len(cugraph_bc) == len(networkx_bc)
+
+    assert len(networkx_bc) == len(cugraph_bc)
     for i in range(len(cugraph_bc)):
         if (
             abs(cugraph_bc[i][1] - networkx_bc[i][1]) > 0.01
