@@ -28,7 +28,8 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
   size_t num_vertices,
   size_t num_edges,
   bool_t check,
-  cugraph_graph_t** graph)
+  cugraph_graph_t** graph,
+  cugraph_error_t** error)
 {
   *graph = nullptr;
   return CUGRAPH_NOT_IMPLEMENTED;

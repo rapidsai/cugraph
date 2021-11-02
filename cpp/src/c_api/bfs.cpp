@@ -61,7 +61,8 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
                                             bool direction_optimizing,
                                             size_t depth_limit,
                                             bool do_expensive_check,
-                                            cugraph_bfs_result_t** result)
+                                            cugraph_bfs_result_t** result,
+                                            cugraph_error_t** error)
 {
   return CUGRAPH_NOT_IMPLEMENTED;
 }

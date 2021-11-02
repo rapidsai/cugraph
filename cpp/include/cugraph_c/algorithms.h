@@ -75,6 +75,8 @@ void cugraph_pagerank_result_free(cugraph_pagerank_result_t* result);
  * to 1.0 divided by the number of vertices in the graph.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @param [out] result      Opaque pointer to pagerank results
+ * @param [out] error       Pointer to an error object storing details of any error.  Will
+ *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_pagerank(
@@ -86,7 +88,8 @@ cugraph_error_code_t cugraph_pagerank(
   size_t max_iterations,
   bool has_initial_guess,
   bool do_expensive_check,
-  cugraph_pagerank_result_t** result);
+  cugraph_pagerank_result_t** result,
+  cugraph_error_t** error);
 
 /**
  * @brief     Compute personalized pagerank
@@ -112,6 +115,8 @@ cugraph_error_code_t cugraph_pagerank(
  * to 1.0 divided by the number of vertices in the graph.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @param [out] result      Opaque pointer to pagerank results
+ * @param [out] error       Pointer to an error object storing details of any error.  Will
+ *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_personalized_pagerank(
@@ -125,7 +130,8 @@ cugraph_error_code_t cugraph_personalized_pagerank(
   size_t max_iterations,
   bool has_initial_guess,
   bool do_expensive_check,
-  cugraph_pagerank_result_t** result);
+  cugraph_pagerank_result_t** result,
+  cugraph_error_t** error);
 
 /**
  * @brief     Opaque bfs result type
@@ -188,6 +194,8 @@ void cugraph_bfs_result_free(cugraph_bfs_result_t* result);
  * @param [out] vertex_ids   Returns device pointer to vertex ids
  * @param [out] distances    Returns device pointer to distance from the seeds
  * @param [out] predecessors Returns device pointer to distance from the seeds
+ * @param [out] error       Pointer to an error object storing details of any error.  Will
+ *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* handle,
@@ -197,7 +205,8 @@ cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* handle,
                                  size_t depth_limit,
                                  bool do_expensive_check,
                                  bool compute_predecessors,
-                                 cugraph_bfs_result_t** result);
+                                 cugraph_bfs_result_t** result,
+                                 cugraph_error_t** error);
 
 #ifdef __cplusplus
 }

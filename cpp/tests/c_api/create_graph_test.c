@@ -59,6 +59,7 @@ int test_create_sg_graph_simple()
 
   ret_code = cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges, &src, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   ret_code = cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges, &dst, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
@@ -83,7 +84,8 @@ int test_create_sg_graph_simple()
                                      FALSE,
                                      FALSE,
                                      FALSE,
-                                     &p_graph);
+                                     &p_graph,
+                                     &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   cugraph_sg_graph_free(p_graph);

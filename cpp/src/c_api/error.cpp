@@ -14,22 +14,23 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/graph.h>
+#include <cugraph_c/error.h>
+#include <c_api/error.hpp>
 
-extern "C" cugraph_error_code_t cugraph_sg_graph_create(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_t* src,
-  const cugraph_type_erased_device_array_t* dst,
-  const cugraph_type_erased_device_array_t* weights,
-  bool_t store_transposed,
-  bool_t renumber,
-  bool_t check,
-  cugraph_graph_t** graph,
-  cugraph_error_t** error)
+extern "C" const char* cugraph_error_message(const cugraph_error_t* error)
 {
-  *graph = nullptr;
-  return CUGRAPH_NOT_IMPLEMENTED;
+  if (error != nullptr) {
+    auto internal_pointer = reinterpret_cast<c_api::cugraph_error_t const*>(error);
+    return internal_pointer->error_message.c_str();
+  } else {
+    return nullptr;
+  }
 }
 
-extern "C" void cugraph_sg_graph_free(cugraph_graph_t* ptr_graph) {}
+extern "C" void cugraph_error_free(cugraph_error_t* error)
+{
+  if (error != nullptr) {
+    auto internal_pointer = reinterpret_cast<c_api::cugraph_error_t const*>(error);
+    delete internal_pointer;
+  }
+}

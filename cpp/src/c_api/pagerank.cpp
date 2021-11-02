@@ -56,7 +56,8 @@ extern "C" cugraph_error_code_t compute_pagerank(
   size_t max_iterations,
   bool has_initial_guess,
   bool do_expensive_check,
-  cugraph_pagerank_result_t** result)
+  cugraph_pagerank_result_t** result,
+  cugraph_error_t** error)
 {
   //
   //  TODO:  (all algorithms will have this
@@ -84,7 +85,8 @@ extern "C" cugraph_error_code_t cugraph_personalized_pagerank(
   size_t max_iterations,
   bool has_initial_guess,
   bool do_expensive_check,
-  cugraph_pagerank_result_t** result)
+  cugraph_pagerank_result_t** result,
+  cugraph_error_t** error)
 {
   return CUGRAPH_NOT_IMPLEMENTED;
 }

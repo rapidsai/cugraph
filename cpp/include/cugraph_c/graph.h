@@ -47,6 +47,8 @@ typedef struct {
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [in]  properties  Properties of the graph
  * @param [out] graph       A pointer to the graph object
+ * @param [out] error       Pointer to an error object storing details of any error.  Will
+ *                          be populated if error code is not CUGRAPH_SUCCESS
  *
  * @return error code
  */
@@ -58,7 +60,8 @@ cugraph_error_code_t cugraph_sg_graph_create(const cugraph_resource_handle_t* ha
                                              bool_t store_transposed,
                                              bool_t renumber,
                                              bool_t check,
-                                             cugraph_graph_t** graph);
+                                             cugraph_graph_t** graph,
+                                             cugraph_error_t** error);
 
 /**
  * @brief     Destroy an SG graph
@@ -88,6 +91,9 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
  * @param [in]  is_multigraph If true the input graph is a multi graph (can have multiple edges
  *    between a pair of vertices)
  * @param [out] graph       A pointer to the graph object
+ * @param [out] error       Pointer to an error object storing details of any error.  Will
+ *                          be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
  */
 cugraph_error_code_t cugraph_mg_graph_create(
   const cugraph_resource_handle_t* handle,
@@ -101,7 +107,8 @@ cugraph_error_code_t cugraph_mg_graph_create(
   size_t num_vertices,
   size_t num_edges,
   bool_t check,
-  cugraph_graph_t** graph);
+  cugraph_graph_t** graph,
+  cugraph_error_t** error);
 
 /**
  * @brief     Destroy an MG graph
