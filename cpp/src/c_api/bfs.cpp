@@ -17,42 +17,42 @@
 #include <cugraph_c/algorithms.h>
 
 namespace c_api {
-struct {
+struct cugraph_bfs_result_t {
   cugraph_type_erased_device_array_t* vertex_ids_;
   cugraph_type_erased_device_array_t* distances_;
   cugraph_type_erased_device_array_t* predecessors_;
-} cugraph_bfs_result_t;
+};
 
 }  // namespace c_api
 
 extern "C" cugraph_type_erased_device_array_t* cugraph_bfs_result_get_vertices(
   cugraph_bfs_result_t* result)
 {
-  auto internal_pointer = reinterpret_cast<c_api::cugraph_pagerank_result_t*>(p);
+  auto internal_pointer = reinterpret_cast<c_api::cugraph_bfs_result_t*>(result);
   return internal_pointer->vertex_ids_;
 }
 
 extern "C" cugraph_type_erased_device_array_t* cugraph_bfs_result_get_distances(
   cugraph_bfs_result_t* result)
 {
-  auto internal_pointer = reinterpret_cast<c_api::cugraph_pagerank_result_t*>(p);
+  auto internal_pointer = reinterpret_cast<c_api::cugraph_bfs_result_t*>(result);
   return internal_pointer->distances_;
 }
 
 extern "C" cugraph_type_erased_device_array_t* cugraph_bfs_result_get_predecessors(
   cugraph_bfs_result_t* result)
 {
-  auto internal_pointer = reinterpret_cast<c_api::cugraph_pagerank_result_t*>(p);
+  auto internal_pointer = reinterpret_cast<c_api::cugraph_bfs_result_t*>(result);
   return internal_pointer->predecessors_;
 }
 
 extern "C" void cugraph_bfs_result_free(cugraph_bfs_result_t* result)
 {
-  auto internal_pointer = reinterpret_cast<c_api::cugraph_pagerank_result_t*>(p);
+  auto internal_pointer = reinterpret_cast<c_api::cugraph_bfs_result_t*>(result);
   delete internal_pointer->vertex_ids_;
   delete internal_pointer->distances_;
   delete internal_pointer->predecessors_;
-  delete internal_pointer_;
+  delete internal_pointer;
 }
 
 extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* handle,
@@ -61,6 +61,7 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
                                             bool direction_optimizing,
                                             size_t depth_limit,
                                             bool do_expensive_check,
+                                            bool compute_predecessors,
                                             cugraph_bfs_result_t** result,
                                             cugraph_error_t** error)
 {

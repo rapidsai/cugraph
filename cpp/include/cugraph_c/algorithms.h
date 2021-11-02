@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cugraph_c/cugraph_api.h>
+#include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
 
 #ifdef __cplusplus
