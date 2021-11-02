@@ -92,7 +92,7 @@ set(CUGRAPH_CXX_FLAGS "")
 set(CUGRAPH_CUDA_FLAGS "")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    list(APPEND CUGRAPH_CXX_FLAGS -Werror -Wno-error=deprecated-declarations)
+    list(APPEND CUGRAPH_CXX_FLAGS -Werror -Wno-error=deprecated-declarations  -D_GLIBCXX_USE_CXX11_ABI=1)
 endif(CMAKE_COMPILER_IS_GNUCXX)
 
 
