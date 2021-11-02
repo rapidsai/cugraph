@@ -38,7 +38,14 @@ typedef struct cugraph_error_ {
  * @param [in]  error       The error object from some cugraph function call
  * @return a C-style string that provides detail for the error
  */
-const char *cugraph_error_message(const cugraph_error_t *error);
+const char* cugraph_error_message(const cugraph_error_t* error);
+
+/**
+ * @brief    Destroy an error message
+ *
+ * @param [in]  error       The error object from some cugraph function call
+ */
+void cugraph_error_free(cugraph_error_t* error);
 
 #ifdef __cplusplus
 }

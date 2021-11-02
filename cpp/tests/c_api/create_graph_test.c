@@ -95,6 +95,7 @@ int test_create_sg_graph_simple()
   cugraph_type_erased_device_array_free(src);
 
   cugraph_free_handle(p_handle);
+  cugraph_error_free(ret_error);
 
   // FIXME: Not implemented yet, so forcing test to pass...
   // return test_ret_value;
