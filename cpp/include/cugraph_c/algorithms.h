@@ -77,7 +77,7 @@ void cugraph_pagerank_result_free(cugraph_pagerank_result_t* result);
  * @param [out] result      Opaque pointer to pagerank results
  * @return error code
  */
-cugraph_error_t cugraph_pagerank(
+cugraph_error_code_t cugraph_pagerank(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
@@ -114,7 +114,7 @@ cugraph_error_t cugraph_pagerank(
  * @param [out] result      Opaque pointer to pagerank results
  * @return error code
  */
-cugraph_error_t cugraph_personalized_pagerank(
+cugraph_error_code_t cugraph_personalized_pagerank(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
@@ -190,14 +190,14 @@ void cugraph_bfs_result_free(cugraph_bfs_result_t* result);
  * @param [out] predecessors Returns device pointer to distance from the seeds
  * @return error code
  */
-cugraph_error_t cugraph_bfs(const cugraph_resource_handle_t* handle,
-                            const cugraph_graph_t* graph,
-                            const cugraph_type_erased_device_array_t* sources,
-                            bool direction_optimizing,
-                            size_t depth_limit,
-                            bool do_expensive_check,
-                            bool compute_predecessors,
-                            cugraph_bfs_result_t** result);
+cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* handle,
+                                 const cugraph_graph_t* graph,
+                                 const cugraph_type_erased_device_array_t* sources,
+                                 bool direction_optimizing,
+                                 size_t depth_limit,
+                                 bool do_expensive_check,
+                                 bool compute_predecessors,
+                                 cugraph_bfs_result_t** result);
 
 #ifdef __cplusplus
 }

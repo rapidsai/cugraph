@@ -50,15 +50,15 @@ typedef struct {
  *
  * @return error code
  */
-cugraph_error_t cugraph_sg_graph_create(const cugraph_resource_handle_t* handle,
-                                        const cugraph_graph_properties_t* properties,
-                                        const cugraph_type_erased_device_array_t* src,
-                                        const cugraph_type_erased_device_array_t* dst,
-                                        const cugraph_type_erased_device_array_t* weights,
-                                        bool_t store_transposed,
-                                        bool_t renumber,
-                                        bool_t check,
-                                        cugraph_graph_t** graph);
+cugraph_error_code_t cugraph_sg_graph_create(const cugraph_resource_handle_t* handle,
+                                             const cugraph_graph_properties_t* properties,
+                                             const cugraph_type_erased_device_array_t* src,
+                                             const cugraph_type_erased_device_array_t* dst,
+                                             const cugraph_type_erased_device_array_t* weights,
+                                             bool_t store_transposed,
+                                             bool_t renumber,
+                                             bool_t check,
+                                             cugraph_graph_t** graph);
 
 /**
  * @brief     Destroy an SG graph
@@ -89,7 +89,7 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
  *    between a pair of vertices)
  * @param [out] graph       A pointer to the graph object
  */
-cugraph_error_t cugraph_mg_graph_create(
+cugraph_error_code_t cugraph_mg_graph_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_properties_t* properties,
   const cugraph_type_erased_device_array_t* src,

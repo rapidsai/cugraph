@@ -16,7 +16,7 @@
 
 #include <cugraph_c/graph.h>
 
-extern "C" cugraph_error_t cugraph_mg_graph_create(
+extern "C" cugraph_error_code_t cugraph_mg_graph_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_properties_t* properties,
   const cugraph_type_erased_device_array_t* src,

@@ -47,7 +47,7 @@ extern "C" void cugraph_pagerank_result_free(cugraph_pagerank_result_t* result)
   delete internal_pointer;
 }
 
-extern "C" cugraph_error_t compute_pagerank(
+extern "C" cugraph_error_code_t compute_pagerank(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
@@ -73,7 +73,7 @@ extern "C" cugraph_error_t compute_pagerank(
   return CUGRAPH_NOT_IMPLEMENTED;
 }
 
-extern "C" cugraph_error_t cugraph_personalized_pagerank(
+extern "C" cugraph_error_code_t cugraph_personalized_pagerank(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,

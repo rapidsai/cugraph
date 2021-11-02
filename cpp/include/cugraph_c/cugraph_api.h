@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <cugraph_c/error.h>
+
 #include <cuda_runtime_api.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -23,14 +25,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef enum cugraph_error_ {
-  CUGRAPH_SUCCESS = 0,
-  CUGRAPH_UNKNOWN_ERROR,
-  CUGRAPH_INVALID_HANDLE,
-  CUGRAPH_ALLOC_ERROR,
-  CUGRAPH_NOT_IMPLEMENTED
-} cugraph_error_t;
 
 typedef enum bool_ { FALSE = 0, TRUE = 1 } bool_t;
 
@@ -106,26 +100,26 @@ void cugraph_free_sampling_strategy(cugraph_unique_ptr_t* p_sampling);
 void cugraph_free_rw_result(cugraph_rw_ret_t* p_rw_ret);
 
 /* RW result vertex extractor*/
-cugraph_error_t extract_vertex_rw_result(cugraph_rw_ret_t* p_rw_ret,
-                                         cugraph_device_buffer_t* p_d_buf_v);
+cugraph_error_code_t extract_vertex_rw_result(cugraph_rw_ret_t* p_rw_ret,
+                                              cugraph_device_buffer_t* p_d_buf_v);
 
 /* RW result weights extractor*/
-cugraph_error_t extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret,
-                                         cugraph_device_buffer_t* p_d_buf_w);
+cugraph_error_code_t extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret,
+                                              cugraph_device_buffer_t* p_d_buf_w);
 
 /* RW result size extractor*/
-cugraph_error_t extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret,
-                                       cugraph_device_buffer_t* p_d_buf_sz);
+cugraph_error_code_t extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret,
+                                            cugraph_device_buffer_t* p_d_buf_sz);
 
 /* algorithm wrapper*/
-cugraph_error_t cugraph_random_walks(const cugraph_resource_handle_t* ptr_handle,
-                                     cugraph_graph_envelope_t* ptr_graph_envelope,
-                                     cugraph_device_buffer_t* ptr_d_start,
-                                     size_t num_paths,
-                                     size_t max_depth,
-                                     bool_t flag_use_padding,
-                                     cugraph_unique_ptr_t* ptr_sampling_strategy,
-                                     cugraph_rw_ret_t* ret);
+cugraph_error_code_t cugraph_random_walks(const cugraph_resource_handle_t* ptr_handle,
+                                          cugraph_graph_envelope_t* ptr_graph_envelope,
+                                          cugraph_device_buffer_t* ptr_d_start,
+                                          size_t num_paths,
+                                          size_t max_depth,
+                                          bool_t flag_use_padding,
+                                          cugraph_unique_ptr_t* ptr_sampling_strategy,
+                                          cugraph_rw_ret_t* ret);
 
 /* SG graph allocator*/
 cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_resource_handle_t* p_handle,
@@ -146,25 +140,25 @@ cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_resource_handle_t*
 void cugraph_free_graph(cugraph_graph_envelope_t* graph);
 
 /* rmm::device buffer allocator: fill pointer semantics*/
-cugraph_error_t cugraph_make_device_buffer(const cugraph_resource_handle_t* handle,
-                                           data_type_id_t dtype,
-                                           size_t n_elems,
-                                           cugraph_device_buffer_t* ptr_buffer);
+cugraph_error_code_t cugraph_make_device_buffer(const cugraph_resource_handle_t* handle,
+                                                data_type_id_t dtype,
+                                                size_t n_elems,
+                                                cugraph_device_buffer_t* ptr_buffer);
 
 /* rmm::device buffer de-allocator*/
 void cugraph_free_device_buffer(cugraph_device_buffer_t* ptr_buffer);
 
 /* update dst device buffer from host src*/
-cugraph_error_t cugraph_update_device_buffer(const cugraph_resource_handle_t* handle,
-                                             data_type_id_t dtype,
-                                             cugraph_device_buffer_t* ptr_dst,
-                                             const byte_t* ptr_h_src);
+cugraph_error_code_t cugraph_update_device_buffer(const cugraph_resource_handle_t* handle,
+                                                  data_type_id_t dtype,
+                                                  cugraph_device_buffer_t* ptr_dst,
+                                                  const byte_t* ptr_h_src);
 
 /* update src host buffer device src*/
-cugraph_error_t cugraph_update_host_buffer(const cugraph_resource_handle_t* handle,
-                                           data_type_id_t dtype,
-                                           byte_t* ptr_h_dst,
-                                           const cugraph_device_buffer_t* ptr_src);
+cugraph_error_code_t cugraph_update_host_buffer(const cugraph_resource_handle_t* handle,
+                                                data_type_id_t dtype,
+                                                byte_t* ptr_h_dst,
+                                                const cugraph_device_buffer_t* ptr_src);
 
 /* raft::handle_t allocator (for now; possibly a more encompassing handle in the future)*/
 cugraph_resource_handle_t* cugraph_create_handle(void);

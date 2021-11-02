@@ -38,7 +38,7 @@ int test_random_walks_1()
   typedef int32_t edge_t;
   typedef float weight_t;
 
-  cugraph_error_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   size_t num_edges         = 8;
   size_t num_vertices      = 6;
 
@@ -191,7 +191,7 @@ int test_random_walks_2()
   typedef int32_t edge_t;
   typedef float weight_t;
 
-  cugraph_error_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   size_t num_edges         = 8;
   size_t num_vertices      = 6;
 
@@ -318,7 +318,7 @@ int test_random_walks_3()
   typedef int32_t edge_t;
   typedef float weight_t;
 
-  cugraph_error_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   size_t num_edges         = 8;
   size_t num_vertices      = 6;
 
