@@ -12,7 +12,7 @@
 # limitations under the License.
 
 """
-Utilities specific to NetworkX.
+Utilities specific to converting to/from NetworkX.
 
 NetworkX is required at runtime in order to call any of these functions, so
 ensure code using these utilities has done the proper checks prior to calling.
@@ -22,7 +22,6 @@ import cugraph
 from .utils import import_optional
 import cudf
 from cudf import from_pandas
-import numpy as np
 
 # nx will be a MissingModule instance if NetworkX is not installed (any
 # attribute access on a MissingModule instance results in a RuntimeError).
@@ -82,8 +81,8 @@ def convert_from_nx(nxG, weight=None, do_renumber=True):
     elif isinstance(nxG, nx.classes.graph.Graph):
         G = cugraph.Graph()
     else:
-        raise TypeError(f"nxG must be either a NetworkX Graph or DiGraph, got {type(nxG)}")
-            "input is not a supported NetworkX graph type")
+        raise TypeError(
+            f"nxG must be either a NetworkX Graph or DiGraph, got {type(nxG)}")
 
     is_weighted = nx.is_weighted(nxG)
 
@@ -100,62 +99,6 @@ def convert_from_nx(nxG, weight=None, do_renumber=True):
             _gdf = convert_weighted_named_to_gdf(nxG, weight)
             G.from_cudf_edgelist(_gdf, source="src", destination="dst",
                                  edge_attr='weight', renumber=do_renumber)
-
-    return G
-
-
-def convert_from_nx_old(nxG, weight=None, do_renumber=True):
-    """
-    weight, if given, is the string/name of the edge attr in nxG to use for
-    weights in the resulting cugraph obj.  If nxG has no edge attributes,
-    weight is ignored even if specified.
-    """
-    if isinstance(nxG, nx.classes.digraph.DiGraph):
-        G = cugraph.Graph(directed=True)
-    elif isinstance(nxG, nx.classes.graph.Graph):
-        G = cugraph.Graph()
-    else:
-        raise ValueError(
-            "nxG does not appear to be a supported NetworkX graph type")
-
-    is_weighted = nx.is_weighted(nxG)
-    pdf = nx.to_pandas_edgelist(nxG)
-
-    # Convert vertex columns to strings if they are not integers
-    # This allows support for any vertex input type
-    if pdf["source"].dtype not in [np.int32, np.int64] or \
-            pdf["target"].dtype not in [np.int32, np.int64]:
-        pdf['source'] = pdf['source'].astype(str)
-        pdf['target'] = pdf['target'].astype(str)
-
-    num_col = len(pdf.columns)
-
-    if num_col < 2:
-        raise ValueError("NetworkX graph did not contain edges")
-
-    if num_col == 2:
-        pdf = pdf[["source", "target"]]
-
-    if num_col >= 3:
-        if is_weighted is False:
-            pdf = pdf[["source", "target"]]
-        elif weight is None:
-            pdf = pdf[["source", "target", "weight"]]
-            weight = "weight"
-        else:
-            pdf = pdf[["source", "target", weight]]
-
-    gdf = from_pandas(pdf)
-
-    if num_col == 2:
-        G.from_cudf_edgelist(gdf, source="source", destination="target",
-                             renumber=do_renumber)
-    else:
-        G.from_cudf_edgelist(gdf, source="source", destination="target",
-                             edge_attr=weight, renumber=do_renumber)
-
-    del gdf
-    del pdf
 
     return G
 
