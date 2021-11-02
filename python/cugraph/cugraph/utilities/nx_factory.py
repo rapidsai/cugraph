@@ -33,7 +33,7 @@ def convert_unweighted_to_gdf(NX_G):
     _edges = NX_G.edges(data=False)
     src = [s for s, _ in _edges]
     dst = [d for _, d in _edges]
-    
+
     _gdf = cudf.DataFrame()
     _gdf['src'] = src
     _gdf['dst'] = dst
@@ -46,7 +46,7 @@ def convert_weighted_named_to_gdf(NX_G, weight):
 
     src = [s for s, _, _ in _edges]
     dst = [d for _, d, _ in _edges]
-    wt =  [w for _, _, w in _edges]
+    wt = [w for _, _, w in _edges]
 
     _gdf = cudf.DataFrame()
     _gdf['src'] = src
@@ -65,7 +65,7 @@ def convert_weighted_unnamed_to_gdf(NX_G):
             "Unable to determine weight column name")
 
     if wt_col[0] != "weight":
-        _pdf.rename(columns={wt_col[0]:"weight"})
+        _pdf.rename(columns={wt_col[0]: "weight"})
 
     _gdf = from_pandas(_pdf)
     return _gdf
@@ -73,7 +73,7 @@ def convert_weighted_unnamed_to_gdf(NX_G):
 
 def convert_from_nx(nxG, weight=None, do_renumber=True):
     """
-    weight: weight column name. Only used if 
+    weight: weight column name. Only used if
     nxG.is_weighted() is True
     """
 
@@ -95,11 +95,11 @@ def convert_from_nx(nxG, weight=None, do_renumber=True):
         if weight is None:
             _gdf = convert_weighted_unnamed_to_gdf(nxG)
             G.from_cudf_edgelist(_gdf, source="source", destination="target",
-                             edge_attr='weight', renumber=do_renumber)
+                                 edge_attr='weight', renumber=do_renumber)
         else:
             _gdf = convert_weighted_named_to_gdf(nxG, weight)
             G.from_cudf_edgelist(_gdf, source="src", destination="dst",
-                             edge_attr='weight', renumber=do_renumber)
+                                 edge_attr='weight', renumber=do_renumber)
 
     return G
 
