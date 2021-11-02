@@ -1256,6 +1256,18 @@ void pagerank(raft::handle_t const& handle,
               bool has_initial_guess  = false,
               bool do_expensive_check = false);
 
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<weight_t, size_t>
+hits(raft::handle_t const& handle,
+     graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
+     weight_t * const hubs,
+     weight_t * const authorities,
+     weight_t epsilon,
+     size_t max_iterations,
+     bool has_initial_hubs_guess,
+     bool normalize,
+     bool do_expensive_check);
+
 /**
  * @brief Compute Katz Centrality scores.
  *

@@ -165,7 +165,6 @@ add_library(cugraph SHARED
     src/utilities/graph_bcast.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
-    src/link_analysis/gunrock_hits.cpp
     src/traversal/legacy/bfs.cu
     src/traversal/legacy/sssp.cu
     src/link_prediction/jaccard.cu
@@ -213,6 +212,8 @@ add_library(cugraph SHARED
     src/traversal/bfs_mg.cu
     src/traversal/sssp_sg.cu
     src/traversal/sssp_mg.cu
+    src/link_analysis/hits_sg.cu
+    src/link_analysis/hits_mg.cu
     src/link_analysis/pagerank_sg.cu
     src/link_analysis/pagerank_mg.cu
     src/centrality/katz_centrality_sg.cu
