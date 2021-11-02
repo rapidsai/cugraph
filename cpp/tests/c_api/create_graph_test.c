@@ -31,6 +31,7 @@ int test_create_sg_graph_simple()
   typedef float weight_t;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t *ret_error;
   size_t num_edges         = 8;
   size_t num_vertices      = 6;
 
@@ -56,22 +57,22 @@ int test_create_sg_graph_simple()
   cugraph_type_erased_device_array_t* dst;
   cugraph_type_erased_device_array_t* wgt;
 
-  ret_code = cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges, &src);
+  ret_code = cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges, &src, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
 
-  ret_code = cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges, &dst);
+  ret_code = cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges, &dst, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
 
-  ret_code = cugraph_type_erased_device_array_create(p_handle, weight_tid, num_edges, &wgt);
+  ret_code = cugraph_type_erased_device_array_create(p_handle, weight_tid, num_edges, &wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
 
-  ret_code = cugraph_type_erased_device_array_copy_from_host(p_handle, src, (byte_t*)h_src);
+  ret_code = cugraph_type_erased_device_array_copy_from_host(p_handle, src, (byte_t*)h_src, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_copy_from_host(p_handle, dst, (byte_t*)h_dst);
+  ret_code = cugraph_type_erased_device_array_copy_from_host(p_handle, dst, (byte_t*)h_dst, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_from_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_copy_from_host(p_handle, wgt, (byte_t*)h_wgt);
+  ret_code = cugraph_type_erased_device_array_copy_from_host(p_handle, wgt, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
   ret_code = cugraph_sg_graph_create(p_handle,
