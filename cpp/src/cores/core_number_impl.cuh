@@ -27,12 +27,12 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void core_number(raft::handle_t const& handle,
-         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-         vertex_t* core_numbers,
-         k_core_degree_type_t degree_type,
-         size_t k_first,
-         size_t k_last,
-         bool do_expensive_check)
+                 graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                 vertex_t* core_numbers,
+                 k_core_degree_type_t degree_type,
+                 size_t k_first,
+                 size_t k_last,
+                 bool do_expensive_check)
 {
   CUGRAPH_FAIL("unimplemented.");
 }

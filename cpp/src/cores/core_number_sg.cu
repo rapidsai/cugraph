@@ -21,51 +21,51 @@ namespace cugraph {
 // MG instantiation
 
 template void core_number(raft::handle_t const& handle,
-                  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
-                  int32_t* core_numbers,
-                  k_core_degree_type_t degree_type,
-                  size_t k_first,
-                  size_t k_last,
-                  bool do_expensive_check);
+                          graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+                          int32_t* core_numbers,
+                          k_core_degree_type_t degree_type,
+                          size_t k_first,
+                          size_t k_last,
+                          bool do_expensive_check);
 
 template void core_number(raft::handle_t const& handle,
-                  graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
-                  int32_t* core_numbers,
-                  k_core_degree_type_t degree_type,
-                  size_t k_first,
-                  size_t k_last,
-                  bool do_expensive_check);
+                          graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+                          int32_t* core_numbers,
+                          k_core_degree_type_t degree_type,
+                          size_t k_first,
+                          size_t k_last,
+                          bool do_expensive_check);
 
 template void core_number(raft::handle_t const& handle,
-                  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
-                  int32_t* core_numbers,
-                  k_core_degree_type_t degree_type,
-                  size_t k_first,
-                  size_t k_last,
-                  bool do_expensive_check);
+                          graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+                          int32_t* core_numbers,
+                          k_core_degree_type_t degree_type,
+                          size_t k_first,
+                          size_t k_last,
+                          bool do_expensive_check);
 
 template void core_number(raft::handle_t const& handle,
-                  graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
-                  int32_t* core_numbers,
-                  k_core_degree_type_t degree_type,
-                  size_t k_first,
-                  size_t k_last,
-                  bool do_expensive_check);
+                          graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+                          int32_t* core_numbers,
+                          k_core_degree_type_t degree_type,
+                          size_t k_first,
+                          size_t k_last,
+                          bool do_expensive_check);
 
 template void core_number(raft::handle_t const& handle,
-                  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
-                  int64_t* core_numbers,
-                  k_core_degree_type_t degree_type,
-                  size_t k_first,
-                  size_t k_last,
-                  bool do_expensive_check);
+                          graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+                          int64_t* core_numbers,
+                          k_core_degree_type_t degree_type,
+                          size_t k_first,
+                          size_t k_last,
+                          bool do_expensive_check);
 
 template void core_number(raft::handle_t const& handle,
-                  graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
-                  int64_t* core_numbers,
-                  k_core_degree_type_t degree_type,
-                  size_t k_first,
-                  size_t k_last,
-                  bool do_expensive_check);
+                          graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+                          int64_t* core_numbers,
+                          k_core_degree_type_t degree_type,
+                          size_t k_first,
+                          size_t k_last,
+                          bool do_expensive_check);
 
 }  // namespace cugraph
