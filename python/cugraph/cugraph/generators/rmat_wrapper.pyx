@@ -31,7 +31,7 @@ from cugraph.generators.rmat cimport (call_generate_rmat_edgelist,
                                       UNIFORM,
                                       POWER_LAW,
                                       )
-from cugraph.structure.graph_primtypes cimport move_device_buffer_to_series
+from cugraph.structure.graph_primtypes cimport move_device_buffer_to_column
 
 
 def generate_rmat_edgelist(
@@ -85,10 +85,8 @@ def generate_rmat_edgelist(
 
     gg_ret = move(gg_ret_ptr.get()[0])
 
-    set_source = move_device_buffer_to_series(
-        move(gg_ret.d_source), vertex_t, "set_source")
-    set_destination = move_device_buffer_to_series(
-        move(gg_ret.d_destination), vertex_t, "set_destination")
+    set_source = move_device_buffer_to_column(move(gg_ret.d_source), vertex_t)
+    set_destination = move_device_buffer_to_column(move(gg_ret.d_destination), vertex_t)
 
     df = cudf.DataFrame()
     df['src'] = set_source
@@ -155,10 +153,8 @@ def generate_rmat_edgelists(
     list_df = []
 
     for i in range(n_edgelists):
-        set_source = move_device_buffer_to_series(
-            move(gg_ret_ptr[i].first), vertex_t, "set_source")
-        set_destination = move_device_buffer_to_series(
-            move(gg_ret_ptr[i].second), vertex_t, "set_destination")
+        set_source = move_device_buffer_to_column(move(gg_ret_ptr[i].first), vertex_t)
+        set_destination = move_device_buffer_to_column(move(gg_ret_ptr[i].second), vertex_t)
 
         df = cudf.DataFrame()
         df['src'] = set_source
