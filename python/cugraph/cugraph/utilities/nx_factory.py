@@ -28,20 +28,23 @@ import numpy as np
 nx = import_optional("networkx")
 
 
-def convert_from_nx(nxG, weight=None):
+def convert_from_nx(nxG, weight=None, do_renumber=True):
     """
     weight, if given, is the string/name of the edge attr in nxG to use for
     weights in the resulting cugraph obj.  If nxG has no edge attributes,
     weight is ignored even if specified.
     """
-    if type(nxG) == nx.classes.graph.Graph:
+    if isinstance(nxG, nx.classes.digraph.DiGraph):
+        G = cugraph.Graph(directed=True)
+    elif isinstance(nxG, nx.classes.graph.Graph):
         G = cugraph.Graph()
-    elif type(nxG) == nx.classes.digraph.DiGraph:
-        G = cugraph.DiGraph()
     else:
-        raise ValueError("nxG does not appear to be a NetworkX graph type")
+        raise ValueError(
+            "nxG does not appear to be a supported NetworkX graph type")
 
+    is_weighted = nx.is_weighted(nxG)
     pdf = nx.to_pandas_edgelist(nxG)
+
     # Convert vertex columns to strings if they are not integers
     # This allows support for any vertex input type
     if pdf["source"].dtype not in [np.int32, np.int64] or \
@@ -54,20 +57,26 @@ def convert_from_nx(nxG, weight=None):
     if num_col < 2:
         raise ValueError("NetworkX graph did not contain edges")
 
-    if weight is None:
-        num_col == 2
+    if num_col == 2:
         pdf = pdf[["source", "target"]]
 
-    if num_col >= 3 and weight is not None:
-        pdf = pdf[["source", "target", weight]]
-        num_col = 3
+    if num_col >= 3:
+        if is_weighted is False:
+            pdf = pdf[["source", "target"]]
+        elif weight is None:
+            pdf = pdf[["source", "target", "weight"]]
+            weight = "weight"
+        else:
+            pdf = pdf[["source", "target", weight]]
 
     gdf = from_pandas(pdf)
 
     if num_col == 2:
-        G.from_cudf_edgelist(gdf, "source", "target")
+        G.from_cudf_edgelist(gdf, source="source", destination="target",
+                             renumber=do_renumber)
     else:
-        G.from_cudf_edgelist(gdf, "source", "target", weight)
+        G.from_cudf_edgelist(gdf, source="source", destination="target",
+                             edge_attr=weight, renumber=do_renumber)
 
     del gdf
     del pdf
