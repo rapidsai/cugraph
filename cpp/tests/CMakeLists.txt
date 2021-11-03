@@ -430,6 +430,10 @@ ConfigureTest(BFS_VISITOR_TEST visitors/bfs_test.cpp)
 ConfigureTest(RANDOM_WALKS_VISITOR_TEST visitors/rw_test.cu)
 
 ###################################################################################################
+# - Core Number tests -----------------------------------------------------------------------------
+ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
+
+###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)

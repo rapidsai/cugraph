@@ -1,0 +1,339 @@
+/*
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governin_from_mtxg permissions and
+ * limitations under the License.
+ */
+
+#include <utilities/high_res_clock.h>
+#include <utilities/base_fixture.hpp>
+#include <utilities/test_graphs.hpp>
+#include <utilities/test_utilities.hpp>
+#include <utilities/thrust_wrapper.hpp>
+
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
+
+#include <raft/cudart_utils.h>
+#include <raft/handle.hpp>
+#include <rmm/device_scalar.hpp>
+#include <rmm/device_uvector.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
+
+#include <gtest/gtest.h>
+
+#include <numeric>
+#include <vector>
+
+// assumes the input graph has no self-loops nor multi-edges.
+template <typename vertex_t, typename edge_t>
+std::vector<vertex_t> core_number_reference(edge_t const* offsets,
+                                            vertex_t const* indices,
+                                            vertex_t num_vertices,
+                                            cugraph::k_core_degree_type_t degree_type,
+                                            size_t k_first = 0,
+                                            size_t k_last  = std::numeric_limits<size_t>::max())
+{
+  // initialize core_numbers to degrees
+
+  std::vector<edge_t> degrees(num_vertices, edge_t{0});
+  if ((degree_type == cugraph::k_core_degree_type_t::OUT) ||
+      (degree_type == cugraph::k_core_degree_type_t::INOUT)) {
+    std::adjacent_difference(offsets + 1, offsets + (num_vertices + 1), degrees.begin());
+  }
+  if ((degree_type == cugraph::k_core_degree_type_t::IN) ||
+      (degree_type == cugraph::k_core_degree_type_t::INOUT)) {
+    for (vertex_t i = 0; i < num_vertices; ++i) {
+      for (edge_t j = offsets[i]; j < offsets[i + 1]; ++j) {
+        ++degrees[indices[j]];
+      }
+    }
+  }
+  std::vector<vertex_t> core_numbers(num_vertices, vertex_t{0});
+  std::transform(degrees.begin(), degrees.end(), core_numbers.begin(), [](auto d) {
+    return static_cast<vertex_t>(d);
+  });  // vertex_t is sufficient as K-core assumes no multi-edges.
+
+  // sort vertices based on degrees
+
+  std::vector<vertex_t> sorted_vertices(num_vertices);
+  std::iota(sorted_vertices.begin(), sorted_vertices.end(), vertex_t{0});
+  std::sort(sorted_vertices.begin(), sorted_vertices.end(), [&degrees](auto lhs, auto rhs) {
+    return degrees[lhs] < degrees[rhs];
+  });
+
+  // update initial bin boundaries
+
+  std::vector<vertex_t> bin_start_offsets = {0};
+
+  edge_t cur_degree{0};
+  for (vertex_t i = 0; i < num_vertices; ++i) {
+    auto degree = core_numbers[sorted_vertices[i]];
+    if (degree > cur_degree) {
+      bin_start_offsets.insert(bin_start_offsets.end(), degree - cur_degree, i);
+      cur_degree = degree;
+    }
+  }
+
+  // initialize vertex positions
+
+  std::vector<vertex_t> v_positions(num_vertices);
+  for (vertex_t i = 0; i < num_vertices; ++i) {
+    v_positions[sorted_vertices[i]] = i;
+  }
+
+  // update core numbers
+
+  std::vector<bool> edge_valids(offsets[num_vertices], true);
+
+  for (vertex_t i = 0; i < num_vertices; ++i) {
+    auto v = sorted_vertices[i];
+    for (edge_t j = offsets[v]; j < offsets[v + 1]; ++j) {
+      auto nbr = indices[j];
+      if (edge_valids[j] && (core_numbers[nbr] > core_numbers[v])) {
+        for (edge_t k = offsets[nbr]; k < offsets[nbr + 1]; ++k) {
+          if (indices[k] == v) {
+            edge_valids[k] = false;
+            break;
+          }
+        }
+        auto nbr_pos  = v_positions[nbr];
+        auto bin_start_pos = bin_start_offsets[core_numbers[nbr]];
+        std::swap(v_positions[nbr], v_positions[sorted_vertices[bin_start_pos]]);
+        std::swap(sorted_vertices[nbr_pos], sorted_vertices[bin_start_pos]);
+        ++bin_start_offsets[core_numbers[nbr]];
+        --core_numbers[nbr];
+      }
+    }
+  }
+
+  return core_numbers;
+}
+
+struct CoreNumber_Usecase {
+  cugraph::k_core_degree_type_t degree_type{cugraph::k_core_degree_type_t::OUT};
+  size_t k_first{0};  // vertices that does not belong to k_first cores will have core numbers of 0
+  size_t k_last{std::numeric_limits<size_t>::max()};  // vertices that belong (k_last + 1)-core will
+                                                      // have core numbers of k_last
+
+  bool check_correctness{true};
+};
+
+template <typename input_usecase_t>
+class Tests_CoreNumber
+  : public ::testing::TestWithParam<std::tuple<CoreNumber_Usecase, input_usecase_t>> {
+ public:
+  Tests_CoreNumber() {}
+  static void SetupTestCase() {}
+  static void TearDownTestCase() {}
+
+  virtual void SetUp() {}
+  virtual void TearDown() {}
+
+  template <typename vertex_t, typename edge_t>
+  void run_current_test(CoreNumber_Usecase const& core_number_usecase,
+                        input_usecase_t const& input_usecase)
+  {
+    constexpr bool renumber = true;
+
+    using weight_t = float;
+
+    raft::handle_t handle{};
+    HighResClock hr_clock{};
+
+    if (cugraph::test::g_perf) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_clock.start();
+    }
+
+    auto [graph, d_renumber_map_labels] =
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+        handle, input_usecase, true, renumber);
+
+    if (cugraph::test::g_perf) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+    }
+    auto graph_view = graph.view();
+
+    ASSERT_TRUE(core_number_usecase.k_first <= core_number_usecase.k_last)
+      << "Invalid pair of (k_first, k_last).";
+
+    rmm::device_uvector<vertex_t> d_core_numbers(graph_view.get_number_of_vertices(),
+                                                 handle.get_stream());
+
+    if (cugraph::test::g_perf) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_clock.start();
+    }
+
+    cugraph::core_number(handle,
+                         graph_view,
+                         d_core_numbers.data(),
+                         core_number_usecase.degree_type,
+                         core_number_usecase.k_first,
+                         core_number_usecase.k_last);
+
+    if (cugraph::test::g_perf) {
+      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "Core Number took " << elapsed_time * 1e-6 << " s.\n";
+    }
+
+    if (core_number_usecase.check_correctness) {
+      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
+      if (renumber) {
+        std::tie(unrenumbered_graph, std::ignore) =
+          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+            handle, input_usecase, true, false);
+      }
+      auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
+
+      std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
+      std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
+      raft::update_host(h_offsets.data(),
+                        unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
+                        unrenumbered_graph_view.get_number_of_vertices() + 1,
+                        handle.get_stream());
+      raft::update_host(h_indices.data(),
+                        unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
+                        unrenumbered_graph_view.get_number_of_edges(),
+                        handle.get_stream());
+
+      handle.get_stream_view().synchronize();
+
+      auto h_reference_core_numbers = core_number_reference(h_offsets.data(),
+                            h_indices.data(),
+                            graph_view.get_number_of_vertices(),
+                            core_number_usecase.degree_type,
+                            core_number_usecase.k_first,
+                            core_number_usecase.k_last);
+
+      std::vector<vertex_t> h_cugraph_core_numbers(graph_view.get_number_of_vertices());
+      if (renumber) {
+        rmm::device_uvector<vertex_t> d_unrenumbered_core_numbers(size_t{0}, handle.get_stream());
+        std::tie(std::ignore, d_unrenumbered_core_numbers) =
+          cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_core_numbers);
+        raft::update_host(h_cugraph_core_numbers.data(),
+                          d_unrenumbered_core_numbers.data(),
+                          d_unrenumbered_core_numbers.size(),
+                          handle.get_stream());
+
+        handle.get_stream_view().synchronize();
+      } else {
+        raft::update_host(h_cugraph_core_numbers.data(),
+                          d_core_numbers.data(),
+                          d_core_numbers.size(),
+                          handle.get_stream());
+
+        handle.get_stream_view().synchronize();
+      }
+
+      ASSERT_TRUE(std::equal(h_reference_core_numbers.begin(),
+                             h_reference_core_numbers.end(),
+                             h_cugraph_core_numbers.begin()))
+        << "core numbers do not match with the reference values.";
+    }
+  }
+};
+
+using Tests_CoreNumber_File = Tests_CoreNumber<cugraph::test::File_Usecase>;
+using Tests_CoreNumber_Rmat = Tests_CoreNumber<cugraph::test::Rmat_Usecase>;
+
+// FIXME: add tests for type combinations
+TEST_P(Tests_CoreNumber_File, CheckInt32Int32)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
+}
+
+TEST_P(Tests_CoreNumber_Rmat, CheckInt32Int32)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_CoreNumber_Rmat, CheckInt32Int64)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_CoreNumber_Rmat, CheckInt64Int64)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+  file_test,
+  Tests_CoreNumber_File,
+  ::testing::Values(
+    // enable correctness checks
+    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
+                                       size_t{0},
+                                       std::numeric_limits<size_t>::max()},
+                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
+                                       size_t{0},
+                                       std::numeric_limits<size_t>::max()},
+                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
+    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
+                                       size_t{0},
+                                       std::numeric_limits<size_t>::max()},
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
+                                       size_t{0},
+                                       std::numeric_limits<size_t>::max()},
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
+                                       size_t{0},
+                                       std::numeric_limits<size_t>::max()},
+                    cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
+    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
+                                       size_t{0},
+                                       std::numeric_limits<size_t>::max()},
+                    cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_CoreNumber_Rmat,
+  ::testing::Values(
+    // enable correctness checks
+    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
+                                       size_t{0},
+                                       std::numeric_limits<size_t>::max()},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
+  Tests_CoreNumber_Rmat,
+  ::testing::Values(
+    // disable correctness checks for large graphs
+    std::make_pair(
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::OUT, size_t{0}, std::numeric_limits<size_t>::max(), false},
+      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+
+CUGRAPH_TEST_PROGRAM_MAIN()
