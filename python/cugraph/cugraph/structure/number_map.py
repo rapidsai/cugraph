@@ -210,7 +210,6 @@ class NumberMap:
                                    preserve_order):
             # At the moment, preserve_order cannot be done on
             # multi-GPU
-
             if preserve_order:
                 raise Exception("preserve_order not supported for multi-GPU")
 
@@ -481,12 +480,12 @@ class NumberMap:
         else:
             renumber_type = 'experimental'
 
+        renumber_map = NumberMap()
         if not isinstance(src_col_names, list):
             src_col_names = [src_col_names]
             dst_col_names = [dst_col_names]
 
         id_type = df[src_col_names[0]].dtype
-        renumber_map = NumberMap(id_type=id_type)
         if type(df) is cudf.DataFrame:
             renumber_map.implementation = NumberMap.SingleGPU(
                 df, src_col_names, dst_col_names, renumber_map.id_type,
@@ -505,17 +504,14 @@ class NumberMap:
                               indirection_map(df,
                                               src_col_names,
                                               dst_col_names)
-
             df = renumber_map.add_internal_vertex_id(
                 df, "src", src_col_names, drop=True,
                 preserve_order=preserve_order
             )
-
             df = renumber_map.add_internal_vertex_id(
                 df, "dst", dst_col_names, drop=True,
                 preserve_order=preserve_order
             )
-
         else:
             df = df.rename(columns={src_col_names[0]: "src",
                                     dst_col_names[0]: "dst"})
@@ -529,9 +525,7 @@ class NumberMap:
 
         if is_mnmg:
             client = default_client()
-
             data = get_distributed_data(df)
-
             result = [(client.submit(call_renumber,
                                      Comms.get_session_id(),
                                      wf[1],
@@ -557,7 +551,7 @@ class NumberMap:
 
             renumbering_map = dask_cudf.from_delayed(
                                  [client.submit(get_renumber_map,
-                                                renumber_map.id_type,
+                                                id_type,
                                                 data,
                                                 workers=[wf])
                                      for (data, wf) in result])
@@ -573,11 +567,10 @@ class NumberMap:
 
             renumbered_df = dask_cudf.from_delayed(
                                [client.submit(get_renumbered_df,
-                                              renumber_map.id_type,
+                                              id_type,
                                               data,
                                               workers=[wf])
                                    for (data, wf) in result])
-
             if renumber_type == 'legacy':
                 renumber_map.implementation.ddf = indirection_map.merge(
                     renumbering_map,
