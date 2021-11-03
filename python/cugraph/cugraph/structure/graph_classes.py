@@ -35,8 +35,8 @@ class Graph:
 
     Parameters
     ----------
-    m_graph : cuGraph.Graph object or None
-        Initialize the graph from another Multigraph object
+    m_graph : cuGraph.MultiGraph object or None
+        Initialize the graph from a cugraph.MultiGraph object
     directed : boolean
         Indicated is the graph is directed.
         Default is False - Undirected
