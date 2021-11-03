@@ -50,13 +50,16 @@ cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w, vertex_t, weights):
 
     shuffled_df = cudf.DataFrame()
     shuffled_df['major_vertices']=shuffled_major_series
+    shuffled_df['major_vertices']=shuffled_df['major_vertices'].astype(vertex_t)
     shuffled_df['minor_vertices']=shuffled_minor_series
+    shuffled_df['minor_vertices']=shuffled_df['minor_vertices'].astype(vertex_t)
 
     if weights is not None:
         weight_t = weights.dtype
         shuffled_weights_series = move_device_buffer_to_series(
             move(pair_s_weights.first), weight_t, "shuffled_weights")
         shuffled_df['value']= shuffled_weights_series
+        shuffled_df['value']= shuffled_df['value'].astype(weight_t)
 
     return shuffled_df
 
