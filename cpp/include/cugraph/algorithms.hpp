@@ -1399,4 +1399,37 @@ void weakly_connected_components(
   vertex_t* components,
   bool do_expensive_check = false);
 
+enum class k_core_degree_type_t { IN, OUT, INOUT };
+
+/**
+ * @brief   Compute core numbers of individual vertices from K-core decomposition.
+ *
+ * The input graph should not have self-loops nor multi-edges.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param core_numbers Pointer to the output core number array.
+ * @param degree_type Dictate whether to compute the K-core decomposition based on in-degrees,
+ * out-degrees, or in-degrees + out_degrees.
+ * @param k_first Find K-cores from K = k_first. Any vertices that do not belong to k_first-core
+ * will have core numbers of 0.
+ * @param k_last Find K-cores to K = k_last. Any vertices that belong to (k_last + 1) core will have
+ * core numbers of k_last.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void core_number(raft::handle_t const& handle,
+                 graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                 vertex_t* core_numbers,
+                 k_core_degree_type_t degree_type,
+                 size_t k_first          = 0,
+                 size_t k_last           = std::numeric_limits<size_t>::max(),
+                 bool do_expensive_check = false);
+
 }  // namespace cugraph
