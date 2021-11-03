@@ -183,7 +183,9 @@ add_library(cugraph SHARED
     src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
-    src/cores/core_number.cu
+    src/cores/legacy/core_number.cu
+    src/cores/core_number_sg.cu
+    src/cores/core_number_mg.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu
     src/centrality/legacy/katz_centrality.cu
