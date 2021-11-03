@@ -668,17 +668,19 @@ def test_neighbors(graph_file):
 
 def test_graph_init_with_multigraph():
     """
-    Ensures only a valid MultiGraph instance can be used to initialize a Graph.
+    Ensures only a valid MultiGraph instance can be used to initialize a Graph
+    by checking if either the correct exception is raised or no exception at
+    all.
     """
     nxMG = nx.MultiGraph()
     with pytest.raises(TypeError):
-        G = cugraph.Graph(m_graph=nxMG)
+        cugraph.Graph(m_graph=nxMG)
 
     gdf = cudf.DataFrame({"src": [0, 1, 2], "dst": [1, 2, 3]})
     cMG = cugraph.MultiGraph()
     cMG.from_cudf_edgelist(gdf, source="src", destination="dst")
-    G = cugraph.Graph(m_graph=cMG)
+    cugraph.Graph(m_graph=cMG)
 
     cDiMG = cugraph.MultiDiGraph()  # deprecated, but should still work
     cDiMG.from_cudf_edgelist(gdf, source="src", destination="dst")
-    G = cugraph.Graph(m_graph=cDiMG)
+    cugraph.Graph(m_graph=cDiMG)
