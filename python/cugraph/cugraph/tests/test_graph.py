@@ -664,3 +664,21 @@ def test_neighbors(graph_file):
         cu_neighbors.sort()
         nx_neighbors.sort()
         assert cu_neighbors == nx_neighbors
+
+
+def test_graph_init_with_multigraph():
+    """
+    Ensures only a valid MultiGraph instance can be used to initialize a Graph.
+    """
+    nxMG = nx.MultiGraph()
+    with pytest.raises(TypeError):
+        G = cugraph.Graph(m_graph=nxMG)
+
+    gdf = cudf.DataFrame({"src": [0, 1, 2], "dst": [1, 2, 3]})
+    cMG = cugraph.MultiGraph()
+    cMG.from_cudf_edgelist(gdf, source="src", destination="dst")
+    G = cugraph.Graph(m_graph=cMG)
+
+    cDiMG = cugraph.MultiDiGraph()  # deprecated, but should still work
+    cDiMG.from_cudf_edgelist(gdf, source="src", destination="dst")
+    G = cugraph.Graph(m_graph=cDiMG)

@@ -58,7 +58,7 @@ class Graph:
         self._Impl = None
         self.graph_properties = Graph.Properties(directed)
         if m_graph is not None:
-            if m_graph.is_multigraph():
+            if isinstance(m_graph, MultiGraph):
                 elist = m_graph.view_edge_list()
                 if m_graph.is_weighted():
                     weights = "weights"
@@ -69,10 +69,8 @@ class Graph:
                                         destination="dst",
                                         edge_attr=weights)
             else:
-                msg = (
-                    "Graph can only be initialized using MultiGraph "
-                )
-                raise Exception(msg)
+                raise TypeError("m_graph can only be an instance of a "
+                                f"cugraph.MultiGraph, got {type(m_graph)}")
 
     def __getattr__(self, name):
         if self._Impl is None:
