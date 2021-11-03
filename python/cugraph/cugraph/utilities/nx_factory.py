@@ -160,7 +160,6 @@ def df_edge_score_to_dictionary(df, k, src="src", dst="dst"):
     dst : str
         destination column name
 
-
     Returns
     -------
     dict : Dictionary of vertices and score
@@ -172,3 +171,16 @@ def df_edge_score_to_dictionary(df, k, src="src", dst="dst"):
         d[(pdf[src][i], pdf[dst][i])] = pdf[k][i]
 
     return d
+
+
+def cugraph_to_nx(G):
+    pdf = G.view_edge_list().to_pandas()
+    num_col = len(pdf.columns)
+
+    if num_col == 2:
+        Gnx = nx.from_pandas_edgelist(pdf, source="src", target="dst")
+    else:
+        Gnx = nx.from_pandas_edgelist(pdf, source="src", target="dst",
+                                      edge_attr="weights")
+
+    return Gnx
