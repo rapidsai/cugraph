@@ -491,7 +491,7 @@ class NumberMap:
                 df, src_col_names, dst_col_names, renumber_map.id_type,
                 store_transposed
             )
-        elif isinstance(input_ddf, dask_cudf.DataFrame):
+        elif isinstance(df, dask_cudf.DataFrame):
             renumber_map.implementation = NumberMap.MultiGPU(
                 df, src_col_names, dst_col_names, renumber_map.id_type,
                 store_transposed
