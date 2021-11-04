@@ -20,7 +20,6 @@ from cugraph.utilities import (df_edge_score_to_dictionary,
                                df_score_to_dictionary,
                                ensure_cugraph_obj_for_nx,
                                )
-import cugraph
 
 
 # NOTE: result_type=float could be an intuitive way to indicate the result type
@@ -262,7 +261,7 @@ def edge_betweenness_centrality(
         df = G.unrenumber(df, "src")
         df = G.unrenumber(df, "dst")
 
-    if type(G) is cugraph.Graph:
+    if G.is_directed() is False:
         # select the lower triangle of the df based on src/dst vertex value
         lower_triangle = df['src'] >= df['dst']
         # swap the src and dst vertices for the lower triangle only. Because

@@ -20,7 +20,6 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_barrier.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <cuco/static_map.cuh>
@@ -163,16 +162,6 @@ void unrenumber_local_int_edges(
   // FIXME: compare this hash based approach with a binary search based approach in both memory
   // footprint and execution time
 
-  // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
-  // different communicators (beginning of col_comm)
-#if 1
-  // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
-  // MPI barrier with MPI)
-  host_barrier(comm, handle.get_stream_view());
-#else
-  handle.get_stream_view().synchronize();
-  comm.barrier();  // currently, this is ncclAllReduce
-#endif
   {
     vertex_t max_matrix_partition_major_size{0};
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
@@ -224,16 +213,6 @@ void unrenumber_local_int_edges(
     }
   }
 
-  // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
-  // different communicators (beginning of row_comm)
-#if 1
-  // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
-  // MPI barrier with MPI)
-  host_barrier(comm, handle.get_stream_view());
-#else
-  handle.get_stream_view().synchronize();
-  comm.barrier();  // currently, this is ncclAllReduce
-#endif
   vertex_t matrix_partition_minor_size{0};
   for (int i = 0; i < row_comm_size; ++i) {
     auto vertex_partition_rank = col_comm_rank * row_comm_size + i;
@@ -340,16 +319,6 @@ void unrenumber_local_int_edges(
         edgelist_minors[i], edgelist_minors[i] + edgelist_edge_counts[i], edgelist_minors[i]);
     }
   }
-  // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
-  // different communicators (end of row_comm)
-#if 1
-  // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
-  // MPI barrier with MPI)
-  host_barrier(comm, handle.get_stream_view());
-#else
-  handle.get_stream_view().synchronize();
-  comm.barrier();  // currently, this is ncclAllReduce
-#endif
 }
 
 }  // namespace detail

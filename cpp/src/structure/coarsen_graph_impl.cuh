@@ -24,7 +24,6 @@
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_barrier.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
@@ -238,16 +237,6 @@ coarsen_graph(
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     // 1-1. locally construct coarsened edge list
 
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (beginning of col_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
-#else
-    handle.get_stream_view().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
     rmm::device_uvector<vertex_t> major_labels(
       store_transposed ? graph_view.get_number_of_local_adj_matrix_partition_cols(i)
                        : graph_view.get_number_of_local_adj_matrix_partition_rows(i),
@@ -258,16 +247,6 @@ coarsen_graph(
                  major_labels.size(),
                  static_cast<int>(i),
                  handle.get_stream());
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (end of col_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
-#else
-    handle.get_stream_view().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
 
     auto [edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights] =
       decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
@@ -409,8 +388,7 @@ coarsen_graph(
     }
     std::tie(renumber_map_labels, meta) = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
-      std::optional<std::tuple<vertex_t const*, vertex_t>>{
-        std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
+      std::optional<rmm::device_uvector<vertex_t>>{std::move(unique_labels)},
       major_ptrs,
       minor_ptrs,
       counts,
@@ -493,8 +471,7 @@ coarsen_graph(
 
   auto [renumber_map_labels, meta] = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
     handle,
-    std::optional<std::tuple<vertex_t const*, vertex_t>>{
-      std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
+    std::optional<rmm::device_uvector<vertex_t>>{std::move(unique_labels)},
     coarsened_edgelist_major_vertices.data(),
     coarsened_edgelist_minor_vertices.data(),
     static_cast<edge_t>(coarsened_edgelist_major_vertices.size()),

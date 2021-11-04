@@ -15,24 +15,20 @@ import gc
 
 import numpy as np
 import pytest
+import networkx as nx
 
 import cudf
 import cugraph
 from cugraph.tests import utils
 
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+###############################################################################
+# pytest setup - called for each test function
+def setup_function():
+    gc.collect()
 
 
+###############################################################################
 def compare_edges(cg, nxg):
     edgelist_df = cg.view_edge_list()
     assert cg.edgelist.weights is False
@@ -71,10 +67,9 @@ def nx_call(M, verts, directed=True):
     return nx.subgraph(G, verts)
 
 
+###############################################################################
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_DiGraph(graph_file):
-    gc.collect()
-
     M = utils.read_csv_for_nx(graph_file)
     verts = np.zeros(3, dtype=np.int32)
     verts[0] = 0
@@ -87,8 +82,6 @@ def test_subgraph_extraction_DiGraph(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_Graph(graph_file):
-    gc.collect()
-
     M = utils.read_csv_for_nx(graph_file)
     verts = np.zeros(3, dtype=np.int32)
     verts[0] = 0
@@ -101,7 +94,6 @@ def test_subgraph_extraction_Graph(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_Graph_nx(graph_file):
-    gc.collect()
     directed = False
     verts = np.zeros(3, dtype=np.int32)
     verts[0] = 0
@@ -130,8 +122,6 @@ def test_subgraph_extraction_Graph_nx(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_subgraph_extraction_multi_column(graph_file):
-    gc.collect()
-
     M = utils.read_csv_for_nx(graph_file)
 
     cu_M = cudf.DataFrame()
@@ -162,3 +152,22 @@ def test_subgraph_extraction_multi_column(graph_file):
     for i in range(len(edgelist_df_res)):
         assert sG2.has_edge(edgelist_df_res["0_src"].iloc[i],
                             edgelist_df_res["0_dst"].iloc[i])
+
+
+# FIXME: the coverage provided by this test could probably be handled by
+# another test that also checks using renumber=False
+def test_subgraph_extraction_graph_not_renumbered():
+    """
+    Ensure subgraph() works with a Graph that has not been renumbered
+    """
+    graph_file = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"
+    gdf = cudf.read_csv(graph_file, delimiter=" ",
+                        dtype=["int32", "int32", "float32"], header=None)
+    verts = np.array([0, 1, 2], dtype=np.int32)
+    sverts = cudf.Series(verts)
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(gdf, source="0", destination="1", renumber=False)
+    Sg = cugraph.subgraph(G, sverts)
+
+    assert Sg.number_of_vertices() == 3
+    assert Sg.number_of_edges() == 3

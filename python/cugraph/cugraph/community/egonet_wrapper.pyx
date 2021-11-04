@@ -11,15 +11,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community.egonet cimport call_egonet
-from cugraph.structure.graph_utilities cimport *
-from libcpp cimport bool
-from libc.stdint cimport uintptr_t
-from cugraph.structure import graph_primtypes_wrapper
-import cudf
 import numpy as np
-from rmm._lib.device_buffer cimport DeviceBuffer
-from cudf.core.buffer import Buffer
+from libc.stdint cimport uintptr_t
+from libcpp cimport bool
+from libcpp.utility cimport move
+from libcpp.memory cimport unique_ptr
+
+import cudf
+
+from cugraph.structure.graph_utilities cimport (populate_graph_container,
+                                                graph_container_t,
+                                                numberTypeEnum,
+                                                move as graph_utils_move,
+                                                )
+from cugraph.structure.graph_primtypes cimport move_device_buffer_to_column
+from cugraph.raft.common.handle cimport handle_t
+from cugraph.structure import graph_primtypes_wrapper
+from cugraph.community.egonet cimport call_egonet
 
 
 def egonet(input_graph, vertices, radius=1):
@@ -83,42 +91,34 @@ def egonet(input_graph, vertices, radius=1):
                              num_edges,
                              is_weighted,
                              is_symmetric,
-                             False, False) 
+                             False, False)
 
     if(weight_t==np.dtype("float32")):
-        el_struct_ptr = move(call_egonet[int, float](handle_[0],
-                               graph_container,
-                               <int*> c_source_vertex_ptr,
-                               <int> n_subgraphs,
-                               <int> radius))
+        el_struct_ptr = graph_utils_move(
+            call_egonet[int, float](handle_[0],
+                                    graph_container,
+                                    <int*> c_source_vertex_ptr,
+                                    <int> n_subgraphs,
+                                    <int> radius))
     else:
-        el_struct_ptr = move(call_egonet[int, double](handle_[0],
-                               graph_container,
-                               <int*> c_source_vertex_ptr,
-                               <int> n_subgraphs,
-                               <int> radius))
-        
-    el_struct = move(el_struct_ptr.get()[0])
-    src = DeviceBuffer.c_from_unique_ptr(move(el_struct.src_indices))
-    dst = DeviceBuffer.c_from_unique_ptr(move(el_struct.dst_indices))
-    wgt = DeviceBuffer.c_from_unique_ptr(move(el_struct.edge_data))
-    src = Buffer(src)
-    dst = Buffer(dst)
-    wgt = Buffer(wgt)
+        el_struct_ptr = graph_utils_move(
+            call_egonet[int, double](handle_[0],
+                                     graph_container,
+                                     <int*> c_source_vertex_ptr,
+                                     <int> n_subgraphs,
+                                     <int> radius))
 
-    src = cudf.Series(data=src, dtype=vertex_t)
-    dst = cudf.Series(data=dst, dtype=vertex_t)
+    el_struct = move(el_struct_ptr.get()[0])
+    src = move_device_buffer_to_column(move(el_struct.src_indices), vertex_t)
+    dst = move_device_buffer_to_column(move(el_struct.dst_indices), vertex_t)
+    wgt = move_device_buffer_to_column(move(el_struct.edge_data), weight_t)
 
     df = cudf.DataFrame()
     df['src'] = src
     df['dst'] = dst
-    if wgt.nbytes != 0:
-        wgt = cudf.Series(data=wgt, dtype=weight_t)
+    if wgt is not None:
         df['weight'] = wgt
 
-    offsets = DeviceBuffer.c_from_unique_ptr(move(el_struct.subgraph_offsets))
-    offsets = Buffer(offsets)
-    offsets = cudf.Series(data=offsets, dtype="int")
+    offsets = move_device_buffer_to_column(move(el_struct.subgraph_offsets), "int")
 
     return df, offsets
-

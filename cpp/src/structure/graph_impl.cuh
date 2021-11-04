@@ -384,7 +384,11 @@ void sort_adjacency_list(raft::handle_t const& handle,
   // std::move(minors) & weights_ = std::move (weights). This affects peak memory use and we may
   // find the presorting approach more attractive under this scenario.
 
-  // 1. We segmented sort edges in chunks, and we need to adjust chunk offsets as we need to sort
+  // 1. Check if there is anything to sort
+
+  if (num_edges == 0) { return; }
+
+  // 2. We segmented sort edges in chunks, and we need to adjust chunk offsets as we need to sort
   // each vertex's neighbors at once.
 
   // to limit memory footprint ((1 << 20) is a tuning parameter)
@@ -421,7 +425,7 @@ void sort_adjacency_list(raft::handle_t const& handle,
                     d_vertex_offsets.size(),
                     handle.get_stream());
 
-  // 2. Segmented sort each vertex's neighbors
+  // 3. Segmented sort each vertex's neighbors
 
   size_t max_chunk_size{0};
   for (size_t i = 0; i < num_chunks; ++i) {
@@ -1005,6 +1009,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto [edgelist_rows, edgelist_cols, edgelist_weights] =
     this->decompress_to_edgelist(handle, wrapped_renumber_map, true);
+
   std::tie(edgelist_rows, edgelist_cols, edgelist_weights) =
     symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(
       handle,
@@ -1046,13 +1051,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto [edgelist_rows, edgelist_cols, edgelist_weights] =
     this->decompress_to_edgelist(handle, renumber_map, true);
-  auto vertex_span = renumber ? std::move(renumber_map)
-                              : std::make_optional<rmm::device_uvector<vertex_t>>(
-                                  number_of_vertices, handle.get_stream());
-  if (!renumber) {
-    thrust::sequence(
-      handle.get_thrust_policy(), (*vertex_span).begin(), (*vertex_span).end(), vertex_t{0});
-  }
+
   std::tie(edgelist_rows, edgelist_cols, edgelist_weights) =
     symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(
       handle,
@@ -1060,6 +1059,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       std::move(edgelist_cols),
       std::move(edgelist_weights),
       reciprocal);
+
+  auto vertex_span = renumber ? std::move(renumber_map)
+                              : std::make_optional<rmm::device_uvector<vertex_t>>(
+                                  number_of_vertices, handle.get_stream());
+  if (!renumber) {
+    thrust::sequence(
+      handle.get_thrust_policy(), (*vertex_span).begin(), (*vertex_span).end(), vertex_t{0});
+  }
 
   auto [symmetrized_graph, new_renumber_map] =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(

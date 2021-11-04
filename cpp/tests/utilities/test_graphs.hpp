@@ -134,6 +134,13 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
              bool>
   construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
   {
+    CUGRAPH_EXPECTS(
+      (size_t{1} << scale_) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
+      "Invalid template parameter: scale_ too large for vertex_t.");
+    CUGRAPH_EXPECTS(((size_t{1} << scale_) * edge_factor_) <=
+                      static_cast<size_t>(std::numeric_limits<edge_t>::max()),
+                    "Invalid template parameter: (scale_, edge_factor_) too large for edge_t");
+
     std::vector<size_t> partition_ids(1);
     size_t num_partitions;
 

@@ -88,7 +88,7 @@ class simpleDistributedGraphImpl:
                 raise Exception(
                     "edge_attr column name not found in input."
                     "Recheck the edge_attr parameter")
-            self.weighted = True
+            self.properties.weighted = True
             ddf_columns = ddf_columns + [edge_attr]
         input_ddf = input_ddf[ddf_columns]
 

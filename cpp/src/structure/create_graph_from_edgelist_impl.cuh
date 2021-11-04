@@ -22,7 +22,6 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_barrier.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <raft/handle.hpp>
@@ -113,19 +112,6 @@ void expensive_check_edgelist(raft::handle_t const& handle,
       "Invalid input argument: edgelist_majors & edgelist_minors should be pre-shuffled.");
 
     if (vertices) {
-      // FIXME: this barrier is unnecessary if the above host_scalar_allreduce is a true host
-      // operation (as it serves as a barrier) barrier is necessary here to avoid potential
-      // overlap (which can leads to deadlock) between two different communicators (beginning of
-      // col_comm)
-#if 1
-      // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
-      // DASK and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
-#else
-      handle.get_stream_view().synchronize();
-      comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
       rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
       {
         auto recvcounts = host_scalar_allgather(col_comm, (*vertices).size(), handle.get_stream());
@@ -141,17 +127,6 @@ void expensive_check_edgelist(raft::handle_t const& handle,
         thrust::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
       }
 
-      // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
-      // between two different communicators (beginning of row_comm)
-#if 1
-      // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
-      // DASK and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
-#else
-      handle.get_stream_view().synchronize();
-      comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
       {
         auto recvcounts = host_scalar_allgather(row_comm, (*vertices).size(), handle.get_stream());
@@ -166,17 +141,6 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                           handle.get_stream());
         thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
       }
-
-      // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
-      // between two different communicators (end of row_comm)
-#if 1
-      // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
-      // DASK and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
-#else
-      handle.get_stream_view().synchronize();
-      comm.barrier();  // currently, this is ncclAllReduce
-#endif
 
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
@@ -226,7 +190,7 @@ std::enable_if_t<
   std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
              std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(raft::handle_t const& handle,
-                                std::optional<rmm::device_uvector<vertex_t>>&& local_vertex_span,
+                                std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
                                 rmm::device_uvector<vertex_t>&& edgelist_rows,
                                 rmm::device_uvector<vertex_t>&& edgelist_cols,
                                 std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
@@ -247,7 +211,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
 
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, multi_gpu>(handle,
-                                                  local_vertex_span,
+                                                  local_vertices,
                                                   store_transposed ? edgelist_cols : edgelist_rows,
                                                   store_transposed ? edgelist_rows : edgelist_cols);
   }
@@ -296,10 +260,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   }
   auto [renumber_map_labels, meta] = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
     handle,
-    local_vertex_span
-      ? std::optional<std::tuple<vertex_t const*, vertex_t>>{std::make_tuple(
-          (*local_vertex_span).data(), static_cast<vertex_t>((*local_vertex_span).size()))}
-      : std::nullopt,
+    std::move(local_vertices),
     major_ptrs,
     minor_ptrs,
     edgelist_edge_counts,
@@ -343,7 +304,7 @@ std::enable_if_t<
   std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
              std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(raft::handle_t const& handle,
-                                std::optional<rmm::device_uvector<vertex_t>>&& vertex_span,
+                                std::optional<rmm::device_uvector<vertex_t>>&& vertices,
                                 rmm::device_uvector<vertex_t>&& edgelist_rows,
                                 rmm::device_uvector<vertex_t>&& edgelist_cols,
                                 std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
@@ -358,10 +319,12 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
 
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, multi_gpu>(handle,
-                                                  vertex_span,
+                                                  vertices,
                                                   store_transposed ? edgelist_cols : edgelist_rows,
                                                   store_transposed ? edgelist_rows : edgelist_cols);
   }
+
+  auto input_vertex_list_size = vertices ? static_cast<vertex_t>((*vertices).size()) : vertex_t{0};
 
   auto renumber_map_labels =
     renumber ? std::make_optional<rmm::device_uvector<vertex_t>>(0, handle.get_stream())
@@ -370,9 +333,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   if (renumber) {
     std::tie(*renumber_map_labels, meta) = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
-      vertex_span ? std::optional<std::tuple<vertex_t const*, vertex_t>>{std::make_tuple(
-                      (*vertex_span).data(), static_cast<vertex_t>((*vertex_span).size()))}
-                  : std::nullopt,
+      std::move(vertices),
       store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
       store_transposed ? edgelist_rows.data() : edgelist_cols.data(),
       static_cast<edge_t>(edgelist_rows.size()));
@@ -382,8 +343,8 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   if (renumber) {
     num_vertices = static_cast<vertex_t>((*renumber_map_labels).size());
   } else {
-    if (vertex_span) {
-      num_vertices = static_cast<vertex_t>((*vertex_span).size());
+    if (vertices) {
+      num_vertices = input_vertex_list_size;
     } else {
       num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
                            handle.get_stream_view(), edgelist_rows, edgelist_cols);
@@ -416,7 +377,7 @@ template <typename vertex_t,
 std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(raft::handle_t const& handle,
-                           std::optional<rmm::device_uvector<vertex_t>>&& vertex_span,
+                           std::optional<rmm::device_uvector<vertex_t>>&& vertices,
                            rmm::device_uvector<vertex_t>&& edgelist_rows,
                            rmm::device_uvector<vertex_t>&& edgelist_cols,
                            std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
@@ -426,7 +387,7 @@ create_graph_from_edgelist(raft::handle_t const& handle,
 {
   return create_graph_from_edgelist_impl<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
     handle,
-    std::move(vertex_span),
+    std::move(vertices),
     std::move(edgelist_rows),
     std::move(edgelist_cols),
     std::move(edgelist_weights),

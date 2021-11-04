@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gc
+
 import pytest
 import numpy as np
 
@@ -28,7 +30,6 @@ from cugraph.tests.test_betweenness_centrality import (
 )
 
 from cugraph.tests.test_betweenness_centrality import (
-    prepare_test,
     calc_betweenness_centrality,
     compare_scores,
 )
@@ -41,6 +42,13 @@ DATASETS = [(RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()]
 # supported and have been removed
 
 RESULT_DTYPE_OPTIONS = [np.float64]
+
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
 
 @pytest.mark.skipif(
@@ -66,7 +74,6 @@ def test_mg_betweenness_centrality(
     result_dtype,
     dask_client,
 ):
-    prepare_test()
     sorted_df = calc_betweenness_centrality(
         graph_file,
         directed=directed,
