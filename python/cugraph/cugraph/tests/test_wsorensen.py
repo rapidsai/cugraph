@@ -17,6 +17,8 @@ import numpy as np
 import pytest
 
 import cudf
+from cudf.testing import assert_series_equal
+
 import cugraph
 from cugraph.tests import utils
 
@@ -172,4 +174,6 @@ def test_wsorensen_multi_column(read_csv):
     df_exp = cugraph.sorensen_w(G2, weights, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    assert df_res["sorensen_coeff"].equals(df_exp["sorensen_coeff"])
+    actual = df_res.sort_values("0_source").reset_index()
+    expected = df_exp.sort_values("source").reset_index()
+    assert_series_equal(actual["sorensen_coeff"], expected["sorensen_coeff"])
