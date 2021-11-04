@@ -49,6 +49,9 @@ cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w, vertex_t, weights):
         move(pair_s_minor.first), vertex_t, "shuffled_minor")
 
     shuffled_df = cudf.DataFrame()
+    # Some workers might have no data therefore ensure the empty column have the appropriate
+    # vertex_t or weight_t. Failing to do that will create am empty column of type object
+    # which is not supported by '__cuda_array_interface__'
     shuffled_df['major_vertices']=shuffled_major_series
     shuffled_df['major_vertices']=shuffled_df['major_vertices'].astype(vertex_t)
     shuffled_df['minor_vertices']=shuffled_minor_series

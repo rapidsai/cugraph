@@ -484,8 +484,6 @@ class NumberMap:
         if not isinstance(src_col_names, list):
             src_col_names = [src_col_names]
             dst_col_names = [dst_col_names]
-
-        id_type = df[src_col_names[0]].dtype
         if type(df) is cudf.DataFrame:
             renumber_map.implementation = NumberMap.SingleGPU(
                 df, src_col_names, dst_col_names, renumber_map.id_type,
@@ -536,22 +534,17 @@ class NumberMap:
                       for idx, wf in enumerate(data.worker_to_parts.items())]
             wait(result)
 
-            def get_renumber_map(id_type, data):
-                return data[0].astype(id_type)
+            def get_renumber_map(data):
+                return data[0]
 
             def get_segment_offsets(data):
                 return data[1]
 
-            def get_renumbered_df(id_type, data):
-                # FIXME: This assume the column names are always 'src'
-                # and 'dst' which is the case now
-                data[2]['src'] = data[2]['src'].astype(id_type)
-                data[2]['dst'] = data[2]['dst'].astype(id_type)
+            def get_renumbered_df(data):
                 return data[2]
 
             renumbering_map = dask_cudf.from_delayed(
                                  [client.submit(get_renumber_map,
-                                                id_type,
                                                 data,
                                                 workers=[wf])
                                      for (data, wf) in result])
@@ -567,7 +560,6 @@ class NumberMap:
 
             renumbered_df = dask_cudf.from_delayed(
                                [client.submit(get_renumbered_df,
-                                              id_type,
                                               data,
                                               workers=[wf])
                                    for (data, wf) in result])
