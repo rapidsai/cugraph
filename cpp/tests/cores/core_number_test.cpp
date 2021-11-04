@@ -36,7 +36,8 @@
 #include <numeric>
 #include <vector>
 
-// assumes the input graph has no self-loops nor multi-edges.
+// self-loops and multi-edges are masked out and do not participate in degree computation, this code
+// assumes that every vertex's neighbor list is sorted.
 template <typename vertex_t, typename edge_t>
 std::vector<vertex_t> core_number_reference(edge_t const* offsets,
                                             vertex_t const* indices,
@@ -45,18 +46,57 @@ std::vector<vertex_t> core_number_reference(edge_t const* offsets,
                                             size_t k_first = 0,
                                             size_t k_last  = std::numeric_limits<size_t>::max())
 {
+  // mask out self-loops and multi_edges
+
+  std::vector<bool> edge_valids(offsets[num_vertices], true);
+
+  for (vertex_t i = 0; i < num_vertices; ++i) {
+    for (edge_t j = offsets[i]; j < offsets[i + 1]; j++) {
+      if (indices[j] == i) {
+        edge_valids[j] = false;
+      } else if ((j > offsets[i]) && (indices[j] == indices[j - 1])) {
+        edge_valids[j] = false;
+      }
+    }
+  }
+
+  // construct the CSC representation if necessary
+
+  std::vector<edge_t> csc_offsets(num_vertices + 1, edge_t{0});
+  std::vector<vertex_t> csc_indices(offsets[num_vertices], vertex_t{0});
+  std::vector<bool> csc_edge_valids(offsets[num_vertices], true);
+  std::vector<edge_t> counters(num_vertices, edge_t{0});
+
+  for (edge_t i = 0; i < offsets[num_vertices]; ++i) {
+    ++counters[indices[i]];
+  }
+  std::partial_sum(counters.begin(), counters.end(), csc_offsets.begin() + 1);
+  std::fill(counters.begin(), counters.end(), edge_t{0});
+  for (vertex_t i = 0; i < num_vertices; ++i) {
+    for (edge_t j = offsets[i]; j < offsets[i + 1]; ++j) {
+      auto dst                                      = indices[j];
+      csc_indices[csc_offsets[dst] + counters[dst]] = i;
+      if (!edge_valids[j]) { csc_edge_valids[csc_offsets[dst] + counters[dst]] = false; }
+      ++counters[dst];
+    }
+  }
+
   // initialize core_numbers to degrees
 
   std::vector<edge_t> degrees(num_vertices, edge_t{0});
   if ((degree_type == cugraph::k_core_degree_type_t::OUT) ||
       (degree_type == cugraph::k_core_degree_type_t::INOUT)) {
-    std::adjacent_difference(offsets + 1, offsets + (num_vertices + 1), degrees.begin());
+    for (vertex_t i = 0; i < num_vertices; ++i) {
+      for (edge_t j = offsets[i]; j < offsets[i + 1]; ++j) {
+        if (edge_valids[j]) { ++degrees[i]; }
+      }
+    }
   }
   if ((degree_type == cugraph::k_core_degree_type_t::IN) ||
       (degree_type == cugraph::k_core_degree_type_t::INOUT)) {
     for (vertex_t i = 0; i < num_vertices; ++i) {
-      for (edge_t j = offsets[i]; j < offsets[i + 1]; ++j) {
-        ++degrees[indices[j]];
+      for (edge_t j = csc_offsets[i]; j < csc_offsets[i + 1]; ++j) {
+        if (csc_edge_valids[j]) { ++degrees[i]; }
       }
     }
   }
@@ -95,25 +135,46 @@ std::vector<vertex_t> core_number_reference(edge_t const* offsets,
 
   // update core numbers
 
-  std::vector<bool> edge_valids(offsets[num_vertices], true);
-
   for (vertex_t i = 0; i < num_vertices; ++i) {
     auto v = sorted_vertices[i];
     for (edge_t j = offsets[v]; j < offsets[v + 1]; ++j) {
       auto nbr = indices[j];
       if (edge_valids[j] && (core_numbers[nbr] > core_numbers[v])) {
+        for (edge_t k = csc_offsets[nbr]; k < csc_offsets[nbr + 1]; ++k) {
+          if (csc_indices[k] == v) {
+            csc_edge_valids[k] = false;
+            break;
+          }
+        }
+        if ((degree_type == cugraph::k_core_degree_type_t::IN) ||
+            (degree_type == cugraph::k_core_degree_type_t::INOUT)) {
+          auto nbr_pos       = v_positions[nbr];
+          auto bin_start_pos = bin_start_offsets[core_numbers[nbr]];
+          std::swap(v_positions[nbr], v_positions[sorted_vertices[bin_start_pos]]);
+          std::swap(sorted_vertices[nbr_pos], sorted_vertices[bin_start_pos]);
+          ++bin_start_offsets[core_numbers[nbr]];
+          --core_numbers[nbr];
+        }
+      }
+    }
+    for (edge_t j = csc_offsets[v]; j < csc_offsets[v + 1]; ++j) {
+      auto nbr = csc_indices[j];
+      if (csc_edge_valids[j] && (core_numbers[nbr] > core_numbers[v])) {
         for (edge_t k = offsets[nbr]; k < offsets[nbr + 1]; ++k) {
           if (indices[k] == v) {
             edge_valids[k] = false;
             break;
           }
         }
-        auto nbr_pos  = v_positions[nbr];
-        auto bin_start_pos = bin_start_offsets[core_numbers[nbr]];
-        std::swap(v_positions[nbr], v_positions[sorted_vertices[bin_start_pos]]);
-        std::swap(sorted_vertices[nbr_pos], sorted_vertices[bin_start_pos]);
-        ++bin_start_offsets[core_numbers[nbr]];
-        --core_numbers[nbr];
+        if ((degree_type == cugraph::k_core_degree_type_t::OUT) ||
+            (degree_type == cugraph::k_core_degree_type_t::INOUT)) {
+          auto nbr_pos       = v_positions[nbr];
+          auto bin_start_pos = bin_start_offsets[core_numbers[nbr]];
+          std::swap(v_positions[nbr], v_positions[sorted_vertices[bin_start_pos]]);
+          std::swap(sorted_vertices[nbr_pos], sorted_vertices[bin_start_pos]);
+          ++bin_start_offsets[core_numbers[nbr]];
+          --core_numbers[nbr];
+        }
       }
     }
   }
@@ -217,11 +278,11 @@ class Tests_CoreNumber
       handle.get_stream_view().synchronize();
 
       auto h_reference_core_numbers = core_number_reference(h_offsets.data(),
-                            h_indices.data(),
-                            graph_view.get_number_of_vertices(),
-                            core_number_usecase.degree_type,
-                            core_number_usecase.k_first,
-                            core_number_usecase.k_last);
+                                                            h_indices.data(),
+                                                            graph_view.get_number_of_vertices(),
+                                                            core_number_usecase.degree_type,
+                                                            core_number_usecase.k_first,
+                                                            core_number_usecase.k_last);
 
       std::vector<vertex_t> h_cugraph_core_numbers(graph_view.get_number_of_vertices());
       if (renumber) {
