@@ -18,12 +18,13 @@ import pytest
 
 import pandas
 import numpy as np
-
-import cugraph.dask as dcg
-import cugraph
 import dask_cudf
 import dask
 import cudf
+from cudf.testing import assert_series_equal
+
+import cugraph.dask as dcg
+import cugraph
 from cugraph.tests import utils
 from cugraph.structure.number_map import NumberMap
 from cugraph.dask.common.mg_utils import is_single_gpu
@@ -72,10 +73,14 @@ def test_mg_renumber(graph_file, dask_client):
                                                       "0_dst", "1_dst"])
     unrenumbered_df = unrenumbered_df.reset_index()
 
-    assert gdf["src"].equals(unrenumbered_df["0_src"])
-    assert gdf["src_old"].equals(unrenumbered_df["1_src"])
-    assert gdf["dst"].equals(unrenumbered_df["0_dst"])
-    assert gdf["dst_old"].equals(unrenumbered_df["1_dst"])
+    assert_series_equal(gdf["src"], unrenumbered_df["0_src"],
+                        check_names=False)
+    assert_series_equal(gdf["src_old"], unrenumbered_df["1_src"],
+                        check_names=False)
+    assert_series_equal(gdf["dst"], unrenumbered_df["0_dst"],
+                        check_names=False)
+    assert_series_equal(gdf["dst_old"], unrenumbered_df["1_dst"],
+                        check_names=False)
 
 
 @pytest.mark.skipif(
