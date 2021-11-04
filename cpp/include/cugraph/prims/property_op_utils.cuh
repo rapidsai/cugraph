@@ -172,7 +172,8 @@ constexpr auto op_dispatch(raft::comms::op_t op, F&& f)
 }
 
 template <typename T>
-T identity(raft::comms::op_t op) {
+T identity(raft::comms::op_t op)
+{
   switch (op) {
     case raft::comms::op_t::SUM: {
       return T{0};

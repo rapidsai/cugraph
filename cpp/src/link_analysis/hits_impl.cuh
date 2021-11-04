@@ -15,70 +15,52 @@
  */
 #pragma once
 
+#include <thrust/fill.h>
+#include <thrust/transform.h>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/row_col_properties.cuh>
-#include <cugraph/prims/count_if_v.cuh>
-#include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
+#include <cugraph/prims/count_if_v.cuh>
+#include <cugraph/prims/reduce_v.cuh>
+#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
-#include <thrust/transform.h>
-#include <thrust/fill.h>
 
-//TODO : delete
+// TODO : delete
 #include <string>
 
 namespace cugraph {
 namespace detail {
 template <typename GraphViewType, typename result_t>
-  void normalize(raft::handle_t const& handle,
-                      GraphViewType const& graph_view,
-                      result_t * hubs,
-                      raft::comms::op_t op) {
-    auto hubs_norm =
-      reduce_v(handle, graph_view,
-               hubs, hubs + graph_view.get_number_of_local_vertices(),
-               result_t{}, op);
-    thrust::transform(handle.get_thrust_policy(),
-                      hubs,
-                      hubs + graph_view.get_number_of_local_vertices(),
-                      thrust::make_constant_iterator(hubs_norm),
-                      hubs,
-                      thrust::divides<result_t>());
-  }
-
-template <typename T>
-void
-print(raft::handle_t const& handle, rmm::device_uvector<T> &data) {
-  handle.get_stream_view().synchronize();
-  std::vector<T> h_data(data.size());
-  raft::update_host(h_data.data(), data.data(), data.size(), handle.get_stream());
-  handle.get_stream_view().synchronize();
-  for (size_t i = 0; i < data.size(); ++i) { std::cerr<<h_data[i]<<"\n"; }
-}
-
-template <typename T, typename L>
-void
-print(raft::handle_t const& handle, T* data, L size) {
-  handle.get_stream_view().synchronize();
-  std::vector<T> h_data(size);
-  raft::update_host(h_data.data(), data, size, handle.get_stream());
-  handle.get_stream_view().synchronize();
-  for (size_t i = 0; i < size; ++i) { std::cerr<<h_data[i]<<"\n"; }
+void normalize(raft::handle_t const& handle,
+               GraphViewType const& graph_view,
+               result_t* hubs,
+               raft::comms::op_t op)
+{
+  auto hubs_norm = reduce_v(handle,
+                            graph_view,
+                            hubs,
+                            hubs + graph_view.get_number_of_local_vertices(),
+                            identity<result_t>(op),
+                            op);
+  thrust::transform(handle.get_thrust_policy(),
+                    hubs,
+                    hubs + graph_view.get_number_of_local_vertices(),
+                    thrust::make_constant_iterator(hubs_norm),
+                    hubs,
+                    thrust::divides<result_t>());
 }
 
 template <typename GraphViewType, typename result_t>
-std::tuple<result_t, size_t>
-hits(raft::handle_t const& handle,
-     GraphViewType const& graph_view,
-     result_t * const hubs,
-     result_t * const authorities,
-     result_t epsilon,
-     size_t max_iterations,
-     bool has_initial_hubs_guess,
-     bool normalize,
-     bool do_expensive_check)
+std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
+                                  GraphViewType const& graph_view,
+                                  result_t* const hubs,
+                                  result_t* const authorities,
+                                  result_t epsilon,
+                                  size_t max_iterations,
+                                  bool has_initial_hubs_guess,
+                                  bool normalize,
+                                  bool do_expensive_check)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   static_assert(std::is_integral<vertex_t>::value,
@@ -96,10 +78,10 @@ hits(raft::handle_t const& handle,
 
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
 
-  //Check validity of initial guess if supplied
+  // Check validity of initial guess if supplied
   if (has_initial_hubs_guess && do_expensive_check) {
-    auto num_negative_values = count_if_v(
-      handle, graph_view, hubs, [] __device__(auto val) { return val < 0.0; });
+    auto num_negative_values =
+      count_if_v(handle, graph_view, hubs, [] __device__(auto val) { return val < 0.0; });
     CUGRAPH_EXPECTS(num_negative_values == 0,
                     "Invalid input argument: initial guess values should be non-negative.");
     detail::normalize(handle, graph_view, hubs, raft::comms::op_t::SUM);
@@ -111,26 +93,22 @@ hits(raft::handle_t const& handle,
   rmm::device_uvector<result_t> temp_hubs(graph_view.get_number_of_local_vertices(),
                                           handle.get_stream());
 
-  result_t * prev_hubs = hubs;
-  result_t * curr_hubs = temp_hubs.data();
+  result_t* prev_hubs = hubs;
+  result_t* curr_hubs = temp_hubs.data();
 
-  //Initialize hubs from user input if provided
+  // Initialize hubs from user input if provided
   if (has_initial_hubs_guess) {
     copy_to_adj_matrix_row(handle, graph_view, prev_hubs, prev_src_hubs);
   } else {
     prev_src_hubs.fill(result_t{1.0} / num_vertices, handle.get_stream());
-    thrust::fill(
-      handle.get_thrust_policy(),
-      prev_hubs,
-      prev_hubs + graph_view.get_number_of_local_vertices(),
-      result_t{1.0} / num_vertices);
+    thrust::fill(handle.get_thrust_policy(),
+                 prev_hubs,
+                 prev_hubs + graph_view.get_number_of_local_vertices(),
+                 result_t{1.0} / num_vertices);
   }
   for (size_t iter = 0; iter < max_iterations; ++iter) {
-    std::cerr<<"d"<<iter<<"-1 :\tprev_hubs\n";
-    print(handle, prev_hubs, temp_hubs.size());
-    std::cerr<<"\n";
     // Update current destination authorities property
-    copy_v_transform_reduce_out_nbr(
+    copy_v_transform_reduce_in_nbr(
       handle,
       graph_view,
       prev_src_hubs.device_view(),
@@ -138,37 +116,20 @@ hits(raft::handle_t const& handle,
       [] __device__(auto, auto, auto, auto prev_src_hub_value, auto) { return prev_src_hub_value; },
       result_t{0},
       authorities);
-    std::cerr<<"d"<<iter<<"-2 :\tauthorities\n";
-    print(handle, authorities, temp_hubs.size()); std::cerr<<"\n";
 
     copy_to_adj_matrix_col(handle, graph_view, authorities, curr_dst_auth);
 
-    std::cerr<<"\n";
-    thrust::fill(
-      handle.get_thrust_policy(),
-      curr_hubs,
-      curr_hubs + graph_view.get_number_of_local_vertices(),
-      result_t{0});
-    print(handle, curr_hubs, temp_hubs.size()); std::cerr<<"\n\n";
     // Update current source hubs property
-    copy_v_transform_reduce_in_nbr(
+    copy_v_transform_reduce_out_nbr(
       handle,
       graph_view,
       dummy_properties_t<result_t>{}.device_view(),
       curr_dst_auth.device_view(),
       [] __device__(auto src, auto dst, auto, auto, auto curr_dst_auth_value) {
-        printf("auth %d %d %f\n", static_cast<int>(src), static_cast<int>(dst), static_cast<float>(curr_dst_auth_value));
-        auto dummy = curr_dst_auth_value;
-        dummy = 1;
-        return dummy;
-        //return curr_dst_auth_value;
+        return curr_dst_auth_value;
       },
       result_t{0},
       curr_hubs);
-    std::cerr<<"\n";
-
-    std::cerr<<"d"<<iter<<"-3 :\tcurr_hubs\n";
-    print(handle, curr_hubs, temp_hubs.size()); std::cerr<<"\n";
 
     // Normalize current hub values
     detail::normalize(handle, graph_view, curr_hubs, raft::comms::op_t::MAX);
@@ -191,8 +152,8 @@ hits(raft::handle_t const& handle,
 
     copy_to_adj_matrix_row(handle, graph_view, curr_hubs, prev_src_hubs);
 
-    //Swap pointers for the next iteration
-    //After this swap call, prev_hubs has the latest value of hubs
+    // Swap pointers for the next iteration
+    // After this swap call, prev_hubs has the latest value of hubs
     std::swap(prev_hubs, curr_hubs);
   }
 
@@ -200,11 +161,12 @@ hits(raft::handle_t const& handle,
     detail::normalize(handle, graph_view, prev_hubs, raft::comms::op_t::SUM);
     detail::normalize(handle, graph_view, authorities, raft::comms::op_t::SUM);
   }
-  
-  //Copy calculated hubs to in/out parameter if necessary
+
+  // Copy calculated hubs to in/out parameter if necessary
   if (hubs != prev_hubs) {
     thrust::copy(handle.get_thrust_policy(),
-                 prev_hubs, prev_hubs + graph_view.get_number_of_local_vertices(),
+                 prev_hubs,
+                 prev_hubs + graph_view.get_number_of_local_vertices(),
                  hubs);
   }
 
@@ -214,27 +176,26 @@ hits(raft::handle_t const& handle,
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<weight_t, size_t>
-hits(raft::handle_t const& handle,
-     graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
-     weight_t * const hubs,
-     weight_t * const authorities,
-     weight_t epsilon,
-     size_t max_iterations,
-     bool has_initial_hubs_guess,
-     bool normalize,
-     bool do_expensive_check)
+std::tuple<weight_t, size_t> hits(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
+  weight_t* const hubs,
+  weight_t* const authorities,
+  weight_t epsilon,
+  size_t max_iterations,
+  bool has_initial_hubs_guess,
+  bool normalize,
+  bool do_expensive_check)
 {
-  return 
-    detail::hits(handle,
-                 graph_view,
-                 hubs,
-                 authorities,
-                 epsilon,
-                 max_iterations,
-                 has_initial_hubs_guess,
-                 normalize,
-                 do_expensive_check);
+  return detail::hits(handle,
+                      graph_view,
+                      hubs,
+                      authorities,
+                      epsilon,
+                      max_iterations,
+                      has_initial_hubs_guess,
+                      normalize,
+                      do_expensive_check);
 }
 
 }  // namespace cugraph

@@ -64,7 +64,7 @@ struct property_transform
     operator()(const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    //auto value = hash_func(val) % mod;
+    // auto value = hash_func(val) % mod;
     auto value = 1;
     return thrust::make_tuple(static_cast<Args>(value)...);
   }
@@ -74,7 +74,7 @@ struct property_transform
     const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    //auto value = hash_func(val) % mod;
+    // auto value = hash_func(val) % mod;
     auto value = 1;
     return static_cast<type>(value);
   }
