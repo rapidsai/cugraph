@@ -25,31 +25,41 @@ from cudf.core.buffer import Buffer
 import cudf
 
 
-cdef move_device_buffer_to_series(unique_ptr[device_buffer] device_buffer_unique_ptr,
-                                  dtype, series_name):
+cdef move_device_buffer_to_column(
+    unique_ptr[device_buffer] device_buffer_unique_ptr, dtype):
     """
     Transfers ownership of device_buffer_unique_ptr to a cuDF Buffer which is
-    used to construct a cudf.Series object, which is then returned. If the
+    used to construct a cudf column object, which is then returned. If the
     intermediate Buffer is empty, the device_buffer_unique_ptr is still
     transfered but None is returned.
     """
     buff = DeviceBuffer.c_from_unique_ptr(move(device_buffer_unique_ptr))
     buff = Buffer(buff)
-    # Some workers might have no data after shuffling for instance
-    # Therefore return an empty series of type 'dtype' even if buff.nbytes == 0
-    # because returning None will later translate to a column of type object
-    # which is not implemented via '__cuda_array_interface__'
-    column = cudf.core.column.build_column(buff, dtype=dtype)
-    series = cudf.Series._from_data({series_name: column})
-    return series
+    if buff.nbytes != 0:
+        column = cudf.core.column.build_column(buff, dtype=dtype)
+        return column
+    return None
+
+
+cdef move_device_buffer_to_series(
+    unique_ptr[device_buffer] device_buffer_unique_ptr, dtype, series_name):
+    """
+    Transfers ownership of device_buffer_unique_ptr to a cuDF Buffer which is
+    used to construct a cudf.Series object with name series_name, which is then
+    returned. If the intermediate Buffer is empty, the device_buffer_unique_ptr
+    is still transfered but None is returned.
+    """
+    column = move_device_buffer_to_column(move(device_buffer_unique_ptr), dtype)
+    if column is not None:
+        series = cudf.Series._from_data({series_name: column})
+        return series
+    return None
 
 
 cdef coo_to_df(GraphCOOPtrType graph):
     contents = move(graph.get()[0].release())
-    src = move_device_buffer_to_series(move(contents.src_indices),
-                                       "int32", "src")
-    dst = move_device_buffer_to_series(move(contents.dst_indices),
-                                       "int32", "dst")
+    src = move_device_buffer_to_column(move(contents.src_indices), "int32")
+    dst = move_device_buffer_to_column(move(contents.dst_indices), "int32")
 
     if GraphCOOPtrType is GraphCOOPtrFloat:
         weight_type = "float32"
@@ -58,8 +68,7 @@ cdef coo_to_df(GraphCOOPtrType graph):
     else:
         raise TypeError("Invalid GraphCOOPtrType")
 
-    wgt = move_device_buffer_to_series(move(contents.edge_data),
-                                       weight_type, "wgt")
+    wgt = move_device_buffer_to_column(move(contents.edge_data), weight_type)
 
     df = cudf.DataFrame()
     df['src'] = src
@@ -143,3 +152,5 @@ cdef GraphViewType get_graph_view(input_graph, bool weighted = True, GraphViewTy
         return get_csr_graph_view[GraphCSRViewFloat](input_graph, weighted, dummy)
     elif GraphViewType is GraphCSRViewDouble:
         return get_csr_graph_view[GraphCSRViewDouble](input_graph, weighted, dummy)
+
+
