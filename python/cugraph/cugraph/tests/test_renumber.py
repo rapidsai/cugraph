@@ -296,7 +296,11 @@ def test_renumber_files_multi_col(graph_file):
     unrenumbered_df = renumber_map.unrenumber(unrenumbered_df, "dst",
                                               preserve_order=True)
 
-    assert_series_equal(gdf["src"], unrenumbered_df["0_src"], check_names=False)
-    assert_series_equal(gdf["src_old"], unrenumbered_df["1_src"], check_names=False)
-    assert_series_equal(gdf["dst"], unrenumbered_df["0_dst"], check_names=False)
-    assert_series_equal(gdf["dst_old"], unrenumbered_df["1_dst"], check_names=False)
+    assert_series_equal(gdf["src"], unrenumbered_df["0_src"],
+                        check_names=False)
+    assert_series_equal(gdf["src_old"], unrenumbered_df["1_src"],
+                        check_names=False)
+    assert_series_equal(gdf["dst"], unrenumbered_df["0_dst"],
+                        check_names=False)
+    assert_series_equal(gdf["dst_old"], unrenumbered_df["1_dst"],
+                        check_names=False)
