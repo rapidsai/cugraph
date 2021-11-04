@@ -32,8 +32,9 @@ from cugraph.sampling.random_walks cimport (call_random_walks,
                                             random_walk_ret_t,
                                             random_walk_path_t,
                                             )
-from cugraph.structure.graph_primtypes cimport move_device_buffer_to_series
-
+from cugraph.structure.graph_primtypes cimport (move_device_buffer_to_column,
+                                                move_device_buffer_to_series,
+                                                )
 
 def random_walks(input_graph, start_vertices, max_depth, use_padding):
     """
@@ -153,12 +154,9 @@ def rw_path_retrieval(num_paths, sizes):
                                                <long*>c_sizes))
 
     rw_path = move(rw_path_ptr.get()[0])
-    vertex_offsets = move_device_buffer_to_series(
-        move(rw_path.d_v_offsets), index_t, "vertex_offsets")
-    weight_sizes = move_device_buffer_to_series(
-        move(rw_path.d_w_sizes), index_t, "weight_sizes")
-    weight_offsets = move_device_buffer_to_series(
-        move(rw_path.d_w_offsets), index_t, "weight_offsets")
+    vertex_offsets = move_device_buffer_to_column(move(rw_path.d_v_offsets), index_t)
+    weight_sizes = move_device_buffer_to_column(move(rw_path.d_w_sizes), index_t)
+    weight_offsets = move_device_buffer_to_column(move(rw_path.d_w_offsets), index_t)
 
     df = cudf.DataFrame()
     df['vertex_offsets'] = vertex_offsets
