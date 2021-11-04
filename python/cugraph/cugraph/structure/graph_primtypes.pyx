@@ -35,11 +35,13 @@ cdef move_device_buffer_to_series(unique_ptr[device_buffer] device_buffer_unique
     """
     buff = DeviceBuffer.c_from_unique_ptr(move(device_buffer_unique_ptr))
     buff = Buffer(buff)
-    if buff.nbytes != 0:
-        column = cudf.core.column.build_column(buff, dtype=dtype)
-        series = cudf.Series._from_data({series_name: column})
-        return series
-    return None
+    # Some workers might have no data after shuffling for instance
+    # Therefore return an empty series of type 'dtype' even if buff.nbytes == 0
+    # because returning None will later translate to a column of type object
+    # which is not implemented via '__cuda_array_interface__'
+    column = cudf.core.column.build_column(buff, dtype=dtype)
+    series = cudf.Series._from_data({series_name: column})
+    return series
 
 
 cdef coo_to_df(GraphCOOPtrType graph):
