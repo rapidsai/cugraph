@@ -103,7 +103,7 @@ else
     CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
     CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
     echo "Installing $CONDA_FILE"
-    conda install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
+    gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
 
     gpuci_logger "Install the master version of dask and distributed"
     pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps

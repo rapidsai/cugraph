@@ -15,6 +15,7 @@ import pytest
 import gc
 
 import cudf
+from cudf.testing import assert_series_equal, assert_frame_equal
 
 import cugraph
 import cugraph.dask.structure.replication as replication
@@ -46,9 +47,7 @@ def test_replicate_cudf_dataframe_with_weights(
     worker_to_futures = replication.replicate_cudf_dataframe(df)
     for worker in worker_to_futures:
         replicated_df = worker_to_futures[worker].result()
-        assert df.equals(replicated_df), (
-            "There is a mismatch in one " "of the replications"
-        )
+        assert_frame_equal(df, replicated_df)
 
 
 @pytest.mark.skipif(
@@ -68,9 +67,7 @@ def test_replicate_cudf_dataframe_no_weights(input_data_path, dask_client):
     worker_to_futures = replication.replicate_cudf_dataframe(df)
     for worker in worker_to_futures:
         replicated_df = worker_to_futures[worker].result()
-        assert df.equals(replicated_df), (
-            "There is a mismatch in one " "of the replications"
-        )
+        assert_frame_equal(df, replicated_df)
 
 
 @pytest.mark.skipif(
@@ -92,9 +89,7 @@ def test_replicate_cudf_series(input_data_path, dask_client):
         worker_to_futures = replication.replicate_cudf_series(series)
         for worker in worker_to_futures:
             replicated_series = worker_to_futures[worker].result()
-            assert series.equals(replicated_series), (
-                "There is a " "mismatch in one of the replications"
-            )
+            assert_series_equal(series, replicated_series, check_names=False)
         # FIXME: If we do not clear this dictionary, when comparing
         # results for the 2nd column, one of the workers still
         # has a value from the 1st column
@@ -225,7 +220,7 @@ def test_enable_batch_edgelist_replication(
     df = G.edgelist.edgelist_df
     for worker in G.batch_edgelists:
         replicated_df = G.batch_edgelists[worker].result()
-        assert df.equals(replicated_df), "Replication of edgelist failed"
+        assert_frame_equal(df, replicated_df)
 
 
 @pytest.mark.skipif(
@@ -257,15 +252,9 @@ def test_enable_batch_adjlist_replication_weights(
     weights = adjlist.weights
     for worker in G.batch_adjlists:
         (rep_offsets, rep_indices, rep_weights) = G.batch_adjlists[worker]
-        assert offsets.equals(rep_offsets.result()), (
-            "Replication of " "adjlist offsets failed"
-        )
-        assert indices.equals(rep_indices.result()), (
-            "Replication of " "adjlist indices failed"
-        )
-        assert weights.equals(rep_weights.result()), (
-            "Replication of " "adjlist weights failed"
-        )
+        assert_series_equal(offsets, rep_offsets.result(), check_names=False)
+        assert_series_equal(indices, rep_indices.result(), check_names=False)
+        assert_series_equal(weights, rep_weights.result(), check_names=False)
 
 
 @pytest.mark.skipif(
@@ -295,10 +284,6 @@ def test_enable_batch_adjlist_replication_no_weights(
     weights = adjlist.weights
     for worker in G.batch_adjlists:
         (rep_offsets, rep_indices, rep_weights) = G.batch_adjlists[worker]
-        assert offsets.equals(rep_offsets.result()), (
-            "Replication of " "adjlist offsets failed"
-        )
-        assert indices.equals(rep_indices.result()), (
-            "Replication of " "adjlist indices failed"
-        )
+        assert_series_equal(offsets, rep_offsets.result(), check_names=False)
+        assert_series_equal(indices, rep_indices.result(), check_names=False)
         assert weights is None and rep_weights is None
