@@ -353,6 +353,12 @@ endif()
 
 add_library(cugraph_c SHARED
         src/c_api/cugraph_api.cpp
+        src/c_api/array.cpp
+        src/c_api/error.cpp
+        src/c_api/graph_sg.cpp
+        src/c_api/graph_mg.cpp
+        src/c_api/pagerank.cpp
+        src/c_api/bfs.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 
