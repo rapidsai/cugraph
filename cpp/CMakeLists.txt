@@ -147,8 +147,6 @@ include(cmake/thirdparty/get_raft.cmake)
 include(cmake/thirdparty/get_cuco.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
 
-#include(cmake/thirdparty/get_gunrock.cmake)
-
 if(BUILD_TESTS)
   include(cmake/thirdparty/get_gtest.cmake)
 endif()
@@ -293,7 +291,6 @@ target_link_libraries(cugraph
         CUDA::cusparse
         cugraph::cuHornet
         FAISS::FAISS
-        #gunrock
         NCCL::NCCL
 )
 
