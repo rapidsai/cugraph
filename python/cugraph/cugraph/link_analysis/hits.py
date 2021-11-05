@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#from cugraph.link_analysis import hits_wrapper
+# from cugraph.link_analysis import hits_wrapper
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
@@ -75,10 +75,10 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     >>> hits = cugraph.hits(G, max_iter = 50)
     """
     raise NotImplementedError("Temporarily disabled.  New version in 21.12")
-    
+
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    df = hits_wrapper.hits(G, max_iter, tol)
+    df = hits_wrapper.hits(G, max_iter, tol)  # noqa: F821
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")

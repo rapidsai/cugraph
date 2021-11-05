@@ -91,7 +91,7 @@ if not libcugraph_path:
     libcugraph_path = conda_lib_dir
 
 # FIXME: Remove this code when HITS is supported again.
-import glob
+import glob  # noqa: E402
 CYTHON_FILES = [f for f in glob.glob(CYTHON_FILES[0]) if "hits" not in f]
 
 extensions = [
