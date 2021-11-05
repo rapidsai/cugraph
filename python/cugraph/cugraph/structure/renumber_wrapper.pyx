@@ -66,7 +66,6 @@ cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w, vertex_t, weights):
         if shuffled_weights_series is None:
             shuffled_df['value']= cudf.Series(dtype=weight_t)
         shuffled_df['value']= shuffled_weights_series
-        shuffled_df['value']= shuffled_df['value'].astype(weight_t)
 
     return shuffled_df
 
