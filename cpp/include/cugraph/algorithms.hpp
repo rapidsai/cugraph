@@ -1282,6 +1282,8 @@ void pagerank(raft::handle_t const& handle,
  * @param normalize If set to `true`, final hub and authority scores are normalized (the L1-norm of
  * the returned hub and authority score arrays is 1.0) before returning.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return std::tuple<weight_t, size_t> A tuple of sum of the differences of hub scores of the last
+ * two iterations and the total number of iterations taken to reach the final result
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<weight_t, size_t> hits(

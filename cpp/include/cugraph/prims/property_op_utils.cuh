@@ -154,10 +154,6 @@ constexpr auto op_dispatch(raft::comms::op_t op, F&& f)
     case raft::comms::op_t::SUM: {
       return std::invoke(f, property_op<T, thrust::plus>());
     } break;
-    case raft::comms::op_t::PROD: {
-      CUGRAPH_FAIL("raft::comms::op_t::PROD is not supported for op_dispatch");
-      return std::invoke_result_t<F, property_op<T, thrust::multiplies>>{};
-    } break;
     case raft::comms::op_t::MIN: {
       return std::invoke(f, property_op<T, thrust::minimum>());
     } break;
@@ -172,14 +168,10 @@ constexpr auto op_dispatch(raft::comms::op_t op, F&& f)
 }
 
 template <typename T>
-T identity(raft::comms::op_t op)
+T identity_element(raft::comms::op_t op)
 {
   switch (op) {
     case raft::comms::op_t::SUM: {
-      return T{0};
-    } break;
-    case raft::comms::op_t::PROD: {
-      CUGRAPH_FAIL("raft::comms::op_t::PROD is not supported for op_dispatch");
       return T{0};
     } break;
     case raft::comms::op_t::MIN: {

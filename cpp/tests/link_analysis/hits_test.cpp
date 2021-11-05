@@ -43,25 +43,6 @@
 #include <random>
 #include <vector>
 
-template <typename T, typename L>
-std::vector<T> to_host(raft::handle_t const& handle, T const* data, L size)
-{
-  std::vector<T> h_data(size);
-  raft::update_host(h_data.data(), data, size, handle.get_stream());
-  handle.get_stream_view().synchronize();
-  return h_data;
-}
-
-template <typename T, typename L>
-std::vector<T> random_vector(L size, unsigned seed = 0)
-{
-  std::default_random_engine gen(seed);
-  std::uniform_real_distribution<T> dist(0.0, 1.0);
-  std::vector<T> v(size);
-  std::generate(v.begin(), v.end(), [&] { return dist(gen); });
-  return v;
-}
-
 template <typename result_t, typename vertex_t, typename edge_t>
 std::tuple<std::vector<result_t>, std::vector<result_t>, double, size_t> hits_reference(
   edge_t const* h_offsets,
@@ -199,9 +180,9 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
     rmm::device_uvector<weight_t> d_authorities(graph_view.get_number_of_local_vertices(),
                                                 handle.get_stream());
 
-    std::vector<weight_t> initial_random_hubs = (hits_usecase.check_initial_input)
-                                                  ? random_vector<weight_t>(d_hubs.size())
-                                                  : std::vector<weight_t>(0);
+    std::vector<weight_t> initial_random_hubs =
+      (hits_usecase.check_initial_input) ? cugraph::test::random_vector<weight_t>(d_hubs.size())
+                                         : std::vector<weight_t>(0);
 
     if (hits_usecase.check_initial_input) {
       raft::update_device(
@@ -236,20 +217,22 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
           handle, input_usecase, false, false);
       auto unrenumbered_graph_view = unrenumbered_graph.view();
-      auto offsets                 = to_host(handle,
-                             unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
-                             unrenumbered_graph_view.get_number_of_vertices() + 1);
-      auto indices                 = to_host(handle,
-                             unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
-                             unrenumbered_graph_view.get_number_of_edges());
-      auto reference_result        = hits_reference<weight_t>(
+      auto offsets =
+        cugraph::test::to_host(handle,
+                               unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
+                               unrenumbered_graph_view.get_number_of_vertices() + 1);
+      auto indices =
+        cugraph::test::to_host(handle,
+                               unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
+                               unrenumbered_graph_view.get_number_of_edges());
+      auto reference_result = hits_reference<weight_t>(
         offsets.data(),
         indices.data(),
         unrenumbered_graph_view.get_number_of_vertices(),
         unrenumbered_graph_view.get_number_of_edges(),
         maximum_iterations,
         (hits_usecase.check_initial_input) ? std::make_optional(initial_random_hubs.data())
-                                                  : std::nullopt,
+                                           : std::nullopt,
         true,
         tolerance);
 

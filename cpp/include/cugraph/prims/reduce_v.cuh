@@ -52,7 +52,7 @@ T reduce_v(raft::handle_t const& handle,
            T init,
            raft::comms::op_t op = raft::comms::op_t::SUM)
 {
-  auto id = identity<T>(op);
+  auto id = identity_element<T>(op);
   auto ret =
     op_dispatch<T>(op, [&handle, &graph_view, vertex_value_input_first, id, init](auto op) {
       return thrust::reduce(

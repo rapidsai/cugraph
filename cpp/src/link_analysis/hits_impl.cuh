@@ -15,8 +15,6 @@
  */
 #pragma once
 
-#include <thrust/fill.h>
-#include <thrust/transform.h>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
@@ -26,8 +24,8 @@
 #include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
 
-// TODO : delete
-#include <string>
+#include <thrust/fill.h>
+#include <thrust/transform.h>
 
 namespace cugraph {
 namespace detail {
@@ -41,8 +39,9 @@ void normalize(raft::handle_t const& handle,
                             graph_view,
                             hubs,
                             hubs + graph_view.get_number_of_local_vertices(),
-                            identity<result_t>(op),
+                            identity_element<result_t>(op),
                             op);
+  CUGRAPH_EXPECTS(hubs_norm > 0, "Norm is required to be a positive value.");
   thrust::transform(handle.get_thrust_policy(),
                     hubs,
                     hubs + graph_view.get_number_of_local_vertices(),
@@ -71,10 +70,10 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                 "GraphViewType should support the pull model.");
 
   auto const num_vertices = graph_view.get_number_of_vertices();
-  result_t hubs_error{std::numeric_limits<result_t>::max()};
+  result_t diff_sum{std::numeric_limits<result_t>::max()};
   size_t final_iteration_count{max_iterations};
 
-  if (num_vertices == 0) { return std::make_tuple(hubs_error, final_iteration_count); }
+  if (num_vertices == 0) { return std::make_tuple(diff_sum, final_iteration_count); }
 
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
 
@@ -84,6 +83,9 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       count_if_v(handle, graph_view, hubs, [] __device__(auto val) { return val < 0.0; });
     CUGRAPH_EXPECTS(num_negative_values == 0,
                     "Invalid input argument: initial guess values should be non-negative.");
+  }
+
+  if (has_initial_hubs_guess) {
     detail::normalize(handle, graph_view, hubs, raft::comms::op_t::SUM);
   }
 
@@ -138,13 +140,13 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     detail::normalize(handle, graph_view, authorities, raft::comms::op_t::MAX);
 
     // Test for exit condition
-    hubs_error = transform_reduce_v(
+    diff_sum = transform_reduce_v(
       handle,
       graph_view,
       thrust::make_zip_iterator(thrust::make_tuple(curr_hubs, prev_hubs)),
       [] __device__(auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0});
-    if (hubs_error < epsilon) {
+    if (diff_sum < epsilon) {
       final_iteration_count = iter;
       std::swap(prev_hubs, curr_hubs);
       break;
@@ -170,7 +172,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                  hubs);
   }
 
-  return std::make_tuple(hubs_error, final_iteration_count);
+  return std::make_tuple(diff_sum, final_iteration_count);
 }
 
 }  // namespace detail
