@@ -39,12 +39,12 @@
 // self-loops and multi-edges are masked out and do not participate in degree computation, this code
 // assumes that every vertex's neighbor list is sorted.
 template <typename vertex_t, typename edge_t>
-std::vector<vertex_t> core_number_reference(edge_t const* offsets,
-                                            vertex_t const* indices,
-                                            vertex_t num_vertices,
-                                            cugraph::k_core_degree_type_t degree_type,
-                                            size_t k_first = 0,
-                                            size_t k_last  = std::numeric_limits<size_t>::max())
+std::vector<edge_t> core_number_reference(edge_t const* offsets,
+                                          vertex_t const* indices,
+                                          vertex_t num_vertices,
+                                          cugraph::k_core_degree_type_t degree_type,
+                                          size_t k_first = 0,
+                                          size_t k_last  = std::numeric_limits<size_t>::max())
 {
   // mask out self-loops and multi_edges
 
@@ -100,17 +100,14 @@ std::vector<vertex_t> core_number_reference(edge_t const* offsets,
       }
     }
   }
-  std::vector<vertex_t> core_numbers(num_vertices, vertex_t{0});
-  std::transform(degrees.begin(), degrees.end(), core_numbers.begin(), [](auto d) {
-    return static_cast<vertex_t>(d);
-  });  // vertex_t is sufficient as K-core assumes no multi-edges.
+  std::vector<edge_t> core_numbers = std::move(degrees);
 
   // sort vertices based on degrees
 
   std::vector<vertex_t> sorted_vertices(num_vertices);
   std::iota(sorted_vertices.begin(), sorted_vertices.end(), vertex_t{0});
-  std::sort(sorted_vertices.begin(), sorted_vertices.end(), [&degrees](auto lhs, auto rhs) {
-    return degrees[lhs] < degrees[rhs];
+  std::sort(sorted_vertices.begin(), sorted_vertices.end(), [&core_numbers](auto lhs, auto rhs) {
+    return core_numbers[lhs] < core_numbers[rhs];
   });
 
   // update initial bin boundaries
@@ -206,7 +203,11 @@ class Tests_CoreNumber
   void run_current_test(CoreNumber_Usecase const& core_number_usecase,
                         input_usecase_t const& input_usecase)
   {
+#if 1  // DEBUG
+    constexpr bool renumber = false;
+#else
     constexpr bool renumber = true;
+#endif
 
     using weight_t = float;
 
@@ -233,20 +234,22 @@ class Tests_CoreNumber
     ASSERT_TRUE(core_number_usecase.k_first <= core_number_usecase.k_last)
       << "Invalid pair of (k_first, k_last).";
 
-    rmm::device_uvector<vertex_t> d_core_numbers(graph_view.get_number_of_vertices(),
-                                                 handle.get_stream());
+    rmm::device_uvector<edge_t> d_core_numbers(graph_view.get_number_of_vertices(),
+                                               handle.get_stream());
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
+#if 0
     cugraph::core_number(handle,
                          graph_view,
                          d_core_numbers.data(),
                          core_number_usecase.degree_type,
                          core_number_usecase.k_first,
                          core_number_usecase.k_last);
+#endif
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -284,9 +287,9 @@ class Tests_CoreNumber
                                                             core_number_usecase.k_first,
                                                             core_number_usecase.k_last);
 
-      std::vector<vertex_t> h_cugraph_core_numbers(graph_view.get_number_of_vertices());
+      std::vector<edge_t> h_cugraph_core_numbers(graph_view.get_number_of_vertices());
       if (renumber) {
-        rmm::device_uvector<vertex_t> d_unrenumbered_core_numbers(size_t{0}, handle.get_stream());
+        rmm::device_uvector<edge_t> d_unrenumbered_core_numbers(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_core_numbers) =
           cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_core_numbers);
         raft::update_host(h_cugraph_core_numbers.data(),

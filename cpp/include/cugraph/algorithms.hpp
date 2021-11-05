@@ -1426,7 +1426,7 @@ enum class k_core_degree_type_t { IN, OUT, INOUT };
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void core_number(raft::handle_t const& handle,
                  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-                 vertex_t* core_numbers,
+                 edge_t* core_numbers,
                  k_core_degree_type_t degree_type,
                  size_t k_first          = 0,
                  size_t k_last           = std::numeric_limits<size_t>::max(),
