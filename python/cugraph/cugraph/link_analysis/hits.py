@@ -12,9 +12,15 @@
 # limitations under the License.
 
 # from cugraph.link_analysis import hits_wrapper
+<<<<<<< HEAD
 # from cugraph.utilities import (ensure_cugraph_obj_for_nx,
 #                               df_score_to_dictionary,
 #                               )
+=======
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               )
+>>>>>>> 523f538da994ade12daa78023f2beac217d5d2e9
 
 
 def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
@@ -74,10 +80,11 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> hits = cugraph.hits(G, max_iter = 50)
     """
+
     """
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    df = hits_wrapper.hits(G, max_iter, tol)
+    df = hits_wrapper.hits(G, max_iter, tol)  # noqa: F821
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
