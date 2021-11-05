@@ -191,7 +191,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
     // 3. run hits
 
     auto graph_view         = graph.view();
-    auto maximum_iterations = 200;
+    auto maximum_iterations = 500;
     weight_t tolerance      = 1e-8;
     rmm::device_uvector<weight_t> d_hubs(graph_view.get_number_of_local_vertices(),
                                          handle.get_stream());
