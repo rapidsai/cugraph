@@ -90,10 +90,6 @@ raft_include_dir = use_raft_package(raft_path, libcugraph_path)
 if not libcugraph_path:
     libcugraph_path = conda_lib_dir
 
-# FIXME: Remove this code when HITS is supported again.
-import glob  # noqa: E402
-CYTHON_FILES = [f for f in glob.glob(CYTHON_FILES[0]) if "hits" not in f]
-
 extensions = [
     Extension("*",
               sources=CYTHON_FILES,
