@@ -1404,7 +1404,8 @@ enum class k_core_degree_type_t { IN, OUT, INOUT };
 /**
  * @brief   Compute core numbers of individual vertices from K-core decomposition.
  *
- * The input graph should not have self-loops nor multi-edges.
+ * The input graph should not have self-loops nor multi-edges. Currently, only undirected graphs are
+ * supported.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.

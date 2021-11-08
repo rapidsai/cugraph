@@ -41,6 +41,8 @@ void core_number(raft::handle_t const& handle,
 {
   // check input arguments.
 
+  CUGRAPH_EXPECTS(graph_view.is_symmetric(),
+                  "Invalid input argument: core_number currently supports only undirected graphs.");
   CUGRAPH_EXPECTS((degree_type == k_core_degree_type_t::IN) ||
                     (degree_type == k_core_degree_type_t::OUT) ||
                     (degree_type == k_core_degree_type_t::INOUT),
@@ -134,7 +136,7 @@ void core_number(raft::handle_t const& handle,
   while (k <= k_last) {
     size_t aggregate_num_remaining_vertices{0};
     if constexpr (multi_gpu) {
-      auto& comm = handle.get_comms();
+      auto& comm                       = handle.get_comms();
       aggregate_num_remaining_vertices = host_scalar_allreduce(
         comm, remaining_vertices.size(), raft::comms::op_t::SUM, handle.get_stream());
     } else {
@@ -194,7 +196,8 @@ void core_number(raft::handle_t const& handle,
 
         if (!graph_view.is_symmetric() && ((degree_type == k_core_degree_type_t::OUT) ||
                                            (degree_type == k_core_degree_type_t::INOUT))) {
-          // FIXME: we can create a transposed copy of the input graph.
+          // FIXME: we can create a transposed copy of the input graph (note that currently,
+          // transpose works only on graph_t (and does not work on graph_view_t)).
           CUGRAPH_FAIL("unimplemented.");
         }
 
@@ -224,7 +227,8 @@ void core_number(raft::handle_t const& handle,
                                      static_cast<size_t>(Bucket::next));
       } while (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() > 0);
 
-      // FIXME: scanning the remaining vertices can add significant overhead if std::min(max_degree, k_last) >> k_first.
+      // FIXME: scanning the remaining vertices can add significant overhead if std::min(max_degree,
+      // k_last) >> k_first.
       remaining_vertices.resize(
         thrust::distance(
           remaining_vertices.begin(),
@@ -257,13 +261,14 @@ void core_number(raft::handle_t const& handle,
   // clip core numbers to k_last
 
   if (k_last < std::numeric_limits<size_t>::max()) {
-    thrust::transform(handle.get_thrust_policy(),
-                      core_numbers,
-                      core_numbers + graph_view.get_number_of_local_vertices(),
-                      core_numbers,
-                      [k_last = static_cast<edge_t>(k_last), op = thrust::minimum<edge_t>{}] __device__(auto c) {
-                        return op(c, k_last);
-                      });
+    thrust::transform(
+      handle.get_thrust_policy(),
+      core_numbers,
+      core_numbers + graph_view.get_number_of_local_vertices(),
+      core_numbers,
+      [k_last = static_cast<edge_t>(k_last), op = thrust::minimum<edge_t>{}] __device__(auto c) {
+        return op(c, k_last);
+      });
   }
 }
 
