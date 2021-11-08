@@ -154,19 +154,35 @@ constexpr auto op_dispatch(raft::comms::op_t op, F&& f)
     case raft::comms::op_t::SUM: {
       return std::invoke(f, property_op<T, thrust::plus>());
     } break;
-    case raft::comms::op_t::PROD: {
-      CUGRAPH_FAIL("raft::comms::op_t::PROD is not supported for op_dispatch");
-      return std::invoke_result_t<F, property_op<T, thrust::multiplies>>{};
-    } break;
     case raft::comms::op_t::MIN: {
-      return std::invoke(f, property_op<T, thrust::less>());
+      return std::invoke(f, property_op<T, thrust::minimum>());
     } break;
     case raft::comms::op_t::MAX: {
-      return std::invoke(f, property_op<T, thrust::greater>());
+      return std::invoke(f, property_op<T, thrust::maximum>());
     } break;
     default: {
       CUGRAPH_FAIL("Unhandled raft::comms::op_t");
       return std::invoke_result_t<F, property_op<T, thrust::plus>>{};
+    }
+  };
+}
+
+template <typename T>
+T identity_element(raft::comms::op_t op)
+{
+  switch (op) {
+    case raft::comms::op_t::SUM: {
+      return T{0};
+    } break;
+    case raft::comms::op_t::MIN: {
+      return std::numeric_limits<T>::max();
+    } break;
+    case raft::comms::op_t::MAX: {
+      return std::numeric_limits<T>::lowest();
+    } break;
+    default: {
+      CUGRAPH_FAIL("Unhandled raft::comms::op_t");
+      return T{0};
     }
   };
 }
