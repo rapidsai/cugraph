@@ -22,7 +22,6 @@
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_barrier.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -603,17 +602,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       auto const col_comm_rank = col_comm.get_rank();
       auto const col_comm_size = col_comm.get_size();
 
-      // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-      // two different communicators (beginning of col_comm)
-#if 1
-      // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-      // and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
-#else
-      handle.get_stream_view().synchronize();
-      comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
       device_reduce(col_comm,
                     major_buffer_first,
                     vertex_value_output_first,
@@ -621,17 +609,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                     raft::comms::op_t::SUM,
                     i,
                     handle.get_stream());
-
-      // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-      // two different communicators (end of col_comm)
-#if 1
-      // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-      // and MPI barrier with MPI)
-      host_barrier(comm, handle.get_stream_view());
-#else
-      handle.get_stream_view().synchronize();
-      comm.barrier();  // currently, this is ncclAllReduce
-#endif
     }
   }
 
@@ -645,17 +622,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (beginning of row_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
-#else
-    handle.get_stream_view().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
     for (int i = 0; i < row_comm_size; ++i) {
       auto offset = (graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i) -
                      graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size));
@@ -668,17 +634,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                     i,
                     handle.get_stream());
     }
-
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (end of row_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
-#else
-    handle.get_stream_view().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
   }
 }
 

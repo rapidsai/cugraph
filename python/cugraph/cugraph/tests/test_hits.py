@@ -79,6 +79,7 @@ MAX_ITERATIONS = [50]
 TOLERANCE = [1.0e-06]
 
 
+@pytest.mark.skip(reason="Waiting on new version")
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
