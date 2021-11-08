@@ -158,8 +158,6 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
           cugraph::test::device_gatherv(handle, d_initial_hubs.data(), d_initial_hubs.size());
         std::tie(std::ignore, d_initial_hubs) =
           cugraph::test::sort_by_key(handle, d_mg_aggregate_renumber_map_labels, d_initial_hubs);
-        ASSERT_TRUE(static_cast<vertex_t>(d_initial_hubs.size()) ==
-                    mg_graph_view.get_number_of_vertices());
       }
 
       if (handle.get_comms().get_rank() == int{0}) {
