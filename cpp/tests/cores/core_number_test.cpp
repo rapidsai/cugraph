@@ -176,6 +176,19 @@ std::vector<edge_t> core_number_reference(edge_t const* offsets,
     }
   }
 
+  // clip core numbers
+
+  std::transform(
+    core_numbers.begin(), core_numbers.end(), core_numbers.begin(), [k_first, k_last](auto c) {
+      if (c < k_first) {
+        return edge_t{0};
+      } else if (c > k_last) {
+        return static_cast<edge_t>(k_last);
+      } else {
+        return c;
+      }
+    });
+
   return core_numbers;
 }
 
@@ -242,14 +255,12 @@ class Tests_CoreNumber
       hr_clock.start();
     }
 
-#if 0
     cugraph::core_number(handle,
                          graph_view,
                          d_core_numbers.data(),
                          core_number_usecase.degree_type,
                          core_number_usecase.k_first,
                          core_number_usecase.k_last);
-#endif
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
