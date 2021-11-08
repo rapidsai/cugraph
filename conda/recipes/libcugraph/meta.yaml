@@ -34,6 +34,7 @@ requirements:
     - cmake>=3.20.1
     - cudatoolkit {{ cuda_version }}.*
     - librmm {{ minor_version }}.*
+    - cudf {{ minor_version }}.*
     - boost-cpp>=1.66
     - nccl>=2.9.9
     - ucx-proc=*=gpu
