@@ -93,7 +93,7 @@ async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
                     worker_list)]
         parts = futures_of(persisted)
     # iterable of dask collections (need to colocate them)
-    elif isinstance(dask_obj, collections.Sequence):
+    elif isinstance(dask_obj, collections.abc.Sequence):
         # NOTE: We colocate (X, y) here by zipping delayed
         # n partitions of them as (X1, y1), (X2, y2)...
         # and asking client to compute a single future for

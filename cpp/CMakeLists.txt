@@ -42,8 +42,8 @@ endif()
 # Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
 # cuhornet currently doesn't support
 #
-# >= 86
-set(supported_archs "60" "62" "70" "72" "75" "80")
+# >= 90
+set(supported_archs "60" "62" "70" "72" "75" "80" "86")
 foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
     string(REPLACE "-real" "" arch ${arch})
     if( arch IN_LIST supported_archs )
@@ -147,8 +147,6 @@ include(cmake/thirdparty/get_raft.cmake)
 include(cmake/thirdparty/get_cuco.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
 
-include(cmake/thirdparty/get_gunrock.cmake)
-
 if(BUILD_TESTS)
   include(cmake/thirdparty/get_gtest.cmake)
 endif()
@@ -165,7 +163,7 @@ add_library(cugraph SHARED
     src/utilities/graph_bcast.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
-    src/link_analysis/gunrock_hits.cpp
+    #src/link_analysis/gunrock_hits.cpp
     src/traversal/legacy/bfs.cu
     src/traversal/legacy/sssp.cu
     src/link_prediction/jaccard.cu
@@ -295,7 +293,6 @@ target_link_libraries(cugraph
         CUDA::cusparse
         cugraph::cuHornet
         FAISS::FAISS
-        gunrock
         NCCL::NCCL
 )
 
@@ -355,6 +352,12 @@ endif()
 
 add_library(cugraph_c SHARED
         src/c_api/cugraph_api.cpp
+        src/c_api/array.cpp
+        src/c_api/error.cpp
+        src/c_api/graph_sg.cpp
+        src/c_api/graph_mg.cpp
+        src/c_api/pagerank.cpp
+        src/c_api/bfs.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 
