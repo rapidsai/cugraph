@@ -30,6 +30,7 @@
 #include <thrust/optional.h>
 
 #include <optional>
+#include <type_traits>
 
 namespace cugraph {
 
