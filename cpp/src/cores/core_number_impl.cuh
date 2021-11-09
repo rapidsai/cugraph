@@ -38,12 +38,16 @@ struct v_to_core_number_t {
   edge_t const* core_numbers{nullptr};
   vertex_t v_first{0};
 
-  __device__ edge_t operator()(vertex_t v) const {
-    return core_numbers[v - v_first];
-  }
+  __device__ edge_t operator()(vertex_t v) const { return core_numbers[v - v_first]; }
 };
 
-}
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename edge_t>
+struct mult_degree_by_two_t {
+  __device__ edge_t operator()(edge_t d) const { return d * edge_t{2}; }
+};
+
+}  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void core_number(raft::handle_t const& handle,
@@ -79,8 +83,8 @@ void core_number(raft::handle_t const& handle,
       thrust::copy(
         handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end(), core_numbers);
     } else {
-      auto inout_degree_first = thrust::make_transform_iterator(
-        out_degrees.begin(), [] __device__(auto d) { return d * edge_t{2}; });
+      auto inout_degree_first =
+        thrust::make_transform_iterator(out_degrees.begin(), mult_degree_by_two_t<edge_t>{});
       thrust::copy(handle.get_thrust_policy(),
                    inout_degree_first,
                    inout_degree_first + out_degrees.size(),
@@ -159,8 +163,10 @@ void core_number(raft::handle_t const& handle,
     }
     if (aggregate_num_remaining_vertices == 0) { break; }
 
-    // FIXME: scanning the remaining vertices can add significant overhead if std::min(max_degree,
-    // k_last) >> k_first.
+    // FIXME: scanning the remaining vertices can add significant overhead if the number of distinct
+    // core numbers in [k_first, std::min(max_degree, k_last)] is large and there are many high core
+    // number vertices (so the number of remaining vertices remains large for many iterations). Need
+    // more tuning (e.g. Possibly use a logarithmic binning) if we encounter such use cases.
     auto less_than_k_first = thrust::stable_partition(
       handle.get_thrust_policy(),
       remaining_vertices.begin(),
@@ -180,8 +186,9 @@ void core_number(raft::handle_t const& handle,
       do {
         // FIXME: If most vertices have core numbers less than k, (dst_val >= k) will be mostly
         // false leading to too many unnecessary edge traversals (this is especially problematic if
-        // std::min(max_degree, k_last) >> k_first). There are two potential solutions: 1) extract a
-        // sub-graph and work on the sub-graph & 2) mask-out/delete edges.
+        // the number of distinct core numbers in [k_first, std::min(max_degree, k_last)] is large).
+        // There are two potential solutions: 1) extract a sub-graph and work on the sub-graph & 2)
+        // mask-out/delete edges.
         if (graph_view.is_symmetric() || ((degree_type == k_core_degree_type_t::IN) ||
                                           (degree_type == k_core_degree_type_t::INOUT))) {
           update_frontier_v_push_if_out_nbr(
@@ -201,8 +208,8 @@ void core_number(raft::handle_t const& handle,
             [k_first, k, delta, v_first = graph_view.get_local_vertex_first()] __device__(
               auto v, auto v_val, auto pushed_val) {
               auto new_core_number = v_val >= pushed_val ? v_val - pushed_val : edge_t{0};
-              new_core_number = new_core_number < (k - delta) ? (k - delta) : new_core_number;
-              new_core_number = new_core_number < k_first ? edge_t{0} : new_core_number;
+              new_core_number      = new_core_number < (k - delta) ? (k - delta) : new_core_number;
+              new_core_number      = new_core_number < k_first ? edge_t{0} : new_core_number;
               return thrust::optional<thrust::tuple<size_t, edge_t>>{
                 thrust::make_tuple(static_cast<size_t>(Bucket::next), new_core_number)};
             });
@@ -241,8 +248,11 @@ void core_number(raft::handle_t const& handle,
                                      static_cast<size_t>(Bucket::next));
       } while (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() > 0);
 
-      // FIXME: scanning the remaining vertices can add significant overhead if std::min(max_degree,
-      // k_last) >> k_first.
+      // FIXME: scanning the remaining vertices can add significant overhead if the number of
+      // distinct core numbers in [k_first, std::min(max_degree, k_last)] is large and there are
+      // many high core number vertices (so the number of remaining vertices remains large for many
+      // iterations). Need more tuning (e.g. Possibly use a logarithmic binning) if we encounter
+      // such use cases.
       remaining_vertices.resize(
         thrust::distance(
           remaining_vertices.begin(),
