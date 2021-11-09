@@ -244,9 +244,9 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     translate(handle, src_v, dst_v);
 
     if (undirected_)
-      std::tie(src_v, dst_v, std::ignore) =
+      std::tie(src_v, dst_v, weights_v) =
         cugraph::symmetrize_edgelist_from_triangular<vertex_t, weight_t>(
-          handle, std::move(src_v), std::move(dst_v), std::nullopt);
+          handle, std::move(src_v), std::move(dst_v), std::move(weights_v));
 
     if (multi_gpu) {
       std::tie(store_transposed ? dst_v : src_v, store_transposed ? src_v : dst_v, weights_v) =
