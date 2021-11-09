@@ -18,7 +18,7 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <raft/random/rng.cuh>
+#include <raft/random/rng.hpp>
 
 #include <rmm/exec_policy.hpp>
 
