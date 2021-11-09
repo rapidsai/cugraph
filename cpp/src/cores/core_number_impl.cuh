@@ -30,6 +30,21 @@
 
 namespace cugraph {
 
+namespace {
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t, typename edge_t>
+struct v_to_core_number_t {
+  edge_t const* core_numbers{nullptr};
+  vertex_t v_first{0};
+
+  __device__ edge_t operator()(vertex_t v) const {
+    return core_numbers[v - v_first];
+  }
+};
+
+}
+
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void core_number(raft::handle_t const& handle,
                  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
@@ -183,12 +198,11 @@ void core_number(raft::handle_t const& handle,
             reduce_op::plus<edge_t>(),
             core_numbers,
             core_numbers,
-            [k, delta, v_first = graph_view.get_local_vertex_first()] __device__(
-              auto, auto v_val, auto pushed_val) {
-              auto old_core_number = v_val;
-              auto new_core_number = old_core_number >= (pushed_val + k - delta)
-                                       ? (old_core_number - pushed_val)
-                                       : (k - delta);
+            [k_first, k, delta, v_first = graph_view.get_local_vertex_first()] __device__(
+              auto v, auto v_val, auto pushed_val) {
+              auto new_core_number = v_val >= pushed_val ? v_val - pushed_val : edge_t{0};
+              new_core_number = new_core_number < (k - delta) ? (k - delta) : new_core_number;
+              new_core_number = new_core_number < k_first ? edge_t{0} : new_core_number;
               return thrust::optional<thrust::tuple<size_t, edge_t>>{
                 thrust::make_tuple(static_cast<size_t>(Bucket::next), new_core_number)};
             });
@@ -244,9 +258,7 @@ void core_number(raft::handle_t const& handle,
     } else {
       auto remaining_vertex_core_number_first = thrust::make_transform_iterator(
         remaining_vertices.begin(),
-        [core_numbers, v_first = graph_view.get_local_vertex_first()] __device__(auto v) {
-          return core_numbers[v - v_first];
-        });
+        v_to_core_number_t<vertex_t, edge_t>{core_numbers, graph_view.get_local_vertex_first()});
       auto min_core_number =
         reduce_v(handle,
                  graph_view,
@@ -254,7 +266,7 @@ void core_number(raft::handle_t const& handle,
                  remaining_vertex_core_number_first + remaining_vertices.size(),
                  std::numeric_limits<edge_t>::max(),
                  raft::comms::op_t::MIN);
-      k = std::max(k, static_cast<size_t>(min_core_number + edge_t{delta}));
+      k = std::max(k + delta, static_cast<size_t>(min_core_number + edge_t{delta}));
     }
   }
 
