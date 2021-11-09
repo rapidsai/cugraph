@@ -62,7 +62,6 @@ set(CMAKE_CUDA_ARCHITECTURES ${usable_arch_values})
 # Write the version header
 rapids_cmake_write_version_file(include/cugraph/version_config.hpp)
 rapids_cmake_write_version_file(include/cugraph_c/version_config.hpp)
-rapids_cmake_write_version_file(include/cugraph_etl/version_config.hpp)
 
 ################################################################################
 # - build type -----------------------------------------------------------------
@@ -143,7 +142,6 @@ include(cmake/thirdparty/get_faiss.cmake)
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_rmm.cmake)
 
-include(cmake/thirdparty/get_cudf.cmake)
 include(cmake/thirdparty/get_raft.cmake)
 
 include(cmake/thirdparty/get_cuco.cmake)
@@ -397,52 +395,6 @@ target_link_libraries(cugraph_c
 )
 
 ################################################################################
-# - ETL library --------------------------------------------------------------
-
-add_library(cugraph_etl SHARED
-            src/etl/renumbering.cu
-           )
-add_library(cugraph::cugraph_etl ALIAS cugraph_etl)
-
-# Currently presuming we aren't calling any CUDA kernels in cugraph_c
-
-set_target_properties(cugraph_etl
-               PROPERTIES BUILD_RPATH              "\$ORIGIN"
-               INSTALL_RPATH                       "\$ORIGIN"
-               # set target compile options
-               CXX_STANDARD                        17
-               CXX_STANDARD_REQUIRED               ON
-               INTERFACE_POSITION_INDEPENDENT_CODE ON
-)
-
-target_compile_options(cugraph_etl
-            PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
-)
-
-################################################################################
-# - ETL include paths --------------------------------------------------------
-target_include_directories(cugraph_etl
-    PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    PUBLIC
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-        "$<INSTALL_INTERFACE:include>"
-)
-
-################################################################################
-# - ETL link libraries -------------------------------------------------------
-target_link_libraries(cugraph_etl
-        PRIVATE
-                FAISS::FAISS
-                CUDA::cublas
-                CUDA::curand
-                CUDA::cusolver
-                CUDA::cusparse
-                cugraph::cugraph
-                cudf::cudf
-)
-
-################################################################################
 # - generate tests -------------------------------------------------------------
 
 if(BUILD_TESTS)
@@ -474,15 +426,6 @@ install(DIRECTORY include/cugraph_c/
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph_c/version_config.hpp
         DESTINATION include/cugraph_c)
 
-install(TARGETS cugraph_etl
-        DESTINATION ${lib_dir})
-
-install(DIRECTORY include/cugraph_etl/
-        DESTINATION include/cugraph_etl)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph_etl/version_config.hpp
-        DESTINATION include/cugraph_etl)
-
 ################################################################################
 # - install export -------------------------------------------------------------
 
@@ -502,7 +445,7 @@ thrust_create_target(cugraph::Thrust FROM_OPTIONS)
 
  rapids_export(INSTALL cugraph
     EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph cugraph_c cugraph_etl
+    GLOBAL_TARGETS cugraph cugraph_c
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
     FINAL_CODE_BLOCK code_string
@@ -512,7 +455,7 @@ thrust_create_target(cugraph::Thrust FROM_OPTIONS)
 # - build export ---------------------------------------------------------------
 rapids_export(BUILD cugraph
     EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph cugraph_c cugraph_etl
+    GLOBAL_TARGETS cugraph cugraph_c
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
     FINAL_CODE_BLOCK code_string

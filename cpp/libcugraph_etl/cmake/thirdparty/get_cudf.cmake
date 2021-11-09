@@ -21,8 +21,8 @@ function(find_and_configure_cudf)
 
     rapids_cpm_find(cudf ${PKG_VERSION}
       GLOBAL_TARGETS      cudf::cudf
-      BUILD_EXPORT_SET    cugraph-exports
-      INSTALL_EXPORT_SET  cugraph-exports
+      BUILD_EXPORT_SET    cugraph_etl-exports
+      INSTALL_EXPORT_SET  cugraph_etl-exports
         CPM_ARGS
             GIT_REPOSITORY https://github.com/${PKG_FORK}/cudf.git
             GIT_TAG        ${PKG_PINNED_TAG}
@@ -30,18 +30,18 @@ function(find_and_configure_cudf)
             OPTIONS "BUILD_TESTS OFF"
     )
 
-    message(VERBOSE "CUGRAPH: Using CUDF located in ${cudf_SOURCE_DIR}")
+    message(VERBOSE "CUGRAPH_ETL: Using CUDF located in ${cudf_SOURCE_DIR}")
 
 endfunction()
 
-set(CUGRAPH_MIN_VERSION_cudf "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
-set(CUGRAPH_BRANCH_VERSION_cudf "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
+set(CUGRAPH_ETL_MIN_VERSION_cudf "${CUGRAPH_ETL_VERSION_MAJOR}.${CUGRAPH_ETL_VERSION_MINOR}.00")
+set(CUGRAPH_ETL_BRANCH_VERSION_cudf "${CUGRAPH_ETL_VERSION_MAJOR}.${CUGRAPH_ETL_VERSION_MINOR}")
 
 
 # Change pinned tag and fork here to test a commit in CI
 # To use a different RAFT locally, set the CMake variable
 # RPM_cudf_SOURCE=/path/to/local/cudf
-find_and_configure_cudf(VERSION    ${CUGRAPH_MIN_VERSION_cudf}
+find_and_configure_cudf(VERSION    ${CUGRAPH_ETL_MIN_VERSION_cudf}
                         FORK       rapidsai
-                        PINNED_TAG branch-${CUGRAPH_BRANCH_VERSION_cudf}
+                        PINNED_TAG branch-${CUGRAPH_ETL_BRANCH_VERSION_cudf}
                         )
