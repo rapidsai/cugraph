@@ -234,7 +234,7 @@ class Tests_CoreNumber
 
     auto [graph, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, true, renumber);
+        handle, input_usecase, true, renumber, true, true);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -274,7 +274,7 @@ class Tests_CoreNumber
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, input_usecase, true, false);
+            handle, input_usecase, true, false, true, true);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
@@ -360,42 +360,35 @@ TEST_P(Tests_CoreNumber_Rmat, CheckInt64Int64)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_CoreNumber_File,
-  ::testing::Values(
+  ::testing::Combine(
     // enable correctness checks
-    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
-                                       size_t{0},
-                                       std::numeric_limits<size_t>::max()},
-                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
-                                       size_t{0},
-                                       std::numeric_limits<size_t>::max()},
-                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
-    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
-                                       size_t{0},
-                                       std::numeric_limits<size_t>::max()},
-                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
-                                       size_t{0},
-                                       std::numeric_limits<size_t>::max()},
-                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
-                                       size_t{0},
-                                       std::numeric_limits<size_t>::max()},
-                    cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
-    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
-                                       size_t{0},
-                                       std::numeric_limits<size_t>::max()},
-                    cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx"))));
+    testing::Values(
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::IN, size_t{0}, std::numeric_limits<size_t>::max()},
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::OUT, size_t{0}, std::numeric_limits<size_t>::max()},
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::INOUT, size_t{0}, std::numeric_limits<size_t>::max()},
+      CoreNumber_Usecase{cugraph::k_core_degree_type_t::IN, size_t{2}, size_t{2}},
+      CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT, size_t{1}, size_t{3}},
+      CoreNumber_Usecase{cugraph::k_core_degree_type_t::INOUT, size_t{2}, size_t{4}}),
+    testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx"),
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_CoreNumber_Rmat,
-  ::testing::Values(
+  ::testing::Combine(
     // enable correctness checks
-    std::make_tuple(CoreNumber_Usecase{cugraph::k_core_degree_type_t::OUT,
-                                       size_t{0},
-                                       std::numeric_limits<size_t>::max()},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+    testing::Values(
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::IN, size_t{0}, std::numeric_limits<size_t>::max()},
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::OUT, size_t{0}, std::numeric_limits<size_t>::max()},
+      CoreNumber_Usecase{
+        cugraph::k_core_degree_type_t::INOUT, size_t{0}, std::numeric_limits<size_t>::max()}),
+    testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -404,11 +397,10 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_CoreNumber_Rmat,
-  ::testing::Values(
+  ::testing::Combine(
     // disable correctness checks for large graphs
-    std::make_pair(
-      CoreNumber_Usecase{
-        cugraph::k_core_degree_type_t::OUT, size_t{0}, std::numeric_limits<size_t>::max(), false},
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+    testing::Values(CoreNumber_Usecase{
+      cugraph::k_core_degree_type_t::OUT, size_t{0}, std::numeric_limits<size_t>::max(), false}),
+    testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
