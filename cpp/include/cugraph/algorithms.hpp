@@ -1461,8 +1461,8 @@ enum class k_core_degree_type_t { IN, OUT, INOUT };
  * out-degrees, or in-degrees + out_degrees.
  * @param k_first Find K-cores from K = k_first. Any vertices that do not belong to k_first-core
  * will have core numbers of 0.
- * @param k_last Find K-cores to K = k_last. Any vertices that belong to (k_last + 1) core will have
- * core numbers of k_last.
+ * @param k_last Find K-cores to K = k_last. Any vertices that belong to (k_last)-core will have
+ * their core numbers set to their degrees on k_last-core.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>

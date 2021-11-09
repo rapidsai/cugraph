@@ -279,19 +279,6 @@ void core_number(raft::handle_t const& handle,
       k = std::max(k + delta, static_cast<size_t>(min_core_number + edge_t{delta}));
     }
   }
-
-  // clip core numbers to k_last
-
-  if (k_last < std::numeric_limits<size_t>::max()) {
-    thrust::transform(
-      handle.get_thrust_policy(),
-      core_numbers,
-      core_numbers + graph_view.get_number_of_local_vertices(),
-      core_numbers,
-      [k_last = static_cast<edge_t>(k_last), op = thrust::minimum<edge_t>{}] __device__(auto c) {
-        return op(c, k_last);
-      });
-  }
 }
 
 }  // namespace cugraph

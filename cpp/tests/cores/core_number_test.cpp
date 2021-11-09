@@ -134,6 +134,7 @@ std::vector<edge_t> core_number_reference(edge_t const* offsets,
 
   for (vertex_t i = 0; i < num_vertices; ++i) {
     auto v = sorted_vertices[i];
+    if (core_numbers[v] >= k_last) { break; }
     for (edge_t j = offsets[v]; j < offsets[v + 1]; ++j) {
       auto nbr = indices[j];
       if (edge_valids[j] && (core_numbers[nbr] > core_numbers[v])) {
@@ -182,8 +183,6 @@ std::vector<edge_t> core_number_reference(edge_t const* offsets,
     core_numbers.begin(), core_numbers.end(), core_numbers.begin(), [k_first, k_last](auto c) {
       if (c < k_first) {
         return edge_t{0};
-      } else if (c > k_last) {
-        return static_cast<edge_t>(k_last);
       } else {
         return c;
       }
