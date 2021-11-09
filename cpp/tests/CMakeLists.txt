@@ -508,6 +508,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_GRAPH_BROADCAST_TEST bcast/mg_graph_bcast.cpp)
 
         ###########################################################################################
+        # - MG Core Number tests ------------------------------------------------------------------
+        ConfigureTestMG(MG_CORE_NUMBER_TEST cores/mg_core_number_test.cpp)
+
+        ###########################################################################################
         # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
 
