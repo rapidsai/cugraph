@@ -216,11 +216,7 @@ class Tests_CoreNumber
   void run_current_test(CoreNumber_Usecase const& core_number_usecase,
                         input_usecase_t const& input_usecase)
   {
-#if 1  // DEBUG
-    constexpr bool renumber = false;
-#else
     constexpr bool renumber = true;
-#endif
 
     using weight_t = float;
 
@@ -234,7 +230,7 @@ class Tests_CoreNumber
 
     auto [graph, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, true, renumber, true, true);
+        handle, input_usecase, false, renumber, true, true);
 
     if (cugraph::test::g_perf) {
       CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -329,7 +325,6 @@ class Tests_CoreNumber
 using Tests_CoreNumber_File = Tests_CoreNumber<cugraph::test::File_Usecase>;
 using Tests_CoreNumber_Rmat = Tests_CoreNumber<cugraph::test::Rmat_Usecase>;
 
-// FIXME: add tests for type combinations
 TEST_P(Tests_CoreNumber_File, CheckInt32Int32)
 {
   auto param = GetParam();
