@@ -530,6 +530,7 @@ endif()
 ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE_TEST c_api/create_sg_graph_envelope_test.c)
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
+ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################

@@ -82,13 +82,13 @@ void cugraph_pagerank_result_free(cugraph_pagerank_result_t* result);
  */
 cugraph_error_code_t cugraph_pagerank(
   const cugraph_resource_handle_t* handle,
-  const cugraph_graph_t* graph,
+  cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
   double alpha,
   double epsilon,
   size_t max_iterations,
-  bool has_initial_guess,
-  bool do_expensive_check,
+  bool_t has_initial_guess,
+  bool_t do_expensive_check,
   cugraph_pagerank_result_t** result,
   cugraph_error_t** error);
 
@@ -101,8 +101,8 @@ cugraph_error_code_t cugraph_pagerank(
  *                          Optionally send in precomputed sume of vertex out weights
  *                          (a performance optimization).  Set to NULL if
  *                          no value is passed.
- * @param [in]  personalization_vertices Pointer to an array storing personalization vertex
- * identifiers (compute personalized PageRank)
+ * @param [in/out]  personalization_vertices Pointer to an array storing personalization vertex
+ * identifiers (compute personalized PageRank).  Array might be modified if renumbering is enabled for the graph
  * @param [in]  personalization_values Pointer to an array storing personalization values for the
  * vertices in the personalization set.
  * @param [in]  alpha       PageRank damping factor.
@@ -122,15 +122,15 @@ cugraph_error_code_t cugraph_pagerank(
  */
 cugraph_error_code_t cugraph_personalized_pagerank(
   const cugraph_resource_handle_t* handle,
-  const cugraph_graph_t* graph,
+  cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
-  const cugraph_type_erased_device_array_t* personalization_vertices,
+  cugraph_type_erased_device_array_t* personalization_vertices,
   const cugraph_type_erased_device_array_t* personalization_values,
   double alpha,
   double epsilon,
   size_t max_iterations,
-  bool has_initial_guess,
-  bool do_expensive_check,
+  bool_t has_initial_guess,
+  bool_t do_expensive_check,
   cugraph_pagerank_result_t** result,
   cugraph_error_t** error);
 
@@ -202,10 +202,10 @@ void cugraph_bfs_result_free(cugraph_bfs_result_t* result);
 cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* handle,
                                  const cugraph_graph_t* graph,
                                  const cugraph_type_erased_device_array_t* sources,
-                                 bool direction_optimizing,
+                                 bool_t direction_optimizing,
                                  size_t depth_limit,
-                                 bool do_expensive_check,
-                                 bool compute_predecessors,
+                                 bool_t do_expensive_check,
+                                 bool_t compute_predecessors,
                                  cugraph_bfs_result_t** result,
                                  cugraph_error_t** error);
 

@@ -35,28 +35,32 @@ typedef struct {
 /**
  * @brief     Construct an SG graph
  *
- * @param [in]  handle      Handle for accessing resources
- * @param [in]  src         Device array containing the source vertex ids
- * @param [in]  dst         Device array containing the destination vertex ids
- * @param [in]  weights     Device array containing the edge weights
- * @param [in]  store_transposed If true create the graph initially in transposed format
- * @param [in]  renumber    If true, renumber vertices to make an efficient data structure.
+ * @param [in]      handle      Handle for accessing resources
+ * @param [in]      properties  Properties of the constructed graph
+ * @param [in/out]  src         Device array containing the source vertex ids.
+ *                              Contents may be modified during graph creation.
+ * @param [in/out]  dst         Device array containing the destination vertex ids
+ *                              Contents may be modified during graph creation.
+ * @param [in/out]  weights     Device array containing the edge weights
+ *                              Contents may be modified during graph creation.
+ * @param [in]      store_transposed If true create the graph initially in transposed format
+ * @param [in]      renumber    If true, renumber vertices to make an efficient data structure.
  *    If false, do not renumber.  Renumbering is required if the vertices are not sequential
  *    integer values from 0 to num_vertices.
- * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
+ * @param [in]      do_expensive_check    If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
- * @param [in]  properties  Properties of the graph
- * @param [out] graph       A pointer to the graph object
- * @param [out] error       Pointer to an error object storing details of any error.  Will
- *                          be populated if error code is not CUGRAPH_SUCCESS
+ * @param [in]      properties  Properties of the graph
+ * @param [out]     graph       A pointer to the graph object
+ * @param [out]     error       Pointer to an error object storing details of any error.  Will
+ *                              be populated if error code is not CUGRAPH_SUCCESS
  *
  * @return error code
  */
 cugraph_error_code_t cugraph_sg_graph_create(const cugraph_resource_handle_t* handle,
                                              const cugraph_graph_properties_t* properties,
-                                             const cugraph_type_erased_device_array_t* src,
-                                             const cugraph_type_erased_device_array_t* dst,
-                                             const cugraph_type_erased_device_array_t* weights,
+                                             cugraph_type_erased_device_array_t* src,
+                                             cugraph_type_erased_device_array_t* dst,
+                                             cugraph_type_erased_device_array_t* weights,
                                              bool_t store_transposed,
                                              bool_t renumber,
                                              bool_t check,
@@ -75,32 +79,32 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
 /**
  * @brief     Construct an MG graph
  *
- * @param [in]  handle      Handle for accessing resources
- * @param [in]  src         Device array containing the source vertex ids
- * @param [in]  dst         Device array containing the destination vertex ids
- * @param [in]  weights     Device array containing the edge weights
- * @param [in]  vertex_partition_offsets Host array containing the offsets for each vertex partition
- * @param [in]  segment_offsets Host array containing the offsets for each segment
- * @param [in]  store_transposed If true create the graph initially in transposed format
- * @param [in]  renumber    If true, renumber vertices to make an efficient data structure.
- *    If false, do not renumber.  Renumbering is required if the vertices are not sequential
- *    integer values from 0 to num_vertices.
- * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
+ * @param [in]      handle      Handle for accessing resources
+ * @param [in]      properties  Properties of the constructed graph
+ * @param [in/out]  src         Device array containing the source vertex ids
+ *                              Contents may be modified during graph creation.
+ * @param [in/out]  dst         Device array containing the destination vertex ids
+ *                              Contents may be modified during graph creation.
+ * @param [in/out]  weights     Device array containing the edge weights
+ *                              Contents may be modified during graph creation.
+ * @param [in]      vertex_partition_offsets Host array containing the offsets for each vertex partition
+ * @param [in]      segment_offsets Host array containing the offsets for each segment
+ * @param [in]      store_transposed If true create the graph initially in transposed format
+ * @param [in]      num_vertices  Number of vertices
+ * @param [in]      num_edges   Number of edges
+ * @param [in]      check       If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
- * @param [in]  is_symmetric If true the input graph is symmetric
- * @param [in]  is_multigraph If true the input graph is a multi graph (can have multiple edges
- *    between a pair of vertices)
- * @param [out] graph       A pointer to the graph object
- * @param [out] error       Pointer to an error object storing details of any error.  Will
+ * @param [out]     graph       A pointer to the graph object
+ * @param [out]     error       Pointer to an error object storing details of any error.  Will
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_mg_graph_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_t* src,
-  const cugraph_type_erased_device_array_t* dst,
-  const cugraph_type_erased_device_array_t* weights,
+  cugraph_type_erased_device_array_t* src,
+  cugraph_type_erased_device_array_t* dst,
+  cugraph_type_erased_device_array_t* weights,
   const cugraph_type_erased_host_array_t* vertex_partition_offsets,
   const cugraph_type_erased_host_array_t* segment_offsets,
   bool_t store_transposed,

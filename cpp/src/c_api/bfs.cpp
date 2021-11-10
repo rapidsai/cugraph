@@ -58,10 +58,10 @@ extern "C" void cugraph_bfs_result_free(cugraph_bfs_result_t* result)
 extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* handle,
                                             const cugraph_graph_t* graph,
                                             const cugraph_type_erased_device_array_t* sources,
-                                            bool direction_optimizing,
+                                            bool_t direction_optimizing,
                                             size_t depth_limit,
-                                            bool do_expensive_check,
-                                            bool compute_predecessors,
+                                            bool_t do_expensive_check,
+                                            bool_t compute_predecessors,
                                             cugraph_bfs_result_t** result,
                                             cugraph_error_t** error)
 {
