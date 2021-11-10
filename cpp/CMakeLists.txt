@@ -42,8 +42,8 @@ endif()
 # Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
 # cuhornet currently doesn't support
 #
-# >= 86
-set(supported_archs "60" "62" "70" "72" "75" "80")
+# >= 90
+set(supported_archs "60" "62" "70" "72" "75" "80" "86")
 foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
     string(REPLACE "-real" "" arch ${arch})
     if( arch IN_LIST supported_archs )
@@ -132,7 +132,6 @@ rapids_cpm_init()
 include(cmake/thirdparty/get_raft.cmake)
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
-include(cmake/thirdparty/get_gunrock.cmake)
 
 ################################################################################
 # - libcugraph library target --------------------------------------------------
@@ -146,7 +145,6 @@ add_library(cugraph SHARED
     src/utilities/graph_bcast.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
-    src/link_analysis/gunrock_hits.cpp
     src/traversal/legacy/bfs.cu
     src/traversal/legacy/sssp.cu
     src/link_prediction/jaccard.cu
@@ -164,7 +162,9 @@ add_library(cugraph SHARED
     src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
-    src/cores/core_number.cu
+    src/cores/legacy/core_number.cu
+    src/cores/core_number_sg.cu
+    src/cores/core_number_mg.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu
     src/centrality/legacy/katz_centrality.cu
@@ -194,6 +194,8 @@ add_library(cugraph SHARED
     src/traversal/bfs_mg.cu
     src/traversal/sssp_sg.cu
     src/traversal/sssp_mg.cu
+    src/link_analysis/hits_sg.cu
+    src/link_analysis/hits_mg.cu
     src/link_analysis/pagerank_sg.cu
     src/link_analysis/pagerank_mg.cu
     src/centrality/katz_centrality_sg.cu
@@ -265,7 +267,6 @@ target_link_libraries(cugraph
         raft::raft
     PRIVATE
         cugraph::cuHornet
-        gunrock
         NCCL::NCCL
 )
 
@@ -325,6 +326,12 @@ endif()
 
 add_library(cugraph_c SHARED
         src/c_api/cugraph_api.cpp
+        src/c_api/array.cpp
+        src/c_api/error.cpp
+        src/c_api/graph_sg.cpp
+        src/c_api/graph_mg.cpp
+        src/c_api/pagerank.cpp
+        src/c_api/bfs.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 

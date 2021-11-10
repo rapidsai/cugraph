@@ -1257,6 +1257,47 @@ void pagerank(raft::handle_t const& handle,
               bool do_expensive_check = false);
 
 /**
+ * @brief Compute HITS scores.
+ *
+ * This function computes HITS scores for the vertices of a graph
+ *
+ * @throws cugraph::logic_error on erroneous input arguments
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param hubs Pointer to the input/output hub score array.
+ * @param authorities Pointer to the output authorities score array.
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
+ * differences in hub values between two consecutive iterations is less than @p epsilon
+ * @param max_iterations Maximum number of HITS iterations.
+ * @param has_initial_guess If set to `true`, values in the hubs output array (pointed by @p
+ * hubs) is used as initial hub values. If false, initial hub values are set to 1.0
+ * divided by the number of vertices in the graph.
+ * @param normalize If set to `true`, final hub and authority scores are normalized (the L1-norm of
+ * the returned hub and authority score arrays is 1.0) before returning.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return std::tuple<weight_t, size_t> A tuple of sum of the differences of hub scores of the last
+ * two iterations and the total number of iterations taken to reach the final result
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<weight_t, size_t> hits(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
+  weight_t* hubs,
+  weight_t* authorities,
+  weight_t epsilon,
+  size_t max_iterations,
+  bool has_initial_hubs_guess,
+  bool normalize,
+  bool do_expensive_check);
+
+/**
  * @brief Compute Katz Centrality scores.
  *
  * This function computes Katz Centrality scores.
@@ -1398,5 +1439,38 @@ void weakly_connected_components(
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
   vertex_t* components,
   bool do_expensive_check = false);
+
+enum class k_core_degree_type_t { IN, OUT, INOUT };
+
+/**
+ * @brief   Compute core numbers of individual vertices from K-core decomposition.
+ *
+ * The input graph should not have self-loops nor multi-edges.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param core_numbers Pointer to the output core number array.
+ * @param degree_type Dictate whether to compute the K-core decomposition based on in-degrees,
+ * out-degrees, or in-degrees + out_degrees.
+ * @param k_first Find K-cores from K = k_first. Any vertices that do not belong to k_first-core
+ * will have core numbers of 0.
+ * @param k_last Find K-cores to K = k_last. Any vertices that belong to (k_last + 1) core will have
+ * core numbers of k_last.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void core_number(raft::handle_t const& handle,
+                 graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                 vertex_t* core_numbers,
+                 k_core_degree_type_t degree_type,
+                 size_t k_first          = 0,
+                 size_t k_last           = std::numeric_limits<size_t>::max(),
+                 bool do_expensive_check = false);
 
 }  // namespace cugraph

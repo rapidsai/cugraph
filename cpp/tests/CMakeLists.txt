@@ -373,6 +373,10 @@ ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu)
 ConfigureTest(SSSP_TEST traversal/sssp_test.cpp)
 
 ###################################################################################################
+# - HITS tests ------------------------------------------------------------------------------------
+ConfigureTest(HITS_TEST link_analysis/hits_test.cpp)
+
+###################################################################################################
 # - PAGERANK tests --------------------------------------------------------------------------------
 ConfigureTest(PAGERANK_TEST link_analysis/pagerank_test.cpp)
 
@@ -455,6 +459,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
 
         ###########################################################################################
+        # - MG HITS tests -------------------------------------------------------------------------
+        ConfigureTestMG(MG_HITS_TEST link_analysis/mg_hits_test.cpp)
+
+        ###########################################################################################
         # - MG KATZ CENTRALITY tests --------------------------------------------------------------
         ConfigureTestMG(MG_KATZ_CENTRALITY_TEST centrality/mg_katz_centrality_test.cpp)
 
@@ -518,7 +526,8 @@ endif()
 ###################################################################################################
 # - C API tests -----------------------------------------------------------------------------------
 
-ConfigureCTest(CAPI_CREATE_SG_GRAPH_TEST c_api/create_sg_graph_test.c)
+ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE_TEST c_api/create_sg_graph_envelope_test.c)
+ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
 
 ###################################################################################################
