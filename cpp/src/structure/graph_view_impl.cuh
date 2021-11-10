@@ -914,10 +914,11 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 
   edge_t count{0};
   for (size_t i = 0; i < this->get_number_of_local_adj_matrix_partitions(); ++i) {
-    auto matrix_partition = matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-      this->get_matrix_partition_view(i));
     count += count_matrix_partition_multi_edges(
-      handle, matrix_partition, this->get_local_adj_matrix_partition_segment_offsets(i));
+      handle,
+      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+        this->get_matrix_partition_view(i)),
+      this->get_local_adj_matrix_partition_segment_offsets(i));
   }
 
   return count;
