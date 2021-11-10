@@ -129,7 +129,23 @@ endif()
 
 rapids_cpm_init()
 
+###
+# Linking to the `raft::raft` target implicitly links cugraph targets to the
+# following public header-only  raft dependencies:
+# * RMM
+# * Thrust
+# * libcu++
+# * GTest/GMock
+# * cuCollections
+#
+# The CMakeLists.txt for each of these projects are properly configured
+# to generate a build and install export-set, so reimplementing finding or
+# fetching those targets in cuGraph is redundant (at best), and potentially
+# error-prone if something about those targets change and our implementation
+# lags behind.
+###
 include(cmake/thirdparty/get_raft.cmake)
+
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
 
