@@ -396,6 +396,8 @@ edge_t count_matrix_partition_multi_edges(
         edge_t{0},
         thrust::plus<edge_t>{});
     }
+
+    return ret;
   } else {
     return thrust::transform_reduce(
       execution_policy,
