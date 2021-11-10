@@ -20,6 +20,7 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/row_col_properties.cuh>
+#include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
@@ -678,6 +679,86 @@ weight_t graph_view_t<
   if (it != out_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
   handle.get_stream_view().synchronize();
   return ret;
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+edge_t
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  count_self_loops(raft::handle_t const& handle) const
+{
+  return transform_reduce_e(
+    handle,
+    *this,
+    dummy_properties_t<vertex_t>{}.device_view(),
+    dummy_properties_t<vertex_t>{}.device_view(),
+    [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
+      return src == dst ? edge_t{1} : edge_t{0};
+    },
+    edge_t{0});
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+edge_t graph_view_t<vertex_t,
+                    edge_t,
+                    weight_t,
+                    store_transposed,
+                    multi_gpu,
+                    std::enable_if_t<!multi_gpu>>::count_self_loops(raft::handle_t const& handle)
+  const
+{
+  return transform_reduce_e(
+    handle,
+    *this,
+    dummy_properties_t<vertex_t>{}.device_view(),
+    dummy_properties_t<vertex_t>{}.device_view(),
+    [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
+      return src == dst ? edge_t{1} : edge_t{0};
+    },
+    edge_t{0});
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+edge_t
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  count_multi_edges(raft::handle_t const& handle) const
+{
+  if (!this->is_multigraph()) { return false; }
+
+  CUGRAPH_FAIL("unimplemented.");
+
+  return edge_t{0};
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+edge_t graph_view_t<vertex_t,
+                    edge_t,
+                    weight_t,
+                    store_transposed,
+                    multi_gpu,
+                    std::enable_if_t<!multi_gpu>>::count_multi_edges(raft::handle_t const& handle)
+  const
+{
+  if (!this->is_multigraph()) { return false; }
+
+  CUGRAPH_FAIL("unimplemented.");
+
+  return edge_t{0};
 }
 
 }  // namespace cugraph
