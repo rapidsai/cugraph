@@ -58,7 +58,7 @@ def dask_client():
     yield client
 
     Comms.destroy()
-    client.close()
+    client.shutdown()
     if cluster:
         cluster.close()
     print("\ndask_client fixture: client.close() called")
