@@ -183,6 +183,8 @@ def test_dask_pagerank(dask_client):
 )
 @pytest.mark.parametrize("renumber", [False])
 def test_digraph_renumber_false(renumber, dask_client):
+    gc.collect()
+
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate.csv").as_posix()
     chunksize = dcg.get_chunksize(input_data_path)
@@ -205,6 +207,8 @@ def test_digraph_renumber_false(renumber, dask_client):
 )
 @pytest.mark.parametrize("renumber", [False])
 def test_multi_digraph_renumber_false(renumber, dask_client):
+    gc.collect()
+
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate_multi_edge.csv").as_posix()
     chunksize = dcg.get_chunksize(input_data_path)
