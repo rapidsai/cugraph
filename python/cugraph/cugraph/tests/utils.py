@@ -433,7 +433,7 @@ def genFixtureParamsProduct(*args):
     multiple @pytest.mark.parameterize(param_name, param_value_list)
     decorators.
     """
-    # Ensure each arg is a list of pytest.param objs, thenseparate the params
+    # Ensure each arg is a list of pytest.param objs, then separate the params
     # and IDs.
     paramLists = []
     ids = []
