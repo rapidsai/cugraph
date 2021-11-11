@@ -524,6 +524,17 @@ void call_wcc(raft::handle_t const& handle,
               graph_container_t const& graph_container,
               vertex_t* components);
 
+// Wrapper for calling HITS through a graph container
+template <typename vertex_t, typename weight_t>
+void call_hits(raft::handle_t const& handle,
+               graph_container_t const& graph_container,
+               weight_t* hubs,
+               weight_t* authorities,
+               size_t max_iter,
+               weight_t tolerance,
+               const weight_t* starting_value,
+               bool normalized);
+
 // Wrapper for calling graph generator
 template <typename vertex_t>
 std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t const& handle,
