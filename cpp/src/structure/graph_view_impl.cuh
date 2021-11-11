@@ -923,7 +923,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
       this->get_local_adj_matrix_partition_segment_offsets(i));
   }
 
-  return count;
+  return host_scalar_allreduce(
+    handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());
 }
 
 template <typename vertex_t,
