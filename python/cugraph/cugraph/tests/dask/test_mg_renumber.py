@@ -13,7 +13,6 @@
 
 # This file test the Renumbering features
 
-import gc
 import pytest
 
 import pandas
@@ -31,6 +30,13 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
@@ -38,7 +44,6 @@ from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
                          ids=[f"dataset={d.as_posix()}"
                               for d in utils.DATASETS_UNRENUMBERED])
 def test_mg_renumber(graph_file, dask_client):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     sources = cudf.Series(M["0"])
@@ -90,8 +95,6 @@ def test_mg_renumber(graph_file, dask_client):
                          ids=[f"dataset={d.as_posix()}"
                               for d in utils.DATASETS_UNRENUMBERED])
 def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
-    gc.collect()
-
     M = utils.read_csv_for_nx(graph_file)
     sources = cudf.Series(M["0"])
     destinations = cudf.Series(M["1"])
@@ -126,8 +129,6 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 def test_dask_pagerank(dask_client):
-    gc.collect()
-
     pandas.set_option("display.max_rows", 10000)
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
@@ -149,10 +150,10 @@ def test_dask_pagerank(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    g = cugraph.DiGraph()
+    g = cugraph.Graph(directed=True)
     g.from_cudf_edgelist(df, "src", "dst")
 
-    dg = cugraph.DiGraph()
+    dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
     expected_pr = cugraph.pagerank(g)
@@ -182,9 +183,7 @@ def test_dask_pagerank(dask_client):
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("renumber", [False])
-def test_digraph_renumber_false(renumber, dask_client):
-    gc.collect()
-
+def test_directed_graph_renumber_false(renumber, dask_client):
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate.csv").as_posix()
     chunksize = dcg.get_chunksize(input_data_path)
@@ -196,7 +195,7 @@ def test_digraph_renumber_false(renumber, dask_client):
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
     )
-    dg = cugraph.DiGraph()
+    dg = cugraph.Graph(directed=True)
 
     with pytest.raises(ValueError):
         dg.from_dask_cudf_edgelist(ddf, "src", "dst", renumber=renumber)
@@ -206,9 +205,7 @@ def test_digraph_renumber_false(renumber, dask_client):
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("renumber", [False])
-def test_multi_digraph_renumber_false(renumber, dask_client):
-    gc.collect()
-
+def test_multi_directed_graph_renumber_false(renumber, dask_client):
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate_multi_edge.csv").as_posix()
     chunksize = dcg.get_chunksize(input_data_path)
@@ -220,7 +217,7 @@ def test_multi_digraph_renumber_false(renumber, dask_client):
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
     )
-    dg = cugraph.MultiDiGraph()
+    dg = cugraph.MultiGraph(directed=True)
 
     with pytest.raises(ValueError):
         dg.from_dask_cudf_edgelist(ddf, "src", "dst", renumber=renumber)
