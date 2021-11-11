@@ -70,10 +70,7 @@ struct plus {
   static constexpr bool pure_function = true;  // this can be called in any process
   property_op<T, thrust::plus> op{};
 
-  __host__ __device__ T operator()(T const& lhs, T const& rhs) const
-  {
-    return op(lhs, rhs);
-  }
+  __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return op(lhs, rhs); }
 };
 
 }  // namespace reduce_op
