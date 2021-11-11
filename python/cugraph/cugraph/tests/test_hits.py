@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-import time
 
 import pytest
 import networkx as nx
@@ -33,12 +32,14 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-fixture_params = utils.genFixtureParamsProduct(
-    (utils.DATASETS_UNDIRECTED +
-     [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"email-Eu-core.csv"], "graph_file"),
-    ([50], "max_iter"),
-    ([1.0e-6], "tol"),
-    )
+datasets = utils.DATASETS_UNDIRECTED + \
+           [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"email-Eu-core.csv"]
+fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
+                                               ([50], "max_iter"),
+                                               ([1.0e-6], "tol"),
+                                               )
+
+
 @pytest.fixture(scope="module", params=fixture_params)
 def input_combo(request):
     """
@@ -55,8 +56,8 @@ def input_expected_output(input_combo):
     run a HITS algo and the corresponding expected result (based on NetworkX
     HITS) which can be used for validation.
     """
-    # Only run Nx to compute the expected result if it is not already present in
-    # the dictionary. This allows separate Nx-only tests that may have run
+    # Only run Nx to compute the expected result if it is not already present
+    # in the dictionary. This allows separate Nx-only tests that may have run
     # previously on the same input_combo to save their results for re-use
     # elsewhere.
     if "nxResults" not in input_combo:
@@ -84,8 +85,8 @@ def test_nx_hits(benchmark, input_combo):
         Gnx, input_combo["max_iter"], input_combo["tol"], normalized=True
     )
     # Save the results back to the input_combo dictionary to prevent redundant
-    # Nx runs. Other tests using the input_combo fixture will look for them, and
-    # if not present they will have to re-run the same Nx call.
+    # Nx runs. Other tests using the input_combo fixture will look for them,
+    # and if not present they will have to re-run the same Nx call.
     input_combo["nxResults"] = nxResults
 
 

@@ -532,7 +532,7 @@ void call_hits(raft::handle_t const& handle,
                weight_t* authorities,
                size_t max_iter,
                weight_t tolerance,
-               const weight_t *starting_value,
+               const weight_t* starting_value,
                bool normalized);
 
 // Wrapper for calling graph generator

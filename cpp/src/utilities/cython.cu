@@ -1107,7 +1107,7 @@ void call_hits(raft::handle_t const& handle,
                weight_t* authorities,
                size_t max_iter,
                weight_t tolerance,
-               const weight_t *starting_value,
+               const weight_t* starting_value,
                bool normalized)
 {
   constexpr bool has_initial_hubs_guess{false};
@@ -1122,32 +1122,56 @@ void call_hits(raft::handle_t const& handle,
   if (graph_container.is_multi_gpu) {
     constexpr bool multi_gpu{true};
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
-      auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, transposed, multi_gpu>(handle, graph_container);
-      cugraph::hits(handle, graph->view(),
-                    reinterpret_cast<weight_t*>(hubs), reinterpret_cast<weight_t*>(authorities),
-                    tolerance, max_iter, has_initial_hubs_guess, normalize, do_expensive_check);
+      auto graph = detail::create_graph<int32_t, int32_t, weight_t, transposed, multi_gpu>(
+        handle, graph_container);
+      cugraph::hits(handle,
+                    graph->view(),
+                    reinterpret_cast<weight_t*>(hubs),
+                    reinterpret_cast<weight_t*>(authorities),
+                    tolerance,
+                    max_iter,
+                    has_initial_hubs_guess,
+                    normalize,
+                    do_expensive_check);
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-      auto graph =
-        detail::create_graph<vertex_t, int64_t, weight_t, transposed, multi_gpu>(handle, graph_container);
-      cugraph::hits(handle, graph->view(),
-                    reinterpret_cast<weight_t*>(hubs), reinterpret_cast<weight_t*>(authorities),
-                    tolerance, max_iter, has_initial_hubs_guess, normalize, do_expensive_check);
+      auto graph = detail::create_graph<vertex_t, int64_t, weight_t, transposed, multi_gpu>(
+        handle, graph_container);
+      cugraph::hits(handle,
+                    graph->view(),
+                    reinterpret_cast<weight_t*>(hubs),
+                    reinterpret_cast<weight_t*>(authorities),
+                    tolerance,
+                    max_iter,
+                    has_initial_hubs_guess,
+                    normalize,
+                    do_expensive_check);
     }
   } else {
     constexpr bool multi_gpu{false};
     if (graph_container.edgeType == numberTypeEnum::int32Type) {
-      auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, transposed, multi_gpu>(handle, graph_container);
-      cugraph::hits(handle, graph->view(),
-                    reinterpret_cast<weight_t*>(hubs), reinterpret_cast<weight_t*>(authorities),
-                    tolerance, max_iter, has_initial_hubs_guess, normalize, do_expensive_check);
+      auto graph = detail::create_graph<int32_t, int32_t, weight_t, transposed, multi_gpu>(
+        handle, graph_container);
+      cugraph::hits(handle,
+                    graph->view(),
+                    reinterpret_cast<weight_t*>(hubs),
+                    reinterpret_cast<weight_t*>(authorities),
+                    tolerance,
+                    max_iter,
+                    has_initial_hubs_guess,
+                    normalize,
+                    do_expensive_check);
     } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-      auto graph =
-        detail::create_graph<vertex_t, int64_t, weight_t, transposed, multi_gpu>(handle, graph_container);
-      cugraph::hits(handle, graph->view(),
-                    reinterpret_cast<weight_t*>(hubs), reinterpret_cast<weight_t*>(authorities),
-                    tolerance, max_iter, has_initial_hubs_guess, normalize, do_expensive_check);
+      auto graph = detail::create_graph<vertex_t, int64_t, weight_t, transposed, multi_gpu>(
+        handle, graph_container);
+      cugraph::hits(handle,
+                    graph->view(),
+                    reinterpret_cast<weight_t*>(hubs),
+                    reinterpret_cast<weight_t*>(authorities),
+                    tolerance,
+                    max_iter,
+                    has_initial_hubs_guess,
+                    normalize,
+                    do_expensive_check);
     }
   }
 }
@@ -1569,17 +1593,17 @@ template void call_hits<int32_t, float>(raft::handle_t const& handle,
                                         float* authorities,
                                         size_t max_iter,
                                         float tolerance,
-                                        const float *starting_value,
+                                        const float* starting_value,
                                         bool normalized);
 
 template void call_hits<int32_t, double>(raft::handle_t const& handle,
-                                        graph_container_t const& graph_container,
-                                        double* hubs,
-                                        double* authorities,
-                                        size_t max_iter,
-                                        double tolerance,
-                                        const double *starting_value,
-                                        bool normalized);
+                                         graph_container_t const& graph_container,
+                                         double* hubs,
+                                         double* authorities,
+                                         size_t max_iter,
+                                         double tolerance,
+                                         const double* starting_value,
+                                         bool normalized);
 
 template void call_hits<int64_t, float>(raft::handle_t const& handle,
                                         graph_container_t const& graph_container,
@@ -1587,17 +1611,17 @@ template void call_hits<int64_t, float>(raft::handle_t const& handle,
                                         float* authorities,
                                         size_t max_iter,
                                         float tolerance,
-                                        const float *starting_value,
+                                        const float* starting_value,
                                         bool normalized);
 
 template void call_hits<int64_t, double>(raft::handle_t const& handle,
-                                        graph_container_t const& graph_container,
-                                        double* hubs,
-                                        double* authorities,
-                                        size_t max_iter,
-                                        double tolerance,
-                                        const double *starting_value,
-                                        bool normalized);
+                                         graph_container_t const& graph_container,
+                                         double* hubs,
+                                         double* authorities,
+                                         size_t max_iter,
+                                         double tolerance,
+                                         const double* starting_value,
+                                         bool normalized);
 
 template std::unique_ptr<major_minor_weights_t<int32_t, int32_t, float>> call_shuffle(
   raft::handle_t const& handle,
