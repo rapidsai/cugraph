@@ -85,7 +85,7 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
     auto major_idx =
       major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_idx));
@@ -195,7 +195,7 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
@@ -316,7 +316,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     [[maybe_unused]] auto e_op_result_sum =
@@ -409,7 +409,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     [[maybe_unused]] auto e_op_result_sum =
