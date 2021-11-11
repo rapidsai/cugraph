@@ -469,6 +469,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_TRANSPOSE_STORAGE_TEST structure/mg_transpose_storage_test.cpp)
 
         ###########################################################################################
+        # - MG Count self-loops and multi-edges tests ---------------------------------------------
+        ConfigureTestMG(MG_COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
+              "structure/mg_count_self_loops_and_multi_edges_test.cpp")
+
+        ###########################################################################################
         # - MG PAGERANK tests ---------------------------------------------------------------------
         ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
 
