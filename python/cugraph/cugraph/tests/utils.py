@@ -303,11 +303,10 @@ def generate_nx_graph_from_file(graph_file, directed=True, edgevals=False):
     return Gnx
 
 
-def generate_cugraph_graph_from_file(
-    graph_file, directed=True, edgevals=False
-):
+def generate_cugraph_graph_from_file(graph_file, directed=True,
+                                     edgevals=False):
     cu_M = read_csv_file(graph_file)
-    G = cugraph.DiGraph() if directed else cugraph.Graph()
+    G = cugraph.Graph(directed=directed)
 
     if edgevals:
         G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
@@ -434,14 +433,15 @@ def genFixtureParamsProduct(*args):
     multiple @pytest.mark.parameterize(param_name, param_value_list)
     decorators.
     """
-    # Enforce that each arg is a list of pytest.param objs and separate params
+    # Ensure each arg is a list of pytest.param objs, thenseparate the params
     # and IDs.
     paramLists = []
     ids = []
     paramType = pytest.param().__class__
     for (paramList, id) in args:
-        for param in paramList:
-            assert isinstance(param, paramType)
+        for i in range(len(paramList)):
+            if not isinstance(paramList[i], paramType):
+                paramList[i] = pytest.param(paramList[i])
         paramLists.append(paramList)
         ids.append(id)
 
