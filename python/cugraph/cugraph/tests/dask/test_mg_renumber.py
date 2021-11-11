@@ -14,7 +14,7 @@
 # This file test the Renumbering features
 
 import pytest
-
+import gc
 import pandas
 import numpy as np
 import dask_cudf
