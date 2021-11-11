@@ -69,10 +69,12 @@ void core_number(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(k_first <= k_last, "Invalid input argument: k_first <= k_last.");
 
   if (do_expensive_check) {
+    CUGRAPH_EXPECTS(graph_view.count_self_loops(handle) == 0,
+                    "Invalid input argument: graph_view has self-loops.");
     if (graph_view.is_multigraph()) {
-      CUGRAPH_FAIL("unimplemented.");  // check for multi-edges
+      CUGRAPH_EXPECTS(graph_view.count_multi_edges(handle) == 0,
+                      "Invalid input argument: graph_view has multi-edges.");
     }
-    CUGRAPH_FAIL("unimplemented.");  // check for self-loops
   }
 
   // initialize core_numbers to degrees
