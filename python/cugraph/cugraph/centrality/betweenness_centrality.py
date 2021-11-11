@@ -48,7 +48,7 @@ def betweenness_centrality(
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
-        The graph can be either directed (DiGraph) or undirected (Graph).
+        The graph can be either directed (Graph(directed=True)) or undirected.
         Weights in the graph are ignored, the current implementation uses
         BFS traversals. Use weight parameter if weights need to be considered
         (currently not supported)
@@ -65,8 +65,8 @@ def betweenness_centrality(
     normalized : bool, optional
         Default is True.
         If true, the betweenness values are normalized by
-        __2 / ((n - 1) * (n - 2))__ for Graphs (undirected), and
-        __1 / ((n - 1) * (n - 2))__ for DiGraphs (directed graphs)
+        __2 / ((n - 1) * (n - 2))__ for undirected Graphs, and
+        __1 / ((n - 1) * (n - 2))__ for directed Graphs
         where n is the number of nodes in G.
         Normalization will ensure that values are in [0, 1],
         this normalization scales for the highest possible value where one
@@ -170,7 +170,7 @@ def edge_betweenness_centrality(
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
-        The graph can be either directed (DiGraph) or undirected (Graph).
+        The graph can be either directed (Graph(directed=True)) or undirected.
         Weights in the graph are ignored, the current implementation uses
         BFS traversals. Use weight parameter if weights need to be considered
         (currently not supported)
@@ -186,8 +186,8 @@ def edge_betweenness_centrality(
     normalized : bool, optional
         Default is True.
         If true, the betweenness values are normalized by
-        2 / (n * (n - 1)) for Graphs (undirected), and
-        1 / (n * (n - 1)) for DiGraphs (directed graphs)
+        2 / (n * (n - 1)) for undirected Graphs, and
+        1 / (n * (n - 1)) for directed Graphs
         where n is the number of nodes in G.
         Normalization will ensure that values are in [0, 1],
         this normalization scales for the highest possible value where one
