@@ -67,17 +67,17 @@ struct call_e_op_t {
     auto col          = GraphViewType::is_adj_matrix_transposed ? major : minor;
     auto row_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
     auto col_offset   = GraphViewType::is_adj_matrix_transposed ? major_offset : minor_offset;
-    return evaluate_edge_op<GraphViewType,
-                            vertex_t,
-                            AdjMatrixRowValueInputWrapper,
-                            AdjMatrixColValueInputWrapper,
-                            EdgeOp>()
-      .compute(row,
-               col,
-               weight,
-               adj_matrix_row_value_input.get(row_offset),
-               adj_matrix_col_value_input.get(col_offset),
-               e_op);
+    return !evaluate_edge_op<GraphViewType,
+                             vertex_t,
+                             AdjMatrixRowValueInputWrapper,
+                             AdjMatrixColValueInputWrapper,
+                             EdgeOp>()
+              .compute(row,
+                       col,
+                       weight,
+                       adj_matrix_row_value_input.get(row_offset),
+                       adj_matrix_col_value_input.get(col_offset),
+                       e_op);
   }
 };
 
