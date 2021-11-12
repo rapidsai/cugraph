@@ -15,7 +15,13 @@
  */
 #pragma once
 
+#include <cugraph/detail/decompress_matrix_partition.cuh>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/matrix_partition_device_view.cuh>
+#include <cugraph/prims/extract_if_e.cuh>
+#include <cugraph/prims/property_op_utils.cuh>
+#include <cugraph/prims/row_col_properties.cuh>
+#include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -29,8 +35,7 @@ namespace cugraph {
 
 namespace detail {
 
-template <GraphViewType,
-          typename EdgeIterator,
+template <typename GraphViewType,
           typename AdjMatrixRowValueInputWrapper,
           typename AdjMatrixColValueInputWrapper,
           typename EdgeOp>
@@ -38,29 +43,30 @@ struct call_e_op_t {
   matrix_partition_device_view_t<typename GraphViewType::vertex_type,
                                  typename GraphViewType::edge_type,
                                  typename GraphViewType::weight_type,
-                                 typename GraphViewType::is_multi_gpu>
+                                 GraphViewType::is_multi_gpu>
     matrix_partition{};
-  EdgeIterator edge_first{};
   AdjMatrixRowValueInputWrapper adj_matrix_row_value_input{};
   AdjMatrixColValueInputWrapper adj_matrix_col_value_input{};
   EdgeOp e_op{};
 
-  __device__ bool operator()(edge_t i) const
+  template <typename Edge>
+  __device__ bool operator()(Edge e) const
   {
-    auto e     = *(edge_first + i);
+    static_assert((thrust::tuple_size<Edge>::value == 2) || (thrust::tuple_size<Edge>::value == 3));
+
+    using vertex_t = typename GraphViewType::vertex_type;
+    using weight_t = typename GraphViewType::weight_type;
+
     auto major = thrust::get<0>(e);
     auto minor = thrust::get<1>(e);
     weight_t weight{1.0};
-    if constexpr (thrust::tuple_size<typename thrust::iterator_traits<EdgeIterator>::value_type> ==
-                  3) {
-      weight = thrust::get<2>(e);
-    }
+    if constexpr (thrust::tuple_size<Edge>::value == 3) { weight = thrust::get<2>(e); }
     auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
     auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
     auto row          = GraphViewType::is_adj_matrix_transposed ? minor : major;
     auto col          = GraphViewType::is_adj_matrix_transposed ? major : minor;
     auto row_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
-    auto col_offset   = GraphViewType::is_adj_matrix_transposed ? major_fofset : : minor_offset;
+    auto col_offset   = GraphViewType::is_adj_matrix_transposed ? major_offset : minor_offset;
     return evaluate_edge_op<GraphViewType,
                             vertex_t,
                             AdjMatrixRowValueInputWrapper,
@@ -114,8 +120,7 @@ struct call_e_op_t {
 template <typename GraphViewType,
           typename AdjMatrixRowValueInputWrapper,
           typename AdjMatrixColValueInputWrapper,
-          typename EdgeOp,
-          typename T>
+          typename EdgeOp>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
            std::optional<rmm::device_uvector<typename GraphViewType::weight_type>>>
@@ -140,14 +145,16 @@ extract_if_e(raft::handle_t const& handle,
 
   rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-  auto edgelist_weights = this->is_weighted() ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                                  edgelist_majors.size(), handle.get_stream())
-                                              : std::nullopt;
+  auto edgelist_weights = graph_view.is_weighted()
+                            ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                edgelist_majors.size(), handle.get_stream())
+                            : std::nullopt;
 
   size_t cur_size{0};
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    auto matrix_partition = matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-      graph_view.get_matrix_partition_view(i));
+    auto matrix_partition =
+      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+        graph_view.get_matrix_partition_view(i));
     detail::decompress_matrix_partition_to_edgelist(
       handle,
       matrix_partition,
@@ -157,24 +164,33 @@ extract_if_e(raft::handle_t const& handle,
                        : std::nullopt,
       graph_view.get_local_adj_matrix_partition_segment_offsets(i));
     if (edgelist_weights) {
-      auto edger_first = thrust::make_zip_iterator(thrust::make_tuple(
+      auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
         edgelist_majors.begin(), edgelist_minors.begin(), (*edgelist_weights).begin()));
-      cur_size += static_cast<size_t>(
-        thrust::distance(edge_first,
-                         thrust::remove_if(handle.get_thrust_policy(),
-                                           edge_first,
-                                           edge_first + edgelist_edge_counts[i],
-                                           call_e_op_t<GraphViewType,
-                                                       AdjMatrixRowValueInputWrapper,
-                                                       AdjMatrixColValueInputWrapper,
-                                                       EdgeOp>{matrix_partition,
-                                                               edge_first,
-                                                               adj_matrix_row_value_input,
-                                                               adj_matrix_col_value_input,
-                                                               e_op})));
+      cur_size += static_cast<size_t>(thrust::distance(
+        edge_first,
+        thrust::remove_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + edgelist_edge_counts[i],
+          detail::call_e_op_t<GraphViewType,
+                              AdjMatrixRowValueInputWrapper,
+                              AdjMatrixColValueInputWrapper,
+                              EdgeOp>{
+            matrix_partition, adj_matrix_row_value_input, adj_matrix_col_value_input, e_op})));
     } else {
-      auto edger_first = thrust::make_zip_iterator(
+      auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
+      cur_size += static_cast<size_t>(thrust::distance(
+        edge_first,
+        thrust::remove_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + edgelist_edge_counts[i],
+          detail::call_e_op_t<GraphViewType,
+                              AdjMatrixRowValueInputWrapper,
+                              AdjMatrixColValueInputWrapper,
+                              EdgeOp>{
+            matrix_partition, adj_matrix_row_value_input, adj_matrix_col_value_input, e_op})));
     }
   }
 
@@ -184,7 +200,7 @@ extract_if_e(raft::handle_t const& handle,
   edgelist_minors.shrink_to_fit(handle.get_stream());
   if (edgelist_weights) {
     (*edgelist_weights).resize(edgelist_majors.size(), handle.get_stream());
-    edgelist_weights.shrink_to_fit(handle.get_stream());
+    (*edgelist_weights).shrink_to_fit(handle.get_stream());
   }
 
   return std::make_tuple(
