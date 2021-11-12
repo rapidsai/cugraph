@@ -90,13 +90,10 @@ int generic_bfs_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
-    printf("i = %d, h_distances[i] = %d, h_predecessors[i] = %d\n", i, h_distances[i], h_predecessors[i]);
-    printf("  distances expected = %d, actual = %d\n", expected_distances[h_vertices[i]], h_distances[i]);
     TEST_ASSERT(test_ret_value,
                 expected_distances[h_vertices[i]] == h_distances[i],
                 "bfs distances don't match");
 
-    printf("  predecessors expected = %d, actual = %d\n", expected_predecessors[h_vertices[i]], h_predecessors[i]);
     TEST_ASSERT(test_ret_value,
                 expected_predecessors[h_vertices[i]] == h_predecessors[i],
                 "bfs predecessors don't match");
@@ -122,10 +119,6 @@ int test_bfs()
   vertex_t seeds[]                 = {0};
   vertex_t expected_distances[]    = {0, 1, 2147483647, 2, 2, 3};
   vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 3};
-
-  double alpha          = 0.95;
-  double epsilon        = 0.0001;
-  size_t max_iterations = 20;
 
   // Bfs wants store_transposed = FALSE
   return generic_bfs_test(src,

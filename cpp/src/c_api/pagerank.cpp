@@ -84,6 +84,7 @@ struct pagerank_functor : public abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
+      // Pagerank expects store_transposed == true
       if constexpr (!store_transposed) {
         error_code_ =
           cugraph::c_api::transpose<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(

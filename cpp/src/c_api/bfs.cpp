@@ -74,6 +74,7 @@ struct bfs_functor : public abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
+      // BFS expects store_transposed == false
       if constexpr (store_transposed) {
         error_code_ =
           cugraph::c_api::transpose<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
@@ -141,13 +142,6 @@ struct bfs_functor : public abstract_functor {
                                                      vertex_partition_lasts,
                                                      do_expensive_check_);
       }
-
-      raft::print_device_vector("vertex_ids", vertex_ids.data(), vertex_ids.size(), std::cout);
-      raft::print_device_vector("distances", distances.data(), distances.size(), std::cout);
-      raft::print_device_vector(
-        "predecessors", predecessors.data(), predecessors.size(), std::cout);
-      std::cout << "invalid vertex = " << invalid_vertex_id<vertex_t>::value << std::endl;
-      std::cout << "sizeof vertex_t = " << sizeof(vertex_t) << std::endl;
 
       result_ = new cugraph_bfs_result_t{
         new cugraph_type_erased_device_array_t(std::move(vertex_ids), graph_->vertex_type_),
