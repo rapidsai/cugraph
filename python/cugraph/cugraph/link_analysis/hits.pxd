@@ -11,22 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# cython: profile=False
-# distutils: language = c++
-# cython: embedsignature = True
-# cython: language_level = 3
-
-from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 
+from cugraph.structure.graph_utilities cimport graph_container_t
+from cugraph.raft.common.handle cimport handle_t
 
-cdef extern from "cugraph/algorithms.hpp" namespace "cugraph::gunrock":
 
-    cdef void hits[VT,ET,WT](
-        const GraphCSRView[VT,ET,WT] &graph,
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
+    cdef void call_hits[vertex_t,weight_t](
+        const handle_t &handle,
+        const graph_container_t &g,
+        weight_t *hubs,
+        weight_t *authorities,
         int max_iter,
-        WT tolerance,
-        const WT *starting_value,
-        bool normalized,
-        WT *hubs,
-        WT *authorities) except +
+        weight_t tolerance,
+        const weight_t *starting_value,
+        bool normalized) except +
