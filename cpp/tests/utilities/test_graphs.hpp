@@ -537,12 +537,18 @@ std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_
 construct_graph(raft::handle_t const& handle,
                 input_usecase_t const& input_usecase,
                 bool test_weighted,
-                bool renumber = true)
+                bool renumber         = true,
+                bool drop_self_loops  = false,
+                bool drop_multi_edges = false)
 {
   auto [d_src_v, d_dst_v, d_weights_v, d_vertices_v, num_vertices, is_symmetric] =
     input_usecase
       .template construct_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
         handle, test_weighted);
+
+  if (drop_self_loops) { remove_self_loops(handle, d_src_v, d_dst_v, d_weights_v); }
+
+  if (drop_multi_edges) { sort_and_remove_multi_edges(handle, d_src_v, d_dst_v, d_weights_v); }
 
   return cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(

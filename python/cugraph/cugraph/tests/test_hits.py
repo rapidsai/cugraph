@@ -12,90 +12,100 @@
 # limitations under the License.
 
 import gc
-import time
-import pandas as pd
 
 import pytest
-
+import networkx as nx
+import pandas as pd
 import cudf
+
 import cugraph
 from cugraph.tests import utils
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
 
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
-
-
-print("Networkx version : {} ".format(nx.__version__))
-
-
-def cugraph_call(cu_M, max_iter, tol):
-    # cugraph hits Call
-
-    t1 = time.time()
-    G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
-    df = cugraph.hits(G, max_iter, tol)
-    df = df.sort_values("vertex").reset_index(drop=True)
-    t2 = time.time() - t1
-    print("Cugraph Time : " + str(t2))
-
-    return df
-
-
-# The function selects personalization_perc% of accessible vertices in graph M
-# and randomly assigns them personalization values
-def networkx_call(M, max_iter, tol):
-    # in NVGRAPH tests we read as CSR and feed as CSC,
-    # so here we do this explicitly
-    print("Format conversion ... ")
-
-    # Networkx Hits Call
-    print("Solving... ")
-    t1 = time.time()
-
-    # Directed NetworkX graph
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph()
-    )
-
-    # same parameters as in NVGRAPH
-    nx_hits = nx.hits(Gnx, max_iter, tol, normalized=True)
-    t2 = time.time() - t1
-
-    print("Networkx Time : " + str(t2))
-
-    return nx_hits
-
-
-MAX_ITERATIONS = [50]
-TOLERANCE = [1.0e-06]
-
-
-@pytest.mark.skip(reason="Waiting on new version")
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
-@pytest.mark.parametrize("tol", TOLERANCE)
-def test_hits(graph_file, max_iter, tol):
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
     gc.collect()
 
-    M = utils.read_csv_for_nx(graph_file)
-    hubs, authorities = networkx_call(M, max_iter, tol)
 
-    cu_M = utils.read_csv_file(graph_file)
-    cugraph_hits = cugraph_call(cu_M, max_iter, tol)
+# =============================================================================
+# Pytest fixtures
+# =============================================================================
+datasets = utils.DATASETS_UNDIRECTED + \
+           [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"email-Eu-core.csv"]
+fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
+                                               ([50], "max_iter"),
+                                               ([1.0e-6], "tol"),
+                                               )
 
-    pdf = pd.DataFrame.from_dict(hubs, orient="index").sort_index()
+
+@pytest.fixture(scope="module", params=fixture_params)
+def input_combo(request):
+    """
+    Simply return the current combination of params as a dictionary for use in
+    tests or other parameterized fixtures.
+    """
+    return dict(zip(("graph_file", "max_iter", "tol"), request.param))
+
+
+@pytest.fixture(scope="module")
+def input_expected_output(input_combo):
+    """
+    This fixture returns a dictionary containing all input params required to
+    run a HITS algo and the corresponding expected result (based on NetworkX
+    HITS) which can be used for validation.
+    """
+    # Only run Nx to compute the expected result if it is not already present
+    # in the dictionary. This allows separate Nx-only tests that may have run
+    # previously on the same input_combo to save their results for re-use
+    # elsewhere.
+    if "nxResults" not in input_combo:
+        Gnx = utils.generate_nx_graph_from_file(input_combo["graph_file"],
+                                                directed=True)
+        nxResults = nx.hits(Gnx, input_combo["max_iter"], input_combo["tol"],
+                            normalized=True)
+        input_combo["nxResults"] = nxResults
+    return input_combo
+
+
+# =============================================================================
+# Tests
+# =============================================================================
+def test_nx_hits(benchmark, input_combo):
+    """
+    Simply run NetworkX HITS on the same set of input combinations used for the
+    cuGraph HITS tests.
+    This is only in place for generating comparison performance numbers.
+    """
+    Gnx = utils.generate_nx_graph_from_file(input_combo["graph_file"],
+                                            directed=True)
+    nxResults = benchmark(
+        nx.hits,
+        Gnx, input_combo["max_iter"], input_combo["tol"], normalized=True
+    )
+    # Save the results back to the input_combo dictionary to prevent redundant
+    # Nx runs. Other tests using the input_combo fixture will look for them,
+    # and if not present they will have to re-run the same Nx call.
+    input_combo["nxResults"] = nxResults
+
+
+def test_hits(benchmark, input_expected_output):
+    G = utils.generate_cugraph_graph_from_file(
+        input_expected_output["graph_file"])
+    cugraph_hits = benchmark(cugraph.hits,
+                             G,
+                             input_expected_output["max_iter"],
+                             input_expected_output["tol"])
+    cugraph_hits = cugraph_hits.sort_values("vertex").reset_index(drop=True)
+
+    (nx_hubs, nx_authorities) = input_expected_output["nxResults"]
+
+    # Update the cugraph HITS results with Nx results for easy comparison using
+    # cuDF DataFrame methods.
+    pdf = pd.DataFrame.from_dict(nx_hubs, orient="index").sort_index()
     cugraph_hits["nx_hubs"] = cudf.Series.from_pandas(pdf[0])
-
-    pdf = pd.DataFrame.from_dict(authorities, orient="index").sort_index()
+    pdf = pd.DataFrame.from_dict(nx_authorities, orient="index").sort_index()
     cugraph_hits["nx_authorities"] = cudf.Series.from_pandas(pdf[0])
 
     hubs_diffs1 = cugraph_hits.query('hubs - nx_hubs > 0.00001')

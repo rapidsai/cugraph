@@ -357,6 +357,11 @@ ConfigureTest(WEIGHT_SUM_TEST structure/weight_sum_test.cpp)
 ConfigureTest(DEGREE_TEST structure/degree_test.cpp)
 
 ###################################################################################################
+# - Count self-loops and multi-edges tests --------------------------------------------------------
+ConfigureTest(COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
+              "structure/count_self_loops_and_multi_edges_test.cpp")
+
+###################################################################################################
 # - Coarsening tests ------------------------------------------------------------------------------
 ConfigureTest(COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 
@@ -462,6 +467,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG Transpose Storage tests ------------------------------------------------------------
         ConfigureTestMG(MG_TRANSPOSE_STORAGE_TEST structure/mg_transpose_storage_test.cpp)
+
+        ###########################################################################################
+        # - MG Count self-loops and multi-edges tests ---------------------------------------------
+        ConfigureTestMG(MG_COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
+              "structure/mg_count_self_loops_and_multi_edges_test.cpp")
 
         ###########################################################################################
         # - MG PAGERANK tests ---------------------------------------------------------------------
