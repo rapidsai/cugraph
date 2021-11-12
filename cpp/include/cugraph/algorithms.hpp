@@ -1445,7 +1445,8 @@ enum class k_core_degree_type_t { IN, OUT, INOUT };
 /**
  * @brief   Compute core numbers of individual vertices from K-core decomposition.
  *
- * The input graph should not have self-loops nor multi-edges.
+ * The input graph should not have self-loops nor multi-edges. Currently, only undirected graphs are
+ * supported.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1460,14 +1461,14 @@ enum class k_core_degree_type_t { IN, OUT, INOUT };
  * out-degrees, or in-degrees + out_degrees.
  * @param k_first Find K-cores from K = k_first. Any vertices that do not belong to k_first-core
  * will have core numbers of 0.
- * @param k_last Find K-cores to K = k_last. Any vertices that belong to (k_last + 1) core will have
- * core numbers of k_last.
+ * @param k_last Find K-cores to K = k_last. Any vertices that belong to (k_last)-core will have
+ * their core numbers set to their degrees on k_last-core.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void core_number(raft::handle_t const& handle,
                  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-                 vertex_t* core_numbers,
+                 edge_t* core_numbers,
                  k_core_degree_type_t degree_type,
                  size_t k_first          = 0,
                  size_t k_last           = std::numeric_limits<size_t>::max(),
