@@ -19,85 +19,27 @@
 #include <cugraph_c/algorithms.h>
 #include <cugraph_c/graph.h>
 
-/*
- * Simple check of creating a graph from a COO on device memory.
- */
-int create_test_graph(const cugraph_resource_handle_t* p_handle,
-                      int32_t* h_src,
-                      int32_t* h_dst,
-                      float* h_wgt,
-                      size_t num_edges,
-                      cugraph_graph_t** p_graph,
-                      cugraph_error_t** ret_error)
+#include <math.h>
+
+typedef int32_t vertex_t;
+typedef int32_t edge_t;
+typedef float weight_t;
+
+int generic_pagerank_test(vertex_t* h_src,
+                          vertex_t* h_dst,
+                          weight_t* h_wgt,
+                          weight_t* h_result,
+                          size_t num_vertices,
+                          size_t num_edges,
+                          bool_t store_transposed,
+                          double alpha,
+                          double epsilon,
+                          size_t max_iterations)
 {
   int test_ret_value = 0;
-  cugraph_error_code_t ret_code;
-  cugraph_graph_properties_t properties;
-
-  properties.is_symmetric  = FALSE;
-  properties.is_multigraph = FALSE;
-
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
-
-  cugraph_type_erased_device_array_t* src;
-  cugraph_type_erased_device_array_t* dst;
-  cugraph_type_erased_device_array_t* wgt;
-
-  ret_code =
-    cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges, &src, ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(*ret_error));
-
-  ret_code =
-    cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges, &dst, ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
-
-  ret_code =
-    cugraph_type_erased_device_array_create(p_handle, weight_tid, num_edges, &wgt, ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
-
-  ret_code =
-    cugraph_type_erased_device_array_copy_from_host(p_handle, src, (byte_t*)h_src, ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
-
-  ret_code =
-    cugraph_type_erased_device_array_copy_from_host(p_handle, dst, (byte_t*)h_dst, ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_from_host failed.");
-
-  ret_code =
-    cugraph_type_erased_device_array_copy_from_host(p_handle, wgt, (byte_t*)h_wgt, ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
-
-  ret_code = cugraph_sg_graph_create(
-                                     //p_handle, &properties, src, dst, wgt, FALSE, FALSE, FALSE, p_graph, ret_error);
-                                     p_handle, &properties, src, dst, wgt, TRUE, FALSE, FALSE, p_graph, ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
-
-  cugraph_type_erased_device_array_free(wgt);
-  cugraph_type_erased_device_array_free(dst);
-  cugraph_type_erased_device_array_free(src);
-
-  return test_ret_value;
-}
-
-int test_pagerank()
-{
-  int test_ret_value = 0;
-
-  typedef int32_t vertex_t;
-  typedef int32_t edge_t;
-  typedef float weight_t;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
-  size_t num_edges    = 8;
-  size_t num_vertices = 6;
-
-  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
-  weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
   cugraph_resource_handle_t* p_handle = NULL;
   cugraph_graph_t* p_graph            = NULL;
@@ -106,27 +48,84 @@ int test_pagerank()
   p_handle = cugraph_create_handle();
   TEST_ASSERT(test_ret_value, p_handle != NULL, "raft handle creation failed.");
 
-  ret_code =
-    create_test_graph(p_handle, h_src, h_dst, h_wgt, num_edges, &p_graph, &ret_error);
+  ret_code = create_test_graph(
+    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
 
-  printf("after call to create_test_graph\n");
+  ret_code = cugraph_pagerank(
+    p_handle, p_graph, NULL, alpha, epsilon, max_iterations, FALSE, FALSE, &p_result, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_pagerank failed.");
+
+  cugraph_type_erased_device_array_t* vertices;
+  cugraph_type_erased_device_array_t* pageranks;
+
+  vertices  = cugraph_pagerank_result_get_vertices(p_result);
+  pageranks = cugraph_pagerank_result_get_pageranks(p_result);
+
+  vertex_t h_vertices[num_vertices];
+  weight_t h_pageranks[num_vertices];
+
+  ret_code = cugraph_type_erased_device_array_copy_to_host(
+    p_handle, (byte_t*)h_vertices, vertices, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_copy_to_host(
+    p_handle, (byte_t*)h_pageranks, pageranks, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
+    TEST_ASSERT(test_ret_value,
+                nearlyEqual(h_result[h_vertices[i]], h_pageranks[i], 0.001),
+                "pagerank results don't match");
+  }
+
+  cugraph_pagerank_result_free(p_result);
+  cugraph_sg_graph_free(p_graph);
+  cugraph_free_handle(p_handle);
+  cugraph_error_free(ret_error);
+
+  return test_ret_value;
+}
+
+int test_pagerank()
+{
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+
+  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  weight_t h_result[] = {0.0915528, 0.168382, 0.0656831, 0.191468, 0.120677, 0.362237};
 
   double alpha          = 0.95;
   double epsilon        = 0.0001;
   size_t max_iterations = 20;
 
-  ret_code = cugraph_pagerank(
-    p_handle, p_graph, NULL, alpha, epsilon, max_iterations, FALSE, FALSE, &p_result, &ret_error);
+  // Pagerank wants store_transposed = TRUE
+  return generic_pagerank_test(
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, alpha, epsilon, max_iterations);
+}
 
-  cugraph_pagerank_result_free(p_result);
-  cugraph_sg_graph_free(p_graph);
+int test_pagerank_with_transpose()
+{
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
 
-  cugraph_free_handle(p_handle);
-  cugraph_error_free(ret_error);
+  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  weight_t h_result[] = {0.0915528, 0.168382, 0.0656831, 0.191468, 0.120677, 0.362237};
 
-  return test_ret_value;
+  double alpha          = 0.95;
+  double epsilon        = 0.0001;
+  size_t max_iterations = 20;
+
+  // Pagerank wants store_transposed = TRUE
+  //    This call will force cugraph_pagerank to transpose the graph
+  //    But we're passing src/dst backwards so the results will be the same
+  return generic_pagerank_test(
+    h_dst, h_src, h_wgt, h_result, num_vertices, num_edges, FALSE, alpha, epsilon, max_iterations);
 }
 
 /******************************************************************************/
@@ -135,5 +134,6 @@ int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_pagerank);
+  result |= RUN_TEST(test_pagerank_with_transpose);
   return result;
 }

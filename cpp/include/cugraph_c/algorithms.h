@@ -102,7 +102,8 @@ cugraph_error_code_t cugraph_pagerank(
  *                          (a performance optimization).  Set to NULL if
  *                          no value is passed.
  * @param [in/out]  personalization_vertices Pointer to an array storing personalization vertex
- * identifiers (compute personalized PageRank).  Array might be modified if renumbering is enabled for the graph
+ * identifiers (compute personalized PageRank).  Array might be modified if renumbering is enabled
+ * for the graph
  * @param [in]  personalization_values Pointer to an array storing personalization values for the
  * vertices in the personalization set.
  * @param [in]  alpha       PageRank damping factor.
@@ -184,7 +185,8 @@ void cugraph_bfs_result_free(cugraph_bfs_result_t* result);
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph
- * @param [in]  sources      Array of source vertices
+ * @param [in/out]  sources  Array of source vertices.  NOTE: Array might be modified if
+ *                           renumbering is enabled for the graph
  * @param [in]  direction_optimizing If set to true, this algorithm switches between the push based
  * breadth-first search and pull based breadth-first search depending on the size of the
  * breadth-first search frontier (currently unsupported). This option is valid only for symmetric
@@ -192,16 +194,14 @@ void cugraph_bfs_result_free(cugraph_bfs_result_t* result);
  * @param depth_limit Sets the maximum number of breadth-first search iterations. Any vertices
  * farther than @p depth_limit hops from @p source_vertex will be marked as unreachable.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @param [out] vertex_ids   Returns device pointer to vertex ids
- * @param [out] distances    Returns device pointer to distance from the seeds
- * @param [out] predecessors Returns device pointer to distance from the seeds
- * @param [out] error       Pointer to an error object storing details of any error.  Will
- *                          be populated if error code is not CUGRAPH_SUCCESS
+ * @param [out] result       Opaque pointer to pagerank results
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* handle,
-                                 const cugraph_graph_t* graph,
-                                 const cugraph_type_erased_device_array_t* sources,
+                                 cugraph_graph_t* graph,
+                                 cugraph_type_erased_device_array_t* sources,
                                  bool_t direction_optimizing,
                                  size_t depth_limit,
                                  bool_t do_expensive_check,

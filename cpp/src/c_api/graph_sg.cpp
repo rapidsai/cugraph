@@ -74,29 +74,30 @@ struct create_graph_functor : public abstract_functor {
         // FIXME:  Need an implementation here.
       }
 
-      rmm::device_uvector<vertex_t>* renumber_map_labels =
-        new rmm::device_uvector<vertex_t>(0, handle_.get_stream());
-
+      vertex_t num_vertices{};
       renumber_meta_t<vertex_t, edge_t, multi_gpu> meta;
 
-      if (renumber_) {
-        std::tie(*renumber_map_labels, meta) =
-          cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-            handle_,
-            std::nullopt,
-            store_transposed ? dst_->as_type<vertex_t>() : src_->as_type<vertex_t>(),
-            store_transposed ? src_->as_type<vertex_t>() : dst_->as_type<vertex_t>(),
-            static_cast<edge_t>(src_->size_));
-      }
+      rmm::device_uvector<vertex_t>* number_map =
+        new rmm::device_uvector<vertex_t>(0, handle_.get_stream());
 
-      vertex_t num_vertices{};
       if (renumber_) {
-        num_vertices = static_cast<vertex_t>(renumber_map_labels->size());
+        std::tie(*number_map, meta) = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+          handle_,
+          std::nullopt,
+          store_transposed ? dst_->as_type<vertex_t>() : src_->as_type<vertex_t>(),
+          store_transposed ? src_->as_type<vertex_t>() : dst_->as_type<vertex_t>(),
+          static_cast<edge_t>(src_->size_));
+
+        num_vertices = static_cast<vertex_t>(number_map->size());
       } else {
         num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(handle_.get_stream_view(),
                                                                       src_->as_type<vertex_t>(),
                                                                       dst_->as_type<vertex_t>(),
                                                                       src_->size_);
+
+        number_map->resize(num_vertices, handle_.get_stream());
+        cugraph::detail::sequence_fill(
+          handle_.get_stream(), number_map->data(), number_map->size(), vertex_t{0});
       }
 
       auto graph = new cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
@@ -119,7 +120,7 @@ struct create_graph_functor : public abstract_functor {
                                             store_transposed,
                                             multi_gpu,
                                             graph,
-                                            renumber_map_labels};
+                                            number_map};
 
       result_ = reinterpret_cast<cugraph_graph_t*>(result);
     }

@@ -84,10 +84,7 @@ struct pagerank_functor : public abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-      std::cout << "in functor" << std::endl;
-
       if constexpr (!store_transposed) {
-          std::cout << "calling transpose" << std::endl;
         error_code_ =
           cugraph::c_api::transpose<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
             handle_, graph_, error_.get());
@@ -106,9 +103,7 @@ struct pagerank_functor : public abstract_functor {
       rmm::device_uvector<weight_t> pageranks(graph->get_number_of_vertices(),
                                               handle_.get_stream());
 
-      std::cout << "after setup" << std::endl;
       if (personalization_vertices_ != nullptr) {
-        std::cout << "personalization" << std::endl;
         //
         // Need to renumber personalization_vertices
         //
@@ -121,7 +116,6 @@ struct pagerank_functor : public abstract_functor {
                                                    do_expensive_check_);
       }
 
-      std::cout << "call pagerank" << std::endl;
       cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, multi_gpu>(
         handle_,
         graph_view,
@@ -143,8 +137,6 @@ struct pagerank_functor : public abstract_functor {
         max_iterations_,
         has_initial_guess_,
         do_expensive_check_);
-
-      std::cout << "after pagerank" << std::endl;
 
       cugraph::detail::sequence_fill(
         handle_.get_stream(), vertex_ids.data(), vertex_ids.size(), vertex_t{0});
@@ -223,8 +215,6 @@ extern "C" cugraph_error_code_t cugraph_pagerank(
                                              max_iterations,
                                              has_initial_guess,
                                              do_expensive_check);
-
-    std::cout << "calling vertex_dispatcher" << std::endl;
 
     cugraph::dispatch::vertex_dispatcher(cugraph::c_api::dtypes_mapping[p_graph->vertex_type_],
                                          cugraph::c_api::dtypes_mapping[p_graph->edge_type_],
