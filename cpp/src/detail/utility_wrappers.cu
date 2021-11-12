@@ -15,7 +15,7 @@
  */
 #include <cugraph/detail/utility_wrappers.hpp>
 
-#include <raft/random/rng.cuh>
+#include <raft/random/rng.hpp>
 
 #include <thrust/sequence.h>
 #include <rmm/exec_policy.hpp>
