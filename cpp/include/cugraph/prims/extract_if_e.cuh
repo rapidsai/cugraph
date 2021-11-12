@@ -167,11 +167,11 @@ extract_if_e(raft::handle_t const& handle,
       auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
         edgelist_majors.begin(), edgelist_minors.begin(), (*edgelist_weights).begin()));
       cur_size += static_cast<size_t>(thrust::distance(
-        edge_first,
+        edge_first + cur_size,
         thrust::remove_if(
           handle.get_thrust_policy(),
-          edge_first,
-          edge_first + edgelist_edge_counts[i],
+          edge_first + cur_size,
+          edge_first + cur_size + edgelist_edge_counts[i],
           detail::call_e_op_t<GraphViewType,
                               AdjMatrixRowValueInputWrapper,
                               AdjMatrixColValueInputWrapper,
@@ -181,11 +181,11 @@ extract_if_e(raft::handle_t const& handle,
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
       cur_size += static_cast<size_t>(thrust::distance(
-        edge_first,
+        edge_first + cur_size,
         thrust::remove_if(
           handle.get_thrust_policy(),
-          edge_first,
-          edge_first + edgelist_edge_counts[i],
+          edge_first + cur_size,
+          edge_first + cur_size + edgelist_edge_counts[i],
           detail::call_e_op_t<GraphViewType,
                               AdjMatrixRowValueInputWrapper,
                               AdjMatrixColValueInputWrapper,
