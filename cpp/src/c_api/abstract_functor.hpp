@@ -37,4 +37,3 @@ struct abstract_functor {
 
 }  // namespace c_api
 }  // namespace cugraph
-

@@ -257,7 +257,7 @@ extern "C" cugraph_error_code_t cugraph_personalized_pagerank(
 
   try {
     auto p_handle = reinterpret_cast<raft::handle_t const*>(handle);
-    auto p_graph  = reinterpret_cast<cugraph::c_api::cugraph_graph_t *>(graph);
+    auto p_graph  = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
 
     auto p_precomputed_vertex_out_weight_sums =
       reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(

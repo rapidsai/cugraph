@@ -87,7 +87,8 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
  *                              Contents may be modified during graph creation.
  * @param [in/out]  weights     Device array containing the edge weights
  *                              Contents may be modified during graph creation.
- * @param [in]      vertex_partition_offsets Host array containing the offsets for each vertex partition
+ * @param [in]      vertex_partition_offsets Host array containing the offsets for each vertex
+ * partition
  * @param [in]      segment_offsets Host array containing the offsets for each segment
  * @param [in]      store_transposed If true create the graph initially in transposed format
  * @param [in]      num_vertices  Number of vertices

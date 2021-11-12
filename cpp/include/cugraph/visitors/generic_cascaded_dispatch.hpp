@@ -43,7 +43,7 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           typename functor_t>
-constexpr decltype(auto) multi_gpu_dispatcher(bool multi_gpu, functor_t &functor)
+constexpr decltype(auto) multi_gpu_dispatcher(bool multi_gpu, functor_t& functor)
 {
   if (multi_gpu) {
     return functor.template operator()<vertex_t, edge_t, weight_t, store_transposed, true>();
@@ -59,7 +59,9 @@ constexpr decltype(auto) multi_gpu_dispatcher(bool multi_gpu, functor_t &functor
 // multi_gpu_dispatcher()
 //
 template <typename vertex_t, typename edge_t, typename weight_t, typename functor_t>
-constexpr decltype(auto) transp_dispatcher(bool store_transposed, bool multi_gpu, functor_t &functor)
+constexpr decltype(auto) transp_dispatcher(bool store_transposed,
+                                           bool multi_gpu,
+                                           functor_t& functor)
 {
   if (store_transposed) {
     return multi_gpu_dispatcher<vertex_t, edge_t, weight_t, true>(multi_gpu, functor);
@@ -78,7 +80,7 @@ template <typename vertex_t, typename edge_t, typename functor_t>
 constexpr decltype(auto) weight_dispatcher(cugraph::visitors::DTypes weight_type,
                                            bool store_transposed,
                                            bool multi_gpu,
-                                           functor_t &functor)
+                                           functor_t& functor)
 {
   switch (weight_type) {
     case cugraph::visitors::DTypes::INT32: {
@@ -118,7 +120,7 @@ constexpr decltype(auto) edge_dispatcher(cugraph::visitors::DTypes edge_type,
                                          cugraph::visitors::DTypes weight_type,
                                          bool store_transposed,
                                          bool multi_gpu,
-                                         functor_t &functor)
+                                         functor_t& functor)
 {
   switch (edge_type) {
     case cugraph::visitors::DTypes::INT32: {
@@ -157,7 +159,7 @@ inline decltype(auto) vertex_dispatcher(cugraph::visitors::DTypes vertex_type,
                                         cugraph::visitors::DTypes weight_type,
                                         bool store_transposed,
                                         bool multi_gpu,
-                                        functor_t &functor)
+                                        functor_t& functor)
 {
   switch (vertex_type) {
     case cugraph::visitors::DTypes::INT32: {

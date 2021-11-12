@@ -26,7 +26,6 @@
     }                                                                                           \
   }
 
-
 namespace cugraph {
 namespace c_api {
 
