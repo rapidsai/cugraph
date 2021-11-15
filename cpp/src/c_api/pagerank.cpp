@@ -86,8 +86,8 @@ struct pagerank_functor : public abstract_functor {
     } else {
       // Pagerank expects store_transposed == true
       if constexpr (!store_transposed) {
-        error_code_ =
-          cugraph::c_api::transpose<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+        error_code_ = cugraph::c_api::
+          transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
             handle_, graph_, error_.get());
         if (error_code_ != CUGRAPH_SUCCESS) return;
       }

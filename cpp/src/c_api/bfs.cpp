@@ -76,8 +76,8 @@ struct bfs_functor : public abstract_functor {
     } else {
       // BFS expects store_transposed == false
       if constexpr (store_transposed) {
-        error_code_ =
-          cugraph::c_api::transpose<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+        error_code_ = cugraph::c_api::
+          transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
             handle_, graph_, error_.get());
         if (error_code_ != CUGRAPH_SUCCESS) return;
       }
@@ -122,8 +122,10 @@ struct bfs_functor : public abstract_functor {
         static_cast<vertex_t>(depth_limit_),
         do_expensive_check_);
 
-      cugraph::detail::sequence_fill(
-        handle_.get_stream(), vertex_ids.data(), vertex_ids.size(), vertex_t{0});
+      cugraph::detail::sequence_fill(handle_.get_stream(),
+                                     vertex_ids.data(),
+                                     vertex_ids.size(),
+                                     graph_view.get_local_vertex_first());
 
       std::vector<vertex_t> vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
 

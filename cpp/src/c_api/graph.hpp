@@ -42,9 +42,9 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-cugraph_error_code_t transpose(raft::handle_t const& handle,
-                               cugraph_graph_t* graph,
-                               cugraph_error_t* error)
+cugraph_error_code_t transpose_storage(raft::handle_t const& handle,
+                                       cugraph_graph_t* graph,
+                                       cugraph_error_t* error)
 {
   if (store_transposed == graph->store_transposed_) {
     auto p_graph =

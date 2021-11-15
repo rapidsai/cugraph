@@ -16,6 +16,11 @@
 
 #pragma once
 
+#include "enum_mapping.hpp"
+
+#include <cugraph/utilities/graph_traits.hpp>
+#include <cugraph/visitors/graph_enum.hpp>
+
 #include <array>
 #include <functional>
 #include <sstream>
@@ -24,11 +29,6 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-
-#include "enum_mapping.hpp"
-
-#include <cugraph/utilities/graph_traits.hpp>
-#include <cugraph/visitors/graph_enum.hpp>
 
 namespace cugraph {
 namespace dispatch {
@@ -59,9 +59,9 @@ constexpr decltype(auto) multi_gpu_dispatcher(bool multi_gpu, functor_t& functor
 // multi_gpu_dispatcher()
 //
 template <typename vertex_t, typename edge_t, typename weight_t, typename functor_t>
-constexpr decltype(auto) transp_dispatcher(bool store_transposed,
-                                           bool multi_gpu,
-                                           functor_t& functor)
+constexpr decltype(auto) transpose_dispatcher(bool store_transposed,
+                                              bool multi_gpu,
+                                              functor_t& functor)
 {
   if (store_transposed) {
     return multi_gpu_dispatcher<vertex_t, edge_t, weight_t, true>(multi_gpu, functor);
@@ -74,7 +74,7 @@ constexpr decltype(auto) transp_dispatcher(bool store_transposed,
 // resolves weigth_t from weight_type enum
 // and using template arguments vertex_t, edge_t
 // cascades into next level
-// transp_dispatcher()
+// transpose_dispatcher()
 //
 template <typename vertex_t, typename edge_t, typename functor_t>
 constexpr decltype(auto) weight_dispatcher(cugraph::visitors::DTypes weight_type,
@@ -85,21 +85,21 @@ constexpr decltype(auto) weight_dispatcher(cugraph::visitors::DTypes weight_type
   switch (weight_type) {
     case cugraph::visitors::DTypes::INT32: {
       using weight_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT32>::type;
-      return transp_dispatcher<vertex_t, edge_t, weight_t>(store_transposed, multi_gpu, functor);
+      return transpose_dispatcher<vertex_t, edge_t, weight_t>(store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::INT64: {
       using weight_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT64>::type;
-      return transp_dispatcher<vertex_t, edge_t, weight_t>(store_transposed, multi_gpu, functor);
+      return transpose_dispatcher<vertex_t, edge_t, weight_t>(store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::FLOAT32: {
       using weight_t =
         typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::FLOAT32>::type;
-      return transp_dispatcher<vertex_t, edge_t, weight_t>(store_transposed, multi_gpu, functor);
+      return transpose_dispatcher<vertex_t, edge_t, weight_t>(store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::FLOAT64: {
       using weight_t =
         typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::FLOAT64>::type;
-      return transp_dispatcher<vertex_t, edge_t, weight_t>(store_transposed, multi_gpu, functor);
+      return transpose_dispatcher<vertex_t, edge_t, weight_t>(store_transposed, multi_gpu, functor);
     } break;
     default: {
       std::stringstream ss;
@@ -173,16 +173,10 @@ inline decltype(auto) vertex_dispatcher(cugraph::visitors::DTypes vertex_type,
         edge_type, weight_type, store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::FLOAT32: {
-      using vertex_t =
-        typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::FLOAT32>::type;
-      return edge_dispatcher<vertex_t>(
-        edge_type, weight_type, store_transposed, multi_gpu, functor);
+      throw std::runtime_error("ERROR: FLOAT32 not supported for a vertex type");
     } break;
     case cugraph::visitors::DTypes::FLOAT64: {
-      using vertex_t =
-        typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::FLOAT64>::type;
-      return edge_dispatcher<vertex_t>(
-        edge_type, weight_type, store_transposed, multi_gpu, functor);
+      throw std::runtime_error("ERROR: FLOAT64 not supported for a vertex type");
     } break;
     default: {
       std::stringstream ss;
