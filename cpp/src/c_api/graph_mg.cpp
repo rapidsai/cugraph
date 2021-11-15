@@ -19,9 +19,9 @@
 extern "C" cugraph_error_code_t cugraph_mg_graph_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_properties_t* properties,
-  cugraph_type_erased_device_array_t* src,
-  cugraph_type_erased_device_array_t* dst,
-  cugraph_type_erased_device_array_t* weights,
+  const cugraph_type_erased_device_array_t* src,
+  const cugraph_type_erased_device_array_t* dst,
+  const cugraph_type_erased_device_array_t* weights,
   const cugraph_type_erased_host_array_t* vertex_partition_offsets,
   const cugraph_type_erased_host_array_t* segment_offsets,
   bool_t store_transposed,

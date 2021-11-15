@@ -33,8 +33,8 @@ struct cugraph_graph_t {
   bool store_transposed_;
   bool multi_gpu_;
 
-  void* graph_;       // unique_ptr<graph_t<...>>*
-  void* number_map_;  // unique_ptr<rmm::device_uvector<vertex_t>>*
+  void* graph_;       // graph_t<...>*
+  void* number_map_;  // rmm::device_uvector<vertex_t>*
 };
 
 template <typename vertex_t,

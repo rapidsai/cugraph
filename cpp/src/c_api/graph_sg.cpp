@@ -32,9 +32,9 @@ namespace c_api {
 struct create_graph_functor : public abstract_functor {
   raft::handle_t const& handle_;
   cugraph_graph_properties_t const* properties_;
-  c_api::cugraph_type_erased_device_array_t* src_;
-  c_api::cugraph_type_erased_device_array_t* dst_;
-  c_api::cugraph_type_erased_device_array_t* weights_;
+  c_api::cugraph_type_erased_device_array_t const* src_;
+  c_api::cugraph_type_erased_device_array_t const* dst_;
+  c_api::cugraph_type_erased_device_array_t const* weights_;
   bool_t renumber_;
   bool_t check_;
   data_type_id_t edge_type_;
@@ -42,9 +42,9 @@ struct create_graph_functor : public abstract_functor {
 
   create_graph_functor(raft::handle_t const& handle,
                        cugraph_graph_properties_t const* properties,
-                       c_api::cugraph_type_erased_device_array_t* src,
-                       c_api::cugraph_type_erased_device_array_t* dst,
-                       c_api::cugraph_type_erased_device_array_t* weights,
+                       c_api::cugraph_type_erased_device_array_t const* src,
+                       c_api::cugraph_type_erased_device_array_t const* dst,
+                       c_api::cugraph_type_erased_device_array_t const* weights,
                        bool_t renumber,
                        bool_t check,
                        data_type_id_t edge_type)
@@ -74,43 +74,54 @@ struct create_graph_functor : public abstract_functor {
         // FIXME:  Need an implementation here.
       }
 
-      vertex_t num_vertices{};
-      renumber_meta_t<vertex_t, edge_t, multi_gpu> meta;
+      auto graph =
+        new cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(handle_);
 
       rmm::device_uvector<vertex_t>* number_map =
         new rmm::device_uvector<vertex_t>(0, handle_.get_stream());
 
-      if (renumber_) {
-        std::tie(*number_map, meta) = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-          handle_,
-          std::nullopt,
-          store_transposed ? dst_->as_type<vertex_t>() : src_->as_type<vertex_t>(),
-          store_transposed ? src_->as_type<vertex_t>() : dst_->as_type<vertex_t>(),
-          static_cast<edge_t>(src_->size_));
+      std::optional<rmm::device_uvector<vertex_t>> new_number_map;
 
-        num_vertices = static_cast<vertex_t>(number_map->size());
-      } else {
-        num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(handle_.get_stream_view(),
-                                                                      src_->as_type<vertex_t>(),
-                                                                      dst_->as_type<vertex_t>(),
-                                                                      src_->size_);
+      rmm::device_uvector<vertex_t> edgelist_rows(src_->size_, handle_.get_stream());
+      rmm::device_uvector<vertex_t> edgelist_cols(dst_->size_, handle_.get_stream());
 
-        number_map->resize(num_vertices, handle_.get_stream());
-        cugraph::detail::sequence_fill(
-          handle_.get_stream(), number_map->data(), number_map->size(), vertex_t{0});
+      raft::copy<vertex_t>(
+        edgelist_rows.data(), src_->as_type<vertex_t>(), src_->size_, handle_.get_stream());
+      raft::copy<vertex_t>(
+        edgelist_cols.data(), dst_->as_type<vertex_t>(), dst_->size_, handle_.get_stream());
+
+      std::optional<rmm::device_uvector<weight_t>> edgelist_weights =
+        weights_
+          ? std::make_optional(rmm::device_uvector<weight_t>(weights_->size_, handle_.get_stream()))
+          : std::nullopt;
+
+      if (edgelist_weights) {
+        raft::copy<weight_t>(edgelist_weights->data(),
+                             weights_->as_type<weight_t>(),
+                             weights_->size_,
+                             handle_.get_stream());
       }
 
-      auto graph = new cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-        handle_,
-        cugraph::edgelist_t<vertex_t, edge_t, weight_t>{
-          src_->as_type<vertex_t>(),
-          dst_->as_type<vertex_t>(),
-          weights_ ? weights_->as_type<weight_t>() : nullptr,
-          static_cast<edge_t>(src_->size_)},
-        cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{
-          num_vertices,
+      std::tie(*graph, new_number_map) =
+        create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+          handle_,
+          std::nullopt,
+          std::move(edgelist_rows),
+          std::move(edgelist_cols),
+          std::move(edgelist_weights),
           graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
-          renumber_ ? std::optional<std::vector<vertex_t>>{meta.segment_offsets} : std::nullopt});
+          renumber_,
+          check_);
+
+      if (renumber_) {
+        *number_map = std::move(new_number_map.value());
+      } else {
+        number_map->resize(graph->get_number_of_vertices(), handle_.get_stream());
+        cugraph::detail::sequence_fill(handle_.get_stream(),
+                                       number_map->data(),
+                                       number_map->size(),
+                                       graph->view().get_local_vertex_first());
+      }
 
       // Set up return
       auto result =
@@ -162,9 +173,9 @@ struct destroy_graph_functor : public abstract_functor {
 extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_properties_t* properties,
-  cugraph_type_erased_device_array_t* src,
-  cugraph_type_erased_device_array_t* dst,
-  cugraph_type_erased_device_array_t* weights,
+  const cugraph_type_erased_device_array_t* src,
+  const cugraph_type_erased_device_array_t* dst,
+  const cugraph_type_erased_device_array_t* weights,
   bool_t store_transposed,
   bool_t renumber,
   bool_t check,
@@ -177,10 +188,11 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   *graph = nullptr;
   *error = nullptr;
 
-  auto p_handle  = reinterpret_cast<raft::handle_t const*>(handle);
-  auto p_src     = reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(src);
-  auto p_dst     = reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(dst);
-  auto p_weights = reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(weights);
+  auto p_handle = reinterpret_cast<raft::handle_t const*>(handle);
+  auto p_src    = reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(src);
+  auto p_dst    = reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(dst);
+  auto p_weights =
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(weights);
 
   CAPI_EXPECTS(p_src->size_ == p_dst->size_,
                CUGRAPH_INVALID_INPUT,
@@ -196,11 +208,18 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
                *error);
 
   data_type_id_t edge_type;
+  data_type_id_t weight_type;
 
   if (p_src->size_ < int32_threshold) {
     edge_type = data_type_id_t::INT32;
   } else {
     edge_type = data_type_id_t::INT64;
+  }
+
+  if (!weights) {
+    weight_type = p_weights->type_;
+  } else {
+    weight_type = data_type_id_t::FLOAT32;
   }
 
   cugraph::c_api::create_graph_functor functor(
@@ -209,7 +228,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   try {
     cugraph::dispatch::vertex_dispatcher(cugraph::c_api::dtypes_mapping[p_src->type_],
                                          cugraph::c_api::dtypes_mapping[edge_type],
-                                         cugraph::c_api::dtypes_mapping[p_weights->type_],
+                                         cugraph::c_api::dtypes_mapping[weight_type],
                                          store_transposed,
                                          multi_gpu,
                                          functor);
