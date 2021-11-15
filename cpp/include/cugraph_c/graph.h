@@ -35,8 +35,8 @@ typedef struct {
 /**
  * @brief     Construct an SG graph
  *
- * @param [in]      handle      Handle for accessing resources
- * @param [in]      properties  Properties of the constructed graph
+ * @param [in]  handle      Handle for accessing resources
+ * @param [in]  properties  Properties of the constructed graph
  * @param [in]  src         Device array containing the source vertex ids.
  * @param [in]  dst         Device array containing the destination vertex ids
  * @param [in]  weights     Device array containing the edge weights
@@ -49,7 +49,7 @@ typedef struct {
  * @param [in]  properties  Properties of the graph
  * @param [out] graph       A pointer to the graph object
  * @param [out] error       Pointer to an error object storing details of any error.  Will
- *                              be populated if error code is not CUGRAPH_SUCCESS
+ *                          be populated if error code is not CUGRAPH_SUCCESS
  *
  * @return error code
  */
@@ -81,7 +81,6 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
  * @param [in]  src         Device array containing the source vertex ids
  * @param [in]  dst         Device array containing the destination vertex ids
  * @param [in]  weights     Device array containing the edge weights
- *                              Contents may be modified during graph creation.
  * @param [in]  vertex_partition_offsets Host array containing the offsets for each vertex
  * partition
  * @param [in]  segment_offsets Host array containing the offsets for each segment
