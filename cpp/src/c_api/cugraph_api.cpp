@@ -54,7 +54,7 @@ cugraph::visitors::graph_envelope_t const& extract_graph_envelope(
 }
 
 template <size_t index>
-cugraph_error_t extract_rw_result(cugraph_rw_ret_t* p_rw_ret, cugraph_device_buffer_t* p_d_buf)
+cugraph_error_code_t extract_rw_result(cugraph_rw_ret_t* p_rw_ret, cugraph_device_buffer_t* p_d_buf)
 {
   if (!p_rw_ret)
     return CUGRAPH_ALLOC_ERROR;
@@ -116,38 +116,38 @@ extern "C" void cugraph_free_rw_result(cugraph_rw_ret_t* p_rw_ret)
   delete p_ret;
 }
 
-extern "C" cugraph_error_t extract_vertex_rw_result(cugraph_rw_ret_t* p_rw_ret,
-                                                    cugraph_device_buffer_t* p_d_buf_v)
+extern "C" cugraph_error_code_t extract_vertex_rw_result(cugraph_rw_ret_t* p_rw_ret,
+                                                         cugraph_device_buffer_t* p_d_buf_v)
 {
   return helpers::extract_rw_result<0>(p_rw_ret, p_d_buf_v);
 }
 
-extern "C" cugraph_error_t extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret,
-                                                    cugraph_device_buffer_t* p_d_buf_w)
+extern "C" cugraph_error_code_t extract_weight_rw_result(cugraph_rw_ret_t* p_rw_ret,
+                                                         cugraph_device_buffer_t* p_d_buf_w)
 {
   return helpers::extract_rw_result<1>(p_rw_ret, p_d_buf_w);
 }
 
-extern "C" cugraph_error_t extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret,
-                                                  cugraph_device_buffer_t* p_d_buf_sz)
+extern "C" cugraph_error_code_t extract_size_rw_result(cugraph_rw_ret_t* p_rw_ret,
+                                                       cugraph_device_buffer_t* p_d_buf_sz)
 {
   return helpers::extract_rw_result<2>(p_rw_ret, p_d_buf_sz);
 }
 
-extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr_handle,
-                                                cugraph_graph_envelope_t* ptr_graph_envelope,
-                                                cugraph_device_buffer_t* ptr_d_start,
-                                                size_t num_paths,
-                                                size_t max_depth,
-                                                bool_t flag_use_padding,
-                                                cugraph_unique_ptr_t* ptr_sampling_strategy,
-                                                cugraph_rw_ret_t* ret)
+extern "C" cugraph_error_code_t cugraph_random_walks(const cugraph_resource_handle_t* ptr_handle,
+                                                     cugraph_graph_envelope_t* ptr_graph_envelope,
+                                                     cugraph_device_buffer_t* ptr_d_start,
+                                                     size_t num_paths,
+                                                     size_t max_depth,
+                                                     bool_t flag_use_padding,
+                                                     cugraph_unique_ptr_t* ptr_sampling_strategy,
+                                                     cugraph_rw_ret_t* ret)
 {
   using namespace cugraph::visitors;
 
   using ptr_sampling_t = std::unique_ptr<cugraph::sampling_params_t>;
 
-  cugraph_error_t status = CUGRAPH_SUCCESS;
+  cugraph_error_code_t status = CUGRAPH_SUCCESS;
 
   if (!ret) return CUGRAPH_ALLOC_ERROR;
 
@@ -204,19 +204,20 @@ extern "C" cugraph_error_t cugraph_random_walks(const cugraph_raft_handle_t* ptr
 
 // graph factory: return pointer semantics (because it returns a stub);
 //
-extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(const cugraph_raft_handle_t* p_handle,
-                                                           data_type_id_t vertex_tid,
-                                                           data_type_id_t edge_tid,
-                                                           data_type_id_t weight_tid,
-                                                           bool_t st,
-                                                           cugraph_device_buffer_t* p_src,
-                                                           cugraph_device_buffer_t* p_dst,
-                                                           cugraph_device_buffer_t* p_weights,
-                                                           size_t num_vertices,
-                                                           size_t num_edges,
-                                                           bool_t check,
-                                                           bool_t is_symmetric,
-                                                           bool_t is_multigraph)
+extern "C" cugraph_graph_envelope_t* cugraph_make_sg_graph(
+  const cugraph_resource_handle_t* p_handle,
+  data_type_id_t vertex_tid,
+  data_type_id_t edge_tid,
+  data_type_id_t weight_tid,
+  bool_t st,
+  cugraph_device_buffer_t* p_src,
+  cugraph_device_buffer_t* p_dst,
+  cugraph_device_buffer_t* p_weights,
+  size_t num_vertices,
+  size_t num_edges,
+  bool_t check,
+  bool_t is_symmetric,
+  bool_t is_multigraph)
 {
   using namespace cugraph::visitors;
 
@@ -277,14 +278,14 @@ extern "C" void cugraph_free_graph(cugraph_graph_envelope_t* ptr_graph)
 
 // device buffer factory: fill pointer semantics (because the pointer is more than a stub);
 //
-extern "C" cugraph_error_t cugraph_make_device_buffer(const cugraph_raft_handle_t* raft_handle,
-                                                      data_type_id_t dtype,
-                                                      size_t n_elems,  // ... of type `dtype`
-                                                      cugraph_device_buffer_t* ptr_buffer)
+extern "C" cugraph_error_code_t cugraph_make_device_buffer(const cugraph_resource_handle_t* handle,
+                                                           data_type_id_t dtype,
+                                                           size_t n_elems,  // ... of type `dtype`
+                                                           cugraph_device_buffer_t* ptr_buffer)
 {
-  cugraph_error_t status = CUGRAPH_SUCCESS;
+  cugraph_error_code_t status = CUGRAPH_SUCCESS;
   try {
-    raft::handle_t const* p_raft_handle = reinterpret_cast<raft::handle_t const*>(raft_handle);
+    raft::handle_t const* p_raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
 
     if (!p_raft_handle) return CUGRAPH_ALLOC_ERROR;
 
@@ -304,15 +305,16 @@ extern "C" void cugraph_free_device_buffer(cugraph_device_buffer_t* ptr_buffer)
   delete ptr_rmm_d_buf;
 }
 
-extern "C" cugraph_error_t cugraph_update_device_buffer(const cugraph_raft_handle_t* raft_handle,
-                                                        data_type_id_t dtype,
-                                                        cugraph_device_buffer_t* ptr_dst,
-                                                        const byte_t* ptr_h_src)
+extern "C" cugraph_error_code_t cugraph_update_device_buffer(
+  const cugraph_resource_handle_t* handle,
+  data_type_id_t dtype,
+  cugraph_device_buffer_t* ptr_dst,
+  const byte_t* ptr_h_src)
 {
-  cugraph_error_t status = CUGRAPH_SUCCESS;
+  cugraph_error_code_t status = CUGRAPH_SUCCESS;
 
   try {
-    raft::handle_t const* ptr_raft_handle = reinterpret_cast<raft::handle_t const*>(raft_handle);
+    raft::handle_t const* ptr_raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
 
     if (!ptr_raft_handle) return CUGRAPH_ALLOC_ERROR;
 
@@ -325,15 +327,15 @@ extern "C" cugraph_error_t cugraph_update_device_buffer(const cugraph_raft_handl
   return status;
 }
 
-extern "C" cugraph_error_t cugraph_update_host_buffer(const cugraph_raft_handle_t* raft_handle,
-                                                      data_type_id_t dtype,
-                                                      byte_t* ptr_h_dst,
-                                                      const cugraph_device_buffer_t* ptr_src)
+extern "C" cugraph_error_code_t cugraph_update_host_buffer(const cugraph_resource_handle_t* handle,
+                                                           data_type_id_t dtype,
+                                                           byte_t* ptr_h_dst,
+                                                           const cugraph_device_buffer_t* ptr_src)
 {
-  cugraph_error_t status = CUGRAPH_SUCCESS;
+  cugraph_error_code_t status = CUGRAPH_SUCCESS;
 
   try {
-    raft::handle_t const* ptr_raft_handle = reinterpret_cast<raft::handle_t const*>(raft_handle);
+    raft::handle_t const* ptr_raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
 
     if (!ptr_raft_handle) return CUGRAPH_ALLOC_ERROR;
 
@@ -348,16 +350,16 @@ extern "C" cugraph_error_t cugraph_update_host_buffer(const cugraph_raft_handle_
   return status;
 }
 
-extern "C" cugraph_raft_handle_t* cugraph_create_handle(void)
+extern "C" cugraph_resource_handle_t* cugraph_create_handle(void)
 {
   try {
-    return reinterpret_cast<cugraph_raft_handle_t*>(new raft::handle_t{});
+    return reinterpret_cast<cugraph_resource_handle_t*>(new raft::handle_t{});
   } catch (...) {
     return nullptr;
   }
 }
 
-extern "C" void cugraph_free_handle(cugraph_raft_handle_t* p_handle)
+extern "C" void cugraph_free_handle(cugraph_resource_handle_t* p_handle)
 {
   raft::handle_t* p_raft_handle = reinterpret_cast<raft::handle_t*>(p_handle);
   delete p_raft_handle;

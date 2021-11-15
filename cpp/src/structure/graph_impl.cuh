@@ -1009,6 +1009,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto [edgelist_rows, edgelist_cols, edgelist_weights] =
     this->decompress_to_edgelist(handle, wrapped_renumber_map, true);
+
   std::tie(edgelist_rows, edgelist_cols, edgelist_weights) =
     symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(
       handle,
@@ -1050,13 +1051,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto [edgelist_rows, edgelist_cols, edgelist_weights] =
     this->decompress_to_edgelist(handle, renumber_map, true);
-  auto vertex_span = renumber ? std::move(renumber_map)
-                              : std::make_optional<rmm::device_uvector<vertex_t>>(
-                                  number_of_vertices, handle.get_stream());
-  if (!renumber) {
-    thrust::sequence(
-      handle.get_thrust_policy(), (*vertex_span).begin(), (*vertex_span).end(), vertex_t{0});
-  }
+
   std::tie(edgelist_rows, edgelist_cols, edgelist_weights) =
     symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(
       handle,
@@ -1064,6 +1059,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       std::move(edgelist_cols),
       std::move(edgelist_weights),
       reciprocal);
+
+  auto vertex_span = renumber ? std::move(renumber_map)
+                              : std::make_optional<rmm::device_uvector<vertex_t>>(
+                                  number_of_vertices, handle.get_stream());
+  if (!renumber) {
+    thrust::sequence(
+      handle.get_thrust_policy(), (*vertex_span).begin(), (*vertex_span).end(), vertex_t{0});
+  }
 
   auto [symmetrized_graph, new_renumber_map] =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
@@ -1267,10 +1270,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   }
   auto number_of_local_edges =
     std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
-  std::vector<vertex_t> vertex_partition_lasts(comm_size);
-  for (int i = 0; i < comm_size; ++i) {
-    vertex_partition_lasts[i] = graph_view.get_vertex_partition_last(i);
-  }
+  auto vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
 
   rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());

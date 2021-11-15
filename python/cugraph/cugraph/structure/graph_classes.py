@@ -35,8 +35,8 @@ class Graph:
 
     Parameters
     ----------
-    m_graph : cuGraph.Graph object or None
-        Initialize the graph from another Multigraph object
+    m_graph : cuGraph.MultiGraph object or None
+        Initialize the graph from a cugraph.MultiGraph object
     directed : boolean
         Indicated is the graph is directed.
         Default is False - Undirected
@@ -58,7 +58,7 @@ class Graph:
         self._Impl = None
         self.graph_properties = Graph.Properties(directed)
         if m_graph is not None:
-            if m_graph.is_multigraph():
+            if isinstance(m_graph, MultiGraph):
                 elist = m_graph.view_edge_list()
                 if m_graph.is_weighted():
                     weights = "weights"
@@ -69,10 +69,8 @@ class Graph:
                                         destination="dst",
                                         edge_attr=weights)
             else:
-                msg = (
-                    "Graph can only be initialized using MultiGraph "
-                )
-                raise Exception(msg)
+                raise TypeError("m_graph can only be an instance of a "
+                                f"cugraph.MultiGraph, got {type(m_graph)}")
 
     def __getattr__(self, name):
         if self._Impl is None:
@@ -240,6 +238,8 @@ class Graph:
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
         """
+        if renumber is False:
+            raise ValueError("'renumber' must be set to 'True' for MNMG algos")
         if self._Impl is None:
             self._Impl = simpleDistributedGraphImpl(self.graph_properties)
         elif type(self._Impl) is not simpleDistributedGraphImpl:

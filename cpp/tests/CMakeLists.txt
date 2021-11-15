@@ -357,6 +357,11 @@ ConfigureTest(WEIGHT_SUM_TEST structure/weight_sum_test.cpp)
 ConfigureTest(DEGREE_TEST structure/degree_test.cpp)
 
 ###################################################################################################
+# - Count self-loops and multi-edges tests --------------------------------------------------------
+ConfigureTest(COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
+              "structure/count_self_loops_and_multi_edges_test.cpp")
+
+###################################################################################################
 # - Coarsening tests ------------------------------------------------------------------------------
 ConfigureTest(COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 
@@ -380,6 +385,10 @@ ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu)
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
 ConfigureTest(SSSP_TEST traversal/sssp_test.cpp)
+
+###################################################################################################
+# - HITS tests ------------------------------------------------------------------------------------
+ConfigureTest(HITS_TEST link_analysis/hits_test.cpp)
 
 ###################################################################################################
 # - PAGERANK tests --------------------------------------------------------------------------------
@@ -430,6 +439,10 @@ ConfigureTest(BFS_VISITOR_TEST visitors/bfs_test.cpp)
 ConfigureTest(RANDOM_WALKS_VISITOR_TEST visitors/rw_test.cu)
 
 ###################################################################################################
+# - Core Number tests -----------------------------------------------------------------------------
+ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
+
+###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
@@ -460,8 +473,17 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_TRANSPOSE_STORAGE_TEST structure/mg_transpose_storage_test.cpp)
 
         ###########################################################################################
+        # - MG Count self-loops and multi-edges tests ---------------------------------------------
+        ConfigureTestMG(MG_COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
+              "structure/mg_count_self_loops_and_multi_edges_test.cpp")
+
+        ###########################################################################################
         # - MG PAGERANK tests ---------------------------------------------------------------------
         ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
+
+        ###########################################################################################
+        # - MG HITS tests -------------------------------------------------------------------------
+        ConfigureTestMG(MG_HITS_TEST link_analysis/mg_hits_test.cpp)
 
         ###########################################################################################
         # - MG KATZ CENTRALITY tests --------------------------------------------------------------
@@ -496,6 +518,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_GRAPH_BROADCAST_TEST bcast/mg_graph_bcast.cpp)
 
         ###########################################################################################
+        # - MG Core Number tests ------------------------------------------------------------------
+        ConfigureTestMG(MG_CORE_NUMBER_TEST cores/mg_core_number_test.cpp)
+
+        ###########################################################################################
         # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
 
@@ -527,7 +553,8 @@ endif()
 ###################################################################################################
 # - C API tests -----------------------------------------------------------------------------------
 
-ConfigureCTest(CAPI_CREATE_SG_GRAPH_TEST c_api/create_sg_graph_test.c)
+ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE_TEST c_api/create_sg_graph_envelope_test.c)
+ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
 
 ###################################################################################################

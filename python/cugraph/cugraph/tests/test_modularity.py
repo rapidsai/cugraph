@@ -19,6 +19,9 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
+from cugraph.utilities import ensure_cugraph_obj_for_nx
+
+import networkx as nx
 
 
 def cugraph_call(G, partitions):
@@ -51,7 +54,6 @@ def random_call(G, partitions):
 PARTITIONS = [2, 4, 8]
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering(graph_file, partitions):
@@ -71,12 +73,38 @@ def test_modularity_clustering(graph_file, partitions):
     assert cu_score > rand_score
 
 
-# Test all combinations of default/managed and pooled/non-pooled allocation
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("partitions", PARTITIONS)
+def test_modularity_clustering_nx(graph_file, partitions):
+    # Read in the graph and get a cugraph object
+    csv_data = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+
+    nxG = nx.from_pandas_edgelist(
+            csv_data,
+            source="0",
+            target="1",
+            edge_attr="weight",
+            create_using=nx.DiGraph(),
+        )
+    assert nx.is_directed(nxG) is True
+    assert nx.is_weighted(nxG) is True
+
+    cuG, isNx = ensure_cugraph_obj_for_nx(nxG)
+    assert cugraph.is_directed(cuG) is True
+    assert cugraph.is_weighted(cuG) is True
+
+    # Get the modularity score for partitioning versus random assignment
+    cu_score = cugraph_call(cuG, partitions)
+    rand_score = random_call(cuG, partitions)
+
+    # Assert that the partitioning has better modularity than the random
+    # assignment
+    assert cu_score > rand_score
+
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering_multi_column(graph_file, partitions):
-    gc.collect()
-
     # Read in the graph and get a cugraph object
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
     cu_M.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
@@ -113,8 +141,6 @@ def test_modularity_clustering_multi_column(graph_file, partitions):
 
 
 def test_digraph_rejected():
-    gc.collect()
-
     df = cudf.DataFrame()
     df["src"] = cudf.Series(range(10))
     df["dst"] = cudf.Series(range(10))

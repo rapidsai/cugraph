@@ -24,7 +24,7 @@ from cugraph.structure.graph_utilities cimport (populate_graph_container,
                                                 numberTypeEnum,
                                                 move as graph_utils_move,
                                                 )
-from cugraph.structure.graph_primtypes cimport move_device_buffer_to_series
+from cugraph.structure.graph_primtypes cimport move_device_buffer_to_column
 from cugraph.raft.common.handle cimport handle_t
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.community.egonet cimport call_egonet
@@ -109,12 +109,9 @@ def egonet(input_graph, vertices, radius=1):
                                      <int> radius))
 
     el_struct = move(el_struct_ptr.get()[0])
-    src = move_device_buffer_to_series(
-        move(el_struct.src_indices), vertex_t, "src")
-    dst = move_device_buffer_to_series(
-        move(el_struct.dst_indices), vertex_t, "dst")
-    wgt = move_device_buffer_to_series(
-        move(el_struct.edge_data), weight_t, "wgt")
+    src = move_device_buffer_to_column(move(el_struct.src_indices), vertex_t)
+    dst = move_device_buffer_to_column(move(el_struct.dst_indices), vertex_t)
+    wgt = move_device_buffer_to_column(move(el_struct.edge_data), weight_t)
 
     df = cudf.DataFrame()
     df['src'] = src
@@ -122,7 +119,6 @@ def egonet(input_graph, vertices, radius=1):
     if wgt is not None:
         df['weight'] = wgt
 
-    offsets = move_device_buffer_to_series(
-        move(el_struct.subgraph_offsets), "int", "offsets")
+    offsets = move_device_buffer_to_column(move(el_struct.subgraph_offsets), "int")
 
     return df, offsets

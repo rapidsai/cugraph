@@ -18,8 +18,6 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <raft/random/rng.cuh>
-
 #include <rmm/exec_policy.hpp>
 
 #include <tuple>
