@@ -238,6 +238,8 @@ class Graph:
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
         """
+        if renumber is False:
+            raise ValueError("'renumber' must be set to 'True' for MNMG algos")
         if self._Impl is None:
             self._Impl = simpleDistributedGraphImpl(self.graph_properties)
         elif type(self._Impl) is not simpleDistributedGraphImpl:
