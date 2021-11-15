@@ -139,17 +139,7 @@ struct pagerank_functor : public abstract_functor {
         has_initial_guess_,
         do_expensive_check_);
 
-      cugraph::detail::sequence_fill(
-        handle_.get_stream(), vertex_ids.data(), vertex_ids.size(), vertex_t{0});
-
-      std::vector<vertex_t> vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
-
-      unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                   vertex_ids.data(),
-                                                   vertex_ids.size(),
-                                                   number_map->data(),
-                                                   vertex_partition_lasts,
-                                                   do_expensive_check_);
+      raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
       result_ = new cugraph_pagerank_result_t{
         new cugraph_type_erased_device_array_t(std::move(vertex_ids), graph_->vertex_type_),
