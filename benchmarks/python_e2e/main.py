@@ -130,6 +130,7 @@ def run(algos,
         success = benchmark.run()
 
         algo_name = benchmark.results[1].name
+        algo_name = f"benchmarks.{algo_name}"
         algo_time = benchmark.results[1].runtime
         # Generate json files containing the benchmark results
         if benchmark_dir is not None:

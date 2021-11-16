@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include <cugraph_c/cugraph_api.h>
+#include <cugraph_c/graph.h>
+
 #include <stdio.h>
 #include <time.h>
 
@@ -29,27 +32,16 @@
  *
  * Intended to be used by the RUN_TEST macro.
  */
-int run_test(int (*test)(), const char* test_name)
-{
-  int ret_val = 0;
-  time_t start_time, end_time;
-
-  printf("RUNNING: %s...", test_name);
-  fflush(stdout);
-
-  time(&start_time);
-  ret_val = test();
-  time(&end_time);
-
-  printf("done (%f seconds).", difftime(end_time, start_time));
-  if (ret_val == 0) {
-    printf(" - passed\n");
-  } else {
-    printf(" - FAILED\n");
-  }
-  fflush(stdout);
-
-  return ret_val;
-}
+int run_test(int (*test)(), const char* test_name);
 
 #define RUN_TEST(test_name) run_test(test_name, #test_name)
+
+int nearlyEqual(float a, float b, float epsilon);
+int create_test_graph(const cugraph_resource_handle_t* p_handle,
+                      int32_t* h_src,
+                      int32_t* h_dst,
+                      float* h_wgt,
+                      size_t num_edges,
+                      bool_t store_transposed,
+                      cugraph_graph_t** p_graph,
+                      cugraph_error_t** ret_error);

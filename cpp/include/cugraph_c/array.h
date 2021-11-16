@@ -77,7 +77,7 @@ data_type_id_t cugraph_type_erased_device_array_type(const cugraph_type_erased_d
  * @param [in]  p    Pointer to the type erased device array
  * @return Pointer (device memory) for the data in the array
  */
-void* cugraph_type_erased_device_array_pointer(const cugraph_type_erased_device_array_t* p);
+const void* cugraph_type_erased_device_array_pointer(const cugraph_type_erased_device_array_t* p);
 
 /**
  * @brief     Create a type erased host array
