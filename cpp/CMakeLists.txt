@@ -124,6 +124,9 @@ if(OpenMP_FOUND)
     list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=${OpenMP_CXX_FLAGS})
 endif()
 
+# Set this so RAFT's `get_faiss.cmake` succeeds, even though we don't link faiss::faiss.
+set(BLAS_LIBRARIES "" CACHE STRING "Location of BLAS library for FAISS build.")
+
 ###################################################################################################
 # - find CPM based dependencies  ------------------------------------------------------------------
 
