@@ -92,7 +92,7 @@ set(CUGRAPH_CXX_FLAGS "")
 set(CUGRAPH_CUDA_FLAGS "")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    list(APPEND CUGRAPH_CXX_FLAGS -Werror -Wno-error=deprecated-declarations  -D_GLIBCXX_USE_CXX11_ABI=1)
+    list(APPEND CUGRAPH_CXX_FLAGS -Werror -Wno-error=deprecated-declarations)
 endif(CMAKE_COMPILER_IS_GNUCXX)
 
 
@@ -123,9 +123,6 @@ if(OpenMP_FOUND)
     # find_package(OPenMP) does not automatically add OpenMP flags to CUDA
     list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=${OpenMP_CXX_FLAGS})
 endif()
-
-# Set this so RAFT's `get_faiss.cmake` succeeds, even though we don't link faiss::faiss.
-set(BLAS_LIBRARIES "" CACHE STRING "Location of BLAS library for FAISS build.")
 
 ###################################################################################################
 # - find CPM based dependencies  ------------------------------------------------------------------
