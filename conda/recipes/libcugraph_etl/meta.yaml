@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2021, NVIDIA CORPORATION.
+# Copyright (c) 2021, NVIDIA CORPORATION.
 
 # Usage:
 #   conda build -c nvidia -c rapidsai -c conda-forge .
@@ -6,7 +6,7 @@
 {% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
 {% set cuda_version='.'.join(environ.get('CUDA', '9.2').split('.')[:2]) %}
 package:
-  name: libcugraph
+  name: libcugraph_etl
   version: {{ version }}
 
 source:
@@ -33,19 +33,11 @@ requirements:
   build:
     - cmake>=3.20.1
     - cudatoolkit {{ cuda_version }}.*
-    - librmm {{ minor_version }}.*
     - cudf {{ minor_version }}.*
-    - boost-cpp>=1.66
-    - nccl>=2.9.9
-    - ucx-proc=*=gpu
-    - gtest
-    - gmock
-    - faiss-proc=*=cuda
-    - libfaiss 1.7.0 *_cuda
+    - libcugraph {{ minor_version }}.*
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
-    - nccl>=2.9.9
-    - ucx-proc=*=gpu
+    - libcugraph {{ minor_version }}.*
     - faiss-proc=*=cuda
     - libfaiss 1.7.0 *_cuda
 
@@ -53,4 +45,4 @@ about:
   home: http://rapids.ai/
   license: Apache-2.0
   license_file: ../../../LICENSE
-  summary: libcugraph library
+  summary: libcugraph_etl library
