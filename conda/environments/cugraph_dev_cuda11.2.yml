@@ -27,8 +27,6 @@ dependencies:
 - boost
 - cython>=0.29,<0.30
 - pytest
-- libfaiss=1.7.0
-- faiss-proc=*=cuda
 - scikit-learn>=0.23.1
 - sphinx
 - pydata-sphinx-theme
