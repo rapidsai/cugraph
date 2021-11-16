@@ -36,7 +36,8 @@ typedef struct {
  * @brief     Construct an SG graph
  *
  * @param [in]  handle      Handle for accessing resources
- * @param [in]  src         Device array containing the source vertex ids
+ * @param [in]  properties  Properties of the constructed graph
+ * @param [in]  src         Device array containing the source vertex ids.
  * @param [in]  dst         Device array containing the destination vertex ids
  * @param [in]  weights     Device array containing the edge weights
  * @param [in]  store_transposed If true create the graph initially in transposed format
@@ -76,20 +77,18 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
  * @brief     Construct an MG graph
  *
  * @param [in]  handle      Handle for accessing resources
+ * @param [in]  properties  Properties of the constructed graph
  * @param [in]  src         Device array containing the source vertex ids
  * @param [in]  dst         Device array containing the destination vertex ids
  * @param [in]  weights     Device array containing the edge weights
- * @param [in]  vertex_partition_offsets Host array containing the offsets for each vertex partition
+ * @param [in]  vertex_partition_offsets Host array containing the offsets for each vertex
+ * partition
  * @param [in]  segment_offsets Host array containing the offsets for each segment
  * @param [in]  store_transposed If true create the graph initially in transposed format
- * @param [in]  renumber    If true, renumber vertices to make an efficient data structure.
- *    If false, do not renumber.  Renumbering is required if the vertices are not sequential
- *    integer values from 0 to num_vertices.
- * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
+ * @param [in]  num_vertices  Number of vertices
+ * @param [in]  num_edges   Number of edges
+ * @param [in]  check       If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
- * @param [in]  is_symmetric If true the input graph is symmetric
- * @param [in]  is_multigraph If true the input graph is a multi graph (can have multiple edges
- *    between a pair of vertices)
  * @param [out] graph       A pointer to the graph object
  * @param [out] error       Pointer to an error object storing details of any error.  Will
  *                          be populated if error code is not CUGRAPH_SUCCESS

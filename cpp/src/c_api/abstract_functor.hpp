@@ -13,24 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 
-#include <cugraph_c/error.h>
 #include <c_api/error.hpp>
 
-extern "C" const char* cugraph_error_message(const cugraph_error_t* error)
-{
-  if (error != nullptr) {
-    auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_error_t const*>(error);
-    return internal_pointer->error_message_.c_str();
-  } else {
-    return nullptr;
-  }
-}
+#include <memory>
 
-extern "C" void cugraph_error_free(cugraph_error_t* error)
-{
-  if (error != nullptr) {
-    auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_error_t const*>(error);
-    delete internal_pointer;
+namespace cugraph {
+namespace c_api {
+
+struct abstract_functor {
+  // Move to abstract functor... make operator a void, add cugraph_graph_t * result to functor
+  // try that with instantiation questions
+  std::unique_ptr<cugraph_error_t> error_{std::make_unique<cugraph_error_t>("")};
+  cugraph_error_code_t error_code_{CUGRAPH_SUCCESS};
+
+  void unsupported()
+  {
+    error_code_            = CUGRAPH_UNSUPPORTED_TYPE_COMBINATION;
+    error_->error_message_ = "Type Dispatcher executing unsupported combination of types";
   }
-}
+};
+
+}  // namespace c_api
+}  // namespace cugraph
