@@ -60,6 +60,7 @@ class Tests_MGPageRank
                         input_usecase_t const& input_usecase)
   {
     // 1. initialize handle
+
     raft::handle_t handle{};
     HighResClock hr_clock{};
 

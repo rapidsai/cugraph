@@ -29,7 +29,7 @@
 
 #include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
-#include <raft/random/rng.cuh>
+#include <raft/random/rng.hpp>
 
 #include <rmm/device_uvector.hpp>
 
@@ -119,8 +119,12 @@ struct uniform_selector_t {
     {
     }
 
-    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(vertex_t src_v,
-                                                                              real_t rnd_val) const
+    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(
+      vertex_t src_v,
+      real_t rnd_val,
+      vertex_t = 0 /* not used*/,
+      edge_t   = 0 /* not used*/,
+      bool     = false /* not used*/) const
     {
       auto crt_out_deg = ptr_d_cache_out_degs_[src_v];
       if (crt_out_deg == 0) return thrust::nullopt;  // src_v is a sink
@@ -260,10 +264,6 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
 
 // Biased RW selection logic:
 //
-// FIXME:
-// 1. move sum weights calculation into selector;
-// 2. pass graph_view to constructor;
-//
 template <typename graph_type, typename real_t>
 struct biased_selector_t {
   using vertex_t = typename graph_type::vertex_type;
@@ -284,8 +284,12 @@ struct biased_selector_t {
     // Sum(weights(neighborhood(src_v))) are pre-computed and
     // stored in ptr_d_sum_weights_ (too expensive to check, here);
     //
-    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(vertex_t src_v,
-                                                                              real_t rnd_val) const
+    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(
+      vertex_t src_v,
+      real_t rnd_val,
+      vertex_t = 0 /* not used*/,
+      edge_t   = 0 /* not used*/,
+      bool     = false /* not used*/) const
     {
       weight_t run_sum_w{0};
       auto rnd_sum_weights = rnd_val * ptr_d_sum_weights_[src_v];
@@ -335,6 +339,248 @@ struct biased_selector_t {
 
  private:
   visitor_aggregate_weights_t<vertex_t, edge_t, weight_t> sum_calculator_;
+  sampler_t sampler_;
+};
+
+// node2vec RW selection logic:
+// uses biased selector on scaled weights,
+// to be computed (and possibly cached) according to
+// `node2vec` logic (see `get_alpha()`);
+// works on unweighted graphs (for which unscalled weights are 1.0);
+//
+// TODO: need to decide logic on very 1st step of traversal
+//       (which has no `prev_v` vertex);
+//
+template <typename graph_type, typename real_t>
+struct node2vec_selector_t {
+  using vertex_t = typename graph_type::vertex_type;
+  using edge_t   = typename graph_type::edge_type;
+  using weight_t = typename graph_type::weight_type;
+
+  struct sampler_t {
+    sampler_t(edge_t const* ro,
+              vertex_t const* ci,
+              weight_t const* w,
+              weight_t p,
+              weight_t q,
+              vertex_t max_degree,
+              edge_t num_paths,
+              weight_t* ptr_alpha)
+      : row_offsets_(ro),
+        col_indices_(ci),
+        values_(w),
+        p_(p),
+        q_(q),
+        coalesced_alpha_{
+          (max_degree > 0) && (num_paths > 0) && (ptr_alpha != nullptr)
+            ? thrust::optional<thrust::tuple<vertex_t, edge_t, weight_t*>>{thrust::make_tuple(
+                max_degree, num_paths, ptr_alpha)}
+            : thrust::nullopt}
+    {
+    }
+
+    // node2vec alpha scalling logic:
+    // pre-condition: assume column_indices[] is seg-sorted;
+    // (each row has column_indices[] sorted)
+    //
+    __device__ weight_t get_alpha(vertex_t prev_v, vertex_t src_v, vertex_t next_v) const
+    {
+      if (next_v == prev_v) {
+        return 1.0 / p_;
+      } else {
+        // binary-search `next_v` in the adj(prev_v)
+        //
+        auto prev_indx_begin = row_offsets_[prev_v];
+        auto prev_indx_end   = row_offsets_[prev_v + 1];
+
+        auto found_next_from_prev = thrust::binary_search(
+          thrust::seq, col_indices_ + prev_indx_begin, col_indices_ + prev_indx_end, next_v);
+
+        if (found_next_from_prev) {
+          return 1;
+        } else {
+          return 1.0 / q_;
+        }
+      }
+    }
+
+    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(
+      vertex_t src_v, real_t rnd_val, vertex_t prev_v, edge_t path_index, bool start_path) const
+    {
+      auto const offset_indx_begin = row_offsets_[src_v];
+      auto const offset_indx_end   = row_offsets_[src_v + 1];
+
+      weight_t sum_scaled_weights{0};
+      auto offset_indx = offset_indx_begin;
+
+      if (offset_indx_begin == offset_indx_end) return thrust::nullopt;  // src_v is a sink
+
+      // for 1st vertex in path just use biased random selection:
+      //
+      if (start_path) {  // `src_v` is starting vertex in path
+        for (; offset_indx < offset_indx_end; ++offset_indx) {
+          weight_t crt_weight = (values_ == nullptr ? weight_t{1} : values_[offset_indx]);
+
+          sum_scaled_weights += crt_weight;
+        }
+
+        weight_t run_sum_w{0};
+        auto rnd_sum_weights  = rnd_val * sum_scaled_weights;
+        offset_indx           = offset_indx_begin;
+        auto prev_offset_indx = offset_indx;
+
+        // biased sampling selection loop:
+        // (Note: re-compute `scaled_weight`, since no cache is available);
+        //
+        for (; offset_indx < offset_indx_end; ++offset_indx) {
+          if (rnd_sum_weights < run_sum_w) break;
+
+          weight_t crt_weight = (values_ == nullptr ? weight_t{1} : values_[offset_indx]);
+          run_sum_w += crt_weight;
+          prev_offset_indx = offset_indx;
+        }
+        return thrust::optional{
+          thrust::make_tuple(col_indices_[prev_offset_indx],
+                             values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
+      }
+
+      // cached solution, for increased performance, but memory expensive:
+      //
+      if (coalesced_alpha_.has_value()) {
+        auto&& tpl = *coalesced_alpha_;
+
+        auto max_out_deg               = thrust::get<0>(tpl);
+        auto num_paths                 = thrust::get<1>(tpl);
+        weight_t* ptr_d_scaled_weights = thrust::get<2>(tpl);
+
+        // sum-scaled-weights reduction loop:
+        //
+        auto const start_alpha_offset = max_out_deg * path_index;
+        for (vertex_t nghbr_indx = 0; offset_indx < offset_indx_end; ++offset_indx, ++nghbr_indx) {
+          auto crt_alpha      = get_alpha(prev_v, src_v, col_indices_[offset_indx]);
+          weight_t crt_weight = (values_ == nullptr ? weight_t{1} : values_[offset_indx]);
+          auto scaled_weight  = crt_weight * crt_alpha;
+
+          // caching is available, hence cache the alpha's for next step
+          // (the actual sampling step);
+          //
+          ptr_d_scaled_weights[start_alpha_offset + nghbr_indx] = scaled_weight;
+
+          sum_scaled_weights += scaled_weight;
+        }
+
+        weight_t run_sum_w{0};
+        auto rnd_sum_weights  = rnd_val * sum_scaled_weights;
+        offset_indx           = offset_indx_begin;
+        auto prev_offset_indx = offset_indx;
+
+        // biased sampling selection loop:
+        //
+        for (vertex_t nghbr_indx = 0; offset_indx < offset_indx_end; ++offset_indx, ++nghbr_indx) {
+          if (rnd_sum_weights < run_sum_w) break;
+
+          run_sum_w += ptr_d_scaled_weights[start_alpha_offset + nghbr_indx];
+          prev_offset_indx = offset_indx;
+        }
+        return thrust::optional{
+          thrust::make_tuple(col_indices_[prev_offset_indx],
+                             values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
+
+      } else {  // uncached solution, with much lower memory footprint but not as efficient
+
+        for (; offset_indx < offset_indx_end; ++offset_indx) {
+          auto crt_alpha = get_alpha(prev_v, src_v, col_indices_[offset_indx]);
+
+          weight_t crt_weight = (values_ == nullptr ? weight_t{1} : values_[offset_indx]);
+
+          auto scaled_weight = crt_weight * crt_alpha;
+          sum_scaled_weights += scaled_weight;
+        }
+
+        weight_t run_sum_w{0};
+        auto rnd_sum_weights  = rnd_val * sum_scaled_weights;
+        offset_indx           = offset_indx_begin;
+        auto prev_offset_indx = offset_indx;
+
+        // biased sampling selection loop:
+        // (Note: re-compute `scaled_weight`, since no cache is available);
+        //
+        for (; offset_indx < offset_indx_end; ++offset_indx) {
+          if (rnd_sum_weights < run_sum_w) break;
+
+          auto crt_alpha      = get_alpha(prev_v, src_v, col_indices_[offset_indx]);
+          weight_t crt_weight = (values_ == nullptr ? weight_t{1} : values_[offset_indx]);
+          auto scaled_weight  = crt_weight * crt_alpha;
+
+          run_sum_w += scaled_weight;
+          prev_offset_indx = offset_indx;
+        }
+        return thrust::optional{
+          thrust::make_tuple(col_indices_[prev_offset_indx],
+                             values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
+      }
+    }
+
+    decltype(auto) get_alpha_buffer(void) const { return coalesced_alpha_; }
+
+   private:
+    edge_t const* row_offsets_;
+    vertex_t const* col_indices_;
+    weight_t const* values_;
+
+    weight_t const p_;
+    weight_t const q_;
+
+    // alpha scaling coalesced buffer (per path):
+    // (use as cache since the per-path alpha-buffer
+    //  is used twice for each node transition:
+    //  (1) for computing sum_scaled weights;
+    //  (2) for using scaled_weights for the biased next vertex selection)
+    // this is information related to a scratchpad buffer, used as cache, hence mutable;
+    // (necessary, because get_strategy() is const)
+    //
+    mutable thrust::optional<thrust::tuple<vertex_t, edge_t, weight_t*>>
+      coalesced_alpha_;  // tuple<max_vertex_degree,
+                         // num_paths, alpha_buffer[max_vertex_degree*num_paths]>
+  };
+
+  using sampler_type = sampler_t;
+
+  node2vec_selector_t(raft::handle_t const& handle,
+                      graph_type const& graph,
+                      real_t tag,
+                      weight_t p,
+                      weight_t q,
+                      edge_t num_paths = 0)
+    : max_out_degree_(num_paths > 0 ? graph.compute_max_out_degree(handle) : 0),
+      d_coalesced_alpha_{max_out_degree_ * num_paths, handle.get_stream()},
+      sampler_{graph.get_matrix_partition_view().get_offsets(),
+               graph.get_matrix_partition_view().get_indices(),
+               graph.get_matrix_partition_view().get_weights()
+                 ? *(graph.get_matrix_partition_view().get_weights())
+                 : static_cast<weight_t*>(nullptr),
+               p,
+               q,
+               static_cast<vertex_t>(max_out_degree_),
+               num_paths,
+               raw_ptr(d_coalesced_alpha_)}
+  {
+  }
+
+  sampler_t const& get_strategy(void) const { return sampler_; }
+
+  device_vec_t<weight_t> const& get_alpha_cache(void) const { return d_coalesced_alpha_; }
+
+ private:
+  size_t max_out_degree_{0};
+
+  // alpha scaling coalesced buffer (per path):
+  // (use as cache since the per-path alpha-buffer
+  //  is used twice for each node transition:
+  //  (1) for computing sum_scaled weights;
+  //  (2) for using scaled_weights for the biased next vertex selection)
+  //
+  device_vec_t<weight_t> d_coalesced_alpha_;
   sampler_t sampler_;
 };
 
@@ -470,6 +716,8 @@ struct horizontal_traversal_t {
                       sampler] __device__(auto path_index) {
                        auto chunk_offset   = path_index * max_depth;
                        vertex_t src_vertex = ptr_coalesced_v[chunk_offset];
+                       auto prev_v         = src_vertex;
+                       bool start_path     = true;
 
                        for (index_t step_indx = 1; step_indx < max_depth; ++step_indx) {
                          // indexing into coalesced arrays of size num_paths x (max_depth -1):
@@ -479,8 +727,12 @@ struct horizontal_traversal_t {
 
                          auto real_rnd_indx = ptr_d_random[stepping_index];
 
-                         auto opt_tpl_vn_wn = sampler(src_vertex, real_rnd_indx);
+                         auto opt_tpl_vn_wn =
+                           sampler(src_vertex, real_rnd_indx, prev_v, path_index, start_path);
                          if (!opt_tpl_vn_wn.has_value()) break;
+
+                         prev_v     = src_vertex;
+                         start_path = false;
 
                          src_vertex      = thrust::get<0>(*opt_tpl_vn_wn);
                          auto crt_weight = thrust::get<1>(*opt_tpl_vn_wn);
@@ -502,7 +754,7 @@ struct horizontal_traversal_t {
  private:
   size_t num_paths_;
   size_t max_depth_;
-};  // namespace detail
+};
 
 }  // namespace detail
 }  // namespace cugraph

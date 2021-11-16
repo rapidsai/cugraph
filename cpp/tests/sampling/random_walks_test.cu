@@ -27,7 +27,7 @@
 #include <sampling/random_walks.cuh>
 
 #include <raft/handle.hpp>
-#include <raft/random/rng.cuh>
+#include <raft/random/rng.hpp>
 
 #include "random_walks_utils.cuh"
 
@@ -132,22 +132,58 @@ class Tests_RandomWalks
                                                                           num_paths};
 
     edge_t max_depth{10};
+
+    weight_t p{4};
+    weight_t q{8};
+
     if (trv_id == traversal_id_t::HORIZONTAL) {
-      auto ret_tuple =
-        cugraph::random_walks(handle,
-                              graph_view,
-                              d_start_view.begin(),
-                              num_paths,
-                              max_depth,
-                              false,
-                              std::make_unique<cugraph::sampling_params_t>(sampling_id));
-
-      // check results:
+      // `node2vec` without alpha buffer:
       //
-      bool test_all_paths = cugraph::test::host_check_rw_paths(
-        handle, graph_view, std::get<0>(ret_tuple), std::get<1>(ret_tuple), std::get<2>(ret_tuple));
+      if (sampling_id == 2) {
+        auto ret_tuple = cugraph::random_walks(
+          handle,
+          graph_view,
+          d_start_view.begin(),
+          num_paths,
+          max_depth,
+          false,
+          std::make_unique<cugraph::sampling_params_t>(sampling_id, p, q, false));
 
-      ASSERT_TRUE(test_all_paths);
+        // check results:
+        //
+        bool test_all_paths = cugraph::test::host_check_rw_paths(handle,
+                                                                 graph_view,
+                                                                 std::get<0>(ret_tuple),
+                                                                 std::get<1>(ret_tuple),
+                                                                 std::get<2>(ret_tuple));
+
+        ASSERT_TRUE(test_all_paths);
+      }
+
+      // the alpha buffer case should also be tested for `node2vec`
+      // and for the others is irrelevant, so this block is necessary
+      // for any sampling method:
+      //
+      {
+        auto ret_tuple = cugraph::random_walks(
+          handle,
+          graph_view,
+          d_start_view.begin(),
+          num_paths,
+          max_depth,
+          false,
+          std::make_unique<cugraph::sampling_params_t>(sampling_id, p, q, true));
+
+        // check results:
+        //
+        bool test_all_paths = cugraph::test::host_check_rw_paths(handle,
+                                                                 graph_view,
+                                                                 std::get<0>(ret_tuple),
+                                                                 std::get<1>(ret_tuple),
+                                                                 std::get<2>(ret_tuple));
+
+        ASSERT_TRUE(test_all_paths);
+      }
     } else {  // VERTICAL: needs to be force-called via detail
       if (sampling_id == 0) {
         impl_details::uniform_selector_t<graph_vt, real_t> selector{handle, graph_view, real_t{0}};
@@ -173,8 +209,33 @@ class Tests_RandomWalks
           std::cout << "starting seed on failure: " << std::get<3>(ret_tuple) << '\n';
 
         ASSERT_TRUE(test_all_paths);
-      } else {
+      } else if (sampling_id == 1) {
         impl_details::biased_selector_t<graph_vt, real_t> selector{handle, graph_view, real_t{0}};
+
+        auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+                                                         decltype(selector),
+                                                         impl_details::vertical_traversal_t>(
+          handle,  // required to prevent clang-format to separate functin name from its namespace
+          graph_view,
+          d_start_view,
+          max_depth,
+          selector);
+
+        // check results:
+        //
+        bool test_all_paths = cugraph::test::host_check_rw_paths(handle,
+                                                                 graph_view,
+                                                                 std::get<0>(ret_tuple),
+                                                                 std::get<1>(ret_tuple),
+                                                                 std::get<2>(ret_tuple));
+
+        if (!test_all_paths)
+          std::cout << "starting seed on failure: " << std::get<3>(ret_tuple) << '\n';
+
+        ASSERT_TRUE(test_all_paths);
+      } else {
+        impl_details::node2vec_selector_t<graph_vt, real_t> selector{
+          handle, graph_view, real_t{0}, p, q, num_paths};
 
         auto ret_tuple = impl_details::random_walks_impl<graph_vt,
                                                          decltype(selector),
@@ -211,7 +272,7 @@ INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_RandomWalks,
   ::testing::Combine(::testing::Values(traversal_id_t::HORIZONTAL, traversal_id_t::VERTICAL),
-                     ::testing::Values(int{0}, int{1}),
+                     ::testing::Values(int{0}, int{1}, int{2}),
                      ::testing::Values(RandomWalks_Usecase("test/datasets/karate.mtx", true),
                                        RandomWalks_Usecase("test/datasets/web-Google.mtx", true),
                                        RandomWalks_Usecase("test/datasets/ljournal-2008.mtx", true),

@@ -26,6 +26,7 @@
 
 #include <numeric>
 #include <optional>
+#include <random>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -344,6 +345,25 @@ bool renumbered_vectors_same(raft::handle_t const& handle,
   raft::update_host(h_v2.data(), v2.data(), v2.size(), handle.get_stream());
 
   return renumbered_vectors_same(handle, h_v1, h_v2);
+}
+
+template <typename T, typename L>
+std::vector<T> to_host(raft::handle_t const& handle, T const* data, L size)
+{
+  std::vector<T> h_data(size);
+  raft::update_host(h_data.data(), data, size, handle.get_stream());
+  handle.get_stream_view().synchronize();
+  return h_data;
+}
+
+template <typename T, typename L>
+std::vector<T> random_vector(L size, unsigned seed = 0)
+{
+  std::default_random_engine gen(seed);
+  std::uniform_real_distribution<T> dist(0.0, 1.0);
+  std::vector<T> v(size);
+  std::generate(v.begin(), v.end(), [&] { return dist(gen); });
+  return v;
 }
 
 }  // namespace test

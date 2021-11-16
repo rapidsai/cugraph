@@ -14,8 +14,10 @@
 import gc
 import pytest
 import cudf
-import cugraph
 import dask_cudf
+from cudf.testing import assert_series_equal
+
+import cugraph
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
@@ -65,6 +67,7 @@ def test_dask_mg_degree(dask_client):
         .compute()
     )
 
-    assert merge_df_in["degree_dg"].equals(merge_df_in["degree_g"])
-    assert merge_df_out["degree_dg"].equals(
-            merge_df_out["degree_g"])
+    assert_series_equal(merge_df_in["degree_dg"], merge_df_in["degree_g"],
+                        check_names=False)
+    assert_series_equal(merge_df_out["degree_dg"], merge_df_out["degree_g"],
+                        check_names=False)

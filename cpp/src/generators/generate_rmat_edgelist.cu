@@ -81,7 +81,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
        c_norm   = (1.0 - (a + b)) > 0.0 ? c / (1.0 - (a + b)) : 0.0] __device__(auto i) {
         vertex_t src{0};
         vertex_t dst{0};
-        for (size_t bit = scale - 1; bit != 0; --bit) {
+        for (int bit = static_cast<int>(scale) - 1; bit >= 0; --bit) {
           auto r0          = rands[i * 2 * scale + 2 * bit];
           auto r1          = rands[i * 2 * scale + 2 * bit + 1];
           auto src_bit_set = r0 > a_plus_b;

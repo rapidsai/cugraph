@@ -22,7 +22,6 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_barrier.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
@@ -242,17 +241,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     auto const row_comm_rank = row_comm.get_rank();
     auto const row_comm_size = row_comm.get_size();
 
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (beginning of row_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream());
-#else
-    handle.get_stream().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
     auto map_counts = host_scalar_allgather(
       row_comm,
       static_cast<size_t>(thrust::distance(map_unique_key_first, map_unique_key_last)),
@@ -319,21 +307,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   }
 
   // 2. aggregate each vertex out-going edges based on keys and transform-reduce.
-
-  if (GraphViewType::is_multi_gpu) {
-    auto& comm = handle.get_comms();
-
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (beginning of col_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream());
-#else
-    handle.get_stream().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
-  }
 
   rmm::device_uvector<vertex_t> major_vertices(0, handle.get_stream());
   auto e_op_result_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
@@ -544,21 +517,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       major_vertices     = std::move(tmp_major_vertices);
       e_op_result_buffer = std::move(tmp_e_op_result_buffer);
     }
-  }
-
-  if (GraphViewType::is_multi_gpu) {
-    auto& comm = handle.get_comms();
-
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (beginning of col_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream());
-#else
-    handle.get_stream().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
   }
 
   auto execution_policy = handle.get_thrust_policy();

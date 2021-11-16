@@ -20,7 +20,6 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_barrier.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -49,9 +48,9 @@ namespace detail {
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t, vertex_t>
 compute_renumber_map(raft::handle_t const& handle,
-                     std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
-                     std::vector<vertex_t const*> const& edgelist_major_vertices,
-                     std::vector<vertex_t const*> const& edgelist_minor_vertices,
+                     std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
+                     std::vector<vertex_t const*> const& edgelist_majors,
+                     std::vector<vertex_t const*> const& edgelist_minors,
                      std::vector<edge_t> const& edgelist_edge_counts)
 {
   // FIXME: compare this sort based approach with hash based approach in both speed and memory
@@ -59,34 +58,18 @@ compute_renumber_map(raft::handle_t const& handle,
 
   // 1. acquire (unique major label, count) pairs
 
-  if (multi_gpu) {
-    auto& comm = handle.get_comms();
-
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (beginning of col_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream());
-#else
-    handle.get_stream().synchronize();
-    ;
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
-  }
-
   rmm::device_uvector<vertex_t> major_labels(0, handle.get_stream());
   rmm::device_uvector<edge_t> major_counts(0, handle.get_stream());
   vertex_t num_local_unique_edge_majors{0};
-  for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
+  for (size_t i = 0; i < edgelist_majors.size(); ++i) {
     rmm::device_uvector<vertex_t> tmp_major_labels(0, handle.get_stream());
     rmm::device_uvector<edge_t> tmp_major_counts(0, handle.get_stream());
     {
       rmm::device_uvector<vertex_t> sorted_major_labels(edgelist_edge_counts[i],
                                                         handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
-                   edgelist_major_vertices[i],
-                   edgelist_major_vertices[i] + edgelist_edge_counts[i],
+                   edgelist_majors[i],
+                   edgelist_majors[i] + edgelist_edge_counts[i],
                    sorted_major_labels.begin());
       // FIXME: better refactor this sort-count_if-reduce_by_key routine for reuse
       thrust::sort(
@@ -169,40 +152,38 @@ compute_renumber_map(raft::handle_t const& handle,
 
   // 2. acquire unique minor labels
 
-  std::vector<edge_t> minor_displs(edgelist_minor_vertices.size(), edge_t{0});
+  std::vector<edge_t> minor_displs(edgelist_minors.size(), edge_t{0});
   std::partial_sum(
     edgelist_edge_counts.begin(), edgelist_edge_counts.end() - 1, minor_displs.begin() + 1);
   rmm::device_uvector<vertex_t> minor_labels(minor_displs.back() + edgelist_edge_counts.back(),
                                              handle.get_stream());
-  vertex_t num_local_unique_edge_minors{0};
-  for (size_t i = 0; i < edgelist_minor_vertices.size(); ++i) {
+  vertex_t minor_offset{0};
+  for (size_t i = 0; i < edgelist_minors.size(); ++i) {
     thrust::copy(handle.get_thrust_policy(),
-                 edgelist_minor_vertices[i],
-                 edgelist_minor_vertices[i] + edgelist_edge_counts[i],
-                 minor_labels.begin() + minor_displs[i]);
+                 edgelist_minors[i],
+                 edgelist_minors[i] + edgelist_edge_counts[i],
+                 minor_labels.begin() + minor_offset);
+    thrust::sort(handle.get_thrust_policy(),
+                 minor_labels.begin() + minor_offset,
+                 minor_labels.begin() + minor_offset + edgelist_edge_counts[i]);
+    minor_offset += thrust::distance(
+      minor_labels.begin() + minor_offset,
+      thrust::unique(handle.get_thrust_policy(),
+                     minor_labels.begin() + minor_offset,
+                     minor_labels.begin() + minor_offset + edgelist_edge_counts[i]));
   }
+  minor_labels.resize(minor_offset, handle.get_stream());
   thrust::sort(handle.get_thrust_policy(), minor_labels.begin(), minor_labels.end());
   minor_labels.resize(
     thrust::distance(
       minor_labels.begin(),
       thrust::unique(handle.get_thrust_policy(), minor_labels.begin(), minor_labels.end())),
     handle.get_stream());
-  num_local_unique_edge_minors += static_cast<vertex_t>(minor_labels.size());
+  auto num_local_unique_edge_minors = static_cast<vertex_t>(minor_labels.size());
   if (multi_gpu) {
     auto& comm               = handle.get_comms();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
     auto const row_comm_size = row_comm.get_size();
-
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (beginning of row_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream());
-#else
-    handle.get_stream().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
 
     if (row_comm_size > 1) {
       rmm::device_uvector<vertex_t> rx_minor_labels(0, handle.get_stream());
@@ -221,18 +202,6 @@ compute_renumber_map(raft::handle_t const& handle,
                              handle.get_stream());
       minor_labels = std::move(rx_minor_labels);
     }
-
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (end of row_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    //
-    host_barrier(comm, handle.get_stream());
-#else
-    handle.get_stream().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
   }
   minor_labels.shrink_to_fit(handle.get_stream());
 
@@ -277,27 +246,28 @@ compute_renumber_map(raft::handle_t const& handle,
 
   auto num_non_isolated_vertices = static_cast<vertex_t>(labels.size());
 
-  // 4. if vertex_span.has_value() == true, append isolated vertices
+  // 4. if local_vertices.has_value() == true, append isolated vertices
 
-  if (vertex_span) {
+  if (local_vertices) {
     rmm::device_uvector<vertex_t> isolated_vertices(0, handle.get_stream());
 
-    auto [vertices, num_vertices] = *vertex_span;
-    auto num_isolated_vertices    = thrust::count_if(
+    auto num_isolated_vertices = thrust::count_if(
       handle.get_thrust_policy(),
-      vertices,
-      vertices + num_vertices,
+      (*local_vertices).begin(),
+      (*local_vertices).end(),
       [label_first = labels.begin(), label_last = labels.end()] __device__(auto v) {
         return !thrust::binary_search(thrust::seq, label_first, label_last, v);
       });
     isolated_vertices.resize(num_isolated_vertices, handle.get_stream());
     thrust::copy_if(handle.get_thrust_policy(),
-                    vertices,
-                    vertices + num_vertices,
+                    (*local_vertices).begin(),
+                    (*local_vertices).end(),
                     isolated_vertices.begin(),
                     [label_first = labels.begin(), label_last = labels.end()] __device__(auto v) {
                       return !thrust::binary_search(thrust::seq, label_first, label_last, v);
                     });
+    (*local_vertices).resize(0, handle.get_stream());
+    (*local_vertices).shrink_to_fit(handle.get_stream());
 
     if (isolated_vertices.size() > 0) {
       labels.resize(labels.size() + isolated_vertices.size(), handle.get_stream());
@@ -379,29 +349,32 @@ compute_renumber_map(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 void expensive_check_edgelist(
   raft::handle_t const& handle,
-  std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
-  std::vector<vertex_t const*> const& edgelist_major_vertices,
-  std::vector<vertex_t const*> const& edgelist_minor_vertices,
+  std::optional<rmm::device_uvector<vertex_t>> const& local_vertices,
+  std::vector<vertex_t const*> const& edgelist_majors,
+  std::vector<vertex_t const*> const& edgelist_minors,
   std::vector<edge_t> const& edgelist_edge_counts,
   std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets)
 {
-  rmm::device_uvector<vertex_t> sorted_local_vertices(size_t{0}, handle.get_stream());
-  if (vertex_span) {
-    auto [vertices, num_vertices] = *vertex_span;
-    sorted_local_vertices.resize(num_vertices, handle.get_stream());
-    thrust::copy(
-      handle.get_thrust_policy(), vertices, vertices + num_vertices, sorted_local_vertices.begin());
+  std::optional<rmm::device_uvector<vertex_t>> sorted_local_vertices{std::nullopt};
+  if (local_vertices) {
+    sorted_local_vertices =
+      rmm::device_uvector<vertex_t>((*local_vertices).size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 (*local_vertices).begin(),
+                 (*local_vertices).end(),
+                 (*sorted_local_vertices).begin());
     thrust::sort(
-      handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
-    CUGRAPH_EXPECTS(static_cast<size_t>(thrust::distance(
-                      sorted_local_vertices.begin(),
-                      thrust::unique(handle.get_thrust_policy(),
-                                     sorted_local_vertices.begin(),
-                                     sorted_local_vertices.end()))) == sorted_local_vertices.size(),
-                    "Invalid input argument: local_vertices should not have duplicates.");
+      handle.get_thrust_policy(), (*sorted_local_vertices).begin(), (*sorted_local_vertices).end());
+    CUGRAPH_EXPECTS(
+      static_cast<size_t>(thrust::distance((*sorted_local_vertices).begin(),
+                                           thrust::unique(handle.get_thrust_policy(),
+                                                          (*sorted_local_vertices).begin(),
+                                                          (*sorted_local_vertices).end()))) ==
+        (*sorted_local_vertices).size(),
+      "Invalid input argument: (local_)vertices should not have duplicates.");
   }
 
-  if (multi_gpu) {
+  if constexpr (multi_gpu) {
     auto& comm               = handle.get_comms();
     auto const comm_size     = comm.get_size();
     auto const comm_rank     = comm.get_rank();
@@ -412,27 +385,28 @@ void expensive_check_edgelist(
     auto const col_comm_size = col_comm.get_size();
     auto const col_comm_rank = col_comm.get_rank();
 
-    CUGRAPH_EXPECTS((edgelist_major_vertices.size() == edgelist_minor_vertices.size()) &&
-                      (edgelist_major_vertices.size() == static_cast<size_t>(col_comm_size)),
-                    "Invalid input argument: both edgelist_major_vertices.size() & "
-                    "edgelist_minor_vertices.size() should coincide with col_comm_size.");
+    CUGRAPH_EXPECTS((edgelist_majors.size() == edgelist_minors.size()) &&
+                      (edgelist_majors.size() == static_cast<size_t>(col_comm_size)),
+                    "Invalid input argument: both edgelist_majors.size() & "
+                    "edgelist_minors.size() should coincide with col_comm_size.");
 
-    auto [local_vertices, num_local_vertices] = *vertex_span;
-    CUGRAPH_EXPECTS(
-      thrust::count_if(
-        handle.get_thrust_policy(),
-        local_vertices,
-        local_vertices + num_local_vertices,
-        [comm_rank,
-         key_func =
-           detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
-          return key_func(val) != comm_rank;
-        }) == 0,
-      "Invalid input argument: local_vertices should be pre-shuffled.");
+    if (sorted_local_vertices) {
+      CUGRAPH_EXPECTS(
+        thrust::count_if(
+          handle.get_thrust_policy(),
+          (*sorted_local_vertices).begin(),
+          (*sorted_local_vertices).end(),
+          [comm_rank,
+           key_func =
+             detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
+            return key_func(val) != comm_rank;
+          }) == 0,
+        "Invalid input argument: local_vertices should be pre-shuffled.");
+    }
 
-    for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
-      auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(edgelist_major_vertices[i], edgelist_minor_vertices[i]));
+    for (size_t i = 0; i < edgelist_majors.size(); ++i) {
+      auto edge_first =
+        thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
       CUGRAPH_EXPECTS(
         thrust::count_if(
           handle.get_thrust_policy(),
@@ -453,105 +427,62 @@ void expensive_check_edgelist(
                    (partition_id_key_func(thrust::get<0>(edge), thrust::get<1>(edge)) !=
                     row_comm_rank * col_comm_size + col_comm_rank + i * comm_size);
           }) == 0,
-        "Invalid input argument: edgelist_major_vertices & edgelist_minor_vertices should be "
+        "Invalid input argument: edgelist_majors & edgelist_minors should be "
         "pre-shuffled.");
 
-      if (vertex_span) {
+      if (sorted_local_vertices) {
         auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
         auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
-        // FIXME: this barrier is unnecessary if the above host_scalar_allreduce is a true host
-        // operation (as it serves as a barrier) barrier is necessary here to avoid potential
-        // overlap (which can leads to deadlock) between two different communicators (beginning of
-        // col_comm)
-#if 1
-        // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
-        // DASK and MPI barrier with MPI)
-        host_barrier(comm, handle.get_stream());
-#else
-        handle.get_stream().synchronize();
-        comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
-        rmm::device_uvector<vertex_t> sorted_major_vertices(0, handle.get_stream());
+        rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
         {
           auto recvcounts =
-            host_scalar_allgather(col_comm, sorted_local_vertices.size(), handle.get_stream());
+            host_scalar_allgather(col_comm, (*sorted_local_vertices).size(), handle.get_stream());
           std::vector<size_t> displacements(recvcounts.size(), size_t{0});
           std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
-          sorted_major_vertices.resize(displacements.back() + recvcounts.back(),
-                                       handle.get_stream());
+          sorted_majors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
           device_allgatherv(col_comm,
-                            sorted_local_vertices.data(),
-                            sorted_major_vertices.data(),
+                            (*sorted_local_vertices).data(),
+                            sorted_majors.data(),
                             recvcounts,
                             displacements,
                             handle.get_stream());
-          thrust::sort(
-            handle.get_thrust_policy(), sorted_major_vertices.begin(), sorted_major_vertices.end());
+          thrust::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
         }
 
-        // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
-        // between two different communicators (beginning of row_comm)
-#if 1
-        // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
-        // DASK and MPI barrier with MPI)
-        host_barrier(comm, handle.get_stream());
-#else
-        handle.get_stream().synchronize();
-        comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
-        rmm::device_uvector<vertex_t> sorted_minor_vertices(0, handle.get_stream());
+        rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
         {
           auto recvcounts =
-            host_scalar_allgather(row_comm, sorted_local_vertices.size(), handle.get_stream());
+            host_scalar_allgather(row_comm, (*sorted_local_vertices).size(), handle.get_stream());
           std::vector<size_t> displacements(recvcounts.size(), size_t{0});
           std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
-          sorted_minor_vertices.resize(displacements.back() + recvcounts.back(),
-                                       handle.get_stream());
+          sorted_minors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
           device_allgatherv(row_comm,
-                            sorted_local_vertices.data(),
-                            sorted_minor_vertices.data(),
+                            (*sorted_local_vertices).data(),
+                            sorted_minors.data(),
                             recvcounts,
                             displacements,
                             handle.get_stream());
-          thrust::sort(
-            handle.get_thrust_policy(), sorted_minor_vertices.begin(), sorted_minor_vertices.end());
+          thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
         }
 
-        // barrier is necessary here to avoid potential overlap (which can leads to deadlock)
-        // between two different communicators (end of row_comm)
-#if 1
-        // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with
-        // DASK and MPI barrier with MPI)
-        host_barrier(comm, handle.get_stream());
-#else
-        handle.get_stream().synchronize();
-        comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
-        auto edge_first = thrust::make_zip_iterator(
-          thrust::make_tuple(edgelist_major_vertices[i], edgelist_minor_vertices[i]));
+        auto edge_first =
+          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
         CUGRAPH_EXPECTS(
           thrust::count_if(
             handle.get_thrust_policy(),
             edge_first,
             edge_first + edgelist_edge_counts[i],
-            [num_major_vertices    = static_cast<vertex_t>(sorted_major_vertices.size()),
-             sorted_major_vertices = sorted_major_vertices.data(),
-             num_minor_vertices    = static_cast<vertex_t>(sorted_minor_vertices.size()),
-             sorted_minor_vertices = sorted_minor_vertices.data()] __device__(auto e) {
-              return !thrust::binary_search(thrust::seq,
-                                            sorted_major_vertices,
-                                            sorted_major_vertices + num_major_vertices,
-                                            thrust::get<0>(e)) ||
-                     !thrust::binary_search(thrust::seq,
-                                            sorted_minor_vertices,
-                                            sorted_minor_vertices + num_minor_vertices,
-                                            thrust::get<1>(e));
+            [num_majors    = static_cast<vertex_t>(sorted_majors.size()),
+             sorted_majors = sorted_majors.data(),
+             num_minors    = static_cast<vertex_t>(sorted_minors.size()),
+             sorted_minors = sorted_minors.data()] __device__(auto e) {
+              return !thrust::binary_search(
+                       thrust::seq, sorted_majors, sorted_majors + num_majors, thrust::get<0>(e)) ||
+                     !thrust::binary_search(
+                       thrust::seq, sorted_minors, sorted_minors + num_minors, thrust::get<1>(e));
             }) == 0,
-          "Invalid input argument: edgelist_major_vertices and/or edgelist_minor_vertices have "
+          "Invalid input argument: edgelist_majors and/or edgelist_minors have "
           "invalid vertex ID(s).");
       }
 
@@ -560,8 +491,8 @@ void expensive_check_edgelist(
           CUGRAPH_EXPECTS(
             thrust::count_if(
               handle.get_thrust_policy(),
-              edgelist_minor_vertices[i] + (*edgelist_intra_partition_segment_offsets)[i][j],
-              edgelist_minor_vertices[i] + (*edgelist_intra_partition_segment_offsets)[i][j + 1],
+              edgelist_minors[i] + (*edgelist_intra_partition_segment_offsets)[i][j],
+              edgelist_minors[i] + (*edgelist_intra_partition_segment_offsets)[i][j + 1],
               [row_comm_size,
                col_comm_rank,
                j,
@@ -570,26 +501,26 @@ void expensive_check_edgelist(
                 return gpu_id_key_func(minor) != col_comm_rank * row_comm_size + j;
               }) == 0,
             "Invalid input argument: if edgelist_intra_partition_segment_offsets.has_value() is "
-            "true, edgelist_major_vertices & edgelist_minor_vertices should be properly grouped "
+            "true, edgelist_majors & edgelist_minors should be properly grouped "
             "within each local partition.");
         }
       }
     }
   } else {
-    assert(edgelist_major_vertices.size() == 1);
-    assert(edgelist_minor_vertices.size() == 1);
+    assert(edgelist_majors.size() == 1);
+    assert(edgelist_minors.size() == 1);
 
-    if (vertex_span) {
-      auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(edgelist_major_vertices[0], edgelist_minor_vertices[0]));
+    if (sorted_local_vertices) {
+      auto edge_first =
+        thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[0], edgelist_minors[0]));
       CUGRAPH_EXPECTS(
         thrust::count_if(
           handle.get_thrust_policy(),
           edge_first,
           edge_first + edgelist_edge_counts[0],
-          [sorted_local_vertices = sorted_local_vertices.data(),
+          [sorted_local_vertices = (*sorted_local_vertices).data(),
            num_sorted_local_vertices =
-             static_cast<vertex_t>(sorted_local_vertices.size())] __device__(auto e) {
+             static_cast<vertex_t>((*sorted_local_vertices).size())] __device__(auto e) {
             return !thrust::binary_search(thrust::seq,
                                           sorted_local_vertices,
                                           sorted_local_vertices + num_sorted_local_vertices,
@@ -599,7 +530,7 @@ void expensive_check_edgelist(
                                           sorted_local_vertices + num_sorted_local_vertices,
                                           thrust::get<1>(e));
           }) == 0,
-        "Invalid input argument: edgelist_major_vertices and/or edgelist_minor_vertices have "
+        "Invalid input argument: edgelist_majors and/or edgelist_minors have "
         "invalid vertex ID(s).");
     }
 
@@ -618,9 +549,9 @@ std::enable_if_t<
   std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
 renumber_edgelist(
   raft::handle_t const& handle,
-  std::optional<std::tuple<vertex_t const*, vertex_t>> local_vertex_span,
-  std::vector<vertex_t*> const& edgelist_major_vertices /* [INOUT] */,
-  std::vector<vertex_t*> const& edgelist_minor_vertices /* [INOUT] */,
+  std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
+  std::vector<vertex_t*> const& edgelist_majors /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_minors /* [INOUT] */,
   std::vector<edge_t> const& edgelist_edge_counts,
   std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check)
@@ -635,17 +566,17 @@ renumber_edgelist(
   auto const col_comm_size = col_comm.get_size();
   auto const col_comm_rank = col_comm.get_rank();
 
-  CUGRAPH_EXPECTS(edgelist_major_vertices.size() == static_cast<size_t>(col_comm_size),
-                  "Invalid input arguments: erroneous edgelist_major_vertices.size().");
-  CUGRAPH_EXPECTS(edgelist_minor_vertices.size() == static_cast<size_t>(col_comm_size),
-                  "Invalid input arguments: erroneous edgelist_minor_vertices.size().");
+  CUGRAPH_EXPECTS(edgelist_majors.size() == static_cast<size_t>(col_comm_size),
+                  "Invalid input arguments: erroneous edgelist_majors.size().");
+  CUGRAPH_EXPECTS(edgelist_minors.size() == static_cast<size_t>(col_comm_size),
+                  "Invalid input arguments: erroneous edgelist_minors.size().");
   CUGRAPH_EXPECTS(edgelist_edge_counts.size() == static_cast<size_t>(col_comm_size),
                   "Invalid input arguments: erroneous edgelist_edge_counts.size().");
   if (edgelist_intra_partition_segment_offsets) {
     CUGRAPH_EXPECTS(
       (*edgelist_intra_partition_segment_offsets).size() == static_cast<size_t>(col_comm_size),
       "Invalid input arguments: erroneous (*edgelist_intra_partition_segment_offsets).size().");
-    for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
+    for (size_t i = 0; i < edgelist_majors.size(); ++i) {
       CUGRAPH_EXPECTS(
         (*edgelist_intra_partition_segment_offsets)[i].size() ==
           static_cast<size_t>(row_comm_size + 1),
@@ -663,19 +594,19 @@ renumber_edgelist(
     }
   }
 
-  std::vector<vertex_t const*> edgelist_const_major_vertices(edgelist_major_vertices.size());
-  std::vector<vertex_t const*> edgelist_const_minor_vertices(edgelist_const_major_vertices.size());
-  for (size_t i = 0; i < edgelist_const_major_vertices.size(); ++i) {
-    edgelist_const_major_vertices[i] = edgelist_major_vertices[i];
-    edgelist_const_minor_vertices[i] = edgelist_minor_vertices[i];
+  std::vector<vertex_t const*> edgelist_const_majors(edgelist_majors.size());
+  std::vector<vertex_t const*> edgelist_const_minors(edgelist_const_majors.size());
+  for (size_t i = 0; i < edgelist_const_majors.size(); ++i) {
+    edgelist_const_majors[i] = edgelist_majors[i];
+    edgelist_const_minors[i] = edgelist_minors[i];
   }
 
   if (do_expensive_check) {
     detail::expensive_check_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
-      local_vertex_span,
-      edgelist_const_major_vertices,
-      edgelist_const_minor_vertices,
+      local_vertices,
+      edgelist_const_majors,
+      edgelist_const_minors,
       edgelist_edge_counts,
       edgelist_intra_partition_segment_offsets);
   }
@@ -687,9 +618,9 @@ renumber_edgelist(
         num_unique_edge_majors,
         num_unique_edge_minors] =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(handle,
-                                                              local_vertex_span,
-                                                              edgelist_const_major_vertices,
-                                                              edgelist_const_minor_vertices,
+                                                              std::move(local_vertices),
+                                                              edgelist_const_majors,
+                                                              edgelist_const_minors,
                                                               edgelist_edge_counts);
 
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges for the coarsened
@@ -718,27 +649,15 @@ renumber_edgelist(
   // FIXME: compare this hash based approach with a binary search based approach in both memory
   // footprint and execution time
 
-  // FIXME: this barrier is unnecessary if the above host_scalar_allgather is a true host operation
-  // (as it serves as a barrier) barrier is necessary here to avoid potential overlap (which can
-  // leads to deadlock) between two different communicators (beginning of col_comm)
-#if 1
-  // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
-  // MPI barrier with MPI)
-  host_barrier(comm, handle.get_stream());
-#else
-  handle.get_stream().synchronize();
-  comm.barrier();  // currently, this is ncclAllReduce
-#endif
-
   {
     vertex_t max_matrix_partition_major_size{0};
-    for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
+    for (size_t i = 0; i < edgelist_majors.size(); ++i) {
       max_matrix_partition_major_size =
         std::max(max_matrix_partition_major_size, partition.get_matrix_partition_major_size(i));
     }
     rmm::device_uvector<vertex_t> renumber_map_major_labels(max_matrix_partition_major_size,
                                                             handle.get_stream());
-    for (size_t i = 0; i < edgelist_major_vertices.size(); ++i) {
+    for (size_t i = 0; i < edgelist_majors.size(); ++i) {
       device_bcast(col_comm,
                    renumber_map_labels.data(),
                    renumber_map_major_labels.data(),
@@ -767,22 +686,11 @@ renumber_edgelist(
         renumber_map_major_labels.begin(),
         thrust::make_counting_iterator(partition.get_matrix_partition_major_first(i))));
       renumber_map.insert(pair_first, pair_first + partition.get_matrix_partition_major_size(i));
-      renumber_map.find(edgelist_major_vertices[i],
-                        edgelist_major_vertices[i] + edgelist_edge_counts[i],
-                        edgelist_major_vertices[i]);
+      renumber_map.find(
+        edgelist_majors[i], edgelist_majors[i] + edgelist_edge_counts[i], edgelist_majors[i]);
     }
   }
 
-  // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
-  // different communicators (beginning of row_comm)
-#if 1
-  // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
-  // MPI barrier with MPI)
-  host_barrier(comm, handle.get_stream());
-#else
-  handle.get_stream().synchronize();
-  comm.barrier();  // currently, this is ncclAllReduce
-#endif
   if ((partition.get_matrix_partition_minor_size() >= number_of_edges / comm_size) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
@@ -820,11 +728,11 @@ renumber_edgelist(
         thrust::make_counting_iterator(
           partition.get_vertex_partition_first(col_comm_rank * row_comm_size + i))));
       renumber_map.insert(pair_first, pair_first + segment_size);
-      for (size_t j = 0; j < edgelist_minor_vertices.size(); ++j) {
+      for (size_t j = 0; j < edgelist_minors.size(); ++j) {
         renumber_map.find(
-          edgelist_minor_vertices[j] + (*edgelist_intra_partition_segment_offsets)[j][i],
-          edgelist_minor_vertices[j] + (*edgelist_intra_partition_segment_offsets)[j][i + 1],
-          edgelist_minor_vertices[j] + (*edgelist_intra_partition_segment_offsets)[j][i]);
+          edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i],
+          edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i + 1],
+          edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i]);
       }
     }
   } else {
@@ -860,22 +768,11 @@ renumber_edgelist(
       renumber_map_minor_labels.begin(),
       thrust::make_counting_iterator(partition.get_matrix_partition_minor_first())));
     renumber_map.insert(pair_first, pair_first + renumber_map_minor_labels.size());
-    for (size_t i = 0; i < edgelist_minor_vertices.size(); ++i) {
-      renumber_map.find(edgelist_minor_vertices[i],
-                        edgelist_minor_vertices[i] + edgelist_edge_counts[i],
-                        edgelist_minor_vertices[i]);
+    for (size_t i = 0; i < edgelist_minors.size(); ++i) {
+      renumber_map.find(
+        edgelist_minors[i], edgelist_minors[i] + edgelist_edge_counts[i], edgelist_minors[i]);
     }
   }
-  // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between two
-  // different communicators (end of row_comm)
-#if 1
-  // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK and
-  // MPI barrier with MPI)
-  host_barrier(comm, handle.get_stream());
-#else
-  handle.get_stream().synchronize();
-  comm.barrier();  // currently, this is ncclAllReduce
-#endif
 
   return std::make_tuple(
     std::move(renumber_map_labels),
@@ -892,18 +789,18 @@ std::enable_if_t<
   !multi_gpu,
   std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
 renumber_edgelist(raft::handle_t const& handle,
-                  std::optional<std::tuple<vertex_t const*, vertex_t>> vertex_span,
-                  vertex_t* edgelist_major_vertices /* [INOUT] */,
-                  vertex_t* edgelist_minor_vertices /* [INOUT] */,
+                  std::optional<rmm::device_uvector<vertex_t>>&& vertices,
+                  vertex_t* edgelist_majors /* [INOUT] */,
+                  vertex_t* edgelist_minors /* [INOUT] */,
                   edge_t num_edgelist_edges,
                   bool do_expensive_check)
 {
   if (do_expensive_check) {
     detail::expensive_check_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
-      vertex_span,
-      std::vector<vertex_t const*>{edgelist_major_vertices},
-      std::vector<vertex_t const*>{edgelist_minor_vertices},
+      vertices,
+      std::vector<vertex_t const*>{edgelist_majors},
+      std::vector<vertex_t const*>{edgelist_minors},
       std::vector<edge_t>{num_edgelist_edges},
       std::nullopt);
   }
@@ -913,9 +810,9 @@ renumber_edgelist(raft::handle_t const& handle,
   std::tie(renumber_map_labels, segment_offsets, std::ignore, std::ignore) =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
       handle,
-      vertex_span,
-      std::vector<vertex_t const*>{edgelist_major_vertices},
-      std::vector<vertex_t const*>{edgelist_minor_vertices},
+      std::move(vertices),
+      std::vector<vertex_t const*>{edgelist_majors},
+      std::vector<vertex_t const*>{edgelist_minors},
       std::vector<edge_t>{num_edgelist_edges});
 
   double constexpr load_factor = 0.7;
@@ -936,10 +833,8 @@ renumber_edgelist(raft::handle_t const& handle,
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(renumber_map_labels.begin(), thrust::make_counting_iterator(vertex_t{0})));
   renumber_map.insert(pair_first, pair_first + renumber_map_labels.size());
-  renumber_map.find(
-    edgelist_major_vertices, edgelist_major_vertices + num_edgelist_edges, edgelist_major_vertices);
-  renumber_map.find(
-    edgelist_minor_vertices, edgelist_minor_vertices + num_edgelist_edges, edgelist_minor_vertices);
+  renumber_map.find(edgelist_majors, edgelist_majors + num_edgelist_edges, edgelist_majors);
+  renumber_map.find(edgelist_minors, edgelist_minors + num_edgelist_edges, edgelist_minors);
 
   return std::make_tuple(std::move(renumber_map_labels),
                          renumber_meta_t<vertex_t, edge_t, multi_gpu>{segment_offsets});
