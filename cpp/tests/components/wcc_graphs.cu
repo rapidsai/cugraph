@@ -64,7 +64,7 @@ LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
 
   thrust::sequence(execution_policy, vertices_v.begin(), vertices_v.end(), vertex_t{0});
 
-  handle.get_stream().synchronize();
+  handle.sync_stream();
 
   return cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(

@@ -1341,7 +1341,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                         d_segment_offsets.data(),
                         d_segment_offsets.size(),
                         handle.get_stream());
-      handle.get_stream().synchronize();
+      handle.sync_stream();
       cur_size += edgelist_edge_counts[i];
     }
 

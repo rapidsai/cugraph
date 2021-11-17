@@ -338,7 +338,7 @@ compute_renumber_map(raft::handle_t const& handle,
                     d_segment_offsets.data(),
                     d_segment_offsets.size(),
                     handle.get_stream());
-  handle.get_stream().synchronize();
+  handle.sync_stream();
 
   return std::make_tuple(std::move(labels),
                          h_segment_offsets,

@@ -112,7 +112,7 @@ std::vector<edge_t> compute_edge_counts(raft::handle_t const& handle,
   std::vector<edge_t> h_edge_counts(num_local_partitions, 0);
   raft::update_host(
     h_edge_counts.data(), d_edge_counts.data(), d_edge_counts.size(), handle.get_stream());
-  handle.get_stream().synchronize();
+  handle.sync_stream();
 
   return h_edge_counts;
 }
@@ -1258,7 +1258,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
   std::vector<size_t> h_edge_counts(edge_counts.size());
   raft::update_host(
     h_edge_counts.data(), edge_counts.data(), edge_counts.size(), handle.get_stream());
-  handle.get_stream().synchronize();
+  handle.sync_stream();
 
   ptr_ret->get_edge_counts().resize(h_edge_counts.size());
   for (size_t i = 0; i < h_edge_counts.size(); ++i) {

@@ -389,7 +389,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
       handle.get_stream());
 
-    handle.get_stream().synchronize();  // cuco::static_map currently does not take stream
+    handle.sync_stream();  // cuco::static_map currently does not take stream
 
     renumber_map_ptr.reset();
 
@@ -407,7 +407,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       sorted_unique_ext_vertices.begin(), int_vertices_for_sorted_unique_ext_vertices.begin()));
     renumber_map_ptr->insert(kv_pair_first, kv_pair_first + sorted_unique_ext_vertices.size());
   } else {
-    handle.get_stream().synchronize();  // cuco::static_map currently does not take stream
+    handle.sync_stream();  // cuco::static_map currently does not take stream
 
     renumber_map_ptr.reset();
 
@@ -553,7 +553,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                       d_tx_int_vertex_offsets.data(),
                       d_tx_int_vertex_offsets.size(),
                       handle.get_stream());
-    handle.get_stream().synchronize();
+    handle.sync_stream();
     std::adjacent_difference(
       h_tx_int_vertex_counts.begin(), h_tx_int_vertex_counts.end(), h_tx_int_vertex_counts.begin());
 
@@ -576,7 +576,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
     std::tie(rx_ext_vertices_for_sorted_unique_int_vertices, std::ignore) =
       shuffle_values(comm, tx_ext_vertices.begin(), rx_int_vertex_counts, handle.get_stream());
 
-    handle.get_stream().synchronize();  // cuco::static_map currently does not take stream
+    handle.sync_stream();  // cuco::static_map currently does not take stream
 
     auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
     auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});

@@ -163,7 +163,7 @@ class Tests_WeaklyConnectedComponent
                         unrenumbered_graph_view.get_number_of_edges(),
                         handle.get_stream());
 
-      handle.get_stream().synchronize();
+      handle.sync_stream();
 
       std::vector<vertex_t> h_reference_components(
         unrenumbered_graph_view.get_number_of_vertices());
@@ -188,7 +188,7 @@ class Tests_WeaklyConnectedComponent
                           d_components.size(),
                           handle.get_stream());
       }
-      handle.get_stream().synchronize();
+      handle.sync_stream();
 
       std::unordered_map<vertex_t, vertex_t> cuda_to_reference_map{};
       for (size_t i = 0; i < h_reference_components.size(); ++i) {

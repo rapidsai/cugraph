@@ -266,7 +266,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                    handle.get_stream());
     }
 
-    handle.get_stream().synchronize();  // cuco::static_map currently does not take stream
+    handle.sync_stream();  // cuco::static_map currently does not take stream
 
     kv_map_ptr.reset();
 
@@ -284,7 +284,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       thrust::make_tuple(map_keys.begin(), get_dataframe_buffer_begin(map_value_buffer)));
     kv_map_ptr->insert(pair_first, pair_first + map_keys.size());
   } else {
-    handle.get_stream().synchronize();  // cuco::static_map currently does not take stream
+    handle.sync_stream();  // cuco::static_map currently does not take stream
 
     kv_map_ptr.reset();
 

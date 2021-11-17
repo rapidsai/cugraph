@@ -342,7 +342,7 @@ class Tests_PageRank
         }
       }
 
-      handle.get_stream().synchronize();
+      handle.sync_stream();
 
       std::vector<result_t> h_reference_pageranks(unrenumbered_graph_view.get_number_of_vertices());
 
@@ -381,7 +381,7 @@ class Tests_PageRank
           h_cugraph_pageranks.data(), d_pageranks.data(), d_pageranks.size(), handle.get_stream());
       }
 
-      handle.get_stream().synchronize();
+      handle.sync_stream();
 
       auto threshold_ratio = 1e-3;
       auto threshold_magnitude =

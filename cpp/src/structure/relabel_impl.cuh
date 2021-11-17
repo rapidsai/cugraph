@@ -105,7 +105,7 @@ void relabel(raft::handle_t const& handle,
 
       // update intermediate relabel map
 
-      handle.get_stream().synchronize();  // cuco::static_map currently does not take stream
+      handle.sync_stream();  // cuco::static_map currently does not take stream
 
       auto poly_alloc =
         rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
@@ -141,7 +141,7 @@ void relabel(raft::handle_t const& handle,
           [key_func] __device__(auto val) { return key_func(val); },
           handle.get_stream());
 
-        handle.get_stream().synchronize();  // cuco::static_map currently does not take stream
+        handle.sync_stream();  // cuco::static_map currently does not take stream
 
         if (skip_missing_labels) {
           thrust::transform(handle.get_thrust_policy(),
@@ -167,7 +167,7 @@ void relabel(raft::handle_t const& handle,
       }
     }
 
-    handle.get_stream().synchronize();  // cuco::static_map currently does not take stream
+    handle.sync_stream();  // cuco::static_map currently does not take stream
 
     {
       auto poly_alloc =

@@ -433,7 +433,7 @@ class VertexFrontier {
         h_indices.data(), d_indices.data(), d_indices.size(), handle_ptr_->get_stream());
       raft::update_host(
         h_counts.data(), d_counts.data(), d_counts.size(), handle_ptr_->get_stream());
-      handle_ptr_->get_stream().synchronize();
+      handle_ptr_->sync_stream();
 
       size_t offset{0};
       for (size_t i = 0; i < h_indices.size(); ++i) {

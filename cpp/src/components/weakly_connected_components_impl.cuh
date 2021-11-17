@@ -149,7 +149,7 @@ accumulate_new_roots(raft::handle_t const& handle,
                         tmp_cumulative_degrees.data() + (tmp_num_new_roots - 1),
                         size_t{1},
                         handle.get_stream());
-      handle.get_stream().synchronize();
+      handle.sync_stream();
       num_scanned += tmp_num_scanned;
       degree_sum += tmp_degree_sum;
     } else {
@@ -438,7 +438,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 #endif
       }
 
-      handle.get_stream().synchronize();
+      handle.sync_stream();
       init_max_new_roots = std::min(init_max_new_roots, max_new_roots);
     }
 

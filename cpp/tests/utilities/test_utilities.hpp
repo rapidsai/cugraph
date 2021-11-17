@@ -263,7 +263,7 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
                         handle.get_stream());
     }
 
-    handle.get_stream().synchronize();
+    handle.sync_stream();
 
     if (lv_ro != rv_ro) return std::make_pair(false, std::string("offsets"));
 
@@ -352,7 +352,7 @@ std::vector<T> to_host(raft::handle_t const& handle, T const* data, L size)
 {
   std::vector<T> h_data(size);
   raft::update_host(h_data.data(), data, size, handle.get_stream());
-  handle.get_stream_view().synchronize();
+  handle.sync_stream();
   return h_data;
 }
 

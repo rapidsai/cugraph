@@ -72,7 +72,7 @@ extract_induced_subgraphs(
     raft::update_host(&should_be_zero, subgraph_offsets, 1, handle.get_stream());
     raft::update_host(
       &num_aggregate_subgraph_vertices, subgraph_offsets + num_subgraphs, 1, handle.get_stream());
-    handle.get_stream().synchronize();
+    handle.sync_stream();
     CUGRAPH_EXPECTS(should_be_zero == 0,
                     "Invalid input argument: subgraph_offsets[0] should be 0.");
 
@@ -127,7 +127,7 @@ extract_induced_subgraphs(
     size_t num_aggregate_subgraph_vertices{};
     raft::update_host(
       &num_aggregate_subgraph_vertices, subgraph_offsets + num_subgraphs, 1, handle.get_stream());
-    handle.get_stream().synchronize();
+    handle.sync_stream();
 
     rmm::device_uvector<size_t> subgraph_vertex_output_offsets(
       num_aggregate_subgraph_vertices + 1,
@@ -174,7 +174,7 @@ extract_induced_subgraphs(
                       subgraph_vertex_output_offsets.data() + num_aggregate_subgraph_vertices,
                       1,
                       handle.get_stream());
-    handle.get_stream().synchronize();
+    handle.sync_stream();
 
     // 2-2. Phase 2: find the edges in the induced subgraphs
 

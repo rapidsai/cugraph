@@ -1095,7 +1095,7 @@ void update_frontier_v_push_if_out_nbr(
                       d_tx_buffer_last_boundaries.data(),
                       d_tx_buffer_last_boundaries.size(),
                       handle.get_stream());
-    handle.get_stream().synchronize();
+    handle.sync_stream();
     std::vector<size_t> tx_counts(h_tx_buffer_last_boundaries.size());
     std::adjacent_difference(
       h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());

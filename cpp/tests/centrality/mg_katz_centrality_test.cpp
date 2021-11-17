@@ -189,7 +189,7 @@ class Tests_MGKatzCentrality
                           d_sg_katz_centralities.size(),
                           handle.get_stream());
 
-        handle.get_stream().synchronize();
+        handle.sync_stream();
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =

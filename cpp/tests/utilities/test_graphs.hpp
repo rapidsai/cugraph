@@ -340,7 +340,7 @@ class PathGraph_Usecase {
     rmm::device_uvector<vertex_t> d_vertices(num_vertices_, handle.get_stream());
     cugraph::detail::sequence_fill(
       handle.get_stream(), d_vertices.data(), num_vertices_, vertex_t{0});
-    handle.get_stream().synchronize();
+    handle.sync_stream();
 
     return std::make_tuple(std::move(src_v),
                            std::move(dst_v),

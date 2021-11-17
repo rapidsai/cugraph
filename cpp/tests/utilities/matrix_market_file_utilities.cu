@@ -316,7 +316,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
 
   auto execution_policy = handle.get_thrust_policy();
   thrust::sequence(execution_policy, d_vertices.begin(), d_vertices.end(), vertex_t{0});
-  handle.get_stream().synchronize();
+  handle.sync_stream();
 
   if (multi_gpu) {
     auto& comm               = handle.get_comms();
@@ -381,7 +381,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
     }
   }
 
-  handle.get_stream().synchronize();
+  handle.sync_stream();
 
   return std::make_tuple(std::move(d_edgelist_rows),
                          std::move(d_edgelist_cols),

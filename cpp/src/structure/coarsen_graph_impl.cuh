@@ -276,7 +276,7 @@ coarsen_graph(
 
     std::vector<size_t> h_counts(counts.size());
     raft::update_host(h_counts.data(), counts.data(), counts.size(), handle.get_stream());
-    handle.get_stream().synchronize();
+    handle.sync_stream();
 
     std::vector<size_t> h_displacements(h_counts.size(), size_t{0});
     std::partial_sum(h_counts.begin(), h_counts.end() - 1, h_displacements.begin() + 1);
