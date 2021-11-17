@@ -46,9 +46,9 @@ def _call_rmat(scale, num_edges, create_using, mg):
     """
     return rmat(scale=scale,
                 num_edges=num_edges,
-                a=0.1,
-                b=0.2,
-                c=0.3,
+                a=0.57,
+                b=0.19,
+                c=0.19,
                 seed=24,
                 clip_and_flip=False,
                 scramble_vertex_ids=True,
