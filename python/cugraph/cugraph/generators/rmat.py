@@ -296,9 +296,9 @@ def rmat(
     >>> df = rmat(
     ...    scale,
     ...    (2**scale)*edgefactor,
-    ...    0.1,
-    ...    0.2,
-    ...    0.3,
+    ...    0.57,
+    ...    0.19,
+    ...    0.19,
     ...    seed or 42,
     ...    clip_and_flip=False,
     ...    scramble_vertex_ids=True,
