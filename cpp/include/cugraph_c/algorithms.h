@@ -101,6 +101,7 @@ cugraph_error_code_t cugraph_pagerank(
  *                          Optionally send in precomputed sume of vertex out weights
  *                          (a performance optimization).  Set to NULL if
  *                          no value is passed.
+ * FIXME:  Make this just [in], copy it if I need to temporarily modify internally
  * @param [in/out]  personalization_vertices Pointer to an array storing personalization vertex
  * identifiers (compute personalized PageRank).  Array might be modified if renumbering is enabled
  * for the graph
@@ -125,6 +126,7 @@ cugraph_error_code_t cugraph_personalized_pagerank(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
+  // FIXME:  Make this const, copy it if I need to temporarily modify internally
   cugraph_type_erased_device_array_t* personalization_vertices,
   const cugraph_type_erased_device_array_t* personalization_values,
   double alpha,
@@ -185,6 +187,7 @@ void cugraph_bfs_result_free(cugraph_bfs_result_t* result);
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph
+ * FIXME:  Make this just [in], copy it if I need to temporarily modify internally
  * @param [in/out]  sources  Array of source vertices.  NOTE: Array might be modified if
  *                           renumbering is enabled for the graph
  * @param [in]  direction_optimizing If set to true, this algorithm switches between the push based
@@ -194,20 +197,82 @@ void cugraph_bfs_result_free(cugraph_bfs_result_t* result);
  * @param depth_limit Sets the maximum number of breadth-first search iterations. Any vertices
  * farther than @p depth_limit hops from @p source_vertex will be marked as unreachable.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @param [out] result       Opaque pointer to pagerank results
+ * @param [out] result       Opaque pointer to bfs results
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* handle,
-                                 cugraph_graph_t* graph,
-                                 cugraph_type_erased_device_array_t* sources,
-                                 bool_t direction_optimizing,
-                                 size_t depth_limit,
-                                 bool_t do_expensive_check,
-                                 bool_t compute_predecessors,
-                                 cugraph_bfs_result_t** result,
-                                 cugraph_error_t** error);
+cugraph_error_code_t cugraph_bfs(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  // FIXME:  Make this const, copy it if I need to temporarily modify internally
+  cugraph_type_erased_device_array_t* sources,
+  bool_t direction_optimizing,
+  size_t depth_limit,
+  bool_t do_expensive_check,
+  bool_t compute_predecessors,
+  cugraph_bfs_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Opaque extract_bfs_paths result type
+ */
+typedef struct {
+  int align_;
+} cugraph_extract_bfs_paths_result_t;
+
+/**
+ * @brief     Extract BFS paths from a BFS result
+ *
+ * This function extracts paths from the BFS output.  BFS outputs distances
+ * and predecessors.  The path from a vertex v back to the original source vertex
+ * can be extracted by recursively looking up the predecessor vertex until you arrive
+ * back at the original source vertex.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  sources      Array of source vertices
+ * @param [in]  bfs_result   Output from the BFS call
+ * @param [in]  destinations Array of destination vertices.
+ * @param [out] result       Opaque pointer to extract_bfs_paths results
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_extract_bfs_paths(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_t* sources,
+  const cugraph_bfs_result_t* bfs_result,
+  const cugraph_type_erased_device_array_t* destinations,
+  cugraph_extract_bfs_paths_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Get the max path length from extract_bfs_paths result
+ *
+ * @param [in]   result   The result from extract_bfs_paths
+ * @return maximum path length
+ */
+size_t cugraph_extract_bfs_paths_result_get_max_path_length(
+  cugraph_extract_bfs_paths_result_t* result);
+
+/**
+ * @brief     Get the matrix (row major order) of paths
+ *
+ * @param [in]   result   The result from extract_bfs_paths
+ * @return type erased array pointing to the matrix in device memory
+ */
+cugraph_type_erased_device_array_t* cugraph_extract_bfs_paths_result_get_paths(
+  cugraph_extract_bfs_paths_result_t* result);
+
+/**
+ * @brief     Free extract_bfs_paths result
+ *
+ * @param [in]   result   The result from extract_bfs_paths
+ */
+void cugraph_extract_bfs_paths_result_free(cugraph_extract_bfs_paths_result_t* result);
 
 #ifdef __cplusplus
 }
