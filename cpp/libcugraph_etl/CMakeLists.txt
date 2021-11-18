@@ -42,8 +42,8 @@ endif()
 # Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
 # cuhornet currently doesn't support
 #
-# >= 86
-set(supported_archs "60" "62" "70" "72" "75" "80")
+# >= 90
+set(supported_archs "60" "62" "70" "72" "75" "80" "86")
 foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
     string(REPLACE "-real" "" arch ${arch})
     if( arch IN_LIST supported_archs )
