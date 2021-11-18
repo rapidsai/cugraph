@@ -53,17 +53,18 @@ T transform_reduce_v(raft::handle_t const& handle,
                      GraphViewType const& graph_view,
                      VertexValueInputIterator vertex_value_input_first,
                      VertexOp v_op,
-                     T init               = T{},
+                     T init,
                      raft::comms::op_t op = raft::comms::op_t::SUM)
 {
+  auto id = identity_element<T>(op);
   auto ret =
-    op_dispatch<T>(op, [&handle, &graph_view, vertex_value_input_first, v_op, init](auto op) {
+    op_dispatch<T>(op, [&handle, &graph_view, vertex_value_input_first, v_op, id, init](auto op) {
       return thrust::transform_reduce(
         handle.get_thrust_policy(),
         vertex_value_input_first,
         vertex_value_input_first + graph_view.get_number_of_local_vertices(),
         v_op,
-        ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? T{} : init,
+        ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? id : init,
         op);
     });
   if (GraphViewType::is_multi_gpu) {

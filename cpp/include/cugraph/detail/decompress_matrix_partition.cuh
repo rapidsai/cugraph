@@ -55,7 +55,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
     auto major =
       matrix_partition.get_major_from_major_offset_nocheck(static_cast<vertex_t>(major_offset));
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     auto local_offset                           = matrix_partition.get_local_offset(major_offset);
@@ -81,7 +81,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
     auto major =
       matrix_partition.get_major_from_major_offset_nocheck(static_cast<vertex_t>(major_offset));
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));

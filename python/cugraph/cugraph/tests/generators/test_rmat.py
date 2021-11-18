@@ -18,7 +18,6 @@ import cudf
 import dask_cudf
 
 from cugraph.dask.common.mg_utils import (is_single_gpu,
-                                          get_visible_devices,
                                           setup_local_dask_cluster,
                                           teardown_local_dask_cluster)
 from cugraph.generators import rmat
@@ -29,7 +28,7 @@ import cugraph
 _cluster = None
 _client = None
 _is_single_gpu = is_single_gpu()
-_visible_devices = get_visible_devices()
+_visible_devices = None
 _scale_values = [2, 4, 16]
 _scale_test_ids = [f"scale={x}" for x in _scale_values]
 _mg_values = [False, True]
@@ -60,8 +59,10 @@ def _call_rmat(scale, num_edges, create_using, mg):
 def setup_module():
     global _cluster
     global _client
+    global _visible_devices
     if not _is_single_gpu:
         (_cluster, _client) = setup_local_dask_cluster(p2p=True)
+        _visible_devices = _client.scheduler_info()['workers']
 
 
 def teardown_module():
