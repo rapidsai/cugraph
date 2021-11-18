@@ -31,6 +31,7 @@ fi
 gpuci_logger "Get conda file output locations"
 
 export LIBCUGRAPH_FILE=`conda build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph --output`
+export LIBCUGRAPH_ETL_FILE=`conda build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph_etl --output`
 export PYLIBCUGRAPH_FILE=`conda build --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON --output`
 export CUGRAPH_FILE=`conda build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON --output`
 
@@ -45,6 +46,10 @@ if [[ "$BUILD_LIBCUGRAPH" == "1" && "$UPLOAD_LIBCUGRAPH" == "1" ]]; then
   echo "Upload libcugraph"
   echo ${LIBCUGRAPH_FILE}
   gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${LIBCUGRAPH_FILE} --no-progress
+  test -e ${LIBCUGRAPH_ETL_FILE}
+  echo "Upload libcugraph_etl"
+  echo ${LIBCUGRAPH_ETL_FILE}
+  gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${LIBCUGRAPH_ETL_FILE} --no-progress
 fi
 
 if [[ "$BUILD_CUGRAPH" == "1" ]]; then

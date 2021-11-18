@@ -91,6 +91,20 @@ if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_logger "Build from source"
     $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph
 else
+<<<<<<< HEAD
+=======
+    # ...cugraph/cpu/conda_work/... is the dir name when only 1 lib* library is
+    # present. For multiple libs (ie. libcugraph and libcugraph_etl), the
+    # "_work" dir is prefixed with the lib name.
+    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/libcugraph_work/cpp/build"
+
+    # Faiss patch
+    echo "Update libcugraph.so"
+    cd $LIBCUGRAPH_BUILD_DIR
+    chrpath -d libcugraph.so
+    patchelf --replace-needed `patchelf --print-needed libcugraph.so | grep faiss` libfaiss.so libcugraph.so
+
+>>>>>>> ee2d9b522c2cb26cfa991e7422a482e91bc6f388
     CONDA_FILE=`find ${CONDA_ARTIFACT_PATH} -name "libcugraph*.tar.bz2"`
     CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
     CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
