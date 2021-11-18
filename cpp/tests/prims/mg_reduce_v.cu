@@ -185,7 +185,7 @@ class Tests_MG_ReduceV
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of reduce_if_v primitive and thrust reduce on a single GPU
+  // Compare the results of reduce_v primitive and thrust reduce on a single GPU
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
@@ -271,7 +271,7 @@ class Tests_MG_ReduceV
       }
     }
 
-    //// 4. compare SG & MG results
+    // 4. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
       cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
