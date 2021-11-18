@@ -66,12 +66,14 @@ conda config --set ssl_verify False
 # BUILD - Conda package builds
 ###############################################################################
 
-gpuci_logger "Build conda package for libcugraph"
+gpuci_logger "Build conda package for libcugraph and libcugraph_etl"
 if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph
+    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph_etl
   else
     gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} --dirty --no-remove-work-dir conda/recipes/libcugraph
+    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} --dirty --no-remove-work-dir conda/recipes/libcugraph_etl
     mkdir -p ${CONDA_BLD_DIR}/libcugraph/work
     cp -r ${CONDA_BLD_DIR}/work/* ${CONDA_BLD_DIR}/libcugraph/work
   fi

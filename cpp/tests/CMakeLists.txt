@@ -232,6 +232,7 @@ function(ConfigureCTest CMAKE_TEST_NAME)
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
             cugraph_c
+            cugraph_c_testutil
     )
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
@@ -357,6 +358,11 @@ ConfigureTest(WEIGHT_SUM_TEST structure/weight_sum_test.cpp)
 ConfigureTest(DEGREE_TEST structure/degree_test.cpp)
 
 ###################################################################################################
+# - Count self-loops and multi-edges tests --------------------------------------------------------
+ConfigureTest(COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
+              "structure/count_self_loops_and_multi_edges_test.cpp")
+
+###################################################################################################
 # - Coarsening tests ------------------------------------------------------------------------------
 ConfigureTest(COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 
@@ -380,6 +386,10 @@ ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu)
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
 ConfigureTest(SSSP_TEST traversal/sssp_test.cpp)
+
+###################################################################################################
+# - HITS tests ------------------------------------------------------------------------------------
+ConfigureTest(HITS_TEST link_analysis/hits_test.cpp)
 
 ###################################################################################################
 # - PAGERANK tests --------------------------------------------------------------------------------
@@ -430,6 +440,10 @@ ConfigureTest(BFS_VISITOR_TEST visitors/bfs_test.cpp)
 ConfigureTest(RANDOM_WALKS_VISITOR_TEST visitors/rw_test.cu)
 
 ###################################################################################################
+# - Core Number tests -----------------------------------------------------------------------------
+ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
+
+###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
@@ -460,8 +474,17 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_TRANSPOSE_STORAGE_TEST structure/mg_transpose_storage_test.cpp)
 
         ###########################################################################################
+        # - MG Count self-loops and multi-edges tests ---------------------------------------------
+        ConfigureTestMG(MG_COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
+              "structure/mg_count_self_loops_and_multi_edges_test.cpp")
+
+        ###########################################################################################
         # - MG PAGERANK tests ---------------------------------------------------------------------
         ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
+
+        ###########################################################################################
+        # - MG HITS tests -------------------------------------------------------------------------
+        ConfigureTestMG(MG_HITS_TEST link_analysis/mg_hits_test.cpp)
 
         ###########################################################################################
         # - MG KATZ CENTRALITY tests --------------------------------------------------------------
@@ -496,6 +519,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_GRAPH_BROADCAST_TEST bcast/mg_graph_bcast.cpp)
 
         ###########################################################################################
+        # - MG Core Number tests ------------------------------------------------------------------
+        ConfigureTestMG(MG_CORE_NUMBER_TEST cores/mg_core_number_test.cpp)
+
+        ###########################################################################################
         # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
 
@@ -519,6 +546,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         # - MG PRIMS COPY_V_TRANSFORM_REDUCE_OUT tests --------------------------------------------
         ConfigureTestMG(MG_COPY_V_TRANSFORM_REDUCE_INOUT_NBR_TEST
           prims/mg_copy_v_transform_reduce_inout_nbr.cu)
+
+        ###########################################################################################
+        # - MG PRIMS EXTRACT_IF_E tests -----------------------------------------------------------
+        ConfigureTestMG(MG_EXTRACT_IF_E_TEST prims/mg_extract_if_e.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()
@@ -527,8 +558,36 @@ endif()
 ###################################################################################################
 # - C API tests -----------------------------------------------------------------------------------
 
-ConfigureCTest(CAPI_CREATE_SG_GRAPH_TEST c_api/create_sg_graph_test.c)
+###################################################################################################
+# - common C API test utils -----------------------------------------------------------------------------
+
+add_library(cugraph_c_testutil STATIC
+            c_api/test_utils.c)
+
+target_compile_options(cugraph_c_testutil
+            PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+                   "$<BUILD_INTERFACE:$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>>"
+)
+
+set_property(TARGET cugraph_c_testutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+target_include_directories(cugraph_c_testutil
+    PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CUGRAPH_SOURCE_DIR}/src"
+)
+
+target_link_libraries(cugraph_c_testutil
+    PUBLIC
+        cugraph
+)
+
+
+ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE_TEST c_api/create_sg_graph_envelope_test.c)
+ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
+ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
+ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################

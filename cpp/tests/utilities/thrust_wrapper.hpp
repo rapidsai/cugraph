@@ -29,19 +29,32 @@ std::tuple<key_buffer_type, value_buffer_type> sort_by_key(raft::handle_t const&
 
 template <typename vertex_t>
 void translate_vertex_ids(raft::handle_t const& handle,
-                          rmm::device_uvector<vertex_t>& d_src_v,
-                          rmm::device_uvector<vertex_t>& d_dst_v,
+                          rmm::device_uvector<vertex_t>& d_src_v /* [INOUT] */,
+                          rmm::device_uvector<vertex_t>& d_dst_v /* [INOUT] */,
                           vertex_t vertex_id_offset);
 
 template <typename vertex_t>
 void populate_vertex_ids(raft::handle_t const& handle,
-                         rmm::device_uvector<vertex_t>& d_vertices_v,
+                         rmm::device_uvector<vertex_t>& d_vertices_v /* [INOUT] */,
                          vertex_t vertex_id_offset);
 
 template <typename T>
 rmm::device_uvector<T> randomly_select(raft::handle_t const& handle,
                                        rmm::device_uvector<T> const& input,
                                        size_t count);
+
+template <typename vertex_t, typename weight_t>
+void remove_self_loops(raft::handle_t const& handle,
+                       rmm::device_uvector<vertex_t>& d_src_v /* [INOUT] */,
+                       rmm::device_uvector<vertex_t>& d_dst_v /* [INOUT] */,
+                       std::optional<rmm::device_uvector<weight_t>>& d_weight_v /* [INOUT] */);
+
+template <typename vertex_t, typename weight_t>
+void sort_and_remove_multi_edges(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>& d_src_v /* [INOUT] */,
+  rmm::device_uvector<vertex_t>& d_dst_v /* [INOUT] */,
+  std::optional<rmm::device_uvector<weight_t>>& d_weight_v /* [INOUT] */);
 
 }  // namespace test
 }  // namespace cugraph

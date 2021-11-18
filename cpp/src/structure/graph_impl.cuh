@@ -1270,10 +1270,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   }
   auto number_of_local_edges =
     std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
-  std::vector<vertex_t> vertex_partition_lasts(comm_size);
-  for (int i = 0; i < comm_size; ++i) {
-    vertex_partition_lasts[i] = graph_view.get_vertex_partition_last(i);
-  }
+  auto vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
 
   rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());

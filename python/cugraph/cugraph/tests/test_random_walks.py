@@ -12,12 +12,13 @@
 # limitations under the License.
 
 import gc
+import random
 
 import pytest
+from cudf.testing import assert_series_equal
 
 from cugraph.tests import utils
 import cugraph
-import random
 
 
 # =============================================================================
@@ -158,7 +159,7 @@ def test_random_walks_coalesced(
     v_offsets = [0] + path_data[2].cumsum()[:-1].to_array().tolist()
     w_offsets = [0] + (path_data[2]-1).cumsum()[:-1].to_array().tolist()
 
-    assert df['weight_sizes'].equals(path_data[2]-1)
+    assert_series_equal(df['weight_sizes'], path_data[2]-1, check_names=False)
     assert df['vertex_offsets'].to_array().tolist() == v_offsets
     assert df['weight_offsets'].to_array().tolist() == w_offsets
 

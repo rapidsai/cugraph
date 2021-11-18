@@ -18,7 +18,6 @@
 
 from cugraph.centrality.betweenness_centrality cimport edge_betweenness_centrality as c_edge_betweenness_centrality
 from cugraph.structure import graph_primtypes_wrapper
-from cugraph.structure.graph_classes import DiGraph, Graph
 from cugraph.structure.graph_primtypes cimport *
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool
@@ -166,8 +165,7 @@ def batch_edge_betweenness_centrality(input_graph,
     comms = Comms.get_comms()
     replicated_adjlists = input_graph.batch_adjlists
     work_futures =  [client.submit(run_mg_work,
-                                   (data, type(input_graph)
-                                   is DiGraph),
+                                   (data, input_graph.is_directed()),
                                    normalized,
                                    weights,
                                    vertices,
@@ -188,7 +186,7 @@ def sg_edge_betweenness_centrality(input_graph, normalized, weights,
     handle = Comms.get_default_handle()
     adjlist = input_graph.adjlist
     input_data = ((adjlist.offsets, adjlist.indices, adjlist.weights),
-                  type(input_graph) is DiGraph)
+                  input_graph.is_directed())
     df = run_internal_work(handle, input_data, normalized, weights,
                            vertices, result_dtype)
     return df
