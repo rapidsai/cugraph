@@ -32,6 +32,7 @@ build:
 requirements:
   build:
     - cmake>=3.20.1
+    - doxygen>=1.8.11
     - cudatoolkit {{ cuda_version }}.*
     - cudf {{ minor_version }}.*
     - libcugraph {{ minor_version }}.*
