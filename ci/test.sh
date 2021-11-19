@@ -57,8 +57,12 @@ fi
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     cd ${CUGRAPH_ROOT}/cpp/build
 else
-    export LD_LIBRARY_PATH="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build:$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
-    cd $WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build
+    # ...cugraph/cpu/conda_work/... is the dir name when only 1 lib* library is
+    # present. For multiple libs (ie. libcugraph and libcugraph_etl), the
+    # "_work" dir is prefixed with the lib name.
+    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/libcugraph_work/cpp/build"
+    export LD_LIBRARY_PATH="$LIBCUGRAPH_BUILD_DIR:$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
+    cd $LIBCUGRAPH_BUILD_DIR
 fi
 
 # Do not abort the script on error from this point on. This allows all tests to

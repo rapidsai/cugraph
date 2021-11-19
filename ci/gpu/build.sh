@@ -91,7 +91,10 @@ if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_logger "Build from source"
     $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph
 else
-    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build"
+    # ...cugraph/cpu/conda_work/... is the dir name when only 1 lib* library is
+    # present. For multiple libs (ie. libcugraph and libcugraph_etl), the
+    # "_work" dir is prefixed with the lib name.
+    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/libcugraph_work/cpp/build"
 
     # Faiss patch
     echo "Update libcugraph.so"
@@ -103,7 +106,7 @@ else
     CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
     CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
     echo "Installing $CONDA_FILE"
-    conda install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
+    gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
 
     gpuci_logger "Install the master version of dask and distributed"
     pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps

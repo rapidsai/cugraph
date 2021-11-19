@@ -293,7 +293,7 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
       auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
       auto row_idx    = row_start_offset + *row_hypersparse_idx;
       vertex_t const* indices{nullptr};
-      thrust::optional<weight_t const*> weights{nullptr};
+      thrust::optional<weight_t const*> weights{thrust::nullopt};
       edge_t local_out_degree{};
       thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_idx);
       for (edge_t i = 0; i < local_out_degree; ++i) {
@@ -360,7 +360,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
     }
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = 0; i < local_out_degree; ++i) {
@@ -428,7 +428,7 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
     }
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = lane_id; i < local_out_degree; i += raft::warp_size()) {
@@ -494,7 +494,7 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
     }
     auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = threadIdx.x; i < local_out_degree; i += blockDim.x) {
