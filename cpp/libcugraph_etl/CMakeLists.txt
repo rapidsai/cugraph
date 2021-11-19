@@ -39,26 +39,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
     message(FATAL_ERROR "GCC compiler must be at least 9.3")
 endif()
 
-# Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
-# cuhornet currently doesn't support
-#
-# >= 90
-set(supported_archs "60" "62" "70" "72" "75" "80" "86")
-foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
-    string(REPLACE "-real" "" arch ${arch})
-    if( arch IN_LIST supported_archs )
-        list(APPEND usable_arch_values ${arch})
-    endif()
-endforeach()
-# Make sure everything but the 'newest' arch
-# is marked as `-real` so we only generate PTX for
-# arch > 80
-list(POP_BACK usable_arch_values latest_arch)
-list(TRANSFORM usable_arch_values APPEND "-real")
-list(APPEND usable_arch_values ${latest_arch})
-
-set(CMAKE_CUDA_ARCHITECTURES ${usable_arch_values})
-
 # Write the version header
 rapids_cmake_write_version_file(include/cugraph_etl/version_config.hpp)
 
