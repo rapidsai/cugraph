@@ -52,7 +52,7 @@ foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
 endforeach()
 # Make sure everything but the 'newest' arch
 # is marked as `-real` so we only generate PTX for
-# arch > 80
+# arch > 86
 list(POP_BACK usable_arch_values latest_arch)
 list(TRANSFORM usable_arch_values APPEND "-real")
 if (usable_arch_values)
