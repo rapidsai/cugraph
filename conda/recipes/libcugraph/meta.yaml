@@ -49,6 +49,7 @@ requirements:
     - ucx-proc=*=gpu
     - faiss-proc=*=cuda
     - libfaiss 1.7.0 *_cuda
+    - libcusolver>=11.2.1
 
 about:
   home: http://rapids.ai/
