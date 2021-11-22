@@ -153,7 +153,8 @@ typedef struct {
  * @param [in]   result   The result from bfs or sssp
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_t* cugraph_paths_result_get_vertices(cugraph_paths_result_t* result);
+cugraph_type_erased_device_array_t* cugraph_paths_result_get_vertices(
+  cugraph_paths_result_t* result);
 
 /**
  * @brief     Get the distances from the paths result
@@ -161,7 +162,8 @@ cugraph_type_erased_device_array_t* cugraph_paths_result_get_vertices(cugraph_pa
  * @param [in]   result   The result from bfs or sssp
  * @return type erased array of distances
  */
-cugraph_type_erased_device_array_t* cugraph_paths_result_get_distances(cugraph_paths_result_t* result);
+cugraph_type_erased_device_array_t* cugraph_paths_result_get_distances(
+  cugraph_paths_result_t* result);
 
 /**
  * @brief     Get the predecessors from the paths result
@@ -243,14 +245,13 @@ typedef struct {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_extract_paths(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_t* sources,
-  const cugraph_paths_result_t* paths_result,
-  const cugraph_type_erased_device_array_t* destinations,
-  cugraph_extract_paths_result_t** result,
-  cugraph_error_t** error);
+cugraph_error_code_t cugraph_extract_paths(const cugraph_resource_handle_t* handle,
+                                           cugraph_graph_t* graph,
+                                           const cugraph_type_erased_device_array_t* sources,
+                                           const cugraph_paths_result_t* paths_result,
+                                           const cugraph_type_erased_device_array_t* destinations,
+                                           cugraph_extract_paths_result_t** result,
+                                           cugraph_error_t** error);
 
 /**
  * @brief     Get the max path length from extract_paths result
@@ -258,8 +259,7 @@ cugraph_error_code_t cugraph_extract_paths(
  * @param [in]   result   The result from extract_paths
  * @return maximum path length
  */
-size_t cugraph_extract_paths_result_get_max_path_length(
-  cugraph_extract_paths_result_t* result);
+size_t cugraph_extract_paths_result_get_max_path_length(cugraph_extract_paths_result_t* result);
 
 /**
  * @brief     Get the matrix (row major order) of paths
