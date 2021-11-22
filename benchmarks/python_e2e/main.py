@@ -62,7 +62,8 @@ def run(algos,
         symmetric=False,
         edgefactor=None,
         benchmark_dir=None,
-        dask_scheduler_file=None):
+        dask_scheduler_file=None,
+        rmm_pool_size=None):
     """
     Run the nightly benchmark on cugraph.
     Return True on success, False on failure.
@@ -100,7 +101,7 @@ def run(algos,
     # Call the global setup. This is used for setting up Dask, initializing
     # output files/reports, etc.
     log("calling setup...", end="")
-    setup_objs = funcs.setup(dask_scheduler_file)
+    setup_objs = funcs.setup(dask_scheduler_file, rmm_pool_size)
 
     # If the number of GPUs is None, This is a MNMG run
     # Extract the number of gpus from the client
@@ -179,6 +180,9 @@ if __name__ == "__main__":
                     "(num_edges=num_verts*EDGEFACTOR).")
     ap.add_argument("--benchmark-dir", type=str, default=None,
                     help="directory to store the results in json files")
+    ap.add_argument("--rmm-pool-size", type=str, default=None,
+                    help="RMM pool size to initialize each worker with")
+
 
     args = ap.parse_args()
 
@@ -190,6 +194,7 @@ if __name__ == "__main__":
                    symmetric=args.symmetric_graph,
                    edgefactor=args.edgefactor,
                    benchmark_dir=args.benchmark_dir,
-                   dask_scheduler_file=args.dask_scheduler_file)
+                   dask_scheduler_file=args.dask_scheduler_file,
+                   rmm_pool_size=args.rmm_pool_size)
 
     sys.exit(exitcode)
