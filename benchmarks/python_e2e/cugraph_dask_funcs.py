@@ -25,6 +25,8 @@ from cugraph.dask.common.mg_utils import get_visible_devices
 from cugraph.generators import rmat
 import tempfile
 
+import rmm
+
 
 def generate_edgelist(scale,
                       edgefactor,
@@ -153,7 +155,7 @@ def katz(G, alpha=None):
 ################################################################################
 # Session-wide setup and teardown
 
-def setup(dask_scheduler_file=None):
+def setup(dask_scheduler_file=None, rmm_pool_size=None):
     if dask_scheduler_file:
         cluster = None
         # Env var UCX_MAX_RNDV_RAILS=1 must be set too.
@@ -167,7 +169,7 @@ def setup(dask_scheduler_file=None):
 
     else:
         tempdir_object = tempfile.TemporaryDirectory()
-        cluster = LocalCUDACluster(local_directory=tempdir_object.name)
+        cluster = LocalCUDACluster(local_directory=tempdir_object.name, rmm_pool_size=rmm_pool_size)
         client = Client(cluster)
         # add the obj to the client so it doesn't get deleted until
         # the 'client' obj gets cleaned up
