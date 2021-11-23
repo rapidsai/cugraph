@@ -88,7 +88,6 @@ int generic_bfs_test_with_extract_paths(vertex_t* h_src,
   size_t max_path_length = cugraph_extract_paths_result_get_max_path_length(p_extract_paths_result);
   cugraph_type_erased_device_array_t* paths =
     cugraph_extract_paths_result_get_paths(p_extract_paths_result);
-  cugraph_extract_paths_result_free(p_extract_paths_result);
 
   size_t paths_size = cugraph_type_erased_device_array_size(paths);
   vertex_t h_paths[paths_size];
@@ -102,6 +101,8 @@ int generic_bfs_test_with_extract_paths(vertex_t* h_src,
   }
 
   cugraph_type_erased_device_array_free(p_sources);
+  cugraph_type_erased_device_array_free(p_destinations);
+  cugraph_extract_paths_result_free(p_extract_paths_result);
   cugraph_paths_result_free(p_paths_result);
   cugraph_sg_graph_free(p_graph);
   cugraph_free_handle(p_handle);
@@ -119,9 +120,9 @@ int test_bfs_with_extract_paths()
   vertex_t dst[]                    = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t wgt[]                    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t seeds[]                  = {0};
-  vertex_t destinations[]           = {2, 5};
+  vertex_t destinations[]           = {5};
   vertex_t expected_max_path_length = 4;
-  vertex_t expected_paths[]         = {0, 1, 3, 5, 0, 1, 4, 5};
+  vertex_t expected_paths[]         = {0, 1, 3, 5};
 
   // Bfs wants store_transposed = FALSE
   return generic_bfs_test_with_extract_paths(src,
@@ -134,7 +135,7 @@ int test_bfs_with_extract_paths()
                                              num_vertices,
                                              num_edges,
                                              1,
-                                             2,
+                                             1,
                                              10,
                                              FALSE);
 }
@@ -148,9 +149,9 @@ int test_bfs_with_extract_paths_with_transpose()
   vertex_t dst[]                    = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t wgt[]                    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t seeds[]                  = {5};
-  vertex_t destinations[]           = {0, 2};
+  vertex_t destinations[]           = {0};
   vertex_t expected_max_path_length = 4;
-  vertex_t expected_paths[]         = {5, 3, 1, 0, 5, 4, 1, 0};
+  vertex_t expected_paths[]         = {5, 3, 1, 0};
 
   // Bfs wants store_transposed = FALSE
   //    This call will force cugraph_bfs to transpose the graph
@@ -164,7 +165,7 @@ int test_bfs_with_extract_paths_with_transpose()
                                              num_vertices,
                                              num_edges,
                                              1,
-                                             2,
+                                             1,
                                              10,
                                              TRUE);
 }

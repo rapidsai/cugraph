@@ -41,9 +41,10 @@ struct cugraph_type_erased_device_array_t {
   }
 
   template <typename T>
-  cugraph_type_erased_device_array_t(rmm::device_uvector<T>&& vec, data_type_id_t type)
-    : data_(vec.release()), size_(vec.size()), type_(type)
+  cugraph_type_erased_device_array_t(rmm::device_uvector<T>& vec, data_type_id_t type)
+    : size_(vec.size()), type_(type)
   {
+    data_ = vec.release();
   }
 
   template <typename T>
