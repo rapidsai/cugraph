@@ -65,8 +65,8 @@ int test_random_walks_1()
   cugraph_unique_ptr_t* p_sampling_strategy = NULL;
   vertex_t h_start[]                        = {0, 2};
 
-  p_handle = cugraph_create_handle();
-  runtime_assert(p_handle != NULL, "raft handle creation failed.");
+  p_handle = cugraph_create_resource_handle();
+  runtime_assert(p_handle != NULL, "resource handle creation failed.");
 
   ret_code = cugraph_make_device_buffer(p_handle, vertex_tid, num_edges, &dbuf_src);
   runtime_assert(ret_code == CUGRAPH_SUCCESS, "src device_buffer creation failed.");
@@ -134,7 +134,7 @@ int test_random_walks_1()
 
   cugraph_free_device_buffer(&dbuf_src);
 
-  cugraph_free_handle(p_handle);
+  cugraph_free_resource_handle(p_handle);
 
   return 0;
 }
@@ -224,8 +224,8 @@ int test_random_walks_2()
   edge_t h_sizes[NUM_PATHS];
   vertex_t h_paths[NUM_PATHS * MAX_DEPTH];
 
-  p_handle = cugraph_create_handle();
-  runtime_assert(p_handle != NULL, "raft handle creation failed.");
+  p_handle = cugraph_create_resource_handle();
+  runtime_assert(p_handle != NULL, "resource handle creation failed.");
 
   ret_code = cugraph_make_device_buffer(p_handle, vertex_tid, num_edges, &dbuf_src);
   runtime_assert(ret_code == CUGRAPH_SUCCESS, "src device_buffer creation failed.");
@@ -306,7 +306,7 @@ int test_random_walks_2()
 
   cugraph_free_device_buffer(&dbuf_src);
 
-  cugraph_free_handle(p_handle);
+  cugraph_free_resource_handle(p_handle);
 
   return 0;
 }
@@ -349,8 +349,8 @@ int test_random_walks_3()
   dbuf_start.data_ = NULL;
   dbuf_start.size_ = 0;
 
-  p_handle = cugraph_create_handle();
-  runtime_assert(p_handle != NULL, "raft handle creation failed.");
+  p_handle = cugraph_create_resource_handle();
+  runtime_assert(p_handle != NULL, "resource handle creation failed.");
 
   ret_code = cugraph_make_device_buffer(p_handle, vertex_tid, num_edges, &dbuf_src);
   runtime_assert(ret_code == CUGRAPH_SUCCESS, "src device_buffer creation failed.");
@@ -413,7 +413,7 @@ int test_random_walks_3()
 
   cugraph_free_device_buffer(&dbuf_src);
 
-  cugraph_free_handle(p_handle);
+  cugraph_free_resource_handle(p_handle);
 
   /* because bools and err return codes from programs have opposite meaning...*/
   if (flag_failed)

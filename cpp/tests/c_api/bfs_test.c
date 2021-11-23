@@ -47,8 +47,8 @@ int generic_bfs_test(vertex_t* h_src,
   cugraph_paths_result_t* p_result              = NULL;
   cugraph_type_erased_device_array_t* p_sources = NULL;
 
-  p_handle = cugraph_create_handle();
-  TEST_ASSERT(test_ret_value, p_handle != NULL, "raft handle creation failed.");
+  p_handle = cugraph_create_resource_handle();
+  TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
     p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
@@ -102,7 +102,7 @@ int generic_bfs_test(vertex_t* h_src,
   cugraph_type_erased_device_array_free(p_sources);
   cugraph_paths_result_free(p_result);
   cugraph_sg_graph_free(p_graph);
-  cugraph_free_handle(p_handle);
+  cugraph_free_resource_handle(p_handle);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

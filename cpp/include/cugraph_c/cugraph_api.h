@@ -161,10 +161,10 @@ cugraph_error_code_t cugraph_update_host_buffer(const cugraph_resource_handle_t*
                                                 const cugraph_device_buffer_t* ptr_src);
 
 /* raft::handle_t allocator (for now; possibly a more encompassing handle in the future)*/
-cugraph_resource_handle_t* cugraph_create_handle(void);
+cugraph_resource_handle_t* cugraph_create_resource_handle(void);
 
 /* raft::handle_t deallocator*/
-void cugraph_free_handle(cugraph_resource_handle_t* p_handle);
+void cugraph_free_resource_handle(cugraph_resource_handle_t* p_handle);
 
 #ifdef __cplusplus
 }
