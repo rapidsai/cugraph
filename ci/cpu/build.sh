@@ -83,6 +83,7 @@ if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
     gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} --dirty --no-remove-work-dir conda/recipes/libcugraph_etl
     mkdir -p ${CONDA_BLD_DIR}/libcugraph/work
     cp -r ${CONDA_BLD_DIR}/work/* ${CONDA_BLD_DIR}/libcugraph/work
+    rm -rf ${CONDA_BLD_DIR}/work
   fi
 else
   gpuci_logger "SKIPPING build of conda package for libcugraph and libcugraph_etl"
@@ -91,11 +92,14 @@ fi
 if [ "$BUILD_CUGRAPH" == "1" ]; then
   gpuci_logger "Building conda packages for pylibcugraph and cugraph"
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
-    gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON
-    gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON
+    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON
+    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON
   else
-    gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph -c ci/artifacts/cugraph/cpu/.conda-bld/ --dirty --no-remove-work-dir --python=$PYTHON
-    gpuci_conda_retry build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph -c ci/artifacts/cugraph/cpu/.conda-bld/ --dirty --no-remove-work-dir --python=$PYTHON
+    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph -c $CONDA_BLD_DIR --dirty --no-remove-work-dir --python=$PYTHON
+    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph -c $CONDA_BLD_DIR --dirty --no-remove-work-dir --python=$PYTHON
+    mkdir -p ${CONDA_BLD_DIR}/cugraph/work
+    cp -r ${CONDA_BLD_DIR}/work/ ${CONDA_BLD_DIR}/cugraph/work
+    rm -rf ${CONDA_BLD_DIR}/work
   fi
 else
   gpuci_logger "SKIPPING build of conda packages for pylibcugraph and cugraph"
