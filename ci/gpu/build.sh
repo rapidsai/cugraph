@@ -108,9 +108,15 @@ else
     echo "Installing $CONDA_FILE"
     gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
 
-    # FIXME: also install the python package here (see FIXME in cpu build
+    # FIXME: also install the python packages here (see FIXME in cpu build
     # script, and below)
     CONDA_FILE=`find ${CONDA_ARTIFACT_PATH} -name "cugraph*.tar.bz2"`
+    CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
+    CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
+    echo "Installing $CONDA_FILE"
+    gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
+
+    CONDA_FILE=`find ${CONDA_ARTIFACT_PATH} -name "pylibcugraph*.tar.bz2"`
     CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
     CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
     echo "Installing $CONDA_FILE"
@@ -155,6 +161,8 @@ else
     else
         TEST_MODE_FLAG=""
     fi
+
+    export UCX_HANDLE_ERRORS=none
 
     gpuci_logger "Running cuGraph test.sh..."
     ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt
