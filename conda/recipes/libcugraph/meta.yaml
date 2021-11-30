@@ -33,6 +33,7 @@ build:
 requirements:
   build:
     - cmake>=3.20.1
+    - doxygen>=1.8.11
     - cudatoolkit {{ cuda_version }}.*
     - librmm {{ minor_version }}.*
     - cudf {{ minor_version }}.*
@@ -49,6 +50,7 @@ requirements:
     - ucx-proc=*=gpu
     - faiss-proc=*=cuda
     - libfaiss 1.7.0 *_cuda
+    - libcusolver>=11.2.1
 
 about:
   home: http://rapids.ai/
