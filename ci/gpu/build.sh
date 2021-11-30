@@ -108,30 +108,12 @@ else
     echo "Installing $CONDA_FILE"
     gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
 
-    # FIXME: also install the python packages here (see FIXME in cpu build
-    # script, and below)
-    CONDA_FILE=`find ${CONDA_ARTIFACT_PATH} -name "cugraph*.tar.bz2"`
-    CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
-    CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
-    echo "Installing $CONDA_FILE"
-    gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
-
-    CONDA_FILE=`find ${CONDA_ARTIFACT_PATH} -name "pylibcugraph*.tar.bz2"`
-    CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
-    CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
-    echo "Installing $CONDA_FILE"
-    gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
-
     gpuci_logger "Install the master version of dask and distributed"
     pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
     pip install "git+https://github.com/dask/dask.git" --upgrade --no-deps
 
-    # FIXME: do not build the python packages on the gpu (test)
-    # machine. Instead, assume they were built from the cpu script and installed
-    # above. This is needed to ensure all packages were built on the same CUDA
-    # 11.5 machine using Enhanced Compat.
-    #echo "Build pylibcugraph and cugraph..."
-    #$WORKSPACE/build.sh pylibcugraph cugraph
+    echo "Build pylibcugraph and cugraph..."
+    $WORKSPACE/build.sh pylibcugraph cugraph
 fi
 
 ################################################################################
@@ -161,8 +143,6 @@ else
     else
         TEST_MODE_FLAG=""
     fi
-
-    export UCX_HANDLE_ERRORS=none
 
     gpuci_logger "Running cuGraph test.sh..."
     ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt

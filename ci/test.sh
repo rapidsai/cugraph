@@ -65,8 +65,6 @@ else
     cd $LIBCUGRAPH_BUILD_DIR
 fi
 
-echo "env var UCX_HANDLE_ERRORS set to: $UCX_HANDLE_ERRORS"
-
 # Do not abort the script on error from this point on. This allows all tests to
 # run regardless of pass/fail, but relies on the ERR trap above to manage the
 # EXITCODE for the script.
