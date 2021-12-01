@@ -172,7 +172,8 @@ def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
 
 
 def create_obj_from_csv(
-    csv_file_name, obj_type, csv_has_weights=True, edgevals=False, directed=False
+    csv_file_name, obj_type, csv_has_weights=True, edgevals=False,
+    directed=False
 ):
     """
     Return an object based on obj_type populated with the contents of

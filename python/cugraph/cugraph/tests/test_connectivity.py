@@ -355,7 +355,6 @@ def test_strong_cc(gpubenchmark, dataset_nxresults_strong,
                                   cugraph.strongly_connected_components,
                                   input_G_or_matrix)
 
-
     assert isinstance(input_G_or_matrix, cugraph_input_type)
 
     # while cugraph returns a component label for each vertex;
