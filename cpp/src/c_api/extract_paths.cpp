@@ -90,7 +90,8 @@ struct extract_paths_functor : public abstract_functor {
                  destinations_->size_,
                  handle_.get_stream());
 
-      rmm::device_uvector<vertex_t> predecessors(paths_result_->predecessors_->size_, handle_.get_stream());
+      rmm::device_uvector<vertex_t> predecessors(paths_result_->predecessors_->size_,
+                                                 handle_.get_stream());
       raft::copy(predecessors.data(),
                  paths_result_->predecessors_->as_type<vertex_t>(),
                  paths_result_->predecessors_->size_,
