@@ -86,6 +86,7 @@ python/_external_repositories/
 
 # created by Dask tests
 python/dask-worker-space
+python/cugraph/dask-worker-space
 python/cugraph/cugraph/dask-worker-space
 python/cugraph/cugraph/tests/dask-worker-space
 
