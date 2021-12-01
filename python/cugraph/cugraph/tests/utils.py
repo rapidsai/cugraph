@@ -135,7 +135,7 @@ CUGRAPH_INPUT_TYPES = [
 
 CUGRAPH_DIR_INPUT_TYPES = [
     pytest.param(
-        cugraph.Graph, marks=pytest.mark.cugraph_types, id="cugraph.DiGraph"
+        cugraph.DiGraph, marks=pytest.mark.cugraph_types, id="cugraph.DiGraph"
     ),
 ]
 
@@ -306,7 +306,11 @@ def generate_nx_graph_from_file(graph_file, directed=True, edgevals=False):
 def generate_cugraph_graph_from_file(graph_file, directed=True,
                                      edgevals=False):
     cu_M = read_csv_file(graph_file)
-    G = cugraph.Graph(directed=directed)
+
+    if directed is False:
+        G = cugraph.Graph()
+    else:
+        G = cugraph.DiGraph()
 
     if edgevals:
         G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
