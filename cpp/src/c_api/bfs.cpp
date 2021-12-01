@@ -132,8 +132,8 @@ struct bfs_functor : public abstract_functor {
 
       result_ = new cugraph_paths_result_t{
         new cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
-        new cugraph_type_erased_device_array_t(distances, graph_->weight_type_),
-        new cugraph_type_erased_device_array_t(predecessors, graph_->weight_type_)};
+        new cugraph_type_erased_device_array_t(distances, graph_->vertex_type_),
+        new cugraph_type_erased_device_array_t(predecessors, graph_->vertex_type_)};
     }
   }
 };
