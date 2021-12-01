@@ -135,7 +135,7 @@ CUGRAPH_INPUT_TYPES = [
 
 CUGRAPH_DIR_INPUT_TYPES = [
     pytest.param(
-        cugraph.DiGraph, marks=pytest.mark.cugraph_types, id="cugraph.DiGraph"
+        cugraph.Graph, marks=pytest.mark.cugraph_types, id="cugraph.DiGraph"
     ),
 ]
 
@@ -172,16 +172,16 @@ def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
 
 
 def create_obj_from_csv(
-    csv_file_name, obj_type, csv_has_weights=True, edgevals=False
+    csv_file_name, obj_type, csv_has_weights=True, edgevals=False, directed=False
 ):
     """
     Return an object based on obj_type populated with the contents of
     csv_file_name
     """
-    if obj_type in [cugraph.Graph, cugraph.DiGraph]:
+    if obj_type is cugraph.Graph:
         return generate_cugraph_graph_from_file(
             csv_file_name,
-            directed=(obj_type is cugraph.DiGraph),
+            directed=directed,
             edgevals=edgevals,
         )
 
@@ -319,7 +319,7 @@ def generate_mg_batch_cugraph_graph_from_file(graph_file, directed=True):
     client = get_client()
     _ddf = read_dask_cudf_csv_file(graph_file)
     ddf = client.persist(_ddf)
-    G = cugraph.DiGraph() if directed else cugraph.Graph()
+    G = cugraph.Graph(directed=directed)
     G.from_dask_cudf_edgelist(ddf)
     return G
 
