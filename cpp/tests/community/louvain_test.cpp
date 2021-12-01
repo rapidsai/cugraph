@@ -63,7 +63,7 @@ class Tests_Louvain
     // this is the behavior while we still support Pascal (device_prop.major < 7)
     //
     cudaDeviceProp device_prop;
-    CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+    RAFT_CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
 
     if (device_prop.major < 7) {
       EXPECT_THROW(louvain(graph_view,
@@ -103,7 +103,7 @@ class Tests_Louvain
     // this is the behavior while we still support Pascal (device_prop.major < 7)
     //
     cudaDeviceProp device_prop;
-    CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+    RAFT_CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
 
     if (device_prop.major < 7) {
       EXPECT_THROW(louvain(graph_view,
