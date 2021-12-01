@@ -178,10 +178,10 @@ def create_obj_from_csv(
     Return an object based on obj_type populated with the contents of
     csv_file_name
     """
-    if obj_type is cugraph.Graph:
+    if obj_type in [cugraph.Graph, cugraph.DiGraph]:
         return generate_cugraph_graph_from_file(
             csv_file_name,
-            directed=directed,
+            directed=(obj_type is cugraph.DiGraph),
             edgevals=edgevals,
         )
 
