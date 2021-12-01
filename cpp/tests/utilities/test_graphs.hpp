@@ -17,6 +17,7 @@
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/functions.hpp>  // legacy coo_to_csr
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_generators.hpp>
 
@@ -561,5 +562,26 @@ construct_graph(raft::handle_t const& handle,
       renumber);
 }
 
+namespace legacy {
+
+template <typename vertex_t, typename edge_t, typename weight_t, typename input_usecase_t>
+std::unique_ptr<cugraph::legacy::GraphCSR<vertex_t, edge_t, weight_t>> construct_graph_csr(
+  raft::handle_t const& handle, input_usecase_t const& input_usecase, bool test_weighted)
+{
+  auto [d_src_v, d_dst_v, d_weight_v, d_vertices_v, num_vertices, is_symmetric] =
+    input_usecase.template construct_edgelist<vertex_t, edge_t, weight_t, false, false>(
+      handle, test_weighted);
+
+  cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> cooview(
+    d_src_v.data(),
+    d_dst_v.data(),
+    d_weight_v ? d_weight_v->data() : nullptr,
+    num_vertices,
+    static_cast<edge_t>(d_src_v.size()));
+
+  return cugraph::coo_to_csr(cooview);
+}
+
+}  // namespace legacy
 }  // namespace test
 }  // namespace cugraph
