@@ -52,6 +52,8 @@ conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11
 # for CUDA 11.4
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.4.yml
 
+# for CUDA 11.5
+conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.5.yml
 
 # activate the environment
 conda activate cugraph_dev
@@ -65,11 +67,8 @@ conda deactivate
 
 ```bash
 
-# for CUDA 11.0
-conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.0.yml
-
-# for CUDA 11.2
-conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.2.yml
+# Where XXX is the CUDA 11 version
+conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.XXX.yml
 
 conda activate cugraph_dev
 ```
