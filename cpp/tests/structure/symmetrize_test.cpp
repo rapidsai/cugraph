@@ -192,7 +192,7 @@ class Tests_Symmetrize
     HighResClock hr_clock{};
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -201,7 +201,7 @@ class Tests_Symmetrize
         handle, input_usecase, symmetrize_usecase.test_weighted, renumber);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -216,7 +216,7 @@ class Tests_Symmetrize
     }
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -224,7 +224,7 @@ class Tests_Symmetrize
       graph.symmetrize(handle, std::move(d_renumber_map_labels), symmetrize_usecase.reciprocal);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "Symmetrize took " << elapsed_time * 1e-6 << " s.\n";

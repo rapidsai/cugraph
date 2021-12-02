@@ -223,7 +223,7 @@ class Tests_CoreNumber
     HighResClock hr_clock{};
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -232,7 +232,7 @@ class Tests_CoreNumber
         handle, input_usecase, false, renumber, true, true);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -246,7 +246,7 @@ class Tests_CoreNumber
                                                handle.get_stream());
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -258,7 +258,7 @@ class Tests_CoreNumber
                          core_number_usecase.k_last);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "Core Number took " << elapsed_time * 1e-6 << " s.\n";

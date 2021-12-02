@@ -95,7 +95,7 @@ vertex_t get_total_number_of_sources(raft::handle_t const& handle, vertex_t loca
                                  raft::comms::op_t::SUM,
                                  handle.get_stream());
     total_number_of_sources_used = d_number_of_sources.value(handle.get_stream());
-    // CUDA_TRY(
+    // RAFT_CHECK_CUDA(
     // cudaMemcpy(&total_number_of_sources_used, data, sizeof(vertex_t), cudaMemcpyDeviceToHost));
   }
   return total_number_of_sources_used;
@@ -237,7 +237,8 @@ void BC<vertex_t, edge_t, weight_t, result_t>::compute_single_source(vertex_t so
   auto current_max_depth =
     thrust::max_element(handle_.get_thrust_policy(), distances_, distances_ + number_of_vertices_);
   vertex_t max_depth = 0;
-  CUDA_TRY(cudaMemcpy(&max_depth, current_max_depth, sizeof(vertex_t), cudaMemcpyDeviceToHost));
+  RAFT_CHECK_CUDA(
+    cudaMemcpy(&max_depth, current_max_depth, sizeof(vertex_t), cudaMemcpyDeviceToHost));
   // Step 2) Dependency accumulation
   accumulate(source_vertex, max_depth);
 }

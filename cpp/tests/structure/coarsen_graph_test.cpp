@@ -279,18 +279,18 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
     rmm::device_uvector<vertex_t> d_labels(h_labels.size(), handle.get_stream());
     raft::update_device(d_labels.data(), h_labels.data(), h_labels.size(), handle.get_stream());
 
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    RAFT_CHECK_CUDA(cudaStreamSynchronize(handle.get_stream()));
 
     std::unique_ptr<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>>
       coarse_graph{};
     rmm::device_uvector<vertex_t> coarse_vertices_to_labels(0, handle.get_stream());
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
 
     std::tie(coarse_graph, coarse_vertices_to_labels) =
       cugraph::coarsen_graph(handle, graph_view, d_labels.begin());
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
 
     std::vector<edge_t> h_org_offsets(graph_view.get_number_of_vertices() + 1);
     std::vector<vertex_t> h_org_indices(graph_view.get_number_of_edges());
@@ -338,7 +338,7 @@ class Tests_CoarsenGraph : public ::testing::TestWithParam<CoarsenGraph_Usecase>
                       coarse_vertices_to_labels.size(),
                       handle.get_stream());
 
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    RAFT_CHECK_CUDA(cudaStreamSynchronize(handle.get_stream()));
 
     check_coarsened_graph_results(h_org_offsets.data(),
                                   h_org_indices.data(),

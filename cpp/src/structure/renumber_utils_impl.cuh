@@ -189,7 +189,7 @@ void unrenumber_local_int_edges(
                    i,
                    handle.get_stream());
 
-      CUDA_TRY(cudaStreamSynchronize(
+      RAFT_CHECK_CUDA(cudaStreamSynchronize(
         handle.get_stream()));  // cuco::static_map currently does not take stream
 
       auto poly_alloc =
@@ -248,7 +248,7 @@ void unrenumber_local_int_edges(
                    i,
                    handle.get_stream());
 
-      CUDA_TRY(cudaStreamSynchronize(
+      RAFT_CHECK_CUDA(cudaStreamSynchronize(
         handle.get_stream()));  // cuco::static_map currently does not take stream
 
       auto poly_alloc =
@@ -297,7 +297,7 @@ void unrenumber_local_int_edges(
                       displacements,
                       handle.get_stream());
 
-    CUDA_TRY(cudaStreamSynchronize(
+    RAFT_CHECK_CUDA(cudaStreamSynchronize(
       handle.get_stream()));  // cuco::static_map currently does not take stream
 
     auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());

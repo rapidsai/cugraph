@@ -84,7 +84,7 @@ class Tests_MGCoreNumber
     // 2. create MG graph
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -94,7 +94,7 @@ class Tests_MGCoreNumber
         handle, input_usecase, false, true, true, true);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -109,7 +109,7 @@ class Tests_MGCoreNumber
                                                   handle.get_stream());
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -122,7 +122,7 @@ class Tests_MGCoreNumber
                          core_number_usecase.k_last);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);

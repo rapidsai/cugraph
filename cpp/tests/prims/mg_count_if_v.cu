@@ -89,7 +89,7 @@ class Tests_MG_CountIfV
     // 2. create MG graph
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -98,7 +98,7 @@ class Tests_MG_CountIfV
         handle, input_usecase, true, true);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -112,7 +112,7 @@ class Tests_MG_CountIfV
     // 3. run MG count if
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -122,7 +122,7 @@ class Tests_MG_CountIfV
       count_if_v(handle, mg_graph_view, data, test_predicate<vertex_t>(hash_bin_count));
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);

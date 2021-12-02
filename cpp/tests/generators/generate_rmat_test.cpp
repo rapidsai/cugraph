@@ -176,7 +176,7 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
       rmm::device_uvector<vertex_t> d_srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> d_dsts(0, handle.get_stream());
 
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
 
       std::tie(d_srcs, d_dsts) = cugraph::generate_rmat_edgelist<vertex_t>(
         handle,
@@ -189,14 +189,14 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
         configuration.clip_and_flip);
       // static_cast<bool>(scramble));
 
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
 
       std::vector<vertex_t> h_cugraph_srcs(d_srcs.size());
       std::vector<vertex_t> h_cugraph_dsts(d_dsts.size());
 
       raft::update_host(h_cugraph_srcs.data(), d_srcs.data(), d_srcs.size(), handle.get_stream());
       raft::update_host(h_cugraph_dsts.data(), d_dsts.data(), d_dsts.size(), handle.get_stream());
-      CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+      RAFT_CHECK_CUDA(cudaStreamSynchronize(handle.get_stream()));
 
       ASSERT_TRUE(
         (h_cugraph_srcs.size() == (size_t{1} << configuration.scale) * configuration.edge_factor) &&
@@ -318,7 +318,7 @@ class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecas
   {
     raft::handle_t handle{};
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
 
     auto outputs = cugraph::generate_rmat_edgelists<vertex_t>(handle,
                                                               configuration.n_edgelists,
@@ -329,7 +329,7 @@ class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecas
                                                               configuration.edge_distribution,
                                                               uint64_t{0});
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
     ASSERT_EQ(configuration.n_edgelists, outputs.size());
     for (auto i = outputs.begin(); i != outputs.end(); ++i) {
       ASSERT_EQ(std::get<0>(*i).size(), std::get<1>(*i).size());

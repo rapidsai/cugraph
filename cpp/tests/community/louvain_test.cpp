@@ -140,7 +140,7 @@ class Tests_Louvain
     std::tie(level, modularity) =
       cugraph::louvain(handle, graph_view, clustering_v.data(), size_t{100}, weight_t{1});
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
 
     float compare_modularity = static_cast<float>(modularity);
 
@@ -216,7 +216,7 @@ TEST(louvain_legacy, success)
 
     raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-    CUDA_TRY(cudaDeviceSynchronize());
+    RAFT_CHECK_CUDA(cudaDeviceSynchronize());
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 
@@ -287,7 +287,7 @@ TEST(louvain_legacy_renumbered, success)
 
     raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-    CUDA_TRY(cudaDeviceSynchronize());
+    RAFT_CHECK_CUDA(cudaDeviceSynchronize());
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 

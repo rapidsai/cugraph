@@ -75,7 +75,7 @@ class Tests_MGSymmetrize
     // 2. create MG graph
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -85,7 +85,7 @@ class Tests_MGSymmetrize
         handle, input_usecase, symmetrize_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -95,7 +95,7 @@ class Tests_MGSymmetrize
     // 3. run MG symmetrize
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -104,7 +104,7 @@ class Tests_MGSymmetrize
       handle, std::move(*d_mg_renumber_map_labels), symmetrize_usecase.reciprocal);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);

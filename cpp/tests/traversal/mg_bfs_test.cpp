@@ -78,7 +78,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
     // 2. create MG graph
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -88,7 +88,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
         handle, input_usecase, false, true);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -109,7 +109,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                                                     handle.get_stream());
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -129,7 +129,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                  std::numeric_limits<vertex_t>::max());
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);

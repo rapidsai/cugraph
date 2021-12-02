@@ -77,7 +77,7 @@ TEST(leiden_karate, success)
 
     raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-    CUDA_TRY(cudaDeviceSynchronize());
+    RAFT_CHECK_CUDA(cudaDeviceSynchronize());
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 

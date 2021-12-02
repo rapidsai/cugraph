@@ -25,9 +25,9 @@ namespace detail {
 inline int getMultiProcessorCount()
 {
   int devId;
-  CUDA_TRY(cudaGetDevice(&devId));
+  RAFT_CHECK_CUDA(cudaGetDevice(&devId));
   int mpCount;
-  CUDA_TRY(cudaDeviceGetAttribute(&mpCount, cudaDevAttrMultiProcessorCount, devId));
+  RAFT_CHECK_CUDA(cudaDeviceGetAttribute(&mpCount, cudaDevAttrMultiProcessorCount, devId));
   return mpCount;
 }
 

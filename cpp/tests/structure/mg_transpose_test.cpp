@@ -74,7 +74,7 @@ class Tests_MGTranspose
     // 2. create MG graph
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -84,7 +84,7 @@ class Tests_MGTranspose
         handle, input_usecase, transpose_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -94,7 +94,7 @@ class Tests_MGTranspose
     // 3. run MG transpose
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -102,7 +102,7 @@ class Tests_MGTranspose
     *d_mg_renumber_map_labels = mg_graph.transpose(handle, std::move(*d_mg_renumber_map_labels));
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);

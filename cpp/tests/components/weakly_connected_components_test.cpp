@@ -107,7 +107,7 @@ class Tests_WeaklyConnectedComponent
     HighResClock hr_clock{};
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -116,7 +116,7 @@ class Tests_WeaklyConnectedComponent
         handle, input_usecase, false, renumber);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -130,14 +130,14 @@ class Tests_WeaklyConnectedComponent
                                                handle.get_stream());
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
     cugraph::weakly_connected_components(handle, graph_view, d_components.data());
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CHECK_CUDA(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "weakly_connected_components took " << elapsed_time * 1e-6 << " s.\n";

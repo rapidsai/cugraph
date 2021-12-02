@@ -970,7 +970,7 @@ struct coo_convertor_t {
       handle_.get_thrust_policy(), d_sizes.begin(), d_sizes.end(), d_scan.begin());
 
     index_t total_sz{0};
-    CUDA_TRY(cudaMemcpy(
+    RAFT_CHECK_CUDA(cudaMemcpy(
       &total_sz, raw_ptr(d_scan) + num_paths_ - 1, sizeof(index_t), cudaMemcpyDeviceToHost));
 
     device_vec_t<int> d_stencil(total_sz, handle_.get_stream());
