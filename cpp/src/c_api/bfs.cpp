@@ -29,7 +29,7 @@
 namespace cugraph {
 namespace c_api {
 
-struct cugraph_bfs_result_t {
+struct cugraph_paths_result_t {
   cugraph_type_erased_device_array_t* vertex_ids_;
   cugraph_type_erased_device_array_t* distances_;
   cugraph_type_erased_device_array_t* predecessors_;
@@ -43,7 +43,7 @@ struct bfs_functor : public abstract_functor {
   size_t depth_limit_;
   bool do_expensive_check_;
   bool compute_predecessors_;
-  cugraph_bfs_result_t* result_{};
+  cugraph_paths_result_t* result_{};
 
   bfs_functor(raft::handle_t const& handle,
               cugraph_graph_t* graph,
@@ -135,7 +135,7 @@ struct bfs_functor : public abstract_functor {
                                                      do_expensive_check_);
       }
 
-      result_ = new cugraph_bfs_result_t{
+      result_ = new cugraph_paths_result_t{
         new cugraph_type_erased_device_array_t(std::move(vertex_ids), graph_->vertex_type_),
         new cugraph_type_erased_device_array_t(std::move(distances), graph_->weight_type_),
         new cugraph_type_erased_device_array_t(std::move(predecessors), graph_->weight_type_)};
@@ -146,30 +146,30 @@ struct bfs_functor : public abstract_functor {
 }  // namespace c_api
 }  // namespace cugraph
 
-extern "C" cugraph_type_erased_device_array_t* cugraph_bfs_result_get_vertices(
-  cugraph_bfs_result_t* result)
+extern "C" cugraph_type_erased_device_array_t* cugraph_paths_result_get_vertices(
+  cugraph_paths_result_t* result)
 {
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_bfs_result_t*>(result);
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_paths_result_t*>(result);
   return reinterpret_cast<cugraph_type_erased_device_array_t*>(internal_pointer->vertex_ids_);
 }
 
-extern "C" cugraph_type_erased_device_array_t* cugraph_bfs_result_get_distances(
-  cugraph_bfs_result_t* result)
+extern "C" cugraph_type_erased_device_array_t* cugraph_paths_result_get_distances(
+  cugraph_paths_result_t* result)
 {
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_bfs_result_t*>(result);
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_paths_result_t*>(result);
   return reinterpret_cast<cugraph_type_erased_device_array_t*>(internal_pointer->distances_);
 }
 
-extern "C" cugraph_type_erased_device_array_t* cugraph_bfs_result_get_predecessors(
-  cugraph_bfs_result_t* result)
+extern "C" cugraph_type_erased_device_array_t* cugraph_paths_result_get_predecessors(
+  cugraph_paths_result_t* result)
 {
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_bfs_result_t*>(result);
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_paths_result_t*>(result);
   return reinterpret_cast<cugraph_type_erased_device_array_t*>(internal_pointer->predecessors_);
 }
 
-extern "C" void cugraph_bfs_result_free(cugraph_bfs_result_t* result)
+extern "C" void cugraph_paths_result_free(cugraph_paths_result_t* result)
 {
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_bfs_result_t*>(result);
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_paths_result_t*>(result);
   delete internal_pointer->vertex_ids_;
   delete internal_pointer->distances_;
   delete internal_pointer->predecessors_;
@@ -183,7 +183,7 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
                                             size_t depth_limit,
                                             bool_t do_expensive_check,
                                             bool_t compute_predecessors,
-                                            cugraph_bfs_result_t** result,
+                                            cugraph_paths_result_t** result,
                                             cugraph_error_t** error)
 {
   *result = nullptr;
@@ -217,7 +217,7 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
       return functor.error_code_;
     }
 
-    *result = reinterpret_cast<cugraph_bfs_result_t*>(functor.result_);
+    *result = reinterpret_cast<cugraph_paths_result_t*>(functor.result_);
   } catch (std::exception const& ex) {
     *error = reinterpret_cast<cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ex.what()});
     return CUGRAPH_UNKNOWN_ERROR;
