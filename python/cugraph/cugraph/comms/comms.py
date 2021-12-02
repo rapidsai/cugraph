@@ -26,10 +26,10 @@ __subcomm = None
 
 
 def __get_2D_div(ngpus):
-    pcols = int(math.sqrt(ngpus))
-    while ngpus % pcols != 0:
-        pcols = pcols - 1
-    return int(ngpus/pcols), pcols
+    prows = int(math.sqrt(ngpus))
+    while ngpus % prows != 0:
+        prows = prows - 1
+    return prows, int(ngpus/prows)
 
 
 def subcomm_init(prows, pcols, partition_type):
