@@ -67,7 +67,7 @@ conda deactivate
 
 ```bash
 
-# Wherer XXX is the CUDA 11 version
+# Where XXX is the CUDA 11 version
 conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.XXX.yml
 
 conda activate cugraph_dev
