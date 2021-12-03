@@ -318,6 +318,6 @@ def _initialize_vertices_from_identifiers_list(G, identifiers):
     if G.renumbered:
         vertices = G.lookup_internal_vertex_id(
             cudf.Series(vertices)
-        ).to_array()
+        ).to_numpy()
 
     return vertices

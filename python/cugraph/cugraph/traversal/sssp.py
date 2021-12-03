@@ -101,13 +101,13 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
                 return (cp.fromDlpack(sorted_df["distance"].to_dlpack()),
                         cp.fromDlpack(sorted_df["predecessor"].to_dlpack()))
             else:
-                return (sorted_df["distance"].to_array(),
-                        sorted_df["predecessor"].to_array())
+                return (sorted_df["distance"].to_numpy(),
+                        sorted_df["predecessor"].to_numpy())
         else:
             if is_cp_matrix_type(input_type):
                 return cp.fromDlpack(sorted_df["distance"].to_dlpack())
             else:
-                return sorted_df["distance"].to_array()
+                return sorted_df["distance"].to_numpy()
     else:
         raise TypeError(f"input type {input_type} is not a supported type.")
 

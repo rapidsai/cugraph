@@ -50,8 +50,8 @@ int test_create_sg_graph_simple()
   data_type_id_t edge_tid   = INT32;
   data_type_id_t weight_tid = FLOAT32;
 
-  p_handle = cugraph_create_handle();
-  TEST_ASSERT(test_ret_value, p_handle != NULL, "raft handle creation failed.");
+  p_handle = cugraph_create_resource_handle();
+  TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   cugraph_type_erased_device_array_t* src;
   cugraph_type_erased_device_array_t* dst;
@@ -96,7 +96,7 @@ int test_create_sg_graph_simple()
 
   cugraph_type_erased_device_array_free(src);
 
-  cugraph_free_handle(p_handle);
+  cugraph_free_resource_handle(p_handle);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

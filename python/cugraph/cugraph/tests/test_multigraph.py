@@ -113,7 +113,7 @@ def test_multigraph_sssp(graph_file):
     )
     nx_paths = nx.single_source_dijkstra_path_length(Gnx, 0)
 
-    cu_dist = cu_paths.sort_values(by='vertex')['distance'].to_array()
+    cu_dist = cu_paths.sort_values(by='vertex')['distance'].to_numpy()
     nx_dist = [i[1] for i in sorted(nx_paths.items())]
 
     assert (cu_dist == nx_dist).all()
