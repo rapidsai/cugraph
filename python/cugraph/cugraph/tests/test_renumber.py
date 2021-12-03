@@ -47,7 +47,8 @@ def test_renumber_ips():
 
     renumbered_gdf, renumber_map = NumberMap.renumber(gdf,
                                                       "source_as_int",
-                                                      "dest_as_int")
+                                                      "dest_as_int",
+                                                      preserve_order=True)
 
     check_src = renumber_map.from_internal_vertex_id(renumbered_gdf['src']
                                                      )["0"]
@@ -82,7 +83,8 @@ def test_renumber_ips_cols():
 
     renumbered_gdf, renumber_map = NumberMap.renumber(gdf,
                                                       ["source_as_int"],
-                                                      ["dest_as_int"])
+                                                      ["dest_as_int"],
+                                                      preserve_order=True)
 
     check_src = renumber_map.from_internal_vertex_id(renumbered_gdf['src']
                                                      )["0"]
@@ -115,7 +117,8 @@ def test_renumber_ips_str_cols():
 
     renumbered_gdf, renumber_map = NumberMap.renumber(gdf,
                                                       ["source_as_int"],
-                                                      ["dest_as_int"])
+                                                      ["dest_as_int"],
+                                                      preserve_order=True)
 
     check_src = renumber_map.from_internal_vertex_id(renumbered_gdf['src']
                                                      )["0"]
@@ -136,7 +139,8 @@ def test_renumber_negative():
 
     renumbered_gdf, renumber_map = NumberMap.renumber(gdf,
                                                       "source_list",
-                                                      "dest_list")
+                                                      "dest_list",
+                                                      preserve_order=True)
 
     check_src = renumber_map.from_internal_vertex_id(renumbered_gdf['src']
                                                      )["0"]
@@ -157,7 +161,8 @@ def test_renumber_negative_col():
 
     renumbered_gdf, renumber_map = NumberMap.renumber(gdf,
                                                       "source_list",
-                                                      "dest_list")
+                                                      "dest_list",
+                                                      preserve_order=True)
 
     check_src = renumber_map.from_internal_vertex_id(renumbered_gdf['src']
                                                      )["0"]
