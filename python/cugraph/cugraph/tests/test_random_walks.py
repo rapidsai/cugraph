@@ -92,7 +92,7 @@ def check_random_walks(path_data, seeds, df_G=None):
     offsets_idx = 0
     next_path_idx = 0
     v_paths = path_data[0]
-    sizes = path_data[2].to_array().tolist()
+    sizes = path_data[2].to_numpy().tolist()
 
     for s in sizes:
         for i in range(next_path_idx, next_path_idx+s-1):
@@ -156,12 +156,12 @@ def test_random_walks_coalesced(
 
     # Check path query output
     df = cugraph.rw_path(len(seeds), path_data[2])
-    v_offsets = [0] + path_data[2].cumsum()[:-1].to_array().tolist()
-    w_offsets = [0] + (path_data[2]-1).cumsum()[:-1].to_array().tolist()
+    v_offsets = [0] + path_data[2].cumsum()[:-1].to_numpy().tolist()
+    w_offsets = [0] + (path_data[2]-1).cumsum()[:-1].to_numpy().tolist()
 
     assert_series_equal(df['weight_sizes'], path_data[2]-1, check_names=False)
-    assert df['vertex_offsets'].to_array().tolist() == v_offsets
-    assert df['weight_offsets'].to_array().tolist() == w_offsets
+    assert df['vertex_offsets'].to_numpy().tolist() == v_offsets
+    assert df['weight_offsets'].to_numpy().tolist() == w_offsets
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
@@ -208,7 +208,7 @@ def test_random_walks(
                          edge_attr="weight")
 
     k = random.randint(1, 10)
-    start_vertices = random.sample(G.nodes().to_array().tolist(), k)
+    start_vertices = random.sample(G.nodes().to_numpy().tolist(), k)
 
     seeds = cudf.DataFrame()
     seeds['v'] = start_vertices
