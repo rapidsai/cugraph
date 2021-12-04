@@ -29,7 +29,7 @@ requirements:
     - cython>=0.29,<0.30
     - libcugraph={{ version }}
     - cudf={{ minor_version }}
-    - ucx-py 0.23
+    - ucx-py 0.24
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
   run:
@@ -40,7 +40,7 @@ requirements:
     - dask-cuda {{ minor_version }}
     - dask>=2021.09.1,<=2021.11.2
     - distributed>=2021.09.1,<=2021.11.2
-    - ucx-py 0.23
+    - ucx-py 0.24
     - ucx-proc=*=gpu
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
 
