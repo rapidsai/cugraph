@@ -1417,6 +1417,64 @@ random_walks(raft::handle_t const& handle,
              std::unique_ptr<sampling_params_t> sampling_strategy = nullptr);
 
 /**
+ * @brief generate sub-sampled graph in CSR format given input graph, list of vertices
+ * and sample size per vertex. The output graph consists of the given vertices
+ * with each vertex having at most `sample_size` neighbors from the original graph
+ *
+ * @tparam graph_t Type of input graph/view (typically, graph_view_t).
+ * @tparam index_t Type used to store indexing and sizes.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph Graph (view )object to sub-sample.
+ * @param ptr_d_start Device pointer to set of starting vertex indices for the sub-sampling.
+ * @param num_vertices = number(vertices) to use for sub-sampling.
+ * @param sampling_size = max number of neighbors per output vertex.
+ * @param sampling_type = the sampling type (algo R/algo L/etc.) used to produce outputs.
+ * @return std::tuple<rmm::device_uvector<typename graph_t::edge_type>,
+ *                    rmm::device_uvector<typename graph_t::vertex_type>>
+ * Tuple consisting of two arrays representing the offsets and indices of
+ * the sub-sampled graph.
+ */
+template <typename graph_t, typename index_t>
+std::tuple<rmm::device_uvector<typename graph_t::edge_type>,
+           rmm::device_uvector<typename graph_t::vertex_type>>
+neighbor_sampling_csr(raft::handle_t const& handle,
+                      graph_t const& graph,
+                      typename graph_t::vertex_type const* ptr_d_start,
+                      index_t num_vertices,
+                      index_t sampling_size,
+                      ops::sampling::SampleTypeT sampling_type);
+
+/**
+ * @brief generate sub-sampled graph in COO format given input graph, list of vertices
+ * and sample size per vertex. The output graph consists of the given vertices
+ * with each vertex having at most `sample_size` neighbors from the original graph
+ *
+ * @tparam graph_t Type of input graph/view (typically, graph_view_t).
+ * @tparam index_t Type used to store indexing and sizes.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph Graph (view )object to sub-sample.
+ * @param ptr_d_start Device pointer to set of starting vertex indices for the sub-sampling.
+ * @param num_vertices = number(vertices) to use for sub-sampling.
+ * @param sampling_size = max number of neighbors per output vertex.
+ * @param sampling_type = the sampling type (algo R/algo L/etc.) used to produce outputs.
+ * @return std::tuple<rmm::device_uvector<typename graph_t::edge_type>,
+ *                    rmm::device_uvector<typename graph_t::vertex_type>>
+ * Tuple consisting of two arrays representing the source and destination nodes of
+ * the sub-sampled graph.
+ */
+template <typename graph_t, typename index_t>
+std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
+           rmm::device_uvector<typename graph_t::vertex_type>>
+neighbor_sampling_coo(raft::handle_t const& handle,
+                      graph_t const& graph,
+                      typename graph_t::vertex_type const* ptr_d_start,
+                      index_t num_vertices,
+                      index_t sampling_size,
+                      ops::sampling::SampleTypeT sampling_type);
+
+/**
  * @brief Finds (weakly-connected-)component IDs of each vertices in the input graph.
  *
  * The input graph must be symmetric. Component IDs can be arbitrary integers (they can be
