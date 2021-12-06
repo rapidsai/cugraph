@@ -182,6 +182,9 @@ def setup(dask_scheduler_file=None, rmm_pool_size=None):
 
 def teardown(client, cluster=None):
     Comms.destroy()
-    client.close()
+    # Shutdown the connected scheduler and workers
+    # therefore we will no longer rely on killing the dask cluster ID
+    # for MNMG runs
+    client.shutdown()
     if cluster:
         cluster.close()
