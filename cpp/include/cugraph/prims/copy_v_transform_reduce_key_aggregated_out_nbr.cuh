@@ -315,73 +315,108 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.get_matrix_partition_view(i));
 
-    rmm::device_uvector<vertex_t> tmp_major_vertices(matrix_partition.get_number_of_edges(),
-                                                     handle.get_stream());
-    rmm::device_uvector<vertex_t> tmp_minor_keys(tmp_major_vertices.size(), handle.get_stream());
-    rmm::device_uvector<weight_t> tmp_key_aggregated_edge_weights(
-      graph_view.is_weighted() ? tmp_major_vertices.size() : size_t{0}, handle.get_stream());
+    rmm::device_uvector<vertex_t> tmp_major_vertices(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> tmp_minor_keys(0, handle.get_stream());
+    rmm::device_uvector<weight_t> tmp_key_aggregated_edge_weights(0, handle.get_stream());
 
-    if (matrix_partition.get_major_size() > 0) {
+    if (matrix_partition.get_number_of_edges() > 0) {
       auto minor_key_first = thrust::make_transform_iterator(
         matrix_partition.get_indices(),
         detail::minor_to_key_t<AdjMatrixColKeyInputWrapper>{adj_matrix_col_key_input,
                                                             matrix_partition.get_minor_first()});
       auto execution_policy = handle.get_thrust_policy();
+      tmp_minor_keys.resize(matrix_partition.get_number_of_edges(), handle.get_stream());
       thrust::copy(execution_policy,
                    minor_key_first,
                    minor_key_first + matrix_partition.get_number_of_edges(),
                    tmp_minor_keys.begin());
+      rmm::device_uvector<vertex_t> unreduced_minor_keys(matrix_partition.get_number_of_edges(),
+                                                         handle.get_stream());
+      rmm::device_uvector<weight_t> unreduced_key_aggregated_edge_weights(
+        graph_view.is_weighted() ? unreduced_minor_keys.size() : size_t{0}, handle.get_stream());
+      size_t tmp_storage_bytes{0};
       if (graph_view.is_weighted()) {
-        thrust::copy(execution_policy,
-                     *(matrix_partition.get_weights()),
-                     *(matrix_partition.get_weights()) + matrix_partition.get_number_of_edges(),
-                     tmp_key_aggregated_edge_weights.begin());
+        cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
+                                            tmp_storage_bytes,
+                                            tmp_minor_keys.begin(),
+                                            unreduced_minor_keys.begin(),
+                                            *(matrix_partition.get_weights()),
+                                            unreduced_key_aggregated_edge_weights.begin(),
+                                            tmp_minor_keys.size(),
+                                            matrix_partition.get_major_size(),
+                                            matrix_partition.get_offsets(),
+                                            matrix_partition.get_offsets() + 1,
+                                            handle.get_stream());
+      } else {
+        cub::DeviceSegmentedSort::SortKeys(static_cast<void*>(nullptr),
+                                           tmp_storage_bytes,
+                                           tmp_minor_keys.begin(),
+                                           unreduced_minor_keys.begin(),
+                                           tmp_minor_keys.size(),
+                                           matrix_partition.get_major_size(),
+                                           matrix_partition.get_offsets(),
+                                           matrix_partition.get_offsets() + 1,
+                                           handle.get_stream());
       }
+      auto d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
+      if (graph_view.is_weighted()) {
+        cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
+                                            tmp_storage_bytes,
+                                            tmp_minor_keys.begin(),
+                                            unreduced_minor_keys.begin(),
+                                            *(matrix_partition.get_weights()),
+                                            unreduced_key_aggregated_edge_weights.begin(),
+                                            tmp_minor_keys.size(),
+                                            matrix_partition.get_major_size(),
+                                            matrix_partition.get_offsets(),
+                                            matrix_partition.get_offsets() + 1,
+                                            handle.get_stream());
+      } else {
+        cub::DeviceSegmentedSort::SortKeys(d_tmp_storage.data(),
+                                           tmp_storage_bytes,
+                                           tmp_minor_keys.begin(),
+                                           unreduced_minor_keys.begin(),
+                                           tmp_minor_keys.size(),
+                                           matrix_partition.get_major_size(),
+                                           matrix_partition.get_offsets(),
+                                           matrix_partition.get_offsets() + 1,
+                                           handle.get_stream());
+      }
+      d_tmp_storage.resize(0, handle.get_stream());
+      d_tmp_storage.shrink_to_fit(handle.get_stream());
+      rmm::device_uvector<vertex_t> unreduced_major_vertices(matrix_partition.get_number_of_edges(),
+                                                             handle.get_stream());
       detail::decompress_matrix_partition_to_fill_edgelist_majors(
         handle,
         matrix_partition,
-        tmp_major_vertices.data(),
+        unreduced_major_vertices.data(),
         graph_view.get_local_adj_matrix_partition_segment_offsets(i));
-      rmm::device_uvector<vertex_t> reduced_major_vertices(tmp_major_vertices.size(),
-                                                           handle.get_stream());
-      rmm::device_uvector<vertex_t> reduced_minor_keys(reduced_major_vertices.size(),
-                                                       handle.get_stream());
-      rmm::device_uvector<weight_t> reduced_key_aggregated_edge_weights(
-        reduced_major_vertices.size(), handle.get_stream());
+      tmp_major_vertices.resize(matrix_partition.get_number_of_edges(), handle.get_stream());
+      tmp_key_aggregated_edge_weights.resize(tmp_major_vertices.size(), handle.get_stream());
       size_t reduced_size{};
-      // FIXME: cub segmented sort may be more efficient as this is already sorted by major
       auto input_key_first = thrust::make_zip_iterator(
-        thrust::make_tuple(tmp_major_vertices.begin(), tmp_minor_keys.begin()));
+        thrust::make_tuple(unreduced_major_vertices.begin(), unreduced_minor_keys.begin()));
       auto output_key_first = thrust::make_zip_iterator(
-        thrust::make_tuple(reduced_major_vertices.begin(), reduced_minor_keys.begin()));
+        thrust::make_tuple(tmp_major_vertices.begin(), tmp_minor_keys.begin()));
       if (graph_view.is_weighted()) {
-        thrust::sort_by_key(execution_policy,
-                            input_key_first,
-                            input_key_first + tmp_major_vertices.size(),
-                            tmp_key_aggregated_edge_weights.begin());
         reduced_size = thrust::distance(
           output_key_first,
           thrust::get<0>(thrust::reduce_by_key(execution_policy,
                                                input_key_first,
-                                               input_key_first + tmp_major_vertices.size(),
-                                               tmp_key_aggregated_edge_weights.begin(),
+                                               input_key_first + unreduced_major_vertices.size(),
+                                               unreduced_key_aggregated_edge_weights.begin(),
                                                output_key_first,
-                                               reduced_key_aggregated_edge_weights.begin())));
+                                               tmp_key_aggregated_edge_weights.begin())));
       } else {
-        thrust::sort(
-          execution_policy, input_key_first, input_key_first + tmp_major_vertices.size());
         reduced_size = thrust::distance(
           output_key_first,
           thrust::get<0>(thrust::reduce_by_key(execution_policy,
                                                input_key_first,
-                                               input_key_first + tmp_major_vertices.size(),
+                                               input_key_first + unreduced_major_vertices.size(),
                                                thrust::make_constant_iterator(weight_t{1.0}),
                                                output_key_first,
-                                               reduced_key_aggregated_edge_weights.begin())));
+                                               tmp_key_aggregated_edge_weights.begin())));
       }
-      tmp_major_vertices              = std::move(reduced_major_vertices);
-      tmp_minor_keys                  = std::move(reduced_minor_keys);
-      tmp_key_aggregated_edge_weights = std::move(reduced_key_aggregated_edge_weights);
       tmp_major_vertices.resize(reduced_size, handle.get_stream());
       tmp_minor_keys.resize(tmp_major_vertices.size(), handle.get_stream());
       tmp_key_aggregated_edge_weights.resize(tmp_major_vertices.size(), handle.get_stream());
@@ -524,10 +559,12 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                vertex_value_output_first,
                vertex_value_output_first + graph_view.get_number_of_local_vertices(),
                T{});
-  thrust::sort_by_key(execution_policy,
-                      major_vertices.begin(),
-                      major_vertices.end(),
-                      get_dataframe_buffer_begin(e_op_result_buffer));
+  if (GraphViewType::is_multi_gpu) {
+    thrust::sort_by_key(execution_policy,
+                        major_vertices.begin(),
+                        major_vertices.end(),
+                        get_dataframe_buffer_begin(e_op_result_buffer));
+  }
 
   auto num_uniques = thrust::count_if(execution_policy,
                                       thrust::make_counting_iterator(size_t{0}),
