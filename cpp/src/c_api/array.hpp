@@ -28,8 +28,8 @@ namespace c_api {
 extern cugraph::visitors::DTypes dtypes_mapping[data_type_id_t::NTYPES];
 
 struct cugraph_type_erased_device_array_t {
-  rmm::device_buffer data_;
   size_t size_;
+  rmm::device_buffer data_;
   data_type_id_t type_;
 
   cugraph_type_erased_device_array_t(size_t size,
@@ -42,9 +42,8 @@ struct cugraph_type_erased_device_array_t {
 
   template <typename T>
   cugraph_type_erased_device_array_t(rmm::device_uvector<T>& vec, data_type_id_t type)
-    : size_(vec.size()), type_(type)
+    : size_(vec.size()), data_(vec.release()), type_(type)
   {
-    data_ = vec.release();
   }
 
   template <typename T>
