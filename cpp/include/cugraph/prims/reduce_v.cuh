@@ -49,17 +49,21 @@ template <typename GraphViewType, typename VertexValueInputIterator, typename T>
 T reduce_v(raft::handle_t const& handle,
            GraphViewType const& graph_view,
            VertexValueInputIterator vertex_value_input_first,
-           T init)
+           T init,
+           raft::comms::op_t op = raft::comms::op_t::SUM)
 {
-  auto ret = thrust::reduce(
-    handle.get_thrust_policy(),
-    vertex_value_input_first,
-    vertex_value_input_first + graph_view.get_number_of_local_vertices(),
-    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
-    property_add<T>());
-  if (GraphViewType::is_multi_gpu) {
-    ret =
-      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream());
+  auto id = identity_element<T>(op);
+  auto ret =
+    op_dispatch<T>(op, [&handle, &graph_view, vertex_value_input_first, id, init](auto op) {
+      return thrust::reduce(
+        handle.get_thrust_policy(),
+        vertex_value_input_first,
+        vertex_value_input_first + graph_view.get_number_of_local_vertices(),
+        ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? id : init,
+        op);
+    });
+  if constexpr (GraphViewType::is_multi_gpu) {
+    ret = host_scalar_allreduce(handle.get_comms(), ret, op, handle.get_stream());
   }
   return ret;
 }
@@ -87,17 +91,19 @@ T reduce_v(raft::handle_t const& handle,
            GraphViewType const& graph_view,
            InputIterator input_first,
            InputIterator input_last,
-           T init)
+           T init               = T{},
+           raft::comms::op_t op = raft::comms::op_t::SUM)
 {
-  auto ret = thrust::reduce(
-    handle.get_thrust_policy(),
-    input_first,
-    input_last,
-    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{},
-    property_add<T>());
-  if (GraphViewType::is_multi_gpu) {
-    ret =
-      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream());
+  auto ret = op_dispatch<T>(op, [&handle, &graph_view, input_first, input_last, init](auto op) {
+    return thrust::reduce(
+      handle.get_thrust_policy(),
+      input_first,
+      input_last,
+      ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? T{} : init,
+      op);
+  });
+  if constexpr (GraphViewType::is_multi_gpu) {
+    ret = host_scalar_allreduce(handle.get_comms(), ret, op, handle.get_stream());
   }
   return ret;
 }

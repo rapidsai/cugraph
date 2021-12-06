@@ -28,7 +28,7 @@ int test_create_sg_graph_simple()
   typedef int32_t edge_t;
   typedef float weight_t;
 
-  cugraph_error_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   size_t num_edges         = 8;
   size_t num_vertices      = 6;
 
@@ -36,7 +36,7 @@ int test_create_sg_graph_simple()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
 
-  cugraph_raft_handle_t* p_handle = NULL;
+  cugraph_resource_handle_t* p_handle = NULL;
   cugraph_device_buffer_t dbuf_src;
   cugraph_device_buffer_t dbuf_dst;
   cugraph_device_buffer_t dbuf_wgt;
@@ -46,8 +46,8 @@ int test_create_sg_graph_simple()
   data_type_id_t edge_tid   = INT32;
   data_type_id_t weight_tid = FLOAT32;
 
-  p_handle = cugraph_create_handle();
-  runtime_assert(p_handle != NULL, "raft handle creation failed.");
+  p_handle = cugraph_create_resource_handle();
+  runtime_assert(p_handle != NULL, "resource handle creation failed.");
 
   ret_code = cugraph_make_device_buffer(p_handle, vertex_tid, num_edges, &dbuf_src);
   runtime_assert(ret_code == CUGRAPH_SUCCESS, "src device_buffer creation failed.");
@@ -90,7 +90,7 @@ int test_create_sg_graph_simple()
 
   cugraph_free_device_buffer(&dbuf_src);
 
-  cugraph_free_handle(p_handle);
+  cugraph_free_resource_handle(p_handle);
 
   return 0;
 }
@@ -114,7 +114,7 @@ int test_create_sg_graph_bad_arrays()
   int test_failed = 0;
 
   cugraph_graph_envelope_t* G = NULL;
-  cugraph_raft_handle_t handle;
+  cugraph_resource_handle_t handle;
   cugraph_device_buffer_t* src_ptr     = NULL;
   cugraph_device_buffer_t* dst_ptr     = NULL;
   cugraph_device_buffer_t* weights_ptr = NULL;

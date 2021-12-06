@@ -23,6 +23,9 @@ import cugraph
 from cugraph.comms import comms as Comms
 from cugraph.dask.common.mg_utils import get_visible_devices
 from cugraph.generators import rmat
+import tempfile
+
+import rmm
 
 
 def generate_edgelist(scale,
@@ -51,9 +54,9 @@ def generate_edgelist(scale,
     ddf = rmat(
         scale,
         (2**scale)*edgefactor,
-        0.1,
-        0.2,
-        0.3,
+        0.57,  # from Graph500
+        0.19,  # from Graph500
+        0.19,  # from Graph500
         seed or 42,
         clip_and_flip=False,
         scramble_vertex_ids=True,
@@ -152,7 +155,7 @@ def katz(G, alpha=None):
 ################################################################################
 # Session-wide setup and teardown
 
-def setup(dask_scheduler_file=None):
+def setup(dask_scheduler_file=None, rmm_pool_size=None):
     if dask_scheduler_file:
         cluster = None
         # Env var UCX_MAX_RNDV_RAILS=1 must be set too.
@@ -165,8 +168,12 @@ def setup(dask_scheduler_file=None):
         client = Client(scheduler_file=dask_scheduler_file)
 
     else:
-        cluster = LocalCUDACluster()
+        tempdir_object = tempfile.TemporaryDirectory()
+        cluster = LocalCUDACluster(local_directory=tempdir_object.name, rmm_pool_size=rmm_pool_size)
         client = Client(cluster)
+        # add the obj to the client so it doesn't get deleted until
+        # the 'client' obj gets cleaned up
+        client.tempdir_object = tempdir_object
         client.wait_for_workers(len(get_visible_devices()))
 
     Comms.initialize(p2p=True)
@@ -175,7 +182,9 @@ def setup(dask_scheduler_file=None):
 
 def teardown(client, cluster=None):
     Comms.destroy()
-    client.close()
+    # Shutdown the connected scheduler and workers
+    # therefore we will no longer rely on killing the dask cluster ID
+    # for MNMG runs
+    client.shutdown()
     if cluster:
         cluster.close()
-

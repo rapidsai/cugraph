@@ -70,8 +70,8 @@ def _convert_df_to_output_type(df, input_type):
             preds = cp.fromDlpack(sorted_df["predecessor"].to_dlpack())
             return (distances, preds)
         else:
-            distances = sorted_df["distance"].to_array()
-            preds = sorted_df["predecessor"].to_array()
+            distances = sorted_df["distance"].to_numpy()
+            preds = sorted_df["predecessor"].to_numpy()
             return (distances, preds)
     else:
         raise TypeError(f"input type {input_type} is not a supported type.")

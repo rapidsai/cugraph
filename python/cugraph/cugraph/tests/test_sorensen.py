@@ -15,6 +15,8 @@ import gc
 import pytest
 
 import cudf
+from cudf.testing import assert_series_equal
+
 import cugraph
 from cugraph.tests import utils
 
@@ -85,9 +87,9 @@ def cugraph_call(benchamrk_callable, cu_M, edgevals=False):
     df = df.sort_values(["source", "destination"]).reset_index(drop=True)
 
     return (
-        df["source"].to_array(),
-        df["destination"].to_array(),
-        df["sorensen_coeff"].to_array(),
+        df["source"].to_numpy(),
+        df["destination"].to_numpy(),
+        df["sorensen_coeff"].to_numpy(),
     )
 
 
@@ -241,4 +243,6 @@ def test_sorensen_multi_column(read_csv):
     df_exp = cugraph.sorensen(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    assert df_res["sorensen_coeff"].equals(df_exp["sorensen_coeff"])
+    actual = df_res.sort_values("0_source").reset_index()
+    expected = df_exp.sort_values("source").reset_index()
+    assert_series_equal(actual["sorensen_coeff"], expected["sorensen_coeff"])

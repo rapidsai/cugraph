@@ -12,12 +12,13 @@
 # limitations under the License.
 
 import gc
+import random
 
 import pytest
+from cudf.testing import assert_series_equal
 
 from cugraph.tests import utils
 import cugraph
-import random
 
 
 # =============================================================================
@@ -27,6 +28,13 @@ DIRECTED_GRAPH_OPTIONS = [False, True]
 WEIGHTED_GRAPH_OPTIONS = [False, True]
 DATASETS = [pytest.param(d) for d in utils.DATASETS]
 DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
+
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
 
 def calc_random_walks(graph_file,
@@ -84,7 +92,7 @@ def check_random_walks(path_data, seeds, df_G=None):
     offsets_idx = 0
     next_path_idx = 0
     v_paths = path_data[0]
-    sizes = path_data[2].to_array().tolist()
+    sizes = path_data[2].to_numpy().tolist()
 
     for s in sizes:
         for i in range(next_path_idx, next_path_idx+s-1):
@@ -114,14 +122,6 @@ def check_random_walks(path_data, seeds, df_G=None):
     assert invalid_edge == 0
     assert invalid_seeds == 0
 
-# =============================================================================
-# Pytest Setup / Teardown - called for each test function
-# =============================================================================
-
-
-def prepare_test():
-    gc.collect()
-
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
@@ -129,7 +129,6 @@ def prepare_test():
 def test_random_walks_invalid_max_dept(graph_file,
                                        directed,
                                        max_depth):
-    prepare_test()
     with pytest.raises(TypeError):
         df, offsets, seeds = calc_random_walks(
             graph_file,
@@ -157,12 +156,12 @@ def test_random_walks_coalesced(
 
     # Check path query output
     df = cugraph.rw_path(len(seeds), path_data[2])
-    v_offsets = [0] + path_data[2].cumsum()[:-1].to_array().tolist()
-    w_offsets = [0] + (path_data[2]-1).cumsum()[:-1].to_array().tolist()
+    v_offsets = [0] + path_data[2].cumsum()[:-1].to_numpy().tolist()
+    w_offsets = [0] + (path_data[2]-1).cumsum()[:-1].to_numpy().tolist()
 
-    assert df['weight_sizes'].equals(path_data[2]-1)
-    assert df['vertex_offsets'].to_array().tolist() == v_offsets
-    assert df['weight_offsets'].to_array().tolist() == w_offsets
+    assert_series_equal(df['weight_sizes'], path_data[2]-1, check_names=False)
+    assert df['vertex_offsets'].to_numpy().tolist() == v_offsets
+    assert df['weight_offsets'].to_numpy().tolist() == w_offsets
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
@@ -209,7 +208,7 @@ def test_random_walks(
                          edge_attr="weight")
 
     k = random.randint(1, 10)
-    start_vertices = random.sample(G.nodes().to_array().tolist(), k)
+    start_vertices = random.sample(G.nodes().to_numpy().tolist(), k)
 
     seeds = cudf.DataFrame()
     seeds['v'] = start_vertices

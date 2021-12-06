@@ -43,6 +43,7 @@ As of Release 21.08 - including 21.08 nightly
 
 
 ## Supported Algorithms
+_Italic_ algorithms are planned for future releases.
 
 | Category     | Algorithm                              | Scale        |  Notes              |
 | ------------ | -------------------------------------- | ------------ | ------------------- |
@@ -66,6 +67,10 @@ As of Release 21.08 - including 21.08 nightly
 | Core         |                                        |              |                     |
 |              | K-Core                                 | Single-GPU   |                     |
 |              | Core Number                            | Single-GPU   |                     |
+| _Flow_       |                                        |              |                     |
+|              | _MaxFlow_                              | ---          |                     |
+| _Influence_  |                                        |              |                     |
+|              | _Influence Maximization_               | ---          |                     |
 | Layout       |                                        |              |                     |
 |              | Force Atlas 2                          | Single-GPU   |                     |
 | Linear Assignment|                                    |              |                     |
@@ -78,8 +83,11 @@ As of Release 21.08 - including 21.08 nightly
 |              | Jaccard Similarity                     | Single-GPU   |                     |
 |              | Weighted Jaccard Similarity            | Single-GPU   |                     |
 |              | Overlap Similarity                     | Single-GPU   |                     |
+|              | Sorensen Coefficient                   | Single-GPU   |                     |
+|              | _Local Clustering Coefficient_         |   ---        |                     |
 | Sampling     |                                        |              |                     |
-|              | Random Walks (RW)                      | Single-GPU   |                     |
+|              | Random Walks (RW)                      | Single-GPU   | Biased and Uniform  |
+|              | _node2vec_                             |   ---        |                    |
 | Traversal    |                                        |              |                     |
 |              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
 |              | Single Source Shortest Path (SSSP)     | Multi-GPU    | [C++ README](cpp/src/traversal/README.md#SSSP) |
@@ -89,16 +97,18 @@ As of Release 21.08 - including 21.08 nightly
 | Other        |                                        |              |                     |
 |              | Renumbering                            | Multi-GPU    | multiple columns, any data type  |
 |              | Symmetrize                             | Multi-GPU    |                     |
+| Data Generator  |                                     |              |                     |
+|              | RMAT                                   | Multi-GPU    |                     |
+|              | _Barabasi-Albert_                      |  ---         |                     |
 |  |  |
 
 </br></br>
 ## Supported Graph
 | Type            |  Description                                        |
 | --------------- | --------------------------------------------------- |
-| Graph           | An undirected Graph                                 |
-| DiGraph         | A Directed Graph                                    |
+| Graph           | An undirected Graph is default                      |
+|                 | directed=True yields a Directed Graph               |
 | Multigraph      | A Graph with multiple edges between a vertex pair   |
-| MultiDigraph    | A Directed Graph with multiple edges between a vertex pair   |
 |  |  |
 
 ALL Algorithms support Graphs and MultiGraph (directed and undirected)
@@ -156,6 +166,9 @@ conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=
 
 # CUDA 11.2
 conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.2
+
+# CUDA 11.4
+conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.4
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.7/3.8.

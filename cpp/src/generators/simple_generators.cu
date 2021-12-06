@@ -17,11 +17,12 @@
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <raft/cudart_utils.h>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/sequence.h>
 
-#include <raft/cudart_utils.h>
+#include <numeric>
 
 namespace cugraph {
 
@@ -30,13 +31,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
 generate_path_graph_edgelist(raft::handle_t const& handle,
                              std::vector<std::tuple<vertex_t, vertex_t>> const& component_parms_v)
 {
-  size_t num_edges = thrust::transform_reduce(
-    thrust::host,
-    component_parms_v.begin(),
-    component_parms_v.end(),
-    [](auto tuple) { return (std::get<0>(tuple) - 1); },
-    size_t{0},
-    std::plus<size_t>());
+  size_t num_edges =
+    std::transform_reduce(component_parms_v.begin(),
+                          component_parms_v.end(),
+                          size_t{0},
+                          std::plus<size_t>(),
+                          [](auto tuple) { return static_cast<size_t>(std::get<0>(tuple) - 1); });
 
   bool edge_off_end{false};
 
@@ -88,18 +88,16 @@ generate_2d_mesh_graph_edgelist(
   raft::handle_t const& handle,
   std::vector<std::tuple<vertex_t, vertex_t, vertex_t>> const& component_parms_v)
 {
-  size_t num_edges = thrust::transform_reduce(
-    thrust::host,
-    component_parms_v.begin(),
-    component_parms_v.end(),
-    [](auto tuple) {
-      vertex_t x, y;
-      std::tie(x, y, std::ignore) = tuple;
+  size_t num_edges = std::transform_reduce(component_parms_v.begin(),
+                                           component_parms_v.end(),
+                                           size_t{0},
+                                           std::plus<size_t>(),
+                                           [](auto tuple) {
+                                             vertex_t x, y;
+                                             std::tie(x, y, std::ignore) = tuple;
 
-      return ((x - 1) * y) + (x * (y - 1));
-    },
-    size_t{0},
-    std::plus<size_t>());
+                                             return ((x - 1) * y) + (x * (y - 1));
+                                           });
 
   rmm::device_uvector<vertex_t> d_src_v(num_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> d_dst_v(num_edges, handle.get_stream());
@@ -154,18 +152,17 @@ generate_3d_mesh_graph_edgelist(
   raft::handle_t const& handle,
   std::vector<std::tuple<vertex_t, vertex_t, vertex_t, vertex_t>> const& component_parms_v)
 {
-  size_t num_edges = thrust::transform_reduce(
-    thrust::host,
-    component_parms_v.begin(),
-    component_parms_v.end(),
-    [](auto tuple) {
-      vertex_t x, y, z;
-      std::tie(x, y, z, std::ignore) = tuple;
+  size_t num_edges =
+    std::transform_reduce(component_parms_v.begin(),
+                          component_parms_v.end(),
+                          size_t{0},
+                          std::plus<size_t>(),
+                          [](auto tuple) {
+                            vertex_t x, y, z;
+                            std::tie(x, y, z, std::ignore) = tuple;
 
-      return ((x - 1) * y * z) + (x * (y - 1) * z) + (x * y * (z - 1));
-    },
-    size_t{0},
-    std::plus<size_t>());
+                            return ((x - 1) * y * z) + (x * (y - 1) * z) + (x * y * (z - 1));
+                          });
 
   rmm::device_uvector<vertex_t> d_src_v(num_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> d_dst_v(num_edges, handle.get_stream());
@@ -239,16 +236,14 @@ generate_complete_graph_edgelist(
                     "Implementation cannot support specified value");
   });
 
-  size_t num_edges = thrust::transform_reduce(
-    thrust::host,
-    component_parms_v.begin(),
-    component_parms_v.end(),
-    [](auto tuple) {
-      vertex_t num_vertices = std::get<0>(tuple);
-      return num_vertices * (num_vertices - 1) / 2;
-    },
-    size_t{0},
-    std::plus<size_t>());
+  size_t num_edges = std::transform_reduce(component_parms_v.begin(),
+                                           component_parms_v.end(),
+                                           size_t{0},
+                                           std::plus<size_t>(),
+                                           [](auto tuple) {
+                                             vertex_t num_vertices = std::get<0>(tuple);
+                                             return num_vertices * (num_vertices - 1) / 2;
+                                           });
 
   vertex_t invalid_vertex{std::numeric_limits<vertex_t>::max()};
 

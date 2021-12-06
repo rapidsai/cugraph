@@ -17,6 +17,8 @@ import numpy as np
 import scipy
 
 import cudf
+from cudf.testing import assert_series_equal
+
 import cugraph
 from cugraph.tests import utils
 
@@ -54,7 +56,7 @@ def cugraph_call(benchmark_callable, cu_M, pairs, edgevals=False):
     # cugraph Overlap Call
     df = benchmark_callable(cugraph.overlap, G, pairs)
     df = df.sort_values(by=["source", "destination"])
-    return df["overlap_coeff"].to_array()
+    return df["overlap_coeff"].to_numpy()
 
 
 def intersection(a, b, M):
@@ -186,4 +188,6 @@ def test_overlap_multi_column(graph_file):
     df_exp = cugraph.overlap(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    assert df_res["overlap_coeff"].equals(df_exp["overlap_coeff"])
+    actual = df_res.sort_values("0_source").reset_index()
+    expected = df_exp.sort_values("source").reset_index()
+    assert_series_equal(actual["overlap_coeff"], expected["overlap_coeff"])

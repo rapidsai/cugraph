@@ -68,7 +68,7 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
   using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
 
-  property_add<e_op_result_t> edge_property_add{};
+  property_op<e_op_result_t, thrust::plus> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
     auto major =
@@ -76,7 +76,7 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
     auto major_idx =
       major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_idx);
     auto sum                                    = thrust::transform_reduce(
@@ -154,12 +154,12 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
 
-  property_add<e_op_result_t> edge_property_add{};
+  property_op<e_op_result_t, thrust::plus> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     auto sum                                    = thrust::transform_reduce(
@@ -241,12 +241,12 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 
   using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
-  property_add<e_op_result_t> edge_property_add{};
+  property_op<e_op_result_t, thrust::plus> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
@@ -312,12 +312,12 @@ __global__ void for_all_major_for_all_nbr_high_degree(
 
   using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
-  property_add<e_op_result_t> edge_property_add{};
+  property_op<e_op_result_t, thrust::plus> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
     for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
@@ -407,14 +407,13 @@ T transform_reduce_e(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  property_add<T> edge_property_add{};
+  property_op<T, thrust::plus> edge_property_add{};
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
-  thrust::fill(
-    handle.get_thrust_policy(),
-    get_dataframe_buffer_begin(result_buffer),
-    get_dataframe_buffer_begin(result_buffer) + 1,
-    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() == 0)) ? init : T{});
+  thrust::fill(handle.get_thrust_policy(),
+               get_dataframe_buffer_begin(result_buffer),
+               get_dataframe_buffer_begin(result_buffer) + 1,
+               T{});
 
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     auto matrix_partition =
@@ -510,13 +509,14 @@ T transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
-  auto result = thrust::reduce(handle.get_thrust_policy(),
-                               get_dataframe_buffer_begin(result_buffer),
-                               get_dataframe_buffer_begin(result_buffer) + 1,
-                               T{},
-                               edge_property_add);
+  auto result = thrust::reduce(
+    handle.get_thrust_policy(),
+    get_dataframe_buffer_begin(result_buffer),
+    get_dataframe_buffer_begin(result_buffer) + 1,
+    ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? T{} : init,
+    edge_property_add);
 
-  if (GraphViewType::is_multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
     result = host_scalar_allreduce(
       handle.get_comms(), result, raft::comms::op_t::SUM, handle.get_stream());
   }

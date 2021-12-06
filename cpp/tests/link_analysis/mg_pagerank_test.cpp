@@ -60,6 +60,7 @@ class Tests_MGPageRank
                         input_usecase_t const& input_usecase)
   {
     // 1. initialize handle
+
     raft::handle_t handle{};
     HighResClock hr_clock{};
 
@@ -216,20 +217,14 @@ class Tests_MGPageRank
             (*d_mg_aggregate_personalization_vertices).data(),
             (*d_mg_aggregate_personalization_vertices).size(),
             d_mg_aggregate_renumber_map_labels.data(),
-            vertex_t{0},
-            mg_graph_view.get_number_of_vertices(),
             std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
           std::tie(d_mg_aggregate_personalization_vertices, d_mg_aggregate_personalization_values) =
             cugraph::test::sort_by_key(handle,
-                                       (*d_mg_aggregate_personalization_vertices).data(),
-                                       (*d_mg_aggregate_personalization_values).data(),
-                                       (*d_mg_aggregate_personalization_vertices).size());
+                                       *d_mg_aggregate_personalization_vertices,
+                                       *d_mg_aggregate_personalization_values);
         }
-        std::tie(std::ignore, d_mg_aggregate_pageranks) =
-          cugraph::test::sort_by_key(handle,
-                                     d_mg_aggregate_renumber_map_labels.data(),
-                                     d_mg_aggregate_pageranks.data(),
-                                     d_mg_aggregate_renumber_map_labels.size());
+        std::tie(std::ignore, d_mg_aggregate_pageranks) = cugraph::test::sort_by_key(
+          handle, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_pageranks);
 
         // 5-3. create SG graph
 

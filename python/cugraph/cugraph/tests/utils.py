@@ -172,7 +172,8 @@ def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
 
 
 def create_obj_from_csv(
-    csv_file_name, obj_type, csv_has_weights=True, edgevals=False
+    csv_file_name, obj_type, csv_has_weights=True, edgevals=False,
+    directed=False
 ):
     """
     Return an object based on obj_type populated with the contents of
@@ -303,11 +304,14 @@ def generate_nx_graph_from_file(graph_file, directed=True, edgevals=False):
     return Gnx
 
 
-def generate_cugraph_graph_from_file(
-    graph_file, directed=True, edgevals=False
-):
+def generate_cugraph_graph_from_file(graph_file, directed=True,
+                                     edgevals=False):
     cu_M = read_csv_file(graph_file)
-    G = cugraph.DiGraph() if directed else cugraph.Graph()
+
+    if directed is False:
+        G = cugraph.Graph()
+    else:
+        G = cugraph.DiGraph()
 
     if edgevals:
         G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
@@ -320,7 +324,7 @@ def generate_mg_batch_cugraph_graph_from_file(graph_file, directed=True):
     client = get_client()
     _ddf = read_dask_cudf_csv_file(graph_file)
     ddf = client.persist(_ddf)
-    G = cugraph.DiGraph() if directed else cugraph.Graph()
+    G = cugraph.Graph(directed=directed)
     G.from_dask_cudf_edgelist(ddf)
     return G
 
@@ -434,14 +438,15 @@ def genFixtureParamsProduct(*args):
     multiple @pytest.mark.parameterize(param_name, param_value_list)
     decorators.
     """
-    # Enforce that each arg is a list of pytest.param objs and separate params
+    # Ensure each arg is a list of pytest.param objs, then separate the params
     # and IDs.
     paramLists = []
     ids = []
     paramType = pytest.param().__class__
     for (paramList, id) in args:
-        for param in paramList:
-            assert isinstance(param, paramType)
+        for i in range(len(paramList)):
+            if not isinstance(paramList[i], paramType):
+                paramList[i] = pytest.param(paramList[i])
         paramLists.append(paramList)
         ids.append(id)
 

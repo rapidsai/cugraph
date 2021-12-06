@@ -15,7 +15,7 @@
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
-file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-21.10/RAPIDS.cmake
+file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.02/RAPIDS.cmake
     ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 
@@ -27,7 +27,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 21.12.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 22.02.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -42,8 +42,8 @@ endif()
 # Remove the following archs from CMAKE_CUDA_ARCHITECTURES that
 # cuhornet currently doesn't support
 #
-# >= 86
-set(supported_archs "60" "62" "70" "72" "75" "80")
+# >= 90
+set(supported_archs "60" "62" "70" "72" "75" "80" "86")
 foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
     string(REPLACE "-real" "" arch ${arch})
     if( arch IN_LIST supported_archs )
@@ -52,7 +52,7 @@ foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
 endforeach()
 # Make sure everything but the 'newest' arch
 # is marked as `-real` so we only generate PTX for
-# arch > 80
+# arch > 86
 list(POP_BACK usable_arch_values latest_arch)
 list(TRANSFORM usable_arch_values APPEND "-real")
 list(APPEND usable_arch_values ${latest_arch})
@@ -147,8 +147,6 @@ include(cmake/thirdparty/get_raft.cmake)
 include(cmake/thirdparty/get_cuco.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
 
-include(cmake/thirdparty/get_gunrock.cmake)
-
 if(BUILD_TESTS)
   include(cmake/thirdparty/get_gtest.cmake)
 endif()
@@ -165,7 +163,6 @@ add_library(cugraph SHARED
     src/utilities/graph_bcast.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
-    src/link_analysis/gunrock_hits.cpp
     src/traversal/legacy/bfs.cu
     src/traversal/legacy/sssp.cu
     src/link_prediction/jaccard.cu
@@ -183,7 +180,9 @@ add_library(cugraph SHARED
     src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
-    src/cores/core_number.cu
+    src/cores/legacy/core_number.cu
+    src/cores/core_number_sg.cu
+    src/cores/core_number_mg.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu
     src/centrality/legacy/katz_centrality.cu
@@ -207,10 +206,14 @@ add_library(cugraph SHARED
     src/structure/induced_subgraph_sg.cu
     ## FIXME: Not currently supported
     ##src/structure/induced_subgraph_mg.cu
+    src/traversal/extract_bfs_paths_sg.cu
+    src/traversal/extract_bfs_paths_mg.cu
     src/traversal/bfs_sg.cu
     src/traversal/bfs_mg.cu
     src/traversal/sssp_sg.cu
     src/traversal/sssp_mg.cu
+    src/link_analysis/hits_sg.cu
+    src/link_analysis/hits_mg.cu
     src/link_analysis/pagerank_sg.cu
     src/link_analysis/pagerank_mg.cu
     src/centrality/katz_centrality_sg.cu
@@ -219,8 +222,10 @@ add_library(cugraph SHARED
     src/tree/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
-    src/structure/create_graph_from_edgelist_sg.cpp
-    src/structure/create_graph_from_edgelist_mg.cpp
+    src/structure/create_graph_from_edgelist_sg.cu
+    src/structure/create_graph_from_edgelist_mg.cu
+    src/structure/symmetrize_edgelist_sg.cu
+    src/structure/symmetrize_edgelist_mg.cu
     src/utilities/host_barrier.cpp
     src/visitors/graph_envelope.cpp
     src/visitors/visitors_factory.cpp
@@ -289,7 +294,6 @@ target_link_libraries(cugraph
         CUDA::cusparse
         cugraph::cuHornet
         FAISS::FAISS
-        gunrock
         NCCL::NCCL
 )
 
@@ -349,6 +353,12 @@ endif()
 
 add_library(cugraph_c SHARED
         src/c_api/cugraph_api.cpp
+        src/c_api/array.cpp
+        src/c_api/error.cpp
+        src/c_api/graph_sg.cpp
+        src/c_api/graph_mg.cpp
+        src/c_api/pagerank.cpp
+        src/c_api/bfs.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 

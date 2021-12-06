@@ -144,11 +144,8 @@ class Tests_MGKatzCentrality
       if (handle.get_comms().get_rank() == int{0}) {
         // 5-2. unrenumbr MG results
 
-        std::tie(std::ignore, d_mg_aggregate_katz_centralities) =
-          cugraph::test::sort_by_key(handle,
-                                     d_mg_aggregate_renumber_map_labels.data(),
-                                     d_mg_aggregate_katz_centralities.data(),
-                                     d_mg_aggregate_renumber_map_labels.size());
+        std::tie(std::ignore, d_mg_aggregate_katz_centralities) = cugraph::test::sort_by_key(
+          handle, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_katz_centralities);
 
         // 5-3. create SG graph
 
