@@ -311,12 +311,13 @@ class Tests_MG_ExtractIfE
                        mg_edge_first + mg_aggregate_edgelist_srcs.size());
           thrust::sort(
             handle.get_thrust_policy(), sg_edge_first, sg_edge_first + sg_edgelist_srcs.size());
-          thrust::equal(handle.get_thrust_policy(),
-                        mg_edge_first,
-                        mg_edge_first + mg_aggregate_edgelist_srcs.size(),
-                        sg_edge_first,
-                        compare_equal_t<
-                          typename thrust::iterator_traits<decltype(mg_edge_first)>::value_type>{});
+          ASSERT_TRUE(thrust::equal(
+            handle.get_thrust_policy(),
+            mg_edge_first,
+            mg_edge_first + mg_aggregate_edgelist_srcs.size(),
+            sg_edge_first,
+            compare_equal_t<
+              typename thrust::iterator_traits<decltype(mg_edge_first)>::value_type>{}));
         } else {
           auto mg_edge_first = thrust::make_zip_iterator(thrust::make_tuple(
             mg_aggregate_edgelist_srcs.begin(), mg_aggregate_edgelist_dsts.begin()));
@@ -327,12 +328,13 @@ class Tests_MG_ExtractIfE
                        mg_edge_first + mg_aggregate_edgelist_srcs.size());
           thrust::sort(
             handle.get_thrust_policy(), sg_edge_first, sg_edge_first + sg_edgelist_srcs.size());
-          thrust::equal(handle.get_thrust_policy(),
-                        mg_edge_first,
-                        mg_edge_first + mg_aggregate_edgelist_srcs.size(),
-                        sg_edge_first,
-                        compare_equal_t<
-                          typename thrust::iterator_traits<decltype(mg_edge_first)>::value_type>{});
+          ASSERT_TRUE(thrust::equal(
+            handle.get_thrust_policy(),
+            mg_edge_first,
+            mg_edge_first + mg_aggregate_edgelist_srcs.size(),
+            sg_edge_first,
+            compare_equal_t<
+              typename thrust::iterator_traits<decltype(mg_edge_first)>::value_type>{}));
         }
       }
     }
