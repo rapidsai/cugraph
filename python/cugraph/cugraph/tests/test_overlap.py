@@ -56,7 +56,7 @@ def cugraph_call(benchmark_callable, cu_M, pairs, edgevals=False):
     # cugraph Overlap Call
     df = benchmark_callable(cugraph.overlap, G, pairs)
     df = df.sort_values(by=["source", "destination"])
-    return df["overlap_coeff"].to_array()
+    return df["overlap_coeff"].to_numpy()
 
 
 def intersection(a, b, M):

@@ -130,7 +130,7 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
   }
 };
 
-TEST_P(Tests_InducedEgo, CheckInt32Int32FloatUntransposed)
+TEST_P(Tests_InducedEgo, CheckInt32Int32FloatTransposeFalse)
 {
   run_current_test<int32_t, int32_t, float, false>(GetParam());
 }

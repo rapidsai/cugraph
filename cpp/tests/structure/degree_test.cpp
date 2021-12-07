@@ -146,14 +146,14 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
 
 // FIXME: add tests for type combinations
 
-TEST_P(Tests_Degree, CheckInt32Int32FloatTransposed)
-{
-  run_current_test<int32_t, int32_t, float, true>(GetParam());
-}
-
-TEST_P(Tests_Degree, CheckInt32Int32FloatUntransposed)
+TEST_P(Tests_Degree, CheckInt32Int32FloatTransposeFalse)
 {
   run_current_test<int32_t, int32_t, float, false>(GetParam());
+}
+
+TEST_P(Tests_Degree, CheckInt32Int32FloatTransposeTrue)
+{
+  run_current_test<int32_t, int32_t, float, true>(GetParam());
 }
 
 INSTANTIATE_TEST_SUITE_P(simple_test,
