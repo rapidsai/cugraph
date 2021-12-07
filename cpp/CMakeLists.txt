@@ -15,7 +15,7 @@
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
-file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-21.12/RAPIDS.cmake
+file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.02/RAPIDS.cmake
     ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 
@@ -27,7 +27,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 21.12.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 22.02.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -52,7 +52,7 @@ foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
 endforeach()
 # Make sure everything but the 'newest' arch
 # is marked as `-real` so we only generate PTX for
-# arch > 80
+# arch > 86
 list(POP_BACK usable_arch_values latest_arch)
 list(TRANSFORM usable_arch_values APPEND "-real")
 list(APPEND usable_arch_values ${latest_arch})

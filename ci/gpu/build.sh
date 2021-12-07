@@ -63,7 +63,7 @@ gpuci_mamba_retry install -y \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
-      "ucx-py=0.23.*" \
+      "ucx-py=0.24.*" \
       "ucx-proc=*=gpu" \
       "rapids-build-env=$MINOR_VERSION.*" \
       "rapids-notebook-env=$MINOR_VERSION.*" \
@@ -91,7 +91,10 @@ if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_logger "Build from source"
     $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph
 else
-    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build"
+    # ...cugraph/cpu/conda_work/... is the dir name when only 1 lib* library is
+    # present. For multiple libs (ie. libcugraph and libcugraph_etl), the
+    # "_work" dir is prefixed with the lib name.
+    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/libcugraph_work/cpp/build"
 
     # Faiss patch
     echo "Update libcugraph.so"

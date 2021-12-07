@@ -592,6 +592,7 @@ ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
+#ConfigureCTest(CAPI_EXTRACT_PATHS_TEST c_api/extract_paths_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################

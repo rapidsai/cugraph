@@ -202,14 +202,14 @@ def _compare_bfs(cugraph_df, nx_distances, source):
     cu_distances = {
         vertex: dist
         for vertex, dist in zip(
-            cugraph_df["vertex"].to_array(), cugraph_df["distance"].to_array()
+            cugraph_df["vertex"].to_numpy(), cugraph_df["distance"].to_numpy()
         )
     }
     cu_predecessors = {
         vertex: dist
         for vertex, dist in zip(
-                cugraph_df["vertex"].to_array(),
-                cugraph_df["predecessor"].to_array()
+                cugraph_df["vertex"].to_numpy(),
+                cugraph_df["predecessor"].to_numpy()
         )
     }
 
