@@ -528,7 +528,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
         ###########################################################################################
         # - MG PRIMS UPDATE_FRONTIER_V_PUSH_IF_OUT_NBR tests --------------------------------------
-        ConfigureTestMG(MG_UPDATE_FRONTIER_V_PUSH_IF_OUT_NBR prims/mg_update_frontier_v_push_if_out_nbr.cu)
+        ConfigureTestMG(MG_UPDATE_FRONTIER_V_PUSH_IF_OUT_NBR_TEST
+                        prims/mg_update_frontier_v_push_if_out_nbr.cu)
 
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------

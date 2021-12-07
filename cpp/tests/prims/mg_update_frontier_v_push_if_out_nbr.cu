@@ -309,16 +309,14 @@ using Tests_MG_update_frontier_v_push_if_out_nbr_File =
 using Tests_MG_update_frontier_v_push_if_out_nbr_Rmat =
   Tests_MG_update_frontier_v_push_if_out_nbr<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_File,
-       CheckInt32Int32FloatTupleIntFloatTransposeFalse)
+TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_File, CheckInt32Int32FloatTupleIntFloat)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(std::get<0>(param),
                                                                        std::get<1>(param));
 }
 
-TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat,
-       CheckInt32Int32FloatTupleIntFloatTransposeFalse)
+TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt32Int32FloatTupleIntFloat)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(
@@ -326,16 +324,44 @@ TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat,
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_File, CheckInt32Int32FloatTransposeFalse)
+TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_File, CheckInt32Int32Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt32Int32FloatTransposeFalse)
+TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt32Int32Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_File, CheckInt32Int64Float)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, int>(std::get<0>(param), std::get<1>(param));
+}
+
+TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt32Int64Float)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, int>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_File, CheckInt64Int64Float)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, int>(std::get<0>(param), std::get<1>(param));
+}
+
+TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt64Int64Float)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, int>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
