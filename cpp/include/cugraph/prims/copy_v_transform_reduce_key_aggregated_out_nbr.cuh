@@ -228,13 +228,14 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   // 1. build a cuco::static_map object for the k, v pairs.
 
   auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
   auto kv_map_ptr     = std::make_unique<
     cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
     size_t{0},
     invalid_vertex_id<vertex_t>::value,
     invalid_vertex_id<vertex_t>::value,
-    stream_adapter);
+    stream_adapter,
+    handle.get_stream());
   if (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -266,8 +267,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                    handle.get_stream());
     }
 
-    handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
-
     kv_map_ptr.reset();
 
     kv_map_ptr = std::make_unique<
@@ -278,14 +277,17 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
         static_cast<size_t>(thrust::distance(map_unique_key_first, map_unique_key_last)) + 1),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value,
-      stream_adapter);
+      stream_adapter,
+      handle.get_stream());
 
     auto pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(map_keys.begin(), get_dataframe_buffer_begin(map_value_buffer)));
-    kv_map_ptr->insert(pair_first, pair_first + map_keys.size());
+    kv_map_ptr->insert(pair_first,
+                       pair_first + map_keys.size(),
+                       cuco::detail::MurmurHash3_32<vertex_t>{},
+                       thrust::equal_to<vertex_t>{},
+                       handle.get_stream());
   } else {
-    handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
-
     kv_map_ptr.reset();
 
     kv_map_ptr = std::make_unique<
@@ -298,12 +300,16 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
         static_cast<size_t>(thrust::distance(map_unique_key_first, map_unique_key_last)) + 1),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value,
-      stream_adapter);
+      stream_adapter,
+      handle.get_stream());
 
     auto pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(map_unique_key_first, map_value_first));
     kv_map_ptr->insert(pair_first,
-                       pair_first + thrust::distance(map_unique_key_first, map_unique_key_last));
+                       pair_first + thrust::distance(map_unique_key_first, map_unique_key_last),
+                       cuco::detail::MurmurHash3_32<vertex_t>{},
+                       thrust::equal_to<vertex_t>{},
+                       handle.get_stream());
   }
 
   // 2. aggregate each vertex out-going edges based on keys and transform-reduce.
