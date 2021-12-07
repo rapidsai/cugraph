@@ -437,7 +437,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
           thrust::make_tuple(tmp_major_vertices.begin(), tmp_minor_keys.begin()));
         if (graph_view.is_weighted()) {
           reduced_size +=
-            thrust::distance(output_key_first,
+            thrust::distance(output_key_first + reduced_size,
                              thrust::get<0>(thrust::reduce_by_key(
                                execution_policy,
                                input_key_first,
@@ -447,7 +447,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                                tmp_key_aggregated_edge_weights.begin() + reduced_size)));
         } else {
           reduced_size +=
-            thrust::distance(output_key_first,
+            thrust::distance(output_key_first + reduced_size,
                              thrust::get<0>(thrust::reduce_by_key(
                                execution_policy,
                                input_key_first,
