@@ -86,17 +86,17 @@ struct Prims_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_MG_update_frontier_v_push_if_out_nbr
+class Tests_MG_UpdateFrontierVPushIfOutNbr
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
-  Tests_MG_update_frontier_v_push_if_out_nbr() {}
+  Tests_MG_UpdateFrontierVPushIfOutNbr() {}
   static void SetupTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of copy_v_transform_reduce_out_nbr primitive
+  // Compare the results of update_frontier_v_push_if_out_nbr primitive
   template <typename vertex_t, typename edge_t, typename weight_t, typename property_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
@@ -305,9 +305,9 @@ class Tests_MG_update_frontier_v_push_if_out_nbr
 };
 
 using Tests_MG_update_frontier_v_push_if_out_nbr_File =
-  Tests_MG_update_frontier_v_push_if_out_nbr<cugraph::test::File_Usecase>;
+  Tests_MG_UpdateFrontierVPushIfOutNbr<cugraph::test::File_Usecase>;
 using Tests_MG_update_frontier_v_push_if_out_nbr_Rmat =
-  Tests_MG_update_frontier_v_push_if_out_nbr<cugraph::test::Rmat_Usecase>;
+  Tests_MG_UpdateFrontierVPushIfOutNbr<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_File, CheckInt32Int32FloatTupleIntFloat)
 {
@@ -384,7 +384,11 @@ INSTANTIATE_TEST_SUITE_P(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_large_test,
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
   Tests_MG_update_frontier_v_push_if_out_nbr_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
