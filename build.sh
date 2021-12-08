@@ -18,16 +18,18 @@ ARGS=$*
 # script, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
+LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_etl/build}
 
-VALIDARGS="clean uninstall libcugraph cugraph pylibcugraph cpp-mgtests docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn --skip_cpp_tests -h --help"
+VALIDARGS="clean uninstall libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn --skip_cpp_tests -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
    uninstall        - uninstall libcugraph and cugraph from a prior build/install (see also -n)
    libcugraph       - build libcugraph.so and SG test binaries
+   libcugraph_etl   - build libcugraph_etl.so and SG test binaries
    cugraph          - build the cugraph Python package
    pylibcugraph     - build the pylibcugraph Python package
-   cpp-mgtests      - build libcugraph MG tests. Builds MPI communicator, adding MPI as a dependency.
+   cpp-mgtests      - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    docs             - build the docs
  and <flag> is:
    -v               - verbose build mode
@@ -36,17 +38,17 @@ HELP="$0 [<target> ...] [<flag> ...]
    --allgpuarch     - build for all supported GPU architectures
    --buildfaiss     - build faiss statically into cugraph
    --show_depr_warn - show cmake deprecation warnings
-   --skip_cpp_tests - do not build the SG test binaries as part of the libcugraph target
+   --skip_cpp_tests - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
    -h               - print this text
 
- default action (no args) is to build and install 'libcugraph' then 'cugraph' then 'docs' targets
+ default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'docs' targets
 
  libcugraph build dir is: ${LIBCUGRAPH_BUILD_DIR}
 
  Set env var LIBCUGRAPH_BUILD_DIR to override libcugraph build dir.
 "
 CUGRAPH_BUILD_DIR=${REPODIR}/python/build
-BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR} ${CUGRAPH_BUILD_DIR}"
+BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR} ${LIBCUGRAPH_ETL_BUILD_DIR} ${CUGRAPH_BUILD_DIR}"
 
 # Set defaults for vars modified by flags to this script
 VERBOSE_FLAG=""
@@ -120,6 +122,10 @@ if hasArg uninstall; then
     if [[ "$INSTALL_PREFIX" != "" ]]; then
         rm -rf ${INSTALL_PREFIX}/include/cugraph
         rm -f ${INSTALL_PREFIX}/lib/libcugraph.so
+        rm -rf ${INSTALL_PREFIX}/include/cugraph_c
+        rm -f ${INSTALL_PREFIX}/lib/libcugraph_c.so
+        rm -rf ${INSTALL_PREFIX}/include/cugraph_etl
+        rm -f ${INSTALL_PREFIX}/lib/libcugraph_etl.so
     fi
     # This may be redundant given the above, but can also be used in case
     # there are other installed files outside of the locations above.
@@ -183,6 +189,27 @@ if buildAll || hasArg libcugraph; then
           -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
           ${REPODIR}/cpp
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
+fi
+
+# Configure, build, and install libcugraph_etl
+if buildAll || hasArg libcugraph_etl; then
+    if (( ${BUILD_ALL_GPU_ARCH} == 0 )); then
+        CUGRAPH_CMAKE_CUDA_ARCHITECTURES="NATIVE"
+        echo "Building for the architecture of the GPU in the system..."
+    else
+        CUGRAPH_CMAKE_CUDA_ARCHITECTURES="ALL"
+        echo "Building for *ALL* supported GPU architectures..."
+    fi
+    mkdir -p ${LIBCUGRAPH_ETL_BUILD_DIR}
+     cd ${LIBCUGRAPH_ETL_BUILD_DIR}
+    cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
+          -DCMAKE_CUDA_ARCHITECTURES=${CUGRAPH_CMAKE_CUDA_ARCHITECTURES} \
+          -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
+          -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+          -DBUILD_TESTS=${BUILD_CPP_TESTS} \
+          -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} --log-level=VERBOSE \
+          ${REPODIR}/cpp/libcugraph_etl
+    cmake --build "${LIBCUGRAPH_ETL_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
 fi
 
 # Build, and install pylibcugraph

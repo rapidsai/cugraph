@@ -111,59 +111,71 @@ struct graph_factory_t<
   : graph_factory_base_t {
   std::unique_ptr<graph_envelope_t::base_graph_t> make_graph(erased_pack_t& ep) const override
   {
-    /// std::cout << "Multi-GPU factory.\n";
-    std::vector<void*> const& v_args{ep.get_args()};
-
-    // invoke cnstr. using cython arg pack:
-    //
-    assert(v_args.size() == 9);
-
 #ifdef _DEBUG_
     std::cout << "Enter graph factory...\n";
 #endif
+
+    /// std::cout << "Multi-GPU factory.\n";
+    std::vector<void*> const& v_args{ep.get_args()};
+
+    // branch on various constructors based on
+    // number of arguments in the pack:
+    //
+    auto pack_arg_sz = v_args.size();
+    assert(pack_arg_sz > 0);  // need at least the raft handle
 
     // cnstr. args unpacking:
     //
     raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
 
-    vertex_t* src_vertices             = static_cast<vertex_t*>(v_args[1]);
-    vertex_t* dst_vertices             = static_cast<vertex_t*>(v_args[2]);
-    weight_t* weights                  = static_cast<weight_t*>(v_args[3]);
-    vertex_t* vertex_partition_offsets = static_cast<vertex_t*>(v_args[4]);
-    edge_t num_partition_edges         = *static_cast<edge_t*>(v_args[5]);
-    vertex_t num_global_vertices       = *static_cast<vertex_t*>(v_args[6]);
-    edge_t num_global_edges            = *static_cast<edge_t*>(v_args[7]);
-    bool sorted_by_degree              = *static_cast<bool*>(v_args[8]);
+    if (pack_arg_sz == 1) {
+      // invoke graph_t(handle);
+      return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
+        handle);
+    } else {
+      // invoke cnstr. using cython arg pack:
+      //
+      assert(pack_arg_sz == 9);
 
-    // TODO: un-hardcode: have it passed int `ep`
-    //
-    graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
-    bool do_expensive_check{false};  // FIXME: check what should this default to
+      vertex_t* src_vertices             = static_cast<vertex_t*>(v_args[1]);
+      vertex_t* dst_vertices             = static_cast<vertex_t*>(v_args[2]);
+      weight_t* weights                  = static_cast<weight_t*>(v_args[3]);
+      vertex_t* vertex_partition_offsets = static_cast<vertex_t*>(v_args[4]);
+      edge_t num_partition_edges         = *static_cast<edge_t*>(v_args[5]);
+      vertex_t num_global_vertices       = *static_cast<vertex_t*>(v_args[6]);
+      edge_t num_global_edges            = *static_cast<edge_t*>(v_args[7]);
+      bool sorted_by_degree              = *static_cast<bool*>(v_args[8]);
 
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_rank = row_comm.get_rank();
-    auto const row_comm_size = row_comm.get_size();  // pcols
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_rank = col_comm.get_rank();
-    auto const col_comm_size = col_comm.get_size();  // prows
+      // TODO: un-hardcode: have it passed int `ep`
+      //
+      graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
+      bool do_expensive_check{false};  // FIXME: check what should this default to
 
-    std::vector<edgelist_t<vertex_t, edge_t, weight_t>> edgelist(
-      {{src_vertices, dst_vertices, weights, num_partition_edges}});
+      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+      auto const row_comm_rank = row_comm.get_rank();
+      auto const row_comm_size = row_comm.get_size();  // pcols
+      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_comm_rank = col_comm.get_rank();
+      auto const col_comm_size = col_comm.get_size();  // prows
 
-    std::vector<vertex_t> partition_offsets_vector(
-      vertex_partition_offsets, vertex_partition_offsets + (row_comm_size * col_comm_size) + 1);
+      std::vector<edgelist_t<vertex_t, edge_t, weight_t>> edgelist(
+        {{src_vertices, dst_vertices, weights, num_partition_edges}});
 
-    partition_t<vertex_t> partition(
-      partition_offsets_vector, row_comm_size, col_comm_size, row_comm_rank, col_comm_rank);
+      std::vector<vertex_t> partition_offsets_vector(
+        vertex_partition_offsets, vertex_partition_offsets + (row_comm_size * col_comm_size) + 1);
 
-    std::optional<std::vector<vertex_t>>
-      opt_seg_off{};  // FIXME: may needd to pass/extract segment_offsets vector
+      partition_t<vertex_t> partition(
+        partition_offsets_vector, row_comm_size, col_comm_size, row_comm_rank, col_comm_rank);
 
-    graph_meta_t<vertex_t, edge_t, multi_gpu> meta{
-      num_global_vertices, num_global_edges, graph_props, partition, opt_seg_off};
+      std::optional<std::vector<vertex_t>>
+        opt_seg_off{};  // FIXME: may needd to pass/extract segment_offsets vector
 
-    return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
-      handle, edgelist, meta, do_expensive_check);
+      graph_meta_t<vertex_t, edge_t, multi_gpu> meta{
+        num_global_vertices, num_global_edges, graph_props, partition, opt_seg_off};
+
+      return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
+        handle, edgelist, meta, do_expensive_check);
+    }
   }
 };
 
@@ -178,20 +190,37 @@ struct graph_factory_t<
   std::unique_ptr<graph_envelope_t::base_graph_t> make_graph(erased_pack_t& ep) const override
   {
     /// std::cout << "Single-GPU factory.\n";
+
     std::vector<void*> const& v_args{ep.get_args()};
 
-    assert(v_args.size() == 4);
+    // branch on various constructors based on
+    // number of arguments in the pack:
+    //
+    auto pack_arg_sz = v_args.size();
+    assert(pack_arg_sz > 0);  // need at least the raft handle
 
+    // cnstr. args unpacking:
+    //
     raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
 
-    auto const& elist = *static_cast<edgelist_t<vertex_t, edge_t, weight_t> const*>(v_args[1]);
+    if (pack_arg_sz == 1) {
+      // invoke graph_t(handle);
+      return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
+        handle);
+    } else {
+      assert(pack_arg_sz == 4);
 
-    auto meta = *static_cast<graph_meta_t<vertex_t, edge_t, multi_gpu> const*>(v_args[2]);
+      raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
 
-    bool check = *static_cast<bool*>(v_args[3]);
+      auto const& elist = *static_cast<edgelist_t<vertex_t, edge_t, weight_t> const*>(v_args[1]);
 
-    return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
-      handle, elist, meta, check);
+      auto meta = *static_cast<graph_meta_t<vertex_t, edge_t, multi_gpu> const*>(v_args[2]);
+
+      bool check = *static_cast<bool*>(v_args[3]);
+
+      return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
+        handle, elist, meta, check);
+    }
   }
 };
 

@@ -17,6 +17,7 @@
 
 #include <cugraph/utilities/thrust_tuple_utils.cuh>
 
+#include <raft/comms/comms.hpp>
 #include <raft/device_atomics.cuh>
 
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
@@ -121,12 +122,12 @@ struct cast_edge_op_bool_to_integer {
   }
 };
 
-template <typename T>
-struct property_add : public thrust::plus<T> {
+template <typename T, template <typename> typename Op>
+struct property_op : public Op<T> {
 };
 
-template <typename... Args>
-struct property_add<thrust::tuple<Args...>>
+template <typename... Args, template <typename> typename Op>
+struct property_op<thrust::tuple<Args...>, Op>
   : public thrust::
       binary_function<thrust::tuple<Args...>, thrust::tuple<Args...>, thrust::tuple<Args...>> {
   using Type = thrust::tuple<Args...>;
@@ -135,7 +136,8 @@ struct property_add<thrust::tuple<Args...>>
   template <typename T, std::size_t... Is>
   __host__ __device__ constexpr auto sum_impl(T& t1, T& t2, std::index_sequence<Is...>)
   {
-    return thrust::make_tuple((thrust::get<Is>(t1) + thrust::get<Is>(t2))...);
+    return thrust::make_tuple((Op<typename thrust::tuple_element<Is, Type>::type>()(
+      thrust::get<Is>(t1), thrust::get<Is>(t2)))...);
   }
 
  public:
@@ -144,6 +146,46 @@ struct property_add<thrust::tuple<Args...>>
     return sum_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
   }
 };
+
+template <typename T, typename F>
+constexpr auto op_dispatch(raft::comms::op_t op, F&& f)
+{
+  switch (op) {
+    case raft::comms::op_t::SUM: {
+      return std::invoke(f, property_op<T, thrust::plus>());
+    } break;
+    case raft::comms::op_t::MIN: {
+      return std::invoke(f, property_op<T, thrust::minimum>());
+    } break;
+    case raft::comms::op_t::MAX: {
+      return std::invoke(f, property_op<T, thrust::maximum>());
+    } break;
+    default: {
+      CUGRAPH_FAIL("Unhandled raft::comms::op_t");
+      return std::invoke_result_t<F, property_op<T, thrust::plus>>{};
+    }
+  };
+}
+
+template <typename T>
+T identity_element(raft::comms::op_t op)
+{
+  switch (op) {
+    case raft::comms::op_t::SUM: {
+      return T{0};
+    } break;
+    case raft::comms::op_t::MIN: {
+      return std::numeric_limits<T>::max();
+    } break;
+    case raft::comms::op_t::MAX: {
+      return std::numeric_limits<T>::lowest();
+    } break;
+    default: {
+      CUGRAPH_FAIL("Unhandled raft::comms::op_t");
+      return T{0};
+    }
+  };
+}
 
 template <typename Iterator, typename T>
 __device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value, void>
@@ -174,41 +216,5 @@ __device__
   atomic_accumulate_thrust_tuple<Iterator, T>()(iter, value);
   return;
 }
-
-template <typename EdgeOpResultType>
-struct warp_reduce_edge_op_result {  // only warp lane 0 has a valid result
-  template <typename T = EdgeOpResultType>
-  __device__ std::enable_if_t<std::is_arithmetic<T>::value, T> compute(T const& edge_op_result)
-  {
-    auto ret = edge_op_result;
-    for (auto offset = raft::warp_size() / 2; offset > 0; offset /= 2) {
-      ret += __shfl_down_sync(raft::warp_full_mask(), ret, offset);
-    }
-    return ret;
-  }
-
-  template <typename T = EdgeOpResultType>
-  __device__ std::enable_if_t<is_thrust_tuple<T>::value, T> compute(T const& edge_op_result)
-  {
-    return warp_reduce_thrust_tuple<T>()(edge_op_result);
-  }
-};
-
-template <typename EdgeOpResultType, size_t BlockSize>
-struct block_reduce_edge_op_result {
-  template <typename T = EdgeOpResultType>
-  __device__ std::enable_if_t<std::is_arithmetic<T>::value, T> compute(T const& edge_op_result)
-  {
-    using BlockReduce = cub::BlockReduce<T, BlockSize>;
-    __shared__ typename BlockReduce::TempStorage temp_storage;
-    return BlockReduce(temp_storage).Sum(edge_op_result);
-  }
-
-  template <typename T = EdgeOpResultType>
-  __device__ std::enable_if_t<is_thrust_tuple<T>::value, T> compute(T const& edge_op_result)
-  {
-    return block_reduce_thrust_tuple<T, BlockSize>()(edge_op_result);
-  }
-};
 
 }  // namespace cugraph

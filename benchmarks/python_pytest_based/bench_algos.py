@@ -37,7 +37,6 @@ import rmm
 
 from .params import FIXTURE_PARAMS
 
-
 ###############################################################################
 # Helpers
 def createGraph(csvFileName, graphType=None):

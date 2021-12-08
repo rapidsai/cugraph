@@ -17,6 +17,8 @@
 function(find_and_configure_thrust)
   include(${rapids-cmake-dir}/cpm/thrust.cmake)
 
+  # FIXME: Temporary workaround to our current 11.0 CI problem
+  set(CPM_DOWNLOAD_ALL ON)
   rapids_cpm_thrust(
     NAMESPACE cugraph
     BUILD_EXPORT_SET raft-exports

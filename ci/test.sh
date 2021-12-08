@@ -57,8 +57,12 @@ fi
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     cd ${CUGRAPH_ROOT}/cpp/build
 else
-    export LD_LIBRARY_PATH="$WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build:$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
-    cd $WORKSPACE/ci/artifacts/cugraph/cpu/conda_work/cpp/build
+    # ...cugraph/cpu/conda_work/... is the dir name when only 1 lib* library is
+    # present. For multiple libs (ie. libcugraph and libcugraph_etl), the
+    # "_work" dir is prefixed with the lib name.
+    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/libcugraph_work/cpp/build"
+    export LD_LIBRARY_PATH="$LIBCUGRAPH_BUILD_DIR:$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
+    cd $LIBCUGRAPH_BUILD_DIR
 fi
 
 # Do not abort the script on error from this point on. This allows all tests to
@@ -70,11 +74,20 @@ if (python ${CUGRAPH_ROOT}/ci/utils/is_pascal.py); then
     echo "WARNING: skipping C++ tests on Pascal GPU arch."
 else
     echo "C++ gtests for cuGraph (single-GPU only)..."
-    for gt in $(find ./tests -name "*_TEST" | grep -v "MG_" || true); do
+    for gt in $(find ./tests -name "*_TEST" | grep -v "MG_\|CAPI_" || true); do
         test_name=$(basename $gt)
         echo "Running gtest $test_name"
         ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
         echo "Ran gtest $test_name : return code was: $?, test script exit code is now: $EXITCODE"
+    done
+    # FIXME: the C API tests do not generate XML, so CI systems will not show
+    # them in the GUI. Failing C API tests will still fail CI though, and the
+    # output will appear in logs.
+    for ct in $(find ./tests -name "CAPI_*_TEST"); do
+        test_name=$(basename $ct)
+        echo "Running C API test $test_name"
+        ${ct}
+        echo "Ran C API test $test_name : return code was: $?, test script exit code is now: $EXITCODE"
     done
 fi
 

@@ -10,9 +10,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from libcpp.memory cimport unique_ptr
 from libcpp cimport bool
-from cugraph.structure.graph_utilities cimport *
 from libcpp.vector cimport vector
+from libcpp.utility cimport pair
+
+from rmm._lib.device_buffer cimport device_buffer
+
+from cugraph.raft.common.handle cimport handle_t
+from cugraph.structure.graph_utilities cimport graph_generator_t
+
 
 cdef extern from "cugraph/graph_generators.hpp" namespace "cugraph":
     ctypedef enum generator_distribution_t:

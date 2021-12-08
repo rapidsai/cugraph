@@ -15,6 +15,8 @@ import gc
 import pytest
 
 import cudf
+from cudf.testing import assert_series_equal
+
 import cugraph
 from cugraph.tests import utils
 
@@ -252,4 +254,6 @@ def test_jaccard_multi_column(read_csv):
     df_exp = cugraph.jaccard(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    assert df_res["jaccard_coeff"].equals(df_exp["jaccard_coeff"])
+    actual = df_res.sort_values("0_source").reset_index()
+    expected = df_exp.sort_values("source").reset_index()
+    assert_series_equal(actual["jaccard_coeff"], expected["jaccard_coeff"])

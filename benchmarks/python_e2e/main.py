@@ -23,6 +23,31 @@ import cugraph_funcs
 import cugraph_dask_funcs
 from benchmark import BenchmarkRun
 
+import json
+from pathlib import Path
+
+
+def store_results_json(benchmark_dir=None,
+                       algo_name=None,
+                       algo_time=None,
+                       n_gpus=None,
+                       scale=None):
+    """
+    Store all benchmark results in json files
+    """
+    benchmark_result = {}
+    benchmark_result['funcName'] = algo_name
+    benchmark_result['result'] = algo_time
+    benchmark_result['argNameValuePairs'] = [('scale', scale), ('ngpus', n_gpus)]
+
+    json_object = json.dumps(benchmark_result, indent=4)
+
+    benchmark_dir_path = Path(benchmark_dir)
+
+    with open(f"{benchmark_dir_path}/benchmark_result_scale_{scale}_ngpus_{n_gpus}_{algo_name}.json", "w") as outfile:
+        outfile.write(json_object)
+
+
 
 def log(s, end="\n"):
     print(s, end=end)
@@ -36,6 +61,7 @@ def run(algos,
         unweighted=False,
         symmetric=False,
         edgefactor=None,
+        benchmark_dir=None,
         dask_scheduler_file=None):
     """
     Run the nightly benchmark on cugraph.
@@ -47,6 +73,9 @@ def run(algos,
         funcs = cugraph_funcs
     else:
         funcs = cugraph_dask_funcs
+        # For MNMG, find the number of GPUS after the client and
+        # and the cluster started
+        n_gpus = None
 
     # Setup the benchmarks to run based on algos specified, or all.
     # Values are either callables, or tuples of (callable, args) pairs.
@@ -72,6 +101,11 @@ def run(algos,
     # output files/reports, etc.
     log("calling setup...", end="")
     setup_objs = funcs.setup(dask_scheduler_file)
+
+    # If the number of GPUs is None, This is a MNMG run
+    # Extract the number of gpus from the client
+    if n_gpus is None:
+        n_gpus = len(setup_objs[0].scheduler_info()['workers'])
     log("done.")
 
     try:
@@ -95,6 +129,13 @@ def run(algos,
                                 )
         success = benchmark.run()
 
+        algo_name = benchmark.results[1].name
+        algo_name = f"benchmarks.{algo_name}"
+        algo_time = benchmark.results[1].runtime
+        # Generate json files containing the benchmark results
+        if benchmark_dir is not None:
+            store_results_json(benchmark_dir, algo_name, algo_time, n_gpus, scale)
+        
         # Report results
         print(generate_console_report(benchmark.results))
         if csv_results_file:
@@ -136,6 +177,9 @@ if __name__ == "__main__":
     ap.add_argument("--edgefactor", type=int, default=16,
                     help="edge factor for the graph edgelist generator "
                     "(num_edges=num_verts*EDGEFACTOR).")
+    ap.add_argument("--benchmark-dir", type=str, default=None,
+                    help="directory to store the results in json files")
+
     args = ap.parse_args()
 
     exitcode = run(algos=args.algo,
@@ -145,6 +189,7 @@ if __name__ == "__main__":
                    unweighted=args.unweighted,
                    symmetric=args.symmetric_graph,
                    edgefactor=args.edgefactor,
+                   benchmark_dir=args.benchmark_dir,
                    dask_scheduler_file=args.dask_scheduler_file)
 
     sys.exit(exitcode)

@@ -15,16 +15,15 @@
  */
 #pragma once
 
+#include <cugraph/detail/decompress_matrix_partition.cuh>
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
-#include <cugraph/prims/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
 #include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_barrier.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
@@ -43,42 +42,8 @@
 #include <utility>
 
 namespace cugraph {
-namespace detail {
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>>
-decompress_matrix_partition_to_edgelist(
-  raft::handle_t const& handle,
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
-  std::optional<std::vector<vertex_t>> const& segment_offsets)
-{
-  auto number_of_edges = matrix_partition.get_number_of_edges();
-  rmm::device_uvector<vertex_t> edgelist_major_vertices(number_of_edges, handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minor_vertices(number_of_edges, handle.get_stream());
-  auto edgelist_weights =
-    matrix_partition.get_weights()
-      ? std::make_optional<rmm::device_uvector<weight_t>>(number_of_edges, handle.get_stream())
-      : std::nullopt;
-
-  decompress_matrix_partition_to_fill_edgelist_majors(
-    handle, matrix_partition, edgelist_major_vertices.data(), segment_offsets);
-  thrust::copy(handle.get_thrust_policy(),
-               matrix_partition.get_indices(),
-               matrix_partition.get_indices() + number_of_edges,
-               edgelist_minor_vertices.begin());
-  if (edgelist_weights) {
-    thrust::copy(handle.get_thrust_policy(),
-                 *(matrix_partition.get_weights()),
-                 *(matrix_partition.get_weights()) + number_of_edges,
-                 (*edgelist_weights).data());
-  }
-
-  return std::make_tuple(std::move(edgelist_major_vertices),
-                         std::move(edgelist_minor_vertices),
-                         std::move(edgelist_weights));
-}
+namespace {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 edge_t groupby_e_and_coarsen_edgelist(vertex_t* edgelist_major_vertices /* [INOUT] */,
@@ -148,8 +113,21 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
   // compressed sparse format to save memory
 
-  auto [edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights] =
-    decompress_matrix_partition_to_edgelist(handle, matrix_partition, segment_offsets);
+  rmm::device_uvector<vertex_t> edgelist_major_vertices(matrix_partition.get_number_of_edges(),
+                                                        handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_minor_vertices(edgelist_major_vertices.size(),
+                                                        handle.get_stream());
+  auto edgelist_weights = matrix_partition.get_weights()
+                            ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                edgelist_major_vertices.size(), handle.get_stream())
+                            : std::nullopt;
+  detail::decompress_matrix_partition_to_edgelist(
+    handle,
+    matrix_partition,
+    edgelist_major_vertices.data(),
+    edgelist_minor_vertices.data(),
+    edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
+    segment_offsets);
 
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(edgelist_major_vertices.begin(), edgelist_minor_vertices.begin()));
@@ -185,6 +163,10 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                          std::move(edgelist_minor_vertices),
                          std::move(edgelist_weights));
 }
+
+}  // namespace
+
+namespace detail {
 
 // multi-GPU version
 template <typename vertex_t,
@@ -255,16 +237,6 @@ coarsen_graph(
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     // 1-1. locally construct coarsened edge list
 
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (beginning of col_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
-#else
-    handle.get_stream_view().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
     rmm::device_uvector<vertex_t> major_labels(
       store_transposed ? graph_view.get_number_of_local_adj_matrix_partition_cols(i)
                        : graph_view.get_number_of_local_adj_matrix_partition_rows(i),
@@ -275,16 +247,6 @@ coarsen_graph(
                  major_labels.size(),
                  static_cast<int>(i),
                  handle.get_stream());
-    // barrier is necessary here to avoid potential overlap (which can leads to deadlock) between
-    // two different communicators (end of col_comm)
-#if 1
-    // FIXME: temporary hack till UCC is integrated into RAFT (so we can use UCC barrier with DASK
-    // and MPI barrier with MPI)
-    host_barrier(comm, handle.get_stream_view());
-#else
-    handle.get_stream_view().synchronize();
-    comm.barrier();  // currently, this is ncclAllReduce
-#endif
 
     auto [edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights] =
       decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
@@ -426,8 +388,7 @@ coarsen_graph(
     }
     std::tie(renumber_map_labels, meta) = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
-      std::optional<std::tuple<vertex_t const*, vertex_t>>{
-        std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
+      std::optional<rmm::device_uvector<vertex_t>>{std::move(unique_labels)},
       major_ptrs,
       minor_ptrs,
       counts,
@@ -510,8 +471,7 @@ coarsen_graph(
 
   auto [renumber_map_labels, meta] = renumber_edgelist<vertex_t, edge_t, multi_gpu>(
     handle,
-    std::optional<std::tuple<vertex_t const*, vertex_t>>{
-      std::make_tuple(unique_labels.data(), static_cast<vertex_t>(unique_labels.size()))},
+    std::optional<rmm::device_uvector<vertex_t>>{std::move(unique_labels)},
     coarsened_edgelist_major_vertices.data(),
     coarsened_edgelist_minor_vertices.data(),
     static_cast<edge_t>(coarsened_edgelist_major_vertices.size()),

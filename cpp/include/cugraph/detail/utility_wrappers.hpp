@@ -46,6 +46,19 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                          uint64_t seed);
 
 /**
+ * @brief    Normalize the values in an array
+ *
+ * @tparam      value_t      type of the value to operate on
+ *
+ * @param[in]   stream_view  stream view
+ * @param[out]  d_value      device array to reduce
+ * @param[in]   size         number of elements in array
+ *
+ */
+template <typename value_t>
+void normalize(rmm::cuda_stream_view const& stream_view, value_t* d_value, size_t size);
+
+/**
  * @brief    Fill a buffer with a sequence of values
  *
  * Fills the buffer with the sequence:
@@ -82,8 +95,31 @@ void sequence_fill(rmm::cuda_stream_view const& stream_view,
  */
 template <typename vertex_t>
 vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
+                                   vertex_t const* d_edgelist_rows,
+                                   vertex_t const* d_edgelist_cols,
+                                   size_t num_edges);
+
+/**
+ * @brief    Compute the maximum vertex id of an edge list
+ *
+ * max(d_edgelist_rows.max(), d_edgelist_cols.max())
+ *
+ * @tparam      vertex_t     vertex type
+ *
+ * @param[in]   stream_view  stream view
+ * @param[in]   d_edgelist_rows      device array to fill
+ * @param[in]   d_edgelist_cols         number of elements in array
+ *
+ * @param the maximum value occurring in the edge list
+ */
+template <typename vertex_t>
+vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
                                    rmm::device_uvector<vertex_t> const& d_edgelist_rows,
-                                   rmm::device_uvector<vertex_t> const& d_edgelist_cols);
+                                   rmm::device_uvector<vertex_t> const& d_edgelist_cols)
+{
+  return compute_maximum_vertex_id(
+    stream_view, d_edgelist_rows.data(), d_edgelist_cols.data(), d_edgelist_rows.size());
+}
 
 }  // namespace detail
 }  // namespace cugraph

@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <cugraph/api_helpers.hpp>
+
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
@@ -1105,6 +1107,7 @@ weight_t hungarian(raft::handle_t const& handle,
  * @param predecessors Pointer to the output predecessor array or `nullptr`.
  * @param sources Source vertices to start breadth-first search (root vertex of the breath-first
  * search tree). If more than one source is passed, there must be a single source per component.
+ * In a multi-gpu context the source vertices should be local to this GPU.
  * @param n_sources number of sources (one source per component at most).
  * @param direction_optimizing If set to true, this algorithm switches between the push based
  * breadth-first search and pull based breadth-first search depending on the size of the
@@ -1124,6 +1127,44 @@ void bfs(raft::handle_t const& handle,
          bool direction_optimizing = false,
          vertex_t depth_limit      = std::numeric_limits<vertex_t>::max(),
          bool do_expensive_check   = false);
+
+/**
+ * @brief Extract paths from breadth-first search output
+ *
+ * This function extracts paths from the BFS output.  BFS outputs distances
+ * and predecessors.  The path from a vertex v back to the original source vertex
+ * can be extracted by recursively looking up the predecessor vertex until you arrive
+ * back at the original source vertex.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param distances Pointer to the distance array constructed by bfs.
+ * @param predecessors Pointer to the predecessor array constructed by bfs.
+ * @param destinations Destination vertices, extract path from source to each of these destinations
+ * In a multi-gpu context the destination vertex should be local to this GPU.
+ * @param n_destinations number of destinations (one source per component at most).
+ *
+ * @return std::tuple<rmm::device_uvector<vertex_t>, vertex_t> pair containing
+ *       the paths as a dense matrix in the vector and the maximum path length.
+ *       Unused elements in the paths * will be set to invalid_vertex_id (-1 for a signed
+ *       vertex_t, std::numeric_limits<vertex_t>::max() for an unsigned vertex_t type).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  vertex_t const* distances,
+  vertex_t const* predecessors,
+  vertex_t const* destinations,
+  size_t n_destinations);
 
 /**
  * @brief Run single-source shortest-path to compute the minimum distances (and predecessors) from
@@ -1146,6 +1187,7 @@ void bfs(raft::handle_t const& handle,
  * @param distances Pointer to the output distance array.
  * @param predecessors Pointer to the output predecessor array or `nullptr`.
  * @param source_vertex Source vertex to start single-source shortest-path.
+ * In a multi-gpu context the source vertex should be local to this GPU.
  * @param cutoff Single-source shortest-path terminates if no more vertices are reachable within the
  * distance of @p cutoff. Any vertex farther than @p cutoff will be marked as unreachable.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -1213,6 +1255,47 @@ void pagerank(raft::handle_t const& handle,
               size_t max_iterations   = 500,
               bool has_initial_guess  = false,
               bool do_expensive_check = false);
+
+/**
+ * @brief Compute HITS scores.
+ *
+ * This function computes HITS scores for the vertices of a graph
+ *
+ * @throws cugraph::logic_error on erroneous input arguments
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param hubs Pointer to the input/output hub score array.
+ * @param authorities Pointer to the output authorities score array.
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
+ * differences in hub values between two consecutive iterations is less than @p epsilon
+ * @param max_iterations Maximum number of HITS iterations.
+ * @param has_initial_guess If set to `true`, values in the hubs output array (pointed by @p
+ * hubs) is used as initial hub values. If false, initial hub values are set to 1.0
+ * divided by the number of vertices in the graph.
+ * @param normalize If set to `true`, final hub and authority scores are normalized (the L1-norm of
+ * the returned hub and authority score arrays is 1.0) before returning.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return std::tuple<weight_t, size_t> A tuple of sum of the differences of hub scores of the last
+ * two iterations and the total number of iterations taken to reach the final result
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<weight_t, size_t> hits(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
+  weight_t* hubs,
+  weight_t* authorities,
+  weight_t epsilon,
+  size_t max_iterations,
+  bool has_initial_hubs_guess,
+  bool normalize,
+  bool do_expensive_check);
 
 /**
  * @brief Compute Katz Centrality scores.
@@ -1309,8 +1392,8 @@ extract_ego(raft::handle_t const& handle,
  * (compressed) format; when padding is used the output is a matrix of vertex paths and a matrix of
  * edges paths (weights); in this case the matrices are stored in row major order; the vertex path
  * matrix is padded with `num_vertices` values and the weight matrix is padded with `0` values;
- * @param selector_type identifier for sampling strategy: uniform, biased, etc.; possible
- * values{0==uniform, 1==biased}; defaults to 0 == uniform;
+ * @param sampling_strategy pointer for sampling strategy: uniform, biased, etc.; possible
+ * values{0==uniform, 1==biased, 2==node2vec}; defaults to nullptr == uniform;
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
  * rmm::device_uvector<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced
  * case (default), the return consists of corresponding vertex and edge weights for each, and
@@ -1330,8 +1413,8 @@ random_walks(raft::handle_t const& handle,
              typename graph_t::vertex_type const* ptr_d_start,
              index_t num_paths,
              index_t max_depth,
-             bool use_padding  = false,
-             int selector_type = 0);
+             bool use_padding                                     = false,
+             std::unique_ptr<sampling_params_t> sampling_strategy = nullptr);
 
 /**
  * @brief Finds (weakly-connected-)component IDs of each vertices in the input graph.
@@ -1345,6 +1428,7 @@ random_walks(raft::handle_t const& handle,
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param components Pointer to the output component ID array.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -1355,5 +1439,39 @@ void weakly_connected_components(
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
   vertex_t* components,
   bool do_expensive_check = false);
+
+enum class k_core_degree_type_t { IN, OUT, INOUT };
+
+/**
+ * @brief   Compute core numbers of individual vertices from K-core decomposition.
+ *
+ * The input graph should not have self-loops nor multi-edges. Currently, only undirected graphs are
+ * supported.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param core_numbers Pointer to the output core number array.
+ * @param degree_type Dictate whether to compute the K-core decomposition based on in-degrees,
+ * out-degrees, or in-degrees + out_degrees.
+ * @param k_first Find K-cores from K = k_first. Any vertices that do not belong to k_first-core
+ * will have core numbers of 0.
+ * @param k_last Find K-cores to K = k_last. Any vertices that belong to (k_last)-core will have
+ * their core numbers set to their degrees on k_last-core.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void core_number(raft::handle_t const& handle,
+                 graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                 edge_t* core_numbers,
+                 k_core_degree_type_t degree_type,
+                 size_t k_first          = 0,
+                 size_t k_last           = std::numeric_limits<size_t>::max(),
+                 bool do_expensive_check = false);
 
 }  // namespace cugraph

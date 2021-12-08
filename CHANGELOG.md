@@ -1,6 +1,91 @@
-# cuGraph 21.10.00 (Date TBD)
+# cuGraph 21.12.00 (Date TBD)
 
-Please see https://github.com/rapidsai/cugraph/releases/tag/v21.10.00a for the latest changes to this development branch.
+Please see https://github.com/rapidsai/cugraph/releases/tag/v21.12.00a for the latest changes to this development branch.
+
+# cuGraph 21.10.00 (7 Oct 2021)
+
+## 🚨 Breaking Changes
+
+- remove tsp implementation from 21.10 ([#1812](https://github.com/rapidsai/cugraph/pull/1812)) [@ChuckHastings](https://github.com/ChuckHastings)
+- multi seeds BFS with one seed per component ([#1591](https://github.com/rapidsai/cugraph/pull/1591)) [@afender](https://github.com/afender)
+
+## 🐛 Bug Fixes
+
+- make_zip_iterator should be on a make_tuple ([#1857](https://github.com/rapidsai/cugraph/pull/1857)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Removed NetworkX requirement for type checks, fixed docstring, added new docstrings, import cleanups ([#1853](https://github.com/rapidsai/cugraph/pull/1853)) [@rlratzel](https://github.com/rlratzel)
+- Temporarily disable input argument checks for a currently disabled feature ([#1840](https://github.com/rapidsai/cugraph/pull/1840)) [@seunghwak](https://github.com/seunghwak)
+- Changed value of the expensive check param to `false` in `populate_graph_container` ([#1839](https://github.com/rapidsai/cugraph/pull/1839)) [@rlratzel](https://github.com/rlratzel)
+- Accommodate cudf change to is_string_dtype method ([#1827](https://github.com/rapidsai/cugraph/pull/1827)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Changed code to disable `k_truss` on CUDA 11.4 differently ([#1811](https://github.com/rapidsai/cugraph/pull/1811)) [@rlratzel](https://github.com/rlratzel)
+- Clean-up artifacts from the multi-source BFS PR ([#1591) (#1804](https://github.com/rapidsai/cugraph/pull/1591) (#1804)) [@seunghwak](https://github.com/seunghwak)
+- MG WCC bug fix ([#1802](https://github.com/rapidsai/cugraph/pull/1802)) [@seunghwak](https://github.com/seunghwak)
+- Fix MG Louvain test compile errors ([#1797](https://github.com/rapidsai/cugraph/pull/1797)) [@seunghwak](https://github.com/seunghwak)
+- force_atlas2 to support nx hypercube_graph ([#1779](https://github.com/rapidsai/cugraph/pull/1779)) [@jnke2016](https://github.com/jnke2016)
+- Bug louvain reverted fix ([#1766](https://github.com/rapidsai/cugraph/pull/1766)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Bug dask cudf personalization ([#1764](https://github.com/rapidsai/cugraph/pull/1764)) [@Iroy30](https://github.com/Iroy30)
+
+## 📖 Documentation
+
+- updated to new doc theme ([#1793](https://github.com/rapidsai/cugraph/pull/1793)) [@BradReesWork](https://github.com/BradReesWork)
+- Change python docs to pydata theme ([#1785](https://github.com/rapidsai/cugraph/pull/1785)) [@galipremsagar](https://github.com/galipremsagar)
+- Initial doc update for running the python E2E benchmarks in a MNMG environment. ([#1781](https://github.com/rapidsai/cugraph/pull/1781)) [@rlratzel](https://github.com/rlratzel)
+
+## 🚀 New Features
+
+- C++ benchmarking for additional algorithms ([#1762](https://github.com/rapidsai/cugraph/pull/1762)) [@seunghwak](https://github.com/seunghwak)
+
+## 🛠️ Improvements
+
+- Updating cuco to latest ([#1859](https://github.com/rapidsai/cugraph/pull/1859)) [@BradReesWork](https://github.com/BradReesWork)
+- fix benchmark exit status ([#1850](https://github.com/rapidsai/cugraph/pull/1850)) [@jnke2016](https://github.com/jnke2016)
+- add try/catch for python-louvain ([#1842](https://github.com/rapidsai/cugraph/pull/1842)) [@BradReesWork](https://github.com/BradReesWork)
+- Pin max dask and distributed versions to 2021.09.1 ([#1841](https://github.com/rapidsai/cugraph/pull/1841)) [@galipremsagar](https://github.com/galipremsagar)
+- add compiler version checks to cmake to fail early ([#1836](https://github.com/rapidsai/cugraph/pull/1836)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Make sure we keep the rapids-cmake and cugraph cal version in sync ([#1830](https://github.com/rapidsai/cugraph/pull/1830)) [@robertmaynard](https://github.com/robertmaynard)
+- Remove obsolete file ([#1829](https://github.com/rapidsai/cugraph/pull/1829)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Improve memory scaling for low average vertex degree graphs &amp; many GPUs ([#1823](https://github.com/rapidsai/cugraph/pull/1823)) [@seunghwak](https://github.com/seunghwak)
+- Added the reduction op input parameter to host_scalar_(all)reduce utility functions. ([#1822](https://github.com/rapidsai/cugraph/pull/1822)) [@seunghwak](https://github.com/seunghwak)
+- Count if e test ([#1821](https://github.com/rapidsai/cugraph/pull/1821)) [@kaatish](https://github.com/kaatish)
+- Added Sorensen algorithm to Python API ([#1820](https://github.com/rapidsai/cugraph/pull/1820)) [@jnke2016](https://github.com/jnke2016)
+- Updated to enforce only supported dtypes, changed to use legacy connected_components API ([#1817](https://github.com/rapidsai/cugraph/pull/1817)) [@rlratzel](https://github.com/rlratzel)
+- Group return values of renumber_edgelist and input parameters of graph_t &amp; graph_view_t constructors. ([#1816](https://github.com/rapidsai/cugraph/pull/1816)) [@seunghwak](https://github.com/seunghwak)
+- remove tsp implementation from 21.10 ([#1812](https://github.com/rapidsai/cugraph/pull/1812)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Changed pylibcugraph connected_components APIs to use duck typing for CAI inputs, added doc placeholders ([#1810](https://github.com/rapidsai/cugraph/pull/1810)) [@rlratzel](https://github.com/rlratzel)
+- Add new new raft symlink path to .gitignore ([#1808](https://github.com/rapidsai/cugraph/pull/1808)) [@trxcllnt](https://github.com/trxcllnt)
+- Initial version of `pylibcugraph` conda package and CI build script updates ([#1806](https://github.com/rapidsai/cugraph/pull/1806)) [@rlratzel](https://github.com/rlratzel)
+- Also building cpp MG tests as part of conda/CI libcugraph builds ([#1805](https://github.com/rapidsai/cugraph/pull/1805)) [@rlratzel](https://github.com/rlratzel)
+- Split many files to separate SG from MG template instantiations ([#1803](https://github.com/rapidsai/cugraph/pull/1803)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Graph primitives memory scaling improvements for low average vertex degree graphs and many GPUs (Part 1) ([#1801](https://github.com/rapidsai/cugraph/pull/1801)) [@seunghwak](https://github.com/seunghwak)
+- Pylibcugraph connected components ([#1800](https://github.com/rapidsai/cugraph/pull/1800)) [@Iroy30](https://github.com/Iroy30)
+- Transform Reduce E test ([#1798](https://github.com/rapidsai/cugraph/pull/1798)) [@kaatish](https://github.com/kaatish)
+- Update with rapids cmake new features ([#1790](https://github.com/rapidsai/cugraph/pull/1790)) [@robertmaynard](https://github.com/robertmaynard)
+- Update thrust/RMM deprecated calls ([#1789](https://github.com/rapidsai/cugraph/pull/1789)) [@dantegd](https://github.com/dantegd)
+- Update UCX-Py to 0.22 ([#1788](https://github.com/rapidsai/cugraph/pull/1788)) [@pentschev](https://github.com/pentschev)
+- Initial version of `pylibcugraph` source tree and build script updates ([#1787](https://github.com/rapidsai/cugraph/pull/1787)) [@rlratzel](https://github.com/rlratzel)
+- Fix Forward-Merge Conflicts ([#1786](https://github.com/rapidsai/cugraph/pull/1786)) [@ajschmidt8](https://github.com/ajschmidt8)
+- add conda environment for CUDA 11.4 ([#1784](https://github.com/rapidsai/cugraph/pull/1784)) [@seunghwak](https://github.com/seunghwak)
+- Temporarily pin RMM while refactor removes deprecated calls ([#1775](https://github.com/rapidsai/cugraph/pull/1775)) [@dantegd](https://github.com/dantegd)
+- MNMG memory footprint improvement for low average vertex degree graphs (part 2) ([#1774](https://github.com/rapidsai/cugraph/pull/1774)) [@seunghwak](https://github.com/seunghwak)
+- Fix unused variables/parameters warnings ([#1772](https://github.com/rapidsai/cugraph/pull/1772)) [@seunghwak](https://github.com/seunghwak)
+- MNMG memory footprint improvement for low average vertex degree graphs (part 1) ([#1769](https://github.com/rapidsai/cugraph/pull/1769)) [@seunghwak](https://github.com/seunghwak)
+- Transform reduce v test ([#1768](https://github.com/rapidsai/cugraph/pull/1768)) [@kaatish](https://github.com/kaatish)
+- Move experimental source files and a few implementation headers ([#1763](https://github.com/rapidsai/cugraph/pull/1763)) [@ChuckHastings](https://github.com/ChuckHastings)
+- updating notebooks ([#1761](https://github.com/rapidsai/cugraph/pull/1761)) [@BradReesWork](https://github.com/BradReesWork)
+- consolidate tests to use the fixture dask_client ([#1758](https://github.com/rapidsai/cugraph/pull/1758)) [@jnke2016](https://github.com/jnke2016)
+- Move all new graph objects out of experimental namespace ([#1757](https://github.com/rapidsai/cugraph/pull/1757)) [@ChuckHastings](https://github.com/ChuckHastings)
+- C++ benchmarking for MG PageRank ([#1755](https://github.com/rapidsai/cugraph/pull/1755)) [@seunghwak](https://github.com/seunghwak)
+- Move legacy implementations into legacy directories ([#1752](https://github.com/rapidsai/cugraph/pull/1752)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Remove hardcoded Pagerank dtype ([#1751](https://github.com/rapidsai/cugraph/pull/1751)) [@jnke2016](https://github.com/jnke2016)
+- Add python end to end benchmark and create new directories ([#1750](https://github.com/rapidsai/cugraph/pull/1750)) [@jnke2016](https://github.com/jnke2016)
+- Modify MNMG louvain to support an empty vertex partition ([#1744](https://github.com/rapidsai/cugraph/pull/1744)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Fea renumbering test ([#1742](https://github.com/rapidsai/cugraph/pull/1742)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Fix auto-merger for Branch 21.10 coming from 21.08 ([#1740](https://github.com/rapidsai/cugraph/pull/1740)) [@galipremsagar](https://github.com/galipremsagar)
+- Use the new RAPIDS.cmake to fetch rapids-cmake ([#1734](https://github.com/rapidsai/cugraph/pull/1734)) [@robertmaynard](https://github.com/robertmaynard)
+- Biased Random Walks for GNN ([#1732](https://github.com/rapidsai/cugraph/pull/1732)) [@aschaffer](https://github.com/aschaffer)
+- Updated MG python tests to run in single and multi-node environments ([#1731](https://github.com/rapidsai/cugraph/pull/1731)) [@rlratzel](https://github.com/rlratzel)
+- ENH Replace gpuci_conda_retry with gpuci_mamba_retry ([#1720](https://github.com/rapidsai/cugraph/pull/1720)) [@dillon-cullinan](https://github.com/dillon-cullinan)
+- Apply modifications to account for RAFT changes ([#1707](https://github.com/rapidsai/cugraph/pull/1707)) [@viclafargue](https://github.com/viclafargue)
+- multi seeds BFS with one seed per component ([#1591](https://github.com/rapidsai/cugraph/pull/1591)) [@afender](https://github.com/afender)
 
 # cuGraph 21.08.00 (4 Aug 2021)
 
@@ -224,7 +309,6 @@ Please see https://github.com/rapidsai/cugraph/releases/tag/v21.10.00a for the l
 - Create labeler.yml (#1318) @jolorunyomi
 - Updates to support nightly MG test automation (#1308) @rlratzel
 - Add C++ graph functions (coarsen_grpah, renumber_edgelist, relabel) and primitvies (transform_reduce_by_adj_matrix_row_key, transform_reduce_by_adj_matrix_col_key, copy_v_transform_reduce_key_aggregated_out_nbr) (#1257) @seunghwak
->>>>>>> upstream/branch-0.18
 
 # cuGraph 0.17.0 (10 Dec 2020)
 ## New Features

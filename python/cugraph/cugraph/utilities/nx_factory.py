@@ -12,7 +12,7 @@
 # limitations under the License.
 
 """
-Utilities specific to NetworkX.
+Utilities specific to converting to/from NetworkX.
 
 NetworkX is required at runtime in order to call any of these functions, so
 ensure code using these utilities has done the proper checks prior to calling.
@@ -20,57 +20,85 @@ ensure code using these utilities has done the proper checks prior to calling.
 
 import cugraph
 from .utils import import_optional
+import cudf
 from cudf import from_pandas
-import numpy as np
 
 # nx will be a MissingModule instance if NetworkX is not installed (any
 # attribute access on a MissingModule instance results in a RuntimeError).
 nx = import_optional("networkx")
 
 
-def convert_from_nx(nxG, weight=None):
+def convert_unweighted_to_gdf(NX_G):
+    _edges = NX_G.edges(data=False)
+    src = [s for s, _ in _edges]
+    dst = [d for _, d in _edges]
+
+    _gdf = cudf.DataFrame()
+    _gdf['src'] = src
+    _gdf['dst'] = dst
+
+    return _gdf
+
+
+def convert_weighted_named_to_gdf(NX_G, weight):
+    _edges = NX_G.edges(data=weight)
+
+    src = [s for s, _, _ in _edges]
+    dst = [d for _, d, _ in _edges]
+    wt = [w for _, _, w in _edges]
+
+    _gdf = cudf.DataFrame()
+    _gdf['src'] = src
+    _gdf['dst'] = dst
+    _gdf['weight'] = wt
+
+    return _gdf
+
+
+def convert_weighted_unnamed_to_gdf(NX_G):
+    _pdf = nx.to_pandas_edgelist(NX_G)
+    nx_col = ["source", "target"]
+    wt_col = [col for col in _pdf.columns if col not in nx_col]
+    if len(wt_col) != 1:
+        raise ValueError(
+            "Unable to determine weight column name")
+
+    if wt_col[0] != "weight":
+        _pdf.rename(columns={wt_col[0]: "weight"})
+
+    _gdf = from_pandas(_pdf)
+    return _gdf
+
+
+def convert_from_nx(nxG, weight=None, do_renumber=True):
     """
-    weight, if given, is the string/name of the edge attr in nxG to use for
-    weights in the resulting cugraph obj.  If nxG has no edge attributes,
-    weight is ignored even if specified.
+    weight: weight column name. Only used if
+    nxG.is_weighted() is True
     """
-    if type(nxG) == nx.classes.graph.Graph:
+
+    if isinstance(nxG, nx.classes.digraph.DiGraph):
+        G = cugraph.Graph(directed=True)
+    elif isinstance(nxG, nx.classes.graph.Graph):
         G = cugraph.Graph()
-    elif type(nxG) == nx.classes.digraph.DiGraph:
-        G = cugraph.DiGraph()
     else:
-        raise ValueError("nxG does not appear to be a NetworkX graph type")
+        raise TypeError(
+            f"nxG must be either a NetworkX Graph or DiGraph, got {type(nxG)}")
 
-    pdf = nx.to_pandas_edgelist(nxG)
-    # Convert vertex columns to strings if they are not integers
-    # This allows support for any vertex input type
-    if pdf["source"].dtype not in [np.int32, np.int64] or \
-            pdf["target"].dtype not in [np.int32, np.int64]:
-        pdf['source'] = pdf['source'].astype(str)
-        pdf['target'] = pdf['target'].astype(str)
+    is_weighted = nx.is_weighted(nxG)
 
-    num_col = len(pdf.columns)
-
-    if num_col < 2:
-        raise ValueError("NetworkX graph did not contain edges")
-
-    if weight is None:
-        num_col == 2
-        pdf = pdf[["source", "target"]]
-
-    if num_col >= 3 and weight is not None:
-        pdf = pdf[["source", "target", weight]]
-        num_col = 3
-
-    gdf = from_pandas(pdf)
-
-    if num_col == 2:
-        G.from_cudf_edgelist(gdf, "source", "target")
+    if is_weighted is False:
+        _gdf = convert_unweighted_to_gdf(nxG)
+        G.from_cudf_edgelist(_gdf, source="src", destination="dst",
+                             edge_attr=None, renumber=do_renumber)
     else:
-        G.from_cudf_edgelist(gdf, "source", "target", weight)
-
-    del gdf
-    del pdf
+        if weight is None:
+            _gdf = convert_weighted_unnamed_to_gdf(nxG)
+            G.from_cudf_edgelist(_gdf, source="source", destination="target",
+                                 edge_attr='weight', renumber=do_renumber)
+        else:
+            _gdf = convert_weighted_named_to_gdf(nxG, weight)
+            G.from_cudf_edgelist(_gdf, source="src", destination="dst",
+                                 edge_attr='weight', renumber=do_renumber)
 
     return G
 
@@ -131,7 +159,6 @@ def df_edge_score_to_dictionary(df, k, src="src", dst="dst"):
         source column name
     dst : str
         destination column name
-
 
     Returns
     -------
