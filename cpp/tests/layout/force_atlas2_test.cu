@@ -12,13 +12,13 @@
 // Force_Atlas2 tests
 // Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 
-#include <layout/trust_worthiness.h>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <layout/trust_worthiness.h>
 
 #include <raft/error.hpp>
 #include <rmm/exec_policy.hpp>

@@ -17,9 +17,9 @@
 // Michael A. Frumkin (mfrumkin@nvidia.com)
 #pragma once
 
-#include <time.h>
 #include <iostream>
 #include <string>
+#include <time.h>
 
 class HighResClock {
  public:

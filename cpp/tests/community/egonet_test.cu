@@ -29,8 +29,8 @@
 
 #include <gtest/gtest.h>
 
-#include <raft/cudart_utils.h>
 #include <algorithm>
+#include <raft/cudart_utils.h>
 #include <rmm/exec_policy.hpp>
 #include <tuple>
 #include <vector>

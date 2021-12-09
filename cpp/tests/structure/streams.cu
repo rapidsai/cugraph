@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
+#include "gtest/gtest.h"
 #include <raft/cudart_utils.h>
-#include <thrust/transform.h>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "gtest/gtest.h"
+#include <thrust/transform.h>
 struct StreamTest : public ::testing::Test {
 };
 TEST_F(StreamTest, basic_test)

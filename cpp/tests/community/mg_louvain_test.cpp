@@ -24,9 +24,9 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 
-#include <raft/cudart_utils.h>
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
+#include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
 
 #include <thrust/execution_policy.h>

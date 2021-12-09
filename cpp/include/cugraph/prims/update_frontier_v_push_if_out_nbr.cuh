@@ -33,6 +33,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cub/cub.cuh>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
@@ -41,7 +42,6 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
-#include <cub/cub.cuh>
 
 #include <algorithm>
 #include <cstdlib>
