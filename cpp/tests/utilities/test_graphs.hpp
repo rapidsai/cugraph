@@ -59,7 +59,8 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
     set_filename(graph_file_path);
   }
 
-  void set_filename(std::string const& graph_file_path) {
+  void set_filename(std::string const& graph_file_path)
+  {
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
       graph_file_full_path_ = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
     } else {
