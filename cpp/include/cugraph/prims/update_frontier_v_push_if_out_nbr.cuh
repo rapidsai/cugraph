@@ -180,61 +180,32 @@ struct check_invalid_bucket_idx_t {
   }
 };
 
-template <typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+template <typename vertex_t,
+          typename e_op_result_t,
           typename BufferKeyOutputIterator,
-          typename BufferPayloadOutputIterator,
-          typename EdgeOp>
-__device__ void push_if_buffer_element(
-  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu>& matrix_partition,
-  typename std::iterator_traits<BufferKeyOutputIterator>::value_type key,
-  typename GraphViewType::vertex_type row_offset,
-  typename GraphViewType::vertex_type col,
-  typename GraphViewType::weight_type weight,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
-  BufferKeyOutputIterator buffer_key_output_first,
-  BufferPayloadOutputIterator buffer_payload_output_first,
-  size_t* buffer_idx_ptr,
-  EdgeOp e_op)
+          typename BufferPayloadOutputIterator>
+__device__ void push_buffer_element(vertex_t col,
+                                    e_op_result_t e_op_result,
+                                    BufferKeyOutputIterator buffer_key_output_first,
+                                    BufferPayloadOutputIterator buffer_payload_output_first,
+                                    size_t buffer_idx)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using key_t    = typename std::iterator_traits<BufferKeyOutputIterator>::value_type;
+  using key_t = typename std::iterator_traits<BufferKeyOutputIterator>::value_type;
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
 
-  auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
-  auto e_op_result = evaluate_edge_op<GraphViewType,
-                                      key_t,
-                                      AdjMatrixRowValueInputWrapper,
-                                      AdjMatrixColValueInputWrapper,
-                                      EdgeOp>()
-                       .compute(key,
-                                col,
-                                weight,
-                                adj_matrix_row_value_input.get(row_offset),
-                                adj_matrix_col_value_input.get(col_offset),
-                                e_op);
-  if (e_op_result) {
-    static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-    auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                                static_cast<unsigned long long int>(1));
-    if constexpr (std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
-      *(buffer_key_output_first + buffer_idx) = col;
-    } else if constexpr (std::is_same_v<key_t, vertex_t> && !std::is_same_v<payload_t, void>) {
-      *(buffer_key_output_first + buffer_idx)     = col;
-      *(buffer_payload_output_first + buffer_idx) = *e_op_result;
-    } else if constexpr (!std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
-      *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(col, *e_op_result);
-    } else {
-      *(buffer_key_output_first + buffer_idx) =
-        thrust::make_tuple(col, thrust::get<0>(*e_op_result));
-      *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(*e_op_result);
-    }
+  assert(e_op_result.has_value());
+
+  if constexpr (std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
+    *(buffer_key_output_first + buffer_idx) = col;
+  } else if constexpr (std::is_same_v<key_t, vertex_t> && !std::is_same_v<payload_t, void>) {
+    *(buffer_key_output_first + buffer_idx)     = col;
+    *(buffer_payload_output_first + buffer_idx) = *e_op_result;
+  } else if constexpr (!std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
+    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(col, *e_op_result);
+  } else {
+    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(col, thrust::get<0>(*e_op_result));
+    *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(*e_op_result);
   }
 }
 
@@ -297,17 +268,26 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
       edge_t local_out_degree{};
       thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_idx);
       for (edge_t i = 0; i < local_out_degree; ++i) {
-        push_if_buffer_element<GraphViewType>(matrix_partition,
-                                              key,
-                                              row_offset,
-                                              indices[i],
-                                              weights ? (*weights)[i] : weight_t{1.0},
-                                              adj_matrix_row_value_input,
-                                              adj_matrix_col_value_input,
-                                              buffer_key_output_first,
-                                              buffer_payload_output_first,
-                                              buffer_idx_ptr,
-                                              e_op);
+        auto col         = indices[i];
+        auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
+        auto e_op_result = evaluate_edge_op<GraphViewType,
+                                            key_t,
+                                            AdjMatrixRowValueInputWrapper,
+                                            AdjMatrixColValueInputWrapper,
+                                            EdgeOp>()
+                             .compute(key,
+                                      col,
+                                      weights ? (*weights)[i] : weight_t{1.0},
+                                      adj_matrix_row_value_input.get(row_offset),
+                                      adj_matrix_col_value_input.get(col_offset),
+                                      e_op);
+        if (e_op_result) {
+          static_assert(sizeof(unsigned long long int) == sizeof(size_t));
+          auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
+                                      static_cast<unsigned long long int>(1));
+          push_buffer_element(
+            col, e_op_result, buffer_key_output_first, buffer_payload_output_first, buffer_idx);
+        }
       }
     }
     idx += gridDim.x * blockDim.x;
@@ -364,17 +344,26 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
     for (edge_t i = 0; i < local_out_degree; ++i) {
-      push_if_buffer_element<GraphViewType>(matrix_partition,
-                                            key,
-                                            row_offset,
-                                            indices[i],
-                                            weights ? (*weights)[i] : weight_t{1.0},
-                                            adj_matrix_row_value_input,
-                                            adj_matrix_col_value_input,
-                                            buffer_key_output_first,
-                                            buffer_payload_output_first,
-                                            buffer_idx_ptr,
-                                            e_op);
+      auto col         = indices[i];
+      auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
+      auto e_op_result = evaluate_edge_op<GraphViewType,
+                                          key_t,
+                                          AdjMatrixRowValueInputWrapper,
+                                          AdjMatrixColValueInputWrapper,
+                                          EdgeOp>()
+                           .compute(key,
+                                    col,
+                                    weights ? (*weights)[i] : weight_t{1.0},
+                                    adj_matrix_row_value_input.get(row_offset),
+                                    adj_matrix_col_value_input.get(col_offset),
+                                    e_op);
+      if (e_op_result) {
+        static_assert(sizeof(unsigned long long int) == sizeof(size_t));
+        auto buffer_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
+                                    static_cast<unsigned long long int>(1));
+        push_buffer_element(
+          col, e_op_result, buffer_key_output_first, buffer_payload_output_first, buffer_idx);
+      }
     }
     idx += gridDim.x * blockDim.x;
   }
@@ -409,6 +398,11 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
     std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
+  using e_op_result_t = typename evaluate_edge_op<GraphViewType,
+                                                  key_t,
+                                                  AdjMatrixRowValueInputWrapper,
+                                                  AdjMatrixColValueInputWrapper,
+                                                  EdgeOp>::result_type;
 
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
@@ -417,6 +411,9 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
   static_assert(update_frontier_v_push_if_out_nbr_for_all_block_size % raft::warp_size() == 0);
   auto const lane_id = tid % raft::warp_size();
   auto idx           = static_cast<size_t>(tid / raft::warp_size());
+
+  __shared__ size_t buffer_warp_start_indices[update_frontier_v_push_if_out_nbr_for_all_block_size /
+                                              raft::warp_size()];
 
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
     auto key = *(key_first + idx);
@@ -431,18 +428,45 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
     thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
-    for (edge_t i = lane_id; i < local_out_degree; i += raft::warp_size()) {
-      push_if_buffer_element<GraphViewType>(matrix_partition,
-                                            key,
-                                            row_offset,
-                                            indices[i],
-                                            weights ? (*weights)[i] : weight_t{1.0},
-                                            adj_matrix_row_value_input,
-                                            adj_matrix_col_value_input,
-                                            buffer_key_output_first,
-                                            buffer_payload_output_first,
-                                            buffer_idx_ptr,
-                                            e_op);
+    auto rounded_up_local_out_degree =
+      ((local_out_degree + (raft::warp_size() - 1)) / raft::warp_size()) * raft::warp_size();
+    for (edge_t i = lane_id; i < rounded_up_local_out_degree; i += raft::warp_size()) {
+      e_op_result_t e_op_result{};
+
+      auto col = indices[i];
+      if (i < local_out_degree) {
+        auto col_offset = matrix_partition.get_minor_offset_from_minor_nocheck(col);
+        e_op_result     = evaluate_edge_op<GraphViewType,
+                                       key_t,
+                                       AdjMatrixRowValueInputWrapper,
+                                       AdjMatrixColValueInputWrapper,
+                                       EdgeOp>()
+                        .compute(key,
+                                 col,
+                                 weights ? (*weights)[i] : weight_t{1.0},
+                                 adj_matrix_row_value_input.get(row_offset),
+                                 adj_matrix_col_value_input.get(col_offset),
+                                 e_op);
+      }
+      auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
+      if (lane_id == 0) {
+        auto increment = __popc(ballot);
+        static_assert(sizeof(unsigned long long int) == sizeof(size_t));
+        buffer_warp_start_indices[threadIdx.x / raft::warp_size()] =
+          atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
+                    static_cast<unsigned long long int>(increment));
+      }
+      __syncwarp();
+      if (e_op_result) {
+        auto buffer_warp_offset =
+          static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
+        push_buffer_element(
+          col,
+          e_op_result,
+          buffer_key_output_first,
+          buffer_payload_output_first,
+          buffer_warp_start_indices[threadIdx.x / raft::warp_size()] + buffer_warp_offset);
+      }
     }
 
     idx += gridDim.x * (blockDim.x / raft::warp_size());
@@ -478,11 +502,20 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
     std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
+  using e_op_result_t = typename evaluate_edge_op<GraphViewType,
+                                                  key_t,
+                                                  AdjMatrixRowValueInputWrapper,
+                                                  AdjMatrixColValueInputWrapper,
+                                                  EdgeOp>::result_type;
 
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
 
   auto idx = static_cast<size_t>(blockIdx.x);
+
+  using BlockScan = cub::BlockScan<edge_t, update_frontier_v_push_if_out_nbr_for_all_block_size>;
+  __shared__ typename BlockScan::TempStorage temp_storage;
+  __shared__ size_t buffer_block_start_idx;
 
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
     auto key = *(key_first + idx);
@@ -497,18 +530,46 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
     thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
-    for (edge_t i = threadIdx.x; i < local_out_degree; i += blockDim.x) {
-      push_if_buffer_element<GraphViewType>(matrix_partition,
-                                            key,
-                                            row_offset,
-                                            indices[i],
-                                            weights ? (*weights)[i] : weight_t{1.0},
-                                            adj_matrix_row_value_input,
-                                            adj_matrix_col_value_input,
-                                            buffer_key_output_first,
-                                            buffer_payload_output_first,
-                                            buffer_idx_ptr,
-                                            e_op);
+    auto rounded_up_local_out_degree =
+      ((local_out_degree + (update_frontier_v_push_if_out_nbr_for_all_block_size - 1)) /
+       update_frontier_v_push_if_out_nbr_for_all_block_size) *
+      update_frontier_v_push_if_out_nbr_for_all_block_size;
+    for (edge_t i = threadIdx.x; i < rounded_up_local_out_degree; i += blockDim.x) {
+      e_op_result_t e_op_result{};
+      edge_t buffer_block_offset{0};
+
+      auto col = indices[i];
+      if (i < local_out_degree) {
+        auto col_offset = matrix_partition.get_minor_offset_from_minor_nocheck(col);
+        e_op_result     = evaluate_edge_op<GraphViewType,
+                                       key_t,
+                                       AdjMatrixRowValueInputWrapper,
+                                       AdjMatrixColValueInputWrapper,
+                                       EdgeOp>()
+                        .compute(key,
+                                 col,
+                                 weights ? (*weights)[i] : weight_t{1.0},
+                                 adj_matrix_row_value_input.get(row_offset),
+                                 adj_matrix_col_value_input.get(col_offset),
+                                 e_op);
+      }
+      BlockScan(temp_storage)
+        .ExclusiveSum(e_op_result ? edge_t{1} : edge_t{0}, buffer_block_offset);
+      if (threadIdx.x == (blockDim.x - 1)) {
+        auto increment = buffer_block_offset + (e_op_result ? edge_t{1} : edge_t{0});
+        static_assert(sizeof(unsigned long long int) == sizeof(size_t));
+        buffer_block_start_idx =
+          atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
+                    static_cast<unsigned long long int>(increment));
+      }
+      __syncthreads();
+      if (e_op_result) {
+        push_buffer_element(col,
+                            e_op_result,
+                            buffer_key_output_first,
+                            buffer_payload_output_first,
+                            buffer_block_start_idx + buffer_block_offset);
+      }
     }
 
     idx += gridDim.x;
