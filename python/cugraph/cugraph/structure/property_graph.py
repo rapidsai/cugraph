@@ -283,7 +283,7 @@ class PropertyGraph:
         src_filter = filtered_edge_dataframe["src"].isin(filtered_vertices)
         dst_filter = filtered_edge_dataframe["dst"].isin(filtered_vertices)
         filter = src_filter & dst_filter
-        result = filtered_edge_dataframe.take(filtered_edge_dataframe.index[filter])
+        result = filtered_edge_dataframe.loc[filtered_edge_dataframe.index[filter]]
 
         if type(create_using) is type(type):
             G = create_using()

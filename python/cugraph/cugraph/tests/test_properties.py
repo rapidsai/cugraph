@@ -19,14 +19,6 @@ from cudf.testing import assert_frame_equal
 
 
 dataset1 = {
-#    "merchants": [
-#        ["merchant_id", "merchant_location", "merchant_size"],
-#        [(11, 78750, 44),
-#         (4, 78757, 112),
-#         (21, 44145, 83),
-#         (16, 47906, 92),
-#        ]
-#    ],
     "merchants": [
         ["merchant_location", "merchant_id", "merchant_size"],
         [(78750, 11, 44),
@@ -122,10 +114,26 @@ def test_PropertyGraph_complex_queries():
     G = pG.extract_subgraph(vertex_property_condition="(type_name=='users') & (user_location==78757)",
                             create_using=diGraph)
 
-    expected_edgelist = cudf.DataFrame({"src":[32431, 78634], "dst":[78634, 89216]})
-    # FIXME: find a better way to check a Graph other than reaching into the edgelist
+    expected_edgelist = cudf.DataFrame({"src":[89216], "dst":[89021]})
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
+
+    assert G.is_directed()
     # FIXME: need to test for edge IDs
-    assert_frame_equal(expected_edgelist, G.edgelist.edgelist_df)
+    assert_frame_equal(expected_edgelist, actual_edgelist)
+
+    ########
+    G = pG.extract_subgraph(vertex_property_condition="((user_location==78750) | (user_location==78757))",
+                            edge_property_condition="type_name=='personal_loans'",
+                            create_using=diGraph)
+
+    expected_edgelist = cudf.DataFrame({"src":[32431], "dst":[89216]})
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
+
+    assert G.is_directed()
+    # FIXME: need to test for edge IDs
+    assert_frame_equal(expected_edgelist, actual_edgelist)
 
     # Graph of only transactions
     # Graph of only users
