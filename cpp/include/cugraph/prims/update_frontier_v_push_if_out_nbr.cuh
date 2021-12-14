@@ -209,6 +209,11 @@ __device__ void push_buffer_element(vertex_t col,
   }
 }
 
+// FIXME: for for_all_frontier_row_for_all_nbr_(hypersparse & low_degree), it might be faster to
+// process a fixed number of edges per thread (this will require binary_searches but this overhead
+// may be lesser than thread divergence) as there is no need for per vertex reduction. Threads in a
+// warp can collaboratively load potential offset values to the shared memory and run binary search
+// over the values in shared memory.
 template <typename GraphViewType,
           typename KeyIterator,
           typename AdjMatrixRowValueInputWrapper,
@@ -294,6 +299,11 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
   }
 }
 
+// FIXME: for for_all_frontier_row_for_all_nbr_(hypersparse & low_degree), it might be faster to
+// process a fixed number of edges per thread (this will require binary_searches but this overhead
+// may be lesser than thread divergence) as there is no need for per vertex reduction. Threads in a
+// warp can collaboratively load potential offset values to the shared memory and run binary search
+// over the values in shared memory.
 template <typename GraphViewType,
           typename KeyIterator,
           typename AdjMatrixRowValueInputWrapper,
@@ -414,7 +424,6 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
 
   __shared__ size_t buffer_warp_start_indices[update_frontier_v_push_if_out_nbr_for_all_block_size /
                                               raft::warp_size()];
-
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
     auto key = *(key_first + idx);
     vertex_t row{};
@@ -605,8 +614,6 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
     num_reduced_buffer_elements =
       static_cast<size_t>(thrust::distance(buffer_key_output_first, it));
   } else if constexpr (std::is_same<ReduceOp, reduce_op::any<typename ReduceOp::type>>::value) {
-    // FIXME: if ReducOp is any, we may have a cheaper alternative than sort & uique (i.e. discard
-    // non-first elements)
     auto it = thrust::unique_by_key(execution_policy,
                                     buffer_key_output_first,
                                     buffer_key_output_first + num_buffer_elements,
@@ -614,15 +621,6 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
     num_reduced_buffer_elements =
       static_cast<size_t>(thrust::distance(buffer_key_output_first, thrust::get<0>(it)));
   } else {
-    // FIXME: better avoid temporary buffer or at least limit the maximum buffer size (if we adopt
-    // CUDA cooperative group https://devblogs.nvidia.com/cooperative-groups and global sync(), we
-    // can use aggregate shared memory as a temporary buffer, or we can limit the buffer size, and
-    // split one thrust::reduce_by_key call to multiple thrust::reduce_by_key calls if the
-    // temporary buffer size exceeds the maximum buffer size (may be definied as percentage of the
-    // system HBM size or a function of the maximum number of threads in the system))
-    // FIXME: actually, we can find how many unique keys are here by now.
-    // FIXME: if GraphViewType::is_multi_gpu is true, this should be executed on the GPU holding
-    // the vertex unless reduce_op is a pure function.
     rmm::device_uvector<key_t> keys(num_buffer_elements, handle.get_stream());
     auto value_buffer =
       allocate_dataframe_buffer<payload_t>(num_buffer_elements, handle.get_stream());
@@ -975,20 +973,6 @@ void update_frontier_v_push_if_out_nbr(
                   edge_t{0},
                   thrust::plus<edge_t>());
 
-    // FIXME: This is highly pessimistic for single GPU (and multi-GPU as well if we maintain
-    // additional per column data for filtering in e_op). If we can pause & resume execution if
-    // buffer needs to be increased (and if we reserve address space to avoid expensive
-    // reallocation;
-    // https://devblogs.nvidia.com/introducing-low-level-gpu-virtual-memory-management/), we can
-    // start with a smaller buffer size (especially when the frontier size is large).
-    // for special cases when we can assure that there is no more than one push per destination
-    // (e.g. if cugraph::reduce_op::any is used), we can limit the buffer size to
-    // std::min(max_pushes, matrix_partition.get_minor_size()).
-    // For Volta+, we can limit the buffer size to std::min(max_pushes,
-    // matrix_partition.get_minor_size()) if the reduction operation is a pure function if we use
-    // locking.
-    // FIXME: if i != 0, this will require costly reallocation if we don't use the new CUDA feature
-    // to reserve address space.
     auto new_buffer_size = buffer_idx.value(handle.get_stream()) + max_pushes;
     resize_dataframe_buffer(key_buffer, new_buffer_size, handle.get_stream());
     if constexpr (!std::is_same_v<payload_t, void>) {
