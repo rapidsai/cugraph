@@ -35,5 +35,6 @@ from cugraph.structure.convert_matrix import (from_edgelist,
                                               from_numpy_matrix,
                                               to_numpy_matrix,
                                               from_adjlist)
+from cugraph.structure.property_graph import PropertyGraph
 from cugraph.structure.hypergraph import hypergraph
 from cugraph.structure.shuffle import shuffle
