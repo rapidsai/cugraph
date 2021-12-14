@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/graph_view.hpp>
+#include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/matrix_partition_view.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/error.hpp>

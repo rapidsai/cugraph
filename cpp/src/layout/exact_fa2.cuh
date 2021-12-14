@@ -51,7 +51,7 @@ void exact_fa2(raft::handle_t const& handle,
                bool verbose                                  = false,
                internals::GraphBasedDimRedCallback* callback = nullptr)
 {
-  auto stream_view = handle.get_stream_view();
+  auto stream_view = handle.get_stream();
   const edge_t e   = graph.number_of_edges;
   const vertex_t n = graph.number_of_vertices;
 
@@ -79,7 +79,7 @@ void exact_fa2(raft::handle_t const& handle,
   d_swinging   = swinging.data();
   d_traction   = traction.data();
 
-  uniform_random_fill(handle.get_stream_view(), pos, n * 2, -100.0f, 100.0f, uint64_t{0});
+  uniform_random_fill(handle.get_stream(), pos, n * 2, -100.0f, 100.0f, uint64_t{0});
 
   if (x_start && y_start) {
     raft::copy(pos, x_start, n, stream_view.value());

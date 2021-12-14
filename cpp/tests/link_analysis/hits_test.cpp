@@ -248,7 +248,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       } else {
         raft::update_host(h_cugraph_hits.data(), d_hubs.data(), d_hubs.size(), handle.get_stream());
       }
-      handle.get_stream_view().synchronize();
+      handle.sync_stream();
       auto threshold_ratio = 1e-3;
       auto threshold_magnitude =
         (1.0 / static_cast<weight_t>(graph_view.get_number_of_vertices())) *

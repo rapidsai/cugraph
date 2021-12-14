@@ -52,7 +52,7 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_create(
     size_t n_bytes = n_elems * (::data_type_sz[dtype]);
 
     auto ret_value = new cugraph::c_api::cugraph_type_erased_device_array_t(
-      n_elems, n_bytes, dtype, raft_handle->get_stream_view());
+      n_elems, n_bytes, dtype, raft_handle->get_stream());
 
     *array = reinterpret_cast<cugraph_type_erased_device_array_t*>(ret_value);
     return CUGRAPH_SUCCESS;
