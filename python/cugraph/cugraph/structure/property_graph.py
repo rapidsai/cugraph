@@ -294,7 +294,7 @@ class PropertyGraph:
 
         # FIXME: check for dataframe type
         # FIXME: assign weights!
-        if type(result) is type(cudf.DataFrame):
+        if type(result) is cudf.DataFrame:
             G.from_cudf_edgelist(result, source="src", destination="dst")
         else:
             G.from_pandas_edgelist(result, source="src", destination="dst")
