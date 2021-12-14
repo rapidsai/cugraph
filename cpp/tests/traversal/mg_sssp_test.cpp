@@ -176,7 +176,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
                           d_mg_aggregate_renumber_map_labels.data() + sssp_usecase.source,
                           size_t{1},
                           handle.get_stream());
-        handle.get_stream_view().synchronize();
+        handle.sync_stream();
 
         cugraph::sssp(handle,
                       sg_graph_view,
@@ -223,7 +223,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
                           d_sg_predecessors.size(),
                           handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.sync_stream();
 
         auto max_weight_element = std::max_element(h_sg_weights.begin(), h_sg_weights.end());
         auto epsilon            = *max_weight_element * weight_t{1e-6};
