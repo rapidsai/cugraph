@@ -151,7 +151,7 @@ class Tests_CountSelfLoopsAndMultiEdges
                         unrenumbered_graph_view.get_number_of_edges(),
                         handle.get_stream());
 
-      handle.get_stream_view().synchronize();
+      handle.sync_stream();
 
       auto self_loop_and_multi_edge_counts = count_self_loops_and_multi_edges_reference(
         h_offsets.data(), h_indices.data(), unrenumbered_graph_view.get_number_of_vertices());

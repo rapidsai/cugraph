@@ -284,7 +284,7 @@ class Tests_CoreNumber
                         unrenumbered_graph_view.get_number_of_edges(),
                         handle.get_stream());
 
-      handle.get_stream_view().synchronize();
+      handle.sync_stream();
 
       auto h_reference_core_numbers = core_number_reference(h_offsets.data(),
                                                             h_indices.data(),
@@ -303,14 +303,14 @@ class Tests_CoreNumber
                           d_unrenumbered_core_numbers.size(),
                           handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.sync_stream();
       } else {
         raft::update_host(h_cugraph_core_numbers.data(),
                           d_core_numbers.data(),
                           d_core_numbers.size(),
                           handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.sync_stream();
       }
 
       ASSERT_TRUE(std::equal(h_reference_core_numbers.begin(),

@@ -27,6 +27,7 @@
 #include <raft/handle.hpp>
 
 #include <cstdint>
+#include <numeric>
 #include <optional>
 #include <tuple>
 #include <type_traits>

@@ -28,6 +28,8 @@ from cugraph.structure.graph_primtypes cimport move_device_buffer_to_column
 from cugraph.raft.common.handle cimport handle_t
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.community.egonet cimport call_egonet
+from cugraph.raft.common.handle cimport handle_t
+from cugraph.raft.common.handle import Handle
 
 
 def egonet(input_graph, vertices, radius=1):
@@ -73,8 +75,8 @@ def egonet(input_graph, vertices, radius=1):
     if n_subgraphs > 1 :
         n_streams = min(n_subgraphs, 32)
     cdef unique_ptr[handle_t] handle_ptr
-    handle_ptr.reset(new handle_t(n_streams))
-    handle_ = handle_ptr.get();
+    handle = Handle(n_streams=n_streams)
+    cdef handle_t* handle_ = <handle_t*><size_t> handle.getHandle()
 
     cdef graph_container_t graph_container
     populate_graph_container(graph_container,

@@ -138,11 +138,11 @@ class Louvain {
       handle_(handle),
       dendrogram_(std::make_unique<Dendrogram<vertex_t>>()),
       current_graph_view_(graph_view),
-      cluster_keys_v_(0, handle.get_stream_view()),
-      cluster_weights_v_(0, handle.get_stream_view()),
+      cluster_keys_v_(0, handle.get_stream()),
+      cluster_weights_v_(0, handle.get_stream()),
       vertex_weights_v_(0, handle.get_stream()),
       src_vertex_weights_cache_(),
-      next_clusters_v_(0, handle.get_stream_view()),
+      next_clusters_v_(0, handle.get_stream()),
       src_clusters_cache_(),
       dst_clusters_cache_()
   {
@@ -231,7 +231,7 @@ class Louvain {
   {
     dendrogram_->add_level(current_graph_view_.get_local_vertex_first(),
                            current_graph_view_.get_number_of_local_vertices(),
-                           handle_.get_stream_view());
+                           handle_.get_stream());
 
     thrust::sequence(handle_.get_thrust_policy(),
                      dendrogram_->current_level_begin(),
@@ -286,8 +286,8 @@ class Louvain {
     timer_start("compute_vertex_and_cluster_weights");
 
     vertex_weights_v_ = current_graph_view_.compute_out_weight_sums(handle_);
-    cluster_keys_v_.resize(vertex_weights_v_.size(), handle_.get_stream_view());
-    cluster_weights_v_.resize(vertex_weights_v_.size(), handle_.get_stream_view());
+    cluster_keys_v_.resize(vertex_weights_v_.size(), handle_.get_stream());
+    cluster_weights_v_.resize(vertex_weights_v_.size(), handle_.get_stream());
 
     thrust::sequence(handle_.get_thrust_policy(),
                      cluster_keys_v_.begin(),
@@ -301,8 +301,8 @@ class Louvain {
 
     if constexpr (graph_view_t::is_multi_gpu) {
       auto const comm_size = handle_.get_comms().get_size();
-      rmm::device_uvector<vertex_t> rx_keys_v(0, handle_.get_stream_view());
-      rmm::device_uvector<weight_t> rx_weights_v(0, handle_.get_stream_view());
+      rmm::device_uvector<vertex_t> rx_keys_v(0, handle_.get_stream());
+      rmm::device_uvector<weight_t> rx_weights_v(0, handle_.get_stream());
 
       auto pair_first = thrust::make_zip_iterator(
         thrust::make_tuple(cluster_keys_v_.begin(), cluster_weights_v_.begin()));
@@ -315,7 +315,7 @@ class Louvain {
           [key_func =
              cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{
                comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
-          handle_.get_stream_view());
+          handle_.get_stream());
 
       cluster_keys_v_    = std::move(rx_keys_v);
       cluster_weights_v_ = std::move(rx_weights_v);
@@ -330,7 +330,7 @@ class Louvain {
       vertex_weights_v_.shrink_to_fit(handle_.get_stream());
     }
 
-    timer_stop(handle_.get_stream_view());
+    timer_stop(handle_.get_stream());
   }
 
   virtual weight_t update_clustering(weight_t total_edge_weight, weight_t resolution)
@@ -379,7 +379,7 @@ class Louvain {
       }
     }
 
-    timer_stop(handle_.get_stream_view());
+    timer_stop(handle_.get_stream());
     return cur_Q;
   }
 
