@@ -19,15 +19,15 @@ from cudf.testing import assert_frame_equal
 
 
 dataset1 = {
-    "merchants": [
-        ["merchant_location", "merchant_id", "merchant_size"],
-        [(78750, 11, 44),
-         (78757, 4, 112),
-         (44145, 21, 83),
-         (47906, 16, 92),
+    "merchants" : [
+        ["merchant_id", "merchant_location", "merchant_size", "merchant_sales", "merchant_num_employees", "merchant_name"],
+        [(11, 78750, 44, 123.2, 12, "north"),
+         (4, 78757, 112, 234.99, 18, "south"),
+         (21, 44145, 83, 992.1, 27, "east"),
+         (16, 47906, 92, 32.43, 5, "west"),
         ]
     ],
-    "users": [
+    "users" : [
         ["user_id", "user_location", "vertical"],
         [(89021, 78757, 0),
          (32431, 78750, 1),
@@ -35,15 +35,15 @@ dataset1 = {
          (78634, 47906, 0),
         ]
     ],
-    "transactions": [
-        ["user_id", "merchant_id", "volume", "time"],
-        [(89021, 11, 33.2, 1639084966.5513437),
-         (89216, 4, 12.8, 1639085163.481217),
-         (78634, 16, 72.0, 1639084912.567394),
-         (32431, 4, 103.2, 1639084721.354346),
+    "transactions" : [
+        ["user_id", "merchant_id", "volume", "time", "card_num", "card_type"],
+        [(89021, 11, 33.2, 1639084966.5513437, 123456, "MC"),
+         (89216, 4, 12.8, 1639085163.481217, None, "CASH"),
+         (78634, 16, 72.0, 1639084912.567394, 4321, "DEBIT"),
+         (32431, 4, 103.2, 1639084721.354346, 98124, "V"),
         ]
     ],
-    "relationships": [
+    "relationships" : [
         ["user_id_1", "user_id_2", "relationship_type"],
         [(89216, 89021, 0),
          (89216, 32431, 0),
@@ -51,32 +51,200 @@ dataset1 = {
          (78634, 89216, 1),
         ]
     ],
-    "personal_loans": [
-        ["lender_user_id", "borrower_user_id", "amount"],
-        [(89216, 78634, 11.23),
-         (32431, 89216, 9.32),
-         (89021, 78634, 10.21),
-         (78634, 89216, 2.87),
+    "referrals" : [
+        ["user_id_1", "user_id_2", "merchant_id", "stars"],
+        [(89216, 78634, 11, 5),
+         (32431, 89216, 4, 4),
+         (89021, 78634, 21, 4),
+         (78634, 89216, 11, 4),
         ]
     ],
 }
 
 
+################################################################################
+## Tests
+
+def test_add_vertex_data():
+    """
+    add_vertex_data() on "merchants" table, all properties.
+    """
+    from cugraph import PropertyGraph
+
+    merchants = dataset1["merchants"]
+    merchants_df = cudf.DataFrame(columns=merchants[0],
+                                  data=merchants[1])
+
+    pG = PropertyGraph()
+    pG.add_vertex_data(merchants_df,
+                       type_name="merchants",
+                       vertex_id_column="merchant_id",
+                       property_columns=None)
+
+    assert pG.num_vertices == 4
+    assert pG.num_edges == 0
+    expected_props = merchants[0].copy()
+    expected_props.remove("merchant_id")
+    assert sorted(pG.vertex_properties) == sorted(expected_props)
+
+
+def test_add_vertex_data_prop_columns():
+    """
+    add_vertex_data() on "merchants" table, subset of properties.
+    """
+    from cugraph import PropertyGraph
+
+    merchants = dataset1["merchants"]
+    merchants_df = cudf.DataFrame(columns=merchants[0],
+                                  data=merchants[1])
+    expected_props = ["merchant_name", "merchant_sales", "merchant_location"]
+
+    pG = PropertyGraph()
+    pG.add_vertex_data(merchants_df,
+                       type_name="merchants",
+                       vertex_id_column="merchant_id",
+                       property_columns=expected_props)
+
+    assert pG.num_vertices == 4
+    assert pG.num_edges == 0
+    assert sorted(pG.vertex_properties) == sorted(expected_props)
+
+
+def test_add_vertex_data_bad_args():
+    """
+    add_vertex_data() with various bad args, checks that proper exceptions are raised.
+    """
+    from cugraph import PropertyGraph
+
+    merchants = dataset1["merchants"]
+    merchants_df = cudf.DataFrame(columns=merchants[0],
+                                  data=merchants[1])
+
+    pG = PropertyGraph()
+    with pytest.raises(TypeError):
+        pG.add_vertex_data(42,
+                           type_name="merchants",
+                           vertex_id_column="merchant_id",
+                           property_columns=None)
+    with pytest.raises(TypeError):
+        pG.add_vertex_data(merchants_df,
+                           type_name=42,
+                           vertex_id_column="merchant_id",
+                           property_columns=None)
+    with pytest.raises(ValueError):
+        pG.add_vertex_data(merchants_df,
+                           type_name="merchants",
+                           vertex_id_column="bad_column_name",
+                           property_columns=None)
+    with pytest.raises(ValueError):
+        pG.add_vertex_data(merchants_df,
+                           type_name="merchants",
+                           vertex_id_column="merchant_id",
+                           property_columns=["bad_column_name", "merchant_name"])
+    with pytest.raises(TypeError):
+        pG.add_vertex_data(merchants_df,
+                           type_name="merchants",
+                           vertex_id_column="merchant_id",
+                           property_columns="merchant_name")
+
+
+def test_add_edge_data():
+    """
+    add_edge_data() on "transactions" table, all properties.
+    """
+    from cugraph import PropertyGraph
+
+    transactions = dataset1["transactions"]
+    transactions_df = cudf.DataFrame(columns=transactions[0],
+                                     data=transactions[1])
+
+    pG = PropertyGraph()
+    pG.add_edge_data(transactions_df,
+                     type_name="transactions",
+                     vertex_id_columns=("user_id", "merchant_id"),
+                     property_columns=None)
+
+    assert pG.num_vertices == 7
+    assert pG.num_edges == 4
+    expected_props = ["volume", "time", "card_num", "card_type"]
+    assert sorted(pG.edge_properties) == sorted(expected_props)
+
+
+def test_add_edge_data_prop_columns():
+    """
+    add_edge_data() on "transactions" table, subset of properties.
+    """
+    from cugraph import PropertyGraph
+
+    transactions = dataset1["transactions"]
+    transactions_df = cudf.DataFrame(columns=transactions[0],
+                                     data=transactions[1])
+    expected_props = ["card_num", "card_type"]
+
+    pG = PropertyGraph()
+    pG.add_edge_data(transactions_df,
+                     type_name="transactions",
+                     vertex_id_columns=("user_id", "merchant_id"),
+                     property_columns=expected_props)
+
+    assert pG.num_vertices == 7
+    assert pG.num_edges == 4
+    assert sorted(pG.edge_properties) == sorted(expected_props)
+
+
+def test_add_edge_data_bad_args():
+    """
+    add_edge_data() with various bad args, checks that proper exceptions are raised.
+    """
+    from cugraph import PropertyGraph
+
+    transactions = dataset1["transactions"]
+    transactions_df = cudf.DataFrame(columns=transactions[0],
+                                     data=transactions[1])
+
+    pG = PropertyGraph()
+    with pytest.raises(TypeError):
+        pG.add_edge_data(42,
+                         type_name="transactions",
+                         vertex_id_columns=("user_id", "merchant_id"),
+                         property_columns=None)
+    with pytest.raises(TypeError):
+        pG.add_edge_data(transactions_df,
+                         type_name=42,
+                         vertex_id_columns=("user_id", "merchant_id"),
+                         property_columns=None)
+    with pytest.raises(ValueError):
+        pG.add_edge_data(transactions_df,
+                         type_name="transactions",
+                         vertex_id_columns=("user_id", "bad_column"),
+                         property_columns=None)
+    with pytest.raises(ValueError):
+        pG.add_edge_data(transactions_df,
+                         type_name="transactions",
+                         vertex_id_columns=("user_id", "merchant_id"),
+                         property_columns=["bad_column_name", "time"])
+    with pytest.raises(TypeError):
+        pG.add_edge_data(transactions_df,
+                         type_name="transactions",
+                         vertex_id_columns=("user_id", "merchant_id"),
+                         property_columns="time")
+
+
 def test_PropertyGraph_complex_queries():
 
-    import cugraph
+    from cugraph import Graph, PropertyGraph
 
     (merchants, users,
-     transactions, relationships, personal_loans) = dataset1.values()
+     transactions, relationships, referrals) = dataset1.values()
 
-    pG = cugraph.PropertyGraph()
+    pG = PropertyGraph()
 
     # Vertex and edge data is added as one or more DataFrames; either a Pandas
     # DataFrame to keep data on the CPU, a cuDF DataFrame to keep data on GPU,
     # or a dask_cudf DataFrame to keep data on distributed GPUs.
 
     # For dataset1: vertices are merchants and users, edges are transactions,
-    # relationships, and personal_loans.
+    # relationships, and referrals.
 
     # property_columns=None (the default) means all columns except
     # vertex_id_column will be used as properties for the vertices/edges.
@@ -96,25 +264,27 @@ def test_PropertyGraph_complex_queries():
     pG.add_edge_data(cudf.DataFrame(columns=transactions[0],
                                     data=transactions[1]),
                      type_name="transactions",
-                     edge_vertices_columns=("user_id", "merchant_id"),
+                     vertex_id_columns=("user_id", "merchant_id"),
                      property_columns=None)
     pG.add_edge_data(cudf.DataFrame(columns=relationships[0],
                                     data=relationships[1]),
                      type_name="relationships",
-                     edge_vertices_columns=("user_id_1", "user_id_2"),
+                     vertex_id_columns=("user_id_1", "user_id_2"),
                      property_columns=None)
-    pG.add_edge_data(cudf.DataFrame(columns=personal_loans[0],
-                                    data=personal_loans[1]),
-                     type_name="personal_loans",
-                     edge_vertices_columns=("lender_user_id",
-                                            "borrower_user_id"),
+    pG.add_edge_data(cudf.DataFrame(columns=referrals[0],
+                                    data=referrals[1]),
+                     type_name="referrals",
+                     vertex_id_columns=("user_id_1",
+                                        "user_id_2"),
                      property_columns=None)
 
     # Graph of only relationship_type 1
-    diGraph = cugraph.Graph(directed=True)
+    diGraph = Graph(directed=True)
     # FIXME: test for proper operators, etc. Need full PropertyColumn test suite
     G = pG.extract_subgraph(vertex_property_condition="(type_name=='users') & (user_location==78757)",
-                            create_using=diGraph)
+                            create_using=diGraph,
+                            edge_weight_property="relationship_type",
+                            default_edge_weight=1.0)
 
     # FIXME: figure out correct dtypes
     expected_edgelist = cudf.DataFrame({"src":[89216.], "dst":[89021.]})
@@ -127,8 +297,10 @@ def test_PropertyGraph_complex_queries():
 
     ########
     G = pG.extract_subgraph(vertex_property_condition="((user_location==78750) | (user_location==78757))",
-                            edge_property_condition="type_name=='personal_loans'",
-                            create_using=diGraph)
+                            edge_property_condition="type_name=='referrals'",
+                            create_using=diGraph,
+                            edge_weight_property="stars",
+                            default_edge_weight=1.0)
 
     expected_edgelist = cudf.DataFrame({"src":[32431.], "dst":[89216.]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
@@ -142,71 +314,3 @@ def test_PropertyGraph_complex_queries():
     # Graph of only users
     # Graph of only merchants (should result in no edges)
     # Graph of only transactions after time 1639085000 for merchant_id 4 (should be a graph of 2 vertices, 1 edge)
-
-
-
-@pytest.mark.skip(reason="incomplete test")
-def test_add_vertex_data():
-    (merchants, users, transactions, relationships) = dataset1.values()
-
-    pG = cugraph.PropertyGraph()
-
-    # Invalid column name
-    # Missing vertex_id column name
-    # Single column name
-    # Bad DataFrame
-    pG.add_vertex_data(pd.DataFrame(columns=users[0],
-                                    data=users[1]),
-                       type_name="users",
-                       vertex_id_column="user_id",
-                       property_columns=None)
-
-
-@pytest.mark.skip(reason="incomplete test")
-def test_add_edge_data():
-    (merchants, users, transactions, relationships) = dataset1.values()
-
-    pG = cugraph.PropertyGraph()
-
-    # Invalid column name
-    # Missing src/dst column name
-    # Single column name
-    # Bad DataFrame
-    pG.add_edge_data(pd.DataFrame(columns=transactions[0],
-                                  data=transactions[1]),
-                     type_name="transactions",
-                     edge_vertices_columns=("user_id", "merchant_id"),
-                     property_columns=None)
-
-
-
-
-
-
-
-
-
-"""
-    # Create the graph edgelist: this is done by extracting specific columns
-    # from the "transactions" and "relationships" tables and combining them.
-    # In the case of "transactions" and "relationships", the first two columns of each
-    # describe all edges in the graph.
-    edgelist_df = cudf.DataFrame(columns=["src", "dst"],
-                                 data=[row[0:2] for row in
-                                       transactions[1] + relationships[1]]
-                                 )
-
-    # Add vertex properties: "merchants" and "users" tables. Vertex "type"
-    # (merchant or user) is also added.
-    vertex_props_df = cudf.DataFrame()
-
-    # Add edge properties: "transactions" and "relationships" tables. Edge "type"
-    # (transaction or relationships) is also added.
-    edge_props_df = cudf.DataFrame()
-
-
-empty_DiGraph = cugraph.Graph(directed=True)
-
-G = cugraph.from_cudf_edgelist(...,
-                               create_using=empty_DiGraph)
-"""

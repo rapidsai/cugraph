@@ -13,6 +13,13 @@
 
 
 import cudf
+from cugraph.utilities.utils import import_optional, MissingModule
+
+pd = import_optional("pandas")
+
+_dataframe_types = [cudf.DataFrame]
+if not isinstance(pd, MissingModule):
+    _dataframe_types.append(pd.DataFrame)
 
 
 class PropertyColumn:
@@ -80,6 +87,12 @@ class PropertyGraph:
     """
     FIXME: fill this in
     """
+    # column name constants used in internal DataFrames
+    __vertex_cn = "vertex"
+    __src_cn = "src"
+    __dst_cn = "dst"
+    __type_cn = "type_name"
+
     def __init__(self):
         # The dataframe containing the properties for each vertex.
         # Each vertex occupies a row, and individual properties are maintained
@@ -129,6 +142,54 @@ class PropertyGraph:
         self.__vertex_prop_eval_dict = {}
         self.__edge_prop_eval_dict = {}
 
+    # PropertyGraph read-only attributes
+    @property
+    def num_vertices(self):
+        verts = cudf.Series()
+        if self.__vertex_prop_dataframe:
+            verts = verts.append(self.__vertex_prop_dataframe[self.__vertex_cn])
+        if self.__edge_prop_dataframe:
+            verts = verts.append(self.__edge_prop_dataframe[self.__src_cn].unique())
+            verts = verts.append(self.__edge_prop_dataframe[self.__dst_cn].unique())
+            verts = verts.unique()
+        return len(verts)
+
+
+    @property
+    def num_edges(self):
+        return len(self.__edge_prop_dataframe or [])
+
+
+    @property
+    def vertex_properties(self):
+        if self.__vertex_prop_dataframe:
+            props = list(self.__vertex_prop_dataframe.columns)
+            props.remove(self.__vertex_cn)
+            props.remove(self.__type_cn)  # should "type" be removed?
+            return props
+        return []
+
+
+    @property
+    def edge_properties(self):
+        if self.__edge_prop_dataframe:
+            props = list(self.__edge_prop_dataframe.columns)
+            props.remove(self.__src_cn)
+            props.remove(self.__dst_cn)
+            props.remove(self.__type_cn)  # should "type" be removed?
+            return props
+        return []
+
+
+    # PropertyGraph read-only attributes for debugging
+    @property
+    def _vertex_prop_dataframe(self):
+        return self.__vertex_prop_dataframe
+
+    @property
+    def _edge_prop_dataframe(self):
+        return self.__edge_prop_dataframe
+
 
     def add_vertex_data(self,
                         dataframe,
@@ -161,19 +222,41 @@ class PropertyGraph:
         >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
         >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
         """
+        if type(dataframe) not in _dataframe_types:
+            raise TypeError("dataframe must be one of the following types: "
+                            f"{_dataframe_types}, got: {type(dataframe)}")
+        if vertex_id_column not in dataframe.columns:
+            raise ValueError(f"{vertex_id_column} is not a column in "
+                             f"dataframe: {dataframe.columns}")
+        if type(type_name) is not str:
+            raise TypeError("type_name must be a string, got: "
+                            f"{type(type_name)}")
+        if property_columns:
+            if type(property_columns) is not list:
+                raise TypeError("property_columns must be a list, got: "
+                                f"{type(property_columns)}")
+            invalid_columns = set(property_columns).difference(dataframe.columns)
+            if invalid_columns:
+                raise ValueError("property_columns contains column(s) not "
+                                 f"found in dataframe: {list(invalid_columns)}")
+
         # FIXME: check args
 
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
+        default_vertex_columns = [self.__vertex_cn, self.__type_cn]
         if self.__vertex_prop_dataframe is None:
-            self.__vertex_prop_dataframe = type(dataframe)(columns=["vertex", "type_name"])
+            self.__vertex_prop_dataframe = type(dataframe)(columns=default_vertex_columns)
 
-        tmp_df = dataframe.rename(columns={vertex_id_column : "vertex"})
+        tmp_df = dataframe.rename(columns={vertex_id_column : self.__vertex_cn})
         # FIXME: handle case of a type_name column already being in tmp_df
-        tmp_df["type_name"] = type_name
+        tmp_df[self.__type_cn] = type_name
+
         if property_columns:
-            # use a set to remove the columns not specified in property_columns, then call drop on that result.
-            raise NotImplementedError
+            column_names_to_drop = set(tmp_df.columns)  # all columns
+            column_names_to_drop.difference_update(property_columns + default_vertex_columns)  # remove the ones to keep
+            tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
+
         self.__vertex_prop_dataframe = self.__vertex_prop_dataframe.merge(tmp_df, how="outer")
 
         # Update the vertex eval dict
@@ -182,7 +265,7 @@ class PropertyGraph:
 
     def add_edge_data(self,
                       dataframe,
-                      edge_vertices_columns,
+                      vertex_id_columns,
                       type_name=None,
                       property_columns=None
                       ):
@@ -211,19 +294,43 @@ class PropertyGraph:
         >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
         >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
         """
-        # FIXME: check args
+        if type(dataframe) not in _dataframe_types:
+            raise TypeError("dataframe must be one of the following types: "
+                            f"{_dataframe_types}, got: {type(dataframe)}")
+        if type(vertex_id_columns) not in [list, tuple]:
+            raise TypeError("vertex_id_columns must be a list or tuple, got: "
+                            f"{type(vertex_id_columns)}")
+        invalid_columns = set(vertex_id_columns).difference(dataframe.columns)
+        if invalid_columns:
+            raise ValueError("vertex_id_columns contains column(s) not found "
+                             f"in dataframe: {list(invalid_columns)}")
+        if type(type_name) is not str:
+            raise TypeError("type_name must be a string, got: "
+                            f"{type(type_name)}")
+        if property_columns:
+            if type(property_columns) is not list:
+                raise TypeError("property_columns must be a list, got: "
+                                f"{type(property_columns)}")
+            invalid_columns = set(property_columns).difference(dataframe.columns)
+            if invalid_columns:
+                raise ValueError("property_columns contains column(s) not found "
+                                 f"in dataframe: {list(invalid_columns)}")
 
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
+        default_edge_columns = [self.__src_cn, self.__dst_cn, self.__type_cn]
         if self.__edge_prop_dataframe is None:
-            self.__edge_prop_dataframe = type(dataframe)(columns=["src", "dst", "type_name"])
+            self.__edge_prop_dataframe = type(dataframe)(columns=default_edge_columns)
 
-        tmp_df = dataframe.rename(columns={edge_vertices_columns[0] : "src", edge_vertices_columns[1] : "dst"})
+        tmp_df = dataframe.rename(columns={vertex_id_columns[0] : self.__src_cn, vertex_id_columns[1] : self.__dst_cn})
         # FIXME: handle case of a type_name column already being in tmp_df
-        tmp_df["type_name"] = type_name
+        tmp_df[self.__type_cn] = type_name
+
         if property_columns:
-            # use a set to remove the columns not specified in property_columns, then call drop on that result.
-            raise NotImplementedError
+            column_names_to_drop = set(tmp_df.columns)  # all columns
+            column_names_to_drop.difference_update(property_columns + default_edge_columns)  # remove the ones to keep
+            tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
+
         self.__edge_prop_dataframe = self.__edge_prop_dataframe.merge(tmp_df, how="outer")
 
         # Update the vertex eval dict
@@ -279,9 +386,9 @@ class PropertyGraph:
         # FIXME: check that self.__edge_prop_dataframe is set!
 
         # filter the edges that only contain the filtered vertices in src and dst
-        filtered_vertices = filtered_vertex_dataframe["vertex"]
-        src_filter = filtered_edge_dataframe["src"].isin(filtered_vertices)
-        dst_filter = filtered_edge_dataframe["dst"].isin(filtered_vertices)
+        filtered_vertices = filtered_vertex_dataframe[self.__vertex_cn]
+        src_filter = filtered_edge_dataframe[self.__src_cn].isin(filtered_vertices)
+        dst_filter = filtered_edge_dataframe[self.__dst_cn].isin(filtered_vertices)
         filter = src_filter & dst_filter
         result = filtered_edge_dataframe.loc[filtered_edge_dataframe.index[filter]]
 
@@ -295,8 +402,8 @@ class PropertyGraph:
         # FIXME: check for dataframe type
         # FIXME: assign weights!
         if type(result) is cudf.DataFrame:
-            G.from_cudf_edgelist(result, source="src", destination="dst")
+            G.from_cudf_edgelist(result, source=self.__src_cn, destination=self.__dst_cn)
         else:
-            G.from_pandas_edgelist(result, source="src", destination="dst")
+            G.from_pandas_edgelist(result, source=self.__src_cn, destination=self.__dst_cn)
 
         return G
