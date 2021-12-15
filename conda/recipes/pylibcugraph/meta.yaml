@@ -7,6 +7,7 @@
 {% set cuda_version='.'.join(environ.get('CUDA', 'unknown').split('.')[:2]) %}
 {% set cuda_major=cuda_version.split('.')[0] %}
 {% set py_version=environ.get('CONDA_PY', 36) %}
+{% set ucx_py_version=environ.get('UCX_PY_VERSION') %}
 package:
   name: pylibcugraph
   version: {{ version }}
@@ -28,7 +29,7 @@ requirements:
     - python x.x
     - cython>=0.29,<0.30
     - libcugraph={{ version }}
-    - ucx-py 0.24
+    - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
     - rmm {{ minor_version }}.*
