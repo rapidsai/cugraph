@@ -93,9 +93,9 @@ def cugraph_call(gpu_benchmark_callable, input_G_or_matrix,
             max_val = np.iinfo(result["distance"].dtype).max
         else:
             max_val = np.finfo(result["distance"].dtype).max
-        verts = result["vertex"].to_array()
-        dists = result["distance"].to_array()
-        preds = result["predecessor"].to_array()
+        verts = result["vertex"].to_numpy()
+        dists = result["distance"].to_numpy()
+        preds = result["predecessor"].to_numpy()
 
     # A CuPy/SciPy input means the return value will be a 2-tuple of:
     #   distance: cupy.ndarray
@@ -302,9 +302,9 @@ def test_sssp_data_type_conversion(graph_file, source):
     assert G.edgelist.edgelist_df["weights"].dtype == np.int32
     df = cugraph.sssp(G, source)
     max_val = np.finfo(df["distance"].dtype).max
-    verts_np = df["vertex"].to_array()
-    dist_np = df["distance"].to_array()
-    pred_np = df["predecessor"].to_array()
+    verts_np = df["vertex"].to_numpy()
+    dist_np = df["distance"].to_numpy()
+    pred_np = df["predecessor"].to_numpy()
     cu_paths = dict(zip(verts_np, zip(dist_np, pred_np)))
 
     # networkx call with int32 weights

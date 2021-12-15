@@ -63,7 +63,7 @@ weight_t hungarian(raft::handle_t const& handle,
                    weight_t epsilon)
 {
   if (num_rows == num_cols) {
-    rmm::device_uvector<index_t> col_assignments_v(num_rows, handle.get_stream_view());
+    rmm::device_uvector<index_t> col_assignments_v(num_rows, handle.get_stream());
 
     // Create an instance of LinearAssignmentProblem using problem size, number of subproblems
     raft::lap::LinearAssignmentProblem<index_t, weight_t> lpx(handle, num_rows, 1, epsilon);
@@ -84,9 +84,9 @@ weight_t hungarian(raft::handle_t const& handle,
                                        weight_t{0},
                                        thrust::maximum<weight_t>());
 
-    rmm::device_uvector<weight_t> tmp_cost_v(n * n, handle.get_stream_view());
-    rmm::device_uvector<index_t> tmp_row_assignment_v(n, handle.get_stream_view());
-    rmm::device_uvector<index_t> tmp_col_assignment_v(n, handle.get_stream_view());
+    rmm::device_uvector<weight_t> tmp_cost_v(n * n, handle.get_stream());
+    rmm::device_uvector<index_t> tmp_row_assignment_v(n, handle.get_stream());
+    rmm::device_uvector<index_t> tmp_col_assignment_v(n, handle.get_stream());
 
     thrust::transform(handle.get_thrust_policy(),
                       thrust::make_counting_iterator<index_t>(0),
@@ -141,11 +141,10 @@ weight_t hungarian_sparse(raft::handle_t const& handle,
 
   vertex_t matrix_dimension = std::max(num_rows, num_cols);
 
-  rmm::device_uvector<weight_t> cost_v(matrix_dimension * matrix_dimension,
-                                       handle.get_stream_view());
-  rmm::device_uvector<vertex_t> tasks_v(num_cols, handle.get_stream_view());
-  rmm::device_uvector<vertex_t> temp_tasks_v(graph.number_of_vertices, handle.get_stream_view());
-  rmm::device_uvector<vertex_t> temp_workers_v(graph.number_of_vertices, handle.get_stream_view());
+  rmm::device_uvector<weight_t> cost_v(matrix_dimension * matrix_dimension, handle.get_stream());
+  rmm::device_uvector<vertex_t> tasks_v(num_cols, handle.get_stream());
+  rmm::device_uvector<vertex_t> temp_tasks_v(graph.number_of_vertices, handle.get_stream());
+  rmm::device_uvector<vertex_t> temp_workers_v(graph.number_of_vertices, handle.get_stream());
 
   weight_t* d_cost         = cost_v.data();
   vertex_t* d_tasks        = tasks_v.data();
@@ -173,7 +172,7 @@ weight_t hungarian_sparse(raft::handle_t const& handle,
                                   [] __device__(vertex_t v) { return v >= 0; });
 
   vertex_t size = thrust::distance(d_tasks, temp_end);
-  tasks_v.resize(size, handle.get_stream_view());
+  tasks_v.resize(size, handle.get_stream());
 
   //
   // Now we'll assign costs into the dense array
@@ -223,7 +222,7 @@ weight_t hungarian_sparse(raft::handle_t const& handle,
   //  temp_assignment_v will hold the assignment in the dense
   //  bipartite matrix numbering
   //
-  rmm::device_uvector<vertex_t> temp_assignment_v(matrix_dimension, handle.get_stream_view());
+  rmm::device_uvector<vertex_t> temp_assignment_v(matrix_dimension, handle.get_stream());
   vertex_t* d_temp_assignment = temp_assignment_v.data();
 
   weight_t min_cost = detail::hungarian(

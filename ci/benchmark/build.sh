@@ -47,6 +47,9 @@ export GPUCI_CONDA_RETRY_SLEEP=30
 export DATASETS_DIR=${WORKSPACE}/datasets
 export BENCHMARKS_DIR=${WORKSPACE}/benchmarks
 
+# ucx-py version
+export UCX_PY_VERSION='0.24.*'
+
 ##########################################
 # Environment Setup                      #
 ##########################################
@@ -74,7 +77,7 @@ gpuci_conda_retry install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-for
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
-      "ucx-py=0.23.*" \
+      "ucx-py=${UCX_PY_VERSION}" \
       "ucx-proc=*=gpu" \
       "rapids-build-env=${MINOR_VERSION}" \
       rapids-pytest-benchmark

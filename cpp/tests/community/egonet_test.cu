@@ -69,8 +69,9 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
   template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
   void run_current_test(InducedEgo_Usecase const& configuration)
   {
-    int n_streams = std::min(configuration.ego_sources.size(), static_cast<std::size_t>(128));
-    raft::handle_t handle(n_streams);
+    int n_streams    = std::min(configuration.ego_sources.size(), static_cast<std::size_t>(128));
+    auto stream_pool = std::make_shared<rmm::cuda_stream_pool>(n_streams);
+    raft::handle_t handle(rmm::cuda_stream_per_thread, stream_pool);
 
     cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
     std::tie(graph, std::ignore) = cugraph::test::
@@ -129,7 +130,7 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
   }
 };
 
-TEST_P(Tests_InducedEgo, CheckInt32Int32FloatUntransposed)
+TEST_P(Tests_InducedEgo, CheckInt32Int32FloatTransposeFalse)
 {
   run_current_test<int32_t, int32_t, float, false>(GetParam());
 }

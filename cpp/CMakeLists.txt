@@ -348,6 +348,7 @@ add_library(cugraph_c SHARED
         src/c_api/graph_mg.cpp
         src/c_api/pagerank.cpp
         src/c_api/bfs.cpp
+        src/c_api/extract_paths.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 
