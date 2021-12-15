@@ -11,12 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
+import gc
 
+import pytest
 import pandas as pd
 import cudf
 from cudf.testing import assert_frame_equal
 
+import cugraph
+from cugraph.tests import utils
+
+# =============================================================================
+# Test data
+# =============================================================================
 
 dataset1 = {
     "merchants" : [
@@ -45,10 +52,10 @@ dataset1 = {
     ],
     "relationships" : [
         ["user_id_1", "user_id_2", "relationship_type"],
-        [(89216, 89021, 0),
-         (89216, 32431, 0),
-         (32431, 78634, 1),
-         (78634, 89216, 1),
+        [(89216, 89021, 9),
+         (89216, 32431, 9),
+         (32431, 78634, 8),
+         (78634, 89216, 8),
         ]
     ],
     "referrals" : [
@@ -60,6 +67,75 @@ dataset1 = {
         ]
     ],
 }
+
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
+# =============================================================================
+# Pytest fixtures
+# =============================================================================
+df_types = [cudf.DataFrame, pd.DataFrame]
+df_types = [cudf.DataFrame]
+@pytest.fixture(scope="module",
+                params=utils.genFixtureParamsProduct((df_types, "dftype"))
+                )
+def property_graph_instance(request):
+    """
+    FIXME: fill this in
+    """
+    dataframe_type = request.param[0]
+    from cugraph import PropertyGraph
+
+    (merchants, users,
+     transactions, relationships, referrals) = dataset1.values()
+
+    pG = PropertyGraph()
+
+    # Vertex and edge data is added as one or more DataFrames; either a Pandas
+    # DataFrame to keep data on the CPU, a cuDF DataFrame to keep data on GPU,
+    # or a dask_cudf DataFrame to keep data on distributed GPUs.
+
+    # For dataset1: vertices are merchants and users, edges are transactions,
+    # relationships, and referrals.
+
+    # property_columns=None (the default) means all columns except
+    # vertex_id_column will be used as properties for the vertices/edges.
+
+    # FIXME: add a test for pandas DataFrames
+    pG.add_vertex_data(dataframe_type(columns=merchants[0],
+                                      data=merchants[1]),
+                       type_name="merchants",
+                       vertex_id_column="merchant_id",
+                       property_columns=None)
+    pG.add_vertex_data(dataframe_type(columns=users[0],
+                                      data=users[1]),
+                       type_name="users",
+                       vertex_id_column="user_id",
+                       property_columns=None)
+
+    pG.add_edge_data(dataframe_type(columns=transactions[0],
+                                    data=transactions[1]),
+                     type_name="transactions",
+                     vertex_id_columns=("user_id", "merchant_id"),
+                     property_columns=None)
+    pG.add_edge_data(dataframe_type(columns=relationships[0],
+                                    data=relationships[1]),
+                     type_name="relationships",
+                     vertex_id_columns=("user_id_1", "user_id_2"),
+                     property_columns=None)
+    pG.add_edge_data(dataframe_type(columns=referrals[0],
+                                    data=referrals[1]),
+                     type_name="referrals",
+                     vertex_id_columns=("user_id_1",
+                                        "user_id_2"),
+                     property_columns=None)
+
+    return pG
 
 
 ################################################################################
@@ -85,7 +161,7 @@ def test_add_vertex_data():
     assert pG.num_edges == 0
     expected_props = merchants[0].copy()
     expected_props.remove("merchant_id")
-    assert sorted(pG.vertex_properties) == sorted(expected_props)
+    assert sorted(pG.vertex_property_names) == sorted(expected_props)
 
 
 def test_add_vertex_data_prop_columns():
@@ -107,7 +183,7 @@ def test_add_vertex_data_prop_columns():
 
     assert pG.num_vertices == 4
     assert pG.num_edges == 0
-    assert sorted(pG.vertex_properties) == sorted(expected_props)
+    assert sorted(pG.vertex_property_names) == sorted(expected_props)
 
 
 def test_add_vertex_data_bad_args():
@@ -167,7 +243,7 @@ def test_add_edge_data():
     assert pG.num_vertices == 7
     assert pG.num_edges == 4
     expected_props = ["volume", "time", "card_num", "card_type"]
-    assert sorted(pG.edge_properties) == sorted(expected_props)
+    assert sorted(pG.edge_property_names) == sorted(expected_props)
 
 
 def test_add_edge_data_prop_columns():
@@ -189,7 +265,7 @@ def test_add_edge_data_prop_columns():
 
     assert pG.num_vertices == 7
     assert pG.num_edges == 4
-    assert sorted(pG.edge_properties) == sorted(expected_props)
+    assert sorted(pG.edge_property_names) == sorted(expected_props)
 
 
 def test_add_edge_data_bad_args():
@@ -230,87 +306,56 @@ def test_add_edge_data_bad_args():
                          property_columns="time")
 
 
-def test_PropertyGraph_complex_queries():
+def test_extract_subgraph(property_graph_instance):
 
-    from cugraph import Graph, PropertyGraph
-
-    (merchants, users,
-     transactions, relationships, referrals) = dataset1.values()
-
-    pG = PropertyGraph()
-
-    # Vertex and edge data is added as one or more DataFrames; either a Pandas
-    # DataFrame to keep data on the CPU, a cuDF DataFrame to keep data on GPU,
-    # or a dask_cudf DataFrame to keep data on distributed GPUs.
-
-    # For dataset1: vertices are merchants and users, edges are transactions,
-    # relationships, and referrals.
-
-    # property_columns=None (the default) means all columns except
-    # vertex_id_column will be used as properties for the vertices/edges.
-
-    # FIXME: add a test for pandas DataFrames
-    pG.add_vertex_data(cudf.DataFrame(columns=merchants[0],
-                                      data=merchants[1]),
-                       type_name="merchants",
-                       vertex_id_column="merchant_id",
-                       property_columns=None)
-    pG.add_vertex_data(cudf.DataFrame(columns=users[0],
-                                      data=users[1]),
-                       type_name="users",
-                       vertex_id_column="user_id",
-                       property_columns=None)
-
-    pG.add_edge_data(cudf.DataFrame(columns=transactions[0],
-                                    data=transactions[1]),
-                     type_name="transactions",
-                     vertex_id_columns=("user_id", "merchant_id"),
-                     property_columns=None)
-    pG.add_edge_data(cudf.DataFrame(columns=relationships[0],
-                                    data=relationships[1]),
-                     type_name="relationships",
-                     vertex_id_columns=("user_id_1", "user_id_2"),
-                     property_columns=None)
-    pG.add_edge_data(cudf.DataFrame(columns=referrals[0],
-                                    data=referrals[1]),
-                     type_name="referrals",
-                     vertex_id_columns=("user_id_1",
-                                        "user_id_2"),
-                     property_columns=None)
+    pG = property_graph_instance
 
     # Graph of only relationship_type 1
-    diGraph = Graph(directed=True)
+    diGraph = cugraph.Graph(directed=True)
     # FIXME: test for proper operators, etc. Need full PropertyColumn test suite
-    G = pG.extract_subgraph(vertex_property_condition="(type_name=='users') & (user_location==78757)",
+    G = pG.extract_subgraph(vertex_property_condition="(__type__=='users') & (user_location==78757)",
                             create_using=diGraph,
                             edge_weight_property="relationship_type",
                             default_edge_weight=1.0)
 
     # FIXME: figure out correct dtypes
-    expected_edgelist = cudf.DataFrame({"src":[89216.], "dst":[89021.]})
+    expected_edgelist = cudf.DataFrame({"src":[89216.], "dst":[89021.], "weights":[9]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
     actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
 
     assert G.is_directed()
-    # FIXME: need to test for edge IDs
-    assert_frame_equal(expected_edgelist, actual_edgelist)
+    # check_like=True ignores differences in column/index ordering
+    assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
     ########
     G = pG.extract_subgraph(vertex_property_condition="((user_location==78750) | (user_location==78757))",
-                            edge_property_condition="type_name=='referrals'",
+                            edge_property_condition="__type__=='referrals'",
                             create_using=diGraph,
                             edge_weight_property="stars",
                             default_edge_weight=1.0)
 
-    expected_edgelist = cudf.DataFrame({"src":[32431.], "dst":[89216.]})
+    expected_edgelist = cudf.DataFrame({"src":[32431.], "dst":[89216.], "weights":[4]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
     actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
 
     assert G.is_directed()
-    # FIXME: need to test for edge IDs
-    assert_frame_equal(expected_edgelist, actual_edgelist)
+    assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
     # Graph of only transactions
     # Graph of only users
     # Graph of only merchants (should result in no edges)
     # Graph of only transactions after time 1639085000 for merchant_id 4 (should be a graph of 2 vertices, 1 edge)
+    # unweighted graph
+
+
+@pytest.mark.skip(reason="unfinished")
+def test_extract_subgraph_bad_args():
+    pass
+
+@pytest.mark.skip(reason="unfinished")
+def test_property_lookup():
+    pass
+
+@pytest.mark.skip(reason="unfinished")
+def test_property_edge_id():
+    pass

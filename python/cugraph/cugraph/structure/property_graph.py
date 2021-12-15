@@ -13,6 +13,7 @@
 
 
 import cudf
+
 from cugraph.utilities.utils import import_optional, MissingModule
 
 pd = import_optional("pandas")
@@ -88,10 +89,10 @@ class PropertyGraph:
     FIXME: fill this in
     """
     # column name constants used in internal DataFrames
-    __vertex_cn = "vertex"
-    __src_cn = "src"
-    __dst_cn = "dst"
-    __type_cn = "type_name"
+    __vertex_cn = "__vertex__"
+    __src_cn = "__src__"
+    __dst_cn = "__dst__"
+    __type_cn = "__type__"
 
     def __init__(self):
         # The dataframe containing the properties for each vertex.
@@ -161,7 +162,7 @@ class PropertyGraph:
 
 
     @property
-    def vertex_properties(self):
+    def vertex_property_names(self):
         if self.__vertex_prop_dataframe:
             props = list(self.__vertex_prop_dataframe.columns)
             props.remove(self.__vertex_cn)
@@ -171,7 +172,7 @@ class PropertyGraph:
 
 
     @property
-    def edge_properties(self):
+    def edge_property_names(self):
         if self.__edge_prop_dataframe:
             props = list(self.__edge_prop_dataframe.columns)
             props.remove(self.__src_cn)
@@ -341,6 +342,8 @@ class PropertyGraph:
                          create_using,
                          edge_property_condition=None,
                          vertex_property_condition=None,
+                         edge_weight_property=None,
+                         default_edge_weight=None
                          ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices and edges
@@ -399,11 +402,16 @@ class PropertyGraph:
             attrs = {"directed" : create_using.is_directed()}
             G = type(create_using)(**attrs)
 
-        # FIXME: check for dataframe type
-        # FIXME: assign weights!
+        # FIXME: skip if empty result
+        # FIXME: apply default_edge_weight
+        create_args = {"source" : self.__src_cn,
+                       "destination" : self.__dst_cn,
+                       "edge_attr" : edge_weight_property,
+                       "renumber" : True,
+                       }
         if type(result) is cudf.DataFrame:
-            G.from_cudf_edgelist(result, source=self.__src_cn, destination=self.__dst_cn)
+            G.from_cudf_edgelist(result, **create_args)
         else:
-            G.from_pandas_edgelist(result, source=self.__src_cn, destination=self.__dst_cn)
+            G.from_pandas_edgelist(result, **create_args)
 
         return G
