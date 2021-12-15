@@ -539,7 +539,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_rank = col_comm.get_rank();
   auto const col_comm_size = col_comm.get_size();
-  auto default_stream_view = this->get_handle_ptr()->get_stream_view();
+  auto default_stream_view = this->get_handle_ptr()->get_stream();
 
   CUGRAPH_EXPECTS(edgelists.size() == static_cast<size_t>(col_comm_size),
                   "Invalid input argument: erroneous edgelists.size().");
@@ -914,13 +914,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, edgelist.number_of_edges, meta.properties),
-    offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream_view())),
-    indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream_view())),
+    offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
+    indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
     segment_offsets_(meta.segment_offsets)
 {
   // cheap error checks
 
-  auto default_stream_view = this->get_handle_ptr()->get_stream_view();
+  auto default_stream_view = this->get_handle_ptr()->get_stream();
 
   auto is_weighted = edgelist.p_edge_weights.has_value();
 
@@ -1341,7 +1341,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                         d_segment_offsets.data(),
                         d_segment_offsets.size(),
                         handle.get_stream());
-      handle.get_stream_view().synchronize();
+      handle.sync_stream();
       cur_size += edgelist_edge_counts[i];
     }
 

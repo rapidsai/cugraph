@@ -229,7 +229,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   std::vector<size_t> h_edge_counts(edge_counts.size());
   raft::update_host(
     h_edge_counts.data(), edge_counts.data(), edge_counts.size(), handle.get_stream());
-  handle.get_stream_view().synchronize();
+  handle.sync_stream();
 
   std::vector<edge_t> edgelist_edge_counts(col_comm_size, edge_t{0});
   auto edgelist_intra_partition_segment_offsets =
@@ -347,7 +347,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
       num_vertices = input_vertex_list_size;
     } else {
       num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
-                           handle.get_stream_view(), edgelist_rows, edgelist_cols);
+                           handle.get_stream(), edgelist_rows, edgelist_cols);
     }
   }
 

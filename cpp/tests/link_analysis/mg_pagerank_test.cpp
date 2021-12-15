@@ -274,7 +274,7 @@ class Tests_MGPageRank
         raft::update_host(
           h_sg_pageranks.data(), d_sg_pageranks.data(), d_sg_pageranks.size(), handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.sync_stream();
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =
