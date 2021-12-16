@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
+#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/visitors/generic_cascaded_dispatch.hpp>
+#include <cugraph_c/graph.h>
+
 #include <c_api/abstract_functor.hpp>
 #include <c_api/array.hpp>
 #include <c_api/error.hpp>
 #include <c_api/graph.hpp>
-#include <cugraph_c/graph.h>
-
-#include <cugraph/detail/utility_wrappers.hpp>
-#include <cugraph/graph_functions.hpp>
-#include <cugraph/visitors/generic_cascaded_dispatch.hpp>
 
 #include <raft/handle.hpp>
 
