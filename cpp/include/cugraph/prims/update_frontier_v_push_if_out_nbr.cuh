@@ -458,23 +458,25 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
                                  e_op);
       }
       auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
-      if (lane_id == 0) {
-        auto increment = __popc(ballot);
-        static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-        buffer_warp_start_indices[threadIdx.x / raft::warp_size()] =
-          atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                    static_cast<unsigned long long int>(increment));
-      }
-      __syncwarp();
-      if (e_op_result) {
-        auto buffer_warp_offset =
-          static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
-        push_buffer_element(
-          col,
-          e_op_result,
-          buffer_key_output_first,
-          buffer_payload_output_first,
-          buffer_warp_start_indices[threadIdx.x / raft::warp_size()] + buffer_warp_offset);
+      if (ballot > 0) {
+        if (lane_id == 0) {
+          auto increment = __popc(ballot);
+          static_assert(sizeof(unsigned long long int) == sizeof(size_t));
+          buffer_warp_start_indices[threadIdx.x / raft::warp_size()] =
+            atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
+                      static_cast<unsigned long long int>(increment));
+        }
+        __syncwarp();
+        if (e_op_result) {
+          auto buffer_warp_offset =
+            static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
+          push_buffer_element(
+            col,
+            e_op_result,
+            buffer_key_output_first,
+            buffer_payload_output_first,
+            buffer_warp_start_indices[threadIdx.x / raft::warp_size()] + buffer_warp_offset);
+        }
       }
     }
 
@@ -567,9 +569,11 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
       if (threadIdx.x == (blockDim.x - 1)) {
         auto increment = buffer_block_offset + (e_op_result ? edge_t{1} : edge_t{0});
         static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-        buffer_block_start_idx =
-          atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                    static_cast<unsigned long long int>(increment));
+        buffer_block_start_idx = increment > 0
+                                   ? static_cast<size_t>(atomicAdd(
+                                       reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
+                                       static_cast<unsigned long long int>(increment)))
+                                   : size_t{0} /* dummy */;
       }
       __syncthreads();
       if (e_op_result) {
