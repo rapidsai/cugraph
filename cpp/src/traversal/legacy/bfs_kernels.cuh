@@ -15,11 +15,11 @@
  */
 #include <iostream>
 
-#include <raft/cudart_utils.h>
 #include <cub/cub.cuh>
+#include <raft/cudart_utils.h>
 
-#include <cugraph/legacy/graph.hpp>
 #include "traversal_common.cuh"
+#include <cugraph/legacy/graph.hpp>
 
 namespace cugraph {
 namespace detail {

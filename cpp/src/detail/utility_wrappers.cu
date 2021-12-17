@@ -17,8 +17,8 @@
 
 #include <raft/random/rng.hpp>
 
-#include <thrust/sequence.h>
 #include <rmm/exec_policy.hpp>
+#include <thrust/sequence.h>
 
 namespace cugraph {
 namespace detail {

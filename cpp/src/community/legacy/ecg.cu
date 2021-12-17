@@ -20,8 +20,8 @@
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>
 
-#include <thrust/random.h>
 #include <rmm/exec_policy.hpp>
+#include <thrust/random.h>
 
 #include <ctime>
 

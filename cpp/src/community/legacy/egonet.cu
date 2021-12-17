@@ -25,8 +25,8 @@
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
-#include <thrust/transform.h>
 #include <ctime>
+#include <thrust/transform.h>
 
 #include <cugraph/legacy/graph.hpp>
 

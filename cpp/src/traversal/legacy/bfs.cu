@@ -9,19 +9,19 @@
  *
  */
 
+#include "bfs.cuh"
 #include <algorithm>
 #include <iomanip>
 #include <limits>
-#include "bfs.cuh"
 
 #include <cugraph/legacy/graph.hpp>
 
-#include <cugraph/utilities/error.hpp>
-#include <utilities/graph_utils.cuh>
 #include "bfs_kernels.cuh"
 #include "mg/bfs.cuh"
 #include "mg/common_utils.cuh"
 #include "traversal_common.cuh"
+#include <cugraph/utilities/error.hpp>
+#include <utilities/graph_utils.cuh>
 
 namespace cugraph {
 namespace detail {

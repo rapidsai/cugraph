@@ -16,10 +16,10 @@
 
 #include <cuda_runtime.h>
 
-#include <raft/cudart_utils.h>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <raft/cudart_utils.h>
 #include <rmm/device_buffer.hpp>
 #include <rmm/device_vector.hpp>
 
