@@ -50,6 +50,10 @@ struct e_op_t {
   std::
     conditional_t<multi_gpu, detail::minor_properties_device_view_t<vertex_t, uint8_t*>, uint32_t*>
       visited_flags{nullptr};
+  uint32_t const* prev_visited_flags{
+    nullptr};  // relevant only if multi_gpu is false (this affects only local-computing with 0
+               // impact in communication volume, so this may improve performance in small-scale but
+               // will eat-up more memory with no benefit in performance in large-scale).
   vertex_t dst_first{};  // relevant only if multi_gpu is true
 
   __device__ thrust::optional<vertex_t> operator()(vertex_t src,
@@ -64,8 +68,13 @@ struct e_op_t {
       ret             = old == uint8_t{0} ? thrust::optional<vertex_t>{src} : thrust::nullopt;
     } else {
       auto mask = uint32_t{1} << (dst % (sizeof(uint32_t) * 8));
-      auto old  = atomicOr(visited_flags + (dst / (sizeof(uint32_t) * 8)), mask);
-      ret       = (old & mask) == 0 ? thrust::optional<vertex_t>{src} : thrust::nullopt;
+      if (*(prev_visited_flags + (dst / (sizeof(uint32_t) * 8))) &
+          mask) {  // check if unvisited in previous iterations
+        ret = thrust::nullopt;
+      } else {  // check if unvisited in this iteration as well
+        auto old = atomicOr(visited_flags + (dst / (sizeof(uint32_t) * 8)), mask);
+        ret      = (old & mask) == 0 ? thrust::optional<vertex_t>{src} : thrust::nullopt;
+      }
     }
     return ret;
   }
@@ -169,9 +178,14 @@ void bfs(raft::handle_t const& handle,
       (sizeof(uint32_t) * 8),
     handle.get_stream());
   thrust::fill(handle.get_thrust_policy(), visited_flags.begin(), visited_flags.end(), uint32_t{0});
-  auto dst_visited_flags = GraphViewType::is_multi_gpu
-                             ? col_properties_t<GraphViewType, uint8_t>(handle, push_graph_view)
-                             : col_properties_t<GraphViewType, uint8_t>();
+  rmm::device_uvector<uint32_t> prev_visited_flags(
+    GraphViewType::is_multi_gpu ? size_t{0} : visited_flags.size(),
+    handle.get_stream());  // relevant only if GraphViewType::is_multi_gpu is false
+  auto dst_visited_flags =
+    GraphViewType::is_multi_gpu
+      ? col_properties_t<GraphViewType, uint8_t>(handle, push_graph_view)
+      : col_properties_t<GraphViewType,
+                         uint8_t>();  // relevant only if GraphViewType::is_multi_gpu is true
   if constexpr (GraphViewType::is_multi_gpu) {
     dst_visited_flags.fill(uint8_t{0}, handle.get_stream());
   }
@@ -189,6 +203,11 @@ void bfs(raft::handle_t const& handle,
                                vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end(),
                                thrust::make_constant_iterator(uint8_t{1}),
                                dst_visited_flags);
+      } else {
+        thrust::copy(handle.get_thrust_policy(),
+                     visited_flags.begin(),
+                     visited_flags.end(),
+                     prev_visited_flags.begin());
       }
 
       e_op_t<vertex_t, GraphViewType::is_multi_gpu> e_op{};
@@ -196,7 +215,8 @@ void bfs(raft::handle_t const& handle,
         e_op.visited_flags = dst_visited_flags.mutable_device_view();
         e_op.dst_first     = push_graph_view.get_local_adj_matrix_partition_col_first();
       } else {
-        e_op.visited_flags = visited_flags.data();
+        e_op.visited_flags      = visited_flags.data();
+        e_op.prev_visited_flags = prev_visited_flags.data();
       }
 
       update_frontier_v_push_if_out_nbr(
