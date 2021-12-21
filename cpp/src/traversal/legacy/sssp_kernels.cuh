@@ -18,9 +18,9 @@
 
 #include <iostream>
 
+#include "traversal_common.cuh"
 #include <cub/cub.cuh>
 #include <cugraph/utilities/error.hpp>
-#include "traversal_common.cuh"
 namespace cugraph {
 namespace detail {
 namespace sssp_kernels {

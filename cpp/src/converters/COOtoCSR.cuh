@@ -22,12 +22,12 @@
 
 #pragma once
 
+#include <algorithm>
 #include <thrust/extrema.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/scan.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
-#include <algorithm>
 
 #include <cugraph/utilities/error.hpp>
 #include <rmm/exec_policy.hpp>

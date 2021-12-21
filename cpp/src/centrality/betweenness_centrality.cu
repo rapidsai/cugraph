@@ -27,9 +27,9 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_vector.hpp>
 
-#include <raft/handle.hpp>
 #include "betweenness_centrality.cuh"
 #include "betweenness_centrality_kernels.cuh"
+#include <raft/handle.hpp>
 
 namespace cugraph {
 namespace detail {

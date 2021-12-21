@@ -21,10 +21,10 @@
 #include <raft/comms/comms.hpp>
 #include <raft/device_atomics.cuh>
 
+#include <cub/cub.cuh>
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/tuple.h>
-#include <cub/cub.cuh>
 
 #include <array>
 #include <type_traits>
