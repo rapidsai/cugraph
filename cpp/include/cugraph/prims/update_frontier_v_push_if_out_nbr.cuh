@@ -209,8 +209,6 @@ __device__ void push_buffer_element(vertex_t col,
   }
 }
 
-// FIXME: test whether the first case is faster than the second case
-#if 0
 template <typename GraphViewType,
           typename KeyIterator,
           typename AdjMatrixRowValueInputWrapper,
@@ -380,90 +378,6 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
     idx += gridDim.x * blockDim.x;
   }
 }
-#else
-template <typename GraphViewType,
-          typename KeyIterator,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
-          typename BufferKeyOutputIterator,
-          typename BufferPayloadOutputIterator,
-          typename EdgeOp>
-__global__ void for_all_frontier_row_for_all_nbr_hypersparse(
-  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> matrix_partition,
-  typename GraphViewType::vertex_type major_hypersparse_first,
-  KeyIterator key_first,
-  KeyIterator key_last,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
-  BufferKeyOutputIterator buffer_key_output_first,
-  BufferPayloadOutputIterator buffer_payload_output_first,
-  size_t* buffer_idx_ptr,
-  EdgeOp e_op)
-{
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
-  static_assert(
-    std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
-  using payload_t =
-    typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
-
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
-                "GraphViewType should support the push model.");
-
-  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  auto row_start_offset =
-    static_cast<size_t>(major_hypersparse_first - matrix_partition.get_major_first());
-  auto idx = static_cast<size_t>(tid);
-
-  while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
-    auto key = *(key_first + idx);
-    vertex_t row{};
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      row = key;
-    } else {
-      row = thrust::get<0>(key);
-    }
-    auto row_hypersparse_idx = matrix_partition.get_major_hypersparse_idx_from_major_nocheck(row);
-    if (row_hypersparse_idx) {
-      auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-      auto row_idx    = row_start_offset + *row_hypersparse_idx;
-      vertex_t const* indices{nullptr};
-      thrust::optional<weight_t const*> weights{thrust::nullopt};
-      edge_t local_out_degree{};
-      thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_idx);
-      for (edge_t i = 0; i < local_out_degree; ++i) {
-        auto col         = indices[i];
-        auto col_offset  = matrix_partition.get_minor_offset_from_minor_nocheck(col);
-        auto e_op_result = evaluate_edge_op<GraphViewType,
-                                            key_t,
-                                            AdjMatrixRowValueInputWrapper,
-                                            AdjMatrixColValueInputWrapper,
-                                            EdgeOp>()
-                             .compute(key,
-                                      col,
-                                      weights ? (*weights)[i] : weight_t{1.0},
-                                      adj_matrix_row_value_input.get(row_offset),
-                                      adj_matrix_col_value_input.get(col_offset),
-                                      e_op);
-        if (e_op_result) {
-          static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-          auto buffer_idx =
-            static_cast<size_t>(atomicAdd(reinterpret_cast<unsigned long long int*>(buffer_idx_ptr),
-                                          static_cast<unsigned long long int>(1)));
-          push_buffer_element(
-            col, e_op_result, buffer_key_output_first, buffer_payload_output_first, buffer_idx);
-        }
-      }
-    }
-    idx += gridDim.x * blockDim.x;
-  }
-}
-#endif
 
 template <typename GraphViewType,
           typename KeyIterator,
