@@ -320,12 +320,8 @@ Please see https://github.com/rapidsai/cugraph/releases/tag/v21.10.00a for the l
 - PR #1174 Fix bugs in MNMG pattern accelerators and pattern accelerator based implementations of MNMG PageRank, BFS, and SSSP
 - PR #1233 Temporarily disabling C++ tests for 0.16
 - PR #1240 Require `ucx-proc=*=gpu`
-<<<<<<< HEAD
-
-=======
 - PR #1241 Fix a bug in personalized PageRank with the new graph primitives API.
 - PR #1249 Fix upload script syntax
->>>>>>> origin/branch-0.17
 
 # cuGraph 0.15.0 (26 Aug 2020)
 
