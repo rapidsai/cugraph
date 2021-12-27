@@ -25,6 +25,7 @@
 
 #include <initializer_list>
 #include <vector>
+#include <cstddef>
 
 namespace cugraph {
 namespace visitors {

@@ -43,6 +43,7 @@
 #include <iterator>
 #include <tuple>
 #include <vector>
+#include <optional>
 
 namespace cugraph {
 namespace topology {

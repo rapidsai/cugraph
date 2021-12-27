@@ -18,6 +18,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <tuple>
+#include <optional>
 
 namespace cugraph {
 namespace test {
