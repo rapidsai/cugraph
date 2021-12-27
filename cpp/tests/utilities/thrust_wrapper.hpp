@@ -17,8 +17,8 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
-#include <tuple>
 #include <optional>
+#include <tuple>
 
 namespace cugraph {
 namespace test {

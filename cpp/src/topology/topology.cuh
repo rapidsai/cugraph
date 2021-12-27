@@ -41,9 +41,9 @@
 #include <cstddef>  // for byte_t
 #include <iostream>
 #include <iterator>
+#include <optional>
 #include <tuple>
 #include <vector>
-#include <optional>
 
 namespace cugraph {
 namespace topology {
