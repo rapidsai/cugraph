@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -187,7 +187,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                           d_mg_aggregate_renumber_map_labels.data() + bfs_usecase.source,
                           size_t{1},
                           handle.get_stream());
-        handle.get_stream_view().synchronize();
+        handle.sync_stream();
 
         rmm::device_scalar<vertex_t> const d_sg_source(unrenumbered_source, handle.get_stream());
         cugraph::bfs(handle,
@@ -232,7 +232,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                           d_sg_predecessors.data(),
                           d_sg_predecessors.size(),
                           handle.get_stream());
-        handle.get_stream_view().synchronize();
+        handle.sync_stream();
 
         ASSERT_TRUE(std::equal(h_mg_aggregate_distances.begin(),
                                h_mg_aggregate_distances.end(),

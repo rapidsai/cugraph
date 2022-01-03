@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -65,9 +65,9 @@ class Tests_Renumbering
     std::vector<vertex_t> h_final_src_v{};
     std::vector<vertex_t> h_final_dst_v{};
 
-    rmm::device_uvector<vertex_t> src_v(0, handle.get_stream_view());
-    rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream_view());
-    rmm::device_uvector<vertex_t> renumber_map_labels_v(0, handle.get_stream_view());
+    rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> renumber_map_labels_v(0, handle.get_stream());
     vertex_t number_of_vertices{};
 
     std::tie(src_v, dst_v, std::ignore, std::ignore, number_of_vertices, std::ignore) =

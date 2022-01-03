@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <cugraph/legacy/graph.hpp>
 #include "vertex_binning.cuh"
+#include <cugraph/legacy/graph.hpp>
 
 namespace cugraph {
 

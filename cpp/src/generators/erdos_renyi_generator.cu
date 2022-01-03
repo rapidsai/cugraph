@@ -74,7 +74,7 @@ generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
                                                 static_cast<vertex_t>(dst));
                     });
 
-  handle.get_stream_view().synchronize();
+  handle.sync_stream();
 
   return std::make_tuple(std::move(src_v), std::move(dst_v));
 }

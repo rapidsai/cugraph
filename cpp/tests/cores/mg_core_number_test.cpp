@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -182,7 +182,7 @@ class Tests_MGCoreNumber
                           d_sg_core_numbers.size(),
                           handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.sync_stream();
 
         ASSERT_TRUE(std::equal(h_mg_aggregate_core_numbers.begin(),
                                h_mg_aggregate_core_numbers.end(),

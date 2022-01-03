@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
@@ -168,7 +168,7 @@ class Tests_MGWeaklyConnectedComponents
                           d_sg_components.size(),
                           handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.sync_stream();
 
         std::unordered_map<vertex_t, vertex_t> mg_to_sg_map{};
         for (size_t i = 0; i < h_sg_components.size(); ++i) {

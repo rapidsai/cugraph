@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -213,7 +213,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
         raft::update_host(
           h_sg_hubs.data(), d_sg_hubs.data(), d_sg_hubs.size(), handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.sync_stream();
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =

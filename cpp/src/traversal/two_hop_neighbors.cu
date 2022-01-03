@@ -19,12 +19,12 @@
  * @file two_hop_neighbors.cu
  * ---------------------------------------------------------------------------**/
 
+#include "two_hop_neighbors.cuh"
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
-#include "two_hop_neighbors.cuh"
 
 #include <thrust/scan.h>
 #include <thrust/transform.h>

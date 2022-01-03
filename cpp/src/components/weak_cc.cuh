@@ -28,8 +28,8 @@
 #include <raft/cudart_utils.h>
 #include <raft/device_atomics.cuh>
 
-#include <rmm/device_vector.hpp>
 #include "utils.h"
+#include <rmm/device_vector.hpp>
 
 namespace MLCommon {
 
