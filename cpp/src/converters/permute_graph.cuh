@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "converters/COOtoCSR.cuh"
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 #include <utilities/graph_utils.cuh>
-#include "converters/COOtoCSR.cuh"
 
 namespace cugraph {
 namespace detail {

@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <raft/spectral/matrix_wrappers.hpp>
 #include "spmv_1D.cuh"
+#include <raft/spectral/matrix_wrappers.hpp>
 
 namespace cugraph {
 namespace mg {

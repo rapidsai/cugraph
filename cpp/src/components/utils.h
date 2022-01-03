@@ -16,9 +16,9 @@
 
 #pragma once
 
+#include <cstdio>
 #include <cuda_runtime.h>
 #include <execinfo.h>
-#include <cstdio>
 #include <iostream>
 #include <memory>
 #include <sstream>

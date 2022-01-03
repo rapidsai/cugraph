@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -32,15 +32,15 @@
 
 #include <gtest/gtest.h>
 
-#include <thrust/execution_policy.h>
-#include <thrust/host_vector.h>
-#include <thrust/iterator/constant_iterator.h>
-#include <thrust/sort.h>
 #include <algorithm>
 #include <iterator>
 #include <limits>
 #include <numeric>
 #include <random>
+#include <thrust/execution_policy.h>
+#include <thrust/host_vector.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/sort.h>
 #include <vector>
 
 template <typename result_t, typename vertex_t, typename edge_t>

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -32,14 +32,14 @@
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/row_col_properties.cuh>
 
-#include <thrust/count.h>
-#include <thrust/equal.h>
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <sstream>
+#include <thrust/count.h>
+#include <thrust/equal.h>
 
 #include <gtest/gtest.h>
 

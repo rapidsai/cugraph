@@ -18,14 +18,14 @@
 
 #include "../traversal_common.cuh"
 
-#include <thrust/host_vector.h>
 #include <cub/cub.cuh>
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
+#include <thrust/host_vector.h>
 
 #include <raft/cudart_utils.h>
-#include <raft/integer_utils.h>
 #include <raft/handle.hpp>
+#include <raft/integer_utils.h>
 
 namespace cugraph {
 

@@ -188,7 +188,9 @@ def _mg_degree(input_graph, direction=Direction.ALL):
     if input_graph.edgelist is None:
         input_graph.compute_renumber_edge_list(transposed=False)
     input_ddf = input_graph.edgelist.edgelist_df
-    num_verts = input_ddf[['src', 'dst']].max().max().compute() + 1
+    # Get the total number of vertices by summing each partition's number of vertices
+    num_verts = input_graph.renumber_map.implementation.ddf.\
+        map_partitions(len).compute().sum()
     data = DistributedDataHandler.create(data=input_ddf)
     comms = Comms.get_comms()
     client = default_client()
