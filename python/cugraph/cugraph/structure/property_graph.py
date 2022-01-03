@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@
 
 import cudf
 
+import cugraph
 from cugraph.utilities.utils import import_optional, MissingModule
 
 pd = import_optional("pandas")
@@ -30,58 +31,48 @@ class PropertyColumn:
     def __init__(self, series):
         self.series = series
 
-
     def __eq__(self, val):
         if isinstance(val, PropertyColumn):
             val = val.series
         return PropertyColumn(self.series == val)
-
 
     def __ne__(self, val):
         if isinstance(val, PropertyColumn):
             val = val.series
         return PropertyColumn(self.series != val)
 
-
     def __gt__(self, val):
         if isinstance(val, PropertyColumn):
             val = val.series
         return PropertyColumn(self.series > val)
-
 
     def __lt__(self, val):
         if isinstance(val, PropertyColumn):
             val = val.series
         return PropertyColumn(self.series < val)
 
-
     def __ge__(self, val):
         if isinstance(val, PropertyColumn):
             val = val.series
         return PropertyColumn(self.series >= val)
-
 
     def __le__(self, val):
         if isinstance(val, PropertyColumn):
             val = val.series
         return PropertyColumn(self.series <= val)
 
-
     def __and__(self, val):
         if not isinstance(val, PropertyColumn):
             raise TypeError("bitwise operators are not supported")
         return PropertyColumn(self.series & val.series)
-
 
     def __or__(self, val):
         if not isinstance(val, PropertyColumn):
             raise TypeError("bitwise operators are not supported")
         return PropertyColumn(self.series | val.series)
 
-
     def __bool__(self):
         raise TypeError("use bitwise operators here")
-
 
 
 class PropertyGraph:
@@ -89,10 +80,10 @@ class PropertyGraph:
     FIXME: fill this in
     """
     # column name constants used in internal DataFrames
-    __vertex_cn = "__vertex__"
-    __src_cn = "__src__"
-    __dst_cn = "__dst__"
-    __type_cn = "__type__"
+    __vertex_col_name = "__vertex__"
+    __src_col_name = "__src__"
+    __dst_col_name = "__dst__"
+    __type_col_name = "__type__"
 
     def __init__(self):
         # The dataframe containing the properties for each vertex.
@@ -100,8 +91,8 @@ class PropertyGraph:
         # in individual columns. The table contains a column for each property
         # of each vertex. If a vertex does not contain a property, it will have
         # a NaN value in that property column. Each vertex will also have a
-        # "type_name" that can be assigned by the caller to describe the type of
-        # the vertex for a given application domain. If no type_name is
+        # "type_name" that can be assigned by the caller to describe the type
+        # of the vertex for a given application domain. If no type_name is
         # provided, the default type_name is "".
         # Example:
         # vertex | type_name | propA | propB | propC
@@ -123,9 +114,9 @@ class PropertyGraph:
         self.__edge_prop_dataframe = None
 
         # The var:value dictionaries used during evaluation of filter/query
-        # expressions for vertices and edges. These dictionaries contain entries
-        # for each column name in their respective dataframes which are mapped
-        # to instances of PropertyColumn objects.
+        # expressions for vertices and edges. These dictionaries contain
+        # entries for each column name in their respective dataframes which
+        # are mapped to instances of PropertyColumn objects.
         #
         # When filter/query expressions are evaluated, PropertyColumn objects
         # are used in place of DataFrame columns in order to support string
@@ -148,39 +139,38 @@ class PropertyGraph:
     def num_vertices(self):
         verts = cudf.Series()
         if self.__vertex_prop_dataframe:
-            verts = verts.append(self.__vertex_prop_dataframe[self.__vertex_cn])
+            verts = verts.append(
+                self.__vertex_prop_dataframe[self.__vertex_col_name])
         if self.__edge_prop_dataframe:
-            verts = verts.append(self.__edge_prop_dataframe[self.__src_cn].unique())
-            verts = verts.append(self.__edge_prop_dataframe[self.__dst_cn].unique())
+            verts = verts.append(
+                self.__edge_prop_dataframe[self.__src_col_name].unique())
+            verts = verts.append(
+                self.__edge_prop_dataframe[self.__dst_col_name].unique())
             verts = verts.unique()
         return len(verts)
-
 
     @property
     def num_edges(self):
         return len(self.__edge_prop_dataframe or [])
 
-
     @property
     def vertex_property_names(self):
         if self.__vertex_prop_dataframe:
             props = list(self.__vertex_prop_dataframe.columns)
-            props.remove(self.__vertex_cn)
-            props.remove(self.__type_cn)  # should "type" be removed?
+            props.remove(self.__vertex_col_name)
+            props.remove(self.__type_col_name)  # should "type" be removed?
             return props
         return []
-
 
     @property
     def edge_property_names(self):
         if self.__edge_prop_dataframe:
             props = list(self.__edge_prop_dataframe.columns)
-            props.remove(self.__src_cn)
-            props.remove(self.__dst_cn)
-            props.remove(self.__type_cn)  # should "type" be removed?
+            props.remove(self.__src_col_name)
+            props.remove(self.__dst_col_name)
+            props.remove(self.__type_col_name)  # should "type" be removed?
             return props
         return []
-
 
     # PropertyGraph read-only attributes for debugging
     @property
@@ -190,7 +180,6 @@ class PropertyGraph:
     @property
     def _edge_prop_dataframe(self):
         return self.__edge_prop_dataframe
-
 
     def add_vertex_data(self,
                         dataframe,
@@ -206,7 +195,8 @@ class PropertyGraph:
         Parameters
         ----------
         dataframe : DataFrame-compatible instance
-            A DataFrame instance with a compatible Pandas-like DataFrame interface.
+            A DataFrame instance with a compatible Pandas-like DataFrame
+            interface.
             FIXME: finish this description
         vertex_id_column : string
             FIXME: finish this description
@@ -217,11 +207,7 @@ class PropertyGraph:
 
         Examples
         --------
-        >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-        >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
+        >>>
         """
         if type(dataframe) not in _dataframe_types:
             raise TypeError("dataframe must be one of the following types: "
@@ -236,33 +222,40 @@ class PropertyGraph:
             if type(property_columns) is not list:
                 raise TypeError("property_columns must be a list, got: "
                                 f"{type(property_columns)}")
-            invalid_columns = set(property_columns).difference(dataframe.columns)
+            invalid_columns = \
+                set(property_columns).difference(dataframe.columns)
             if invalid_columns:
                 raise ValueError("property_columns contains column(s) not "
-                                 f"found in dataframe: {list(invalid_columns)}")
-
-        # FIXME: check args
+                                 "found in dataframe: "
+                                 f"{list(invalid_columns)}")
 
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
-        default_vertex_columns = [self.__vertex_cn, self.__type_cn]
+        default_vertex_columns = [self.__vertex_col_name, self.__type_col_name]
         if self.__vertex_prop_dataframe is None:
-            self.__vertex_prop_dataframe = type(dataframe)(columns=default_vertex_columns)
+            self.__vertex_prop_dataframe = \
+                type(dataframe)(columns=default_vertex_columns)
 
-        tmp_df = dataframe.rename(columns={vertex_id_column : self.__vertex_cn})
+        tmp_df = dataframe.rename(
+            columns={vertex_id_column: self.__vertex_col_name})
         # FIXME: handle case of a type_name column already being in tmp_df
-        tmp_df[self.__type_cn] = type_name
+        tmp_df[self.__type_col_name] = type_name
 
         if property_columns:
-            column_names_to_drop = set(tmp_df.columns)  # all columns
-            column_names_to_drop.difference_update(property_columns + default_vertex_columns)  # remove the ones to keep
+            # all columns
+            column_names_to_drop = set(tmp_df.columns)
+            # remove the ones to keep
+            column_names_to_drop.difference_update(property_columns +
+                                                   default_vertex_columns)
             tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
 
-        self.__vertex_prop_dataframe = self.__vertex_prop_dataframe.merge(tmp_df, how="outer")
+        self.__vertex_prop_dataframe = \
+            self.__vertex_prop_dataframe.merge(tmp_df, how="outer")
 
-        # Update the vertex eval dict
-        self.__vertex_prop_eval_dict.update(dict([(n, PropertyColumn(self.__vertex_prop_dataframe[n])) for n in self.__vertex_prop_dataframe.columns]))
-
+        # Update the vertex eval dict with PropertyColumn objs
+        latest = dict([(n, PropertyColumn(self.__vertex_prop_dataframe[n]))
+                       for n in self.__vertex_prop_dataframe.columns])
+        self.__vertex_prop_eval_dict.update(latest)
 
     def add_edge_data(self,
                       dataframe,
@@ -278,7 +271,8 @@ class PropertyGraph:
         Parameters
         ----------
         dataframe : DataFrame-compatible instance
-            A DataFrame instance with a compatible Pandas-like DataFrame interface.
+            A DataFrame instance with a compatible Pandas-like DataFrame
+            interface.
             FIXME: finish this description
         vertex_id_column : string
             FIXME: finish this description
@@ -289,11 +283,7 @@ class PropertyGraph:
 
         Examples
         --------
-        >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-        >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
+        >>>
         """
         if type(dataframe) not in _dataframe_types:
             raise TypeError("dataframe must be one of the following types: "
@@ -312,42 +302,54 @@ class PropertyGraph:
             if type(property_columns) is not list:
                 raise TypeError("property_columns must be a list, got: "
                                 f"{type(property_columns)}")
-            invalid_columns = set(property_columns).difference(dataframe.columns)
+            invalid_columns = \
+                set(property_columns).difference(dataframe.columns)
             if invalid_columns:
-                raise ValueError("property_columns contains column(s) not found "
-                                 f"in dataframe: {list(invalid_columns)}")
+                raise ValueError("property_columns contains column(s) not "
+                                 "found in dataframe: "
+                                 f"{list(invalid_columns)}")
 
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
-        default_edge_columns = [self.__src_cn, self.__dst_cn, self.__type_cn]
+        default_edge_columns = [self.__src_col_name,
+                                self.__dst_col_name,
+                                self.__type_col_name]
         if self.__edge_prop_dataframe is None:
-            self.__edge_prop_dataframe = type(dataframe)(columns=default_edge_columns)
+            self.__edge_prop_dataframe = \
+                type(dataframe)(columns=default_edge_columns)
 
-        tmp_df = dataframe.rename(columns={vertex_id_columns[0] : self.__src_cn, vertex_id_columns[1] : self.__dst_cn})
+        tmp_df = dataframe.rename(
+            columns={vertex_id_columns[0]: self.__src_col_name,
+                     vertex_id_columns[1]: self.__dst_col_name})
         # FIXME: handle case of a type_name column already being in tmp_df
-        tmp_df[self.__type_cn] = type_name
+        tmp_df[self.__type_col_name] = type_name
 
         if property_columns:
-            column_names_to_drop = set(tmp_df.columns)  # all columns
-            column_names_to_drop.difference_update(property_columns + default_edge_columns)  # remove the ones to keep
+            # all columns
+            column_names_to_drop = set(tmp_df.columns)
+            # remove the ones to keep
+            column_names_to_drop.difference_update(property_columns +
+                                                   default_edge_columns)
             tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
 
-        self.__edge_prop_dataframe = self.__edge_prop_dataframe.merge(tmp_df, how="outer")
+        self.__edge_prop_dataframe = \
+            self.__edge_prop_dataframe.merge(tmp_df, how="outer")
 
-        # Update the vertex eval dict
-        self.__edge_prop_eval_dict.update(dict([(n, PropertyColumn(self.__edge_prop_dataframe[n])) for n in self.__edge_prop_dataframe.columns]))
-
+        # Update the prop eval dict with PropertyColumn objs
+        latest = dict([(n, PropertyColumn(self.__edge_prop_dataframe[n]))
+                       for n in self.__edge_prop_dataframe.columns])
+        self.__edge_prop_eval_dict.update(latest)
 
     def extract_subgraph(self,
-                         create_using,
+                         create_using=None,
                          edge_property_condition=None,
                          vertex_property_condition=None,
                          edge_weight_property=None,
                          default_edge_weight=None
                          ):
         """
-        Return a subgraph of the overall PropertyGraph containing vertices and edges
-        that match the criteria specified.
+        Return a subgraph of the overall PropertyGraph containing vertices
+        and edges that match the criteria specified.
         FIXME: finish this description
 
         Parameters
@@ -363,18 +365,29 @@ class PropertyGraph:
 
         Examples
         --------
-        >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-        >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
+        >>>
         """
+        # Set up the new Graph to return
+        if create_using is None:
+            G = cugraph.Graph()
+        elif isinstance(create_using, cugraph.Graph):
+            # FIXME: extract more attrs from the create_using instance
+            attrs = {"directed": create_using.is_directed()}
+            G = type(create_using)(**attrs)
+        elif type(create_using) is type(type):
+            G = create_using()
+        else:
+            raise TypeError("create_using must be a cugraph.Graph "
+                            "(or subclass) type or instance, got: "
+                            f"{type(create_using)}")
+
         globals = {}
         if vertex_property_condition:
             locals = self.__vertex_prop_eval_dict
             filter_column = eval(vertex_property_condition, globals, locals)
             matching_indices = filter_column.series.index[filter_column.series]
-            filtered_vertex_dataframe = self.__vertex_prop_dataframe.loc[matching_indices]
+            filtered_vertex_dataframe = \
+                self.__vertex_prop_dataframe.loc[matching_indices]
         else:
             filtered_vertex_dataframe = self.__vertex_prop_dataframe
 
@@ -382,36 +395,51 @@ class PropertyGraph:
             locals = self.__edge_prop_eval_dict
             filter_column = eval(edge_property_condition, globals, locals)
             matching_indices = filter_column.series.index[filter_column.series]
-            filtered_edge_dataframe = self.__edge_prop_dataframe.loc[matching_indices]
+            filtered_edge_dataframe = \
+                self.__edge_prop_dataframe.loc[matching_indices]
         else:
             filtered_edge_dataframe = self.__edge_prop_dataframe
 
         # FIXME: check that self.__edge_prop_dataframe is set!
 
-        # filter the edges that only contain the filtered vertices in src and dst
-        filtered_vertices = filtered_vertex_dataframe[self.__vertex_cn]
-        src_filter = filtered_edge_dataframe[self.__src_cn].isin(filtered_vertices)
-        dst_filter = filtered_edge_dataframe[self.__dst_cn].isin(filtered_vertices)
+        # filter the edges that only contain the filtered verts in src and dst
+        filtered_verts = filtered_vertex_dataframe[self.__vertex_col_name]
+        src_filter = \
+            filtered_edge_dataframe[self.__src_col_name].isin(filtered_verts)
+        dst_filter = \
+            filtered_edge_dataframe[self.__dst_col_name].isin(filtered_verts)
         filter = src_filter & dst_filter
-        result = filtered_edge_dataframe.loc[filtered_edge_dataframe.index[filter]]
+        edges = \
+            filtered_edge_dataframe.loc[filtered_edge_dataframe.index[filter]]
 
-        if type(create_using) is type(type):
-            G = create_using()
-        else:
-            # FIXME: extract more attrs from the create_using instance
-            attrs = {"directed" : create_using.is_directed()}
-            G = type(create_using)(**attrs)
+        if edge_weight_property and \
+           (edge_weight_property not in edges.columns):
+            raise ValueError(f"edge_weight_property {edge_weight_property} "
+                             "was not found in the properties of the subgraph")
 
-        # FIXME: skip if empty result
-        # FIXME: apply default_edge_weight
-        create_args = {"source" : self.__src_cn,
-                       "destination" : self.__dst_cn,
-                       "edge_attr" : edge_weight_property,
-                       "renumber" : True,
+        # Ensure a valid edge_weight_property can be used for applying weights
+        # to the subgraph, and if a default_edge_weight was specified, apply it
+        # to all NAs in the weight column.
+        if edge_weight_property:
+            prop_col = edges[edge_weight_property]
+            if prop_col.count() != prop_col.size:
+                if default_edge_weight is None:
+                    raise ValueError("edge_weight_property "
+                                     f"{edge_weight_property}"
+                                     " contains NA values in the subgraph and "
+                                     "default_edge_weight is not set")
+                else:
+                    prop_col.fillna(default_edge_weight, inplace=True)
+
+        # FIXME: skip if empty edges
+        create_args = {"source": self.__src_col_name,
+                       "destination": self.__dst_col_name,
+                       "edge_attr": edge_weight_property,
+                       "renumber": True,
                        }
-        if type(result) is cudf.DataFrame:
-            G.from_cudf_edgelist(result, **create_args)
+        if type(edges) is cudf.DataFrame:
+            G.from_cudf_edgelist(edges, **create_args)
         else:
-            G.from_pandas_edgelist(result, **create_args)
+            G.from_pandas_edgelist(edges, **create_args)
 
         return G
