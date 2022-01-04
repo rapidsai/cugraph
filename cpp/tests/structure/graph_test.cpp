@@ -111,7 +111,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
       raft::update_host(
         (*h_weights).data(), (*d_weights).data(), number_of_edges, handle.get_stream());
     }
-    RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    handle.sync_stream();
 
     auto [h_reference_offsets, h_reference_indices, h_reference_weights] =
       graph_reference<store_transposed>(
@@ -164,7 +164,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
                         handle.get_stream());
     }
 
-    RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    handle.sync_stream();
 
     ASSERT_TRUE(
       std::equal(h_reference_offsets.begin(), h_reference_offsets.end(), h_cugraph_offsets.begin()))

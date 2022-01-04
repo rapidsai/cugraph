@@ -141,7 +141,7 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
                         graph_view.get_number_of_edges(),
                         handle.get_stream());
     }
-    RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    handle.sync_stream();
 
     std::vector<size_t> h_subgraph_offsets(configuration.subgraph_sizes.size() + 1, 0);
     std::partial_sum(configuration.subgraph_sizes.begin(),
@@ -235,7 +235,7 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
                       d_subgraph_edge_offsets.data(),
                       d_subgraph_edge_offsets.size(),
                       handle.get_stream());
-    RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    handle.sync_stream();
 
     ASSERT_TRUE(h_reference_subgraph_edge_offsets.size() == h_cugraph_subgraph_edge_offsets.size())
       << "Returned subgraph edge offset vector has an invalid size.";

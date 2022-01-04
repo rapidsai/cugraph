@@ -286,7 +286,7 @@ class Tests_CoarsenGraph
     rmm::device_uvector<vertex_t> d_labels(h_labels.size(), handle.get_stream());
     raft::update_device(d_labels.data(), h_labels.data(), h_labels.size(), handle.get_stream());
 
-    RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    handle.sync_stream();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -350,7 +350,7 @@ class Tests_CoarsenGraph
                         coarse_vertices_to_labels.size(),
                         handle.get_stream());
 
-      RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+      handle.sync_stream();
 
       check_coarsened_graph_results(h_org_offsets.data(),
                                     h_org_indices.data(),

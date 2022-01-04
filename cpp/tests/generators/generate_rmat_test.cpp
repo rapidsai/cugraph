@@ -196,7 +196,7 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
 
       raft::update_host(h_cugraph_srcs.data(), d_srcs.data(), d_srcs.size(), handle.get_stream());
       raft::update_host(h_cugraph_dsts.data(), d_dsts.data(), d_dsts.size(), handle.get_stream());
-      RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+      handle.sync_stream();
 
       ASSERT_TRUE(
         (h_cugraph_srcs.size() == (size_t{1} << configuration.scale) * configuration.edge_factor) &&

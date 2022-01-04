@@ -237,7 +237,8 @@ void BC<vertex_t, edge_t, weight_t, result_t>::compute_single_source(vertex_t so
   auto current_max_depth =
     thrust::max_element(handle_.get_thrust_policy(), distances_, distances_ + number_of_vertices_);
   vertex_t max_depth = 0;
-  RAFT_CUDA_TRY(cudaMemcpy(&max_depth, current_max_depth, sizeof(vertex_t), cudaMemcpyDeviceToHost));
+  RAFT_CUDA_TRY(
+    cudaMemcpy(&max_depth, current_max_depth, sizeof(vertex_t), cudaMemcpyDeviceToHost));
   // Step 2) Dependency accumulation
   accumulate(source_vertex, max_depth);
 }

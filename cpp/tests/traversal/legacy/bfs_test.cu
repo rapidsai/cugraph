@@ -151,19 +151,19 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                              source,
                              G.prop.directed);
     RAFT_CUDA_TRY(cudaMemcpy(cugraph_dist.data(),
-                        d_cugraph_dist.data().get(),
-                        sizeof(VT) * d_cugraph_dist.size(),
-                        cudaMemcpyDeviceToHost));
+                             d_cugraph_dist.data().get(),
+                             sizeof(VT) * d_cugraph_dist.size(),
+                             cudaMemcpyDeviceToHost));
     RAFT_CUDA_TRY(cudaMemcpy(cugraph_pred.data(),
-                        d_cugraph_pred.data().get(),
-                        sizeof(VT) * d_cugraph_pred.size(),
-                        cudaMemcpyDeviceToHost));
+                             d_cugraph_pred.data().get(),
+                             sizeof(VT) * d_cugraph_pred.size(),
+                             cudaMemcpyDeviceToHost));
 
     if (return_sp_counter) {
       RAFT_CUDA_TRY(cudaMemcpy(cugraph_sigmas.data(),
-                          d_cugraph_sigmas.data().get(),
-                          sizeof(double) * d_cugraph_sigmas.size(),
-                          cudaMemcpyDeviceToHost));
+                               d_cugraph_sigmas.data().get(),
+                               sizeof(double) * d_cugraph_sigmas.size(),
+                               cudaMemcpyDeviceToHost));
     }
 
     for (VT i = 0; i < number_of_vertices; ++i) {
