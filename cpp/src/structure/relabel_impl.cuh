@@ -189,12 +189,17 @@ void relabel(raft::handle_t const& handle,
       relabel_map.find(labels, labels + num_labels, labels);
     }
   } else {
-    cuco::static_map<vertex_t, vertex_t> relabel_map(
-      // cuco::static_map requires at least one empty slot
-      std::max(static_cast<size_t>(static_cast<double>(num_label_pairs) / load_factor),
-               static_cast<size_t>(num_label_pairs) + 1),
-      invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+    handle.sync_stream();  // cuco::static_map currently does not take stream
+
+    auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
+      relabel_map{// cuco::static_map requires at least one empty slot
+                  std::max(static_cast<size_t>(static_cast<double>(num_label_pairs) / load_factor),
+                           static_cast<size_t>(num_label_pairs) + 1),
+                  invalid_vertex_id<vertex_t>::value,
+                  invalid_vertex_id<vertex_t>::value,
+                  stream_adapter};
 
     auto pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(std::get<0>(old_new_label_pairs), std::get<1>(old_new_label_pairs)));
