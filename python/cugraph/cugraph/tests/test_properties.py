@@ -33,6 +33,7 @@ dataset1 = {
          (4, 78757, 112, 234.99, 18, "south"),
          (21, 44145, 83, 992.1, 27, "east"),
          (16, 47906, 92, 32.43, 5, "west"),
+         (86, 47906, 192, 2.43, 51, "west"),
          ]
      ],
     "users": [
@@ -169,10 +170,9 @@ def test_add_vertex_data(df_type):
                        vertex_id_column="merchant_id",
                        property_columns=None)
 
-    assert pG.num_vertices == 4
+    assert pG.num_vertices == 5
     assert pG.num_edges == 0
     expected_props = merchants[0].copy()
-    expected_props.remove("merchant_id")
     assert sorted(pG.vertex_property_names) == sorted(expected_props)
 
 
@@ -194,7 +194,7 @@ def test_add_vertex_data_prop_columns(df_type):
                        vertex_id_column="merchant_id",
                        property_columns=expected_props)
 
-    assert pG.num_vertices == 4
+    assert pG.num_vertices == 5
     assert pG.num_edges == 0
     assert sorted(pG.vertex_property_names) == sorted(expected_props)
 
@@ -258,7 +258,8 @@ def test_add_edge_data(df_type):
 
     assert pG.num_vertices == 7
     assert pG.num_edges == 4
-    expected_props = ["volume", "time", "card_num", "card_type"]
+    expected_props = ["merchant_id", "user_id",
+                      "volume", "time", "card_num", "card_type"]
     assert sorted(pG.edge_property_names) == sorted(expected_props)
 
 
@@ -408,35 +409,59 @@ def test_extract_subgraph_unweighted(property_graph_instance):
     assert G.is_weighted() is False
 
 
-@pytest.mark.skip(reason="unfinished")
 def test_extract_subgraph_specific_query(property_graph_instance):
     """
     Graph of only transactions after time 1639085000 for merchant_id 4 (should
     be a graph of 2 vertices, 1 edge)
     """
-    # pG = property_graph_instance
-    # diGraph = cugraph.Graph(directed=True)
-    pass
+    pG = property_graph_instance
+    diGraph = cugraph.Graph(directed=True)
+
+    edge_prop_cond = ("(__type__=='transactions') & (merchant_id==4) "
+                      "& (time>1639085000)")
+    G = pG.extract_subgraph(edge_property_condition=edge_prop_cond,
+                            create_using=diGraph,
+                            edge_weight_property="volume")
+
+    expected_edgelist = cudf.DataFrame({"src": [89216.], "dst": [4.],
+                                        "weights": [12.8]})
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
+                                   preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst",
+                                   preserve_order=True)
+
+    assert G.is_directed()
+    assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
-@pytest.mark.skip(reason="unfinished")
 def test_extract_subgraph_no_edges(property_graph_instance):
     """
-    Only "user" vertices with no edges.
+    Valid query that only matches a single vertex.
     """
-    # pG = property_graph_instance
-    # diGraph = cugraph.Graph(directed=True)
-    pass
+    pG = property_graph_instance
+
+    vert_prop_cond = "(__type__=='merchants') & (merchant_id==86)"
+    G = pG.extract_subgraph(vertex_property_condition=vert_prop_cond)
+
+    assert len(G.edgelist.edgelist_df) == 0
 
 
-@pytest.mark.skip(reason="unfinished")
 def test_extract_subgraph_no_query(property_graph_instance):
     """
     Call extract with no args, should result in the entire property graph.
     """
-    # pG = property_graph_instance
-    # diGraph = cugraph.Graph(directed=True)
-    pass
+    pG = property_graph_instance
+    diGraph = cugraph.Graph(directed=True)
+
+    G = pG.extract_subgraph(create_using=diGraph)
+
+    num_edges = len(dataset1["transactions"][-1]) + \
+                len(dataset1["relationships"][-1]) + \
+                len(dataset1["referrals"][-1])
+    # referrals and relationships have an edge in common, so subtract it from
+    # the total count.
+    num_edges -= 1
+    assert len(G.edgelist.edgelist_df) == num_edges
 
 
 def test_extract_subgraph_bad_args(property_graph_instance):

@@ -236,8 +236,14 @@ class PropertyGraph:
             self.__vertex_prop_dataframe = \
                 type(dataframe)(columns=default_vertex_columns)
 
-        tmp_df = dataframe.rename(
-            columns={vertex_id_column: self.__vertex_col_name})
+        # Ensure that both the predetermined vertex ID column name and vertex
+        # type column name are present for proper merging.
+
+        # NOTE: This copies the incoming DataFrame in order to add the new
+        # columns. The copied DataFrame is then merged (another copy) and then
+        # deleted when out-of-scope.
+        tmp_df = dataframe.copy(deep=True)
+        tmp_df[self.__vertex_col_name] = tmp_df[vertex_id_column]
         # FIXME: handle case of a type_name column already being in tmp_df
         tmp_df[self.__type_col_name] = type_name
 
@@ -318,9 +324,12 @@ class PropertyGraph:
             self.__edge_prop_dataframe = \
                 type(dataframe)(columns=default_edge_columns)
 
-        tmp_df = dataframe.rename(
-            columns={vertex_id_columns[0]: self.__src_col_name,
-                     vertex_id_columns[1]: self.__dst_col_name})
+        # NOTE: This copies the incoming DataFrame in order to add the new
+        # columns. The copied DataFrame is then merged (another copy) and then
+        # deleted when out-of-scope.
+        tmp_df = dataframe.copy(deep=True)
+        tmp_df[self.__src_col_name] = tmp_df[vertex_id_columns[0]]
+        tmp_df[self.__dst_col_name] = tmp_df[vertex_id_columns[1]]
         # FIXME: handle case of a type_name column already being in tmp_df
         tmp_df[self.__type_col_name] = type_name
 
@@ -414,7 +423,7 @@ class PropertyGraph:
 
         if edge_weight_property and \
            (edge_weight_property not in edges.columns):
-            raise ValueError(f"edge_weight_property {edge_weight_property} "
+            raise ValueError(f'edge_weight_property "{edge_weight_property}" '
                              "was not found in the properties of the subgraph")
 
         # Ensure a valid edge_weight_property can be used for applying weights
@@ -425,8 +434,8 @@ class PropertyGraph:
             if prop_col.count() != prop_col.size:
                 if default_edge_weight is None:
                     raise ValueError("edge_weight_property "
-                                     f"{edge_weight_property}"
-                                     " contains NA values in the subgraph and "
+                                     f'"{edge_weight_property}" '
+                                     "contains NA values in the subgraph and "
                                      "default_edge_weight is not set")
                 else:
                     prop_col.fillna(default_edge_weight, inplace=True)
