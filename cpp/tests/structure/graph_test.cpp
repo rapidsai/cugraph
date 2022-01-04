@@ -111,7 +111,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
       raft::update_host(
         (*h_weights).data(), (*d_weights).data(), number_of_edges, handle.get_stream());
     }
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     auto [h_reference_offsets, h_reference_indices, h_reference_weights] =
       graph_reference<store_transposed>(
@@ -127,7 +127,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
       d_weights ? std::optional<weight_t const*>{(*d_weights).data()} : std::nullopt,
       number_of_edges};
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     auto graph = cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>(
       handle,
@@ -138,7 +138,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
 
     auto graph_view = graph.view();
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     ASSERT_EQ(graph_view.get_number_of_vertices(), number_of_vertices);
     ASSERT_EQ(graph_view.get_number_of_edges(), number_of_edges);
@@ -164,7 +164,7 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
                         handle.get_stream());
     }
 
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     ASSERT_TRUE(
       std::equal(h_reference_offsets.begin(), h_reference_offsets.end(), h_cugraph_offsets.begin()))

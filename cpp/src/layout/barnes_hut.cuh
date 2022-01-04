@@ -80,7 +80,7 @@ void barnes_hut(raft::handle_t const& handle,
   float* radiusd    = d_radiusd.data();
 
   InitializationKernel<<<1, 1, 0, stream_view.value()>>>(limiter, maxdepthd, radiusd);
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 
   const int FOUR_NNODES     = 4 * nnodes;
   const int FOUR_N          = 4 * n;
@@ -158,10 +158,10 @@ void barnes_hut(raft::handle_t const& handle,
 
   // Sort COO for coalesced memory access.
   sort(graph, stream_view.value());
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 
   graph.degree(massl, cugraph::legacy::DegreeDirection::OUT);
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 
   const vertex_t* row = graph.src_indices;
   const vertex_t* col = graph.dst_indices;
@@ -204,7 +204,7 @@ void barnes_hut(raft::handle_t const& handle,
     thrust::fill(handle.get_thrust_policy(), d_traction.begin(), d_traction.end(), 0.f);
 
     ResetKernel<<<1, 1, 0, stream_view.value()>>>(radiusd_squared, bottomd, NNODES, radiusd);
-    CHECK_CUDA(stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.value());
 
     // Compute bounding box arround all bodies
     BoundingBoxKernel<<<blocks * FACTOR1, THREADS1, 0, stream_view.value()>>>(
@@ -222,28 +222,28 @@ void barnes_hut(raft::handle_t const& handle,
       n,
       limiter,
       radiusd);
-    CHECK_CUDA(stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.value());
 
     ClearKernel1<<<blocks, 1024, 0, stream_view.value()>>>(childl, FOUR_NNODES, FOUR_N);
-    CHECK_CUDA(stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.value());
 
     // Build quadtree
     TreeBuildingKernel<<<blocks * FACTOR2, THREADS2, 0, stream_view.value()>>>(
       childl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, maxdepthd, bottomd, radiusd);
-    CHECK_CUDA(stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.value());
 
     ClearKernel2<<<blocks, 1024, 0, stream_view.value()>>>(startl, massl, NNODES, bottomd);
-    CHECK_CUDA(stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.value());
 
     // Summarizes mass and position for each cell, bottom up approach
     SummarizationKernel<<<blocks * FACTOR3, THREADS3, 0, stream_view.value()>>>(
       countl, childl, massl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, bottomd);
-    CHECK_CUDA(stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.value());
 
     // Group closed bodies together, used to speed up Repulsion kernel
     SortKernel<<<blocks * FACTOR4, THREADS4, 0, stream_view.value()>>>(
       sortl, countl, startl, childl, NNODES, n, bottomd);
-    CHECK_CUDA(stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.value());
 
     // Force computation O(n . log(n))
     RepulsionKernel<<<blocks * FACTOR5, THREADS5, 0, stream_view.value()>>>(scaling_ratio,
@@ -262,7 +262,7 @@ void barnes_hut(raft::handle_t const& handle,
                                                                             n,
                                                                             radiusd_squared,
                                                                             maxdepthd);
-    CHECK_CUDA(stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.value());
 
     apply_gravity<vertex_t>(nodes_pos,
                             nodes_pos + nnodes + 1,

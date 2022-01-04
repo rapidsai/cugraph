@@ -99,7 +99,7 @@ void axpy(size_t n, T a, T* x, T* y)
                     thrust::device_pointer_cast(y),
                     thrust::device_pointer_cast(y),
                     axpy_functor<T>(a));
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 }
 
 // norm
@@ -119,7 +119,7 @@ T nrm2(size_t n, T* x)
                                                 square<T>(),
                                                 init,
                                                 thrust::plus<T>()));
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
   return result;
 }
 
@@ -130,7 +130,7 @@ T nrm1(size_t n, T* x)
   T result = thrust::reduce(rmm::exec_policy(stream_view),
                             thrust::device_pointer_cast(x),
                             thrust::device_pointer_cast(x + n));
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
   return result;
 }
 
@@ -144,7 +144,7 @@ void scal(size_t n, T val, T* x)
                     thrust::make_constant_iterator(val),
                     thrust::device_pointer_cast(x),
                     thrust::multiplies<T>());
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
@@ -157,7 +157,7 @@ void addv(size_t n, T val, T* x)
                     thrust::make_constant_iterator(val),
                     thrust::device_pointer_cast(x),
                     thrust::plus<T>());
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
@@ -168,7 +168,7 @@ void fill(size_t n, T* x, T value)
                thrust::device_pointer_cast(x),
                thrust::device_pointer_cast(x + n),
                value);
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 }
 
 template <typename T, typename M>
@@ -180,7 +180,7 @@ void scatter(size_t n, T* src, T* dst, M* map)
                   thrust::device_pointer_cast(src + n),
                   thrust::device_pointer_cast(map),
                   thrust::device_pointer_cast(dst));
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
@@ -194,7 +194,7 @@ void printv(size_t n, T* vec, int offset)
     dev_ptr + offset + n,
     std::ostream_iterator<T>(
       std::cout, " "));  // Assume no RMM dependency; TODO: check / test (potential BUG !!!!!)
-  CHECK_CUDA(nullptr);
+  RAFT_CHECK_CUDA(nullptr);
   std::cout << std::endl;
 }
 
@@ -205,7 +205,7 @@ void copy(size_t n, T* x, T* res)
   thrust::device_ptr<T> res_ptr(res);
   rmm::cuda_stream_view stream_view;
   thrust::copy_n(rmm::exec_policy(stream_view), dev_ptr, n, res_ptr);
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 }
 
 template <typename T>
@@ -230,7 +230,7 @@ void update_dangling_nodes(size_t n, T* dangling_nodes, T damping_factor)
                        thrust::device_pointer_cast(dangling_nodes),
                        dangling_functor<T>(1.0 - damping_factor),
                        is_zero<T>());
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 }
 
 // google matrix kernels
@@ -331,7 +331,7 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.z  = 1;
   degree_coo<IndexType, IndexType>
     <<<nblocks, nthreads, 0, stream_view.value()>>>(n, e, csrInd, degree.data());
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 
   int y      = 4;
   nthreads.x = 32 / y;
@@ -342,11 +342,11 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.z  = min((n + nthreads.z - 1) / nthreads.z, CUDA_MAX_BLOCKS);  // 1;
   equi_prob3<IndexType, ValueType>
     <<<nblocks, nthreads, 0, stream_view.value()>>>(n, e, csrPtr, csrInd, val, degree.data());
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 
   ValueType a = 0.0;
   fill(n, bookmark, a);
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 
   nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
   nthreads.y = 1;
@@ -356,7 +356,7 @@ void HT_matrix_csc_coo(const IndexType n,
   nblocks.z  = 1;
   flag_leafs_kernel<IndexType, ValueType>
     <<<nblocks, nthreads, 0, stream_view.value()>>>(n, degree.data(), bookmark);
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 }
 
 template <typename offsets_t, typename index_t>
@@ -383,7 +383,7 @@ void offsets_to_indices(const offsets_t* offsets, index_t v, index_t* indices)
   index_t nthreads = min(v, (index_t)CUDA_MAX_KERNEL_THREADS);
   index_t nblocks  = min((v + nthreads - 1) / nthreads, (index_t)CUDA_MAX_BLOCKS);
   offsets_to_indices_kernel<<<nblocks, nthreads, 0, stream>>>(offsets, v, indices);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 }
 
 template <typename IndexType>
@@ -391,7 +391,7 @@ void sequence(IndexType n, IndexType* vec, IndexType init = 0)
 {
   thrust::sequence(
     thrust::device, thrust::device_pointer_cast(vec), thrust::device_pointer_cast(vec + n), init);
-  CHECK_CUDA(nullptr);
+  RAFT_CHECK_CUDA(nullptr);
 }
 
 template <typename DistType>
@@ -404,7 +404,7 @@ bool has_negative_val(DistType* arr, size_t n)
                                          thrust::device_pointer_cast(arr),
                                          thrust::device_pointer_cast(arr + n));
 
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 
   return (result < 0);
 }

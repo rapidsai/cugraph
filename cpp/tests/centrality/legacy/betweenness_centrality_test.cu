@@ -327,7 +327,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     cudaDeviceSynchronize();
     cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> G = csr->view();
     G.prop.directed                                             = is_directed;
-    CUDA_TRY(cudaGetLastError());
+    RAFT_CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_vertices, 0);
     std::vector<result_t> expected(G.number_of_vertices, 0);
 
@@ -360,7 +360,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
                                     configuration.number_of_sources_,
                                     sources_ptr);
     cudaDeviceSynchronize();
-    CUDA_TRY(cudaMemcpy(result.data(),
+    RAFT_CUDA_TRY(cudaMemcpy(result.data(),
                         d_result.data().get(),
                         sizeof(result_t) * G.number_of_vertices,
                         cudaMemcpyDeviceToHost));

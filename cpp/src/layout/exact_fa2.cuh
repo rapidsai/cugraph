@@ -88,10 +88,10 @@ void exact_fa2(raft::handle_t const& handle,
 
   // Sort COO for coalesced memory access.
   sort(graph, stream_view.value());
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 
   graph.degree(d_mass, cugraph::legacy::DegreeDirection::OUT);
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 
   const vertex_t* row = graph.src_indices;
   const vertex_t* col = graph.dst_indices;

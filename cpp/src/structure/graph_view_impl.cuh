@@ -76,7 +76,7 @@ std::vector<edge_t> update_adj_matrix_partition_edge_counts(
                       1,
                       stream);
   }
-  CUDA_TRY(cudaStreamSynchronize(stream));
+  RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
   return adj_matrix_partition_edge_counts;
 }
 

@@ -253,7 +253,7 @@ class Tests_CoarsenGraph
     }
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -262,7 +262,7 @@ class Tests_CoarsenGraph
         handle, input_usecase, coarsen_graph_usecase.test_weighted, renumber);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -286,10 +286,10 @@ class Tests_CoarsenGraph
     rmm::device_uvector<vertex_t> d_labels(h_labels.size(), handle.get_stream());
     raft::update_device(d_labels.data(), h_labels.data(), h_labels.size(), handle.get_stream());
 
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -297,7 +297,7 @@ class Tests_CoarsenGraph
       cugraph::coarsen_graph(handle, graph_view, d_labels.begin());
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "coarsen_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -350,7 +350,7 @@ class Tests_CoarsenGraph
                         coarse_vertices_to_labels.size(),
                         handle.get_stream());
 
-      CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+      RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
 
       check_coarsened_graph_results(h_org_offsets.data(),
                                     h_org_indices.data(),

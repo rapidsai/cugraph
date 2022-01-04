@@ -191,7 +191,7 @@ void large_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> c
                                                output_vertex_ids,
                                                output_vertex_ids_offset,
                                                op);
-    CHECK_CUDA(stream);
+    RAFT_CHECK_CUDA(stream);
   }
 }
 
@@ -218,7 +218,7 @@ void medium_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> 
                                                output_vertex_ids,
                                                output_vertex_ids_offset,
                                                op);
-    CHECK_CUDA(stream);
+    RAFT_CHECK_CUDA(stream);
   }
 }
 
@@ -290,7 +290,7 @@ void small_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> c
                                                                      output_vertex_ids_offset,
                                                                      op);
   }
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 }
 
 }  // namespace detail

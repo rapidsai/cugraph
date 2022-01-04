@@ -92,7 +92,7 @@ class Exception : public std::exception {
 template <typename Type>
 void copy(Type* dst, const Type* src, size_t len, cudaStream_t stream)
 {
-  CUDA_TRY(cudaMemcpyAsync(dst, src, len * sizeof(Type), cudaMemcpyDefault, stream));
+  RAFT_CUDA_TRY(cudaMemcpyAsync(dst, src, len * sizeof(Type), cudaMemcpyDefault, stream));
 }
 
 /**
@@ -118,7 +118,7 @@ void updateHost(Type* hPtr, const Type* dPtr, size_t len, cudaStream_t stream)
 template <typename Type>
 void copyAsync(Type* dPtr1, const Type* dPtr2, size_t len, cudaStream_t stream)
 {
-  CUDA_TRY(cudaMemcpyAsync(dPtr1, dPtr2, len * sizeof(Type), cudaMemcpyDeviceToDevice, stream));
+  RAFT_CUDA_TRY(cudaMemcpyAsync(dPtr1, dPtr2, len * sizeof(Type), cudaMemcpyDeviceToDevice, stream));
 }
 /** @} */
 
@@ -189,7 +189,7 @@ void myPrintDevVector(const char* variableName,
                       OutStream& out)
 {
   std::vector<T> hostMem(componentsCount);
-  CUDA_TRY(cudaMemcpy(hostMem.data(), devMem, componentsCount * sizeof(T), cudaMemcpyDeviceToHost));
+  RAFT_CUDA_TRY(cudaMemcpy(hostMem.data(), devMem, componentsCount * sizeof(T), cudaMemcpyDeviceToHost));
   myPrintHostVector(variableName, hostMem.data(), componentsCount, out);
 }
 

@@ -96,13 +96,13 @@ static inline void cubSum(InputIteratorT d_in,
 
   cub::DeviceReduce::Sum(
     nullptr, temp_storage_bytes, d_in, d_out, num_items, stream, debug_synchronous);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 
   rmm::device_buffer d_temp_storage(temp_storage_bytes, stream);
 
   cub::DeviceReduce::Sum(
     d_temp_storage.data(), temp_storage_bytes, d_in, d_out, num_items, stream, debug_synchronous);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 
   return;
 }
@@ -130,7 +130,7 @@ static inline void cubIf(InputIteratorT d_in,
                         select_op,
                         stream,
                         debug_synchronous);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 
   rmm::device_buffer d_temp_storage(temp_storage_bytes, stream);
 
@@ -143,7 +143,7 @@ static inline void cubIf(InputIteratorT d_in,
                         select_op,
                         stream,
                         debug_synchronous);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 
   return;
 }
@@ -287,7 +287,7 @@ void tricnt_b2b(T nblock,
   // still best overall (with no psum)
   tricnt_b2b_k<THREADS, 32, BLK_BWL0><<<nblock, THREADS, 0, stream>>>(
     m->nrows, m->rows_d, m->roff_d, m->cols_d, ocnt_d, bmapL0_d, bmldL0, bmapL1_d, bmldL1);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
   return;
 }
 
@@ -395,7 +395,7 @@ void tricnt_bsh(T nblock, spmat_t<T>* m, uint64_t* ocnt_d, size_t bmld, cudaStre
 {
   tricnt_bsh_k<THREADS, 32><<<nblock, THREADS, sizeof(unsigned int) * bmld, stream>>>(
     m->nrows, m->rows_d, m->roff_d, m->cols_d, ocnt_d, bmld);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
   return;
 }
 
@@ -543,7 +543,7 @@ void tricnt_wrp(
   dim3 block(32, THREADS / 32);
   tricnt_wrp_ps_k<32, THREADS / 32, WP_LEN_TH1, WP_LEN_TH2>
     <<<nblock, block, 0, stream>>>(m->nrows, m->rows_d, m->roff_d, m->cols_d, ocnt_d, bmap_d, bmld);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
   return;
 }
 
@@ -631,7 +631,7 @@ void tricnt_thr(T nblock, spmat_t<T>* m, uint64_t* ocnt_d, cudaStream_t stream)
 
   tricnt_thr_k<THREADS, TH_CENT_K_LOCLEN>
     <<<nblock, THREADS, 0, stream>>>(m->nrows, m->rows_d, m->roff_d, m->cols_d, ocnt_d);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
   return;
 }
 
@@ -657,7 +657,7 @@ void create_nondangling_vector(
 
   cubIf(it, p_nonempty, out_num.data().get(), n, temp_func, stream);
   cudaMemcpy(n_nonempty, out_num.data().get(), sizeof(*n_nonempty), cudaMemcpyDeviceToHost);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 }
 
 template <typename T>
@@ -666,7 +666,7 @@ uint64_t reduce(uint64_t* v_d, T n, cudaStream_t stream)
   rmm::device_vector<uint64_t> tmp(1);
 
   cubSum(v_d, tmp.data().get(), n, stream);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 
   return tmp[0];
 }
@@ -717,12 +717,12 @@ TrianglesCount<IndexType>::TrianglesCount(IndexType num_vertices,
   cudaGetDevice(&device_id);
 
   cudaDeviceGetAttribute(&m_shared_mem_per_block, cudaDevAttrMaxSharedMemoryPerBlock, device_id);
-  CHECK_CUDA(m_stream);
+  RAFT_CHECK_CUDA(m_stream);
   cudaDeviceGetAttribute(&m_multi_processor_count, cudaDevAttrMultiProcessorCount, device_id);
-  CHECK_CUDA(m_stream);
+  RAFT_CHECK_CUDA(m_stream);
   cudaDeviceGetAttribute(
     &m_max_threads_per_multi_processor, cudaDevAttrMaxThreadsPerMultiProcessor, device_id);
-  CHECK_CUDA(m_stream);
+  RAFT_CHECK_CUDA(m_stream);
 
   m_seq.resize(m_mat.N, IndexType{0});
   create_nondangling_vector(m_mat.roff_d, m_seq.data().get(), &(m_mat.nrows), m_mat.N, m_stream);
@@ -758,7 +758,7 @@ void TrianglesCount<IndexType>::tcount_b2b()
 
   size_t free_bytes, total_bytes;
   cudaMemGetInfo(&free_bytes, &total_bytes);
-  CHECK_CUDA(m_stream);
+  RAFT_CHECK_CUDA(m_stream);
 
   size_t nblock_available = (free_bytes * 95 / 100) / (sizeof(uint32_t) * bmldL1);
 
@@ -793,7 +793,7 @@ void TrianglesCount<IndexType>::tcount_wrp()
   // number of blocks limited by birmap size
   size_t free_bytes, total_bytes;
   cudaMemGetInfo(&free_bytes, &total_bytes);
-  CHECK_CUDA(m_stream);
+  RAFT_CHECK_CUDA(m_stream);
 
   size_t nblock_available = (free_bytes * 95 / 100) / (sizeof(uint32_t) * bmld * (THREADS / 32));
 

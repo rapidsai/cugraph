@@ -65,7 +65,7 @@ void apply_repulsion(const float* restrict x_pos,
 
   repulsion_kernel<vertex_t>
     <<<nblocks, nthreads, 0, stream>>>(x_pos, y_pos, repel_x, repel_y, mass, scaling_ratio, n);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 }
 
 }  // namespace detail

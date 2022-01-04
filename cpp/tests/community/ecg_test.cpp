@@ -135,7 +135,7 @@ TEST(ecg, dolphin)
 
     raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-    CUDA_TRY(cudaDeviceSynchronize());
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
     int max = *max_element(cluster_id.begin(), cluster_id.end());
     int min = *min_element(cluster_id.begin(), cluster_id.end());

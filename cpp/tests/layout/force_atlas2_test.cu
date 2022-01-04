@@ -136,9 +136,9 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     T* weights = weights_v.data();
 
     // FIXME: RAFT error handling mechanism should be used instead
-    CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
-    CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
-    CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
+    RAFT_CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
+    RAFT_CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
+    RAFT_CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
     cugraph::legacy::GraphCOOView<int, int, T> G(srcs, dests, weights, m, nnz);
 
     const int max_iter                    = 500;
@@ -205,7 +205,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
 
     // Copy pos to host
     std::vector<float> h_pos(m * 2);
-    CUDA_TRY(cudaMemcpy(&h_pos[0], pos.data(), sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
+    RAFT_CUDA_TRY(cudaMemcpy(&h_pos[0], pos.data(), sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
 
     // Transpose the data
     std::vector<std::vector<double>> C_contiguous_embedding(m, std::vector<double>(2));

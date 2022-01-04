@@ -111,9 +111,9 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     std::vector<VT> indices(number_of_edges);
     std::vector<ET> offsets(number_of_vertices + 1);
 
-    CUDA_TRY(
+    RAFT_CUDA_TRY(
       cudaMemcpy(indices.data(), G.indices, sizeof(VT) * indices.size(), cudaMemcpyDeviceToHost));
-    CUDA_TRY(
+    RAFT_CUDA_TRY(
       cudaMemcpy(offsets.data(), G.offsets, sizeof(ET) * offsets.size(), cudaMemcpyDeviceToHost));
 
     std::queue<VT> Q;
@@ -150,17 +150,17 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                              (return_sp_counter) ? d_cugraph_sigmas.data().get() : nullptr,
                              source,
                              G.prop.directed);
-    CUDA_TRY(cudaMemcpy(cugraph_dist.data(),
+    RAFT_CUDA_TRY(cudaMemcpy(cugraph_dist.data(),
                         d_cugraph_dist.data().get(),
                         sizeof(VT) * d_cugraph_dist.size(),
                         cudaMemcpyDeviceToHost));
-    CUDA_TRY(cudaMemcpy(cugraph_pred.data(),
+    RAFT_CUDA_TRY(cudaMemcpy(cugraph_pred.data(),
                         d_cugraph_pred.data().get(),
                         sizeof(VT) * d_cugraph_pred.size(),
                         cudaMemcpyDeviceToHost));
 
     if (return_sp_counter) {
-      CUDA_TRY(cudaMemcpy(cugraph_sigmas.data(),
+      RAFT_CUDA_TRY(cudaMemcpy(cugraph_sigmas.data(),
                           d_cugraph_sigmas.data().get(),
                           sizeof(double) * d_cugraph_sigmas.size(),
                           cudaMemcpyDeviceToHost));

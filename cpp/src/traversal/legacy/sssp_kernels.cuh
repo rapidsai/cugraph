@@ -547,7 +547,7 @@ void frontier_expand(const IndexType* row_ptr,
     predecessors,
     edge_mask);
 
-  CHECK_CUDA(m_stream);
+  RAFT_CHECK_CUDA(m_stream);
 }
 }  // namespace sssp_kernels
 }  // namespace detail

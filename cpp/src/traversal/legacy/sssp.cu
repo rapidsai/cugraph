@@ -213,7 +213,7 @@ void SSSP<IndexType, DistType>::traverse(IndexType source_vertex)
       distances, next_distances, n * sizeof(DistType), cudaMemcpyDeviceToDevice, stream);
 
     // We need nf for the loop
-    CUDA_TRY(cudaStreamSynchronize(stream));
+    RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
 
     // Swap frontiers
     // IndexType *tmp = frontier;
