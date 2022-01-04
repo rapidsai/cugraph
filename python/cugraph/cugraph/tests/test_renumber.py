@@ -50,10 +50,10 @@ def test_renumber_ips():
                                                       "dest_as_int",
                                                       preserve_order=True)
 
-    check_src = renumber_map.from_internal_vertex_id(renumbered_gdf['src']
-                                                     )["0"]
-    check_dst = renumber_map.from_internal_vertex_id(renumbered_gdf['dst']
-                                                     )["0"]
+    check_src = renumber_map.add_internal_vertex_id(renumbered_gdf['src'],
+                                                    preserve_order=True)["0"]
+    check_dst = renumber_map.add_internal_vertex_id(renumbered_gdf['dst'],
+                                                    preserve_order=True)["0"]
 
     assert_series_equal(check_src, gdf["source_as_int"], check_names=False)
     assert_series_equal(check_dst, gdf["dest_as_int"], check_names=False)
@@ -86,10 +86,10 @@ def test_renumber_ips_cols():
                                                       ["dest_as_int"],
                                                       preserve_order=True)
 
-    check_src = renumber_map.from_internal_vertex_id(renumbered_gdf['src']
-                                                     )["0"]
-    check_dst = renumber_map.from_internal_vertex_id(renumbered_gdf['dst']
-                                                     )["0"]
+    check_src = renumber_map.add_internal_vertex_id(renumbered_gdf['src'],
+                                                    preserve_order=True)["0"]
+    check_dst = renumber_map.add_internal_vertex_id(renumbered_gdf['dst'],
+                                                    preserve_order=True)["0"]
 
     assert_series_equal(check_src, gdf["source_as_int"], check_names=False)
     assert_series_equal(check_dst, gdf["dest_as_int"], check_names=False)
@@ -120,10 +120,10 @@ def test_renumber_ips_str_cols():
                                                       ["dest_as_int"],
                                                       preserve_order=True)
 
-    check_src = renumber_map.from_internal_vertex_id(renumbered_gdf['src']
-                                                     )["0"]
-    check_dst = renumber_map.from_internal_vertex_id(renumbered_gdf['dst']
-                                                     )["0"]
+    check_src = renumber_map.add_internal_vertex_id(renumbered_gdf['src'],
+                                                    preserve_order=True)["0"]
+    check_dst = renumber_map.add_internal_vertex_id(renumbered_gdf['dst'],
+                                                    preserve_order=True)["0"]
 
     assert_series_equal(check_src, gdf["source_list"], check_names=False)
     assert_series_equal(check_dst, gdf["dest_list"], check_names=False)
@@ -142,10 +142,10 @@ def test_renumber_negative():
                                                       "dest_list",
                                                       preserve_order=True)
 
-    check_src = renumber_map.from_internal_vertex_id(renumbered_gdf['src']
-                                                     )["0"]
-    check_dst = renumber_map.from_internal_vertex_id(renumbered_gdf['dst']
-                                                     )["0"]
+    check_src = renumber_map.add_internal_vertex_id(renumbered_gdf['src'],
+                                                    preserve_order=True)["0"]
+    check_dst = renumber_map.add_internal_vertex_id(renumbered_gdf['dst'],
+                                                    preserve_order=True)["0"]
 
     assert_series_equal(check_src, gdf["source_list"], check_names=False)
     assert_series_equal(check_dst, gdf["dest_list"], check_names=False)
@@ -164,10 +164,10 @@ def test_renumber_negative_col():
                                                       "dest_list",
                                                       preserve_order=True)
 
-    check_src = renumber_map.from_internal_vertex_id(renumbered_gdf['src']
-                                                     )["0"]
-    check_dst = renumber_map.from_internal_vertex_id(renumbered_gdf['dst']
-                                                     )["0"]
+    check_src = renumber_map.add_internal_vertex_id(renumbered_gdf['src'],
+                                                    preserve_order=True)["0"]
+    check_dst = renumber_map.add_internal_vertex_id(renumbered_gdf['dst'],
+                                                    preserve_order=True)["0"]
 
     assert_series_equal(check_src, gdf["source_list"], check_names=False)
     assert_series_equal(check_dst, gdf["dest_list"], check_names=False)
@@ -201,10 +201,12 @@ def test_renumber_series(graph_file):
     renumbered_dst = numbering_series_2.add_internal_vertex_id(
         df["dst"], "dst_id")
 
-    check_src = numbering_series_1.from_internal_vertex_id(renumbered_src,
-                                                           "src_id")
-    check_dst = numbering_series_2.from_internal_vertex_id(renumbered_dst,
-                                                           "dst_id")
+    check_src = numbering_series_1.add_internal_vertex_id(renumbered_src,
+                                                          "src_id",
+                                                          preserve_order=True)
+    check_dst = numbering_series_2.add_internal_vertex_id(renumbered_dst,
+                                                          "dst_id",
+                                                          preserve_order=True)
 
     assert_series_equal(check_src["0_y"], check_src["0_x"], check_names=False)
     assert_series_equal(check_dst["0_y"], check_dst["0_x"], check_names=False)
