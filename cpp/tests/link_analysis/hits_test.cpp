@@ -144,7 +144,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(std::tuple<Hits_Usecase const&, input_usecase_t const&> const& param)
   {
-    constexpr bool renumber = true;
+    constexpr bool renumber            = true;
     auto [hits_usecase, input_usecase] = param;
 
     // 1. initialize handle

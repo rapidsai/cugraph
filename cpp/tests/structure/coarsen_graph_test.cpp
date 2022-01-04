@@ -242,7 +242,7 @@ class Tests_CoarsenGraph
   void run_current_test(
     std::tuple<CoarsenGraph_Usecase const&, input_usecase_t const&> const& param)
   {
-    constexpr bool renumber = true;
+    constexpr bool renumber                     = true;
     auto [coarsen_graph_usecase, input_usecase] = param;
 
     raft::handle_t handle{};

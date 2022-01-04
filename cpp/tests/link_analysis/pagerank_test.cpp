@@ -149,7 +149,7 @@ class Tests_PageRank
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(std::tuple<PageRank_Usecase const&, input_usecase_t const&> const& param)
   {
-    constexpr bool renumber = true;
+    constexpr bool renumber                = true;
     auto [pagerank_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
