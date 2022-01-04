@@ -455,9 +455,10 @@ def test_extract_subgraph_no_query(property_graph_instance):
 
     G = pG.extract_subgraph(create_using=diGraph)
 
-    num_edges = len(dataset1["transactions"][-1]) + \
-                len(dataset1["relationships"][-1]) + \
-                len(dataset1["referrals"][-1])
+    num_edges = \
+        len(dataset1["transactions"][-1]) + \
+        len(dataset1["relationships"][-1]) + \
+        len(dataset1["referrals"][-1])
     # referrals and relationships have an edge in common, so subtract it from
     # the total count.
     num_edges -= 1
@@ -490,11 +491,6 @@ def test_extract_subgraph_bad_args(property_graph_instance):
     with pytest.raises(ValueError):
         pG.extract_subgraph(edge_property_condition="__type__=='referrals'",
                             edge_weight_property="card_type")
-
-
-@pytest.mark.skip(reason="unfinished")
-def test_property_lookup():
-    pass
 
 
 def test_extract_subgraph_default_edge_weight(property_graph_instance):
@@ -531,5 +527,25 @@ def test_extract_subgraph_default_edge_weight(property_graph_instance):
 
 
 @pytest.mark.skip(reason="unfinished")
-def test_property_edge_id():
-    pass
+def test_annotate_dataframe(property_graph_instance):
+    pG = property_graph_instance
+    # values from dataset1 used as vertices in pG
+    vertices = [11, 4, 21, 89021, 78634, 32431]
+    # an arbitrary DataFrame meant to represent an algo result, containing
+    # vertex IDs present in pG
+    some_result = cudf.DataFrame({"vertex": vertices,
+                                  "pagerank": range(len(vertices))})
+
+    new_result = pG.annotate_dataframe(some_result,
+                                       vertex_id_column="vertex")
+    expected_columns = []
+    assert new_result.columns == expected_columns
+    """
+    FIXME: Add tests for:
+    only edge_id_column
+    missing both edge_id_column and vertex_id_column
+    properties list
+    properties list with 1 or more bad props
+    copy=False
+    invalid args raise correct exceptions
+    """
