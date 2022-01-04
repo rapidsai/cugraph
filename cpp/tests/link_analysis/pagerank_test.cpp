@@ -149,14 +149,8 @@ class Tests_PageRank
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(std::tuple<PageRank_Usecase const&, input_usecase_t const&> const& param)
   {
-    run_current_test<vertex_t, edge_t, weight_t, result_t>(std::get<0>(param), std::get<1>(param));
-  }
-
-  template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-  void run_current_test(PageRank_Usecase const& pagerank_usecase,
-                        input_usecase_t const& input_usecase)
-  {
     constexpr bool renumber = true;
+    auto [pagerank_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
     HighResClock hr_clock{};
