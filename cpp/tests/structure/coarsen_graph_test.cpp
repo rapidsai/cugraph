@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -239,10 +239,11 @@ class Tests_CoarsenGraph
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-  void run_current_test(CoarsenGraph_Usecase const& coarsen_graph_usecase,
-                        input_usecase_t const& input_usecase)
+  void run_current_test(
+    std::tuple<CoarsenGraph_Usecase const&, input_usecase_t const&> const& param)
   {
-    constexpr bool renumber = true;
+    constexpr bool renumber                     = true;
+    auto [coarsen_graph_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
     HighResClock hr_clock{};
@@ -371,56 +372,50 @@ using Tests_CoarsenGraph_Rmat = Tests_CoarsenGraph<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_CoarsenGraph_File, CheckInt32Int32FloatTransposeFalse)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, false>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, false>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_CoarsenGraph_File, CheckInt32Int32FloatTransposeTrue)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, true>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, true>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_CoarsenGraph_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
-  auto param = GetParam();
   run_current_test<int32_t, int32_t, float, false>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_CoarsenGraph_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
-  auto param = GetParam();
   run_current_test<int32_t, int32_t, float, true>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_CoarsenGraph_Rmat, CheckInt32Int64FloatTransposeFalse)
 {
-  auto param = GetParam();
   run_current_test<int32_t, int64_t, float, false>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_CoarsenGraph_Rmat, CheckInt32Int64FloatTransposeTrue)
 {
-  auto param = GetParam();
   run_current_test<int32_t, int64_t, float, true>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_CoarsenGraph_Rmat, CheckInt64Int64FloatTransposeFalse)
 {
-  auto param = GetParam();
   run_current_test<int64_t, int64_t, float, false>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_CoarsenGraph_Rmat, CheckInt64Int64FloatTransposeTrue)
 {
-  auto param = GetParam();
   run_current_test<int64_t, int64_t, float, true>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -430,9 +425,7 @@ INSTANTIATE_TEST_SUITE_P(
     // enable correctness check
     ::testing::Values(CoarsenGraph_Usecase{0.2, false}, CoarsenGraph_Usecase{0.2, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
@@ -441,6 +434,17 @@ INSTANTIATE_TEST_SUITE_P(
     // enable correctness checks
     ::testing::Values(CoarsenGraph_Usecase{0.2, false}, CoarsenGraph_Usecase{0.2, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_CoarsenGraph_File,
+  ::testing::Combine(::testing::Values(CoarsenGraph_Usecase{0.2, false, false},
+                                       CoarsenGraph_Usecase{0.2, true, false}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
