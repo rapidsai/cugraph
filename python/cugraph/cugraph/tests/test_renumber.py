@@ -50,13 +50,15 @@ def test_renumber_ips():
                                                       "dest_as_int",
                                                       preserve_order=True)
 
-    check_src = renumber_map.add_internal_vertex_id(renumbered_gdf['src'],
-                                                    preserve_order=True)["0"]
-    check_dst = renumber_map.add_internal_vertex_id(renumbered_gdf['dst'],
-                                                    preserve_order=True)["0"]
+    input_check = renumbered_gdf.merge(gdf, on=["source_list", "dest_list"])
 
-    assert_series_equal(check_src, gdf["source_as_int"], check_names=False)
-    assert_series_equal(check_dst, gdf["dest_as_int"], check_names=False)
+    output_check = renumber_map.from_internal_vertex_id(renumbered_gdf, "src", external_column_names=["check_src"])
+    output_check = renumber_map.from_internal_vertex_id(output_check, "dst", external_column_names=["check_dst"])
+
+    merged = output_check.merge(input_check, on=["source_list", "dest_list"])
+
+    assert_series_equal(merged["check_src"], merged["source_as_int"], check_names=False)
+    assert_series_equal(merged["check_dst"], merged["dest_as_int"], check_names=False)
 
 
 def test_renumber_ips_cols():
@@ -86,13 +88,67 @@ def test_renumber_ips_cols():
                                                       ["dest_as_int"],
                                                       preserve_order=True)
 
-    check_src = renumber_map.add_internal_vertex_id(renumbered_gdf['src'],
-                                                    preserve_order=True)["0"]
-    check_dst = renumber_map.add_internal_vertex_id(renumbered_gdf['dst'],
-                                                    preserve_order=True)["0"]
+    input_check = renumbered_gdf.merge(gdf, on=["source_list", "dest_list"])
 
-    assert_series_equal(check_src, gdf["source_as_int"], check_names=False)
-    assert_series_equal(check_dst, gdf["dest_as_int"], check_names=False)
+    output_check = renumber_map.from_internal_vertex_id(renumbered_gdf, "src", external_column_names=["check_src"])
+    output_check = renumber_map.from_internal_vertex_id(output_check, "dst", external_column_names=["check_dst"])
+
+    merged = output_check.merge(input_check, on=["source_list", "dest_list"])
+
+    assert_series_equal(merged["check_src"], merged["source_as_int"], check_names=False)
+    assert_series_equal(merged["check_dst"], merged["dest_as_int"], check_names=False)
+
+
+def test_renumber_negative():
+    source_list = [4, 6, 8, -20, 1]
+    dest_list = [1, 29, 35, 0, 77]
+
+    df = pd.DataFrame({"source_list": source_list, "dest_list": dest_list})
+
+    gdf = cudf.DataFrame.from_pandas(df[["source_list", "dest_list"]])
+    gdf['original_src'] = gdf['source_list']
+    gdf['original_dst'] = gdf['dest_list']
+
+    renumbered_gdf, renumber_map = NumberMap.renumber(gdf,
+                                                      "source_list",
+                                                      "dest_list",
+                                                      preserve_order=True)
+
+    input_check = renumbered_gdf.merge(gdf, on=["original_src", "original_dst"])
+
+    output_check = renumber_map.from_internal_vertex_id(renumbered_gdf, "src", external_column_names=["check_src"])
+    output_check = renumber_map.from_internal_vertex_id(output_check, "dst", external_column_names=["check_dst"])
+
+    merged = output_check.merge(input_check, on=["original_src", "original_dst"])
+
+    assert_series_equal(merged["check_src"], merged["original_src"], check_names=False)
+    assert_series_equal(merged["check_dst"], merged["original_dst"], check_names=False)
+
+
+def test_renumber_negative_col():
+    source_list = [4, 6, 8, -20, 1]
+    dest_list = [1, 29, 35, 0, 77]
+
+    df = pd.DataFrame({"source_list": source_list, "dest_list": dest_list})
+
+    gdf = cudf.DataFrame.from_pandas(df[["source_list", "dest_list"]])
+    gdf['original_src'] = gdf['source_list']
+    gdf['original_dst'] = gdf['dest_list']
+
+    renumbered_gdf, renumber_map = NumberMap.renumber(gdf,
+                                                      ["source_list"],
+                                                      ["dest_list"],
+                                                      preserve_order=True)
+
+    input_check = renumbered_gdf.merge(gdf, on=["original_src", "original_dst"])
+
+    output_check = renumber_map.from_internal_vertex_id(renumbered_gdf, "src", external_column_names=["check_src"])
+    output_check = renumber_map.from_internal_vertex_id(output_check, "dst", external_column_names=["check_dst"])
+
+    merged = output_check.merge(input_check, on=["original_src", "original_dst"])
+
+    assert_series_equal(merged["check_src"], merged["original_src"], check_names=False)
+    assert_series_equal(merged["check_dst"], merged["original_dst"], check_names=False)
 
 
 @pytest.mark.skip(reason="temporarily dropped string support")
@@ -127,89 +183,6 @@ def test_renumber_ips_str_cols():
 
     assert_series_equal(check_src, gdf["source_list"], check_names=False)
     assert_series_equal(check_dst, gdf["dest_list"], check_names=False)
-
-
-def test_renumber_negative():
-    source_list = [4, 6, 8, -20, 1]
-    dest_list = [1, 29, 35, 0, 77]
-
-    df = pd.DataFrame({"source_list": source_list, "dest_list": dest_list})
-
-    gdf = cudf.DataFrame.from_pandas(df[["source_list", "dest_list"]])
-
-    renumbered_gdf, renumber_map = NumberMap.renumber(gdf,
-                                                      "source_list",
-                                                      "dest_list",
-                                                      preserve_order=True)
-
-    check_src = renumber_map.add_internal_vertex_id(renumbered_gdf['src'],
-                                                    preserve_order=True)["0"]
-    check_dst = renumber_map.add_internal_vertex_id(renumbered_gdf['dst'],
-                                                    preserve_order=True)["0"]
-
-    assert_series_equal(check_src, gdf["source_list"], check_names=False)
-    assert_series_equal(check_dst, gdf["dest_list"], check_names=False)
-
-
-def test_renumber_negative_col():
-    source_list = [4, 6, 8, -20, 1]
-    dest_list = [1, 29, 35, 0, 77]
-
-    df = pd.DataFrame({"source_list": source_list, "dest_list": dest_list})
-
-    gdf = cudf.DataFrame.from_pandas(df[["source_list", "dest_list"]])
-
-    renumbered_gdf, renumber_map = NumberMap.renumber(gdf,
-                                                      "source_list",
-                                                      "dest_list",
-                                                      preserve_order=True)
-
-    check_src = renumber_map.add_internal_vertex_id(renumbered_gdf['src'],
-                                                    preserve_order=True)["0"]
-    check_dst = renumber_map.add_internal_vertex_id(renumbered_gdf['dst'],
-                                                    preserve_order=True)["0"]
-
-    assert_series_equal(check_src, gdf["source_list"], check_names=False)
-    assert_series_equal(check_dst, gdf["dest_list"], check_names=False)
-
-
-@pytest.mark.skip(reason="dropped renumbering from series support")
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_renumber_series(graph_file):
-    gc.collect()
-
-    M = utils.read_csv_for_nx(graph_file)
-    sources = cudf.Series(M["0"])
-    destinations = cudf.Series(M["1"])
-
-    translate = 1000
-
-    df = cudf.DataFrame()
-    df["src"] = cudf.Series([x + translate for x in sources.
-                            values_host])
-    df["dst"] = cudf.Series([x + translate for x in destinations.
-                            values_host])
-
-    numbering_series_1 = NumberMap()
-    numbering_series_1.from_series(df["src"])
-
-    numbering_series_2 = NumberMap()
-    numbering_series_2.from_series(df["dst"])
-
-    renumbered_src = numbering_series_1.add_internal_vertex_id(
-        df["src"], "src_id")
-    renumbered_dst = numbering_series_2.add_internal_vertex_id(
-        df["dst"], "dst_id")
-
-    check_src = numbering_series_1.add_internal_vertex_id(renumbered_src,
-                                                          "src_id",
-                                                          preserve_order=True)
-    check_dst = numbering_series_2.add_internal_vertex_id(renumbered_dst,
-                                                          "dst_id",
-                                                          preserve_order=True)
-
-    assert_series_equal(check_src["0_y"], check_src["0_x"], check_names=False)
-    assert_series_equal(check_dst["0_y"], check_dst["0_x"], check_names=False)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
