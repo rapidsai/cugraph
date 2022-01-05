@@ -142,9 +142,10 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(Hits_Usecase const& hits_usecase, input_usecase_t const& input_usecase)
+  void run_current_test(std::tuple<Hits_Usecase const&, input_usecase_t const&> const& param)
   {
-    constexpr bool renumber = true;
+    constexpr bool renumber            = true;
+    auto [hits_usecase, input_usecase] = param;
 
     // 1. initialize handle
 
@@ -270,31 +271,28 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
 using Tests_Hits_File = Tests_Hits<cugraph::test::File_Usecase>;
 using Tests_Hits_Rmat = Tests_Hits<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_Hits_File, CheckInt32Int32FloatFloat)
+TEST_P(Tests_Hits_File, CheckInt32Int32Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
-}
-
-TEST_P(Tests_Hits_Rmat, CheckInt32Int32FloatFloat)
-{
-  auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Hits_Rmat, CheckInt32Int64FloatFloat)
+TEST_P(Tests_Hits_Rmat, CheckInt32Int32Float)
 {
-  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Hits_Rmat, CheckInt32Int64Float)
+{
   run_current_test<int32_t, int64_t, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Hits_Rmat, CheckInt64Int64FloatFloat)
+TEST_P(Tests_Hits_Rmat, CheckInt64Int64Float)
 {
-  auto param = GetParam();
   run_current_test<int64_t, int64_t, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -304,9 +302,7 @@ INSTANTIATE_TEST_SUITE_P(
     // enable correctness checks
     ::testing::Values(Hits_Usecase{true, false}, Hits_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_Hits_Rmat,
@@ -315,6 +311,18 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                                                               Hits_Usecase{true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Hits_File,
+  ::testing::Combine(
+    // disable correctness checks
+    ::testing::Values(Hits_Usecase{false, false}, Hits_Usecase{false, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -326,6 +334,6 @@ INSTANTIATE_TEST_SUITE_P(
   // disable correctness checks for large graphs
   ::testing::Combine(
     ::testing::Values(Hits_Usecase{false, false}, Hits_Usecase{false, true}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

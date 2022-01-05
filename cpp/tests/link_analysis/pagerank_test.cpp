@@ -147,10 +147,10 @@ class Tests_PageRank
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-  void run_current_test(PageRank_Usecase const& pagerank_usecase,
-                        input_usecase_t const& input_usecase)
+  void run_current_test(std::tuple<PageRank_Usecase const&, input_usecase_t const&> const& param)
   {
-    constexpr bool renumber = true;
+    constexpr bool renumber                = true;
+    auto [pagerank_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
     HighResClock hr_clock{};
@@ -407,29 +407,26 @@ using Tests_PageRank_Rmat = Tests_PageRank<cugraph::test::Rmat_Usecase>;
 // FIXME: add tests for type combinations
 TEST_P(Tests_PageRank_File, CheckInt32Int32FloatFloat)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_PageRank_Rmat, CheckInt32Int32FloatFloat)
 {
-  auto param = GetParam();
   run_current_test<int32_t, int32_t, float, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_PageRank_Rmat, CheckInt32Int64FloatFloat)
+TEST_P(Tests_PageRank_File, CheckInt32Int64FloatFloat)
 {
-  auto param = GetParam();
   run_current_test<int32_t, int64_t, float, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_PageRank_Rmat, CheckInt64Int64FloatFloat)
 {
-  auto param = GetParam();
   run_current_test<int64_t, int64_t, float, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -442,9 +439,7 @@ INSTANTIATE_TEST_SUITE_P(
                       PageRank_Usecase{0.0, true},
                       PageRank_Usecase{0.5, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
@@ -456,6 +451,21 @@ INSTANTIATE_TEST_SUITE_P(
                       PageRank_Usecase{0.0, true},
                       PageRank_Usecase{0.5, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_PageRank_File,
+  ::testing::Combine(
+    // disable correctness checks
+    ::testing::Values(PageRank_Usecase{0.0, false, false},
+                      PageRank_Usecase{0.5, false, false},
+                      PageRank_Usecase{0.0, true, false},
+                      PageRank_Usecase{0.5, true, false}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -470,6 +480,6 @@ INSTANTIATE_TEST_SUITE_P(
                       PageRank_Usecase{0.5, false, false},
                       PageRank_Usecase{0.0, true, false},
                       PageRank_Usecase{0.5, true, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

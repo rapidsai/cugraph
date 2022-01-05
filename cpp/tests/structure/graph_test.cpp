@@ -15,6 +15,7 @@
  */
 
 #include <utilities/base_fixture.hpp>
+#include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/graph.hpp>
@@ -66,22 +67,14 @@ graph_reference(vertex_t const* p_src_vertices,
   return std::make_tuple(std::move(offsets), std::move(indices), std::move(weights));
 }
 
-typedef struct Graph_Usecase_t {
-  std::string graph_file_full_path{};
+struct Graph_Usecase {
   bool test_weighted{false};
+  bool multi_graph{false};
+  bool check_correctness{true};
+};
 
-  Graph_Usecase_t(std::string const& graph_file_path, bool test_weighted)
-    : test_weighted(test_weighted)
-  {
-    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
-      graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
-    } else {
-      graph_file_full_path = graph_file_path;
-    }
-  };
-} Graph_Usecase;
-
-class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
+template <typename input_usecase_t>
+class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, input_usecase_t>> {
  public:
   Tests_Graph() {}
   static void SetupTestCase() {}
@@ -91,13 +84,16 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-  void run_current_test(Graph_Usecase const& configuration)
+  void run_current_test(std::tuple<Graph_Usecase const&, input_usecase_t const&> const& param)
   {
     raft::handle_t handle{};
+    auto [graph_usecase, input_usecase] = param;
 
-    auto [d_rows, d_cols, d_weights, d_vertices, number_of_vertices, is_symmetric] = cugraph::test::
-      read_edgelist_from_matrix_market_file<vertex_t, weight_t, store_transposed, false>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted);
+    auto [d_rows, d_cols, d_weights, d_vertices, number_of_vertices, is_symmetric] =
+      input_usecase
+        .template construct_edgelist<vertex_t, edge_t, weight_t, store_transposed, false>(
+          handle, graph_usecase.test_weighted);
+
     edge_t number_of_edges = static_cast<edge_t>(d_rows.size());
 
     std::vector<vertex_t> h_rows(number_of_edges);
@@ -133,7 +129,9 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
       handle,
       edgelist,
       cugraph::graph_meta_t<vertex_t, edge_t, false>{
-        number_of_vertices, cugraph::graph_properties_t{is_symmetric, false}, std::nullopt},
+        number_of_vertices,
+        cugraph::graph_properties_t{is_symmetric, graph_usecase.multi_graph},
+        std::nullopt},
       true);
 
     auto graph_view = graph.view();
@@ -143,99 +141,254 @@ class Tests_Graph : public ::testing::TestWithParam<Graph_Usecase> {
     ASSERT_EQ(graph_view.get_number_of_vertices(), number_of_vertices);
     ASSERT_EQ(graph_view.get_number_of_edges(), number_of_edges);
 
-    std::vector<edge_t> h_cugraph_offsets(graph_view.get_number_of_vertices() + 1);
-    std::vector<vertex_t> h_cugraph_indices(graph_view.get_number_of_edges());
-    auto h_cugraph_weights =
-      graph.is_weighted() ? std::optional<std::vector<weight_t>>(graph_view.get_number_of_edges())
-                          : std::nullopt;
+    if (graph_usecase.check_correctness) {
+      std::vector<edge_t> h_cugraph_offsets(graph_view.get_number_of_vertices() + 1);
+      std::vector<vertex_t> h_cugraph_indices(graph_view.get_number_of_edges());
+      auto h_cugraph_weights =
+        graph.is_weighted() ? std::optional<std::vector<weight_t>>(graph_view.get_number_of_edges())
+                            : std::nullopt;
 
-    raft::update_host(h_cugraph_offsets.data(),
-                      graph_view.get_matrix_partition_view().get_offsets(),
-                      graph_view.get_number_of_vertices() + 1,
-                      handle.get_stream());
-    raft::update_host(h_cugraph_indices.data(),
-                      graph_view.get_matrix_partition_view().get_indices(),
-                      graph_view.get_number_of_edges(),
-                      handle.get_stream());
-    if (h_cugraph_weights) {
-      raft::update_host((*h_cugraph_weights).data(),
-                        *(graph_view.get_matrix_partition_view().get_weights()),
+      raft::update_host(h_cugraph_offsets.data(),
+                        graph_view.get_matrix_partition_view().get_offsets(),
+                        graph_view.get_number_of_vertices() + 1,
+                        handle.get_stream());
+      raft::update_host(h_cugraph_indices.data(),
+                        graph_view.get_matrix_partition_view().get_indices(),
                         graph_view.get_number_of_edges(),
                         handle.get_stream());
-    }
+      if (h_cugraph_weights) {
+        raft::update_host((*h_cugraph_weights).data(),
+                          *(graph_view.get_matrix_partition_view().get_weights()),
+                          graph_view.get_number_of_edges(),
+                          handle.get_stream());
+      }
 
-    handle.sync_stream();
+      handle.sync_stream();
 
-    ASSERT_TRUE(
-      std::equal(h_reference_offsets.begin(), h_reference_offsets.end(), h_cugraph_offsets.begin()))
-      << "Graph compressed sparse format offsets do not match with the reference values.";
-    ASSERT_EQ(h_reference_weights.has_value(), h_cugraph_weights.has_value());
-    if (h_reference_weights) {
-      ASSERT_EQ((*h_reference_weights).size(), (*h_cugraph_weights).size());
-    }
-    for (vertex_t i = 0; i < number_of_vertices; ++i) {
-      auto start  = h_reference_offsets[i];
-      auto degree = h_reference_offsets[i + 1] - start;
-      if (configuration.test_weighted) {
-        std::vector<std::tuple<vertex_t, weight_t>> reference_pairs(degree);
-        std::vector<std::tuple<vertex_t, weight_t>> cugraph_pairs(degree);
-        for (edge_t j = 0; j < degree; ++j) {
-          reference_pairs[j] =
-            std::make_tuple(h_reference_indices[start + j], (*h_reference_weights)[start + j]);
-          cugraph_pairs[j] =
-            std::make_tuple(h_cugraph_indices[start + j], (*h_cugraph_weights)[start + j]);
+      ASSERT_TRUE(std::equal(
+        h_reference_offsets.begin(), h_reference_offsets.end(), h_cugraph_offsets.begin()))
+        << "Graph compressed sparse format offsets do not match with the reference values.";
+      ASSERT_EQ(h_reference_weights.has_value(), h_cugraph_weights.has_value());
+      if (h_reference_weights) {
+        ASSERT_EQ((*h_reference_weights).size(), (*h_cugraph_weights).size());
+      }
+      for (vertex_t i = 0; i < number_of_vertices; ++i) {
+        auto start  = h_reference_offsets[i];
+        auto degree = h_reference_offsets[i + 1] - start;
+        if (graph_usecase.test_weighted) {
+          std::vector<std::tuple<vertex_t, weight_t>> reference_pairs(degree);
+          std::vector<std::tuple<vertex_t, weight_t>> cugraph_pairs(degree);
+          for (edge_t j = 0; j < degree; ++j) {
+            reference_pairs[j] =
+              std::make_tuple(h_reference_indices[start + j], (*h_reference_weights)[start + j]);
+            cugraph_pairs[j] =
+              std::make_tuple(h_cugraph_indices[start + j], (*h_cugraph_weights)[start + j]);
+          }
+          std::sort(reference_pairs.begin(), reference_pairs.end());
+          std::sort(cugraph_pairs.begin(), cugraph_pairs.end());
+          ASSERT_TRUE(
+            std::equal(reference_pairs.begin(), reference_pairs.end(), cugraph_pairs.begin()))
+            << "Graph compressed sparse format indices & weights for vertex " << i
+            << " do not match with the reference values.";
+        } else {
+          std::vector<vertex_t> reference_indices(h_reference_indices.begin() + start,
+                                                  h_reference_indices.begin() + (start + degree));
+          std::vector<vertex_t> cugraph_indices(h_cugraph_indices.begin() + start,
+                                                h_cugraph_indices.begin() + (start + degree));
+          std::sort(reference_indices.begin(), reference_indices.end());
+          std::sort(cugraph_indices.begin(), cugraph_indices.end());
+          ASSERT_TRUE(
+            std::equal(reference_indices.begin(), reference_indices.end(), cugraph_indices.begin()))
+            << "Graph compressed sparse format indices for vertex " << i
+            << " do not match with the reference values.";
         }
-        std::sort(reference_pairs.begin(), reference_pairs.end());
-        std::sort(cugraph_pairs.begin(), cugraph_pairs.end());
-        ASSERT_TRUE(
-          std::equal(reference_pairs.begin(), reference_pairs.end(), cugraph_pairs.begin()))
-          << "Graph compressed sparse format indices & weights for vertex " << i
-          << " do not match with the reference values.";
-      } else {
-        std::vector<vertex_t> reference_indices(h_reference_indices.begin() + start,
-                                                h_reference_indices.begin() + (start + degree));
-        std::vector<vertex_t> cugraph_indices(h_cugraph_indices.begin() + start,
-                                              h_cugraph_indices.begin() + (start + degree));
-        std::sort(reference_indices.begin(), reference_indices.end());
-        std::sort(cugraph_indices.begin(), cugraph_indices.end());
-        ASSERT_TRUE(
-          std::equal(reference_indices.begin(), reference_indices.end(), cugraph_indices.begin()))
-          << "Graph compressed sparse format indices for vertex " << i
-          << " do not match with the reference values.";
       }
     }
   }
 };
 
-TEST_P(Tests_Graph, CheckStoreTransposedFalse)
+using Tests_Graph_File = Tests_Graph<cugraph::test::File_Usecase>;
+using Tests_Graph_Rmat = Tests_Graph<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_Graph_File, CheckStoreTransposedFalse_32_32_float)
 {
-  run_current_test<int32_t, int32_t, float, false>(GetParam());
-  run_current_test<int32_t, int64_t, float, false>(GetParam());
-  run_current_test<int64_t, int64_t, float, false>(GetParam());
-  run_current_test<int32_t, int32_t, double, false>(GetParam());
-  run_current_test<int32_t, int64_t, double, false>(GetParam());
-  run_current_test<int64_t, int64_t, double, false>(GetParam());
+  run_current_test<int32_t, int32_t, float, false>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Graph, CheckStoreTransposedTrue)
+TEST_P(Tests_Graph_File, CheckStoreTransposedFalse_32_64_float)
 {
-  run_current_test<int32_t, int32_t, float, true>(GetParam());
-  run_current_test<int32_t, int64_t, float, true>(GetParam());
-  run_current_test<int64_t, int64_t, float, true>(GetParam());
-  run_current_test<int32_t, int32_t, double, true>(GetParam());
-  run_current_test<int32_t, int64_t, double, true>(GetParam());
-  run_current_test<int64_t, int64_t, double, true>(GetParam());
+  run_current_test<int32_t, int64_t, float, false>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-INSTANTIATE_TEST_SUITE_P(simple_test,
-                         Tests_Graph,
-                         ::testing::Values(Graph_Usecase("test/datasets/karate.mtx", false),
-                                           Graph_Usecase("test/datasets/karate.mtx", true),
-                                           Graph_Usecase("test/datasets/web-Google.mtx", false),
-                                           Graph_Usecase("test/datasets/web-Google.mtx", true),
-                                           Graph_Usecase("test/datasets/ljournal-2008.mtx", false),
-                                           Graph_Usecase("test/datasets/ljournal-2008.mtx", true),
-                                           Graph_Usecase("test/datasets/webbase-1M.mtx", false),
-                                           Graph_Usecase("test/datasets/webbase-1M.mtx", true)));
+TEST_P(Tests_Graph_File, CheckStoreTransposedFalse_64_64_float)
+{
+  run_current_test<int64_t, int64_t, float, false>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_File, CheckStoreTransposedFalse_32_32_double)
+{
+  run_current_test<int32_t, int32_t, double, false>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_File, CheckStoreTransposedFalse_32_64_double)
+{
+  run_current_test<int32_t, int64_t, double, false>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_File, CheckStoreTransposedFalse_64_64_double)
+{
+  run_current_test<int64_t, int64_t, double, false>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_File, CheckStoreTransposedTrue_32_32_float)
+{
+  run_current_test<int32_t, int32_t, float, true>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_File, CheckStoreTransposedTrue_32_64_float)
+{
+  run_current_test<int32_t, int64_t, float, true>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_File, CheckStoreTransposedTrue_64_64_float)
+{
+  run_current_test<int64_t, int64_t, float, true>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_File, CheckStoreTransposedTrue_32_32_double)
+{
+  run_current_test<int32_t, int32_t, double, true>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_File, CheckStoreTransposedTrue_32_64_double)
+{
+  run_current_test<int32_t, int64_t, double, true>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_File, CheckStoreTransposedTrue_64_64_double)
+{
+  run_current_test<int64_t, int64_t, double, true>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_Rmat, CheckStoreTransposedFalse_32_32_float)
+{
+  run_current_test<int32_t, int32_t, float, false>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_Rmat, CheckStoreTransposedFalse_32_64_float)
+{
+  run_current_test<int32_t, int64_t, float, false>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_Rmat, CheckStoreTransposedFalse_64_64_float)
+{
+  run_current_test<int64_t, int64_t, float, false>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_Rmat, CheckStoreTransposedFalse_32_32_double)
+{
+  run_current_test<int32_t, int32_t, double, false>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_Rmat, CheckStoreTransposedFalse_32_64_double)
+{
+  run_current_test<int32_t, int64_t, double, false>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_Rmat, CheckStoreTransposedFalse_64_64_double)
+{
+  run_current_test<int64_t, int64_t, double, false>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_Rmat, CheckStoreTransposedTrue_32_32_float)
+{
+  run_current_test<int32_t, int32_t, float, true>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_Rmat, CheckStoreTransposedTrue_32_64_float)
+{
+  run_current_test<int32_t, int64_t, float, true>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_Rmat, CheckStoreTransposedTrue_64_64_float)
+{
+  run_current_test<int64_t, int64_t, float, true>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_Rmat, CheckStoreTransposedTrue_32_32_double)
+{
+  run_current_test<int32_t, int32_t, double, true>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_Rmat, CheckStoreTransposedTrue_32_64_double)
+{
+  run_current_test<int32_t, int64_t, double, true>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Graph_Rmat, CheckStoreTransposedTrue_64_64_double)
+{
+  run_current_test<int64_t, int64_t, double, true>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+  file_test,
+  Tests_Graph_File,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(Graph_Usecase{false}, Graph_Usecase{true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_Graph_Rmat,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(Graph_Usecase{false, true}, Graph_Usecase{true, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Graph_File,
+  ::testing::Combine(
+    // disable correctness checks
+    ::testing::Values(Graph_Usecase{false, false, false}, Graph_Usecase{true, false, false}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test,
+  Tests_Graph_Rmat,
+  ::testing::Combine(
+    // disable correctness checks
+    ::testing::Values(Graph_Usecase{false, true, false}, Graph_Usecase{true, true, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
