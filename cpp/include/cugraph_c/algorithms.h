@@ -28,7 +28,7 @@ extern "C" {
  * @brief     Opaque pagerank result type
  */
 typedef struct {
-  int align_;
+  int32_t align_;
 } cugraph_pagerank_result_t;
 
 /**
@@ -144,7 +144,7 @@ cugraph_error_code_t cugraph_personalized_pagerank(
  * from a seed.
  */
 typedef struct {
-  int align_;
+  int32_t align_;
 } cugraph_paths_result_t;
 
 /**
@@ -223,7 +223,7 @@ cugraph_error_code_t cugraph_bfs(
  * @brief     Opaque extract_paths result type
  */
 typedef struct {
-  int align_;
+  int32_t align_;
 } cugraph_extract_paths_result_t;
 
 /**

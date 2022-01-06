@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,6 +55,11 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
 
   File_Usecase(std::string const& graph_file_path, size_t base_vertex_id = 0)
     : detail::TranslateGraph_Usecase(base_vertex_id)
+  {
+    set_filename(graph_file_path);
+  }
+
+  void set_filename(std::string const& graph_file_path)
   {
     if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
       graph_file_full_path_ = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
@@ -215,7 +220,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                                                                             handle.get_stream());
         }
 
-        cugraph::detail::uniform_random_fill(handle.get_stream_view(),
+        cugraph::detail::uniform_random_fill(handle.get_stream(),
                                              i == 0 ? weights_v->data() : tmp_weights_v->data(),
                                              i == 0 ? weights_v->size() : tmp_weights_v->size(),
                                              weight_t{0.0},
@@ -265,7 +270,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       auto start_offset = vertices_v.size();
       vertices_v.resize(start_offset + (partition_vertex_lasts[i] - partition_vertex_firsts[i]),
                         handle.get_stream());
-      cugraph::detail::sequence_fill(handle.get_stream_view(),
+      cugraph::detail::sequence_fill(handle.get_stream(),
                                      vertices_v.begin() + start_offset,
                                      vertices_v.size() - start_offset,
                                      partition_vertex_firsts[i]);
@@ -341,7 +346,7 @@ class PathGraph_Usecase {
     rmm::device_uvector<vertex_t> d_vertices(num_vertices_, handle.get_stream());
     cugraph::detail::sequence_fill(
       handle.get_stream(), d_vertices.data(), num_vertices_, vertex_t{0});
-    handle.get_stream_view().synchronize();
+    handle.sync_stream();
 
     return std::make_tuple(std::move(src_v),
                            std::move(dst_v),

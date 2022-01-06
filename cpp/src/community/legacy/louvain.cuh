@@ -54,14 +54,14 @@ class Louvain {
       //         to change the logic to populate this properly
       //         in generate_superverticies_graph.
       //
-      offsets_v_(graph.number_of_vertices + 1, handle.get_stream_view()),
-      indices_v_(graph.number_of_edges, handle.get_stream_view()),
-      weights_v_(graph.number_of_edges, handle.get_stream_view()),
-      src_indices_v_(graph.number_of_edges, handle.get_stream_view()),
-      vertex_weights_v_(graph.number_of_vertices, handle.get_stream_view()),
-      cluster_weights_v_(graph.number_of_vertices, handle.get_stream_view()),
-      tmp_arr_v_(graph.number_of_vertices, handle.get_stream_view()),
-      cluster_inverse_v_(graph.number_of_vertices, handle.get_stream_view()),
+      offsets_v_(graph.number_of_vertices + 1, handle.get_stream()),
+      indices_v_(graph.number_of_edges, handle.get_stream()),
+      weights_v_(graph.number_of_edges, handle.get_stream()),
+      src_indices_v_(graph.number_of_edges, handle.get_stream()),
+      vertex_weights_v_(graph.number_of_vertices, handle.get_stream()),
+      cluster_weights_v_(graph.number_of_vertices, handle.get_stream()),
+      tmp_arr_v_(graph.number_of_vertices, handle.get_stream()),
+      cluster_inverse_v_(graph.number_of_vertices, handle.get_stream()),
       number_of_vertices_(graph.number_of_vertices),
       number_of_edges_(graph.number_of_edges)
   {
@@ -90,8 +90,8 @@ class Louvain {
   {
     vertex_t n_verts = graph.number_of_vertices;
 
-    rmm::device_uvector<weight_t> inc(n_verts, handle_.get_stream_view());
-    rmm::device_uvector<weight_t> deg(n_verts, handle_.get_stream_view());
+    rmm::device_uvector<weight_t> inc(n_verts, handle_.get_stream());
+    rmm::device_uvector<weight_t> deg(n_verts, handle_.get_stream());
 
     thrust::fill(handle_.get_thrust_policy(), inc.begin(), inc.end(), weight_t{0.0});
     thrust::fill(handle_.get_thrust_policy(), deg.begin(), deg.end(), weight_t{0.0});
@@ -211,7 +211,7 @@ class Louvain {
 
   virtual void initialize_dendrogram_level(vertex_t num_vertices)
   {
-    dendrogram_->add_level(0, num_vertices, handle_.get_stream_view());
+    dendrogram_->add_level(0, num_vertices, handle_.get_stream());
 
     thrust::sequence(handle_.get_thrust_policy(),
                      dendrogram_->current_level_begin(),
@@ -245,7 +245,7 @@ class Louvain {
         d_cluster_weights[src] = sum;
       });
 
-    timer_stop(handle_.get_stream_view());
+    timer_stop(handle_.get_stream());
   }
 
   virtual weight_t update_clustering(weight_t total_edge_weight,
@@ -255,11 +255,10 @@ class Louvain {
     timer_start("update_clustering");
 
     rmm::device_uvector<vertex_t> next_cluster_v(dendrogram_->current_level_size(),
-                                                 handle_.get_stream_view());
-    rmm::device_uvector<weight_t> delta_Q_v(graph.number_of_edges, handle_.get_stream_view());
-    rmm::device_uvector<vertex_t> cluster_hash_v(graph.number_of_edges, handle_.get_stream_view());
-    rmm::device_uvector<weight_t> old_cluster_sum_v(graph.number_of_vertices,
-                                                    handle_.get_stream_view());
+                                                 handle_.get_stream());
+    rmm::device_uvector<weight_t> delta_Q_v(graph.number_of_edges, handle_.get_stream());
+    rmm::device_uvector<vertex_t> cluster_hash_v(graph.number_of_edges, handle_.get_stream());
+    rmm::device_uvector<weight_t> old_cluster_sum_v(graph.number_of_vertices, handle_.get_stream());
 
     vertex_t* d_cluster              = dendrogram_->current_level_begin();
     weight_t const* d_vertex_weights = vertex_weights_v_.data();
@@ -301,7 +300,7 @@ class Louvain {
       }
     }
 
-    timer_stop(handle_.get_stream_view());
+    timer_stop(handle_.get_stream());
     return cur_Q;
   }
 
@@ -409,12 +408,9 @@ class Louvain {
                     rmm::device_uvector<weight_t>& delta_Q_v,
                     bool up_down)
   {
-    rmm::device_uvector<vertex_t> temp_vertices_v(graph.number_of_vertices,
-                                                  handle_.get_stream_view());
-    rmm::device_uvector<vertex_t> temp_cluster_v(graph.number_of_vertices,
-                                                 handle_.get_stream_view());
-    rmm::device_uvector<weight_t> temp_delta_Q_v(graph.number_of_vertices,
-                                                 handle_.get_stream_view());
+    rmm::device_uvector<vertex_t> temp_vertices_v(graph.number_of_vertices, handle_.get_stream());
+    rmm::device_uvector<vertex_t> temp_cluster_v(graph.number_of_vertices, handle_.get_stream());
+    rmm::device_uvector<weight_t> temp_delta_Q_v(graph.number_of_vertices, handle_.get_stream());
 
     thrust::fill(
       handle_.get_thrust_policy(), temp_cluster_v.begin(), temp_cluster_v.end(), vertex_t{-1});
@@ -479,12 +475,12 @@ class Louvain {
 
     // renumber the clusters to the range 0..(num_clusters-1)
     vertex_t num_clusters = renumber_clusters();
-    cluster_weights_v_.resize(num_clusters, handle_.get_stream_view());
+    cluster_weights_v_.resize(num_clusters, handle_.get_stream());
 
     // shrink our graph to represent the graph of supervertices
     generate_superverticies_graph(graph, num_clusters);
 
-    timer_stop(handle_.get_stream_view());
+    timer_stop(handle_.get_stream());
   }
 
   vertex_t renumber_clusters()
@@ -526,7 +522,7 @@ class Louvain {
       [d_cluster_inverse] __device__(const vertex_t idx) { return d_cluster_inverse[idx] == 1; });
 
     vertex_t new_num_clusters = thrust::distance(tmp_arr_v_.begin(), copy_end);
-    tmp_arr_v_.resize(new_num_clusters, handle_.get_stream_view());
+    tmp_arr_v_.resize(new_num_clusters, handle_.get_stream());
 
     //
     // Now we can set each value in cluster_inverse of a cluster to its index
@@ -545,16 +541,16 @@ class Louvain {
                        d_cluster[i] = d_cluster_inverse[d_cluster[i]];
                      });
 
-    cluster_inverse_v_.resize(new_num_clusters, handle_.get_stream_view());
+    cluster_inverse_v_.resize(new_num_clusters, handle_.get_stream());
 
     return new_num_clusters;
   }
 
   void generate_superverticies_graph(graph_t& graph, vertex_t num_clusters)
   {
-    rmm::device_uvector<vertex_t> new_src_v(graph.number_of_edges, handle_.get_stream_view());
-    rmm::device_uvector<vertex_t> new_dst_v(graph.number_of_edges, handle_.get_stream_view());
-    rmm::device_uvector<weight_t> new_weight_v(graph.number_of_edges, handle_.get_stream_view());
+    rmm::device_uvector<vertex_t> new_src_v(graph.number_of_edges, handle_.get_stream());
+    rmm::device_uvector<vertex_t> new_dst_v(graph.number_of_edges, handle_.get_stream());
+    rmm::device_uvector<weight_t> new_weight_v(graph.number_of_edges, handle_.get_stream());
 
     //
     //  Renumber the COO
@@ -609,11 +605,11 @@ class Louvain {
                         graph.offsets,
                         num_clusters,
                         graph.number_of_edges,
-                        handle_.get_stream_view());
+                        handle_.get_stream());
 
-    src_indices_v_.resize(graph.number_of_edges, handle_.get_stream_view());
-    indices_v_.resize(graph.number_of_edges, handle_.get_stream_view());
-    weights_v_.resize(graph.number_of_edges, handle_.get_stream_view());
+    src_indices_v_.resize(graph.number_of_edges, handle_.get_stream());
+    indices_v_.resize(graph.number_of_edges, handle_.get_stream());
+    weights_v_.resize(graph.number_of_edges, handle_.get_stream());
   }
 
  protected:

@@ -9,8 +9,8 @@
  *
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 
 #include <rmm/device_vector.hpp>

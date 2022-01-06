@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -118,7 +118,7 @@ class Tests_KatzCentrality
     HighResClock hr_clock{};
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -127,7 +127,7 @@ class Tests_KatzCentrality
         handle, input_usecase, katz_usecase.test_weighted, renumber);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -138,7 +138,7 @@ class Tests_KatzCentrality
     auto degrees = graph_view.compute_in_degrees(handle);
     std::vector<edge_t> h_degrees(degrees.size());
     raft::update_host(h_degrees.data(), degrees.data(), degrees.size(), handle.get_stream());
-    handle.get_stream_view().synchronize();
+    handle.sync_stream();
     auto max_it = std::max_element(h_degrees.begin(), h_degrees.end());
 
     result_t const alpha = result_t{1.0} / static_cast<result_t>(*max_it + 1);
@@ -149,7 +149,7 @@ class Tests_KatzCentrality
                                                       handle.get_stream());
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -165,7 +165,7 @@ class Tests_KatzCentrality
                              true);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "Katz Centrality took " << elapsed_time * 1e-6 << " s.\n";
@@ -202,7 +202,7 @@ class Tests_KatzCentrality
                           handle.get_stream());
       }
 
-      handle.get_stream_view().synchronize();
+      handle.sync_stream();
 
       std::vector<result_t> h_reference_katz_centralities(
         unrenumbered_graph_view.get_number_of_vertices());
@@ -238,7 +238,7 @@ class Tests_KatzCentrality
                           handle.get_stream());
       }
 
-      handle.get_stream_view().synchronize();
+      handle.sync_stream();
 
       auto threshold_ratio = 1e-3;
       auto threshold_magnitude =

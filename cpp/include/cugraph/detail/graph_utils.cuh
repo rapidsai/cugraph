@@ -24,10 +24,10 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuco/detail/hash_functions.cuh>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
-#include <cuco/detail/hash_functions.cuh>
 
 #include <algorithm>
 #include <numeric>

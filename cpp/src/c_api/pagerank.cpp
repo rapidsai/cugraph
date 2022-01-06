@@ -142,8 +142,8 @@ struct pagerank_functor : public abstract_functor {
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
       result_ = new cugraph_pagerank_result_t{
-        new cugraph_type_erased_device_array_t(std::move(vertex_ids), graph_->vertex_type_),
-        new cugraph_type_erased_device_array_t(std::move(pageranks), graph_->weight_type_)};
+        new cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
+        new cugraph_type_erased_device_array_t(pageranks, graph_->weight_type_)};
     }
   }
 };

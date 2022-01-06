@@ -15,15 +15,16 @@
  */
 #pragma once
 
+#include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.cuh>
 
 #include <raft/comms/comms.hpp>
 #include <raft/device_atomics.cuh>
 
+#include <cub/cub.cuh>
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/tuple.h>
-#include <cub/cub.cuh>
 
 #include <array>
 #include <type_traits>
@@ -148,7 +149,7 @@ struct property_op<thrust::tuple<Args...>, Op>
 };
 
 template <typename T, typename F>
-constexpr auto op_dispatch(raft::comms::op_t op, F&& f)
+auto op_dispatch(raft::comms::op_t op, F&& f)
 {
   switch (op) {
     case raft::comms::op_t::SUM: {

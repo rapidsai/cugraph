@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -327,7 +327,7 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
     cudaDeviceSynchronize();
     cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> G = csr->view();
     G.prop.directed                                             = is_directed;
-    CUDA_TRY(cudaGetLastError());
+    RAFT_CUDA_TRY(cudaGetLastError());
     std::vector<result_t> result(G.number_of_vertices, 0);
     std::vector<result_t> expected(G.number_of_vertices, 0);
 
@@ -360,10 +360,10 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
                                     configuration.number_of_sources_,
                                     sources_ptr);
     cudaDeviceSynchronize();
-    CUDA_TRY(cudaMemcpy(result.data(),
-                        d_result.data().get(),
-                        sizeof(result_t) * G.number_of_vertices,
-                        cudaMemcpyDeviceToHost));
+    RAFT_CUDA_TRY(cudaMemcpy(result.data(),
+                             d_result.data().get(),
+                             sizeof(result_t) * G.number_of_vertices,
+                             cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
     for (int i = 0; i < G.number_of_vertices; ++i)
       EXPECT_TRUE(compare_close(result[i], expected[i], TEST_EPSILON, TEST_ZERO_THRESHOLD))

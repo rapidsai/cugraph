@@ -61,30 +61,28 @@ void relabel(raft::handle_t const& handle,
 
     // find unique old labels (to be relabeled)
 
-    rmm::device_uvector<vertex_t> unique_old_labels(num_labels, handle.get_stream_view());
+    rmm::device_uvector<vertex_t> unique_old_labels(num_labels, handle.get_stream());
     thrust::copy(handle.get_thrust_policy(), labels, labels + num_labels, unique_old_labels.data());
     thrust::sort(handle.get_thrust_policy(), unique_old_labels.begin(), unique_old_labels.end());
     unique_old_labels.resize(thrust::distance(unique_old_labels.begin(),
                                               thrust::unique(handle.get_thrust_policy(),
                                                              unique_old_labels.begin(),
                                                              unique_old_labels.end())),
-                             handle.get_stream_view());
-    unique_old_labels.shrink_to_fit(handle.get_stream_view());
+                             handle.get_stream());
+    unique_old_labels.shrink_to_fit(handle.get_stream());
 
     // collect new labels for the unique old labels
 
-    rmm::device_uvector<vertex_t> new_labels_for_unique_old_labels(0, handle.get_stream_view());
+    rmm::device_uvector<vertex_t> new_labels_for_unique_old_labels(0, handle.get_stream());
     {
       // shuffle the old_new_label_pairs based on applying the compute_gpu_id_from_vertex_t functor
       // to the old labels
 
-      rmm::device_uvector<vertex_t> rx_label_pair_old_labels(0, handle.get_stream_view());
-      rmm::device_uvector<vertex_t> rx_label_pair_new_labels(0, handle.get_stream_view());
+      rmm::device_uvector<vertex_t> rx_label_pair_old_labels(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> rx_label_pair_new_labels(0, handle.get_stream());
       {
-        rmm::device_uvector<vertex_t> label_pair_old_labels(num_label_pairs,
-                                                            handle.get_stream_view());
-        rmm::device_uvector<vertex_t> label_pair_new_labels(num_label_pairs,
-                                                            handle.get_stream_view());
+        rmm::device_uvector<vertex_t> label_pair_old_labels(num_label_pairs, handle.get_stream());
+        rmm::device_uvector<vertex_t> label_pair_new_labels(num_label_pairs, handle.get_stream());
         thrust::copy(handle.get_thrust_policy(),
                      std::get<0>(old_new_label_pairs),
                      std::get<0>(old_new_label_pairs) + num_label_pairs,
@@ -102,12 +100,12 @@ void relabel(raft::handle_t const& handle,
             pair_first,
             pair_first + num_label_pairs,
             [key_func] __device__(auto val) { return key_func(thrust::get<0>(val)); },
-            handle.get_stream_view());
+            handle.get_stream());
       }
 
       // update intermediate relabel map
 
-      handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
+      handle.sync_stream();  // cuco::static_map currently does not take stream
 
       auto poly_alloc =
         rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
@@ -126,24 +124,24 @@ void relabel(raft::handle_t const& handle,
         thrust::make_tuple(rx_label_pair_old_labels.begin(), rx_label_pair_new_labels.begin()));
       relabel_map.insert(pair_first, pair_first + rx_label_pair_old_labels.size());
 
-      rx_label_pair_old_labels.resize(0, handle.get_stream_view());
-      rx_label_pair_new_labels.resize(0, handle.get_stream_view());
-      rx_label_pair_old_labels.shrink_to_fit(handle.get_stream_view());
-      rx_label_pair_new_labels.shrink_to_fit(handle.get_stream_view());
+      rx_label_pair_old_labels.resize(0, handle.get_stream());
+      rx_label_pair_new_labels.resize(0, handle.get_stream());
+      rx_label_pair_old_labels.shrink_to_fit(handle.get_stream());
+      rx_label_pair_new_labels.shrink_to_fit(handle.get_stream());
 
       // shuffle unique_old_labels, relabel using the intermediate relabel map, and shuffle back
 
       {
-        rmm::device_uvector<vertex_t> rx_unique_old_labels(0, handle.get_stream_view());
+        rmm::device_uvector<vertex_t> rx_unique_old_labels(0, handle.get_stream());
         std::vector<size_t> rx_value_counts{};
         std::tie(rx_unique_old_labels, rx_value_counts) = groupby_gpuid_and_shuffle_values(
           handle.get_comms(),
           unique_old_labels.begin(),
           unique_old_labels.end(),
           [key_func] __device__(auto val) { return key_func(val); },
-          handle.get_stream_view());
+          handle.get_stream());
 
-        handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
+        handle.sync_stream();  // cuco::static_map currently does not take stream
 
         if (skip_missing_labels) {
           thrust::transform(handle.get_thrust_policy(),
@@ -164,15 +162,12 @@ void relabel(raft::handle_t const& handle,
                                             // corresponding old labels
         }
 
-        std::tie(new_labels_for_unique_old_labels, std::ignore) =
-          shuffle_values(handle.get_comms(),
-                         rx_unique_old_labels.begin(),
-                         rx_value_counts,
-                         handle.get_stream_view());
+        std::tie(new_labels_for_unique_old_labels, std::ignore) = shuffle_values(
+          handle.get_comms(), rx_unique_old_labels.begin(), rx_value_counts, handle.get_stream());
       }
     }
 
-    handle.get_stream_view().synchronize();  // cuco::static_map currently does not take stream
+    handle.sync_stream();  // cuco::static_map currently does not take stream
 
     {
       auto poly_alloc =
@@ -194,12 +189,17 @@ void relabel(raft::handle_t const& handle,
       relabel_map.find(labels, labels + num_labels, labels);
     }
   } else {
-    cuco::static_map<vertex_t, vertex_t> relabel_map(
-      // cuco::static_map requires at least one empty slot
-      std::max(static_cast<size_t>(static_cast<double>(num_label_pairs) / load_factor),
-               static_cast<size_t>(num_label_pairs) + 1),
-      invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+    handle.sync_stream();  // cuco::static_map currently does not take stream
+
+    auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, cudaStream_t{nullptr});
+    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
+      relabel_map{// cuco::static_map requires at least one empty slot
+                  std::max(static_cast<size_t>(static_cast<double>(num_label_pairs) / load_factor),
+                           static_cast<size_t>(num_label_pairs) + 1),
+                  invalid_vertex_id<vertex_t>::value,
+                  invalid_vertex_id<vertex_t>::value,
+                  stream_adapter};
 
     auto pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(std::get<0>(old_new_label_pairs), std::get<1>(old_new_label_pairs)));

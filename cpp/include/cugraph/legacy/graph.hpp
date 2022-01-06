@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 #pragma once
-#include <unistd.h>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <memory>
 #include <raft/handle.hpp>
 #include <rmm/device_buffer.hpp>
+#include <unistd.h>
 
 namespace cugraph {
 namespace legacy {

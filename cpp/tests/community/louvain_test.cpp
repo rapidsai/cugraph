@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -63,7 +63,7 @@ class Tests_Louvain
     // this is the behavior while we still support Pascal (device_prop.major < 7)
     //
     cudaDeviceProp device_prop;
-    CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+    RAFT_CUDA_TRY(cudaGetDeviceProperties(&device_prop, 0));
 
     if (device_prop.major < 7) {
       EXPECT_THROW(louvain(graph_view,
@@ -103,7 +103,7 @@ class Tests_Louvain
     // this is the behavior while we still support Pascal (device_prop.major < 7)
     //
     cudaDeviceProp device_prop;
-    CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+    RAFT_CUDA_TRY(cudaGetDeviceProperties(&device_prop, 0));
 
     if (device_prop.major < 7) {
       EXPECT_THROW(louvain(graph_view,
@@ -140,7 +140,7 @@ class Tests_Louvain
     std::tie(level, modularity) =
       cugraph::louvain(handle, graph_view, clustering_v.data(), size_t{100}, weight_t{1});
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     float compare_modularity = static_cast<float>(modularity);
 
@@ -216,7 +216,7 @@ TEST(louvain_legacy, success)
 
     raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-    CUDA_TRY(cudaDeviceSynchronize());
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 
@@ -287,7 +287,7 @@ TEST(louvain_legacy_renumbered, success)
 
     raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-    CUDA_TRY(cudaDeviceSynchronize());
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 
