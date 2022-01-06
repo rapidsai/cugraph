@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,10 +88,10 @@ void exact_fa2(raft::handle_t const& handle,
 
   // Sort COO for coalesced memory access.
   sort(graph, stream_view.value());
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 
   graph.degree(d_mass, cugraph::legacy::DegreeDirection::OUT);
-  CHECK_CUDA(stream_view.value());
+  RAFT_CHECK_CUDA(stream_view.value());
 
   const vertex_t* row = graph.src_indices;
   const vertex_t* col = graph.dst_indices;

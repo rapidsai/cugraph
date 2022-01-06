@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -176,13 +176,13 @@ return_t collect_vectors(raft::handle_t const& handle,
                          return_t local_count,
                          rmm::device_vector<return_t>& global)
 {
-  CHECK_CUDA(handle.get_stream());
+  RAFT_CHECK_CUDA(handle.get_stream());
   buffer_len.resize(handle.get_comms().get_size());
   auto my_rank        = handle.get_comms().get_rank();
   buffer_len[my_rank] = static_cast<size_t>(local_count);
   handle.get_comms().allgather(
     buffer_len.data().get() + my_rank, buffer_len.data().get(), 1, handle.get_stream());
-  CHECK_CUDA(handle.get_stream());
+  RAFT_CHECK_CUDA(handle.get_stream());
   // buffer_len now contains the lengths of all local buffers
   // for all ranks
 
@@ -201,7 +201,7 @@ return_t collect_vectors(raft::handle_t const& handle,
                                 h_buffer_len.data(),
                                 h_buffer_offsets.data(),
                                 handle.get_stream());
-  CHECK_CUDA(handle.get_stream());
+  RAFT_CHECK_CUDA(handle.get_stream());
   return global_buffer_len;
 }
 
@@ -214,7 +214,7 @@ void add_to_bitmap(raft::handle_t const& handle,
   cudaStream_t stream = handle.get_stream();
   thrust::for_each(
     handle.get_thrust_policy(), id.begin(), id.begin() + count, set_nth_bit(bmap.data().get()));
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 }
 
 // For all vertex ids i which are isolated (out degree is 0), set
@@ -380,7 +380,7 @@ return_t remove_duplicates(raft::handle_t const& handle,
                                                                     data_len,
                                                                     out_data.data().get(),
                                                                     unique_count.data().get());
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
   return static_cast<return_t>(unique_count[0]);
 }
 
@@ -412,7 +412,7 @@ vertex_t preprocess_input_frontier(
                                                                     input_frontier_len,
                                                                     output_frontier.data().get(),
                                                                     unique_count.data().get());
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
   return static_cast<vertex_t>(unique_count[0]);
 }
 
@@ -442,7 +442,7 @@ vertex_t preprocess_input_frontier(
                                                                     input_frontier_len,
                                                                     output_frontier.data().get(),
                                                                     unique_count.data().get());
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
   return static_cast<vertex_t>(unique_count[0]);
 }
 

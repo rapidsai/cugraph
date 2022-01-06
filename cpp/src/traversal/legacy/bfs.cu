@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -358,7 +358,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
         mu -= mf;
 
         cudaMemcpyAsync(&nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
-        CHECK_CUDA(stream);
+        RAFT_CHECK_CUDA(stream);
 
         // We need nf
         cudaStreamSynchronize(stream);
@@ -415,7 +415,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                           sizeof(IndexType),
                           cudaMemcpyDeviceToHost,
                           stream);
-          CHECK_CUDA(stream);
+          RAFT_CHECK_CUDA(stream);
           // We need last_left_unvisited_size
           cudaStreamSynchronize(stream);
           bfs_kernels::bottom_up_large(left_unvisited_queue,
@@ -433,7 +433,7 @@ void BFS<IndexType>::traverse(IndexType source_vertex)
                                        deterministic);
         }
         cudaMemcpyAsync(&nf, d_new_frontier_cnt, sizeof(IndexType), cudaMemcpyDeviceToHost, stream);
-        CHECK_CUDA(stream);
+        RAFT_CHECK_CUDA(stream);
 
         // We will need nf
         cudaStreamSynchronize(stream);

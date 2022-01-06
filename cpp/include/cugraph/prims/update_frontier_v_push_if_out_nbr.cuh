@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -956,7 +956,7 @@ void update_frontier_v_push_if_out_nbr(
                           d_offsets.begin());
       std::vector<vertex_t> h_offsets(d_offsets.size());
       raft::update_host(h_offsets.data(), d_offsets.data(), d_offsets.size(), handle.get_stream());
-      CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+      RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
       h_offsets.push_back(matrix_partition_frontier_size);
       // FIXME: we may further improve performance by 1) concurrently running kernels on different
       // segments; 2) individually tuning block sizes for different segments; and 3) adding one more
