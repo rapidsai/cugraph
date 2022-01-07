@@ -559,17 +559,30 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       output_buffer = vertex_value_output_first;
     }
     auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+    std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
     if (segment_offsets) {
-      // FIXME: we may further improve performance by 1) concurrently running kernels on different
-      // segments; 2) individually tuning block sizes for different segments; and 3) adding one more
-      // segment for very high degree vertices and running segmented reduction
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
+
+      auto num_segments = detail::num_sparse_segments_per_vertex_partition +
+                          (matrix_partition.get_dcs_nzd_vertex_count() ? size_t{1} : size_t{0});
+      if (GraphViewType::is_multi_gpu && handle.get_stream_pool_size() >= num_segments) {
+        stream_pool_indices = std::vector<size_t>(num_segments);
+        std::iota((*stream_pool_indices).begin(), (*stream_pool_indices).end(), size_t{0});
+        handle.sync_stream();
+      }
+
+      // FIXME: we may further improve performance by 1) individually tuning block sizes for
+      // different segments; and 2) adding one more segment for very high degree vertices and
+      // running segmented reduction
       if ((*segment_offsets)[1] > 0) {
+        auto exec_stream = stream_pool_indices
+                             ? handle.get_stream_from_stream_pool((*stream_pool_indices)[0])
+                             : handle.get_stream();
         raft::grid_1d_block_t update_grid((*segment_offsets)[1],
                                           detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
         detail::for_all_major_for_all_nbr_high_degree<update_major, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             matrix_partition,
             matrix_partition.get_major_first(),
             matrix_partition.get_major_first() + (*segment_offsets)[1],
@@ -580,13 +593,16 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
             major_init);
       }
       if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
+        auto exec_stream = stream_pool_indices
+                             ? handle.get_stream_from_stream_pool((*stream_pool_indices)[1])
+                             : handle.get_stream();
         raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
                                          detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
         auto segment_output_buffer = output_buffer;
         if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[1]; }
         detail::for_all_major_for_all_nbr_mid_degree<update_major, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             matrix_partition,
             matrix_partition.get_major_first() + (*segment_offsets)[1],
             matrix_partition.get_major_first() + (*segment_offsets)[2],
@@ -597,13 +613,16 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
             major_init);
       }
       if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
+        auto exec_stream = stream_pool_indices
+                             ? handle.get_stream_from_stream_pool((*stream_pool_indices)[2])
+                             : handle.get_stream();
         raft::grid_1d_thread_t update_grid((*segment_offsets)[3] - (*segment_offsets)[2],
                                            detail::copy_v_transform_reduce_nbr_for_all_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
         auto segment_output_buffer = output_buffer;
         if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[2]; }
         detail::for_all_major_for_all_nbr_low_degree<update_major, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             matrix_partition,
             matrix_partition.get_major_first() + (*segment_offsets)[2],
             matrix_partition.get_major_first() + (*segment_offsets)[3],
@@ -614,10 +633,13 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
             major_init);
       }
       if (matrix_partition.get_dcs_nzd_vertex_count()) {
+        auto exec_stream = stream_pool_indices
+                             ? handle.get_stream_from_stream_pool((*stream_pool_indices)[3])
+                             : handle.get_stream();
         if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the
                                        // hypersparse segment in
                                        // for_all_major_for_all_nbr_hypersparse
-          thrust::fill(handle.get_thrust_policy(),
+          thrust::fill(rmm::exec_policy(exec_stream),
                        output_buffer + (*segment_offsets)[3],
                        output_buffer + (*segment_offsets)[4],
                        major_init);
@@ -629,7 +651,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
           auto segment_output_buffer = output_buffer;
           if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[3]; }
           detail::for_all_major_for_all_nbr_hypersparse<update_major, GraphViewType>
-            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
               matrix_partition,
               matrix_partition.get_major_first() + (*segment_offsets)[3],
               matrix_partition_row_value_input,
@@ -666,13 +688,53 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       auto const col_comm_rank = col_comm.get_rank();
       auto const col_comm_size = col_comm.get_size();
 
-      device_reduce(col_comm,
-                    major_buffer_first,
-                    vertex_value_output_first,
-                    matrix_partition.get_major_size(),
-                    raft::comms::op_t::SUM,
-                    i,
-                    handle.get_stream());
+      if (segment_offsets && stream_pool_indices) {
+        if ((*segment_offsets)[1] > 0) {
+          device_reduce(col_comm,
+                        major_buffer_first,
+                        vertex_value_output_first,
+                        (*segment_offsets)[1],
+                        raft::comms::op_t::SUM,
+                        i,
+                        handle.get_stream_from_stream_pool((*stream_pool_indices)[0]));
+        }
+        if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
+          device_reduce(col_comm,
+                        major_buffer_first + (*segment_offsets)[1],
+                        vertex_value_output_first + (*segment_offsets)[1],
+                        (*segment_offsets)[2] - (*segment_offsets)[1],
+                        raft::comms::op_t::SUM,
+                        i,
+                        handle.get_stream_from_stream_pool((*stream_pool_indices)[1]));
+        }
+        if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
+          device_reduce(col_comm,
+                        major_buffer_first + (*segment_offsets)[2],
+                        vertex_value_output_first + (*segment_offsets)[2],
+                        (*segment_offsets)[3] - (*segment_offsets)[2],
+                        raft::comms::op_t::SUM,
+                        i,
+                        handle.get_stream_from_stream_pool((*stream_pool_indices)[2]));
+        }
+        if (matrix_partition.get_dcs_nzd_vertex_count()) {
+          device_reduce(col_comm,
+                        major_buffer_first + (*segment_offsets)[3],
+                        vertex_value_output_first + (*segment_offsets)[3],
+                        (*segment_offsets)[4] - (*segment_offsets)[3],
+                        raft::comms::op_t::SUM,
+                        i,
+                        handle.get_stream_from_stream_pool((*stream_pool_indices)[3]));
+        }
+        handle.sync_stream_pool(*stream_pool_indices);
+      } else {
+        device_reduce(col_comm,
+                      major_buffer_first,
+                      vertex_value_output_first,
+                      matrix_partition.get_major_size(),
+                      raft::comms::op_t::SUM,
+                      i,
+                      handle.get_stream());
+      }
     }
   }
 
