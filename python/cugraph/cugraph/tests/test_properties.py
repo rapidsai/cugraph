@@ -47,7 +47,7 @@ dataset1 = {
     "transactions": [
         ["user_id", "merchant_id", "volume", "time", "card_num", "card_type"],
         [(89021, 11, 33.2, 1639084966.5513437, 123456, "MC"),
-         (89216, 4, 12.8, 1639085163.481217, None, "CASH"),
+         (89216, 4, None, 1639085163.481217, 8832, "CASH"),
          (78634, 16, 72.0, 1639084912.567394, 4321, "DEBIT"),
          (32431, 4, 103.2, 1639084721.354346, 98124, "V"),
          ]
@@ -82,7 +82,6 @@ def setup_function():
 # Pytest fixtures
 # =============================================================================
 df_types = [cudf.DataFrame, pd.DataFrame]
-df_types = [cudf.DataFrame]
 
 
 def df_type_id(dft):
@@ -337,8 +336,7 @@ def test_extract_subgraph_vertex_prop_condition_only(property_graph_instance):
                             create_using=diGraph,
                             edge_weight_property="relationship_type")
 
-    # FIXME: figure out correct dtypes
-    expected_edgelist = cudf.DataFrame({"src": [89216.], "dst": [89021.],
+    expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [89021],
                                         "weights": [9]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
                                    preserve_order=True)
@@ -361,7 +359,7 @@ def test_extract_subgraph_vertex_edge_prop_condition(property_graph_instance):
                             create_using=diGraph,
                             edge_weight_property="stars")
 
-    expected_edgelist = cudf.DataFrame({"src": [32431.], "dst": [89216.],
+    expected_edgelist = cudf.DataFrame({"src": [32431], "dst": [89216],
                                         "weights": [4]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
                                    preserve_order=True)
@@ -381,7 +379,7 @@ def test_extract_subgraph_edge_prop_condition_only(property_graph_instance):
 
     # last item is the DataFrame rows
     transactions = dataset1["transactions"][-1]
-    (srcs, dsts) = zip(*[(float(t[0]), float(t[1])) for t in transactions])
+    (srcs, dsts) = zip(*[(t[0], t[1]) for t in transactions])
     expected_edgelist = cudf.DataFrame({"src": srcs, "dst": dsts})
     expected_edgelist = expected_edgelist.sort_values(by="src",
                                                       ignore_index=True)
@@ -421,10 +419,10 @@ def test_extract_subgraph_specific_query(property_graph_instance):
                       "& (time>1639085000)")
     G = pG.extract_subgraph(edge_property_condition=edge_prop_cond,
                             create_using=diGraph,
-                            edge_weight_property="volume")
+                            edge_weight_property="card_num")
 
-    expected_edgelist = cudf.DataFrame({"src": [89216.], "dst": [4.],
-                                        "weights": [12.8]})
+    expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [4],
+                                        "weights": [8832]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
                                    preserve_order=True)
     actual_edgelist = G.unrenumber(actual_edgelist, "dst",
@@ -499,16 +497,16 @@ def test_extract_subgraph_default_edge_weight(property_graph_instance):
 
     G = pG.extract_subgraph(create_using=diGraph,
                             edge_property_condition="__type__=='transactions'",
-                            edge_weight_property="card_num",
+                            edge_weight_property="volume",
                             default_edge_weight=99)
 
     # last item is the DataFrame rows
     transactions = dataset1["transactions"][-1]
-    (srcs, dsts, weights) = zip(*[(float(t[0]), float(t[1]), t[4])
+    (srcs, dsts, weights) = zip(*[(t[0], t[1], t[2])
                                   for t in transactions])
     # replace None with the expected value (convert to a list to replace)
     weights_list = list(weights)
-    weights_list[weights.index(None)] = 99
+    weights_list[weights.index(None)] = 99.
     weights = tuple(weights_list)
     expected_edgelist = cudf.DataFrame({"src": srcs, "dst": dsts,
                                         "weights": weights})
@@ -549,3 +547,41 @@ def test_annotate_dataframe(property_graph_instance):
     copy=False
     invalid args raise correct exceptions
     """
+
+
+def test_different_vertex_edge_input_dataframe_types():
+    """
+    Ensures that a PropertyGraph initialized with one DataFrame type cannot be
+    extended with another.
+    """
+    df = cudf.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+    pdf = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+
+    from cugraph import PropertyGraph
+
+    pG = PropertyGraph()
+    pG.add_vertex_data(df, type_name="foo", vertex_id_column="a")
+    with pytest.raises(TypeError):
+        pG.add_edge_data(pdf, type_name="bar", vertex_id_columns=("a", "b"))
+
+    pG = PropertyGraph()
+    pG.add_vertex_data(pdf, type_name="foo", vertex_id_column="a")
+    with pytest.raises(TypeError):
+        pG.add_edge_data(df, type_name="bar", vertex_id_columns=("a", "b"))
+
+    # Different order
+    pG = PropertyGraph()
+    pG.add_edge_data(df, type_name="bar", vertex_id_columns=("a", "b"))
+    with pytest.raises(TypeError):
+        pG.add_vertex_data(pdf, type_name="foo", vertex_id_column="a")
+
+    # Same API call, different types
+    pG = PropertyGraph()
+    pG.add_vertex_data(df, type_name="foo", vertex_id_column="a")
+    with pytest.raises(TypeError):
+        pG.add_vertex_data(pdf, type_name="foo", vertex_id_column="a")
+
+    pG = PropertyGraph()
+    pG.add_edge_data(df, type_name="bar", vertex_id_columns=("a", "b"))
+    with pytest.raises(TypeError):
+        pG.add_edge_data(pdf, type_name="bar", vertex_id_columns=("a", "b"))

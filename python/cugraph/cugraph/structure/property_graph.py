@@ -24,57 +24,6 @@ if not isinstance(pd, MissingModule):
     _dataframe_types.append(pd.DataFrame)
 
 
-class PropertyColumn:
-    """
-    FIXME: fill this in
-    """
-    def __init__(self, series):
-        self.series = series
-
-    def __eq__(self, val):
-        if isinstance(val, PropertyColumn):
-            val = val.series
-        return PropertyColumn(self.series == val)
-
-    def __ne__(self, val):
-        if isinstance(val, PropertyColumn):
-            val = val.series
-        return PropertyColumn(self.series != val)
-
-    def __gt__(self, val):
-        if isinstance(val, PropertyColumn):
-            val = val.series
-        return PropertyColumn(self.series > val)
-
-    def __lt__(self, val):
-        if isinstance(val, PropertyColumn):
-            val = val.series
-        return PropertyColumn(self.series < val)
-
-    def __ge__(self, val):
-        if isinstance(val, PropertyColumn):
-            val = val.series
-        return PropertyColumn(self.series >= val)
-
-    def __le__(self, val):
-        if isinstance(val, PropertyColumn):
-            val = val.series
-        return PropertyColumn(self.series <= val)
-
-    def __and__(self, val):
-        if not isinstance(val, PropertyColumn):
-            raise TypeError("bitwise operators are not supported")
-        return PropertyColumn(self.series & val.series)
-
-    def __or__(self, val):
-        if not isinstance(val, PropertyColumn):
-            raise TypeError("bitwise operators are not supported")
-        return PropertyColumn(self.series | val.series)
-
-    def __bool__(self):
-        raise TypeError("use bitwise operators here")
-
-
 class PropertyGraph:
     """
     FIXME: fill this in
@@ -134,28 +83,53 @@ class PropertyGraph:
         self.__vertex_prop_eval_dict = {}
         self.__edge_prop_eval_dict = {}
 
+        # Remember the type used for DataFrames and Series, typically Pandas
+        # (for CPU storage) or cuDF (GPU storage), but this need not strictly
+        # be one of those if the type supports the Pandas-like API.
+        self.__dataframe_type = None
+        self.__series_type = None
+
+        # Keep track of dtypes for each column in each DataFrame.  This is
+        # required since merge operations can often change the dtypes to
+        # accommodate NaN values (eg. int64 to float64, since NaN is a float)
+        self.__vertex_prop_dtypes = {}
+        self.__edge_prop_dtypes = {}
+
     # PropertyGraph read-only attributes
     @property
     def num_vertices(self):
-        verts = cudf.Series()
-        if self.__vertex_prop_dataframe:
+        # Create a Series of the appropriate type (cudf.Series, pandas.Series,
+        # etc.) based on the type currently in use, then use it to gather all
+        # unique vertices.
+        vpd = self.__vertex_prop_dataframe
+        epd = self.__edge_prop_dataframe
+        if (vpd is None) and (epd is None):
+            return 0
+
+        verts = self.__series_type()  # Assume __series_type is set!
+        if vpd is not None:
+            verts = verts.append(vpd[self.__vertex_col_name])
+        if epd is not None:
+            # pandas.Series.unique() can return an ndarray, which cannot be
+            # appended to a Series. Always construct an appropriate series_type
+            # from the unique values prior to appending.
             verts = verts.append(
-                self.__vertex_prop_dataframe[self.__vertex_col_name])
-        if self.__edge_prop_dataframe:
+                self.__series_type(epd[self.__src_col_name].unique()))
             verts = verts.append(
-                self.__edge_prop_dataframe[self.__src_col_name].unique())
-            verts = verts.append(
-                self.__edge_prop_dataframe[self.__dst_col_name].unique())
+                self.__series_type(epd[self.__dst_col_name].unique()))
             verts = verts.unique()
         return len(verts)
 
     @property
     def num_edges(self):
-        return len(self.__edge_prop_dataframe or [])
+        if self.__edge_prop_dataframe is not None:
+            return len(self.__edge_prop_dataframe)
+        else:
+            return 0
 
     @property
     def vertex_property_names(self):
-        if self.__vertex_prop_dataframe:
+        if self.__vertex_prop_dataframe is not None:
             props = list(self.__vertex_prop_dataframe.columns)
             props.remove(self.__vertex_col_name)
             props.remove(self.__type_col_name)  # should "type" be removed?
@@ -164,7 +138,7 @@ class PropertyGraph:
 
     @property
     def edge_property_names(self):
-        if self.__edge_prop_dataframe:
+        if self.__edge_prop_dataframe is not None:
             props = list(self.__edge_prop_dataframe.columns)
             props.remove(self.__src_col_name)
             props.remove(self.__dst_col_name)
@@ -229,12 +203,29 @@ class PropertyGraph:
                                  "found in dataframe: "
                                  f"{list(invalid_columns)}")
 
+        # Save the DataFrame and Series types for future instantiations
+        if (self.__dataframe_type is None) or (self.__series_type is None):
+            self.__dataframe_type = type(dataframe)
+            self.__series_type = type(dataframe[dataframe.columns[0]])
+        else:
+            if type(dataframe) is not self.__dataframe_type:
+                raise TypeError(f"dataframe is type {type(dataframe)} but "
+                                "the PropertyGraph was already initialized "
+                                f"using type {self.__dataframe_type}")
+
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
         default_vertex_columns = [self.__vertex_col_name, self.__type_col_name]
         if self.__vertex_prop_dataframe is None:
             self.__vertex_prop_dataframe = \
-                type(dataframe)(columns=default_vertex_columns)
+                self.__dataframe_type(columns=default_vertex_columns)
+            # Initialize the new columns to the same dtype as the appropriate
+            # column in the incoming dataframe, since the initial merge may not
+            # result in the same dtype. (see
+            # https://github.com/rapidsai/cudf/issues/9981)
+            self.__update_dataframe_dtypes(
+                self.__vertex_prop_dataframe,
+                {self.__vertex_col_name: dataframe[vertex_id_column].dtype})
 
         # Ensure that both the predetermined vertex ID column name and vertex
         # type column name are present for proper merging.
@@ -255,11 +246,18 @@ class PropertyGraph:
                                                    default_vertex_columns)
             tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
 
+        # Save the original dtypes for each new column so they can be restored
+        # prior to constructing subgraphs (since column dtypes may get altered
+        # during merge to accommodate NaN values).
+        new_col_info = self.__get_new_column_dtypes(
+                           tmp_df, self.__vertex_prop_dataframe)
+        self.__vertex_prop_dtypes.update(new_col_info)
+
         self.__vertex_prop_dataframe = \
             self.__vertex_prop_dataframe.merge(tmp_df, how="outer")
 
-        # Update the vertex eval dict with PropertyColumn objs
-        latest = dict([(n, PropertyColumn(self.__vertex_prop_dataframe[n]))
+        # Update the vertex eval dict with the latest column instances
+        latest = dict([(n, self.__vertex_prop_dataframe[n])
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
 
@@ -315,6 +313,16 @@ class PropertyGraph:
                                  "found in dataframe: "
                                  f"{list(invalid_columns)}")
 
+        # Save the DataFrame and Series types for future instantiations
+        if (self.__dataframe_type is None) or (self.__series_type is None):
+            self.__dataframe_type = type(dataframe)
+            self.__series_type = type(dataframe[dataframe.columns[0]])
+        else:
+            if type(dataframe) is not self.__dataframe_type:
+                raise TypeError(f"dataframe is type {type(dataframe)} but "
+                                "the PropertyGraph was already initialized "
+                                f"using type {self.__dataframe_type}")
+
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
         default_edge_columns = [self.__src_col_name,
@@ -322,7 +330,15 @@ class PropertyGraph:
                                 self.__type_col_name]
         if self.__edge_prop_dataframe is None:
             self.__edge_prop_dataframe = \
-                type(dataframe)(columns=default_edge_columns)
+                self.__dataframe_type(columns=default_edge_columns)
+            # Initialize the new columns to the same dtype as the appropriate
+            # column in the incoming dataframe, since the initial merge may not
+            # result in the same dtype. (see
+            # https://github.com/rapidsai/cudf/issues/9981)
+            self.__update_dataframe_dtypes(
+                self.__edge_prop_dataframe,
+                {self.__src_col_name: dataframe[vertex_id_columns[0]].dtype,
+                 self.__dst_col_name: dataframe[vertex_id_columns[1]].dtype})
 
         # NOTE: This copies the incoming DataFrame in order to add the new
         # columns. The copied DataFrame is then merged (another copy) and then
@@ -341,11 +357,18 @@ class PropertyGraph:
                                                    default_edge_columns)
             tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
 
+        # Save the original dtypes for each new column so they can be restored
+        # prior to constructing subgraphs (since column dtypes may get altered
+        # during merge to accommodate NaN values).
+        new_col_info = self.__get_new_column_dtypes(
+            tmp_df, self.__edge_prop_dataframe)
+        self.__edge_prop_dtypes.update(new_col_info)
+
         self.__edge_prop_dataframe = \
             self.__edge_prop_dataframe.merge(tmp_df, how="outer")
 
-        # Update the prop eval dict with PropertyColumn objs
-        latest = dict([(n, PropertyColumn(self.__edge_prop_dataframe[n]))
+        # Update the vertex eval dict with the latest column instances
+        latest = dict([(n, self.__edge_prop_dataframe[n])
                        for n in self.__edge_prop_dataframe.columns])
         self.__edge_prop_eval_dict.update(latest)
 
@@ -390,11 +413,17 @@ class PropertyGraph:
                             "(or subclass) type or instance, got: "
                             f"{type(create_using)}")
 
+        # NOTE: the expressions passed in to extract specific edges and
+        # vertices assume the original dtypes in the user input have been
+        # preserved. However, merge operations on the DataFrames can change
+        # dtypes (eg. int64 to float64 in order to add NaN entries). This
+        # should not be a problem since this the conversions do not change
+        # the value.
         globals = {}
         if vertex_property_condition:
             locals = self.__vertex_prop_eval_dict
             filter_column = eval(vertex_property_condition, globals, locals)
-            matching_indices = filter_column.series.index[filter_column.series]
+            matching_indices = filter_column.index[filter_column]
             filtered_vertex_dataframe = \
                 self.__vertex_prop_dataframe.loc[matching_indices]
         else:
@@ -403,7 +432,7 @@ class PropertyGraph:
         if edge_property_condition:
             locals = self.__edge_prop_eval_dict
             filter_column = eval(edge_property_condition, globals, locals)
-            matching_indices = filter_column.series.index[filter_column.series]
+            matching_indices = filter_column.index[filter_column]
             filtered_edge_dataframe = \
                 self.__edge_prop_dataframe.loc[matching_indices]
         else:
@@ -417,19 +446,19 @@ class PropertyGraph:
             filtered_edge_dataframe[self.__src_col_name].isin(filtered_verts)
         dst_filter = \
             filtered_edge_dataframe[self.__dst_col_name].isin(filtered_verts)
-        filter = src_filter & dst_filter
-        edges = \
-            filtered_edge_dataframe.loc[filtered_edge_dataframe.index[filter]]
+        edge_filter = src_filter & dst_filter
+        edges = filtered_edge_dataframe.loc[
+            filtered_edge_dataframe.index[edge_filter]]
 
-        if edge_weight_property and \
-           (edge_weight_property not in edges.columns):
-            raise ValueError(f'edge_weight_property "{edge_weight_property}" '
-                             "was not found in the properties of the subgraph")
-
-        # Ensure a valid edge_weight_property can be used for applying weights
-        # to the subgraph, and if a default_edge_weight was specified, apply it
-        # to all NAs in the weight column.
         if edge_weight_property:
+            if edge_weight_property not in edges.columns:
+                raise ValueError("edge_weight_property "
+                                 f'"{edge_weight_property}" was not found in '
+                                 "the properties of the subgraph")
+
+            # Ensure a valid edge_weight_property can be used for applying
+            # weights to the subgraph, and if a default_edge_weight was
+            # specified, apply it to all NAs in the weight column.
             prop_col = edges[edge_weight_property]
             if prop_col.count() != prop_col.size:
                 if default_edge_weight is None:
@@ -439,6 +468,8 @@ class PropertyGraph:
                                      "default_edge_weight is not set")
                 else:
                     prop_col.fillna(default_edge_weight, inplace=True)
+
+        self.__update_dataframe_dtypes(edges, self.__edge_prop_dtypes)
 
         # FIXME: skip if empty edges
         create_args = {"source": self.__src_col_name,
@@ -452,3 +483,29 @@ class PropertyGraph:
             G.from_pandas_edgelist(edges, **create_args)
 
         return G
+
+    def __get_new_column_dtypes(self, from_df, to_df):
+        """
+        Returns a list containing tuples of (column name, dtype) for each
+        column in from_df that is not present in to_df.
+        """
+        new_cols = set(from_df.columns) - set(to_df.columns)
+        return [(col, from_df[col].dtype) for col in new_cols]
+
+    def __update_dataframe_dtypes(self, df, column_dtype_dict):
+        """
+        Set the dtype for columns in df using the dtypes in column_dtype_dict.
+        This also handles converting standard integer dtypes to nullable
+        integer dtypes, needed to accommodate NA values in columns.
+        """
+        for (col, dtype) in column_dtype_dict.items():
+            # If the DataFrame is Pandas and the dtype is an integer type,
+            # ensure a nullable integer array is used by specifying the correct
+            # dtype. The alias for these dtypes is simply a capitalized string
+            # (eg. "Int64")
+            # https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html#integer-dtypes-and-missing-data
+            dtype_str = str(dtype)
+            if dtype_str in ["int32", "int64"]:
+                dtype_str = dtype_str.title()
+            if str(df[col].dtype) != dtype_str:
+                df[col] = df[col].astype(dtype_str)
