@@ -70,12 +70,15 @@ dataset1 = {
      ],
 }
 
+DiGraph_inst = None
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
 def setup_function():
     gc.collect()
+    DiGraph_inst = cugraph.Graph(directed=True)  # noqa: F841
 
 
 # =============================================================================
@@ -524,6 +527,33 @@ def test_extract_subgraph_default_edge_weight(property_graph_instance):
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
+def test_graph_edge_data_added(property_graph_instance):
+    """
+    Ensures the subgraph returned from extract_subgraph() has the edge_data
+    attribute added which contains the proper edge IDs.
+    """
+    pG = property_graph_instance
+
+    expected_num_edges = \
+        len(dataset1["transactions"][-1]) + \
+        len(dataset1["relationships"][-1]) + \
+        len(dataset1["referrals"][-1])
+
+    assert pG.num_edges == expected_num_edges
+
+    # extract_subgraph() should return a directed Graph object with additional
+    # meta-data, which includes edge IDs.
+    G = pG.extract_subgraph(create_using=DiGraph_inst)
+
+    # G.edge_data should be set to a list of tuples of (src, dst, edge_id) for
+    # each edge in the graph.
+    assert len(G.edge_data) == expected_num_edges
+    edge_ids = sorted([d[-1] for d in G.edge_data])
+
+    assert edge_ids[0] == 0
+    assert edge_ids[-1] == (expected_num_edges - 1)
+
+
 @pytest.mark.skip(reason="unfinished")
 def test_annotate_dataframe(property_graph_instance):
     pG = property_graph_instance
@@ -538,6 +568,7 @@ def test_annotate_dataframe(property_graph_instance):
                                        vertex_id_column="vertex")
     expected_columns = []
     assert new_result.columns == expected_columns
+
     """
     FIXME: Add tests for:
     only edge_id_column

@@ -33,6 +33,8 @@ class PropertyGraph:
     __src_col_name = "__src__"
     __dst_col_name = "__dst__"
     __type_col_name = "__type__"
+    __edge_id_col_name = "__edgeid__"
+    __vertex_id_col_name = "__vertexid__"
 
     def __init__(self):
         # The dataframe containing the properties for each vertex.
@@ -95,6 +97,10 @@ class PropertyGraph:
         self.__vertex_prop_dtypes = {}
         self.__edge_prop_dtypes = {}
 
+        # Add unique edge IDs to the __edge_prop_dataframe by simply
+        # incrementing a counter
+        self.__last_edge_id = None
+
     # PropertyGraph read-only attributes
     @property
     def num_vertices(self):
@@ -106,7 +112,8 @@ class PropertyGraph:
         if (vpd is None) and (epd is None):
             return 0
 
-        verts = self.__series_type()  # Assume __series_type is set!
+        # Assume __series_type is set if this point reached!
+        verts = self.__series_type(dtype="object")
         if vpd is not None:
             verts = verts.append(vpd[self.__vertex_col_name])
         if epd is not None:
@@ -142,6 +149,7 @@ class PropertyGraph:
             props = list(self.__edge_prop_dataframe.columns)
             props.remove(self.__src_col_name)
             props.remove(self.__dst_col_name)
+            props.remove(self.__edge_id_col_name)
             props.remove(self.__type_col_name)  # should "type" be removed?
             return props
         return []
@@ -323,10 +331,9 @@ class PropertyGraph:
                                 "the PropertyGraph was already initialized "
                                 f"using type {self.__dataframe_type}")
 
-        # Initialize the __vertex_prop_dataframe if necessary using the same
-        # type as the incoming dataframe.
         default_edge_columns = [self.__src_col_name,
                                 self.__dst_col_name,
+                                self.__edge_id_col_name,
                                 self.__type_col_name]
         if self.__edge_prop_dataframe is None:
             self.__edge_prop_dataframe = \
@@ -338,7 +345,8 @@ class PropertyGraph:
             self.__update_dataframe_dtypes(
                 self.__edge_prop_dataframe,
                 {self.__src_col_name: dataframe[vertex_id_columns[0]].dtype,
-                 self.__dst_col_name: dataframe[vertex_id_columns[1]].dtype})
+                 self.__dst_col_name: dataframe[vertex_id_columns[1]].dtype,
+                 self.__edge_id_col_name: "Int64"})
 
         # NOTE: This copies the incoming DataFrame in order to add the new
         # columns. The copied DataFrame is then merged (another copy) and then
@@ -366,6 +374,8 @@ class PropertyGraph:
 
         self.__edge_prop_dataframe = \
             self.__edge_prop_dataframe.merge(tmp_df, how="outer")
+
+        self.__add_edge_ids()
 
         # Update the vertex eval dict with the latest column instances
         latest = dict([(n, self.__edge_prop_dataframe[n])
@@ -482,9 +492,39 @@ class PropertyGraph:
         else:
             G.from_pandas_edgelist(edges, **create_args)
 
+        # Set the edge_data on the resulting Graph to the list of edge tuples,
+        # which includes the unique edge IDs. Edge IDs are needed for future
+        # calls to annotate_dataframe() in order to apply properties from the
+        # correct edges.
+        # FIXME: this could be a very large list of tuples if the number of
+        # edges in G is large (eg. a large MNMG graph that cannot fit in CPU
+        # memory). Consider adding the edge IDs to the edgelist DataFrame in G
+        # instead.
+        G.edge_data = self.get_edge_tuples(edges)
+
         return G
 
+    def get_edge_tuples(self, df=None):
+        """
+        Returns a list of (src vertex, dst vertex, edge_id) tuples present in
+        df. If df is None, use self.__edge_prop_dataframe.
+        """
+        if self.__src_col_name not in df.columns:
+            raise ValueError(f"column {self.__src_col_name} missing from df")
+        if self.__dst_col_name not in df.columns:
+            raise ValueError(f"column {self.__dst_col_name} missing from df")
+        if self.__edge_id_col_name not in df.columns:
+            raise ValueError(f"column {self.__edge_id_col_name} missing "
+                             "from df")
+        src = df[self.__src_col_name]
+        dst = df[self.__dst_col_name]
+        edge_id = df[self.__edge_id_col_name]
+        retlist = [(src.iloc[i], dst.iloc[i], edge_id.iloc[i])
+                   for i in range(len(src))]
+        return retlist
+
     def __get_new_column_dtypes(self, from_df, to_df):
+
         """
         Returns a list containing tuples of (column name, dtype) for each
         column in from_df that is not present in to_df.
@@ -509,3 +549,23 @@ class PropertyGraph:
                 dtype_str = dtype_str.title()
             if str(df[col].dtype) != dtype_str:
                 df[col] = df[col].astype(dtype_str)
+
+    def __add_edge_ids(self):
+        """
+        Replace nans with unique edge IDs. Edge IDs are simply numbers
+        incremented by 1 for each edge.
+        """
+        prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
+        nans = self.__edge_prop_dataframe[self.__edge_id_col_name].isna()
+
+        if nans.any():
+            indices = nans.index[nans]
+            num_indices = len(indices)
+            starting_eid = prev_eid + 1
+            new_eids = self.__series_type(
+                range(starting_eid, starting_eid + num_indices))
+
+            self.__edge_prop_dataframe[self.__edge_id_col_name]\
+                .iloc[indices] = new_eids
+
+            self.__last_edge_id = starting_eid + num_indices - 1
