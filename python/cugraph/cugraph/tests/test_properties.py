@@ -77,7 +77,12 @@ DiGraph_inst = None
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
 def setup_function():
+    global DiGraph_inst
+
     gc.collect()
+    # Create a directed Graph instance as part of setup instead of at the top
+    # scope on import in order to avoid having any cuGraph source code execute
+    # as part of pytest test collection.
     DiGraph_inst = cugraph.Graph(directed=True)  # noqa: F841
 
 
@@ -330,13 +335,12 @@ def test_add_edge_data_bad_args():
 def test_extract_subgraph_vertex_prop_condition_only(property_graph_instance):
 
     pG = property_graph_instance
-    diGraph = cugraph.Graph(directed=True)
 
     # FIXME: test for proper operators, etc.
     # FIXME: need full PropertyColumn test suite
     vert_prop_cond = "(__type__=='users') & (user_location==78757)"
     G = pG.extract_subgraph(vertex_property_condition=vert_prop_cond,
-                            create_using=diGraph,
+                            create_using=DiGraph_inst,
                             edge_weight_property="relationship_type")
 
     expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [89021],
@@ -353,13 +357,12 @@ def test_extract_subgraph_vertex_prop_condition_only(property_graph_instance):
 
 def test_extract_subgraph_vertex_edge_prop_condition(property_graph_instance):
     pG = property_graph_instance
-    diGraph = cugraph.Graph(directed=True)
 
     vert_prop_cond = "((user_location==78750) | (user_location==78757))"
     edge_prop_cond = "__type__=='referrals'"
     G = pG.extract_subgraph(vertex_property_condition=vert_prop_cond,
                             edge_property_condition=edge_prop_cond,
-                            create_using=diGraph,
+                            create_using=DiGraph_inst,
                             edge_weight_property="stars")
 
     expected_edgelist = cudf.DataFrame({"src": [32431], "dst": [89216],
@@ -375,10 +378,9 @@ def test_extract_subgraph_vertex_edge_prop_condition(property_graph_instance):
 
 def test_extract_subgraph_edge_prop_condition_only(property_graph_instance):
     pG = property_graph_instance
-    diGraph = cugraph.Graph(directed=True)
 
     G = pG.extract_subgraph(edge_property_condition="__type__=='transactions'",
-                            create_using=diGraph)
+                            create_using=DiGraph_inst)
 
     # last item is the DataFrame rows
     transactions = dataset1["transactions"][-1]
@@ -402,10 +404,9 @@ def test_extract_subgraph_unweighted(property_graph_instance):
     Ensure a subgraph is unweighted if the edge_weight_property is None.
     """
     pG = property_graph_instance
-    diGraph = cugraph.Graph(directed=True)
 
     G = pG.extract_subgraph(edge_property_condition="__type__=='transactions'",
-                            create_using=diGraph)
+                            create_using=DiGraph_inst)
 
     assert G.is_weighted() is False
 
@@ -416,12 +417,11 @@ def test_extract_subgraph_specific_query(property_graph_instance):
     be a graph of 2 vertices, 1 edge)
     """
     pG = property_graph_instance
-    diGraph = cugraph.Graph(directed=True)
 
     edge_prop_cond = ("(__type__=='transactions') & (merchant_id==4) "
                       "& (time>1639085000)")
     G = pG.extract_subgraph(edge_property_condition=edge_prop_cond,
-                            create_using=diGraph,
+                            create_using=DiGraph_inst,
                             edge_weight_property="card_num")
 
     expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [4],
@@ -452,9 +452,8 @@ def test_extract_subgraph_no_query(property_graph_instance):
     Call extract with no args, should result in the entire property graph.
     """
     pG = property_graph_instance
-    diGraph = cugraph.Graph(directed=True)
 
-    G = pG.extract_subgraph(create_using=diGraph)
+    G = pG.extract_subgraph(create_using=DiGraph_inst)
 
     num_edges = \
         len(dataset1["transactions"][-1]) + \
@@ -468,12 +467,11 @@ def test_extract_subgraph_no_query(property_graph_instance):
 
 def test_extract_subgraph_bad_args(property_graph_instance):
     pG = property_graph_instance
-    diGraph = cugraph.Graph(directed=True)
 
     # non-string condition
     with pytest.raises(TypeError):
         pG.extract_subgraph(vertex_property_condition=78750,
-                            create_using=diGraph,
+                            create_using=DiGraph_inst,
                             edge_weight_property="stars",
                             default_edge_weight=1.0)
     # bad create_using type
@@ -496,9 +494,8 @@ def test_extract_subgraph_bad_args(property_graph_instance):
 
 def test_extract_subgraph_default_edge_weight(property_graph_instance):
     pG = property_graph_instance
-    diGraph = cugraph.Graph(directed=True)
 
-    G = pG.extract_subgraph(create_using=diGraph,
+    G = pG.extract_subgraph(create_using=DiGraph_inst,
                             edge_property_condition="__type__=='transactions'",
                             edge_weight_property="volume",
                             default_edge_weight=99)
