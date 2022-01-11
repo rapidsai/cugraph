@@ -473,8 +473,8 @@ class PropertyGraph:
 
         # The __*_prop_dataframes have likely been merged several times and
         # possibly had their dtypes converted in order to accommodate NaN
-        # values. Restore the original dtypes in the resulting edges df prior to
-        # creating a Graph.
+        # values. Restore the original dtypes in the resulting edges df prior
+        # to creating a Graph.
         self.__update_dataframe_dtypes(edges, self.__edge_prop_dtypes)
 
         return self.edge_props_to_graph(
@@ -535,9 +535,9 @@ class PropertyGraph:
         """
         if edge_weight_property and \
            (edge_weight_property not in edge_prop_df.columns):
-                raise ValueError("edge_weight_property "
-                                 f'"{edge_weight_property}" was not found in '
-                                 "edge_prop_df")
+            raise ValueError("edge_weight_property "
+                             f'"{edge_weight_property}" was not found in '
+                             "edge_prop_df")
 
         # Set up the new Graph to return
         if create_using is None:
@@ -573,7 +573,7 @@ class PropertyGraph:
                        "destination": cls.__dst_col_name,
                        "edge_attr": edge_weight_property,
                        "renumber": True,
-        }
+                       }
         if type(edge_prop_df) is cudf.DataFrame:
             G.from_cudf_edgelist(edge_prop_df, **create_args)
         else:

@@ -535,7 +535,6 @@ def test_extract_subgraph_graph_without_vert_props():
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
-
 def test_extract_subgraph_no_edges(property_graph_instance):
     """
     Valid query that only matches a single vertex.
@@ -577,9 +576,8 @@ def test_extract_subgraph_multi_edges(property_graph_instance):
     # referrals has multiple edges
     # FIXME: use a better exception
     with pytest.raises(RuntimeError):
-        G = pG.extract_subgraph(
-            edge_property_condition="_TYPE_ == 'referrals'",
-            create_using=DiGraph_inst)
+        pG.extract_subgraph(edge_property_condition="_TYPE_ == 'referrals'",
+                            create_using=DiGraph_inst)
 
 
 def test_extract_subgraph_bad_args(property_graph_instance):
@@ -676,8 +674,8 @@ def test_annotate_dataframe(property_graph_instance):
     (srcs, dsts, mids, stars) = zip(*(dataset1["referrals"][1]))
 
     # an arbitrary DataFrame meant to represent an algo result, containing
-    # vertex IDs present in pG, drop duplicate edges since actual results from a
-    # Graph object would not have them.
+    # vertex IDs present in pG, drop duplicate edges since actual results from
+    # a Graph object would not have them.
     some_result = cudf.DataFrame({"from": srcs, "to": dsts,
                                   "result": range(len(srcs))})
     some_result.drop_duplicates(subset=["from", "to"], inplace=True)
@@ -693,7 +691,7 @@ def test_annotate_dataframe(property_graph_instance):
                                   "merchant_id": mids,
                                   "stars": stars})
 
-    assert_frame_equal(some_result, expected_df)
+    assert_frame_equal(new_result, expected_df)
 
     """
     FIXME: Add tests for:
