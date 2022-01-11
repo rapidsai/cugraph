@@ -16,7 +16,7 @@ import gc
 import pytest
 import pandas as pd
 import cudf
-from cudf.testing import assert_frame_equal
+from cudf.testing import assert_frame_equal, assert_series_equal
 
 import cugraph
 from cugraph.tests import utils
@@ -667,32 +667,7 @@ def test_graph_edge_data_added(property_graph_instance):
     assert edge_ids[-1] == (expected_num_edges - 1)
 
 
-@pytest.mark.skip(reason="UNFINISHED")
 def test_annotate_dataframe(property_graph_instance):
-    pG = property_graph_instance
-
-    (srcs, dsts, mids, stars) = zip(*(dataset1["referrals"][1]))
-
-    # an arbitrary DataFrame meant to represent an algo result, containing
-    # vertex IDs present in pG, drop duplicate edges since actual results from
-    # a Graph object would not have them.
-    some_result = cudf.DataFrame({"from": srcs, "to": dsts,
-                                  "result": range(len(srcs))})
-    some_result.drop_duplicates(subset=["from", "to"], inplace=True)
-
-    edge_prop_cond = "(_TYPE_ == 'referrals') & (stars > 3)"
-    G = pG.extract_subgraph(edge_property_condition=edge_prop_cond,
-                            create_using=DiGraph_inst)
-
-    new_result = pG.annotate_dataframe(some_result, G,
-                                       edge_vertex_id_columns=("from", "to"))
-    expected_df = cudf.DataFrame({"from": srcs, "to": dsts,
-                                  "result": range(len(srcs)),
-                                  "merchant_id": mids,
-                                  "stars": stars})
-
-    assert_frame_equal(new_result, expected_df)
-
     """
     FIXME: Add tests for:
     properties list
@@ -700,6 +675,37 @@ def test_annotate_dataframe(property_graph_instance):
     copy=False
     invalid args raise correct exceptions
     """
+    pG = property_graph_instance
+
+    edge_prop_cond = "(_TYPE_ == 'referrals') & (stars > 3)"
+    G = pG.extract_subgraph(edge_property_condition=edge_prop_cond,
+                            create_using=DiGraph_inst)
+
+    # Create an arbitrary DataFrame meant to represent an algo result,
+    # containing vertex IDs present in pG.
+    #
+    # Drop duplicate edges since actual results from a Graph object would not
+    # have them.
+    (srcs, dsts, mids, stars) = zip(*(dataset1["referrals"][1]))
+    algo_result = cudf.DataFrame({"from": srcs, "to": dsts,
+                                  "result": range(len(srcs))})
+    algo_result.drop_duplicates(subset=["from", "to"],
+                                inplace=True, ignore_index=True)
+
+    new_algo_result = pG.annotate_dataframe(
+        algo_result, G, edge_vertex_id_columns=("from", "to"))
+    expected_algo_result = cudf.DataFrame({"from": srcs, "to": dsts,
+                                           "result": range(len(srcs)),
+                                           "merchant_id": mids,
+                                           "stars": stars})
+
+    expected_algo_result.drop_duplicates(subset=["from", "to"],
+                                         inplace=True, ignore_index=True)
+
+    # For now, the result will include extra columns from edge types not
+    # included in the df being annotated, so just check for known columns.
+    for col in ["from", "to", "result", "merchant_id", "stars"]:
+        assert_series_equal(new_algo_result[col], expected_algo_result[col])
 
 
 def test_different_vertex_edge_input_dataframe_types():

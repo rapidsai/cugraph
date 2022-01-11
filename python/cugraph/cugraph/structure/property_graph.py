@@ -485,23 +485,36 @@ class PropertyGraph:
 
     def annotate_dataframe(self, df, G, edge_vertex_id_columns):
         """
+        FIXME: fill this in
         """
-        # FIXME: check args
+        # FIXME: all check args
         (src_col_name, dst_col_name) = edge_vertex_id_columns
+
+        # FIXME: check that G has edge_data attr
 
         # Add the src, dst, edge_id info from the Graph to a DataFrame
         edge_info_df = self.__dataframe_type(columns=[self.__src_col_name,
                                                       self.__dst_col_name,
                                                       self.__edge_id_col_name],
                                              data=G.edge_data)
+
         # New result includes only properties from the src/dst edges identified
         # by edge IDs. All other data in df is merged based on src/dst values.
         # NOTE: results from MultiGraph graphs will have to include edge IDs!
-        new_df = edge_info_df.merge(self.__edge_prop_dataframe, how="inner")
+        edge_props_df = edge_info_df.merge(self.__edge_prop_dataframe,
+                                           how="inner")
+
         # FIXME: also allow edge ID col to be passed in and renamed.
-        df = df.rename(columns={src_col_name: self.__src_col_name,
-                                dst_col_name: self.__dst_col_name})
-        return new_df.merge(df)
+        new_df = df.rename(columns={src_col_name: self.__src_col_name,
+                                    dst_col_name: self.__dst_col_name})
+        new_df = new_df.merge(edge_props_df)
+        # restore the original src/dst column names
+        new_df.rename(columns={self.__src_col_name: src_col_name,
+                               self.__dst_col_name: dst_col_name},
+                      inplace=True)
+        # FIXME: consider removing internal columns (_EDGE_ID_, etc.) and
+        # columns from edge types not included in the edges in df.
+        return new_df
 
     @classmethod
     def get_edge_tuples(cls, edge_prop_df):
