@@ -217,12 +217,8 @@ def is_device_version_less_than(min_version=(7, 0)):
     """
     Returns True if the version of CUDA being used is less than min_version
     """
-    major_version = getDeviceAttribute(
-        cudaDeviceAttr.cudaDevAttrComputeCapabilityMajor, 0
-    )
-    minor_version = getDeviceAttribute(
-        cudaDeviceAttr.cudaDevAttrComputeCapabilityMinor, 0
-    )
+    major_version = getDeviceAttribute("ComputeCapabilityMajor", 0)
+    minor_version = getDeviceAttribute("ComputeCapabilityMinor", 0)
     if major_version > min_version[0]:
         return False
     if major_version < min_version[0]:
