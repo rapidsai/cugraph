@@ -11,6 +11,7 @@ The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerat
 As an example, the following Python snippet loads graph data and computes PageRank:
 
 ```python
+import cudf
 import cugraph
 
 # read data into a cuDF DataFrame using read_csv
