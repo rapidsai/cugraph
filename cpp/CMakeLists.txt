@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2018-2021, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -73,8 +73,6 @@ rapids_cmake_build_type(Release)
 # - User Options  --------------------------------------------------------------
 
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
-set(BLAS_LIBRARIES "" CACHE STRING "Location of BLAS library for FAISS build.")
-option(BUILD_STATIC_FAISS "Build the FAISS library for nearest neighbors search on GPU" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 
@@ -138,7 +136,6 @@ endif()
 rapids_cpm_init()
 
 include(cmake/thirdparty/get_thrust.cmake)
-include(cmake/thirdparty/get_faiss.cmake)
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_rmm.cmake)
 
@@ -293,7 +290,6 @@ target_link_libraries(cugraph
         CUDA::cusolver
         CUDA::cusparse
         cugraph::cuHornet
-        FAISS::FAISS
         NCCL::NCCL
 )
 
@@ -392,7 +388,6 @@ target_include_directories(cugraph_c
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c
         PUBLIC
-                FAISS::FAISS
                 CUDA::cublas
                 CUDA::curand
                 CUDA::cusolver
