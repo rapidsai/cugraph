@@ -28,6 +28,7 @@ function(find_and_configure_raft)
             GIT_TAG        refactor_cmake_raft_target_logic
             SOURCE_SUBDIR  cpp
             OPTIONS "BUILD_TESTS OFF"
+                    "RAFT_COMPILE_LIBRARIES OFF"
     )
 
     message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_SOURCE_DIR}")
