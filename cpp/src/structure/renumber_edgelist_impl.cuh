@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -203,13 +203,13 @@ compute_renumber_map(raft::handle_t const& handle,
       minor_labels = std::move(rx_minor_labels);
     }
   }
-  minor_labels.shrink_to_fit(handle.get_stream_view());
+  minor_labels.shrink_to_fit(handle.get_stream());
 
   // 3. merge major and minor labels and vertex labels
 
   rmm::device_uvector<vertex_t> merged_labels(major_labels.size() + minor_labels.size(),
-                                              handle.get_stream_view());
-  rmm::device_uvector<edge_t> merged_counts(merged_labels.size(), handle.get_stream_view());
+                                              handle.get_stream());
+  rmm::device_uvector<edge_t> merged_counts(merged_labels.size(), handle.get_stream());
   thrust::merge_by_key(handle.get_thrust_policy(),
                        major_labels.begin(),
                        major_labels.end(),
@@ -338,7 +338,7 @@ compute_renumber_map(raft::handle_t const& handle,
                     d_segment_offsets.data(),
                     d_segment_offsets.size(),
                     handle.get_stream());
-  handle.get_stream_view().synchronize();
+  handle.sync_stream();
 
   return std::make_tuple(std::move(labels),
                          h_segment_offsets,
@@ -665,7 +665,7 @@ renumber_edgelist(
                    i,
                    handle.get_stream());
 
-      CUDA_TRY(cudaStreamSynchronize(
+      RAFT_CUDA_TRY(cudaStreamSynchronize(
         handle.get_stream()));  // cuco::static_map currently does not take stream
 
       auto poly_alloc =
@@ -709,7 +709,7 @@ renumber_edgelist(
                    i,
                    handle.get_stream());
 
-      CUDA_TRY(cudaStreamSynchronize(
+      RAFT_CUDA_TRY(cudaStreamSynchronize(
         handle.get_stream()));  // cuco::static_map currently does not take stream
 
       auto poly_alloc =
@@ -751,7 +751,7 @@ renumber_edgelist(
                       displacements,
                       handle.get_stream());
 
-    CUDA_TRY(cudaStreamSynchronize(
+    RAFT_CUDA_TRY(cudaStreamSynchronize(
       handle.get_stream()));  // cuco::static_map currently does not take stream
 
     auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ std::vector<edge_t> update_adj_matrix_partition_edge_counts(
                       1,
                       stream);
   }
-  CUDA_TRY(cudaStreamSynchronize(stream));
+  RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
   return adj_matrix_partition_edge_counts;
 }
 
@@ -725,7 +725,7 @@ edge_t graph_view_t<vertex_t,
   auto it = thrust::max_element(handle.get_thrust_policy(), in_degrees.begin(), in_degrees.end());
   edge_t ret{0};
   if (it != in_degrees.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
-  handle.get_stream_view().synchronize();
+  handle.sync_stream();
   return ret;
 }
 
@@ -767,7 +767,7 @@ edge_t graph_view_t<vertex_t,
   auto it = thrust::max_element(handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end());
   edge_t ret{0};
   if (it != out_degrees.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
-  handle.get_stream_view().synchronize();
+  handle.sync_stream();
   return ret;
 }
 
@@ -811,7 +811,7 @@ weight_t graph_view_t<vertex_t,
     thrust::max_element(handle.get_thrust_policy(), in_weight_sums.begin(), in_weight_sums.end());
   weight_t ret{0.0};
   if (it != in_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
-  handle.get_stream_view().synchronize();
+  handle.sync_stream();
   return ret;
 }
 
@@ -855,7 +855,7 @@ weight_t graph_view_t<
     thrust::max_element(handle.get_thrust_policy(), out_weight_sums.begin(), out_weight_sums.end());
   weight_t ret{0.0};
   if (it != out_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
-  handle.get_stream_view().synchronize();
+  handle.sync_stream();
   return ret;
 }
 

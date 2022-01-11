@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -242,7 +242,7 @@ void sssp(raft::handle_t const& handle,
     }
   }
 
-  CUDA_TRY(cudaStreamSynchronize(
+  RAFT_CUDA_TRY(cudaStreamSynchronize(
     handle.get_stream()));  // this is as necessary vertex_frontier will become out-of-scope once
                             // this function returns (FIXME: should I stream sync in VertexFrontier
                             // destructor?)

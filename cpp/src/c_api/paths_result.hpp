@@ -13,24 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 
-#include <c_api/error.hpp>
-#include <cugraph_c/error.h>
+#include <c_api/array.hpp>
 
-extern "C" const char* cugraph_error_message(const cugraph_error_t* error)
-{
-  if (error != nullptr) {
-    auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_error_t const*>(error);
-    return internal_pointer->error_message_.c_str();
-  } else {
-    return nullptr;
-  }
-}
+namespace cugraph {
+namespace c_api {
 
-extern "C" void cugraph_error_free(cugraph_error_t* error)
-{
-  if (error != nullptr) {
-    auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_error_t const*>(error);
-    delete internal_pointer;
-  }
-}
+struct cugraph_paths_result_t {
+  cugraph_type_erased_device_array_t* vertex_ids_;
+  cugraph_type_erased_device_array_t* distances_;
+  cugraph_type_erased_device_array_t* predecessors_;
+};
+
+}  // namespace c_api
+}  // namespace cugraph
