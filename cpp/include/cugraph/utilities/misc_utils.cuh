@@ -39,13 +39,10 @@ std::tuple<std::vector<vertex_t>, std::vector<edge_t>> compute_offset_aligned_ed
   edge_t num_edges,
   size_t approx_edge_chunk_size)
 {
-  auto search_offset_first =
-    thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
-                                    [approx_edge_chunk_size] __device__(auto i) {
-                                      return i * approx_edge_chunk_size;
-                                    });
-  auto num_chunks =
-    (num_edges + approx_edge_chunk_size - 1) / approx_edge_chunk_size;
+  auto search_offset_first = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(size_t{1}),
+    [approx_edge_chunk_size] __device__(auto i) { return i * approx_edge_chunk_size; });
+  auto num_chunks = (num_edges + approx_edge_chunk_size - 1) / approx_edge_chunk_size;
   rmm::device_uvector<vertex_t> d_vertex_offsets(num_chunks - 1, handle.get_stream());
   thrust::lower_bound(handle.get_thrust_policy(),
                       offsets,

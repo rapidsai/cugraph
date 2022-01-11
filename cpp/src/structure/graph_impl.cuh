@@ -30,6 +30,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cub/cub.cuh>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/equal.h>
@@ -39,7 +40,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
-#include <cub/cub.cuh>
 
 #include <algorithm>
 #include <tuple>
