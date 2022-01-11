@@ -29,12 +29,12 @@ class PropertyGraph:
     FIXME: fill this in
     """
     # column name constants used in internal DataFrames
-    __vertex_col_name = "__vertex__"
-    __src_col_name = "__src__"
-    __dst_col_name = "__dst__"
-    __type_col_name = "__type__"
-    __edge_id_col_name = "__edgeid__"
-    __vertex_id_col_name = "__vertexid__"
+    __vertex_col_name = "_VERTEX_"
+    __src_col_name = "_SRC_"
+    __dst_col_name = "_DST_"
+    __type_col_name = "_TYPE_"
+    __edge_id_col_name = "_EDGE_ID_"
+    __vertex_id_col_name = "_VERTEX_ID_"
 
     def __init__(self):
         # The dataframe containing the properties for each vertex.
@@ -86,8 +86,8 @@ class PropertyGraph:
         self.__edge_prop_eval_dict = {}
 
         # Remember the type used for DataFrames and Series, typically Pandas
-        # (for CPU storage) or cuDF (GPU storage), but this need not strictly
-        # be one of those if the type supports the Pandas-like API.
+        # (for host storage) or cuDF (device storage), but this need not
+        # strictly be one of those if the type supports the Pandas-like API.
         self.__dataframe_type = None
         self.__series_type = None
 
@@ -387,7 +387,8 @@ class PropertyGraph:
                          edge_property_condition=None,
                          vertex_property_condition=None,
                          edge_weight_property=None,
-                         default_edge_weight=None
+                         default_edge_weight=None,
+                         allow_multi_edges=False
                          ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
@@ -409,26 +410,12 @@ class PropertyGraph:
         --------
         >>>
         """
-        # Set up the new Graph to return
-        if create_using is None:
-            G = cugraph.Graph()
-        elif isinstance(create_using, cugraph.Graph):
-            # FIXME: extract more attrs from the create_using instance
-            attrs = {"directed": create_using.is_directed()}
-            G = type(create_using)(**attrs)
-        elif type(create_using) is type(type):
-            G = create_using()
-        else:
-            raise TypeError("create_using must be a cugraph.Graph "
-                            "(or subclass) type or instance, got: "
-                            f"{type(create_using)}")
-
         # NOTE: the expressions passed in to extract specific edges and
         # vertices assume the original dtypes in the user input have been
         # preserved. However, merge operations on the DataFrames can change
         # dtypes (eg. int64 to float64 in order to add NaN entries). This
         # should not be a problem since this the conversions do not change
-        # the value.
+        # the values.
         globals = {}
         if vertex_property_condition:
             locals = self.__vertex_prop_eval_dict
@@ -450,15 +437,20 @@ class PropertyGraph:
 
         # FIXME: check that self.__edge_prop_dataframe is set!
 
-        # filter the edges that only contain the filtered verts in src and dst
-        filtered_verts = filtered_vertex_dataframe[self.__vertex_col_name]
-        src_filter = \
-            filtered_edge_dataframe[self.__src_col_name].isin(filtered_verts)
-        dst_filter = \
-            filtered_edge_dataframe[self.__dst_col_name].isin(filtered_verts)
-        edge_filter = src_filter & dst_filter
-        edges = filtered_edge_dataframe.loc[
-            filtered_edge_dataframe.index[edge_filter]]
+        # If vertices were specified, filter the edges that contain any of the
+        # filtered verts in both src and dst
+        if (filtered_vertex_dataframe is not None) and \
+           not(filtered_vertex_dataframe.empty):
+            filtered_verts = filtered_vertex_dataframe[self.__vertex_col_name]
+            src_filter = filtered_edge_dataframe[self.__src_col_name]\
+                .isin(filtered_verts)
+            dst_filter = filtered_edge_dataframe[self.__dst_col_name]\
+                .isin(filtered_verts)
+            edge_filter = src_filter & dst_filter
+            edges = filtered_edge_dataframe.loc[
+                filtered_edge_dataframe.index[edge_filter]]
+        else:
+            edges = filtered_edge_dataframe
 
         if edge_weight_property:
             if edge_weight_property not in edges.columns:
@@ -479,76 +471,140 @@ class PropertyGraph:
                 else:
                     prop_col.fillna(default_edge_weight, inplace=True)
 
+        # The __*_prop_dataframes have likely been merged several times and
+        # possibly had their dtypes converted in order to accommodate NaN
+        # values. Restore the original dtypes in the resulting edges df prior to
+        # creating a Graph.
         self.__update_dataframe_dtypes(edges, self.__edge_prop_dtypes)
 
-        # FIXME: skip if empty edges
-        create_args = {"source": self.__src_col_name,
-                       "destination": self.__dst_col_name,
+        return self.edge_props_to_graph(
+            edges,
+            create_using=create_using,
+            edge_weight_property=edge_weight_property,
+            allow_multi_edges=allow_multi_edges)
+
+    def annotate_dataframe(self, df, G, edge_vertex_id_columns):
+        """
+        """
+        # FIXME: check args
+        (src_col_name, dst_col_name) = edge_vertex_id_columns
+
+        # Add the src, dst, edge_id info from the Graph to a DataFrame
+        edge_info_df = self.__dataframe_type(columns=[self.__src_col_name,
+                                                      self.__dst_col_name,
+                                                      self.__edge_id_col_name],
+                                             data=G.edge_data)
+        # New result includes only properties from the src/dst edges identified
+        # by edge IDs. All other data in df is merged based on src/dst values.
+        # NOTE: results from MultiGraph graphs will have to include edge IDs!
+        new_df = edge_info_df.merge(self.__edge_prop_dataframe, how="inner")
+        # FIXME: also allow edge ID col to be passed in and renamed.
+        df = df.rename(columns={src_col_name: self.__src_col_name,
+                                dst_col_name: self.__dst_col_name})
+        return new_df.merge(df)
+
+    @classmethod
+    def get_edge_tuples(cls, edge_prop_df):
+        """
+        Returns a list of (src vertex, dst vertex, edge_id) tuples present in
+        edge_prop_df.
+        """
+        if cls.__src_col_name not in edge_prop_df.columns:
+            raise ValueError(f"column {cls.__src_col_name} missing from "
+                             "edge_prop_df")
+        if cls.__dst_col_name not in edge_prop_df.columns:
+            raise ValueError(f"column {cls.__dst_col_name} missing from "
+                             "edge_prop_df")
+        if cls.__edge_id_col_name not in edge_prop_df.columns:
+            raise ValueError(f"column {cls.__edge_id_col_name} missing "
+                             "from edge_prop_df")
+        src = edge_prop_df[cls.__src_col_name]
+        dst = edge_prop_df[cls.__dst_col_name]
+        edge_id = edge_prop_df[cls.__edge_id_col_name]
+        retlist = [(src.iloc[i], dst.iloc[i], edge_id.iloc[i])
+                   for i in range(len(src))]
+        return retlist
+
+    @classmethod
+    def edge_props_to_graph(cls, edge_prop_df,
+                            create_using=None,
+                            edge_weight_property=None,
+                            allow_multi_edges=False):
+        """
+        Create and return a Graph from the edges in edge_prop_df.
+        """
+        if edge_weight_property and \
+           (edge_weight_property not in edge_prop_df.columns):
+                raise ValueError("edge_weight_property "
+                                 f'"{edge_weight_property}" was not found in '
+                                 "edge_prop_df")
+
+        # Set up the new Graph to return
+        if create_using is None:
+            G = cugraph.Graph()
+        elif isinstance(create_using, cugraph.Graph):
+            # FIXME: extract more attrs from the create_using instance
+            attrs = {"directed": create_using.is_directed()}
+            G = type(create_using)(**attrs)
+        elif type(create_using) is type(type):
+            G = create_using()
+        else:
+            raise TypeError("create_using must be a cugraph.Graph "
+                            "(or subclass) type or instance, got: "
+                            f"{type(create_using)}")
+
+        # Ensure no repeat edges, since the individual edge used would be
+        # ambiguous.
+        # FIXME: make allow_multi_edges accept "auto" for use with MultiGraph
+        if (allow_multi_edges is False) and \
+           cls.has_duplicate_edges(edge_prop_df):
+            if create_using:
+                if type(create_using) is type:
+                    t = create_using.__name__
+                else:
+                    t = type(create_using).__name__
+                msg = f"{t} graph type specified by create_using"
+            else:
+                msg = "default Graph graph type"
+            raise RuntimeError("query resulted in duplicate edges which "
+                               f"cannot be represented with a {msg}")
+
+        create_args = {"source": cls.__src_col_name,
+                       "destination": cls.__dst_col_name,
                        "edge_attr": edge_weight_property,
                        "renumber": True,
-                       }
-        if type(edges) is cudf.DataFrame:
-            G.from_cudf_edgelist(edges, **create_args)
+        }
+        if type(edge_prop_df) is cudf.DataFrame:
+            G.from_cudf_edgelist(edge_prop_df, **create_args)
         else:
-            G.from_pandas_edgelist(edges, **create_args)
+            G.from_pandas_edgelist(edge_prop_df, **create_args)
 
         # Set the edge_data on the resulting Graph to the list of edge tuples,
         # which includes the unique edge IDs. Edge IDs are needed for future
         # calls to annotate_dataframe() in order to apply properties from the
         # correct edges.
         # FIXME: this could be a very large list of tuples if the number of
-        # edges in G is large (eg. a large MNMG graph that cannot fit in CPU
+        # edges in G is large (eg. a large MNMG graph that cannot fit in host
         # memory). Consider adding the edge IDs to the edgelist DataFrame in G
         # instead.
-        G.edge_data = self.get_edge_tuples(edges)
+        G.edge_data = cls.get_edge_tuples(edge_prop_df)
+        # FIXME: also add vertex_data
 
         return G
 
-    def get_edge_tuples(self, df=None):
+    @classmethod
+    def has_duplicate_edges(cls, df):
         """
-        Returns a list of (src vertex, dst vertex, edge_id) tuples present in
-        df. If df is None, use self.__edge_prop_dataframe.
+        Return True if df has >1 of the same src, dst pair
         """
-        if self.__src_col_name not in df.columns:
-            raise ValueError(f"column {self.__src_col_name} missing from df")
-        if self.__dst_col_name not in df.columns:
-            raise ValueError(f"column {self.__dst_col_name} missing from df")
-        if self.__edge_id_col_name not in df.columns:
-            raise ValueError(f"column {self.__edge_id_col_name} missing "
-                             "from df")
-        src = df[self.__src_col_name]
-        dst = df[self.__dst_col_name]
-        edge_id = df[self.__edge_id_col_name]
-        retlist = [(src.iloc[i], dst.iloc[i], edge_id.iloc[i])
-                   for i in range(len(src))]
-        return retlist
+        if df.empty:
+            return False
 
-    def __get_new_column_dtypes(self, from_df, to_df):
+        def has_duplicate_dst(df):
+            return df[cls.__dst_col_name].nunique() != \
+                df[cls.__dst_col_name].size
 
-        """
-        Returns a list containing tuples of (column name, dtype) for each
-        column in from_df that is not present in to_df.
-        """
-        new_cols = set(from_df.columns) - set(to_df.columns)
-        return [(col, from_df[col].dtype) for col in new_cols]
-
-    def __update_dataframe_dtypes(self, df, column_dtype_dict):
-        """
-        Set the dtype for columns in df using the dtypes in column_dtype_dict.
-        This also handles converting standard integer dtypes to nullable
-        integer dtypes, needed to accommodate NA values in columns.
-        """
-        for (col, dtype) in column_dtype_dict.items():
-            # If the DataFrame is Pandas and the dtype is an integer type,
-            # ensure a nullable integer array is used by specifying the correct
-            # dtype. The alias for these dtypes is simply a capitalized string
-            # (eg. "Int64")
-            # https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html#integer-dtypes-and-missing-data
-            dtype_str = str(dtype)
-            if dtype_str in ["int32", "int64"]:
-                dtype_str = dtype_str.title()
-            if str(df[col].dtype) != dtype_str:
-                df[col] = df[col].astype(dtype_str)
+        return df.groupby(cls.__src_col_name).apply(has_duplicate_dst).any()
 
     def __add_edge_ids(self):
         """
@@ -569,3 +625,31 @@ class PropertyGraph:
                 .iloc[indices] = new_eids
 
             self.__last_edge_id = starting_eid + num_indices - 1
+
+    @staticmethod
+    def __get_new_column_dtypes(from_df, to_df):
+        """
+        Returns a list containing tuples of (column name, dtype) for each
+        column in from_df that is not present in to_df.
+        """
+        new_cols = set(from_df.columns) - set(to_df.columns)
+        return [(col, from_df[col].dtype) for col in new_cols]
+
+    @staticmethod
+    def __update_dataframe_dtypes(df, column_dtype_dict):
+        """
+        Set the dtype for columns in df using the dtypes in column_dtype_dict.
+        This also handles converting standard integer dtypes to nullable
+        integer dtypes, needed to accommodate NA values in columns.
+        """
+        for (col, dtype) in column_dtype_dict.items():
+            # If the DataFrame is Pandas and the dtype is an integer type,
+            # ensure a nullable integer array is used by specifying the correct
+            # dtype. The alias for these dtypes is simply a capitalized string
+            # (eg. "Int64")
+            # https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html#integer-dtypes-and-missing-data
+            dtype_str = str(dtype)
+            if dtype_str in ["int32", "int64"]:
+                dtype_str = dtype_str.title()
+            if str(df[col].dtype) != dtype_str:
+                df[col] = df[col].astype(dtype_str)

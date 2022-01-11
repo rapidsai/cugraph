@@ -44,6 +44,17 @@ dataset1 = {
          (78634, 47906, 0),
          ]
      ],
+    "taxpayers": [
+        ["payer_id", "amount"],
+        [(11, 1123.98),
+         (4, 3243.7),
+         (21, 8932.3),
+         (16, 3241.77),
+         (86, 789.2),
+         (89021, 23.98),
+         (78634, 41.77),
+         ]
+    ],
     "transactions": [
         ["user_id", "merchant_id", "volume", "time", "card_num", "card_type"],
         [(89021, 11, 33.2, 1639084966.5513437, 123456, "MC"),
@@ -63,13 +74,18 @@ dataset1 = {
     "referrals": [
         ["user_id_1", "user_id_2", "merchant_id", "stars"],
         [(89216, 78634, 11, 5),
-         (32431, 89216, 4, 4),
+         (89021, 89216, 4, 4),
+         (89021, 89216, 21, 3),
+         (89021, 89216, 11, 3),
          (89021, 78634, 21, 4),
-         (78634, 89216, 11, 4),
+         (78634, 32431, 11, 4),
          ]
      ],
 }
 
+# Placeholder for a directed Graph instance. This is not constructed here in
+# order to prevent cuGraph code from running on import, which would prevent
+# proper pytest collection if an exception is raised. See setup_function().
 DiGraph_inst = None
 
 
@@ -80,9 +96,8 @@ def setup_function():
     global DiGraph_inst
 
     gc.collect()
-    # Create a directed Graph instance as part of setup instead of at the top
-    # scope on import in order to avoid having any cuGraph source code execute
-    # as part of pytest test collection.
+    # Set the global DiGraph_inst. This is used for calls that require a Graph
+    # type or instance to be provided for tests that use a directed graph.
     DiGraph_inst = cugraph.Graph(directed=True)  # noqa: F841
 
 
@@ -111,7 +126,7 @@ def property_graph_instance(request):
     dataframe_type = request.param[0]
     from cugraph import PropertyGraph
 
-    (merchants, users,
+    (merchants, users, taxpayers,
      transactions, relationships, referrals) = dataset1.values()
 
     pG = PropertyGraph()
@@ -136,6 +151,11 @@ def property_graph_instance(request):
                                       data=users[1]),
                        type_name="users",
                        vertex_id_column="user_id",
+                       property_columns=None)
+    pG.add_vertex_data(dataframe_type(columns=taxpayers[0],
+                                      data=taxpayers[1]),
+                       type_name="taxpayers",
+                       vertex_id_column="payer_id",
                        property_columns=None)
 
     pG.add_edge_data(dataframe_type(columns=transactions[0],
@@ -338,13 +358,13 @@ def test_extract_subgraph_vertex_prop_condition_only(property_graph_instance):
 
     # FIXME: test for proper operators, etc.
     # FIXME: need full PropertyColumn test suite
-    vert_prop_cond = "(__type__=='users') & (user_location==78757)"
+    vert_prop_cond = "(_TYPE_=='taxpayers') & (amount<100)"
     G = pG.extract_subgraph(vertex_property_condition=vert_prop_cond,
                             create_using=DiGraph_inst,
-                            edge_weight_property="relationship_type")
+                            edge_weight_property="stars")
 
-    expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [89021],
-                                        "weights": [9]})
+    expected_edgelist = cudf.DataFrame({"src": [89021], "dst": [78634],
+                                        "weights": [4]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
                                    preserve_order=True)
     actual_edgelist = G.unrenumber(actual_edgelist, "dst",
@@ -358,14 +378,14 @@ def test_extract_subgraph_vertex_prop_condition_only(property_graph_instance):
 def test_extract_subgraph_vertex_edge_prop_condition(property_graph_instance):
     pG = property_graph_instance
 
-    vert_prop_cond = "((user_location==78750) | (user_location==78757))"
-    edge_prop_cond = "__type__=='referrals'"
+    vert_prop_cond = "((user_location==47906) | (user_location==78750))"
+    edge_prop_cond = "_TYPE_=='referrals'"
     G = pG.extract_subgraph(vertex_property_condition=vert_prop_cond,
                             edge_property_condition=edge_prop_cond,
                             create_using=DiGraph_inst,
                             edge_weight_property="stars")
 
-    expected_edgelist = cudf.DataFrame({"src": [32431], "dst": [89216],
+    expected_edgelist = cudf.DataFrame({"src": [78634], "dst": [32431],
                                         "weights": [4]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
                                    preserve_order=True)
@@ -379,7 +399,7 @@ def test_extract_subgraph_vertex_edge_prop_condition(property_graph_instance):
 def test_extract_subgraph_edge_prop_condition_only(property_graph_instance):
     pG = property_graph_instance
 
-    G = pG.extract_subgraph(edge_property_condition="__type__=='transactions'",
+    G = pG.extract_subgraph(edge_property_condition="_TYPE_=='transactions'",
                             create_using=DiGraph_inst)
 
     # last item is the DataFrame rows
@@ -405,7 +425,7 @@ def test_extract_subgraph_unweighted(property_graph_instance):
     """
     pG = property_graph_instance
 
-    G = pG.extract_subgraph(edge_property_condition="__type__=='transactions'",
+    G = pG.extract_subgraph(edge_property_condition="_TYPE_=='transactions'",
                             create_using=DiGraph_inst)
 
     assert G.is_weighted() is False
@@ -418,7 +438,7 @@ def test_extract_subgraph_specific_query(property_graph_instance):
     """
     pG = property_graph_instance
 
-    edge_prop_cond = ("(__type__=='transactions') & (merchant_id==4) "
+    edge_prop_cond = ("(_TYPE_=='transactions') & (merchant_id==4) "
                       "& (time>1639085000)")
     G = pG.extract_subgraph(edge_property_condition=edge_prop_cond,
                             create_using=DiGraph_inst,
@@ -435,13 +455,94 @@ def test_extract_subgraph_specific_query(property_graph_instance):
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
+def test_edge_props_to_graph(property_graph_instance):
+    """
+    Access the property DataFrames directly and use them to perform a more
+    complex query, then call edge_props_to_graph() to create the corresponding
+    graph.
+    """
+    pG = property_graph_instance
+
+    # All referrals between only taxpaying users (should be 1)
+    # Find the list of vertices that are both users and taxpayers
+
+    def contains_both(df):
+        return (df["_TYPE_"] == "taxpayers").any() and \
+            (df["_TYPE_"] == "users").any()
+    verts = pG._vertex_prop_dataframe.groupby("_VERTEX_")\
+                                     .apply(contains_both)
+    verts = verts[verts].keys()  # get an array of only verts that have both
+
+    # Find the "referral" edge_props containing only those verts
+    referrals = pG._edge_prop_dataframe["_TYPE_"] == "referrals"
+    srcs = pG._edge_prop_dataframe[referrals]["_SRC_"].isin(verts)
+    dsts = pG._edge_prop_dataframe[referrals]["_DST_"].isin(verts)
+    matching_edges = (srcs & dsts)
+    indices = matching_edges.index[matching_edges]
+    edge_props = pG._edge_prop_dataframe.loc[indices]
+
+    G = pG.edge_props_to_graph(edge_props,
+                               create_using=DiGraph_inst)
+
+    expected_edgelist = cudf.DataFrame({"src": [89021], "dst": [78634]})
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
+                                   preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst",
+                                   preserve_order=True)
+
+    assert G.is_directed()
+    assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
+
+
+def test_extract_subgraph_graph_without_vert_props():
+    """
+    Ensure a subgraph can be extracted from a PropertyGraph that does not have
+    vertex properties.
+    """
+    from cugraph import PropertyGraph
+
+    transactions = dataset1["transactions"]
+    relationships = dataset1["relationships"]
+
+    pG = PropertyGraph()
+
+    pG.add_edge_data(cudf.DataFrame(columns=transactions[0],
+                                    data=transactions[1]),
+                     type_name="transactions",
+                     vertex_id_columns=("user_id", "merchant_id"),
+                     property_columns=None)
+    pG.add_edge_data(cudf.DataFrame(columns=relationships[0],
+                                    data=relationships[1]),
+                     type_name="relationships",
+                     vertex_id_columns=("user_id_1", "user_id_2"),
+                     property_columns=None)
+
+    edge_prop_cond = "_SRC_ == 89216"
+    G = pG.extract_subgraph(edge_property_condition=edge_prop_cond,
+                            create_using=DiGraph_inst,
+                            edge_weight_property="relationship_type",
+                            default_edge_weight=0)
+
+    expected_edgelist = cudf.DataFrame({"src": [89216, 89216, 89216],
+                                        "dst": [4, 89021, 32431],
+                                        "weights": [0, 9, 9]})
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
+                                   preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst",
+                                   preserve_order=True)
+
+    assert G.is_directed()
+    assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
+
+
+
 def test_extract_subgraph_no_edges(property_graph_instance):
     """
     Valid query that only matches a single vertex.
     """
     pG = property_graph_instance
 
-    vert_prop_cond = "(__type__=='merchants') & (merchant_id==86)"
+    vert_prop_cond = "(_TYPE_=='merchants') & (merchant_id==86)"
     G = pG.extract_subgraph(vertex_property_condition=vert_prop_cond)
 
     assert len(G.edgelist.edgelist_df) == 0
@@ -453,16 +554,32 @@ def test_extract_subgraph_no_query(property_graph_instance):
     """
     pG = property_graph_instance
 
-    G = pG.extract_subgraph(create_using=DiGraph_inst)
+    G = pG.extract_subgraph(create_using=DiGraph_inst, allow_multi_edges=True)
 
     num_edges = \
         len(dataset1["transactions"][-1]) + \
         len(dataset1["relationships"][-1]) + \
         len(dataset1["referrals"][-1])
-    # referrals and relationships have an edge in common, so subtract it from
-    # the total count.
-    num_edges -= 1
+    # referrals has 3 edges with the same src/dst, so subtract 2 from
+    # the total count since this is not creating a multigraph..
+    num_edges -= 2
     assert len(G.edgelist.edgelist_df) == num_edges
+
+
+def test_extract_subgraph_multi_edges(property_graph_instance):
+    """
+    Ensure an exception is thrown if a graph is attempted to be extracted with
+    multi edges.
+    NOTE: an option to allow multi edges when create_using is
+    MultiGraph will be provided in the future.
+    """
+    pG = property_graph_instance
+    # referrals has multiple edges
+    # FIXME: use a better exception
+    with pytest.raises(RuntimeError):
+        G = pG.extract_subgraph(
+            edge_property_condition="_TYPE_ == 'referrals'",
+            create_using=DiGraph_inst)
 
 
 def test_extract_subgraph_bad_args(property_graph_instance):
@@ -476,19 +593,19 @@ def test_extract_subgraph_bad_args(property_graph_instance):
                             default_edge_weight=1.0)
     # bad create_using type
     with pytest.raises(TypeError):
-        pG.extract_subgraph(edge_property_condition="__type__=='referrals'",
+        pG.extract_subgraph(edge_property_condition="_TYPE_=='referrals'",
                             create_using=pytest,
                             edge_weight_property="stars",
                             default_edge_weight=1.0)
     # invalid column name
     with pytest.raises(ValueError):
-        pG.extract_subgraph(edge_property_condition="__type__=='referrals'",
+        pG.extract_subgraph(edge_property_condition="_TYPE_=='referrals'",
                             edge_weight_property="bad_column",
                             default_edge_weight=1.0)
     # column name has None value for all results in subgraph and
     # default_edge_weight is not set.
     with pytest.raises(ValueError):
-        pG.extract_subgraph(edge_property_condition="__type__=='referrals'",
+        pG.extract_subgraph(edge_property_condition="_TYPE_=='referrals'",
                             edge_weight_property="card_type")
 
 
@@ -496,7 +613,7 @@ def test_extract_subgraph_default_edge_weight(property_graph_instance):
     pG = property_graph_instance
 
     G = pG.extract_subgraph(create_using=DiGraph_inst,
-                            edge_property_condition="__type__=='transactions'",
+                            edge_property_condition="_TYPE_=='transactions'",
                             edge_weight_property="volume",
                             default_edge_weight=99)
 
@@ -525,6 +642,7 @@ def test_extract_subgraph_default_edge_weight(property_graph_instance):
 
 
 def test_graph_edge_data_added(property_graph_instance):
+
     """
     Ensures the subgraph returned from extract_subgraph() has the edge_data
     attribute added which contains the proper edge IDs.
@@ -540,7 +658,7 @@ def test_graph_edge_data_added(property_graph_instance):
 
     # extract_subgraph() should return a directed Graph object with additional
     # meta-data, which includes edge IDs.
-    G = pG.extract_subgraph(create_using=DiGraph_inst)
+    G = pG.extract_subgraph(create_using=DiGraph_inst, allow_multi_edges=True)
 
     # G.edge_data should be set to a list of tuples of (src, dst, edge_id) for
     # each edge in the graph.
@@ -551,25 +669,34 @@ def test_graph_edge_data_added(property_graph_instance):
     assert edge_ids[-1] == (expected_num_edges - 1)
 
 
-@pytest.mark.skip(reason="unfinished")
+@pytest.mark.skip(reason="UNFINISHED")
 def test_annotate_dataframe(property_graph_instance):
     pG = property_graph_instance
-    # values from dataset1 used as vertices in pG
-    vertices = [11, 4, 21, 89021, 78634, 32431]
-    # an arbitrary DataFrame meant to represent an algo result, containing
-    # vertex IDs present in pG
-    some_result = cudf.DataFrame({"vertex": vertices,
-                                  "pagerank": range(len(vertices))})
 
-    new_result = pG.annotate_dataframe(some_result,
-                                       vertex_id_column="vertex")
-    expected_columns = []
-    assert new_result.columns == expected_columns
+    (srcs, dsts, mids, stars) = zip(*(dataset1["referrals"][1]))
+
+    # an arbitrary DataFrame meant to represent an algo result, containing
+    # vertex IDs present in pG, drop duplicate edges since actual results from a
+    # Graph object would not have them.
+    some_result = cudf.DataFrame({"from": srcs, "to": dsts,
+                                  "result": range(len(srcs))})
+    some_result.drop_duplicates(subset=["from", "to"], inplace=True)
+
+    edge_prop_cond = "(_TYPE_ == 'referrals') & (stars > 3)"
+    G = pG.extract_subgraph(edge_property_condition=edge_prop_cond,
+                            create_using=DiGraph_inst)
+
+    new_result = pG.annotate_dataframe(some_result, G,
+                                       edge_vertex_id_columns=("from", "to"))
+    expected_df = cudf.DataFrame({"from": srcs, "to": dsts,
+                                  "result": range(len(srcs)),
+                                  "merchant_id": mids,
+                                  "stars": stars})
+
+    assert_frame_equal(some_result, expected_df)
 
     """
     FIXME: Add tests for:
-    only edge_id_column
-    missing both edge_id_column and vertex_id_column
     properties list
     properties list with 1 or more bad props
     copy=False
