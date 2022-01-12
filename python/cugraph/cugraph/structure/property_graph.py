@@ -24,6 +24,41 @@ if not isinstance(pd, MissingModule):
     _dataframe_types.append(pd.DataFrame)
 
 
+class Selection:
+    def __init__(self,
+                 vertex_selection_series=None,
+                 edge_selection_series=None):
+        self.vertex_selections = vertex_selection_series
+        self.edge_selections = edge_selection_series
+
+    def __and__(self, other):
+        vs = self.vertex_selections
+        if other.vertex_selections is not None:
+            vs = vs & other.vertex_selections
+        es = self.edge_selections
+        if other.edge_selections is not None:
+            es = es & other.edge_selections
+        return Selection(vs, es)
+
+    def __or__(self, other):
+        vs = self.vertex_selections
+        if other.vertex_selections is not None:
+            vs = vs | other.vertex_selections
+        es = self.edge_selections
+        if other.edge_selections is not None:
+            es = es | other.edge_selections
+        return Selection(vs, es)
+
+    def __add__(self, other):
+        vs = self.vertex_selections
+        if vs is None:
+            vs = other.vertex_selections
+        es = self.edge_selections
+        if es is None:
+            es = other.edge_selections
+        return Selection(vs, es)
+
+
 class PropertyGraph:
     """
     FIXME: fill this in
@@ -382,10 +417,39 @@ class PropertyGraph:
                        for n in self.__edge_prop_dataframe.columns])
         self.__edge_prop_eval_dict.update(latest)
 
+
+    def select_vertices(self, expr, from_selection=None):
+        """
+        """
+        globals = {}
+        if (from_selection is not None) and \
+           (from_selection.vertex_selections is not None):
+            vpd=self.__vertex_prop_dataframe
+            breakpoint()
+            previously_selected_rows = \
+                self.__vertex_prop_dataframe[from_selection.vertex_selections]
+            verts_from_previously_selected_rows = previously_selected_rows[self.__vertex_col_name]
+            rows_with_vert = self.__vertex_prop_dataframe[self.__vertex_col_name].isin(verts_from_previously_selected_rows)
+            rows_to_eval = self.__vertex_prop_dataframe[rows_with_vert]
+            locals = dict([(n, rows_to_eval[n])
+                           for n in rows_to_eval.columns])
+        else:
+            locals = self.__vertex_prop_eval_dict
+
+        return Selection(vertex_selection_series=eval(expr, globals, locals))
+
+    def select_edges(self, expr):
+        """
+        """
+        globals = {}
+        locals = self.__edge_prop_eval_dict
+
+        return Selection(edge_selection_series=eval(expr, globals, locals))
+
+
     def extract_subgraph(self,
                          create_using=None,
-                         edge_property_condition=None,
-                         vertex_property_condition=None,
+                         selection=None,
                          edge_weight_property=None,
                          default_edge_weight=None,
                          allow_multi_edges=False
@@ -398,8 +462,6 @@ class PropertyGraph:
         Parameters
         ----------
         create_using : cugraph Graph type or instance
-            FIXME: finish this description
-        edge_property_condition : string
             FIXME: finish this description
 
         Returns
@@ -417,21 +479,17 @@ class PropertyGraph:
         # should not be a problem since this the conversions do not change
         # the values.
         globals = {}
-        if vertex_property_condition:
-            locals = self.__vertex_prop_eval_dict
-            filter_column = eval(vertex_property_condition, globals, locals)
-            matching_indices = filter_column.index[filter_column]
+        if (selection is not None) and \
+           (selection.vertex_selections is not None):
             filtered_vertex_dataframe = \
-                self.__vertex_prop_dataframe.loc[matching_indices]
+                self.__vertex_prop_dataframe[selection.vertex_selections]
         else:
             filtered_vertex_dataframe = self.__vertex_prop_dataframe
 
-        if edge_property_condition:
-            locals = self.__edge_prop_eval_dict
-            filter_column = eval(edge_property_condition, globals, locals)
-            matching_indices = filter_column.index[filter_column]
+        if (selection is not None) and \
+           (selection.edge_selections is not None):
             filtered_edge_dataframe = \
-                self.__edge_prop_dataframe.loc[matching_indices]
+                self.__edge_prop_dataframe[selection.edge_selections]
         else:
             filtered_edge_dataframe = self.__edge_prop_dataframe
 

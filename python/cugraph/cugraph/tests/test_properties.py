@@ -141,7 +141,6 @@ def property_graph_instance(request):
     # property_columns=None (the default) means all columns except
     # vertex_id_column will be used as properties for the vertices/edges.
 
-    # FIXME: add a test for pandas DataFrames
     pG.add_vertex_data(dataframe_type(columns=merchants[0],
                                       data=merchants[1]),
                        type_name="merchants",
@@ -356,8 +355,6 @@ def test_extract_subgraph_vertex_prop_condition_only(property_graph_instance):
 
     pG = property_graph_instance
 
-    # FIXME: test for proper operators, etc.
-    # FIXME: need full PropertyColumn test suite
     vert_prop_cond = "(_TYPE_=='taxpayers') & (amount<100)"
     G = pG.extract_subgraph(vertex_property_condition=vert_prop_cond,
                             create_using=DiGraph_inst,
@@ -466,23 +463,30 @@ def test_edge_props_to_graph(property_graph_instance):
     # All referrals between only taxpaying users (should be 1)
     # Find the list of vertices that are both users and taxpayers
 
-    def contains_both(df):
-        return (df["_TYPE_"] == "taxpayers").any() and \
-            (df["_TYPE_"] == "users").any()
-    verts = pG._vertex_prop_dataframe.groupby("_VERTEX_")\
-                                     .apply(contains_both)
-    verts = verts[verts].keys()  # get an array of only verts that have both
+    # def contains_both(df):
+    #     return (df["_TYPE_"] == "taxpayers").any() and \
+    #         (df["_TYPE_"] == "users").any()
+    # verts = pG._vertex_prop_dataframe.groupby("_VERTEX_")\
+    #                                  .apply(contains_both)
+    # verts = verts[verts].keys()  # get an array of only verts that have both
 
-    # Find the "referral" edge_props containing only those verts
-    referrals = pG._edge_prop_dataframe["_TYPE_"] == "referrals"
-    srcs = pG._edge_prop_dataframe[referrals]["_SRC_"].isin(verts)
-    dsts = pG._edge_prop_dataframe[referrals]["_DST_"].isin(verts)
-    matching_edges = (srcs & dsts)
-    indices = matching_edges.index[matching_edges]
-    edge_props = pG._edge_prop_dataframe.loc[indices]
+    # # Find the "referral" edge_props containing only those verts
+    # referrals = pG._edge_prop_dataframe["_TYPE_"] == "referrals"
+    # srcs = pG._edge_prop_dataframe[referrals]["_SRC_"].isin(verts)
+    # dsts = pG._edge_prop_dataframe[referrals]["_DST_"].isin(verts)
+    # matching_edges = (srcs & dsts)
+    # indices = matching_edges.index[matching_edges]
+    # edge_props = pG._edge_prop_dataframe.loc[indices]
 
-    G = pG.edge_props_to_graph(edge_props,
-                               create_using=DiGraph_inst)
+    # G = pG.edge_props_to_graph(edge_props,
+    #                            create_using=DiGraph_inst)
+
+    # Select referrals from only taxpayers who are users
+    selection = pG.select_vertices("_TYPE_ == 'taxpayers'")
+    selection = pG.select_vertices("_TYPE_ == 'users'",
+                                   from_selection=selection)
+    selection += pG.select_edges("_TYPE_ == 'referrals'")
+    G = pG.extract_subgraph(create_using=DiGraph_inst, selection=selection)
 
     expected_edgelist = cudf.DataFrame({"src": [89021], "dst": [78634]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
