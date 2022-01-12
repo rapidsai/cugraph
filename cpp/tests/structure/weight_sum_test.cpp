@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -106,7 +106,7 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
                       *(graph_view.get_matrix_partition_view().get_weights()),
                       graph_view.get_number_of_edges(),
                       handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    handle.sync_stream();
 
     std::vector<weight_t> h_reference_in_weight_sums(graph_view.get_number_of_vertices());
     std::vector<weight_t> h_reference_out_weight_sums(graph_view.get_number_of_vertices());
@@ -125,12 +125,12 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
                          graph_view.get_number_of_vertices(),
                          !store_transposed);
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     auto d_in_weight_sums  = graph_view.compute_in_weight_sums(handle);
     auto d_out_weight_sums = graph_view.compute_out_weight_sums(handle);
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     std::vector<weight_t> h_cugraph_in_weight_sums(graph_view.get_number_of_vertices());
     std::vector<weight_t> h_cugraph_out_weight_sums(graph_view.get_number_of_vertices());
@@ -143,7 +143,7 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
                       d_out_weight_sums.data(),
                       d_out_weight_sums.size(),
                       handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    handle.sync_stream();
 
     auto threshold_ratio     = weight_t{1e-4};
     auto threshold_magnitude = std::numeric_limits<weight_t>::min();
@@ -167,14 +167,14 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
 
 // FIXME: add tests for type combinations
 
-TEST_P(Tests_WeightSum, CheckInt32Int32FloatTransposed)
-{
-  run_current_test<int32_t, int32_t, float, true>(GetParam());
-}
-
-TEST_P(Tests_WeightSum, CheckInt32Int32FloatUntransposed)
+TEST_P(Tests_WeightSum, CheckInt32Int32FloatTransposeFalse)
 {
   run_current_test<int32_t, int32_t, float, false>(GetParam());
+}
+
+TEST_P(Tests_WeightSum, CheckInt32Int32FloatTransposeTrue)
+{
+  run_current_test<int32_t, int32_t, float, true>(GetParam());
 }
 
 INSTANTIATE_TEST_SUITE_P(simple_test,

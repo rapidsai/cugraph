@@ -39,6 +39,9 @@ cd $WORKSPACE
 export GIT_DESCRIBE_TAG=`git describe --tags`
 export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 
+# ucx-py version
+export UCX_PY_VERSION='0.24.*'
+
 ################################################################################
 # SETUP - Check environment
 ################################################################################
@@ -63,7 +66,7 @@ gpuci_mamba_retry install -y \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
-      "ucx-py=0.23.*" \
+      "ucx-py=${UCX_PY_VERSION}" \
       "ucx-proc=*=gpu" \
       "rapids-build-env=$MINOR_VERSION.*" \
       "rapids-notebook-env=$MINOR_VERSION.*" \

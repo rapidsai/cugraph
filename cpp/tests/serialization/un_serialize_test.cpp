@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <gtest/gtest.h>
 #include "cuda_profiler_api.h"
+#include <gtest/gtest.h>
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>

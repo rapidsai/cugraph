@@ -28,12 +28,12 @@
 #include <raft/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cub/cub.cuh>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
-#include <cub/cub.cuh>
 
 #include <type_traits>
 #include <utility>

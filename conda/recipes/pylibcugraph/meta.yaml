@@ -7,6 +7,7 @@
 {% set cuda_version='.'.join(environ.get('CUDA', 'unknown').split('.')[:2]) %}
 {% set cuda_major=cuda_version.split('.')[0] %}
 {% set py_version=environ.get('CONDA_PY', 36) %}
+{% set ucx_py_version=environ.get('UCX_PY_VERSION') %}
 package:
   name: pylibcugraph
   version: {{ version }}
@@ -28,13 +29,20 @@ requirements:
     - python x.x
     - cython>=0.29,<0.30
     - libcugraph={{ version }}
-    - ucx-py 0.23
+    - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
+    - rmm {{ minor_version }}.*
   run:
     - python x.x
     - libcugraph={{ version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
+
+tests:                                 # [linux64]
+  requirements:                        # [linux64]
+    - cudatoolkit {{ cuda_version }}.* # [linux64]
+  imports:                             # [linux64]
+    - pylibcugraph                     # [linux64]
 
 about:
   home: http://rapids.ai/

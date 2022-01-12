@@ -83,8 +83,9 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
   template <typename vertex_t, typename edge_t>
   void run_current_test(MsBfs_Usecase const& configuration)
   {
-    using weight_t = float;
-    raft::handle_t handle(16);
+    using weight_t   = float;
+    auto stream_pool = std::make_shared<rmm::cuda_stream_pool>(16);
+    raft::handle_t handle(rmm::cuda_stream_per_thread, stream_pool);
 
     auto edgelists =
       cugraph::generate_rmat_edgelists<vertex_t>(handle,
@@ -172,9 +173,9 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     d_predecessors_ref.reserve(h_sources.size());
     for (size_t i = 0; i < h_sources.size(); i++) {
       rmm::device_uvector<vertex_t> tmp_distances(graph_view.get_number_of_vertices(),
-                                                  handle.get_internal_stream_view(i));
+                                                  handle.get_next_usable_stream(i));
       rmm::device_uvector<vertex_t> tmp_predecessors(graph_view.get_number_of_vertices(),
-                                                     handle.get_internal_stream_view(i));
+                                                     handle.get_next_usable_stream(i));
 
       d_distances_ref.push_back(std::move(tmp_distances));
       d_predecessors_ref.push_back(std::move(tmp_predecessors));
