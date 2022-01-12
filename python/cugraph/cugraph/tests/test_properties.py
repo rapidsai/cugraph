@@ -698,8 +698,8 @@ def test_annotate_dataframe(property_graph_instance):
                                     "result": range(len(srcs)),
                                     "merchant_id": mids,
                                     "stars": stars})
-    # The integer dtypes of annotated properties are nullable integer dtypes, so
-    # convert for proper comparison.
+    # The integer dtypes of annotated properties are nullable integer dtypes,
+    # so convert for proper comparison.
     expected_algo_result["merchant_id"] = \
         expected_algo_result["merchant_id"].astype("Int64")
     expected_algo_result["stars"] = \
