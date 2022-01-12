@@ -490,6 +490,11 @@ class PropertyGraph:
         # FIXME: all check args
         (src_col_name, dst_col_name) = edge_vertex_id_columns
 
+        df_type = type(df)
+        if df_type is not self.__dataframe_type:
+            raise TypeError(f"df type {df_type} does not match DataFrame type "
+                            f"{self.__dataframe_type} used in PropertyGraph")
+
         # FIXME: check that G has edge_data attr
 
         # Add the src, dst, edge_id info from the Graph to a DataFrame
@@ -512,6 +517,12 @@ class PropertyGraph:
         new_df.rename(columns={self.__src_col_name: src_col_name,
                                self.__dst_col_name: dst_col_name},
                       inplace=True)
+
+        # restore the original dtypes
+        self.__update_dataframe_dtypes(new_df, self.__edge_prop_dtypes)
+        for col in df.columns:
+            new_df[col] = new_df[col].astype(df[col].dtype)
+
         # FIXME: consider removing internal columns (_EDGE_ID_, etc.) and
         # columns from edge types not included in the edges in df.
         return new_df

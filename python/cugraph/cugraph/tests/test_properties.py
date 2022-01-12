@@ -640,7 +640,6 @@ def test_extract_subgraph_default_edge_weight(property_graph_instance):
 
 
 def test_graph_edge_data_added(property_graph_instance):
-
     """
     Ensures the subgraph returned from extract_subgraph() has the edge_data
     attribute added which contains the proper edge IDs.
@@ -681,31 +680,42 @@ def test_annotate_dataframe(property_graph_instance):
     G = pG.extract_subgraph(edge_property_condition=edge_prop_cond,
                             create_using=DiGraph_inst)
 
+    df_type = type(pG._edge_prop_dataframe)
     # Create an arbitrary DataFrame meant to represent an algo result,
     # containing vertex IDs present in pG.
     #
     # Drop duplicate edges since actual results from a Graph object would not
     # have them.
     (srcs, dsts, mids, stars) = zip(*(dataset1["referrals"][1]))
-    algo_result = cudf.DataFrame({"from": srcs, "to": dsts,
-                                  "result": range(len(srcs))})
+    algo_result = df_type({"from": srcs, "to": dsts,
+                           "result": range(len(srcs))})
     algo_result.drop_duplicates(subset=["from", "to"],
                                 inplace=True, ignore_index=True)
 
     new_algo_result = pG.annotate_dataframe(
         algo_result, G, edge_vertex_id_columns=("from", "to"))
-    expected_algo_result = cudf.DataFrame({"from": srcs, "to": dsts,
-                                           "result": range(len(srcs)),
-                                           "merchant_id": mids,
-                                           "stars": stars})
+    expected_algo_result = df_type({"from": srcs, "to": dsts,
+                                    "result": range(len(srcs)),
+                                    "merchant_id": mids,
+                                    "stars": stars})
+    # The integer dtypes of annotated properties are nullable integer dtypes, so
+    # convert for proper comparison.
+    expected_algo_result["merchant_id"] = \
+        expected_algo_result["merchant_id"].astype("Int64")
+    expected_algo_result["stars"] = \
+        expected_algo_result["stars"].astype("Int64")
 
     expected_algo_result.drop_duplicates(subset=["from", "to"],
                                          inplace=True, ignore_index=True)
 
+    if df_type is cudf.DataFrame:
+        ase = assert_series_equal
+    else:
+        ase = pd.testing.assert_series_equal
     # For now, the result will include extra columns from edge types not
     # included in the df being annotated, so just check for known columns.
     for col in ["from", "to", "result", "merchant_id", "stars"]:
-        assert_series_equal(new_algo_result[col], expected_algo_result[col])
+        ase(new_algo_result[col], expected_algo_result[col])
 
 
 def test_different_vertex_edge_input_dataframe_types():
