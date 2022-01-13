@@ -493,6 +493,7 @@ def test_edge_props_to_graph(property_graph_instance):
     assert G.is_directed()
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
+
 def test_select_vertices_from_previous_selection(property_graph_instance):
     """
     Ensures that the intersection of vertices of multiple types (only vertices

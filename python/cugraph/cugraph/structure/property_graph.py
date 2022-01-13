@@ -39,8 +39,8 @@ class PropertySelection:
 
     def __add__(self, other):
         """
-        Add either the vertex_selections, edge_selections, or both to this instance
-        if either are not already set.
+        Add either the vertex_selections, edge_selections, or both to this
+        instance if either are not already set.
         """
         vs = self.vertex_selections
         if vs is None:
@@ -421,9 +421,9 @@ class PropertyGraph:
         """
         # FIXME: check types
 
-        # Check if the expr is to be evaluated in the context of properties from
-        # only the previously selected vertices (as opposed to all properties
-        # from all vertices)
+        # Check if the expr is to be evaluated in the context of properties
+        # from only the previously selected vertices (as opposed to all
+        # properties from all vertices)
         if (from_previous_selection is not None) and \
            (from_previous_selection.vertex_selections is not None):
             previously_selected_rows = self.__vertex_prop_dataframe[
@@ -504,7 +504,6 @@ class PropertyGraph:
         # dtypes (eg. int64 to float64 in order to add NaN entries). This
         # should not be a problem since this the conversions do not change
         # the values.
-        globals = {}
         if (selection is not None) and \
            (selection.vertex_selections is not None):
             selected_vertex_dataframe = \
@@ -759,9 +758,9 @@ class PropertyGraph:
                 dtype_str = dtype_str.title()
             if str(df[col].dtype) != dtype_str:
                 # Assigning to df[col] produces a (false?) warning with Pandas,
-                # but assigning to df.loc[:,col] does not update the df in cudf,
-                # so do one or the other based on type.
+                # but assigning to df.loc[:,col] does not update the df in
+                # cudf, so do one or the other based on type.
                 if type(df) is cudf.DataFrame:
                     df[col] = df[col].astype(dtype_str)
                 else:
-                    df.loc[:,col] = df[col].astype(dtype_str)
+                    df.loc[:, col] = df[col].astype(dtype_str)
