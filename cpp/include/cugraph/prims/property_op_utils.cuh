@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,8 @@
 
 namespace cugraph {
 
+namespace detail {
+
 template <typename InvokeResultEdgeOp, typename Enable = void>
 struct is_valid_edge_op {
   static constexpr bool value = false;
@@ -43,6 +45,55 @@ struct is_valid_edge_op<
   static constexpr bool valid = true;
 };
 
+template <typename key_t,
+          typename vertex_t,
+          typename weight_t,
+          typename row_value_t,
+          typename col_value_t,
+          typename EdgeOp,
+          typename Enable = void>
+struct edge_op_result_type;
+
+template <typename key_t,
+          typename vertex_t,
+          typename weight_t,
+          typename row_value_t,
+          typename col_value_t,
+          typename EdgeOp>
+struct edge_op_result_type<
+  key_t,
+  vertex_t,
+  weight_t,
+  row_value_t,
+  col_value_t,
+  EdgeOp,
+  std::enable_if_t<is_valid_edge_op<
+    typename std::invoke_result<EdgeOp, key_t, vertex_t, weight_t, row_value_t, col_value_t>>::
+                     valid>> {
+  using type =
+    typename std::invoke_result<EdgeOp, key_t, vertex_t, weight_t, row_value_t, col_value_t>::type;
+};
+
+template <typename key_t,
+          typename vertex_t,
+          typename weight_t,
+          typename row_value_t,
+          typename col_value_t,
+          typename EdgeOp>
+struct edge_op_result_type<
+  key_t,
+  vertex_t,
+  weight_t,
+  row_value_t,
+  col_value_t,
+  EdgeOp,
+  std::enable_if_t<is_valid_edge_op<
+    typename std::invoke_result<EdgeOp, key_t, vertex_t, row_value_t, col_value_t>>::valid>> {
+  using type = typename std::invoke_result<EdgeOp, key_t, vertex_t, row_value_t, col_value_t>::type;
+};
+
+}  // namespace detail
+
 template <typename GraphViewType,
           typename key_t,
           typename AdjMatrixRowValueInputWrapper,
@@ -53,6 +104,9 @@ struct evaluate_edge_op {
   using weight_type    = typename GraphViewType::weight_type;
   using row_value_type = typename AdjMatrixRowValueInputWrapper::value_type;
   using col_value_type = typename AdjMatrixColValueInputWrapper::value_type;
+  using result_type    = typename detail::
+    edge_op_result_type<key_t, vertex_type, weight_type, row_value_type, col_value_type, EdgeOp>::
+      type;
 
   template <typename K = key_t,
             typename V = vertex_type,
@@ -61,7 +115,7 @@ struct evaluate_edge_op {
             typename C = col_value_type,
             typename E = EdgeOp>
   __device__
-    std::enable_if_t<is_valid_edge_op<typename std::invoke_result<E, K, V, W, R, C>>::valid,
+    std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, R, C>>::valid,
                      typename std::invoke_result<E, K, V, W, R, C>::type>
     compute(K r, V c, W w, R rv, C cv, E e)
   {
@@ -74,9 +128,10 @@ struct evaluate_edge_op {
             typename R = row_value_type,
             typename C = col_value_type,
             typename E = EdgeOp>
-  __device__ std::enable_if_t<is_valid_edge_op<typename std::invoke_result<E, K, V, R, C>>::valid,
-                              typename std::invoke_result<E, K, V, R, C>::type>
-  compute(K r, V c, W w, R rv, C cv, E e)
+  __device__
+    std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, R, C>>::valid,
+                     typename std::invoke_result<E, K, V, R, C>::type>
+    compute(K r, V c, W w, R rv, C cv, E e)
   {
     return e(r, c, rv, cv);
   }
@@ -104,7 +159,8 @@ struct cast_edge_op_bool_to_integer {
             typename C = col_value_type,
             typename E = EdgeOp>
   __device__
-    std::enable_if_t<is_valid_edge_op<typename std::invoke_result<E, K, V, W, R, C>>::valid, T>
+    std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, R, C>>::valid,
+                     T>
     operator()(K r, V c, W w, R rv, C cv)
   {
     return e_op(r, c, w, rv, cv) ? T{1} : T{0};
@@ -116,7 +172,7 @@ struct cast_edge_op_bool_to_integer {
             typename C = col_value_type,
             typename E = EdgeOp>
   __device__
-    std::enable_if_t<is_valid_edge_op<typename std::invoke_result<E, K, V, R, C>>::valid, T>
+    std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, R, C>>::valid, T>
     operator()(K r, V c, R rv, C cv)
   {
     return e_op(r, c, rv, cv) ? T{1} : T{0};

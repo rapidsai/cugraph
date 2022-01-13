@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -547,7 +547,7 @@ void frontier_expand(const IndexType* row_ptr,
     predecessors,
     edge_mask);
 
-  CHECK_CUDA(m_stream);
+  RAFT_CHECK_CUDA(m_stream);
 }
 }  // namespace sssp_kernels
 }  // namespace detail
