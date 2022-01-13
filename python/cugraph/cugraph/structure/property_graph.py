@@ -24,39 +24,31 @@ if not isinstance(pd, MissingModule):
     _dataframe_types.append(pd.DataFrame)
 
 
-class Selection:
+class PropertySelection:
+    """
+    Instances of this class are returned from the PropertyGraph.select_*()
+    methods and can be used by the PropertyGraph.extract_subgraph() method to
+    extrac a Graph containing vertices and edges with only the selected
+    properties.
+    """
     def __init__(self,
                  vertex_selection_series=None,
                  edge_selection_series=None):
         self.vertex_selections = vertex_selection_series
         self.edge_selections = edge_selection_series
 
-    def __and__(self, other):
-        vs = self.vertex_selections
-        if other.vertex_selections is not None:
-            vs = vs & other.vertex_selections
-        es = self.edge_selections
-        if other.edge_selections is not None:
-            es = es & other.edge_selections
-        return Selection(vs, es)
-
-    def __or__(self, other):
-        vs = self.vertex_selections
-        if other.vertex_selections is not None:
-            vs = vs | other.vertex_selections
-        es = self.edge_selections
-        if other.edge_selections is not None:
-            es = es | other.edge_selections
-        return Selection(vs, es)
-
     def __add__(self, other):
+        """
+        Add either the vertex_selections, edge_selections, or both to this instance
+        if either are not already set.
+        """
         vs = self.vertex_selections
         if vs is None:
             vs = other.vertex_selections
         es = self.edge_selections
         if es is None:
             es = other.edge_selections
-        return Selection(vs, es)
+        return PropertySelection(vs, es)
 
 
 class PropertyGraph:
@@ -417,35 +409,64 @@ class PropertyGraph:
                        for n in self.__edge_prop_dataframe.columns])
         self.__edge_prop_eval_dict.update(latest)
 
+    def select_vertices(self, expr, from_previous_selection=None):
+        """
+        Evaluate expr and return a PropertySelection object representing the
+        vertices that match the expression.
 
-    def select_vertices(self, expr, from_selection=None):
+        If from_previous_selection is provided, it is used to specify a subset
+        of all vertices for which expr is to be evaluated. This allows for one
+        or more prior select_vertices() calls to be used to find the
+        intersection of multiple selections.
         """
-        """
-        globals = {}
-        if (from_selection is not None) and \
-           (from_selection.vertex_selections is not None):
-            vpd=self.__vertex_prop_dataframe
-            breakpoint()
-            previously_selected_rows = \
-                self.__vertex_prop_dataframe[from_selection.vertex_selections]
-            verts_from_previously_selected_rows = previously_selected_rows[self.__vertex_col_name]
-            rows_with_vert = self.__vertex_prop_dataframe[self.__vertex_col_name].isin(verts_from_previously_selected_rows)
-            rows_to_eval = self.__vertex_prop_dataframe[rows_with_vert]
+        # FIXME: check types
+
+        # Check if the expr is to be evaluated in the context of properties from
+        # only the previously selected vertices (as opposed to all properties
+        # from all vertices)
+        if (from_previous_selection is not None) and \
+           (from_previous_selection.vertex_selections is not None):
+            previously_selected_rows = self.__vertex_prop_dataframe[
+                from_previous_selection.vertex_selections]
+            verts_from_previously_selected_rows = \
+                previously_selected_rows[self.__vertex_col_name]
+            # get all the rows from the entire __vertex_prop_dataframe that
+            # contain those verts
+            rows_with_verts = \
+                self.__vertex_prop_dataframe[self.__vertex_col_name]\
+                    .isin(verts_from_previously_selected_rows)
+            rows_to_eval = self.__vertex_prop_dataframe[rows_with_verts]
             locals = dict([(n, rows_to_eval[n])
                            for n in rows_to_eval.columns])
         else:
             locals = self.__vertex_prop_eval_dict
 
-        return Selection(vertex_selection_series=eval(expr, globals, locals))
+        globals = {}
+        selected_col = eval(expr, globals, locals)
+
+        num_rows = len(self.__vertex_prop_dataframe)
+        # Ensure the column is the same size as the DataFrame, then replace any
+        # NA values with False to represent rows that should not be selected.
+        # This ensures the selected column can be applied to the entire
+        # __vertex_prop_dataframe to determine which rows to use when creating
+        # a Graph from a query.
+        if num_rows != len(selected_col):
+            selected_col = selected_col.reindex(range(num_rows), copy=False)
+            selected_col.fillna(False, inplace=True)
+
+        return PropertySelection(vertex_selection_series=selected_col)
 
     def select_edges(self, expr):
         """
+        Evaluate expr and return a PropertySelection object representing the
+        edges that match the expression.
         """
+        # FIXME: check types
         globals = {}
         locals = self.__edge_prop_eval_dict
 
-        return Selection(edge_selection_series=eval(expr, globals, locals))
-
+        selected_col = eval(expr, globals, locals)
+        return PropertySelection(edge_selection_series=selected_col)
 
     def extract_subgraph(self,
                          create_using=None,
@@ -472,6 +493,11 @@ class PropertyGraph:
         --------
         >>>
         """
+        if (selection is not None) and \
+           not isinstance(selection, PropertySelection):
+            raise TypeError("selection must be an instance of "
+                            f"PropertySelection, got {type(selection)}")
+
         # NOTE: the expressions passed in to extract specific edges and
         # vertices assume the original dtypes in the user input have been
         # preserved. However, merge operations on the DataFrames can change
@@ -481,34 +507,32 @@ class PropertyGraph:
         globals = {}
         if (selection is not None) and \
            (selection.vertex_selections is not None):
-            filtered_vertex_dataframe = \
+            selected_vertex_dataframe = \
                 self.__vertex_prop_dataframe[selection.vertex_selections]
         else:
-            filtered_vertex_dataframe = self.__vertex_prop_dataframe
+            selected_vertex_dataframe = self.__vertex_prop_dataframe
 
         if (selection is not None) and \
            (selection.edge_selections is not None):
-            filtered_edge_dataframe = \
+            selected_edge_dataframe = \
                 self.__edge_prop_dataframe[selection.edge_selections]
         else:
-            filtered_edge_dataframe = self.__edge_prop_dataframe
+            selected_edge_dataframe = self.__edge_prop_dataframe
 
         # FIXME: check that self.__edge_prop_dataframe is set!
 
-        # If vertices were specified, filter the edges that contain any of the
-        # filtered verts in both src and dst
-        if (filtered_vertex_dataframe is not None) and \
-           not(filtered_vertex_dataframe.empty):
-            filtered_verts = filtered_vertex_dataframe[self.__vertex_col_name]
-            src_filter = filtered_edge_dataframe[self.__src_col_name]\
-                .isin(filtered_verts)
-            dst_filter = filtered_edge_dataframe[self.__dst_col_name]\
-                .isin(filtered_verts)
-            edge_filter = src_filter & dst_filter
-            edges = filtered_edge_dataframe.loc[
-                filtered_edge_dataframe.index[edge_filter]]
+        # If vertices were specified, select only the edges that contain the
+        # selected verts in both src and dst
+        if (selected_vertex_dataframe is not None) and \
+           not(selected_vertex_dataframe.empty):
+            selected_verts = selected_vertex_dataframe[self.__vertex_col_name]
+            has_srcs = selected_edge_dataframe[self.__src_col_name]\
+                .isin(selected_verts)
+            has_dsts = selected_edge_dataframe[self.__dst_col_name]\
+                .isin(selected_verts)
+            edges = selected_edge_dataframe[has_srcs & has_dsts]
         else:
-            edges = filtered_edge_dataframe
+            edges = selected_edge_dataframe
 
         if edge_weight_property:
             if edge_weight_property not in edges.columns:
@@ -548,6 +572,11 @@ class PropertyGraph:
         # FIXME: all check args
         (src_col_name, dst_col_name) = edge_vertex_id_columns
 
+        df_type = type(df)
+        if df_type is not self.__dataframe_type:
+            raise TypeError(f"df type {df_type} does not match DataFrame type "
+                            f"{self.__dataframe_type} used in PropertyGraph")
+
         # FIXME: check that G has edge_data attr
 
         # Add the src, dst, edge_id info from the Graph to a DataFrame
@@ -570,6 +599,12 @@ class PropertyGraph:
         new_df.rename(columns={self.__src_col_name: src_col_name,
                                self.__dst_col_name: dst_col_name},
                       inplace=True)
+
+        # restore the original dtypes
+        self.__update_dataframe_dtypes(new_df, self.__edge_prop_dtypes)
+        for col in df.columns:
+            new_df[col] = new_df[col].astype(df[col].dtype)
+
         # FIXME: consider removing internal columns (_EDGE_ID_, etc.) and
         # columns from edge types not included in the edges in df.
         return new_df
@@ -624,8 +659,8 @@ class PropertyGraph:
                             "(or subclass) type or instance, got: "
                             f"{type(create_using)}")
 
-        # Ensure no repeat edges, since the individual edge used would be
-        # ambiguous.
+        # Prevent duplicate edges (if not allowed) since applying them to
+        # non-MultiGraphs would result in ambiguous edge properties.
         # FIXME: make allow_multi_edges accept "auto" for use with MultiGraph
         if (allow_multi_edges is False) and \
            cls.has_duplicate_edges(edge_prop_df):
@@ -723,4 +758,10 @@ class PropertyGraph:
             if dtype_str in ["int32", "int64"]:
                 dtype_str = dtype_str.title()
             if str(df[col].dtype) != dtype_str:
-                df[col] = df[col].astype(dtype_str)
+                # Assigning to df[col] produces a (false?) warning with Pandas,
+                # but assigning to df.loc[:,col] does not update the df in cudf,
+                # so do one or the other based on type.
+                if type(df) is cudf.DataFrame:
+                    df[col] = df[col].astype(dtype_str)
+                else:
+                    df.loc[:,col] = df[col].astype(dtype_str)

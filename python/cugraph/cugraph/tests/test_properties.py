@@ -355,8 +355,8 @@ def test_extract_subgraph_vertex_prop_condition_only(property_graph_instance):
 
     pG = property_graph_instance
 
-    vert_prop_cond = "(_TYPE_=='taxpayers') & (amount<100)"
-    G = pG.extract_subgraph(vertex_property_condition=vert_prop_cond,
+    selection = pG.select_vertices("(_TYPE_=='taxpayers') & (amount<100)")
+    G = pG.extract_subgraph(selection=selection,
                             create_using=DiGraph_inst,
                             edge_weight_property="stars")
 
@@ -375,10 +375,10 @@ def test_extract_subgraph_vertex_prop_condition_only(property_graph_instance):
 def test_extract_subgraph_vertex_edge_prop_condition(property_graph_instance):
     pG = property_graph_instance
 
-    vert_prop_cond = "((user_location==47906) | (user_location==78750))"
-    edge_prop_cond = "_TYPE_=='referrals'"
-    G = pG.extract_subgraph(vertex_property_condition=vert_prop_cond,
-                            edge_property_condition=edge_prop_cond,
+    selection = pG.select_vertices("(user_location==47906) | "
+                                   "(user_location==78750)")
+    selection += pG.select_edges("_TYPE_=='referrals'")
+    G = pG.extract_subgraph(selection=selection,
                             create_using=DiGraph_inst,
                             edge_weight_property="stars")
 
@@ -396,7 +396,8 @@ def test_extract_subgraph_vertex_edge_prop_condition(property_graph_instance):
 def test_extract_subgraph_edge_prop_condition_only(property_graph_instance):
     pG = property_graph_instance
 
-    G = pG.extract_subgraph(edge_property_condition="_TYPE_=='transactions'",
+    selection = pG.select_edges("_TYPE_=='transactions'")
+    G = pG.extract_subgraph(selection=selection,
                             create_using=DiGraph_inst)
 
     # last item is the DataFrame rows
@@ -422,7 +423,8 @@ def test_extract_subgraph_unweighted(property_graph_instance):
     """
     pG = property_graph_instance
 
-    G = pG.extract_subgraph(edge_property_condition="_TYPE_=='transactions'",
+    selection = pG.select_edges("_TYPE_=='transactions'")
+    G = pG.extract_subgraph(selection=selection,
                             create_using=DiGraph_inst)
 
     assert G.is_weighted() is False
@@ -435,9 +437,10 @@ def test_extract_subgraph_specific_query(property_graph_instance):
     """
     pG = property_graph_instance
 
-    edge_prop_cond = ("(_TYPE_=='transactions') & (merchant_id==4) "
-                      "& (time>1639085000)")
-    G = pG.extract_subgraph(edge_property_condition=edge_prop_cond,
+    selection = pG.select_edges("(_TYPE_=='transactions') & "
+                                "(merchant_id==4) & "
+                                "(time>1639085000)")
+    G = pG.extract_subgraph(selection=selection,
                             create_using=DiGraph_inst,
                             edge_weight_property="card_num")
 
@@ -460,31 +463,47 @@ def test_edge_props_to_graph(property_graph_instance):
     """
     pG = property_graph_instance
 
-    # All referrals between only taxpaying users (should be 1)
+    # Select referrals from only taxpayers who are users (should be 1)
+
     # Find the list of vertices that are both users and taxpayers
+    def contains_both(df):
+        return (df["_TYPE_"] == "taxpayers").any() and \
+            (df["_TYPE_"] == "users").any()
+    verts = pG._vertex_prop_dataframe.groupby("_VERTEX_")\
+                                     .apply(contains_both)
+    verts = verts[verts].keys()  # get an array of only verts that have both
 
-    # def contains_both(df):
-    #     return (df["_TYPE_"] == "taxpayers").any() and \
-    #         (df["_TYPE_"] == "users").any()
-    # verts = pG._vertex_prop_dataframe.groupby("_VERTEX_")\
-    #                                  .apply(contains_both)
-    # verts = verts[verts].keys()  # get an array of only verts that have both
+    # Find the "referral" edge_props containing only those verts
+    referrals = pG._edge_prop_dataframe["_TYPE_"] == "referrals"
+    srcs = pG._edge_prop_dataframe[referrals]["_SRC_"].isin(verts)
+    dsts = pG._edge_prop_dataframe[referrals]["_DST_"].isin(verts)
+    matching_edges = (srcs & dsts)
+    indices = matching_edges.index[matching_edges]
+    edge_props = pG._edge_prop_dataframe.loc[indices]
 
-    # # Find the "referral" edge_props containing only those verts
-    # referrals = pG._edge_prop_dataframe["_TYPE_"] == "referrals"
-    # srcs = pG._edge_prop_dataframe[referrals]["_SRC_"].isin(verts)
-    # dsts = pG._edge_prop_dataframe[referrals]["_DST_"].isin(verts)
-    # matching_edges = (srcs & dsts)
-    # indices = matching_edges.index[matching_edges]
-    # edge_props = pG._edge_prop_dataframe.loc[indices]
+    G = pG.edge_props_to_graph(edge_props,
+                               create_using=DiGraph_inst)
 
-    # G = pG.edge_props_to_graph(edge_props,
-    #                            create_using=DiGraph_inst)
+    expected_edgelist = cudf.DataFrame({"src": [89021], "dst": [78634]})
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
+                                   preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst",
+                                   preserve_order=True)
 
-    # Select referrals from only taxpayers who are users
+    assert G.is_directed()
+    assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
+
+def test_select_vertices_from_previous_selection(property_graph_instance):
+    """
+    Ensures that the intersection of vertices of multiple types (only vertices
+    that are both type A and type B) can be selected.
+    """
+    pG = property_graph_instance
+
+    # Select referrals from only taxpayers who are users (should be 1)
     selection = pG.select_vertices("_TYPE_ == 'taxpayers'")
     selection = pG.select_vertices("_TYPE_ == 'users'",
-                                   from_selection=selection)
+                                   from_previous_selection=selection)
     selection += pG.select_edges("_TYPE_ == 'referrals'")
     G = pG.extract_subgraph(create_using=DiGraph_inst, selection=selection)
 
@@ -521,8 +540,7 @@ def test_extract_subgraph_graph_without_vert_props():
                      vertex_id_columns=("user_id_1", "user_id_2"),
                      property_columns=None)
 
-    edge_prop_cond = "_SRC_ == 89216"
-    G = pG.extract_subgraph(edge_property_condition=edge_prop_cond,
+    G = pG.extract_subgraph(selection=pG.select_edges("_SRC_ == 89216"),
                             create_using=DiGraph_inst,
                             edge_weight_property="relationship_type",
                             default_edge_weight=0)
@@ -545,8 +563,8 @@ def test_extract_subgraph_no_edges(property_graph_instance):
     """
     pG = property_graph_instance
 
-    vert_prop_cond = "(_TYPE_=='merchants') & (merchant_id==86)"
-    G = pG.extract_subgraph(vertex_property_condition=vert_prop_cond)
+    selection = pG.select_vertices("(_TYPE_=='merchants') & (merchant_id==86)")
+    G = pG.extract_subgraph(selection=selection)
 
     assert len(G.edgelist.edgelist_df) == 0
 
@@ -578,44 +596,53 @@ def test_extract_subgraph_multi_edges(property_graph_instance):
     """
     pG = property_graph_instance
     # referrals has multiple edges
+    selection = pG.select_edges("_TYPE_ == 'referrals'")
+
     # FIXME: use a better exception
     with pytest.raises(RuntimeError):
-        pG.extract_subgraph(edge_property_condition="_TYPE_ == 'referrals'",
+        pG.extract_subgraph(selection=selection,
                             create_using=DiGraph_inst)
 
 
 def test_extract_subgraph_bad_args(property_graph_instance):
     pG = property_graph_instance
 
-    # non-string condition
+    # non-PropertySelection selection
     with pytest.raises(TypeError):
-        pG.extract_subgraph(vertex_property_condition=78750,
+        pG.extract_subgraph(selection=78750,
                             create_using=DiGraph_inst,
                             edge_weight_property="stars",
                             default_edge_weight=1.0)
+
+    selection = pG.select_edges("_TYPE_=='referrals'")
     # bad create_using type
     with pytest.raises(TypeError):
-        pG.extract_subgraph(edge_property_condition="_TYPE_=='referrals'",
+        pG.extract_subgraph(selection=selection,
                             create_using=pytest,
                             edge_weight_property="stars",
                             default_edge_weight=1.0)
     # invalid column name
     with pytest.raises(ValueError):
-        pG.extract_subgraph(edge_property_condition="_TYPE_=='referrals'",
+        pG.extract_subgraph(selection=selection,
                             edge_weight_property="bad_column",
                             default_edge_weight=1.0)
     # column name has None value for all results in subgraph and
     # default_edge_weight is not set.
     with pytest.raises(ValueError):
-        pG.extract_subgraph(edge_property_condition="_TYPE_=='referrals'",
+        pG.extract_subgraph(selection=selection,
                             edge_weight_property="card_type")
 
 
 def test_extract_subgraph_default_edge_weight(property_graph_instance):
+    """
+    Ensure the default_edge_weight value is added to edges with missing
+    properties used for weights.
+    """
     pG = property_graph_instance
 
+    selection = pG.select_edges("_TYPE_=='transactions'")
     G = pG.extract_subgraph(create_using=DiGraph_inst,
-                            edge_property_condition="_TYPE_=='transactions'",
+                            selection=selection,
                             edge_weight_property="volume",
                             default_edge_weight=99)
 
@@ -644,7 +671,6 @@ def test_extract_subgraph_default_edge_weight(property_graph_instance):
 
 
 def test_graph_edge_data_added(property_graph_instance):
-
     """
     Ensures the subgraph returned from extract_subgraph() has the edge_data
     attribute added which contains the proper edge IDs.
@@ -681,35 +707,46 @@ def test_annotate_dataframe(property_graph_instance):
     """
     pG = property_graph_instance
 
-    edge_prop_cond = "(_TYPE_ == 'referrals') & (stars > 3)"
-    G = pG.extract_subgraph(edge_property_condition=edge_prop_cond,
+    selection = pG.select_edges("(_TYPE_ == 'referrals') & (stars > 3)")
+    G = pG.extract_subgraph(selection=selection,
                             create_using=DiGraph_inst)
 
+    df_type = type(pG._edge_prop_dataframe)
     # Create an arbitrary DataFrame meant to represent an algo result,
     # containing vertex IDs present in pG.
     #
     # Drop duplicate edges since actual results from a Graph object would not
     # have them.
     (srcs, dsts, mids, stars) = zip(*(dataset1["referrals"][1]))
-    algo_result = cudf.DataFrame({"from": srcs, "to": dsts,
-                                  "result": range(len(srcs))})
+    algo_result = df_type({"from": srcs, "to": dsts,
+                           "result": range(len(srcs))})
     algo_result.drop_duplicates(subset=["from", "to"],
                                 inplace=True, ignore_index=True)
 
     new_algo_result = pG.annotate_dataframe(
         algo_result, G, edge_vertex_id_columns=("from", "to"))
-    expected_algo_result = cudf.DataFrame({"from": srcs, "to": dsts,
-                                           "result": range(len(srcs)),
-                                           "merchant_id": mids,
-                                           "stars": stars})
+    expected_algo_result = df_type({"from": srcs, "to": dsts,
+                                    "result": range(len(srcs)),
+                                    "merchant_id": mids,
+                                    "stars": stars})
+    # The integer dtypes of annotated properties are nullable integer dtypes,
+    # so convert for proper comparison.
+    expected_algo_result["merchant_id"] = \
+        expected_algo_result["merchant_id"].astype("Int64")
+    expected_algo_result["stars"] = \
+        expected_algo_result["stars"].astype("Int64")
 
     expected_algo_result.drop_duplicates(subset=["from", "to"],
                                          inplace=True, ignore_index=True)
 
+    if df_type is cudf.DataFrame:
+        ase = assert_series_equal
+    else:
+        ase = pd.testing.assert_series_equal
     # For now, the result will include extra columns from edge types not
     # included in the df being annotated, so just check for known columns.
     for col in ["from", "to", "result", "merchant_id", "stars"]:
-        assert_series_equal(new_algo_result[col], expected_algo_result[col])
+        ase(new_algo_result[col], expected_algo_result[col])
 
 
 def test_different_vertex_edge_input_dataframe_types():
