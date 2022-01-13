@@ -40,7 +40,7 @@ class PropertySelection:
     def __add__(self, other):
         """
         Add either the vertex_selections, edge_selections, or both to this
-        instance if either are not already set.
+        instance from "other" if either are not already set.
         """
         vs = self.vertex_selections
         if vs is None:
@@ -53,7 +53,9 @@ class PropertySelection:
 
 class PropertyGraph:
     """
-    FIXME: fill this in
+    Class which stores vertex and edge properties that can be used to construct
+    Graphs from individual property selections and used later to annotate graph
+    algorithm results with corresponding properties.
     """
     # column name constants used in internal DataFrames
     __vertex_col_name = "_VERTEX_"
@@ -112,20 +114,22 @@ class PropertyGraph:
         self.__vertex_prop_eval_dict = {}
         self.__edge_prop_eval_dict = {}
 
-        # Remember the type used for DataFrames and Series, typically Pandas
-        # (for host storage) or cuDF (device storage), but this need not
-        # strictly be one of those if the type supports the Pandas-like API.
+        # The types used for DataFrames and Series, typically Pandas (for host
+        # storage) or cuDF (device storage), but this need not strictly be one
+        # of those if the type supports the Pandas-like API. These are used for
+        # constructing other DataFrames and Series of the same type, as well as
+        # for enforing that both vertex and edge properties are the same type.
         self.__dataframe_type = None
         self.__series_type = None
 
-        # Keep track of dtypes for each column in each DataFrame.  This is
-        # required since merge operations can often change the dtypes to
-        # accommodate NaN values (eg. int64 to float64, since NaN is a float)
+        # The dtypes for each column in each DataFrame.  This is required since
+        # merge operations can often change the dtypes to accommodate NaN values
+        # (eg. int64 to float64, since NaN is a float).
         self.__vertex_prop_dtypes = {}
         self.__edge_prop_dtypes = {}
 
         # Add unique edge IDs to the __edge_prop_dataframe by simply
-        # incrementing a counter
+        # incrementing this counter.
         self.__last_edge_id = None
 
     # PropertyGraph read-only attributes
@@ -198,17 +202,23 @@ class PropertyGraph:
                         ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
-        dataframe must be
-        FIXME: finish this description
 
         Parameters
         ----------
         dataframe : DataFrame-compatible instance
             A DataFrame instance with a compatible Pandas-like DataFrame
             interface.
-            FIXME: finish this description
         vertex_id_column : string
-            FIXME: finish this description
+            The column name that contains the values to be used as vertex IDs.
+        type_name : string
+            The name to be assigned to the type of property being added. For
+            example, if dataframe contains data about users, type_name might be
+            "users". If not specified, the type of properties will be added as
+            None or NA
+        property_columns : list of strings
+            List of column names in dataframe to be added as properties. All
+            other columns in dataframe will be ignored. If not specified, all
+            columns in dataframe are added.
 
         Returns
         -------
@@ -217,6 +227,7 @@ class PropertyGraph:
         Examples
         --------
         >>>
+
         """
         if type(dataframe) not in _dataframe_types:
             raise TypeError("dataframe must be one of the following types: "
@@ -304,17 +315,24 @@ class PropertyGraph:
                       ):
         """
         Add a dataframe describing edge properties to the PropertyGraph.
-        dataframe must be
-        FIXME: finish this description
 
         Parameters
         ----------
         dataframe : DataFrame-compatible instance
             A DataFrame instance with a compatible Pandas-like DataFrame
             interface.
-            FIXME: finish this description
-        vertex_id_column : string
-            FIXME: finish this description
+        vertex_id_columns : list of strings
+            The column names that contain the values to be used as the source
+            and destination vertex IDs for the edges.
+        type_name : string
+            The name to be assigned to the type of property being added. For
+            example, if dataframe contains data about transactions, type_name
+            might be "transactions". If not specified, the type of properties
+            will be added as None or NA
+        property_columns : list of strings
+            List of column names in dataframe to be added as properties. All
+            other columns in dataframe will be ignored. If not specified, all
+            columns in dataframe are added.
 
         Returns
         -------
@@ -414,10 +432,26 @@ class PropertyGraph:
         Evaluate expr and return a PropertySelection object representing the
         vertices that match the expression.
 
-        If from_previous_selection is provided, it is used to specify a subset
-        of all vertices for which expr is to be evaluated. This allows for one
-        or more prior select_vertices() calls to be used to find the
-        intersection of multiple selections.
+        Parameters
+        ----------
+        expr : string
+            A python expression using property names and operators to select
+            specific vertices.
+        from_previous_selection : PropertySelection
+            A PropertySelection instance returned from a prior call to
+            select_vertices() that can be used to select a subset of vertices to
+            evaluate the expression against. This allows for a selection of the
+            intersection of vertices of multiple types (eg. all vertices that
+            are both type A and type B)
+
+        Returns
+        -------
+        PropertySelection instance to be used for calls to extract_subgraph() in
+        order to construct a Graph containing only specific vertices.
+
+        Examples
+        --------
+        >>>
         """
         # FIXME: check types
 
@@ -460,6 +494,21 @@ class PropertyGraph:
         """
         Evaluate expr and return a PropertySelection object representing the
         edges that match the expression.
+
+        Parameters
+        ----------
+        expr : string
+            A python expression using property names and operators to select
+            specific edges.
+
+        Returns
+        -------
+        PropertySelection instance to be used for calls to extract_subgraph() in
+        order to construct a Graph containing only specific edges.
+
+        Examples
+        --------
+        >>>
         """
         # FIXME: check types
         globals = {}
@@ -477,13 +526,30 @@ class PropertyGraph:
                          ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
-        and edges that match the criteria specified.
-        FIXME: finish this description
+        and edges that match a selection.
 
         Parameters
         ----------
         create_using : cugraph Graph type or instance
-            FIXME: finish this description
+            Creates a Graph to return using the type specified. If an instance
+            is specified, the type of the instance is used to construct the
+            return Graph, and all relevant attributes set on the instance are
+            copied to the return Graph (eg. directed). If not specified the
+            returned Graph will be a cugraph.Graph instance.
+        selection : PropertySelection
+            A PropertySelection returned from one or more calls to
+            select_vertices() and/or select_edges(), used for creating a Graph
+            with only the selected properties. If not speciied the returned
+            Graph will have all properties. Note, this could result in a Graph
+            with multiple edges, which may not be supported based on the value
+            of create_using.
+        edge_weight_property : string
+            The name of the property whose values will be used as weights on the
+            returned Graph. If not specified, the returned Graph will be
+            unweighted.
+        allow_multi_edges : bool
+            If True, multiple edges should be used to create the return Graph,
+            otherwise multiple edges will be detected and an exception raised.
 
         Returns
         -------
@@ -566,7 +632,28 @@ class PropertyGraph:
 
     def annotate_dataframe(self, df, G, edge_vertex_id_columns):
         """
-        FIXME: fill this in
+        Add properties to df that represent the vertices and edges in graph G.
+
+        Parameters
+        ----------
+        df : cudf.DataFrame or pandas.DataFrame
+            A DataFrame containing edges identified by edge_vertex_id_columns
+            which will have properties for those edges added to it.
+        G : cugraph.Graph (or subclass of) instance.
+            Graph containing the edges specified in df. The Graph instance must
+            have been generated from a prior call to extract_subgraph() in order
+            to have the edge meta-data used to look up the correct properties.
+        edge_vertex_id_columns : tuple of strings
+            The column names in df that represent the source and destination
+            vertices, used for identifying edges.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>>
         """
         # FIXME: all check args
         (src_col_name, dst_col_name) = edge_vertex_id_columns
