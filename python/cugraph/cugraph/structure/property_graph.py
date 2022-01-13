@@ -227,7 +227,6 @@ class PropertyGraph:
         Examples
         --------
         >>>
-
         """
         if type(dataframe) not in _dataframe_types:
             raise TypeError("dataframe must be one of the following types: "
@@ -650,7 +649,9 @@ class PropertyGraph:
 
         Returns
         -------
-        None
+        A copy of df with additional columns corresponding to properties for
+        the edge in the row.
+        FIXME: also provide the ability to annotate vertex data.
 
         Examples
         --------
