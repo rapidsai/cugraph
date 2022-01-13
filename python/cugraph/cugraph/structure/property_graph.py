@@ -123,8 +123,8 @@ class PropertyGraph:
         self.__series_type = None
 
         # The dtypes for each column in each DataFrame.  This is required since
-        # merge operations can often change the dtypes to accommodate NaN values
-        # (eg. int64 to float64, since NaN is a float).
+        # merge operations can often change the dtypes to accommodate NaN
+        # values (eg. int64 to float64, since NaN is a float).
         self.__vertex_prop_dtypes = {}
         self.__edge_prop_dtypes = {}
 
@@ -439,15 +439,15 @@ class PropertyGraph:
             specific vertices.
         from_previous_selection : PropertySelection
             A PropertySelection instance returned from a prior call to
-            select_vertices() that can be used to select a subset of vertices to
-            evaluate the expression against. This allows for a selection of the
-            intersection of vertices of multiple types (eg. all vertices that
-            are both type A and type B)
+            select_vertices() that can be used to select a subset of vertices
+            to evaluate the expression against. This allows for a selection of
+            the intersection of vertices of multiple types (eg. all vertices
+            that are both type A and type B)
 
         Returns
         -------
-        PropertySelection instance to be used for calls to extract_subgraph() in
-        order to construct a Graph containing only specific vertices.
+        PropertySelection instance to be used for calls to extract_subgraph()
+        in order to construct a Graph containing only specific vertices.
 
         Examples
         --------
@@ -503,8 +503,8 @@ class PropertyGraph:
 
         Returns
         -------
-        PropertySelection instance to be used for calls to extract_subgraph() in
-        order to construct a Graph containing only specific edges.
+        PropertySelection instance to be used for calls to extract_subgraph()
+        in order to construct a Graph containing only specific edges.
 
         Examples
         --------
@@ -544,8 +544,8 @@ class PropertyGraph:
             with multiple edges, which may not be supported based on the value
             of create_using.
         edge_weight_property : string
-            The name of the property whose values will be used as weights on the
-            returned Graph. If not specified, the returned Graph will be
+            The name of the property whose values will be used as weights on
+            the returned Graph. If not specified, the returned Graph will be
             unweighted.
         allow_multi_edges : bool
             If True, multiple edges should be used to create the return Graph,
@@ -641,8 +641,9 @@ class PropertyGraph:
             which will have properties for those edges added to it.
         G : cugraph.Graph (or subclass of) instance.
             Graph containing the edges specified in df. The Graph instance must
-            have been generated from a prior call to extract_subgraph() in order
-            to have the edge meta-data used to look up the correct properties.
+            have been generated from a prior call to extract_subgraph() in
+            order to have the edge meta-data used to look up the correct
+            properties.
         edge_vertex_id_columns : tuple of strings
             The column names in df that represent the source and destination
             vertices, used for identifying edges.
