@@ -561,8 +561,8 @@ class simpleGraphImpl:
                 The computed in-degree of the corresponding vertex.
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+        ...         dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.in_degree([0,9,12])
@@ -595,8 +595,8 @@ class simpleGraphImpl:
                 The computed out-degree of the corresponding vertex.
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+        ...         dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.out_degree([0,9,12])
@@ -629,8 +629,8 @@ class simpleGraphImpl:
                 The computed degree of the corresponding vertex.
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+        ...         dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> all_df = G.degree()
@@ -666,8 +666,8 @@ class simpleGraphImpl:
                 The out-degree of the vertex.
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+        ...         dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.degrees([0,9,12])

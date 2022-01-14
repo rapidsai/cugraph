@@ -43,10 +43,10 @@ class Graph:
     Examples
     --------
     # undirected graph
-    G = cugraph.Graph()
+    >>> G = cugraph.Graph()
 
     #directed graph
-    G = cugraph.Graph(directed=True)
+    >>> G = cugraph.Graph(directed=True)
     """
 
     class Properties:
@@ -129,11 +129,12 @@ class Graph:
 
         Examples
         --------
-        >>> df = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> df = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+        ...         dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(df, source='0', destination='1',
-                                 edge_attr='2', renumber=False)
+        ...                         edge_attr='2', renumber=False)
+        
         """
         if self._Impl is None:
             self._Impl = simpleGraphImpl(self.graph_properties)
@@ -180,8 +181,8 @@ class Graph:
 
         Examples
         --------
-        >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> gdf = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+        ...         dtype=['int32', 'int32', 'float32'], header=None)
         >>> M = gdf.to_pandas()
         >>> M = scipy.sparse.coo_matrix((M['2'],(M['0'],M['1'])))
         >>> M = M.tocsr()
@@ -189,6 +190,7 @@ class Graph:
         >>> indices = cudf.Series(M.indices)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_adjlist(offsets, indices, None)
+
         """
         if self._Impl is None:
             self._Impl = simpleGraphImpl(self.graph_properties)
@@ -294,12 +296,13 @@ class Graph:
         --------
         >>  Download dataset from
         >>  https://github.com/rapidsai/cugraph/datasets/...
-        >>> df = pandas.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                 header=None, names=["0", "1", "2"],
-        >>>                 dtype={"0": "int32", "1": "int32", "2": "float32"})
+        >>> df = pd.read_csv(datasets / 'karate.csv', delimiter=' ',
+        ...                 header=None, names=["0", "1", "2"],
+        ...                 dtype={"0": "int32", "1": "int32", "2": "float32"})
         >>> G = cugraph.Graph()
         >>> G.from_pandas_edgelist(df, source='0', destination='1',
-                                 edge_attr='2', renumber=False)
+        ...                         edge_attr='2', renumber=False)
+        
         """
         if not isinstance(pdf, pd.core.frame.DataFrame):
             raise TypeError("pdf input is not a Pandas DataFrame")
@@ -549,11 +552,12 @@ class Graph:
 
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+        ...         dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> DiG = G.to_directed()
+
         """
 
         directed_graph = type(self)()
@@ -575,11 +579,12 @@ class Graph:
 
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+        ...         dtype=['int32', 'int32', 'float32'], header=None)
         >>> DiG = cugraph.DiGraph()
         >>> DiG.from_cudf_edgelist(M, '0', '1')
         >>> G = DiG.to_undirected()
+
         """
 
         if self.graph_properties.directed is False:
@@ -702,11 +707,12 @@ class NPartiteGraph(Graph):
 
         Examples
         --------
-        >>> df = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> df = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+        ...         dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.BiPartiteGraph()
         >>> G.from_cudf_edgelist(df, source='0', destination='1',
-                                 edge_attr='2', renumber=False)
+        ...                         edge_attr='2', renumber=False)
+        
         """
         if self._Impl is None:
             self._Impl = npartiteGraphImpl(self.graph_properties)

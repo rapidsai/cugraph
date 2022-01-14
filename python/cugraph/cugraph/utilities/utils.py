@@ -83,13 +83,18 @@ def get_traversed_path(df, id):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>>
+    >>> gdf = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+    ...           dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> sssp_df = cugraph.sssp(G, 1)
     >>> path = cugraph.utils.get_traversed_path(sssp_df, 32)
+    >>> path
+        distance  vertex  predecessor
+    2        2.0      32            2
+    3        1.0       2            1
+    15       0.0       1           -1
+
     """
 
     if "vertex" not in df.columns:
@@ -150,11 +155,15 @@ def get_traversed_path_list(df, id):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv(graph_file)
+    >>> gdf = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+    ...           dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> sssp_df = cugraph.sssp(G, 1)
     >>> path = cugraph.utils.get_traversed_path_list(sssp_df, 32)
+    >>> path
+    [32, 2, 1]
+
     """
 
     if "vertex" not in df.columns:
@@ -401,7 +410,7 @@ def import_optional(mod, default_mod_class=MissingModule):
 
     Example
     -------
-    >>> nx = import_optional("networkx")  # networkx is not installed
+    >>> nx = cugraph.utils.import_optional("networkx")  # networkx is not installed
     >>> G = nx.Graph()
     Traceback (most recent call last):
       File "<stdin>", line 1, in <module>
@@ -418,7 +427,7 @@ def import_optional(mod, default_mod_class=MissingModule):
     ...     import pandas
     ...     return getattr(pandas, attr)
     ...
-    >>> df_mod = import_optional("cudf", default_mod_class=CuDFFallback)
+    >>> df_mod = cugraph.utils.import_optional("cudf", default_mod_class=CuDFFallback)
     <stdin>:4: UserWarning: cudf could not be imported, using pandas instead!
     >>> df = df_mod.DataFrame()
     >>> df

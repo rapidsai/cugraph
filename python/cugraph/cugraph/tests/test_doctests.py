@@ -3,6 +3,8 @@ import inspect
 import os
 
 import numpy as np
+import pandas as pd
+import scipy
 import pytest
 
 import cugraph
@@ -56,8 +58,8 @@ def _find_examples_in_docstring(finder, member):
 
 def _fetch_doctests():
     finder = doctest.DocTestFinder()
-    #yield from _find_members_in_module(finder, cugraph.traversal, criteria=_is_public_name)
-    yield from _find_modules_in_obj(finder, cugraph, criteria=_is_public_name)
+    yield from _find_members_in_module(finder, cugraph.link_prediction, criteria=_is_public_name)
+    #yield from _find_modules_in_obj(finder, cugraph, criteria=_is_public_name)
 
 
 class TestDoctests:
@@ -76,8 +78,9 @@ class TestDoctests:
     def test_docstring(self, docstring):
         optionflags = doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
         runner = doctest.DocTestRunner(optionflags=optionflags)
-        globs = dict(cudf=cudf, np=np, cugraph=cugraph, datasets=datasets)
+        globs = dict(cudf=cudf, np=np, cugraph=cugraph, datasets=datasets, scipy=scipy, pd=pd)
         docstring.globs = globs
+        #print(docstring)
         runner.run(docstring)
         results = runner.summarize()
         if results.failed:
