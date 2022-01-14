@@ -149,6 +149,10 @@ include(cmake/thirdparty/get_raft.cmake)
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
 
+if(BUILD_TESTS)
+  include(cmake/thirdparty/get_gtest.cmake)
+endif()
+
 ################################################################################
 # - libcugraph library target --------------------------------------------------
 
