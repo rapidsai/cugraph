@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -645,10 +645,10 @@ class NumberMap:
             returned.
         Examples
         --------
-        >>> from cugraph.structure.number_map.NumberMap import renumber
+        >>> from cugraph.structure import number_map
         >>> df = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> df, number_map = renumber(df,'0', '1')
+        >>> df, number_map = number_map.NumberMap.renumber(df, '0', '1')
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(df, 'src', 'dst')
         >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500,
