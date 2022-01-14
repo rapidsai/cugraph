@@ -85,18 +85,18 @@ def bfs(graph,
 
     Examples
     --------
-    >>> import cugraph.dask as dcg
-    >>> ... Init a DASK Cluster
+    >> import cugraph.dask as dcg
+    >> ... Init a DASK Cluster
     >>    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
     >>  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
-    >>> chunksize = dcg.get_chunksize(input_data_path)
-    >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
-                                 delimiter=' ',
-                                 names=['src', 'dst', 'value'],
-                                 dtype=['int32', 'int32', 'float32'])
-    >>> dg = cugraph.DiGraph()
-    >>> dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
-    >>> df = dcg.bfs(dg, 0)
+    >> chunksize = dcg.get_chunksize(input_data_path)
+    >> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
+    ..                             delimiter=' ',
+    ..                             names=['src', 'dst', 'value'],
+    ..                             dtype=['int32', 'int32', 'float32'])
+    >> dg = cugraph.DiGraph()
+    >> dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
+    >> df = dcg.bfs(dg, 0)
     """
 
     client = default_client()

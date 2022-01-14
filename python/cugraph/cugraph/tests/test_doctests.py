@@ -34,7 +34,7 @@ def _find_modules_in_obj(finder, obj, criteria=None):
     for name, member in inspect.getmembers(obj):
         if criteria is not None and not criteria(obj, name, member):
             continue
-        if inspect.ismodule(member):    
+        if inspect.ismodule(member) and (member not in modules_to_skip):    
             yield from _find_members_in_module(finder, member, criteria=_is_public_name)
 
 def _find_members_in_module(finder, obj, criteria=None):
@@ -42,7 +42,8 @@ def _find_members_in_module(finder, obj, criteria=None):
         if criteria is not None and not criteria(obj, name, member):
             continue
 
-        if inspect.ismodule(member) and (member not in modules_to_skip):
+        #if inspect.ismodule(member) and (member not in modules_to_skip):
+        if inspect.ismodule(member):
             if _file_from_cugraph(obj, name, member) and _is_python_module(obj, name, member):
                 _find_members_in_module(finder, member, criteria)
         if inspect.isfunction(member):
@@ -58,8 +59,8 @@ def _find_examples_in_docstring(finder, member):
 
 def _fetch_doctests():
     finder = doctest.DocTestFinder()
-    yield from _find_members_in_module(finder, cugraph.link_analysis, criteria=_is_public_name)
-    #yield from _find_modules_in_obj(finder, cugraph, criteria=_is_public_name)
+    #yield from _find_members_in_module(finder, cugraph.cores, criteria=_is_public_name)
+    yield from _find_modules_in_obj(finder, cugraph, criteria=_is_public_name)
 
 
 class TestDoctests:

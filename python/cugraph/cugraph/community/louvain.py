@@ -65,13 +65,14 @@ def louvain(G, max_iter=100, resolution=1.):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets / 'karate.csv',
+    ...                      delimiter = ' ',
+    ...                      dtype=['int32', 'int32', 'float32'],
+    ...                      header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> parts, modularity_score = cugraph.louvain(G)
+    
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)

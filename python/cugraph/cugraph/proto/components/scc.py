@@ -55,12 +55,12 @@ def strong_connected_component(source, destination):
 
     Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
-
-   >>> components, single_components, count =
-        scc.strong_connected_component(source, destination)
+    >> M = read_mtx_file(graph_file)
+    >> sources = cudf.Series(M.row)
+    >> destinations = cudf.Series(M.col)
+    >> components, single_components, count =
+    ..    cugraph.strong_connected_component(source, destination)
+    
     """
     max_value = np.iinfo(np.int32).max  # NOQA
 

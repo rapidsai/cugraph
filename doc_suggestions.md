@@ -9,25 +9,28 @@ a list of all arguments the function accepts with information about what types a
 a description of the return value(s) with their corresponding type(s)
 at least 1 example, with an example output if possible Helper functions need not have a complete documentation, though some sort of description is still necessary
 
-## centrality
+## centrality - DONE
 
-## comms
+## comms - NONE TO DO
 
-## community
+## community - DONE**
 
-## components
+### community/egonet.py
 
-## cores
+- `ego_graph`'s example uses variable seed, which is different from parameter n. For now, this example was made to be partially commented out
 
-## dask
+## components - DONE
 
-## generators
+## cores - DONE
 
-## internals
+## dask - DONE**
 
-## layout
+## layout - NONE TO DO
 
-## linear_assignment
+## linear_assignment - DONE**
+
+### linear_assignment/lap.py
+- `hungarian`'s example requires a bipartite graph, but current dataset lacks this, this is also shown in the `test_hungarian.py`. Current example has been commented out
 
 ## link_analysis - DONE
 

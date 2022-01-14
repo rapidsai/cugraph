@@ -38,13 +38,14 @@ def triangles(G):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> gdf = cudf.read_csv(datasets / 'karate.csv',
+    ...                      delimiter = ' ',
+    ...                      dtype=['int32', 'int32', 'float32'],
+    ...                      header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> count = cugraph.triangles(G)
+    
     """
 
     G, _ = ensure_cugraph_obj_for_nx(G)

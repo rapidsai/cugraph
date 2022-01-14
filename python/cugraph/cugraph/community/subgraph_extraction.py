@@ -42,18 +42,19 @@ def subgraph(G, vertices):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> gdf = cudf.read_csv(datasets / 'karate.csv',
+    ...                      delimiter = ' ',
+    ...                      dtype=['int32', 'int32', 'float32'],
+    ...                      header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> verts = numpy.zeros(3, dtype=numpy.int32)
+    >>> verts = np.zeros(3, dtype=np.int32)
     >>> verts[0] = 0
     >>> verts[1] = 1
     >>> verts[2] = 2
     >>> sverts = cudf.Series(verts)
     >>> Sg = cugraph.subgraph(G, sverts)
+    
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)

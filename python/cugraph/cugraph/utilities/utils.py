@@ -410,8 +410,8 @@ def import_optional(mod, default_mod_class=MissingModule):
 
     Example
     -------
-    >>> nx = cugraph.utils.import_optional("networkx")  # networkx is not installed
-    >>> G = nx.Graph()
+    >> nx = cugraph.utils.import_optional("networkx")  # networkx is not installed
+    >> G = nx.Graph()
     Traceback (most recent call last):
       File "<stdin>", line 1, in <module>
       ...
@@ -419,24 +419,24 @@ def import_optional(mod, default_mod_class=MissingModule):
 
     Example
     -------
-    >>> class CuDFFallback:
-    ...   def __init__(self, mod_name):
-    ...     assert mod_name == "cudf"
-    ...     warnings.warn("cudf could not be imported, using pandas instead!")
-    ...   def __getattr__(self, attr):
-    ...     import pandas
-    ...     return getattr(pandas, attr)
+    >> class CuDFFallback:
+    ..   def __init__(self, mod_name):
+    ..     assert mod_name == "cudf"
+    ..     warnings.warn("cudf could not be imported, using pandas instead!")
+    ..   def __getattr__(self, attr):
+    ..     import pandas
+    ..     return getattr(pandas, attr)
     ...
-    >>> df_mod = cugraph.utils.import_optional("cudf", default_mod_class=CuDFFallback)
+    >> df_mod = cugraph.utils.import_optional("cudf", default_mod_class=CuDFFallback)
     <stdin>:4: UserWarning: cudf could not be imported, using pandas instead!
-    >>> df = df_mod.DataFrame()
-    >>> df
+    >> df = df_mod.DataFrame()
+    >> df
     Empty DataFrame
     Columns: []
     Index: []
-    >>> type(df)
+    >> type(df)
     <class 'pandas.core.frame.DataFrame'>
-    >>>
+    >>
     """
     try:
         return importlib.import_module(mod)

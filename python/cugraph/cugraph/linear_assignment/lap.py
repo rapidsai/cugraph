@@ -66,11 +66,11 @@ def hungarian(G, workers, epsilon=None):
     Examples
     --------
     >>  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
-    >>> M = cudf.read_csv('datasets/bipartite.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
-    >>> cost, df = cugraph.hungarian(G, workers)
+    >> M = cudf.read_csv(datasets / 'bipartite.csv', delimiter=' ',
+    ..                   dtype=['int32', 'int32', 'float32'], header=None)
+    >> G = cugraph.Graph()
+    >> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
+    >> cost, df = cugraph.hungarian(G, workers)
 
     """
 
