@@ -96,7 +96,7 @@ def pagerank(
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
-    
+
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G, weight)

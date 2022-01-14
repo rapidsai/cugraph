@@ -645,9 +645,10 @@ class NumberMap:
             returned.
         Examples
         --------
+        >>> from cugraph.structure.number_map.NumberMap import renumber
         >>> df = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> df, number_map = cugraph.structure.number_map.NumberMap.renumber(df, '0', '1')
+        >>> df, number_map = renumber(df,'0', '1')
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(df, 'src', 'dst')
         >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500,

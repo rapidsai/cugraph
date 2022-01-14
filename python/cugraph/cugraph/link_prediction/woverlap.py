@@ -86,7 +86,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     >>> weights['weight'] = [random.random() for w in range(
     ...                      len(weights['vertex']))]
     >>> df = cugraph.overlap_w(G, weights)
-    
+
     """
 
     if type(vertex_pair) == cudf.DataFrame:

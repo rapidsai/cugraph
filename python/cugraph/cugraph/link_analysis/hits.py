@@ -73,7 +73,7 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> hits = cugraph.hits(G, max_iter = 50)
-    
+
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)

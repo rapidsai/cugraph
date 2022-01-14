@@ -54,7 +54,7 @@ def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
     Examples
     --------
     >>> from cugraph.structure.symmetrize import symmetrize_df
-    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/...
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> M = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> sym_df = symmetrize_df(M, '0', '1')
@@ -124,18 +124,18 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
 
     Examples
     --------
-    import cugraph.dask as dcg
-    from cugraph.structure.symmetrize import symmetrize_ddf
-    ... Init a DASK Cluster
-    Download dataset from https://github.com/rapidsai/cugraph/datasets/...
-    chunksize = dcg.get_chunksize(datasets / 'karate.csv')
-    ddf = dask_cudf.read_csv(datasets / 'karate.csv', chunksize=chunksize,
-                               delimiter=' ',
-                                names=['src', 'dst', 'weight'],
-                                dtype=['int32', 'int32', 'float32'])
-    sym_ddf = symmetrize_ddf(ddf, "src", "dst", "weight")
-    Comms.destroy()
-    
+    >> import cugraph.dask as dcg
+    >> from cugraph.structure.symmetrize import symmetrize_ddf
+    .. Init a DASK Cluster
+    >> Download dataset from https://github.com/rapidsai/cugraph/datasets/...
+    >> chunksize = dcg.get_chunksize(datasets / 'karate.csv')
+    >> ddf = dask_cudf.read_csv(datasets / 'karate.csv', chunksize=chunksize,
+    ..                           delimiter=' ',
+    ..                            names=['src', 'dst', 'weight'],
+    ..                            dtype=['int32', 'int32', 'float32'])
+    >> sym_ddf = symmetrize_ddf(ddf, "src", "dst", "weight")
+    >> Comms.destroy()
+
     """
     if weight_name:
         ddf2 = df[[dst_name, src_name, weight_name]]
@@ -194,7 +194,7 @@ def symmetrize(source_col, dest_col, value_col=None, multi=False,
     destinations = cudf.Series(M['1'])
     values = cudf.Series(M['2'])
     src, dst, val = symmetrize(sources, destinations, values)
-    
+
     """
 
     input_df = None

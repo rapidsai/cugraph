@@ -178,7 +178,7 @@ def weakly_connected_components(G,
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.weakly_connected_components(G)
-    
+
     """
     (directed, connection, return_labels) = _ensure_args(
         "weakly_connected_components", G, directed, connection, return_labels)
@@ -276,7 +276,7 @@ def strongly_connected_components(G,
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.strongly_connected_components(G)
-    
+
     """
     (directed, connection, return_labels) = _ensure_args(
         "strongly_connected_components", G, directed,
@@ -374,7 +374,7 @@ def connected_components(G,
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.connected_components(G, connection="weak")
-    
+
     """
     if connection == "weak":
         return weakly_connected_components(G, directed,

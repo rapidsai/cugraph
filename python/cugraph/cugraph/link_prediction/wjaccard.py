@@ -87,7 +87,7 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
     >>> weights['weight'] = [random.random() for w in range(
     ...                      len(weights['vertex']))]
     >>> df = cugraph.jaccard_w(G, weights)
-    
+
     """
     if type(input_graph) is not Graph:
         raise TypeError("input graph must a Graph")

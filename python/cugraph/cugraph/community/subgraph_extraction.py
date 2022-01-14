@@ -54,7 +54,7 @@ def subgraph(G, vertices):
     >>> verts[2] = 2
     >>> sverts = cudf.Series(verts)
     >>> Sg = cugraph.subgraph(G, sverts)
-    
+
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)

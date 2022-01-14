@@ -106,7 +106,7 @@ def katz_centrality(
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> kc = cugraph.katz_centrality(G)
-    
+
     """
 
     if beta is not None:

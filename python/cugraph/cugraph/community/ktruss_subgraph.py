@@ -141,7 +141,7 @@ def ktruss_subgraph(G, k, use_weights=True):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> k_subgraph = cugraph.ktruss_subgraph(G, 3)
-    
+
     """
 
     _ensure_compatible_cuda_version()

@@ -61,7 +61,7 @@ def random_walks(G,
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> _, _, _ = cugraph.random_walks(G, M, 3)
-    
+
     """
     if max_depth is None:
         raise TypeError("must specify a 'max_depth'")

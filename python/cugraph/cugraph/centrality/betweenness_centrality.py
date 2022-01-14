@@ -112,7 +112,7 @@ def betweenness_centrality(
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> bc = cugraph.betweenness_centrality(G)
-    
+
     """
     # vertices is intended to be a cuDF series that contains a sampling of
     # k vertices out of the graph.
@@ -242,7 +242,7 @@ def edge_betweenness_centrality(
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> ebc = cugraph.edge_betweenness_centrality(G)
-    
+
     """
     if weight is not None:
         raise NotImplementedError(

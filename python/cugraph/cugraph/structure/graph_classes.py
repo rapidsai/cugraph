@@ -134,7 +134,7 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(df, source='0', destination='1',
         ...                         edge_attr='2', renumber=False)
-        
+
         """
         if self._Impl is None:
             self._Impl = simpleGraphImpl(self.graph_properties)
@@ -302,7 +302,7 @@ class Graph:
         >>> G = cugraph.Graph()
         >>> G.from_pandas_edgelist(df, source='0', destination='1',
         ...                         edge_attr='2', renumber=False)
-        
+
         """
         if not isinstance(pdf, pd.core.frame.DataFrame):
             raise TypeError("pdf input is not a Pandas DataFrame")
@@ -712,7 +712,7 @@ class NPartiteGraph(Graph):
         >>> G = cugraph.BiPartiteGraph()
         >>> G.from_cudf_edgelist(df, source='0', destination='1',
         ...                         edge_attr='2', renumber=False)
-        
+
         """
         if self._Impl is None:
             self._Impl = npartiteGraphImpl(self.graph_properties)

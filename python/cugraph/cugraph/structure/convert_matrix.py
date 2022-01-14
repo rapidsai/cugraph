@@ -59,7 +59,7 @@ def from_edgelist(df, source='source', destination='destination',
     >>> G = cugraph.Graph()
     >>> G = cugraph.from_edgelist(M, source='0', destination='1',
     ...                              edge_attr='2')
-    
+
     """
     df_type = type(df)
 
@@ -178,7 +178,8 @@ def from_cudf_edgelist(df, source='source', destination='destination',
     >>> M = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
-    >>> G = cugraph.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
+    >>> G = cugraph.from_cudf_edgelist(M, source='0', destination='1',
+    ...                                edge_attr='2')
 
     """
     if create_using is Graph:
@@ -244,7 +245,7 @@ def from_pandas_edgelist(df,
     >>> G = cugraph.Graph()
     >>> G.from_pandas_edgelist(df, source='0', destination='1',
     ...                         edge_attr='2', renumber=False)
-    
+
     """
     if create_using is Graph:
         G = Graph()

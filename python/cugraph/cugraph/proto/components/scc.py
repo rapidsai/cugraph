@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -60,7 +60,7 @@ def strong_connected_component(source, destination):
     >> destinations = cudf.Series(M.col)
     >> components, single_components, count =
     ..    cugraph.strong_connected_component(source, destination)
-    
+
     """
     max_value = np.iinfo(np.int32).max  # NOQA
 

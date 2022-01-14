@@ -58,7 +58,7 @@ def k_core(G, k=None, core_number=None):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> KCoreGraph = cugraph.k_core(G)
-    
+
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)

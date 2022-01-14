@@ -45,7 +45,7 @@ def triangles(G):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> count = cugraph.triangles(G)
-    
+
     """
 
     G, _ = ensure_cugraph_obj_for_nx(G)

@@ -72,7 +72,7 @@ def leiden(G, max_iter=100, resolution=1.):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> parts, modularity_score = cugraph.leiden(G)
-    
+
     """
     G, isNx = ensure_cugraph_obj_for_nx(G)
 

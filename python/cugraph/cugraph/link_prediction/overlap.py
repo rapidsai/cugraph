@@ -89,7 +89,7 @@ def overlap(input_graph, vertex_pair=None):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> df = cugraph.overlap(G)
-    
+
     """
 
     if type(vertex_pair) == cudf.DataFrame:

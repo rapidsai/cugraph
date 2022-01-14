@@ -72,7 +72,7 @@ def spectralBalancedCutClustering(
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
-    
+
     """
 
     # Error checking in C++ code
@@ -150,7 +150,7 @@ def spectralModularityMaximizationClustering(
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
-    
+
     """
 
     # Error checking in C++ code
@@ -215,7 +215,7 @@ def analyzeClustering_modularity(G, n_clusters, clustering,
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_modularity(G, 5, df)
-    
+
     """
     if type(vertex_col_name) is list:
         if not all(isinstance(name, str) for name in vertex_col_name):
@@ -282,7 +282,7 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df)
-    
+
     """
     if type(vertex_col_name) is list:
         if not all(isinstance(name, str) for name in vertex_col_name):
@@ -345,8 +345,9 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering,
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df, 'vertex', 'cluster')
-    
+    >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df, 'vertex',
+    ...                                             'cluster')
+
     """
     if type(vertex_col_name) is list:
         if not all(isinstance(name, str) for name in vertex_col_name):
