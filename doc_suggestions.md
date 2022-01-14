@@ -29,9 +29,9 @@ at least 1 example, with an example output if possible Helper functions need not
 
 ## linear_assignment
 
-## link_analysis
+## link_analysis - DONE
 
-## link_prediction
+## link_prediction - DONE
 
 ## proto
 

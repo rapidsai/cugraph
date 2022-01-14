@@ -68,8 +68,9 @@ def overlap_w(input_graph, weights, vertex_pair=None):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> import random
+    >>> M = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+    ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> # Create a dataframe containing the vertices with their
@@ -83,8 +84,9 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     >>> weights.reset_index(inplace=True, drop=True)
     >>> # Create a weight column with random weights
     >>> weights['weight'] = [random.random() for w in range(
-    >>>                      len(weights['vertex']))]
+    ...                      len(weights['vertex']))]
     >>> df = cugraph.overlap_w(G, weights)
+    
     """
 
     if type(vertex_pair) == cudf.DataFrame:

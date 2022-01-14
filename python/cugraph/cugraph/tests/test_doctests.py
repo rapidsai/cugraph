@@ -58,7 +58,7 @@ def _find_examples_in_docstring(finder, member):
 
 def _fetch_doctests():
     finder = doctest.DocTestFinder()
-    yield from _find_members_in_module(finder, cugraph.link_prediction, criteria=_is_public_name)
+    yield from _find_members_in_module(finder, cugraph.link_analysis, criteria=_is_public_name)
     #yield from _find_modules_in_obj(finder, cugraph, criteria=_is_public_name)
 
 
