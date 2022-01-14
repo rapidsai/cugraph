@@ -21,6 +21,13 @@ Breadth-first-search (MG)
    cugraph.dask.traversal.bfs.bfs
    cugraph.dask.traversal.bfs.call_bfs
 
+Multiple-source-breadth-first-search
+------------------------------------
+.. autosummary::
+   :toctree: api/
+
+   cugraph.traversal.ms_bfs.concurrent_bfs
+   cugraph.traversal.ms_bfs.multi_source_bfs
 
 Single-source-shortest-path
 ---------------------------
