@@ -96,7 +96,7 @@ class TestDoctests:
     def test_docstring(self, docstring):
         optionflags = doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
         runner = doctest.DocTestRunner(optionflags=optionflags)
-        globs = dict(cudf=cudf, np=np, cugraph=cugraph, datasets=datasets,
+        globs = dict(cudf=cudf, np=np, cugraph=cugraph, datasets_path=datasets,
                      scipy=scipy, pd=pd)
         docstring.globs = globs
         runner.run(docstring)

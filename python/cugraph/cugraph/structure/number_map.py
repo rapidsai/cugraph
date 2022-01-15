@@ -646,8 +646,9 @@ class NumberMap:
         Examples
         --------
         >>> from cugraph.structure import number_map
-        >>> df = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
-        ...                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                    dtype=['int32', 'int32', 'float32'],
+        ...                    header=None)
         >>> df, number_map = number_map.NumberMap.renumber(df, '0', '1')
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(df, 'src', 'dst')

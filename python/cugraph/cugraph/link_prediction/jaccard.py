@@ -54,8 +54,8 @@ def jaccard(input_graph, vertex_pair=None):
     you can get the interesting (non-zero) values that are part of the networkx
     solution by doing the following:
 
-    >>> gdf = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
-    ...                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> pairs = G.get_two_hop_neighbors()
@@ -100,8 +100,8 @@ def jaccard(input_graph, vertex_pair=None):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
-    ...                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> df = cugraph.jaccard(G)
@@ -162,8 +162,8 @@ def jaccard_coefficient(G, ebunch=None):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
-    ...                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> df = cugraph.jaccard_coefficient(G)

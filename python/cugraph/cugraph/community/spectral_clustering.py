@@ -65,10 +65,10 @@ def spectralBalancedCutClustering(
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets / 'karate.csv',
-    ...                      delimiter = ' ',
-    ...                      dtype=['int32', 'int32', 'float32'],
-    ...                      header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
@@ -143,10 +143,10 @@ def spectralModularityMaximizationClustering(
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets / 'karate.csv',
-    ...                      delimiter = ' ',
-    ...                      dtype=['int32', 'int32', 'float32'],
-    ...                      header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
@@ -207,10 +207,10 @@ def analyzeClustering_modularity(G, n_clusters, clustering,
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets / 'karate.csv',
-    ...                      delimiter = ' ',
-    ...                      dtype=['int32', 'int32', 'float32'],
-    ...                      header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
@@ -274,10 +274,10 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets / 'karate.csv',
-    ...                      delimiter = ' ',
-    ...                      dtype=['int32', 'int32', 'float32'],
-    ...                      header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
@@ -338,10 +338,10 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering,
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets / 'karate.csv',
-    ...                      delimiter = ' ',
-    ...                      dtype=['int32', 'int32', 'float32'],
-    ...                      header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)

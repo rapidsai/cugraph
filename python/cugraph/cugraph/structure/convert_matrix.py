@@ -54,11 +54,11 @@ def from_edgelist(df, source='source', destination='destination',
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
-    ...         dtype=['int32', 'int32', 'float32'], header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G = cugraph.from_edgelist(M, source='0', destination='1',
-    ...                              edge_attr='2')
+    ...                           edge_attr='2')
 
     """
     df_type = type(df)
@@ -105,7 +105,7 @@ def from_adjlist(offsets, indices, values=None, create_using=Graph):
 
     Examples
     --------
-    >>> pdf = pd.read_csv(datasets / 'karate.csv', delimiter=' ',
+    >>> pdf = pd.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                   dtype={0:'int32', 1:'int32', 2:'float32'},
     ...                   header=None)
     >>> M = scipy.sparse.coo_matrix((pdf[2],(pdf[0],pdf[1])))
@@ -175,7 +175,7 @@ def from_cudf_edgelist(df, source='source', destination='destination',
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G = cugraph.from_cudf_edgelist(M, source='0', destination='1',
@@ -237,14 +237,14 @@ def from_pandas_edgelist(df,
 
     Examples
     --------
-    >>  Download dataset from
-    >>  https://github.com/rapidsai/cugraph/datasets/...
-    >>> df = pd.read_csv(datasets / 'karate.csv', delimiter=' ',
-    ...                 header=None, names=["0", "1", "2"],
-    ...                 dtype={"0": "int32", "1": "int32", "2": "float32"})
+    >>> #  Download dataset from
+    >>> #  https://github.com/rapidsai/cugraph/datasets/...
+    >>> df = pd.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                  header=None, names=["0", "1", "2"],
+    ...                  dtype={"0": "int32", "1": "int32", "2": "float32"})
     >>> G = cugraph.Graph()
     >>> G.from_pandas_edgelist(df, source='0', destination='1',
-    ...                         edge_attr='2', renumber=False)
+    ...                        edge_attr='2', renumber=False)
 
     """
     if create_using is Graph:

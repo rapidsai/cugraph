@@ -82,7 +82,7 @@ def betweenness_centrality(
         If true, include the endpoints in the shortest path counts.
         (Not Supported)
 
-    seed : optional
+    seed : optional, default=None
         if k is specified and k is an integer, use seed to initialize the
         random number generator.
         Using None as seed relies on random.seed() behavior: using current
@@ -98,7 +98,7 @@ def betweenness_centrality(
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding betweenness centrality values.
         Please note that the resulting the 'vertex' column might not be
-        in ascending order.  The Dictionary conatains the same two columns
+        in ascending order.  The Dictionary contains the same two columns
 
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
@@ -107,8 +107,8 @@ def betweenness_centrality(
 
     Examples
     --------
-    >>> gdf = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
-    ...                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> bc = cugraph.betweenness_centrality(G)
@@ -200,7 +200,7 @@ def edge_betweenness_centrality(
         edges and weights.
         (Not Supported)
 
-    seed : optional
+    seed : optional, default=None
         if k is specified and k is an integer, use seed to initialize the
         random number generator.
         Using None as seed relies on random.seed() behavior: using current
@@ -237,8 +237,8 @@ def edge_betweenness_centrality(
 
     Examples
     --------
-    >>> gdf = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
-    ...                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> ebc = cugraph.edge_betweenness_centrality(G)
