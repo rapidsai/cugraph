@@ -15,3 +15,8 @@ from pylibcugraph.components import (
     strongly_connected_components,
     weakly_connected_components,
 )
+
+# Import gpu_graph_data to add objects to experimental.
+# Once moved out of experimental, import individual objects here to include in
+# this namespace.
+import pylibcugraph.structure.gpu_graph_data
