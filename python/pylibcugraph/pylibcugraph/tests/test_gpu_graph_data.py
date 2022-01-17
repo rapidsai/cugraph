@@ -15,13 +15,24 @@ import pandas as pd
 import cupy as cp
 import numpy as np
 
+import pytest
+
 from . import utils
 
 
-def test_ctor():
-    from pylibcugraph.experimental import GPUGraphData
+# =============================================================================
+# Pytest fixtures
+# =============================================================================
+datasets = [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv",
+            utils.RAPIDS_DATASET_ROOT_DIR_PATH/"dolphins.csv",
+            ]
 
-    pdf = pd.read_csv(utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv",
+@pytest.fixture(scope="module",
+                params=[pytest.param(ds, id=ds.name) for ds in datasets])
+def graph_arrays(request):
+    ds = request.param
+
+    pdf = pd.read_csv(ds,
                       delimiter=" ", header=None,
                       names=["0", "1", "weight"],
                       dtype={"0": "int32", "1": "int32", "weight": "float32"},
@@ -30,7 +41,19 @@ def test_ctor():
     device_dsts = cp.asarray(pdf["1"].to_numpy(), dtype=np.int32)
     device_weights = cp.asarray(pdf["weight"].to_numpy(), dtype=np.float32)
 
+    return (device_srcs, device_dsts, device_weights)
+
+
+###############################################################################
+# Tests
+def test_ctor(graph_arrays):
+    from pylibcugraph.experimental import GPUGraphData
+
+    (device_srcs, device_dsts, device_weights) = graph_arrays
+
     G = GPUGraphData(src_array=device_srcs,
                      dst_array=device_dsts,
                      weight_array=device_weights,
                      store_transposed=False)
+
+    # FIXME: test for correct num verts, edges, etc.

@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from pylibcugraph.utilities.experimental import experimental
+from pylibcugraph._cugraph_c._graph import cugraph_sg_graph_create
 
 @experimental(ns_name="")
 class __GPUGraphData:
@@ -31,3 +32,5 @@ class __GPUGraphData:
     def __init__(self, src_array, dst_array, weight_array,
                  store_transposed=False):
         self.__graph = None
+
+        cugraph_sg_graph_create(None,None,None,None,None,None,None,None)
