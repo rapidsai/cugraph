@@ -29,8 +29,8 @@ cdef extern from "cugraph_c/cugraph_api.h":
 
     ctypedef int8_t byte_t
 
-    struct cugraph_resource_handle_t:
-        int _placeholder
+    ctypedef struct cugraph_resource_handle_t:
+        pass
 
     cdef cugraph_resource_handle_t* \
         cugraph_create_resource_handle()

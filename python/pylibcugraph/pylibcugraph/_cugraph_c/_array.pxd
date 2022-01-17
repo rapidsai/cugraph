@@ -24,11 +24,11 @@ from pylibcugraph._cugraph_c._cugraph_api cimport (
 
 cdef extern from "cugraph_c/array.h":
 
-    struct cugraph_type_erased_device_array_t:
-        int _placeholder
+    ctypedef struct cugraph_type_erased_device_array_t:
+        pass
 
-    struct cugraph_type_erased_host_array_t:
-        int _placeholder
+    ctypedef struct cugraph_type_erased_host_array_t:
+        pass
 
     cdef cugraph_error_code_t \
         cugraph_type_erased_device_array_create(

@@ -23,8 +23,8 @@ cdef extern from "cugraph_c/error.h":
         CUGRAPH_NOT_IMPLEMENTED
         CUGRAPH_UNSUPPORTED_TYPE_COMBINATION
 
-    struct cugraph_error_t:
-       int _placeholder
+    ctypedef struct cugraph_error_t:
+       pass
 
     const char* \
         cugraph_error_message(

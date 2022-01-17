@@ -26,14 +26,14 @@ from pylibcugraph._cugraph_c._array cimport (
 
 cdef extern from "cugraph_c/algorithms.h":
 
-    struct cugraph_pagerank_result_t:
-        int _placeholder
+    ctypedef struct cugraph_pagerank_result_t:
+        pass
 
-    # struct cugraph_paths_result_t:
-    #     int _placeholder
+    # ctypedef struct cugraph_paths_result_t:
+    #     pass
 
-    # struct cugraph_extract_paths_result_t:
-    #     int _placeholder
+    # ctypedef struct cugraph_extract_paths_result_t:
+    #     pass
 
     cdef cugraph_type_erased_device_array_t*
         cugraph_pagerank_result_get_vertices(

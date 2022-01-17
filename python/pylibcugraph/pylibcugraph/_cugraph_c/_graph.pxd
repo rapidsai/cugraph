@@ -27,10 +27,10 @@ from pylibcugraph._cugraph_c._array cimport (
 
 cdef extern from "cugraph_c/graph.h":
 
-    struct cugraph_graph_t:
-        int _placeholder
+    ctypedef struct cugraph_graph_t:
+        pass
 
-    struct cugraph_graph_properties_t:
+    ctypedef struct cugraph_graph_properties_t:
         bool_t is_symmetric
         bool_t is_multigraph
 
