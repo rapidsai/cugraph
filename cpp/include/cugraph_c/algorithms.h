@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -201,7 +201,10 @@ void cugraph_paths_result_free(cugraph_paths_result_t* result);
  * input graphs.
  * @param depth_limit Sets the maximum number of breadth-first search iterations. Any vertices
  * farther than @p depth_limit hops from @p source_vertex will be marked as unreachable.
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @param [in] do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
+ * @param [in] compute_predecessors A flag to indicate whether to compute the predecessors in the
+ * result
  * @param [out] result       Opaque pointer to paths results
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
@@ -220,6 +223,36 @@ cugraph_error_code_t cugraph_bfs(
   cugraph_error_t** error);
 
 /**
+ * @brief     Perform single-source shortest-path to compute the minimum distances
+ *            (and predecessors) from the source vertex.
+ *
+ * This function computes the distances (minimum edge weight sums) from the source
+ * vertex. If @p predecessors is not NULL, this function calculates the predecessor of each
+ * vertex (parent vertex in the breadth-first search tree) as well.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph
+ * @param [in]  source       Source vertex id 
+ * @param [in]  cutoff       Maximum edge weight sum to consider
+ * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
+ * @param [in]  compute_predecessors A flag to indicate whether to compute the predecessors in the
+ * result
+ * @param [out] result       Opaque pointer to paths results
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_sssp(const cugraph_resource_handle_t* handle,
+                                  cugraph_graph_t* graph,
+                                  size_t source,
+                                  double cutoff,
+                                  bool_t do_expensive_check,
+                                  bool_t compute_predecessors,
+                                  cugraph_paths_result_t** result,
+                                  cugraph_error_t** error);
+
+/**
  * @brief     Opaque extract_paths result type
  */
 typedef struct {
@@ -227,12 +260,12 @@ typedef struct {
 } cugraph_extract_paths_result_t;
 
 /**
- * @brief     Extract BFS paths from a BFS result
+ * @brief     Extract BFS or SSSP paths from a cugraph_paths_result_t
  *
- * This function extracts paths from the BFS output.  BFS outputs distances
- * and predecessors.  The path from a vertex v back to the original source vertex
- * can be extracted by recursively looking up the predecessor vertex until you arrive
- * back at the original source vertex.
+ * This function extracts paths from the BFS or SSSP output.  BFS and SSSP output
+ * distances and predecessors.  The path from a vertex v back to the original
+ * source vertex can be extracted by recursively looking up the predecessor
+ * vertex until you arrive back at the original source vertex.
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
