@@ -18,6 +18,7 @@
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/paths_result.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -28,12 +29,6 @@
 
 namespace cugraph {
 namespace c_api {
-
-struct cugraph_paths_result_t {
-  cugraph_type_erased_device_array_t* vertex_ids_;
-  cugraph_type_erased_device_array_t* distances_;
-  cugraph_type_erased_device_array_t* predecessors_;
-};
 
 struct bfs_functor : public abstract_functor {
   raft::handle_t const& handle_;
@@ -136,9 +131,9 @@ struct bfs_functor : public abstract_functor {
       }
 
       result_ = new cugraph_paths_result_t{
-        new cugraph_type_erased_device_array_t(std::move(vertex_ids), graph_->vertex_type_),
-        new cugraph_type_erased_device_array_t(std::move(distances), graph_->weight_type_),
-        new cugraph_type_erased_device_array_t(std::move(predecessors), graph_->weight_type_)};
+        new cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
+        new cugraph_type_erased_device_array_t(distances, graph_->vertex_type_),
+        new cugraph_type_erased_device_array_t(predecessors, graph_->vertex_type_)};
     }
   }
 };

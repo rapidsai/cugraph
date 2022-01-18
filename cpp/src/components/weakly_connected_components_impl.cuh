@@ -77,7 +77,7 @@ accumulate_new_roots(raft::handle_t const& handle,
   vertex_t max_scan_size =
     static_cast<vertex_t>(handle.get_device_properties().multiProcessorCount) * vertex_t{16384};
 
-  rmm::device_uvector<vertex_t> new_roots(max_new_roots, handle.get_stream_view());
+  rmm::device_uvector<vertex_t> new_roots(max_new_roots, handle.get_stream());
   vertex_t num_new_roots{0};
   vertex_t num_scanned{0};
   edge_t degree_sum{0};
@@ -87,8 +87,8 @@ accumulate_new_roots(raft::handle_t const& handle,
       max_scan_size,
       static_cast<vertex_t>(thrust::distance(candidate_first + num_scanned, candidate_last)));
 
-    rmm::device_uvector<vertex_t> tmp_new_roots(scan_size, handle.get_stream_view());
-    rmm::device_uvector<vertex_t> tmp_indices(tmp_new_roots.size(), handle.get_stream_view());
+    rmm::device_uvector<vertex_t> tmp_new_roots(scan_size, handle.get_stream());
+    rmm::device_uvector<vertex_t> tmp_indices(tmp_new_roots.size(), handle.get_stream());
     auto input_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
       candidate_first + num_scanned, thrust::make_counting_iterator(vertex_t{0})));
     auto output_pair_first =
@@ -106,12 +106,11 @@ accumulate_new_roots(raft::handle_t const& handle,
             return (components[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)] ==
                     invalid_component_id<vertex_t>::value);
           }))),
-      handle.get_stream_view());
-    tmp_indices.resize(tmp_new_roots.size(), handle.get_stream_view());
+      handle.get_stream());
+    tmp_indices.resize(tmp_new_roots.size(), handle.get_stream());
 
     if (tmp_new_roots.size() > 0) {
-      rmm::device_uvector<edge_t> tmp_cumulative_degrees(tmp_new_roots.size(),
-                                                         handle.get_stream_view());
+      rmm::device_uvector<edge_t> tmp_cumulative_degrees(tmp_new_roots.size(), handle.get_stream());
       thrust::transform(
         handle.get_thrust_policy(),
         tmp_new_roots.begin(),
@@ -150,7 +149,7 @@ accumulate_new_roots(raft::handle_t const& handle,
                         tmp_cumulative_degrees.data() + (tmp_num_new_roots - 1),
                         size_t{1},
                         handle.get_stream());
-      handle.get_stream_view().synchronize();
+      handle.sync_stream();
       num_scanned += tmp_num_scanned;
       degree_sum += tmp_degree_sum;
     } else {
@@ -158,8 +157,8 @@ accumulate_new_roots(raft::handle_t const& handle,
     }
   }
 
-  new_roots.resize(num_new_roots, handle.get_stream_view());
-  new_roots.shrink_to_fit(handle.get_stream_view());
+  new_roots.resize(num_new_roots, handle.get_stream());
+  new_roots.shrink_to_fit(handle.get_stream());
 
   return std::make_tuple(std::move(new_roots), num_scanned, degree_sum);
 }
@@ -262,7 +261,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           GraphViewType::is_adj_matrix_transposed,
           GraphViewType::is_multi_gpu>
     level_graph(handle);
-  rmm::device_uvector<vertex_t> level_renumber_map(0, handle.get_stream_view());
+  rmm::device_uvector<vertex_t> level_renumber_map(0, handle.get_stream());
   std::vector<rmm::device_uvector<vertex_t>> level_component_vectors{};
   // vertex ID in this level to the component ID in the previous level
   std::vector<rmm::device_uvector<vertex_t>> level_renumber_map_vectors{};
@@ -273,7 +272,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       level_graph_view.get_vertex_partition_view());
     level_component_vectors.push_back(rmm::device_uvector<vertex_t>(
       num_levels == 0 ? vertex_t{0} : level_graph_view.get_number_of_local_vertices(),
-      handle.get_stream_view()));
+      handle.get_stream()));
     level_renumber_map_vectors.push_back(std::move(level_renumber_map));
     level_local_vertex_first_vectors.push_back(level_graph_view.get_local_vertex_first());
     auto level_components =
@@ -308,7 +307,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     // selected as roots in the remaining connected components.
 
     rmm::device_uvector<vertex_t> new_root_candidates(
-      level_graph_view.get_number_of_local_vertices(), handle.get_stream_view());
+      level_graph_view.get_number_of_local_vertices(), handle.get_stream());
     new_root_candidates.resize(
       thrust::distance(
         new_root_candidates.begin(),
@@ -321,7 +320,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
             return level_components[vertex_partition.get_local_vertex_offset_from_vertex_nocheck(
                      v)] == invalid_component_id<vertex_t>::value;
           })),
-      handle.get_stream_view());
+      handle.get_stream());
     auto high_degree_partition_last = thrust::stable_partition(
       handle.get_thrust_policy(),
       new_root_candidates.begin(),
@@ -412,7 +411,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
         // FIXME: we need to add host_scalar_scatter
 #if 1
-        rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream_view());
+        rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream());
         raft::update_device(d_counts.data(),
                             init_max_new_root_counts.data(),
                             init_max_new_root_counts.size(),
@@ -428,7 +427,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       } else {
         // FIXME: we need to add host_scalar_scatter
 #if 1
-        rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream_view());
+        rmm::device_uvector<vertex_t> d_counts(comm_size, handle.get_stream());
         device_bcast(
           comm, d_counts.data(), d_counts.data(), d_counts.size(), int{0}, handle.get_stream());
         raft::update_host(
@@ -439,7 +438,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 #endif
       }
 
-      handle.get_stream_view().synchronize();
+      handle.sync_stream();
       init_max_new_roots = std::min(init_max_new_roots, max_new_roots);
     }
 
@@ -457,7 +456,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(0, handle.get_stream());
     // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this
     // requires placing the atomic variable on managed memory and this make it less attractive.
-    rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream_view());
+    rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream());
 
     auto adj_matrix_col_components =
       GraphViewType::is_multi_gpu
@@ -528,7 +527,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       // FIXME: if we use cuco::static_map (no duplicates, ideally we need static_set), edge_buffer
       // size cannot exceed (# roots)^2 and we can avoid additional sort & unique (but resizing the
       // buffer may be more expensive).
-      auto old_num_edge_inserts = num_edge_inserts.value(handle.get_stream_view());
+      auto old_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
       resize_dataframe_buffer(edge_buffer, old_num_edge_inserts + max_pushes, handle.get_stream());
 
       update_frontier_v_push_if_out_nbr(
@@ -577,7 +576,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                               static_cast<size_t>(Bucket::conflict)});
 
       if (GraphViewType::is_multi_gpu) {
-        auto cur_num_edge_inserts = num_edge_inserts.value(handle.get_stream_view());
+        auto cur_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
         auto& conflict_bucket = vertex_frontier.get_bucket(static_cast<size_t>(Bucket::conflict));
         resize_dataframe_buffer(
           edge_buffer, cur_num_edge_inserts + conflict_bucket.size(), handle.get_stream());
@@ -605,7 +604,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
       // maintain the list of sorted unique edges (we can avoid this if we use cuco::static_map(no
       // duplicates, ideally we need static_set)).
-      auto new_num_edge_inserts = num_edge_inserts.value(handle.get_stream_view());
+      auto new_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
       if (new_num_edge_inserts > old_num_edge_inserts) {
         auto edge_first = get_dataframe_buffer_begin(edge_buffer);
         thrust::sort(handle.get_thrust_policy(),
@@ -627,7 +626,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         auto unique_edge_last =
           thrust::unique(handle.get_thrust_policy(), edge_first, edge_first + new_num_edge_inserts);
         auto num_unique_edges = static_cast<size_t>(thrust::distance(edge_first, unique_edge_last));
-        num_edge_inserts.set_value_async(num_unique_edges, handle.get_stream_view());
+        num_edge_inserts.set_value_async(num_unique_edges, handle.get_stream());
       }
 
       vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).clear();
@@ -652,7 +651,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
     // 2-5. construct the next level graph from the edges emitted on conflicts
 
-    auto num_inserts           = num_edge_inserts.value(handle.get_stream_view());
+    auto num_inserts           = num_edge_inserts.value(handle.get_stream());
     auto aggregate_num_inserts = num_inserts;
     if (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
@@ -725,7 +724,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     size_t current_level = next_level - 1;
 
     rmm::device_uvector<vertex_t> next_local_vertices(level_renumber_map_vectors[next_level].size(),
-                                                      handle.get_stream_view());
+                                                      handle.get_stream());
     thrust::sequence(handle.get_thrust_policy(),
                      next_local_vertices.begin(),
                      next_local_vertices.end(),

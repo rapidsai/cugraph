@@ -83,7 +83,7 @@ graph_t graph_broadcast(raft::handle_t const& handle, graph_t* graph_ptr)
       CUGRAPH_EXPECTS(total_graph_dev_sz > 0, "Graph size comm failure.");
 
       rmm::device_uvector<serializer_t::byte_t> data_buffer(total_graph_dev_sz,
-                                                            handle.get_stream_view());
+                                                            handle.get_stream());
 
       device_bcast(handle.get_comms(),
                    data_buffer.data(),

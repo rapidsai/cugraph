@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/cugraph_api.h>
 #include <cugraph/api_helpers.hpp>
+#include <cugraph_c/cugraph_api.h>
 
 #include <cugraph/visitors/rw_visitor.hpp>
 
