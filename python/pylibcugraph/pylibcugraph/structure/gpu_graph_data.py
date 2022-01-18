@@ -13,6 +13,8 @@
 
 from pylibcugraph.utilities.experimental import experimental
 from pylibcugraph._cugraph_c._graph import cugraph_sg_graph_create
+from pylibcugraph._cugraph_c._resource_handle import ResourceHandle
+
 
 @experimental(ns_name="")
 class __GPUGraphData:
@@ -30,7 +32,13 @@ class __GPUGraphData:
     """
 
     def __init__(self, src_array, dst_array, weight_array,
-                 store_transposed=False):
+                 store_transposed=False,
+                 resource_handle=None):
         self.__graph = None
+        if resource_handle is None:
+            self.__resource_handle = ResourceHandle()
+        else:
+            self.__resource_handle = resource_handle
 
-        cugraph_sg_graph_create(None,None,None,None,None,None,None,None)
+        cugraph_sg_graph_create(self.__resource_handle,
+                                None,None,None,None,None,None,None)
