@@ -16,7 +16,12 @@ from pylibcugraph.components import (
     weakly_connected_components,
 )
 
-# Import gpu_graph_data to add objects to experimental.
-# Once moved out of experimental, import individual objects here to include in
-# this namespace.
-import pylibcugraph.structure.gpu_graph_data
+# Mark certain cython APIs as experimental
+# Pure python objects would use the @experimental decorator, but cython does not
+# support decorators so it must be done here.
+from pylibcugraph.utilities.experimental import experimental as __experimental
+
+from pylibcugraph._cugraph_c.sg_graph import SGGraph as __SGGraph
+__experimental(ns_name="")(__SGGraph)
+from pylibcugraph._cugraph_c.resource_handle import ResourceHandle as __ResourceHandle
+__experimental(ns_name="")(__ResourceHandle)

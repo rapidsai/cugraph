@@ -11,11 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph._cugraph_c._error cimport (
+from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
 )
-from pylibcugraph._cugraph_c._cugraph_api cimport (
+from pylibcugraph._cugraph_c.cugraph_api cimport (
     cugraph_resource_handle_t,
     data_type_id_t,
     byte_t,

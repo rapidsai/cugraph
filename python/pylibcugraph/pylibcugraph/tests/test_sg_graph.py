@@ -47,13 +47,13 @@ def graph_arrays(request):
 ###############################################################################
 # Tests
 def test_ctor(graph_arrays):
-    from pylibcugraph.experimental import GPUGraphData
+    from pylibcugraph.experimental import SGGraph
 
     (device_srcs, device_dsts, device_weights) = graph_arrays
 
-    G = GPUGraphData(src_array=device_srcs,
-                     dst_array=device_dsts,
-                     weight_array=device_weights,
-                     store_transposed=False)
+    G = SGGraph(src_array=device_srcs,
+                dst_array=device_dsts,
+                weight_array=device_weights,
+                store_transposed=False)
 
     # FIXME: test for correct num verts, edges, etc.

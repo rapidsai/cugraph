@@ -151,12 +151,16 @@ def experimental(*args, **kwargs):
                     new_obj_name=obj.__name__.lstrip("__"))
             # Wrap the function in a function that prints a warning before
             # calling the obj. This is done after adding obj to the
-            # experimental namespace so the warning message would have the
+            # experimental namespace so the warning message will have the
             # properly-generated experimental names.
             warning_msg = (f"{new_ns_name}.{new_obj_name} is experimental and "
                            "will change in a future release.")
-            obj.__module__ = new_ns_name
-            obj.__qualname__ = new_obj_name
+            # built-in/extension types cannot have these attrs set
+            try:
+                obj.__module__ = new_ns_name
+                obj.__qualname__ = new_obj_name
+            except TypeError:
+                pass
             @functools.wraps(obj)
             def call_with_warning(*args, **kwargs):
                 warnings.warn(warning_msg, PendingDeprecationWarning)
@@ -178,12 +182,16 @@ def experimental(*args, **kwargs):
                 new_obj_name=obj.__name__.lstrip("__"))
         # Wrap the function in a function that prints a warning before calling
         # the obj. This is done after adding obj to the experimental namespace
-        # so the warning message would have the properly-generated experimental
+        # so the warning message will have the properly-generated experimental
         # names.
         warning_msg = (f"{new_ns_name}.{new_obj_name} is experimental and "
                        "will change in a future release.")
-        obj.__module__ = new_ns_name
-        obj.__qualname__ = new_obj_name
+        # built-in/extension types cannot have these attrs set
+        try:
+            obj.__module__ = new_ns_name
+            obj.__qualname__ = new_obj_name
+        except TypeError:
+            pass
         @functools.wraps(obj)
         def call_with_warning(*args, **kwargs):
             warnings.warn(warning_msg, PendingDeprecationWarning)

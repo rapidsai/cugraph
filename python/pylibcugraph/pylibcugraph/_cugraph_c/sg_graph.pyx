@@ -13,18 +13,19 @@
 
 from libc.stdint cimport uintptr_t
 
-from pylibcugraph._cugraph_c._cugraph_api cimport (
+from pylibcugraph._cugraph_c.cugraph_api cimport (
     bool_t,
     cugraph_resource_handle_t,
 )
-from pylibcugraph._cugraph_c._error cimport (
+from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
 )
-from pylibcugraph._cugraph_c._array cimport (
+from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_t,
 )
-from pylibcugraph._cugraph_c._graph cimport (
+from pylibcugraph._cugraph_c.graph cimport (
+    cugraph_graph_t,
     cugraph_sg_graph_create,
     cugraph_graph_properties_t,
     cugraph_sg_graph_free,
@@ -51,7 +52,7 @@ cdef class SGGraph:
         cdef cugraph_resource_handle_t* rh
         cdef cugraph_graph_properties_t* p
         cdef cugraph_type_erased_device_array_t* a
-        cdef cugraph_graph_t* self.__sg_graph
+        cdef cugraph_graph_t* g
         cdef cugraph_error_t* e
         cdef bool_t true=bool_t.TRUE
         cdef bool_t false=bool_t.FALSE
@@ -66,6 +67,9 @@ cdef class SGGraph:
                                 false,
                                 &g,
                                 &e)
+        #self.__sg_graph = g
 
     def __dealloc__(self):
-        cugraph_sg_graph_free(self.__sg_graph)
+        #cdef cugraph_graph_t* g = self.__sg_graph
+        cdef cugraph_graph_t* g
+        cugraph_sg_graph_free(g)
