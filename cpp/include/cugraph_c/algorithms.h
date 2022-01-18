@@ -232,7 +232,7 @@ cugraph_error_code_t cugraph_bfs(
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph
- * @param [in]  source       Source vertex id 
+ * @param [in]  source       Source vertex id
  * @param [in]  cutoff       Maximum edge weight sum to consider
  * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
