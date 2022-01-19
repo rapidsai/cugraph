@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,9 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph.components._connectivity import (
-    strongly_connected_components,
-    weakly_connected_components,
-)
+from pylibcugraph.utilities.api_tools import experimental_warning_wrapper
 
-from pylibcugraph import experimental
+from pylibcugraph._cugraph_c.sg_graph import __SGGraph
+SGGraph = experimental_warning_wrapper(__SGGraph)
+
+from pylibcugraph._cugraph_c.resource_handle import __ResourceHandle
+ResourceHandle = experimental_warning_wrapper(__ResourceHandle)
