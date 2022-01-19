@@ -84,11 +84,12 @@ int generic_sssp_test(vertex_t* h_src,
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
-                nearlyEqual(expected_distances[h_vertices[i]], h_distances[i], EPSILON),
+                //nearlyEqual(expected_distances[h_vertices[i]], h_distances[i], EPSILON),
+                expected_distances[h_vertices[i]] == h_distances[i],
                 "sssp distances don't match");
 
     TEST_ASSERT(test_ret_value,
-                nearlyEqual(expected_predecessors[h_vertices[i]], h_predecessors[i], EPSILON),
+                expected_predecessors[h_vertices[i]] == h_predecessors[i],
                 "sssp predecessors don't match");
   }
 
