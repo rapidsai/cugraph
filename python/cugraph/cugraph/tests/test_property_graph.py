@@ -124,7 +124,7 @@ def property_graph_instance(request):
     FIXME: fill this in
     """
     dataframe_type = request.param[0]
-    from cugraph import PropertyGraph
+    from cugraph.experimental import PropertyGraph
 
     (merchants, users, taxpayers,
      transactions, relationships, referrals) = dataset1.values()
@@ -184,7 +184,7 @@ def test_add_vertex_data(df_type):
     """
     add_vertex_data() on "merchants" table, all properties.
     """
-    from cugraph import PropertyGraph
+    from cugraph.experimental import PropertyGraph
 
     merchants = dataset1["merchants"]
     merchants_df = df_type(columns=merchants[0],
@@ -207,7 +207,7 @@ def test_add_vertex_data_prop_columns(df_type):
     """
     add_vertex_data() on "merchants" table, subset of properties.
     """
-    from cugraph import PropertyGraph
+    from cugraph.experimental import PropertyGraph
 
     merchants = dataset1["merchants"]
     merchants_df = df_type(columns=merchants[0],
@@ -230,7 +230,7 @@ def test_add_vertex_data_bad_args():
     add_vertex_data() with various bad args, checks that proper exceptions are
     raised.
     """
-    from cugraph import PropertyGraph
+    from cugraph.experimental import PropertyGraph
 
     merchants = dataset1["merchants"]
     merchants_df = cudf.DataFrame(columns=merchants[0],
@@ -270,7 +270,7 @@ def test_add_edge_data(df_type):
     """
     add_edge_data() on "transactions" table, all properties.
     """
-    from cugraph import PropertyGraph
+    from cugraph.experimental import PropertyGraph
 
     transactions = dataset1["transactions"]
     transactions_df = df_type(columns=transactions[0],
@@ -294,7 +294,7 @@ def test_add_edge_data_prop_columns(df_type):
     """
     add_edge_data() on "transactions" table, subset of properties.
     """
-    from cugraph import PropertyGraph
+    from cugraph.experimental import PropertyGraph
 
     transactions = dataset1["transactions"]
     transactions_df = df_type(columns=transactions[0],
@@ -317,7 +317,7 @@ def test_add_edge_data_bad_args():
     add_edge_data() with various bad args, checks that proper exceptions are
     raised.
     """
-    from cugraph import PropertyGraph
+    from cugraph.experimental import PropertyGraph
 
     transactions = dataset1["transactions"]
     transactions_df = cudf.DataFrame(columns=transactions[0],
@@ -523,7 +523,7 @@ def test_extract_subgraph_graph_without_vert_props():
     Ensure a subgraph can be extracted from a PropertyGraph that does not have
     vertex properties.
     """
-    from cugraph import PropertyGraph
+    from cugraph.experimental import PropertyGraph
 
     transactions = dataset1["transactions"]
     relationships = dataset1["relationships"]
@@ -758,7 +758,7 @@ def test_different_vertex_edge_input_dataframe_types():
     df = cudf.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
     pdf = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
 
-    from cugraph import PropertyGraph
+    from cugraph.experimental import PropertyGraph
 
     pG = PropertyGraph()
     pG.add_vertex_data(df, type_name="foo", vertex_id_column="a")

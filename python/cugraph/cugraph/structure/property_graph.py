@@ -24,7 +24,7 @@ if not isinstance(pd, MissingModule):
     _dataframe_types.append(pd.DataFrame)
 
 
-class PropertySelection:
+class EXPERIMENTAL__PropertySelection:
     """
     Instances of this class are returned from the PropertyGraph.select_*()
     methods and can be used by the PropertyGraph.extract_subgraph() method to
@@ -48,10 +48,11 @@ class PropertySelection:
         es = self.edge_selections
         if es is None:
             es = other.edge_selections
-        return PropertySelection(vs, es)
+        return EXPERIMENTAL__PropertySelection(vs, es)
 
 
-class PropertyGraph:
+# FIXME: remove leading __ when no longer experimental
+class EXPERIMENTAL__PropertyGraph:
     """
     Class which stores vertex and edge properties that can be used to construct
     Graphs from individual property selections and used later to annotate graph
@@ -487,7 +488,8 @@ class PropertyGraph:
             selected_col = selected_col.reindex(range(num_rows), copy=False)
             selected_col.fillna(False, inplace=True)
 
-        return PropertySelection(vertex_selection_series=selected_col)
+        return EXPERIMENTAL__PropertySelection(
+            vertex_selection_series=selected_col)
 
     def select_edges(self, expr):
         """
@@ -514,7 +516,8 @@ class PropertyGraph:
         locals = self.__edge_prop_eval_dict
 
         selected_col = eval(expr, globals, locals)
-        return PropertySelection(edge_selection_series=selected_col)
+        return EXPERIMENTAL__PropertySelection(
+            edge_selection_series=selected_col)
 
     def extract_subgraph(self,
                          create_using=None,
@@ -559,7 +562,7 @@ class PropertyGraph:
         >>>
         """
         if (selection is not None) and \
-           not isinstance(selection, PropertySelection):
+           not isinstance(selection, EXPERIMENTAL__PropertySelection):
             raise TypeError("selection must be an instance of "
                             f"PropertySelection, got {type(selection)}")
 

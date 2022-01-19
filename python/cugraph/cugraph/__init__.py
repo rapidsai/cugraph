@@ -35,7 +35,6 @@ from cugraph.structure import (
     MultiDiGraph,
     BiPartiteGraph,
     BiPartiteDiGraph,
-    PropertyGraph,
     from_edgelist,
     from_cudf_edgelist,
     from_pandas_edgelist,
