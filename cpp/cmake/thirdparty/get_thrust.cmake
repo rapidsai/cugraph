@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,8 +17,6 @@
 function(find_and_configure_thrust)
   include(${rapids-cmake-dir}/cpm/thrust.cmake)
 
-  # FIXME: Temporary workaround to our current 11.0 CI problem
-  set(CPM_DOWNLOAD_ALL ON)
   rapids_cpm_thrust(
     NAMESPACE cugraph
     BUILD_EXPORT_SET raft-exports
