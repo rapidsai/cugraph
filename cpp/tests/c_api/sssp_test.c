@@ -26,6 +26,8 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
+const weight_t EPSILON = 0.001;
+
 int generic_sssp_test(vertex_t* h_src,
                       vertex_t* h_dst,
                       weight_t* h_wgt,
@@ -82,11 +84,11 @@ int generic_sssp_test(vertex_t* h_src,
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
-                expected_distances[h_vertices[i]] == h_distances[i],
+                nearlyEqual(expected_distances[h_vertices[i]], h_distances[i], EPSILON),
                 "sssp distances don't match");
 
     TEST_ASSERT(test_ret_value,
-                expected_predecessors[h_vertices[i]] == h_predecessors[i],
+                nearlyEqual(expected_predecessors[h_vertices[i]], h_predecessors[i], EPSILON),
                 "sssp predecessors don't match");
   }
 

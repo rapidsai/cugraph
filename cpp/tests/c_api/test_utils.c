@@ -23,8 +23,7 @@ int nearlyEqual(float a, float b, float epsilon)
   // FIXME:  There is a better test than this,
   //   perhaps use the gtest comparison for consistency
   //   with C++ and wrap it in a C wrapper.
-  int x = (fabsf(a - b) < (fabsf(a) * epsilon));
-  return (fabsf(a - b) < (fabsf(a) * epsilon));
+  return (fabsf(a - b) <= (((fabsf(a) < fabsf(b)) ? fabs(b) : fabs(a)) * epsilon));
 }
 
 /*
