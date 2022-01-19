@@ -19,38 +19,43 @@ import sys
 import pylibcugraph
 
 def add_obj_to_pylibcugraph_subnamespace(obj, sub_ns_name,
-                                    sub_sub_ns_name=None,
-                                    new_obj_name=None):
+                                         sub_sub_ns_name=None,
+                                         new_obj_name=None):
     """
-    Adds an obj to the pylibcugraph.<sub_sub_ns_name> namespace, using the
-    objects current namespace names under pylibcugraph as the default
-    sub_sub_ns_name.
+    Adds an obj to the pylibcugraph.<sub_ns_name>.<sub_sub_ns_name> namespace,
+    using the objects current namespace names under pylibcugraph as the default
+    sub_sub_ns_name, creating the sub-namespace and sub-sub-namespaces if
+    necessary.
 
     Example:
-        for pylibcugraph.link_analysis.pagerank.pagerank:
-            add_obj_to_pylibcugraph_subnamespace(pagerank, "experimental")
+        for object foo in pylibcugraph.structure
+            add_obj_to_pylibcugraph_subnamespace(foo, "experimental")
         results in:
-            pylibcugraph.experimental.link_analysis.pagerank.pagerank
+            pylibcugraph.experimental.structure.foo
 
     All namespaces - current and new - must be under "pylibcugraph".
 
     If sub_sub_ns_name is provided, it will be used to override the obj's
     current namespace under pylibcugraph.
     Example:
-        for pylibcugraph.link_analysis.pagerank.pagerank:
-            add_obj_to_pylibcugraph_subnamespace(pagerank, "experimental",
-                                            sub_sub_ns_name="foo.bar")
+        for object foo in pylibcugraph.structure
+            add_obj_to_pylibcugraph_subnamespace(foo, "experimental",
+                                                 sub_sub_ns_name="bar.baz")
         results in:
-            pylibcugraph.experimental.foo.bar.pagerank
+            pylibcugraph.experimental.bar.baz.foo
 
-    If new_obj_name is provided, it will be used to renamed the obj in the new
-    namespace.
-    Example:
-        for pylibcugraph.link_analysis.pagerank.pagerank:
-            add_obj_to_pylibcugraph_subnamespace(pagerank, "experimental",
-                                            new_obj_name="new_pagerank")
+        for object foo in pylibcugraph.structure
+            add_obj_to_pylibcugraph_subnamespace(foo, "experimental",
+                                                 sub_sub_ns_name="")
         results in:
-            pylibcugraph.experimental.link_analysis.pagerank.new_pagerank
+            pylibcugraph.experimental.foo
+
+    Example:
+        for object foo in pylibcugraph.structure:
+            add_obj_to_pylibcugraph_subnamespace(foo, "experimental",
+                                                 new_obj_name="new_pagerank")
+        results in:
+            pylibcugraph.experimental.structure.new_pagerank
 
     Returns a tuple of:
     (new namespace name, new obj name, new namespace module obj)
@@ -90,100 +95,29 @@ def add_obj_to_pylibcugraph_subnamespace(obj, sub_ns_name,
             mod_to_update)
 
 
-def experimental(*args, **kwargs):
+def get_callable_for_experimental(sub_namespace_name=None):
     """
-    Decorator function to add an obj to the pylibcugraph.experimental
-    namespace.
+    Returns a callable which can be used as the return value for the
+    "experimental" decorator function, or as something which can be called
+    directly.  Calling the returned callable with an object as the arg results
+    in the object being added to the "experimental" namespace as described in
+    the docstring for the experimental decorator function.
 
-    If no args are given, obj is copied to
-    pylibcugraph.experimental.<current pylibcugraph subnamespace>.obj.
-
-    Example:
-        for the pagerank function in pylibcugraph.link_analysis.pagerank:
-            @experimental
-            def pagerank(...)
-        results in:
-            a pagerank() function in the
-            pylibcugraph.experimental.link_analysis.pagerank namespace.
-
-    If the ns_name kwarg is given, it is used to replace the default
-    subnamespace under pylibcugraph that the obj currently resides in.
-    Example:
-        for the pagerank function in pylibcugraph.link_analysis.pagerank:
-            @experimental(ns_name="foo")
-            def pagerank(...)
-        results in:
-            a pagerank() function in the
-            pylibcugraph.experimental.foo namespace.
-
-    Setting ns_name="" results in the obj being added directly to the
-    pylibcugraph.experimental namespace.
-
-    If the current obj is private by naming it with a leading __, the leading
-    __ is removed from the obj in the new namespace.  This allows an
-    experimental class/function to be private (hidden) in a non-experimental
-    namespace but public in experimental.
-    Example:
-        for the __pagerank function in pylibcugraph.link_analysis.pagerank:
-            @experimental(ns_name="foo")
-            def __pagerank(...)
-        results in:
-            a pagerank() function in the
-            pylibcugraph.experimental.foo namespace.
+    If sub_namespace_name is provided, the returned callable will add the object
+    to the sub namespace under experimental as described in the docstring for
+    the experimental decorator function.
     """
-    kwa = list(kwargs.keys())
-    if kwa and kwa != ["ns_name"]:
-        raise TypeError("Only the 'ns_name' kwarg is allowed for "
-                        "experimental()")
-    ns_name = kwargs.get("ns_name")
-
-    # python expects decorators to return function wrappers one of two ways: if
-    # args specified, the decorator must return a callable that accepts an obj
-    # to wrap. If no args, then the decorator returns the wrapped obj directly.
-    if ns_name is not None:  # called as @experimental(ns_name="...")
-        sub_namespace_name = ns_name
-        # The function to return that takes the obj and sets up the new ns
-        def experimental_ns_updater(obj):
-            (new_ns_name, new_obj_name, new_ns) = \
-                add_obj_to_pylibcugraph_subnamespace(
-                    obj, "experimental",
-                    sub_sub_ns_name=sub_namespace_name,
-                    new_obj_name=obj.__name__.lstrip("__"))
-            # Wrap the function in a function that prints a warning before
-            # calling the obj. This is done after adding obj to the
-            # experimental namespace so the warning message will have the
-            # properly-generated experimental names.
-            warning_msg = (f"{new_ns_name}.{new_obj_name} is experimental and "
-                           "will change in a future release.")
-            # built-in/extension types cannot have these attrs set
-            try:
-                obj.__module__ = new_ns_name
-                obj.__qualname__ = new_obj_name
-            except TypeError:
-                pass
-            @functools.wraps(obj)
-            def call_with_warning(*args, **kwargs):
-                warnings.warn(warning_msg, PendingDeprecationWarning)
-                return obj(*args, **kwargs)
-
-            wrapped_obj = call_with_warning
-            # Replace obj in the experimental ns with the wrapped obj
-            setattr(new_ns, new_obj_name, wrapped_obj)
-            return obj
-        return experimental_ns_updater
-
-    else:  # called as @experimental
-        if len(args) > 1:
-            raise TypeError("Too many positional args to experimental()")
-        obj = args[0]
+    def experimental_ns_updater(obj):
         (new_ns_name, new_obj_name, new_ns) = \
             add_obj_to_pylibcugraph_subnamespace(
-                obj, "experimental",
+                obj,
+                sub_ns_name="experimental",
+                sub_sub_ns_name=sub_namespace_name,
                 new_obj_name=obj.__name__.lstrip("__"))
-        # Wrap the function in a function that prints a warning before calling
-        # the obj. This is done after adding obj to the experimental namespace
-        # so the warning message will have the properly-generated experimental
-        # names.
+        # Wrap the function in a function that prints a warning before
+        # calling the obj. This is done after adding obj to the
+        # experimental namespace so the warning message will have the
+        # properly-generated experimental names.
         warning_msg = (f"{new_ns_name}.{new_obj_name} is experimental and "
                        "will change in a future release.")
         # built-in/extension types cannot have these attrs set
@@ -200,4 +134,78 @@ def experimental(*args, **kwargs):
         wrapped_obj = call_with_warning
         # Replace obj in the experimental ns with the wrapped obj
         setattr(new_ns, new_obj_name, wrapped_obj)
+        return obj
+    return experimental_ns_updater
+
+
+def experimental(*args, **kwargs):
+    """
+    Decorator function to add an obj to the pylibcugraph.experimental
+    namespace.
+
+    If no args are given, obj is copied to
+    pylibcugraph.experimental.<current pylibcugraph subnamespace>.obj.
+
+    Example:
+        for the foo function in pylibcugraph.structure:
+            @experimental
+            def foo(...)
+        results in:
+            a foo() function in the
+            pylibcugraph.experimental.structure namespace.
+
+    If the sub_ns_name kwarg is given, it is used to replace the default
+    subnamespace under pylibcugraph that the obj currently resides in.
+    Example:
+        for the foo function in pylibcugraph.structure:
+            @experimental(sub_ns_name="bar")
+            def foo(...)
+        results in:
+            a foo() function in the
+            pylibcugraph.experimental.bar namespace.
+
+        for the foo function in pylibcugraph.structure:
+            @experimental(sub_ns_name="")
+            def foo(...)
+        results in:
+            a foo() function added directly to
+            pylibcugraph.experimental
+
+    If the current obj is private by naming it with a leading __, the leading
+    __ is removed from the obj in the new namespace.  This allows an
+    experimental class/function to be private (hidden) in a non-experimental
+    namespace but public in experimental.
+    Example:
+        for the __foo function in pylibcugraph.structure:
+            @experimental(sub_ns_name="bar")
+            def __pagerank(...)
+        results in:
+            a foo() function in the
+            pylibcugraph.experimental.bar namespace.
+    """
+    kwa = list(kwargs.keys())
+    if kwa and kwa != ["sub_ns_name"]:
+        raise TypeError("Only the 'sub_ns_name' kwarg is allowed for "
+                        "experimental()")
+    sub_ns_name = kwargs.get("sub_ns_name")
+
+    # python expects decorators to return function wrappers one of two ways: if
+    # args specified, the decorator must return a callable that accepts an obj
+    # to wrap. If no args, then the decorator returns the wrapped obj directly.
+
+    if sub_ns_name is not None:  # called as @experimental(sub_ns_name="...")
+        # Python will call the callable being returned here, which will then
+        # setup the new ns, add the obj to it, and return the original obj
+        return get_callable_for_experimental(sub_ns_name)
+
+    else:  # called as @experimental
+        if len(args) > 1:
+            raise TypeError("Too many positional args to experimental()")
+        obj = args[0]
+        # Get a callable to update the experimental namespace and call it
+        # directly here.
+        update_experimental = get_callable_for_experimental()
+        update_experimental(obj)
+        # Return the obj as-is, no need to return anything wrapped since
+        # update_experimental() did all the work.
         return obj

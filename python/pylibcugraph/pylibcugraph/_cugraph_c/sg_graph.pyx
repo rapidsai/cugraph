@@ -32,7 +32,8 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 
 
-cdef class SGGraph:
+# FIXME: remove leading __ when no longer experimental
+cdef class __SGGraph:
     """
     RAII-stye Graph class for use with single-GPU APIs that manages the
     individual create/free calls and the corresponding cugraph_graph_t pointer.

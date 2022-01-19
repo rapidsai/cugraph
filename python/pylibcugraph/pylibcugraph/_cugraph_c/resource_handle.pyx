@@ -18,7 +18,8 @@ from pylibcugraph._cugraph_c.cugraph_api cimport (
 )
 
 
-cdef class ResourceHandle:
+# FIXME: remove leading __ when no longer experimental
+cdef class __ResourceHandle:
     """
     RAII-stye resource handle class to manage individual create/free calls and
     the corresponding pointer to a cugraph_resource_handle_t

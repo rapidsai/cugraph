@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph.components import (
+from pylibcugraph.components._connectivity import (
     strongly_connected_components,
     weakly_connected_components,
 )
@@ -21,7 +21,7 @@ from pylibcugraph.components import (
 # support decorators so it must be done here.
 from pylibcugraph.utilities.experimental import experimental as __experimental
 
-from pylibcugraph._cugraph_c.sg_graph import SGGraph as __SGGraph
-__experimental(ns_name="")(__SGGraph)
-from pylibcugraph._cugraph_c.resource_handle import ResourceHandle as __ResourceHandle
-__experimental(ns_name="")(__ResourceHandle)
+from pylibcugraph._cugraph_c.sg_graph import __SGGraph
+__experimental(sub_ns_name="")(__SGGraph)
+from pylibcugraph._cugraph_c.resource_handle import __ResourceHandle
+__experimental(sub_ns_name="")(__ResourceHandle)
