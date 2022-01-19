@@ -20,10 +20,12 @@
 #include <stdio.h>
 #include <time.h>
 
-#define TEST_ASSERT(RETURN_VALUE, STATEMENT, MESSAGE)                    \
-  {                                                                      \
-    (RETURN_VALUE) = !(STATEMENT);                                       \
-    if ((RETURN_VALUE)) { printf("ASSERTION FAILED: %s\n", (MESSAGE)); } \
+#define TEST_ASSERT(RETURN_VALUE, STATEMENT, MESSAGE)                      \
+  {                                                                        \
+    if (!(RETURN_VALUE)) {                                                 \
+      (RETURN_VALUE) = !(STATEMENT);                                       \
+      if ((RETURN_VALUE)) { printf("ASSERTION FAILED: %s\n", (MESSAGE)); } \
+    }                                                                      \
   }
 
 /*
