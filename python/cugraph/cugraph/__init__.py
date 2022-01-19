@@ -109,6 +109,8 @@ from cugraph.comms import comms
 
 from cugraph.sampling import random_walks, rw_path
 
+from cugraph import experimental
+
 # Versioneer
 from ._version import get_versions
 
