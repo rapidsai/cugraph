@@ -27,6 +27,7 @@ datasets = [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv",
             utils.RAPIDS_DATASET_ROOT_DIR_PATH/"dolphins.csv",
             ]
 
+
 @pytest.fixture(scope="module",
                 params=[pytest.param(ds, id=ds.name) for ds in datasets])
 def graph_arrays(request):
@@ -56,4 +57,5 @@ def test_ctor(graph_arrays):
                 weight_array=device_weights,
                 store_transposed=False)
 
+    print(G)
     # FIXME: test for correct num verts, edges, etc.

@@ -51,7 +51,7 @@ def test_sg_graph():
     from pylibcugraph.experimental import (SGGraph,
                                            ResourceHandle,
                                            GraphProperties,
-    )
+                                           )
 
     graph_props = GraphProperties()
     graph_props.is_symmetric = False
@@ -70,3 +70,5 @@ def test_sg_graph():
                 store_transposed=False,
                 renumber=False,
                 expensive_check=False)
+
+    print(g)
