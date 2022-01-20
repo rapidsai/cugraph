@@ -15,18 +15,28 @@ import functools
 import warnings
 import inspect
 
+experimental_prefix = "EXPERIMENTAL"
 
-def experimental_warning_wrapper(obj, keep_leading_underscores=False):
+
+def experimental_warning_wrapper(obj, make_public_name=True):
     """
     Return a callable obj wrapped in a callable the prints a warning about it
-    being "experimental" (subject to change or removal) prior to calling it and
-    returning its value.
+    being "experimental" (an object that is in the public API but subject to
+    change or removal) prior to calling it and returning its value.
+
+    If make_public_name is False, the object's name used in the warning message
+    is left unmodified. If True (default), any leading __ and/or EXPERIMENTAL
+    string are removed from the name used in warning messages. This allows an
+    object to be named with a "private" name in the public API so it can remain
+    hidden while it is still experimental, but have a public name within the
+    experimental namespace so it can be easily discovered and used.
     """
     obj_name = obj.__qualname__
-    if keep_leading_underscores is False:
+    if make_public_name:
+        obj_name = obj_name.lstrip(experimental_prefix)
         obj_name = obj_name.lstrip("__")
 
-    # Assume the caller of this function is the namespace containing the
+    # Assume the caller of this function is the module containing the
     # experimental obj and try to get its namespace name. Default to no
     # namespace name if it could not be found.
     call_stack = inspect.stack()

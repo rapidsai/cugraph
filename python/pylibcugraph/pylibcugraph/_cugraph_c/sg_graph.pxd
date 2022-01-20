@@ -11,13 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph.utilities.api_tools import experimental_warning_wrapper
+from pylibcugraph._cugraph_c.graph cimport (
+    cugraph_graph_t,
+)
 
-from pylibcugraph._cugraph_c.sg_graph import EXPERIMENTAL__SGGraph
-SGGraph = experimental_warning_wrapper(EXPERIMENTAL__SGGraph)
 
-from pylibcugraph._cugraph_c.resource_handle import EXPERIMENTAL__ResourceHandle
-ResourceHandle = experimental_warning_wrapper(EXPERIMENTAL__ResourceHandle)
-
-from pylibcugraph._cugraph_c.graph_properties import EXPERIMENTAL__GraphProperties
-GraphProperties = experimental_warning_wrapper(EXPERIMENTAL__GraphProperties)
+cdef class EXPERIMENTAL__SGGraph:
+    cdef cugraph_graph_t* c_sg_graph_ptr
