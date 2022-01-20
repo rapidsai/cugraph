@@ -11,8 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import doctest
 import inspect
+import io
 import os
 import pathlib
 
@@ -50,26 +52,40 @@ def _find_modules_in_obj(finder, obj, criteria=None):
         if criteria is not None and not criteria(name):
             continue
         if inspect.ismodule(member) and (member not in modules_to_skip):
-            yield from _find_members_in_module(finder,
-                                               member, _is_public_name)
+            yield from _find_doctests_in_obj(finder,
+                                             member, _is_public_name)
 
 
-def _find_members_in_module(finder, obj, criteria=None):
+def _find_doctests_in_obj(finder, obj, criteria=None):
+    """Find all doctests in a module or class.
+    Parameters
+    ----------
+    obj : module or class
+        The object to search for docstring examples.
+    finder : doctest.DocTestFinder
+        The DocTestFinder object to use.
+    criteria : callable, optional
+
+    Yields
+    ------
+    doctest.DocTest
+        The next doctest found in the object.
+    """
     for name, member in inspect.getmembers(obj):
         if criteria is not None and not criteria(name):
             continue
 
         if inspect.ismodule(member):
             if _file_from_cugraph(member) and _is_python_module(member):
-                _find_members_in_module(finder, member, criteria)
+                _find_doctests_in_obj(finder, member, criteria)
         if inspect.isfunction(member):
-            yield from _find_examples_in_docstring(finder, member)
+            yield from _find_doctests_in_docstring(finder, member)
         if inspect.isclass(member):
             if _module_from_cugraph(member):
-                yield from _find_examples_in_docstring(finder, member)
+                yield from _find_doctests_in_docstring(finder, member)
 
 
-def _find_examples_in_docstring(finder, member):
+def _find_doctests_in_docstring(finder, member):
     for docstring in finder.find(member):
         if docstring.examples:
             yield docstring
@@ -94,12 +110,22 @@ class TestDoctests:
         "docstring", _fetch_doctests(), ids=lambda docstring: docstring.name
     )
     def test_docstring(self, docstring):
+        # We ignore differences in whitespace in the doctest output, and enable
+        # the use of an ellipsis "..." to match any string in the doctest
+        # output. An ellipsis is useful for, e.g., memory addresses or
+        # imprecise floating point values.
         optionflags = doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
         runner = doctest.DocTestRunner(optionflags=optionflags)
+        np.random.seed(6)
         globs = dict(cudf=cudf, np=np, cugraph=cugraph, datasets_path=datasets,
                      scipy=scipy, pd=pd)
         docstring.globs = globs
-        runner.run(docstring)
-        results = runner.summarize()
-        if results.failed:
-            raise AssertionError(results)
+        # Capture stdout and include failing outputs in the traceback.
+        doctest_stdout = io.StringIO()
+        with contextlib.redirect_stdout(doctest_stdout):
+            runner.run(docstring)
+            results = runner.summarize()
+        assert not results.failed, (
+            f"{results.failed} of {results.attempted} doctests failed for "
+            f"{docstring.name}:\n{doctest_stdout.getvalue()}"
+        )

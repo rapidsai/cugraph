@@ -86,6 +86,14 @@ def minimum_spanning_tree(
     G_mst : cuGraph.Graph or networkx.Graph
         A graph descriptor with a minimum spanning tree or forest.
         The networkx graph will not have all attributes copied over
+    
+    Examples
+    --------
+    >>> M = cudf.read_csv(datasets_path / 'karate_undirected.csv', delimiter='\t',
+                          dtype=['int32', 'int32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> cugraph.minimum_spanning_tree(G)
 
     """
 
@@ -126,6 +134,14 @@ def maximum_spanning_tree(
     G_mst : cuGraph.Graph or networkx.Graph
         A graph descriptor with a maximum spanning tree or forest.
         The networkx graph will not have all attributes copied over
+
+    Examples
+    --------
+    >>> M = cudf.read_csv(datasets_path / 'netscience.csv', delimiter='\t',
+    ...                   dtype=['int32', 'int32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> cugraph.maximum_spanning_tree(G)
 
     """
 

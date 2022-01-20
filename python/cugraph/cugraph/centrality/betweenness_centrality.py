@@ -53,7 +53,7 @@ def betweenness_centrality(
         BFS traversals. Use weight parameter if weights need to be considered
         (currently not supported)
 
-    k : int or list or None, optional, default=None
+    k : int or list or None, optional
         If k is not None, use k node samples to estimate betweenness.  Higher
         values give better approximation.  If k is a list, use the content
         of the list for estimation: the list should contain vertex
@@ -72,17 +72,17 @@ def betweenness_centrality(
         this normalization scales for the highest possible value where one
         node is crossed by every single shortest path.
 
-    weight : cudf.DataFrame, optional, default=None
+    weight : cudf.DataFrame, optional
         Specifies the weights to be used for each edge.
         Should contain a mapping between
         edges and weights.
         (Not Supported)
 
-    endpoints : bool, optional, default=False
+    endpoints : bool, optional
         If true, include the endpoints in the shortest path counts.
         (Not Supported)
 
-    seed : optional, default=None
+    seed : optional
         if k is specified and k is an integer, use seed to initialize the
         random number generator.
         Using None as seed relies on random.seed() behavior: using current

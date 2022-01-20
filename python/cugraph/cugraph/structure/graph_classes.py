@@ -40,13 +40,15 @@ class Graph:
     directed : boolean
         Indicated is the graph is directed.
         Default is False - Undirected
+
     Examples
     --------
     # undirected graph
     >>> G = cugraph.Graph()
 
-    #directed graph
+    # directed graph
     >>> G = cugraph.Graph(directed=True)
+
     """
 
     class Properties:
