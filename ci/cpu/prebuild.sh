@@ -18,7 +18,7 @@ if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     export BUILD_LIBCUGRAPH=1
 fi
 
-if [[ "$PYTHON" == "3.7" ]]; then
+if [[ "$PYTHON" == "3.8" ]]; then
     export UPLOAD_LIBCUGRAPH=1
 else
     export UPLOAD_LIBCUGRAPH=0
