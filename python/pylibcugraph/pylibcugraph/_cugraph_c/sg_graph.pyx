@@ -39,15 +39,9 @@ from pylibcugraph._cugraph_c.resource_handle cimport (
 from pylibcugraph._cugraph_c.graph_properties cimport (
     EXPERIMENTAL__GraphProperties,
 )
-
-
-# FIXME: add tests for this
-cdef assert_success(cugraph_error_code_t code,
-                    cugraph_error_t* err,
-                    api_name):
-    if code != cugraph_error_code_t.CUGRAPH_SUCCESS:
-        # FIXME: extract message using cugraph_error_message()
-        raise RuntimeError(f"non-success value returned from {api_name}")
+from pylibcugraph._cugraph_c.utils cimport (
+    assert_success,
+)
 
 
 cdef class EXPERIMENTAL__SGGraph:
@@ -65,6 +59,7 @@ cdef class EXPERIMENTAL__SGGraph:
                   renumber,
                   expensive_check):
 
+        # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
             raise TypeError("expected int or bool for store_transposed, got "
                             f"{type(store_transposed)}")
@@ -101,6 +96,8 @@ cdef class EXPERIMENTAL__SGGraph:
 
         assert_success(err_code, error_ptr,
                        "cugraph_type_erased_device_array_create()")
+        # FIXME: add call to to device-device copy of __cuda_array_interface__
+        # values to cugraph_type_erased_device_array
 
         # FIXME: set dtype properly
         err_code = cugraph_type_erased_device_array_create(
@@ -112,17 +109,21 @@ cdef class EXPERIMENTAL__SGGraph:
 
         assert_success(err_code, error_ptr,
                        "cugraph_type_erased_device_array_create()")
+        # FIXME: add call to to device-device copy of __cuda_array_interface__
+        # values to cugraph_type_erased_device_array
 
         # FIXME: set dtype properly
         err_code = cugraph_type_erased_device_array_create(
             resource_handle.c_resource_handle_ptr,
-            data_type_id_t.INT32,
+            data_type_id_t.FLOAT32,
             len(weight_array),
             &weights_ptr,
             &error_ptr)
 
         assert_success(err_code, error_ptr,
                        "cugraph_type_erased_device_array_create()")
+        # FIXME: add call to to device-device copy of __cuda_array_interface__
+        # values to cugraph_type_erased_device_array
 
         err_code = cugraph_sg_graph_create(
             resource_handle.c_resource_handle_ptr,
