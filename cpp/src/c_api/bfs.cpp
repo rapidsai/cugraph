@@ -36,8 +36,8 @@ struct bfs_functor : public abstract_functor {
   cugraph_type_erased_device_array_t* sources_;
   bool direction_optimizing_;
   size_t depth_limit_;
-  bool do_expensive_check_;
   bool compute_predecessors_;
+  bool do_expensive_check_;
   cugraph_paths_result_t* result_{};
 
   bfs_functor(raft::handle_t const& handle,
@@ -45,16 +45,16 @@ struct bfs_functor : public abstract_functor {
               cugraph_type_erased_device_array_t* sources,
               bool direction_optimizing,
               size_t depth_limit,
-              bool do_expensive_check,
-              bool compute_predecessors)
+              bool compute_predecessors,
+              bool do_expensive_check)
     : abstract_functor(),
       handle_(handle),
       graph_(graph),
       sources_(sources),
       direction_optimizing_(direction_optimizing),
       depth_limit_(depth_limit),
-      do_expensive_check_(do_expensive_check),
-      compute_predecessors_(compute_predecessors)
+      compute_predecessors_(compute_predecessors),
+      do_expensive_check_(do_expensive_check)
   {
   }
 
@@ -176,8 +176,8 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
                                             cugraph_type_erased_device_array_t* sources,
                                             bool_t direction_optimizing,
                                             size_t depth_limit,
-                                            bool_t do_expensive_check,
                                             bool_t compute_predecessors,
+                                            bool_t do_expensive_check,
                                             cugraph_paths_result_t** result,
                                             cugraph_error_t** error)
 {
@@ -194,8 +194,8 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
                                         p_sources,
                                         direction_optimizing,
                                         depth_limit,
-                                        do_expensive_check,
-                                        compute_predecessors);
+                                        compute_predecessors,
+                                        do_expensive_check);
 
     // FIXME:  This seems like a recurring pattern.  Can I encapsulate
     //    The vertex_dispatcher and error handling calls into a reusable function?

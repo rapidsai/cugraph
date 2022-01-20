@@ -35,23 +35,23 @@ struct sssp_functor : public abstract_functor {
   cugraph_graph_t* graph_;
   size_t source_;
   double cutoff_;
-  bool do_expensive_check_;
   bool compute_predecessors_;
+  bool do_expensive_check_;
   cugraph_paths_result_t* result_{};
 
   sssp_functor(raft::handle_t const& handle,
                cugraph_graph_t* graph,
                size_t source,
                double cutoff,
-               bool do_expensive_check,
-               bool compute_predecessors)
+               bool compute_predecessors,
+               bool do_expensive_check)
     : abstract_functor(),
       handle_(handle),
       graph_(graph),
       source_(source),
       cutoff_(cutoff),
-      do_expensive_check_(do_expensive_check),
-      compute_predecessors_(compute_predecessors)
+      compute_predecessors_(compute_predecessors),
+      do_expensive_check_(do_expensive_check)
   {
   }
 
@@ -146,8 +146,8 @@ extern "C" cugraph_error_code_t cugraph_sssp(const cugraph_resource_handle_t* ha
                                              cugraph_graph_t* graph,
                                              size_t source,
                                              double cutoff,
-                                             bool_t do_expensive_check,
                                              bool_t compute_predecessors,
+                                             bool_t do_expensive_check,
                                              cugraph_paths_result_t** result,
                                              cugraph_error_t** error)
 {
@@ -159,7 +159,7 @@ extern "C" cugraph_error_code_t cugraph_sssp(const cugraph_resource_handle_t* ha
     auto p_graph  = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
 
     cugraph::c_api::sssp_functor functor(
-      *p_handle, p_graph, source, cutoff, do_expensive_check, compute_predecessors);
+      *p_handle, p_graph, source, cutoff, compute_predecessors, do_expensive_check);
 
     // FIXME:  This seems like a recurring pattern.  Can I encapsulate
     //    The vertex_dispatcher and error handling calls into a reusable function?

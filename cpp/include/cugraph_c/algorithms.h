@@ -74,7 +74,8 @@ void cugraph_pagerank_result_free(cugraph_pagerank_result_t* result);
  * @param [in]  has_initial_guess If set to `true`, values in the PageRank output array (pointed by
  * @p pageranks) is used as initial PageRank values. If false, initial PageRank values are set
  * to 1.0 divided by the number of vertices in the graph.
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
  * @param [out] result      Opaque pointer to pagerank results
  * @param [out] error       Pointer to an error object storing details of any error.  Will
  *                          be populated if error code is not CUGRAPH_SUCCESS
@@ -116,7 +117,8 @@ cugraph_error_code_t cugraph_pagerank(
  * @param [in]  has_initial_guess If set to `true`, values in the PageRank output array (pointed by
  * @p pageranks) is used as initial PageRank values. If false, initial PageRank values are set
  * to 1.0 divided by the number of vertices in the graph.
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
  * @param [out] result      Opaque pointer to pagerank results
  * @param [out] error       Pointer to an error object storing details of any error.  Will
  *                          be populated if error code is not CUGRAPH_SUCCESS
@@ -201,10 +203,10 @@ void cugraph_paths_result_free(cugraph_paths_result_t* result);
  * input graphs.
  * @param depth_limit Sets the maximum number of breadth-first search iterations. Any vertices
  * farther than @p depth_limit hops from @p source_vertex will be marked as unreachable.
- * @param [in] do_expensive_check A flag to run expensive checks for input arguments (if set to
- * `true`).
  * @param [in] compute_predecessors A flag to indicate whether to compute the predecessors in the
  * result
+ * @param [in] do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
  * @param [out] result       Opaque pointer to paths results
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
@@ -217,8 +219,8 @@ cugraph_error_code_t cugraph_bfs(
   cugraph_type_erased_device_array_t* sources,
   bool_t direction_optimizing,
   size_t depth_limit,
-  bool_t do_expensive_check,
   bool_t compute_predecessors,
+  bool_t do_expensive_check,
   cugraph_paths_result_t** result,
   cugraph_error_t** error);
 
@@ -234,10 +236,10 @@ cugraph_error_code_t cugraph_bfs(
  * @param [in]  graph        Pointer to graph
  * @param [in]  source       Source vertex id
  * @param [in]  cutoff       Maximum edge weight sum to consider
- * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
- * `true`).
  * @param [in]  compute_predecessors A flag to indicate whether to compute the predecessors in the
  * result
+ * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
  * @param [out] result       Opaque pointer to paths results
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
@@ -247,8 +249,8 @@ cugraph_error_code_t cugraph_sssp(const cugraph_resource_handle_t* handle,
                                   cugraph_graph_t* graph,
                                   size_t source,
                                   double cutoff,
-                                  bool_t do_expensive_check,
                                   bool_t compute_predecessors,
+                                  bool_t do_expensive_check,
                                   cugraph_paths_result_t** result,
                                   cugraph_error_t** error);
 
