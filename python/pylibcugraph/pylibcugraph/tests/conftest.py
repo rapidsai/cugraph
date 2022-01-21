@@ -50,24 +50,27 @@ class Simple_1(InlineGraphData):
     dsts = cp.asarray([1, 2, 3], dtype=np.int32)
     weights = cp.asarray([0, 0, 0], dtype=np.int32)
 
+
 class Simple_2(InlineGraphData):
     srcs = cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32)
     dsts = cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32)
-    weights = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2], dtype=np.float32)
+    weights = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
+                         dtype=np.float32)
 
 
-# The objects in these lists must have a "name" attr, since fixtures will access
-# that to pass to tests, which then may use the name to associate to expected
-# test results. The name attr is also used for the pytest test ID
+# The objects in these lists must have a "name" attr, since fixtures will
+# access that to pass to tests, which then may use the name to associate to
+# expected test results. The name attr is also used for the pytest test ID.
 valid_datasets = [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv",
                   utils.RAPIDS_DATASET_ROOT_DIR_PATH/"dolphins.csv",
                   Simple_1(),
                   Simple_2(),
-                 ]
+                  ]
 all_datasets = valid_datasets + \
                [InvalidNumWeights_1(),
                 InvalidNumVerts_1(),
                 ]
+
 
 # =============================================================================
 # Helper functions
@@ -98,6 +101,7 @@ def get_graph_data_for_dataset(ds, ds_name):
         is_valid = True
 
     return (device_srcs, device_dsts, device_weights, ds_name, is_valid)
+
 
 # =============================================================================
 # Pytest fixtures

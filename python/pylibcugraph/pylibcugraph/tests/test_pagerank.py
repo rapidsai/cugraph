@@ -12,8 +12,8 @@
 # limitations under the License.
 
 import pytest
-import cupy as cp
-import numpy as np
+# import cupy as cp
+# import numpy as np
 
 
 # =============================================================================
@@ -26,6 +26,7 @@ import numpy as np
 def input_and_expected_output(sg_graph_objs):
     (g, resource_handle, ds_name) = sg_graph_objs
     return (g, resource_handle)
+
 
 # =============================================================================
 # Tests
@@ -51,5 +52,5 @@ def test_pagerank(input_and_expected_output):
                       max_iterations,
                       has_initial_guess,
                       do_expensive_check)
-
+    print(result)
     raise NotImplementedError

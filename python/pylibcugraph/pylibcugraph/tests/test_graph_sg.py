@@ -11,13 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pandas as pd
-import cupy as cp
-import numpy as np
-
 import pytest
-
-from . import utils
 
 
 # =============================================================================
@@ -84,7 +78,7 @@ def test_sg_graph(graph_data):
     resource_handle = ResourceHandle()
 
     if is_valid:
-        g = SGGraph(resource_handle,
+        g = SGGraph(resource_handle,  # noqa:F841
                     graph_props,
                     device_srcs,
                     device_dsts,
@@ -92,17 +86,16 @@ def test_sg_graph(graph_data):
                     store_transposed=False,
                     renumber=False,
                     expensive_check=False)
-        # explicitly run __dealloc__()
+        # call SGGraph.__dealloc__()
         del g
 
     else:
         with pytest.raises(RuntimeError):
-            g = SGGraph(resource_handle,
-                        graph_props,
-                        device_srcs,
-                        device_dsts,
-                        device_weights,
-                        store_transposed=False,
-                        renumber=False,
-                        expensive_check=False)
-            del g
+            SGGraph(resource_handle,
+                    graph_props,
+                    device_srcs,
+                    device_dsts,
+                    device_weights,
+                    store_transposed=False,
+                    renumber=False,
+                    expensive_check=False)
