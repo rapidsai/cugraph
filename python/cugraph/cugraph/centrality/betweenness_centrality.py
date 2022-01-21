@@ -53,7 +53,7 @@ def betweenness_centrality(
         BFS traversals. Use weight parameter if weights need to be considered
         (currently not supported)
 
-    k : int or list or None, optional
+    k : int or list or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness.  Higher
         values give better approximation.  If k is a list, use the content
         of the list for estimation: the list should contain vertex
@@ -72,13 +72,13 @@ def betweenness_centrality(
         this normalization scales for the highest possible value where one
         node is crossed by every single shortest path.
 
-    weight : cudf.DataFrame, optional
+    weight : cudf.DataFrame, optional (default=None)
         Specifies the weights to be used for each edge.
         Should contain a mapping between
         edges and weights.
         (Not Supported)
 
-    endpoints : bool, optional
+    endpoints : bool, optional (default=False)
         If true, include the endpoints in the shortest path counts.
         (Not Supported)
 
@@ -176,7 +176,7 @@ def edge_betweenness_centrality(
         BFS traversals. Use weight parameter if weights need to be considered
         (currently not supported)
 
-    k : int or list or None, optional, default=None
+    k : int or list or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness.  Higher
         values give better approximation.
         If k is a list, use the content of the list for estimation: the list
@@ -184,7 +184,7 @@ def edge_betweenness_centrality(
         Vertices obtained through sampling or defined as a list will be used as
         sources for traversals inside the algorithm.
 
-    normalized : bool, optional
+    normalized : bool, optional (default=True)
         Default is True.
         If true, the betweenness values are normalized by
         2 / (n * (n - 1)) for undirected Graphs, and
@@ -194,20 +194,20 @@ def edge_betweenness_centrality(
         this normalization scales for the highest possible value where one
         edge is crossed by every single shortest path.
 
-    weight : cudf.DataFrame, optional, default=None
+    weight : cudf.DataFrame, optional (default=None)
         Specifies the weights to be used for each edge.
         Should contain a mapping between
         edges and weights.
         (Not Supported)
 
-    seed : optional, default=None
+    seed : optional (default=None)
         if k is specified and k is an integer, use seed to initialize the
         random number generator.
         Using None as seed relies on random.seed() behavior: using current
         system time
         If k is either None or list: seed parameter is ignored
 
-    result_dtype : np.float32 or np.float64, optional, default=np.float64
+    result_dtype : np.float32 or np.float64, optional (default=np.float64)
         Indicate the data type of the betweenness centrality scores
         Using double automatically switch implementation to "default"
 

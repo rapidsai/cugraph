@@ -83,23 +83,27 @@ def initialize(comms=None,
 
     Parameters
     ----------
-    comms : raft Comms, optional, default=None
+    comms : raft Comms, optional (default=None)
         A pre-initialized raft communicator. If provided, this is used for mnmg
         communications. If not provided, default comms are initialized as per
         client information.
-    p2p : bool, optional, default=False
+
+    p2p : bool, optional (default=False)
         Initialize UCX endpoints if True.
-    prows : int, optional, default=None
+
+    prows : int, optional (default=None)
         Specifies the number of rows when performing a 2D partitioning of the
         input graph. If specified, this must be a factor of the total number of
         parallel processes. When specified with pcols, prows*pcols should be
         equal to the total number of parallel processes.
-    pcols : int, optional, default=None
+
+    pcols : int, optional (default=None)
         Specifies the number of columns when performing a 2D partitioning of
         the input graph. If specified, this must be a factor of the total
         number of parallel processes. When specified with prows, prows*pcols
         should be equal to the total number of parallel processes.
-    partition_type : int, optional, default=1
+
+    partition_type : int, optional (default=1)
         Valid values are currently 1 or any int other than 1. A value of 1 (the
         default) represents a partitioning resulting in prows*pcols
         partitions. A non-1 value currently results in a partitioning of

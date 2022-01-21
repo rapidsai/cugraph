@@ -34,17 +34,17 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
         and weights. The adjacency list will be computed if not already
         present.
 
-    min_weight : float, default=0.5
+    min_weight : float, optional (default=0.5)
         The minimum value to assign as an edgeweight in the ECG algorithm.
         It should be a value in the range [0,1] usually left as the default
         value of .05
 
-    ensemble_size : integer, default=0.5
+    ensemble_size : integer, optional (default=16)
         The number of graph permutations to use for the ensemble.
         The default value is 16, larger values may produce higher quality
         partitions for some graphs.
 
-    weight : str, default=None
+    weight : str, optional (default=None)
         This parameter is here for NetworkX compatibility and
         represents which NetworkX data column represents Edge weights.
 

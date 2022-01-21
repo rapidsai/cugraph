@@ -51,7 +51,6 @@ Louvain (MG)
    :toctree: api/
 
    cugraph.dask.community.louvain.call_louvain
-   cugraph.community.ktruss_subgraph.ktruss_subgraph
 
 Spectral Clustering
 -------------------

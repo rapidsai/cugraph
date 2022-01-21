@@ -46,7 +46,7 @@ def _convert_df_series_to_output_type(df, offsets, input_type):
 
 def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
     """
-    Compute the  induced subgraph of neighbors centered at node n,
+    Compute the induced subgraph of neighbors centered at node n,
     within a given radius.
 
     Parameters
@@ -55,17 +55,22 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
+
     n : integer or cudf.DataFrame
         A single node as integer or a cudf.DataFrame if nodes are
         represented with multiple columns. If a cudf.DataFrame is provided,
         only the first row is taken as the node input.
-    radius: integer, optional
+
+    radius: integer, optional (default=1)
         Include all neighbors of distance<=radius from n.
+
     center: bool, optional
         Defaults to True. False is not supported
+
     undirected: bool, optional
         Defaults to False. True is not supported
-    distance: key, optional
+
+    distance: key, optional (default=None)
         Distances are counted in hops from n. Other cases are not supported.
 
     Returns
@@ -82,7 +87,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
     ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
-    >>> # ego_graph = cugraph.ego_graph(G, seed, radius=2)
+    >>> ego_graph = cugraph.ego_graph(G, 1, radius=2)
 
     """
 
@@ -116,7 +121,7 @@ def batched_ego_graphs(
     G, seeds, radius=1, center=True, undirected=False, distance=None
 ):
     """
-    Compute the  induced subgraph of neighbors for each node in seeds
+    Compute the induced subgraph of neighbors for each node in seeds
     within a given radius.
 
     Parameters
@@ -125,15 +130,20 @@ def batched_ego_graphs(
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
+
     seeds : cudf.Series or list or cudf.DataFrame
         Specifies the seeds of the induced egonet subgraphs.
-    radius: integer, optional
+
+    radius: integer, optional (default=1)
         Include all neighbors of distance<=radius from n.
+
     center: bool, optional
         Defaults to True. False is not supported
+
     undirected: bool, optional
         Defaults to False. True is not supported
-    distance: key, optional
+
+    distance: key, optional (default=None)
         Distances are counted in hops from n. Other cases are not supported.
 
     Returns
@@ -144,6 +154,17 @@ def batched_ego_graphs(
     seeds_offsets: cudf.Series
         Series containing the starting offset in the returned edge list
         for each seed.
+
+    Examples
+    --------
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> b_ego_graph = cugraph.batched_ego_graphs(G, seeds=[1,5], radius=2)
+
     """
 
     (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")

@@ -36,13 +36,13 @@ def leiden(G, max_iter=100, resolution=1.):
 
         The adjacency list will be computed if not already present.
 
-    max_iter : integer
+    max_iter : integer, optional (default=100)
         This controls the maximum number of levels/iterations of the Leiden
         algorithm. When specified the algorithm will terminate after no more
         than the specified number of iterations. No error occurs when the
         algorithm terminates early in this manner.
 
-    resolution: float/double, optional
+    resolution: float/double, optional (default=1.0)
         Called gamma in the modularity formula, this changes the size
         of the communities.  Higher resolutions lead to more smaller
         communities, lower resolutions lead to fewer larger communities.

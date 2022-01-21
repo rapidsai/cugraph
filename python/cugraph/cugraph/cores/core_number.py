@@ -27,7 +27,7 @@ def core_number(G):
 
     Parameters
     ----------
-    graph : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph or networkx.Graph
         The graph should contain undirected edges where undirected edges are
         represented as directed edges in both directions. While this graph
         can contain edge weights, they don't participate in the calculation

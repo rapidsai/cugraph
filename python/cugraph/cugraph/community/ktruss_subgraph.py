@@ -102,6 +102,9 @@ def ktruss_subgraph(G, k, use_weights=True):
     GPU algorithm first shown in [2] and uses the triangle counting algorithm
     from [3].
 
+    References
+    ----------
+
     [1] Cohen, J.,
     "Trusses: Cohesive subgraphs for social network analysis"
     National security agency technical report, 2008
@@ -126,7 +129,7 @@ def ktruss_subgraph(G, k, use_weights=True):
     k : int
         The desired k to be used for extracting the k-truss subgraph.
 
-    use_weights : Bool
+    use_weights : bool, optional (default=True)
         whether the output should contain the edge weights if G has them
 
     Returns

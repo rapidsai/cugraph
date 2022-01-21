@@ -123,13 +123,13 @@ def weakly_connected_components(G,
             For non-Graph-type (eg. sparse matrix) values of G only.
             Raises TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to a cugraph.DiGraph
-        and only move from point i to point j along paths csgraph[i, j]. If
-        False, then find the shortest path on an undirected graph: the
+        If True (default), then convert the input matrix to a directed Graph
+        and only move from point i to point j along paths csgraph[i, j].
+        If False, then find the shortest path on an undirected graph: the
         algorithm can progress from point i to j along csgraph[i, j] or
         csgraph[j, i].
 
-    connection : str, optional
+    connection : str, optional (default=None)
 
         Added for SciPy compatibility, can only be specified for non-Graph-type
         (eg. sparse matrix) values of G only (raises TypeError if used with a
@@ -221,13 +221,13 @@ def strongly_connected_components(G,
             For non-Graph-type (eg. sparse matrix) values of G only.
             Raises TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to a cugraph.DiGraph
-        and only move from point i to point j along paths csgraph[i, j]. If
-        False, then find the shortest path on an undirected graph: the
+        If True (default), then convert the input matrix to a directed Graph
+        and only move from point i to point j along paths csgraph[i, j].
+        If False, then find the shortest path on an undirected graph: the
         algorithm can progress from point i to j along csgraph[i, j] or
         csgraph[j, i].
 
-    connection : str, optional
+    connection : str, optional (default=None)
 
         Added for SciPy compatibility, can only be specified for non-Graph-type
         (eg. sparse matrix) values of G only (raises TypeError if used with a
@@ -300,7 +300,7 @@ def connected_components(G,
                          connection="weak",
                          return_labels=None):
     """
-    Generate either the stronlgly or weakly connected components and attach a
+    Generate either the strongly or weakly connected components and attach a
     component label to each vertex.
 
     Parameters
@@ -320,13 +320,13 @@ def connected_components(G,
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to a cugraph.DiGraph
-        and only move from point i to point j along paths csgraph[i, j]. If
-        False, then find the shortest path on an undirected graph: the
+        If True (default), then convert the input matrix to a directed Graph
+        and only move from point i to point j along paths csgraph[i, j].
+        If False, then find the shortest path on an undirected graph: the
         algorithm can progress from point i to j along csgraph[i, j] or
         csgraph[j, i].
 
-    connection : str, optional
+    connection : str, optional (default='weak')
 
         [‘weak’|’strong’]. Return either weakly or strongly connected
         components.
