@@ -11,16 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph._cugraph_c.cugraph_api cimport (
+from pylibcugraph._cugraph_c._cugraph_api cimport (
     bool_t,
     cugraph_resource_handle_t,
 )
-from pylibcugraph._cugraph_c.error cimport (
+from pylibcugraph._cugraph_c._error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
 )
-from pylibcugraph._cugraph_c.array cimport (
+from pylibcugraph._cugraph_c._array cimport (
     cugraph_type_erased_device_array_t,
+)
+from pylibcugraph._cugraph_c._graph cimport (
+    cugraph_graph_t,
 )
 
 
@@ -35,22 +38,22 @@ cdef extern from "cugraph_c/algorithms.h":
     # ctypedef struct cugraph_extract_paths_result_t:
     #     pass
 
-    cdef cugraph_type_erased_device_array_t*
+    cdef cugraph_type_erased_device_array_t* \
         cugraph_pagerank_result_get_vertices(
             cugraph_pagerank_result_t* result
         )
 
-    cdef cugraph_type_erased_device_array_t*
+    cdef cugraph_type_erased_device_array_t* \
         cugraph_pagerank_result_get_pageranks(
             cugraph_pagerank_result_t* result
         )
 
-    cdef void
+    cdef void \
         cugraph_pagerank_result_free(
             cugraph_pagerank_result_t* result
         )
 
-    cdef cugraph_error_code_t
+    cdef cugraph_error_code_t \
         cugraph_pagerank(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
@@ -64,7 +67,7 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_error_t** error
         )
 
-    cdef cugraph_error_code_t
+    cdef cugraph_error_code_t \
         cugraph_personalized_pagerank(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,

@@ -23,67 +23,12 @@ from . import utils
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-class InlineGraphData:
-    @property
-    def name(self):
-        return self.__class__.__name__
-
-    @property
-    def is_valid(self):
-        return not(self.name.startswith("Invalid"))
-
-class InvalidNumWeights_1(InlineGraphData):  # noqa: E302
-    srcs = cp.asarray([0, 1, 2], dtype=np.int32)
-    dsts = cp.asarray([1, 2, 3], dtype=np.int32)
-    weights = cp.asarray([0, 0, 0, 0], dtype=np.int32)
-
-class InvalidNumVerts_1(InlineGraphData):  # noqa: E302
-    srcs = cp.asarray([1, 2], dtype=np.int32)
-    dsts = cp.asarray([1, 2, 3], dtype=np.int32)
-    weights = cp.asarray([0, 0, 0], dtype=np.int32)
-
-class Simple_1(InlineGraphData):  # noqa: E302
-    srcs = cp.asarray([0, 1, 2], dtype=np.int32)
-    dsts = cp.asarray([1, 2, 3], dtype=np.int32)
-    weights = cp.asarray([0, 0, 0], dtype=np.int32)
+# fixtures used in this test module are defined in conftest.py
 
 
-datasets = [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv",
-            utils.RAPIDS_DATASET_ROOT_DIR_PATH/"dolphins.csv",
-            InvalidNumWeights_1(),
-            InvalidNumVerts_1(),
-            Simple_1(),
-            ]
-
-
-@pytest.fixture(scope="module",
-                params=[pytest.param(ds, id=ds.name) for ds in datasets])
-def graph_data(request):
-    ds = request.param
-
-    if isinstance(ds, InlineGraphData):
-        device_srcs = ds.srcs
-        device_dsts = ds.dsts
-        device_weights = ds.weights
-        is_valid = ds.is_valid
-    else:
-        pdf = pd.read_csv(ds,
-                          delimiter=" ", header=None,
-                          names=["0", "1", "weight"],
-                          dtype={"0": "int32", "1": "int32",
-                                 "weight": "float32"},
-                          )
-        device_srcs = cp.asarray(pdf["0"].to_numpy(), dtype=np.int32)
-        device_dsts = cp.asarray(pdf["1"].to_numpy(), dtype=np.int32)
-        device_weights = cp.asarray(pdf["weight"].to_numpy(), dtype=np.float32)
-        # Assume all datasets on disk are valid
-        is_valid = True
-
-    return (device_srcs, device_dsts, device_weights, is_valid)
-
-
-###############################################################################
+# =============================================================================
 # Tests
+# =============================================================================
 def test_graph_properties():
     from pylibcugraph.experimental import GraphProperties
 
@@ -105,6 +50,16 @@ def test_graph_properties():
     with pytest.raises(TypeError):
         gp.is_multigraph = "foo"
 
+    gp = GraphProperties(is_symmetric=True, is_multigraph=True)
+    assert gp.is_symmetric is True
+    assert gp.is_multigraph is True
+
+    with pytest.raises(TypeError):
+        gp = GraphProperties(is_symmetric="foo", is_multigraph=False)
+
+    with pytest.raises(TypeError):
+        gp = GraphProperties(is_multigraph=[])
+
 
 def test_resource_handle():
     from pylibcugraph.experimental import ResourceHandle
@@ -115,8 +70,7 @@ def test_resource_handle():
     del rh
 
 
-def test_sg_graph_ctor(graph_data):
-
+def test_sg_graph(graph_data):
     from pylibcugraph.experimental import (SGGraph,
                                            ResourceHandle,
                                            GraphProperties,
@@ -138,8 +92,9 @@ def test_sg_graph_ctor(graph_data):
                     store_transposed=False,
                     renumber=False,
                     expensive_check=False)
+        # explicitly run __dealloc__()
+        del g
 
-        print(g)
     else:
         with pytest.raises(RuntimeError):
             g = SGGraph(resource_handle,
@@ -150,5 +105,4 @@ def test_sg_graph_ctor(graph_data):
                         store_transposed=False,
                         renumber=False,
                         expensive_check=False)
-
-            print(g)
+            del g

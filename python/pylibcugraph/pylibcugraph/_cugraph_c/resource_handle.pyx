@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph._cugraph_c.cugraph_api cimport (
+from pylibcugraph._cugraph_c._cugraph_api cimport (
     cugraph_create_resource_handle,
     cugraph_free_resource_handle,
 )

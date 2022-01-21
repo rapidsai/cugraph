@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph._cugraph_c.error cimport (
+from pylibcugraph._cugraph_c._error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
 )

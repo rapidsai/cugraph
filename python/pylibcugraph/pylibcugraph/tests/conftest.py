@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,15 +11,135 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pandas as pd
+import cupy as cp
+import numpy as np
+
 import pytest
 
+from . import utils
 
-@pytest.fixture
-def package_under_test():
+
+# =============================================================================
+# Fixture parameters
+# =============================================================================
+class InlineGraphData:
+    @property
+    def name(self):
+        return self.__class__.__name__
+
+    @property
+    def is_valid(self):
+        return not(self.name.startswith("Invalid"))
+
+
+class InvalidNumWeights_1(InlineGraphData):
+    srcs = cp.asarray([0, 1, 2], dtype=np.int32)
+    dsts = cp.asarray([1, 2, 3], dtype=np.int32)
+    weights = cp.asarray([0, 0, 0, 0], dtype=np.int32)
+
+
+class InvalidNumVerts_1(InlineGraphData):
+    srcs = cp.asarray([1, 2], dtype=np.int32)
+    dsts = cp.asarray([1, 2, 3], dtype=np.int32)
+    weights = cp.asarray([0, 0, 0], dtype=np.int32)
+
+
+class Simple_1(InlineGraphData):
+    srcs = cp.asarray([0, 1, 2], dtype=np.int32)
+    dsts = cp.asarray([1, 2, 3], dtype=np.int32)
+    weights = cp.asarray([0, 0, 0], dtype=np.int32)
+
+
+valid_datasets = [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv",
+                  utils.RAPIDS_DATASET_ROOT_DIR_PATH/"dolphins.csv",
+                  Simple_1(),
+                 ]
+all_datasets = valid_datasets + \
+               [InvalidNumWeights_1(),
+                InvalidNumVerts_1(),
+                ]
+
+# =============================================================================
+# Helper functions
+# =============================================================================
+def get_graph_data_for_dataset(ds):
     """
-    Create a fixture to import the package under test.  This is useful since
-    bugs that prevent the package under test from being imported will not
-    prevent pytest from collecting, listing, running, etc. the tests.
+    Given an object representing either a path to a dataset on disk, or an
+    object containing raw data, return a series of arrays that can be used to
+    construct a graph object. The final value is a bool used to indicate if the
+    data is valid or not (invalid to test error handling).
     """
-    import pylibcugraph
-    return pylibcugraph
+    if isinstance(ds, InlineGraphData):
+        device_srcs = ds.srcs
+        device_dsts = ds.dsts
+        device_weights = ds.weights
+        is_valid = ds.is_valid
+    else:
+        pdf = pd.read_csv(ds,
+                          delimiter=" ", header=None,
+                          names=["0", "1", "weight"],
+                          dtype={"0": "int32", "1": "int32",
+                                 "weight": "float32"},
+                          )
+        device_srcs = cp.asarray(pdf["0"].to_numpy(), dtype=np.int32)
+        device_dsts = cp.asarray(pdf["1"].to_numpy(), dtype=np.int32)
+        device_weights = cp.asarray(pdf["weight"].to_numpy(), dtype=np.float32)
+        # Assume all datasets on disk are valid
+        is_valid = True
+
+    return (device_srcs, device_dsts, device_weights, is_valid)
+
+# =============================================================================
+# Pytest fixtures
+# =============================================================================
+@pytest.fixture(scope="package",
+                params=[pytest.param(ds, id=ds.name) for ds in all_datasets])
+def graph_data(request):
+    """
+    Return a series of cupy arrays that can be used to construct Graph
+    objects. The parameterization includes invalid arrays which can be used to
+    error handling, so the final value returned indicated if the arrays are
+    valid or not.
+    """
+    return get_graph_data_for_dataset(request.param)
+
+
+@pytest.fixture(scope="package",
+                params=[pytest.param(ds, id=ds.name) for ds in valid_datasets])
+def valid_graph_data(request):
+    """
+    Return a series of cupy arrays that can be used to construct Graph objects,
+    all of which are valid.
+    """
+    return get_graph_data_for_dataset(request.param)
+
+
+@pytest.fixture(scope="package")
+def sg_graph(valid_graph_data, request):
+    """
+    Returns a SGGraph object constructed from parameterized values returned by
+    the valid_graph_data fixture.
+    """
+    from pylibcugraph.experimental import (SGGraph,
+                                           ResourceHandle,
+                                           GraphProperties,
+                                           )
+
+    (device_srcs, device_dsts, device_weights, is_valid) = valid_graph_data
+
+    if is_valid is False:
+        pytest.exit("got invalid graph data - expecting only valid data")
+
+    graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
+    resource_handle = ResourceHandle()
+
+    g = SGGraph(resource_handle,
+                graph_props,
+                device_srcs,
+                device_dsts,
+                device_weights,
+                store_transposed=False,
+                renumber=False,
+                expensive_check=False)
+    return g

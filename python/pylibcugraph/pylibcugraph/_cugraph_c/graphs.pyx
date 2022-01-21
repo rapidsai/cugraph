@@ -11,23 +11,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from libc.stdint cimport uintptr_t
-
-from pylibcugraph._cugraph_c.cugraph_api cimport (
+from pylibcugraph._cugraph_c._cugraph_api cimport (
     bool_t,
     cugraph_resource_handle_t,
     data_type_id_t,
 )
-from pylibcugraph._cugraph_c.error cimport (
+from pylibcugraph._cugraph_c._error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
 )
-from pylibcugraph._cugraph_c.array cimport (
+from pylibcugraph._cugraph_c._array cimport (
     cugraph_type_erased_device_array_t,
     cugraph_type_erased_device_array_create,
     cugraph_type_erased_device_array_free,
 )
-from pylibcugraph._cugraph_c.graph cimport (
+from pylibcugraph._cugraph_c._graph cimport (
     cugraph_graph_t,
     cugraph_sg_graph_create,
     cugraph_graph_properties_t,
@@ -44,7 +42,7 @@ from pylibcugraph._cugraph_c.utils cimport (
 )
 
 
-cdef class EXPERIMENTAL__SGGraph:
+cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
     """
     RAII-stye Graph class for use with single-GPU APIs that manages the
     individual create/free calls and the corresponding cugraph_graph_t pointer.

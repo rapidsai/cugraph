@@ -11,13 +11,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph.utilities.api_tools import experimental_warning_wrapper
+import pytest
+import cupy as cp
+import numpy as np
 
-from pylibcugraph._cugraph_c.graphs import EXPERIMENTAL__SGGraph
-SGGraph = experimental_warning_wrapper(EXPERIMENTAL__SGGraph)
 
-from pylibcugraph._cugraph_c.resource_handle import EXPERIMENTAL__ResourceHandle
-ResourceHandle = experimental_warning_wrapper(EXPERIMENTAL__ResourceHandle)
+# =============================================================================
+# Pytest fixtures
+# =============================================================================
+# fixtures used in this test module are defined in conftest.py
 
-from pylibcugraph._cugraph_c.graph_properties import EXPERIMENTAL__GraphProperties
-GraphProperties = experimental_warning_wrapper(EXPERIMENTAL__GraphProperties)
+
+# =============================================================================
+# Tests
+# =============================================================================
+def test_pagerank(sg_graph):
+    g = sg_graph
+
+    print(g)
