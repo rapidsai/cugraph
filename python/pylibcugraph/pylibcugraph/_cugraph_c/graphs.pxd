@@ -17,10 +17,10 @@ from pylibcugraph._cugraph_c._graph cimport (
 
 
 cdef class EXPERIMENTAL__Graph:
-     pass
+    cdef cugraph_graph_t* c_graph_ptr
 
 cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
-    cdef cugraph_graph_t* c_sg_graph_ptr
+    pass
 
 # cdef class EXPERIMENTAL__MGGraph(EXPERIMENTAL__Graph):
-#     cdef cugraph_graph_t* c_mg_graph_ptr
+#     pass

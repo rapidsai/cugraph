@@ -14,6 +14,7 @@
 from pylibcugraph._cugraph_c._cugraph_api cimport (
     bool_t,
     #data_type_id_t,
+    cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c._error cimport (
     cugraph_error_code_t,
@@ -26,12 +27,10 @@ from pylibcugraph._cugraph_c._array cimport (
 )
 from pylibcugraph._cugraph_c._graph cimport (
     cugraph_graph_t,
-    cugraph_sg_graph_create,
-    cugraph_graph_properties_t,
-    cugraph_sg_graph_free,
 )
 from pylibcugraph._cugraph_c._algorithms cimport (
     cugraph_pagerank_result_t,
+    cugraph_pagerank,
 )
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
@@ -45,18 +44,33 @@ from pylibcugraph._cugraph_c.utils cimport (
 )
 
 
-cdef cugraph_error_code_t \
-    pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
-             EXPERIMENTAL__Graph graph,
-             cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
-             double alpha,
-             double epsilon,
-             size_t max_iterations,
-             bool_t has_initial_guess,
-             bool_t do_expensive_check,
-             cugraph_pagerank_result_t** result,
-             cugraph_error_t** error
-             ):
+
+def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
+                           EXPERIMENTAL__Graph graph,
+                           precomputed_vertex_out_weight_sums,
+                           double alpha,
+                           double epsilon,
+                           size_t max_iterations,
+                           bool_t has_initial_guess,
+                           bool_t do_expensive_check):
     """
     """
-    pass
+    cdef cugraph_resource_handle_t* c_resource_handle_ptr = resource_handle.c_resource_handle_ptr
+    cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
+    #cdef cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums_ptr = precomputed_vertex_out_weight_sums
+    cdef cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums_ptr = NULL
+
+    cdef cugraph_pagerank_result_t* result_ptr
+    cdef cugraph_error_code_t error_code
+    cdef cugraph_error_t* error_ptr
+
+    error_code = cugraph_pagerank(c_resource_handle_ptr,
+                                  c_graph_ptr,
+                                  precomputed_vertex_out_weight_sums_ptr,
+                                  alpha,
+                                  epsilon,
+                                  max_iterations,
+                                  has_initial_guess,
+                                  do_expensive_check,
+                                  &result_ptr,
+                                  &error_ptr)

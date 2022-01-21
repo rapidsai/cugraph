@@ -21,3 +21,6 @@ ResourceHandle = experimental_warning_wrapper(EXPERIMENTAL__ResourceHandle)
 
 from pylibcugraph._cugraph_c.graph_properties import EXPERIMENTAL__GraphProperties
 GraphProperties = experimental_warning_wrapper(EXPERIMENTAL__GraphProperties)
+
+from pylibcugraph._cugraph_c.pagerank import EXPERIMENTAL__pagerank
+pagerank = experimental_warning_wrapper(EXPERIMENTAL__pagerank)

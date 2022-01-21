@@ -50,10 +50,19 @@ class Simple_1(InlineGraphData):
     dsts = cp.asarray([1, 2, 3], dtype=np.int32)
     weights = cp.asarray([0, 0, 0], dtype=np.int32)
 
+class Simple_2(InlineGraphData):
+    srcs = cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32)
+    dsts = cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32)
+    weights = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2], dtype=np.float32)
 
+
+# The objects in these lists must have a "name" attr, since fixtures will access
+# that to pass to tests, which then may use the name to associate to expected
+# test results. The name attr is also used for the pytest test ID
 valid_datasets = [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv",
                   utils.RAPIDS_DATASET_ROOT_DIR_PATH/"dolphins.csv",
                   Simple_1(),
+                  Simple_2(),
                  ]
 all_datasets = valid_datasets + \
                [InvalidNumWeights_1(),
@@ -63,7 +72,7 @@ all_datasets = valid_datasets + \
 # =============================================================================
 # Helper functions
 # =============================================================================
-def get_graph_data_for_dataset(ds):
+def get_graph_data_for_dataset(ds, ds_name):
     """
     Given an object representing either a path to a dataset on disk, or an
     object containing raw data, return a series of arrays that can be used to
@@ -88,7 +97,7 @@ def get_graph_data_for_dataset(ds):
         # Assume all datasets on disk are valid
         is_valid = True
 
-    return (device_srcs, device_dsts, device_weights, is_valid)
+    return (device_srcs, device_dsts, device_weights, ds_name, is_valid)
 
 # =============================================================================
 # Pytest fixtures
@@ -102,7 +111,7 @@ def graph_data(request):
     error handling, so the final value returned indicated if the arrays are
     valid or not.
     """
-    return get_graph_data_for_dataset(request.param)
+    return get_graph_data_for_dataset(request.param, request.param.name)
 
 
 @pytest.fixture(scope="package",
@@ -112,21 +121,24 @@ def valid_graph_data(request):
     Return a series of cupy arrays that can be used to construct Graph objects,
     all of which are valid.
     """
-    return get_graph_data_for_dataset(request.param)
+    return get_graph_data_for_dataset(request.param, request.param.name)
 
 
 @pytest.fixture(scope="package")
-def sg_graph(valid_graph_data, request):
+def sg_graph_objs(valid_graph_data, request):
     """
-    Returns a SGGraph object constructed from parameterized values returned by
-    the valid_graph_data fixture.
+    Returns a tuple containing the SGGraph object constructed from
+    parameterized values returned by the valid_graph_data fixture,
+    the associated resource handle, and the name of the dataset
+    used to construct the graph.
     """
     from pylibcugraph.experimental import (SGGraph,
                                            ResourceHandle,
                                            GraphProperties,
                                            )
 
-    (device_srcs, device_dsts, device_weights, is_valid) = valid_graph_data
+    (device_srcs, device_dsts, device_weights, ds_name, is_valid) = \
+        valid_graph_data
 
     if is_valid is False:
         pytest.exit("got invalid graph data - expecting only valid data")
@@ -142,4 +154,4 @@ def sg_graph(valid_graph_data, request):
                 store_transposed=False,
                 renumber=False,
                 expensive_check=False)
-    return g
+    return (g, resource_handle, ds_name)

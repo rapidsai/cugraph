@@ -78,52 +78,52 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
                             "__cuda_array_interface__ attr")
 
         cdef cugraph_error_t* error_ptr
-        cdef cugraph_error_code_t err_code
+        cdef cugraph_error_code_t error_code
 
         cdef cugraph_type_erased_device_array_t* srcs_ptr
         cdef cugraph_type_erased_device_array_t* dsts_ptr
         cdef cugraph_type_erased_device_array_t* weights_ptr
 
         # FIXME: set dtype properly
-        err_code = cugraph_type_erased_device_array_create(
+        error_code = cugraph_type_erased_device_array_create(
             resource_handle.c_resource_handle_ptr,
             data_type_id_t.INT32,
             len(src_array),
             &srcs_ptr,
             &error_ptr)
 
-        assert_success(err_code, error_ptr,
+        assert_success(error_code, error_ptr,
                        "cugraph_type_erased_device_array_create()")
         # FIXME: add call to to device-device copy of __cuda_array_interface__
         # values to cugraph_type_erased_device_array
 
         # FIXME: set dtype properly
-        err_code = cugraph_type_erased_device_array_create(
+        error_code = cugraph_type_erased_device_array_create(
             resource_handle.c_resource_handle_ptr,
             data_type_id_t.INT32,
             len(dst_array),
             &dsts_ptr,
             &error_ptr)
 
-        assert_success(err_code, error_ptr,
+        assert_success(error_code, error_ptr,
                        "cugraph_type_erased_device_array_create()")
         # FIXME: add call to to device-device copy of __cuda_array_interface__
         # values to cugraph_type_erased_device_array
 
         # FIXME: set dtype properly
-        err_code = cugraph_type_erased_device_array_create(
+        error_code = cugraph_type_erased_device_array_create(
             resource_handle.c_resource_handle_ptr,
             data_type_id_t.FLOAT32,
             len(weight_array),
             &weights_ptr,
             &error_ptr)
 
-        assert_success(err_code, error_ptr,
+        assert_success(error_code, error_ptr,
                        "cugraph_type_erased_device_array_create()")
         # FIXME: add call to to device-device copy of __cuda_array_interface__
         # values to cugraph_type_erased_device_array
 
-        err_code = cugraph_sg_graph_create(
+        error_code = cugraph_sg_graph_create(
             resource_handle.c_resource_handle_ptr,
             &(graph_properties.c_graph_properties),
             srcs_ptr,
@@ -132,12 +132,12 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
             int(store_transposed),
             int(renumber),
             int(expensive_check),
-            &(self.c_sg_graph_ptr),
+            &(self.c_graph_ptr),
             &error_ptr)
 
-        assert_success(err_code, error_ptr,
+        assert_success(error_code, error_ptr,
                        "cugraph_sg_graph_create()")
 
     def __dealloc__(self):
-        if self.c_sg_graph_ptr is not NULL:
-            cugraph_sg_graph_free(self.c_sg_graph_ptr)
+        if self.c_graph_ptr is not NULL:
+            cugraph_sg_graph_free(self.c_graph_ptr)

@@ -76,7 +76,7 @@ def test_sg_graph(graph_data):
                                            GraphProperties,
                                            )
 
-    (device_srcs, device_dsts, device_weights, is_valid) = graph_data
+    (device_srcs, device_dsts, device_weights, ds_name, is_valid) = graph_data
 
     graph_props = GraphProperties()
     graph_props.is_symmetric = False

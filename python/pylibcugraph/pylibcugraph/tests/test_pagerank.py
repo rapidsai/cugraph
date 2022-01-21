@@ -19,13 +19,37 @@ import numpy as np
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-# fixtures used in this test module are defined in conftest.py
-
+# sg_graph_and_resource_handle fixture is defined in conftest.py. That fixture
+# returns a preconstructed graph and corresponding resource handle for
+# different datasets.
+@pytest.fixture
+def input_and_expected_output(sg_graph_objs):
+    (g, resource_handle, ds_name) = sg_graph_objs
+    return (g, resource_handle)
 
 # =============================================================================
 # Tests
 # =============================================================================
-def test_pagerank(sg_graph):
-    g = sg_graph
+@pytest.mark.skip(reason="UNFINISHED")
+def test_pagerank(input_and_expected_output):
+    from pylibcugraph.experimental import pagerank
 
-    print(g)
+    (g, resource_handle) = input_and_expected_output
+
+    precomputed_vertex_out_weight_sums = None
+    alpha = 0.95
+    epsilon = 0.0001
+    max_iterations = 20
+    has_initial_guess = False
+    do_expensive_check = False
+
+    result = pagerank(resource_handle,
+                      g,
+                      precomputed_vertex_out_weight_sums,
+                      alpha,
+                      epsilon,
+                      max_iterations,
+                      has_initial_guess,
+                      do_expensive_check)
+
+    raise NotImplementedError
