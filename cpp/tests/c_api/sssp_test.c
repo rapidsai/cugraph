@@ -55,7 +55,7 @@ int generic_sssp_test(vertex_t* h_src,
     p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
 
   ret_code = cugraph_sssp(
-    p_handle, p_graph, source, cutoff, FALSE, TRUE, &p_result, &ret_error);
+    p_handle, p_graph, source, cutoff, TRUE, FALSE, &p_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_sssp failed.");
 
   cugraph_type_erased_device_array_t* vertices;
@@ -84,8 +84,7 @@ int generic_sssp_test(vertex_t* h_src,
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
-                //nearlyEqual(expected_distances[h_vertices[i]], h_distances[i], EPSILON),
-                expected_distances[h_vertices[i]] == h_distances[i],
+                nearlyEqual(expected_distances[h_vertices[i]], h_distances[i], EPSILON),
                 "sssp distances don't match");
 
     TEST_ASSERT(test_ret_value,
