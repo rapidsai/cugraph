@@ -46,6 +46,7 @@ int generic_bfs_test(vertex_t* h_src,
   cugraph_graph_t* p_graph                      = NULL;
   cugraph_paths_result_t* p_result              = NULL;
   cugraph_type_erased_device_array_t* p_sources = NULL;
+  cugraph_type_erased_device_array_view_t* p_source_view = NULL;
 
   p_handle = cugraph_create_resource_handle();
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
@@ -54,15 +55,17 @@ int generic_bfs_test(vertex_t* h_src,
     p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
 
   ret_code =
-    cugraph_type_erased_device_array_create(p_handle, INT32, num_seeds, &p_sources, &ret_error);
+    cugraph_type_erased_device_array_create(p_handle, num_seeds, INT32, &p_sources, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "p_sources create failed.");
 
-  ret_code = cugraph_type_erased_device_array_copy_from_host(
-    p_handle, p_sources, (byte_t*)h_seeds, &ret_error);
+  p_source_view = cugraph_type_erased_device_array_view(p_sources);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    p_handle, p_source_view, (byte_t*)h_seeds, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
 
   ret_code = cugraph_bfs(
-    p_handle, p_graph, p_sources, FALSE, depth_limit, FALSE, TRUE, &p_result, &ret_error);
+    p_handle, p_graph, p_source_view, FALSE, depth_limit, FALSE, TRUE, &p_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_bfs failed.");
 
   cugraph_type_erased_device_array_t* vertices;
@@ -77,15 +80,15 @@ int generic_bfs_test(vertex_t* h_src,
   vertex_t h_distances[num_vertices];
   vertex_t h_predecessors[num_vertices];
 
-  ret_code = cugraph_type_erased_device_array_copy_to_host(
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     p_handle, (byte_t*)h_vertices, vertices, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_copy_to_host(
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     p_handle, (byte_t*)h_distances, distances, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_copy_to_host(
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     p_handle, (byte_t*)h_predecessors, predecessors, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 

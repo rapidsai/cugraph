@@ -32,8 +32,8 @@ cugraph::visitors::DTypes dtypes_mapping[] = {cugraph::visitors::DTypes::INT32,
 
 extern "C" cugraph_error_code_t cugraph_type_erased_device_array_create(
   const cugraph_resource_handle_t* handle,
-  data_type_id_t dtype,
   size_t n_elems,
+  data_type_id_t dtype,
   cugraph_type_erased_device_array_t** array,
   cugraph_error_t** error)
 {
@@ -68,33 +68,70 @@ extern "C" void cugraph_type_erased_device_array_free(cugraph_type_erased_device
   delete internal_pointer;
 }
 
-extern "C" size_t cugraph_type_erased_device_array_size(const cugraph_type_erased_device_array_t* p)
+#if 0
+// NOTE:  This can't work.  rmm::device_buffer doesn't support release, that would leave a raw
+//        pointer in the wild with no idea how to free it.  I suppose that could be done
+//        (I imagine you can do that with unique_ptr), but it's not currently supported and I'm
+//        not sure *this* use case is sufficient justification to adding a potentially
+//        dangerous feature.
+extern "C" void* cugraph_type_erased_device_array_release(cugraph_type_erased_device_array_t* p)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(p);
+  return internal_pointer->data_.release();
+}
+#endif
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_type_erased_device_array_view(
+  cugraph_type_erased_device_array_t* array)
 {
   auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(p);
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(array);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->view());
+}
+
+cugraph_type_erased_device_array_view_t* cugraph_type_erased_device_array_view_create(
+  void* pointer, size_t n_elems, data_type_id_t dtype)
+{
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    new cugraph::c_api::cugraph_type_erased_device_array_view_t{pointer, n_elems, dtype});
+}
+
+extern "C" void cugraph_type_erased_device_array_view_free(
+  cugraph_type_erased_device_array_view_t* p)
+{
+  auto internal_pointer =
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(p);
+  delete internal_pointer;
+}
+
+extern "C" size_t cugraph_type_erased_device_array_view_size(
+  const cugraph_type_erased_device_array_view_t* p)
+{
+  auto internal_pointer =
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(p);
   return internal_pointer->size_;
 }
 
-extern "C" data_type_id_t cugraph_type_erased_device_array_type(
-  const cugraph_type_erased_device_array_t* p)
+extern "C" data_type_id_t cugraph_type_erased_device_array_view_type(
+  const cugraph_type_erased_device_array_view_t* p)
 {
   auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(p);
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(p);
   return internal_pointer->type_;
 }
 
-extern "C" const void* cugraph_type_erased_device_array_pointer(
-  const cugraph_type_erased_device_array_t* p)
+extern "C" const void* cugraph_type_erased_device_array_view_pointer(
+  const cugraph_type_erased_device_array_view_t* p)
 {
   auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(p);
-  return internal_pointer->data_.data();
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(p);
+  return internal_pointer->data_;
 }
 
 extern "C" cugraph_error_code_t cugraph_type_erased_host_array_create(
   const cugraph_resource_handle_t* handle,
-  data_type_id_t dtype,
   size_t n_elems,
+  data_type_id_t dtype,
   cugraph_type_erased_host_array_t** array,
   cugraph_error_t** error)
 {
@@ -112,11 +149,10 @@ extern "C" cugraph_error_code_t cugraph_type_erased_host_array_create(
 
     size_t n_bytes = n_elems * (::data_type_sz[dtype]);
 
-    cugraph::c_api::cugraph_type_erased_host_array_t* ret_value =
+    *array = reinterpret_cast<cugraph_type_erased_host_array_t*>(
       new cugraph::c_api::cugraph_type_erased_host_array_t{
-        new std::byte[n_bytes], n_elems, n_bytes, dtype};
+        std::make_unique<std::byte[]>(n_bytes), n_elems, n_bytes, dtype});
 
-    *array = reinterpret_cast<cugraph_type_erased_host_array_t*>(ret_value);
     return CUGRAPH_SUCCESS;
   } catch (std::exception const& ex) {
     auto tmp_error = new cugraph::c_api::cugraph_error_t{ex.what()};
@@ -128,35 +164,68 @@ extern "C" cugraph_error_code_t cugraph_type_erased_host_array_create(
 extern "C" void cugraph_type_erased_host_array_free(cugraph_type_erased_host_array_t* p)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_t*>(p);
-  delete[] internal_pointer->data_;
   delete internal_pointer;
 }
 
-extern "C" size_t cugraph_type_erased_host_array_size(const cugraph_type_erased_host_array_t* p)
+#if 0
+// Leaving this one out since we're not doing the more important device version
+extern "C" void* cugraph_type_erased_host_array_release(const cugraph_type_erased_host_array_t* p)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_t*>(p);
+  return internal_pointer->data_.release();
+}
+#endif
+
+extern "C" cugraph_type_erased_host_array_view_t* cugraph_type_erased_host_array_view(
+  cugraph_type_erased_host_array_t* array)
 {
   auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_t const*>(p);
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_t*>(array);
+  return reinterpret_cast<cugraph_type_erased_host_array_view_t*>(internal_pointer->view());
+}
+
+extern "C" cugraph_type_erased_host_array_view_t* cugraph_type_erased_host_array_view_create(
+  void* pointer, size_t n_elems, data_type_id_t dtype)
+{
+  return reinterpret_cast<cugraph_type_erased_host_array_view_t*>(
+    new cugraph::c_api::cugraph_type_erased_host_array_view_t{
+      static_cast<std::byte*>(pointer), n_elems, dtype});
+}
+
+extern "C" void cugraph_type_erased_host_array_view_free(cugraph_type_erased_host_array_view_t* p)
+{
+  auto internal_pointer =
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t*>(p);
+  delete internal_pointer;
+}
+
+extern "C" size_t cugraph_type_erased_host_array_size(
+  const cugraph_type_erased_host_array_view_t* p)
+{
+  auto internal_pointer =
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(p);
   return internal_pointer->size_;
 }
 
-extern "C" data_type_id_t cugraph_type_erased_host_array_type(
-  const cugraph_type_erased_host_array_t* p)
+extern "C" data_type_id_t cugraph_type_erased_host_array_view_type(
+  const cugraph_type_erased_host_array_view_t* p)
 {
   auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_t const*>(p);
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(p);
   return internal_pointer->type_;
 }
 
-extern "C" void* cugraph_type_erased_host_array_pointer(const cugraph_type_erased_host_array_t* p)
+extern "C" void* cugraph_type_erased_host_array_pointer(
+  const cugraph_type_erased_host_array_view_t* p)
 {
   auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_t const*>(p);
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(p);
   return internal_pointer->data_;
 }
 
-extern "C" cugraph_error_code_t cugraph_type_erased_device_array_copy_from_host(
+extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy_from_host(
   const cugraph_resource_handle_t* handle,
-  cugraph_type_erased_device_array_t* dst,
+  cugraph_type_erased_device_array_view_t* dst,
   const byte_t* h_src,
   cugraph_error_t** error)
 {
@@ -165,7 +234,7 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_copy_from_host(
   try {
     raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
     auto internal_pointer =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(dst);
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(dst);
 
     if (!raft_handle) {
       *error = reinterpret_cast<cugraph_error_t*>(
@@ -173,9 +242,9 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_copy_from_host(
       return CUGRAPH_INVALID_HANDLE;
     }
 
-    raft::update_device(reinterpret_cast<byte_t*>(internal_pointer->data_.data()),
+    raft::update_device(reinterpret_cast<byte_t*>(internal_pointer->data_),
                         h_src,
-                        internal_pointer->data_.size(),
+                        internal_pointer->num_bytes(),
                         raft_handle->get_stream());
 
     return CUGRAPH_SUCCESS;
@@ -186,10 +255,10 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_copy_from_host(
   }
 }
 
-extern "C" cugraph_error_code_t cugraph_type_erased_device_array_copy_to_host(
+extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy_to_host(
   const cugraph_resource_handle_t* handle,
   byte_t* h_dst,
-  const cugraph_type_erased_device_array_t* src,
+  const cugraph_type_erased_device_array_view_t* src,
   cugraph_error_t** error)
 {
   *error = nullptr;
@@ -197,7 +266,7 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_copy_to_host(
   try {
     raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
     auto internal_pointer =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(src);
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(src);
 
     if (!raft_handle) {
       *error = reinterpret_cast<cugraph_error_t*>(
@@ -206,8 +275,48 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_copy_to_host(
     }
 
     raft::update_host(h_dst,
-                      reinterpret_cast<byte_t const*>(internal_pointer->data_.data()),
-                      internal_pointer->data_.size(),
+                      reinterpret_cast<byte_t const*>(internal_pointer->data_),
+                      internal_pointer->num_bytes(),
+                      raft_handle->get_stream());
+
+    return CUGRAPH_SUCCESS;
+  } catch (std::exception const& ex) {
+    auto tmp_error = new cugraph::c_api::cugraph_error_t{ex.what()};
+    *error         = reinterpret_cast<cugraph_error_t*>(tmp_error);
+    return CUGRAPH_UNKNOWN_ERROR;
+  }
+}
+
+extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy(
+  const cugraph_resource_handle_t* handle,
+  cugraph_type_erased_device_array_view_t* dst,
+  const cugraph_type_erased_device_array_view_t* src,
+  cugraph_error_t** error)
+{
+  *error = nullptr;
+
+  try {
+    raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
+    auto internal_pointer_dst =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t *>(dst);
+    auto internal_pointer_src =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const *>(src);
+
+    if (!raft_handle) {
+      *error = reinterpret_cast<cugraph_error_t*>(
+        new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
+      return CUGRAPH_INVALID_HANDLE;
+    }
+
+    if (internal_pointer_src->num_bytes() != internal_pointer_dst->num_bytes()) {
+      *error = reinterpret_cast<cugraph_error_t*>(
+        new cugraph::c_api::cugraph_error_t{"source and destination arrays are different sizes"});
+      return CUGRAPH_INVALID_INPUT;
+    }
+
+    raft::update_host(reinterpret_cast<byte_t *>(internal_pointer_dst->data_),
+                      reinterpret_cast<byte_t const*>(internal_pointer_src->data_),
+                      internal_pointer_src->num_bytes(),
                       raft_handle->get_stream());
 
     return CUGRAPH_SUCCESS;
