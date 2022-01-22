@@ -298,9 +298,9 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy(
   try {
     raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
     auto internal_pointer_dst =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t *>(dst);
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(dst);
     auto internal_pointer_src =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const *>(src);
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(src);
 
     if (!raft_handle) {
       *error = reinterpret_cast<cugraph_error_t*>(
@@ -314,7 +314,7 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy(
       return CUGRAPH_INVALID_INPUT;
     }
 
-    raft::update_host(reinterpret_cast<byte_t *>(internal_pointer_dst->data_),
+    raft::update_host(reinterpret_cast<byte_t*>(internal_pointer_dst->data_),
                       reinterpret_cast<byte_t const*>(internal_pointer_src->data_),
                       internal_pointer_src->num_bytes(),
                       raft_handle->get_stream());

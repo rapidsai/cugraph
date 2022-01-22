@@ -58,9 +58,9 @@ int generic_sssp_test(vertex_t* h_src,
     p_handle, p_graph, source, cutoff, TRUE, FALSE, &p_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_sssp failed.");
 
-  cugraph_type_erased_device_array_t* vertices;
-  cugraph_type_erased_device_array_t* distances;
-  cugraph_type_erased_device_array_t* predecessors;
+  cugraph_type_erased_device_array_view_t* vertices;
+  cugraph_type_erased_device_array_view_t* distances;
+  cugraph_type_erased_device_array_view_t* predecessors;
 
   vertices     = cugraph_paths_result_get_vertices(p_result);
   distances    = cugraph_paths_result_get_distances(p_result);
@@ -70,15 +70,15 @@ int generic_sssp_test(vertex_t* h_src,
   weight_t h_distances[num_vertices];
   vertex_t h_predecessors[num_vertices];
 
-  ret_code = cugraph_type_erased_device_array_copy_to_host(
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     p_handle, (byte_t*)h_vertices, vertices, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_copy_to_host(
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     p_handle, (byte_t*)h_distances, distances, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_copy_to_host(
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     p_handle, (byte_t*)h_predecessors, predecessors, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
@@ -92,6 +92,9 @@ int generic_sssp_test(vertex_t* h_src,
                 "sssp predecessors don't match");
   }
 
+  cugraph_type_erased_device_array_view_free(vertices);
+  cugraph_type_erased_device_array_view_free(distances);
+  cugraph_type_erased_device_array_view_free(predecessors);
   cugraph_paths_result_free(p_result);
   cugraph_sg_graph_free(p_graph);
   cugraph_free_resource_handle(p_handle);

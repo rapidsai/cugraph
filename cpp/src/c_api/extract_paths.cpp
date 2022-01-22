@@ -181,7 +181,8 @@ extern "C" cugraph_error_code_t cugraph_extract_paths(
     auto p_paths_result =
       reinterpret_cast<cugraph::c_api::cugraph_paths_result_t const*>(paths_result);
     auto p_destinations =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(destinations);
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+        destinations);
 
     cugraph::c_api::extract_paths_functor functor(
       *p_handle, p_graph, p_sources, p_paths_result, p_destinations);

@@ -96,7 +96,10 @@ struct cugraph_type_erased_host_array_t {
   size_t num_bytes_;
   data_type_id_t type_;
 
-  auto view() { return new cugraph_type_erased_host_array_view_t{data_.get(), size_, num_bytes_, type_}; }
+  auto view()
+  {
+    return new cugraph_type_erased_host_array_view_t{data_.get(), size_, num_bytes_, type_};
+  }
 };
 
 }  // namespace c_api

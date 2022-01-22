@@ -189,8 +189,10 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   *error = nullptr;
 
   auto p_handle = reinterpret_cast<raft::handle_t const*>(handle);
-  auto p_src    = reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(src);
-  auto p_dst    = reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(dst);
+  auto p_src =
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(src);
+  auto p_dst =
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(dst);
   auto p_weights =
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(weights);
 

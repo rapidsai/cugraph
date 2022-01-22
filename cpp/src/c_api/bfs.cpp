@@ -145,21 +145,24 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_ver
   cugraph_paths_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_paths_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->vertex_ids_->view());
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->vertex_ids_->view());
 }
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_distances(
   cugraph_paths_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_paths_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->distances_->view());
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->distances_->view());
 }
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_predecessors(
   cugraph_paths_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_paths_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->predecessors_->view());
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->predecessors_->view());
 }
 
 extern "C" void cugraph_paths_result_free(cugraph_paths_result_t* result)
@@ -185,9 +188,10 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
   *error  = nullptr;
 
   try {
-    auto p_handle  = reinterpret_cast<raft::handle_t const*>(handle);
-    auto p_graph   = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
-    auto p_sources = reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(sources);
+    auto p_handle = reinterpret_cast<raft::handle_t const*>(handle);
+    auto p_graph  = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
+    auto p_sources =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(sources);
 
     cugraph::c_api::bfs_functor functor(*p_handle,
                                         p_graph,

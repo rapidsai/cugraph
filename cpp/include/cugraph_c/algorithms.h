@@ -280,13 +280,14 @@ typedef struct {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_extract_paths(const cugraph_resource_handle_t* handle,
-                                           cugraph_graph_t* graph,
-                                           const cugraph_type_erased_device_array_view_t* sources,
-                                           const cugraph_paths_result_t* paths_result,
-                                           const cugraph_type_erased_device_array_view_t* destinations,
-                                           cugraph_extract_paths_result_t** result,
-                                           cugraph_error_t** error);
+cugraph_error_code_t cugraph_extract_paths(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* sources,
+  const cugraph_paths_result_t* paths_result,
+  const cugraph_type_erased_device_array_view_t* destinations,
+  cugraph_extract_paths_result_t** result,
+  cugraph_error_t** error);
 
 /**
  * @brief     Get the max path length from extract_paths result

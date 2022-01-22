@@ -49,16 +49,17 @@ struct pagerank_functor : public abstract_functor {
   bool do_expensive_check_;
   cugraph_pagerank_result_t* result_{};
 
-  pagerank_functor(raft::handle_t const& handle,
-                   cugraph_graph_t* graph,
-                   cugraph_type_erased_device_array_view_t const* precomputed_vertex_out_weight_sums,
-                   cugraph_type_erased_device_array_view_t* personalization_vertices,
-                   cugraph_type_erased_device_array_view_t const* personalization_values,
-                   double alpha,
-                   double epsilon,
-                   size_t max_iterations,
-                   bool has_initial_guess,
-                   bool do_expensive_check)
+  pagerank_functor(
+    raft::handle_t const& handle,
+    cugraph_graph_t* graph,
+    cugraph_type_erased_device_array_view_t const* precomputed_vertex_out_weight_sums,
+    cugraph_type_erased_device_array_view_t* personalization_vertices,
+    cugraph_type_erased_device_array_view_t const* personalization_values,
+    double alpha,
+    double epsilon,
+    size_t max_iterations,
+    bool has_initial_guess,
+    bool do_expensive_check)
     : abstract_functor(),
       handle_(handle),
       graph_(graph),
@@ -155,14 +156,16 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_pagerank_result_get_
   cugraph_pagerank_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_pagerank_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->vertex_ids_->view());
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->vertex_ids_->view());
 }
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_pagerank_result_get_pageranks(
   cugraph_pagerank_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_pagerank_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->pageranks_->view());
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->pageranks_->view());
 }
 
 extern "C" void cugraph_pagerank_result_free(cugraph_pagerank_result_t* result)
