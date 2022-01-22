@@ -11,16 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph._cugraph_c._graph cimport (
-    cugraph_graph_t,
+from pylibcugraph._cugraph_c.cugraph_api cimport (
+    cugraph_resource_handle_t,
 )
 
 
-cdef class EXPERIMENTAL__Graph:
-    cdef cugraph_graph_t* c_graph_ptr
-
-cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
-    pass
-
-# cdef class EXPERIMENTAL__MGGraph(EXPERIMENTAL__Graph):
-#     pass
+cdef class EXPERIMENTAL__ResourceHandle:
+    cdef cugraph_resource_handle_t* c_resource_handle_ptr

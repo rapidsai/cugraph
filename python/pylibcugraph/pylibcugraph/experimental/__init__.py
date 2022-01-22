@@ -11,16 +11,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+The "experimental" package contains packages, functions, classes, etc. that
+are ready for use but do not have their API signatures or implementation
+finalized yet. This allows users to provide early feedback while still
+permitting bigger design changes to take place.
+
+ALL APIS IN EXPERIMENTAL ARE SUBJECT TO CHANGE OR REMOVAL.
+
+Calling experimental objects will raise a PendingDeprecationWarning warning.
+
+If an object is "promoted" to the public API, the experimental namespace will
+continue to also have that object present for at least another release.  A
+different warning will be output in that case, indicating that the experimental
+API has been promoted and will no longer be importable from experimental much
+longer.
+"""
+
 from pylibcugraph.utilities.api_tools import experimental_warning_wrapper
 
-from pylibcugraph._cugraph_c.graphs import EXPERIMENTAL__SGGraph
+# experimental_warning_wrapper() wraps the object in a function that provides
+# the appropriate warning about using experimental code.
+
+# The convention of naming functions with the "EXPERIMENTAL__" prefix
+# discourages users from directly importing experimental objects that don't have
+# the appropriate warnings, such as what the wrapper and the "experimental"
+# namespace name provides.
+
+from pylibcugraph.graphs import EXPERIMENTAL__SGGraph
 SGGraph = experimental_warning_wrapper(EXPERIMENTAL__SGGraph)
 
-from pylibcugraph._cugraph_c.resource_handle import EXPERIMENTAL__ResourceHandle
+from pylibcugraph.resource_handle import EXPERIMENTAL__ResourceHandle
 ResourceHandle = experimental_warning_wrapper(EXPERIMENTAL__ResourceHandle)
 
-from pylibcugraph._cugraph_c.graph_properties import EXPERIMENTAL__GraphProperties
+from pylibcugraph.graph_properties import EXPERIMENTAL__GraphProperties
 GraphProperties = experimental_warning_wrapper(EXPERIMENTAL__GraphProperties)
 
-from pylibcugraph._cugraph_c.pagerank import EXPERIMENTAL__pagerank
+from pylibcugraph.pagerank import EXPERIMENTAL__pagerank
 pagerank = experimental_warning_wrapper(EXPERIMENTAL__pagerank)

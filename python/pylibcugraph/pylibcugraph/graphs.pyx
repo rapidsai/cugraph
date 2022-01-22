@@ -11,33 +11,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph._cugraph_c._cugraph_api cimport (
+from pylibcugraph._cugraph_c.cugraph_api cimport (
     bool_t,
     cugraph_resource_handle_t,
     data_type_id_t,
 )
-from pylibcugraph._cugraph_c._error cimport (
+from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
 )
-from pylibcugraph._cugraph_c._array cimport (
+from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_t,
     cugraph_type_erased_device_array_create,
     cugraph_type_erased_device_array_free,
 )
-from pylibcugraph._cugraph_c._graph cimport (
+from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
     cugraph_sg_graph_create,
     cugraph_graph_properties_t,
     cugraph_sg_graph_free,
 )
-from pylibcugraph._cugraph_c.resource_handle cimport (
+from pylibcugraph.resource_handle cimport (
     EXPERIMENTAL__ResourceHandle,
 )
-from pylibcugraph._cugraph_c.graph_properties cimport (
+from pylibcugraph.graph_properties cimport (
     EXPERIMENTAL__GraphProperties,
 )
-from pylibcugraph._cugraph_c.utils cimport (
+from pylibcugraph.utils cimport (
     assert_success,
 )
 

@@ -11,9 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph.components._connectivity import (
+from .components._connectivity import (
     strongly_connected_components,
     weakly_connected_components,
 )
 
-from pylibcugraph import experimental
+from . import experimental

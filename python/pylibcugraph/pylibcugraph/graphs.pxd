@@ -11,12 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph._cugraph_c._error cimport (
-    cugraph_error_code_t,
-    cugraph_error_t,
+from pylibcugraph._cugraph_c.graph cimport (
+    cugraph_graph_t,
 )
 
 
-cdef assert_success(cugraph_error_code_t code,
-                    cugraph_error_t* err,
-                    api_name)
+cdef class EXPERIMENTAL__Graph:
+    cdef cugraph_graph_t* c_graph_ptr
+
+cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
+    pass
+
+# cdef class EXPERIMENTAL__MGGraph(EXPERIMENTAL__Graph):
+#     pass

@@ -11,10 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph._cugraph_c._cugraph_api cimport (
-    cugraph_resource_handle_t,
+from pylibcugraph._cugraph_c.error cimport (
+    cugraph_error_code_t,
+    cugraph_error_t,
 )
 
 
-cdef class EXPERIMENTAL__ResourceHandle:
-    cdef cugraph_resource_handle_t* c_resource_handle_ptr
+cdef assert_success(cugraph_error_code_t code,
+                    cugraph_error_t* err,
+                    api_name)
