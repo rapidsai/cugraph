@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,7 @@ int nearlyEqual(float a, float b, float epsilon)
   // FIXME:  There is a better test than this,
   //   perhaps use the gtest comparison for consistency
   //   with C++ and wrap it in a C wrapper.
-  int x = (fabsf(a - b) < (fabsf(a) * epsilon));
-  return (fabsf(a - b) < (fabsf(a) * epsilon));
+  return (fabsf(a - b) <= (((fabsf(a) < fabsf(b)) ? fabs(b) : fabs(a)) * epsilon));
 }
 
 /*
