@@ -23,39 +23,43 @@ from . import utils
 # =============================================================================
 # Fixture parameters
 # =============================================================================
-class InlineGraphData:
-    @property
-    def name(self):
-        return self.__class__.__name__
-
-    @property
-    def is_valid(self):
-        return not(self.name.startswith("Invalid"))
-
-
-class InvalidNumWeights_1(InlineGraphData):
-    srcs = cp.asarray([0, 1, 2], dtype=np.int32)
-    dsts = cp.asarray([1, 2, 3], dtype=np.int32)
-    weights = cp.asarray([0, 0, 0, 0], dtype=np.int32)
+class COOTestGraphDeviceData:
+    def __init__(self, srcs, dsts, weights, name):
+        self.srcs = srcs
+        self.dsts = dsts
+        self.weights = weights
+        self.name = name
+        self.is_valid = not(name.startswith("Invalid"))
 
 
-class InvalidNumVerts_1(InlineGraphData):
-    srcs = cp.asarray([1, 2], dtype=np.int32)
-    dsts = cp.asarray([1, 2, 3], dtype=np.int32)
-    weights = cp.asarray([0, 0, 0], dtype=np.int32)
+InvalidNumWeights_1 = COOTestGraphDeviceData(
+    srcs=cp.asarray([0, 1, 2], dtype=np.int32),
+    dsts=cp.asarray([1, 2, 3], dtype=np.int32),
+    weights=cp.asarray([1.0, 1.0, 1.0, 1.0], dtype=np.float32),
+    name="InvalidNumWeights_1"
+    )
 
+InvalidNumVerts_1 = COOTestGraphDeviceData(
+    srcs=cp.asarray([1, 2], dtype=np.int32),
+    dsts=cp.asarray([1, 2, 3], dtype=np.int32),
+    weights=cp.asarray([1.0, 1.0, 1.0], dtype=np.float32),
+    name="InvalidNumVerts_1"
+    )
 
-class Simple_1(InlineGraphData):
-    srcs = cp.asarray([0, 1, 2], dtype=np.int32)
-    dsts = cp.asarray([1, 2, 3], dtype=np.int32)
-    weights = cp.asarray([0, 0, 0], dtype=np.int32)
+Simple_1 = COOTestGraphDeviceData(
+    srcs=cp.asarray([0, 1, 2], dtype=np.int32),
+    dsts=cp.asarray([1, 2, 3], dtype=np.int32),
+    weights=cp.asarray([1.0, 1.0, 1.0], dtype=np.float32),
+    name="Simple_1"
+    )
 
-
-class Simple_2(InlineGraphData):
-    srcs = cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32)
-    dsts = cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32)
-    weights = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
-                         dtype=np.float32)
+Simple_2 = COOTestGraphDeviceData(
+    srcs=cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32),
+    dsts=cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32),
+    weights=cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
+                         dtype=np.float32),
+    name="Simple_2"
+    )
 
 
 # The objects in these lists must have a "name" attr, since fixtures will
@@ -63,12 +67,12 @@ class Simple_2(InlineGraphData):
 # expected test results. The name attr is also used for the pytest test ID.
 valid_datasets = [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv",
                   utils.RAPIDS_DATASET_ROOT_DIR_PATH/"dolphins.csv",
-                  Simple_1(),
-                  Simple_2(),
+                  Simple_1,
+                  Simple_2,
                   ]
 all_datasets = valid_datasets + \
-               [InvalidNumWeights_1(),
-                InvalidNumVerts_1(),
+               [InvalidNumWeights_1,
+                InvalidNumVerts_1,
                 ]
 
 
@@ -82,7 +86,7 @@ def get_graph_data_for_dataset(ds, ds_name):
     construct a graph object. The final value is a bool used to indicate if the
     data is valid or not (invalid to test error handling).
     """
-    if isinstance(ds, InlineGraphData):
+    if isinstance(ds, COOTestGraphDeviceData):
         device_srcs = ds.srcs
         device_dsts = ds.dsts
         device_weights = ds.weights
@@ -112,8 +116,8 @@ def graph_data(request):
     """
     Return a series of cupy arrays that can be used to construct Graph
     objects. The parameterization includes invalid arrays which can be used to
-    error handling, so the final value returned indicated if the arrays are
-    valid or not.
+    test error handling, so the final value returned indicated if the arrays
+    are valid or not.
     """
     return get_graph_data_for_dataset(request.param, request.param.name)
 
@@ -123,7 +127,7 @@ def graph_data(request):
 def valid_graph_data(request):
     """
     Return a series of cupy arrays that can be used to construct Graph objects,
-    all of which are valid.
+    all of which are valid (last value in returned tuple is always True).
     """
     return get_graph_data_for_dataset(request.param, request.param.name)
 

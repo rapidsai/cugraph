@@ -74,3 +74,22 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
                                   do_expensive_check,
                                   &result_ptr,
                                   &error_ptr)
+
+
+"""
+   cdef cugraph_pagerank_result_t* my_result
+   cugraph_pagerank(... , &my_result, ...)
+
+   cdef cugraph_type_erased_device_array_t* verts
+   cdef cugraph_type_erased_device_array_t* prs
+   verts = cugraph_pagerank_result_get_vertices(my_result)
+   prs = cugraph_pagerank_result_get_pageranks(my_result)
+
+   do device-device copy on verts to user array
+   do device-device copy on prs to user array
+/*
+size_t cugraph_type_erased_device_array_size(const cugraph_type_erased_device_array_t* p);
+data_type_id_t cugraph_type_erased_device_array_type(const cugraph_type_erased_device_array_t* p);
+const void* cugraph_type_erased_device_array_pointer(const cugraph_type_erased_device_array_t* p);
+*/
+"""

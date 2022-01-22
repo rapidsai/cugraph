@@ -101,7 +101,7 @@ _test_data = {
 
 
 # =============================================================================
-# Pytest fixtures and helpers
+# Pytest fixtures
 # =============================================================================
 @pytest.fixture(scope="module",
                 params=[pytest.param(value, id=key)
@@ -145,6 +145,9 @@ def input_and_expected_output(request):
             expected_output_dict)
 
 
+# =============================================================================
+# Helper functions
+# =============================================================================
 def _check_labels(vertex_ordered_labels, expected_vertex_comps):
     """
     vertex_ordered_labels is a list of labels, ordered by the position of the

@@ -96,6 +96,7 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
                        "cugraph_type_erased_device_array_create()")
         # FIXME: add call to to device-device copy of __cuda_array_interface__
         # values to cugraph_type_erased_device_array
+        # FIXME: don't do above fixme, use device view API
 
         # FIXME: set dtype properly
         error_code = cugraph_type_erased_device_array_create(
@@ -109,6 +110,7 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
                        "cugraph_type_erased_device_array_create()")
         # FIXME: add call to to device-device copy of __cuda_array_interface__
         # values to cugraph_type_erased_device_array
+        # FIXME: don't do above fixme, use device view API
 
         # FIXME: set dtype properly
         error_code = cugraph_type_erased_device_array_create(
@@ -122,6 +124,7 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
                        "cugraph_type_erased_device_array_create()")
         # FIXME: add call to to device-device copy of __cuda_array_interface__
         # values to cugraph_type_erased_device_array
+        # FIXME: don't do above fixme, use device view API
 
         error_code = cugraph_sg_graph_create(
             resource_handle.c_resource_handle_ptr,

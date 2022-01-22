@@ -48,6 +48,10 @@ def test_graph_properties():
     assert gp.is_symmetric is True
     assert gp.is_multigraph is True
 
+    gp = GraphProperties(is_multigraph=True, is_symmetric=False)
+    assert gp.is_symmetric is False
+    assert gp.is_multigraph is True
+
     with pytest.raises(TypeError):
         gp = GraphProperties(is_symmetric="foo", is_multigraph=False)
 
@@ -69,12 +73,11 @@ def test_sg_graph(graph_data):
                                            ResourceHandle,
                                            GraphProperties,
                                            )
-
+    # is_valid will only be True if the arrays are expected to produce a valid
+    # graph. If False, ensure SGGraph() raises the proper exception.
     (device_srcs, device_dsts, device_weights, ds_name, is_valid) = graph_data
 
-    graph_props = GraphProperties()
-    graph_props.is_symmetric = False
-    graph_props.is_multigraph = False
+    graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
     resource_handle = ResourceHandle()
 
     if is_valid:
