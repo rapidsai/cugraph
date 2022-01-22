@@ -74,7 +74,7 @@ int generic_bfs_test_with_extract_paths(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
 
   ret_code = cugraph_bfs(
-    p_handle, p_graph, p_sources, FALSE, depth_limit, FALSE, TRUE, &p_paths_result, &ret_error);
+    p_handle, p_graph, p_sources, FALSE, depth_limit, TRUE, FALSE, &p_paths_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_bfs failed.");
 
   ret_code = cugraph_extract_paths(p_handle,
