@@ -31,7 +31,7 @@ def null_check(col):
 
 class Graph:
     """
-    A GPU Graph Object  (Base class of other graph types)
+    A GPU Graph Object (Base class of other graph types)
 
     Parameters
     ----------
@@ -771,15 +771,19 @@ class NPartiteGraph(Graph):
     def add_nodes_from(self, nodes, bipartite=None, multipartite=None):
         """
         Add nodes information to the Graph.
+
         Parameters
         ----------
+
         nodes : list or cudf.Series
             The nodes of the graph to be stored. If bipartite and multipartite
             arguments are not passed, the nodes are considered to be a list of
             all the nodes present in the Graph.
+
         bipartite : str
             Sets the Graph as bipartite. The nodes are stored as a set of nodes
             of the partition named as bipartite argument.
+
         multipartite : str
             Sets the Graph as multipartite. The nodes are stored as a set of
             nodes of the partition named as multipartite argument.

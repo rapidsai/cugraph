@@ -26,8 +26,9 @@ def get_chunksize(input_path):
 
     Examples
     --------
-    >> import dask_cugraph.pagerank as dcg
-    >> chunksize = dcg.get_chunksize(edge_list.csv)
+    >>> import cugraph.dask as dcg
+    >>> # chunksize = dcg.get_chunksize(edge_list.csv)
+
     """
 
     import os

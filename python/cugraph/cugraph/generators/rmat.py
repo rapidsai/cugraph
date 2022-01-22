@@ -234,7 +234,7 @@ def rmat(
     seed,
     clip_and_flip,
     scramble_vertex_ids,
-    create_using=cugraph.DiGraph,
+    create_using=cugraph.Graph,
     mg=False
 ):
     """
@@ -280,7 +280,7 @@ def rmat(
         and duplicated edges.  Default is cugraph.DiGraph.
         NOTE: only the cugraph.DiGraph type is supported for multi-GPU
 
-    mg : bool
+    mg : bool, optional
         If True, R-MAT generation occurs across multiple GPUs. If False, only a
         single GPU is used.  Default is False (single-GPU)
 
@@ -292,7 +292,6 @@ def rmat(
     --------
     >>> import cugraph
     >>> from cugraph.generators import rmat
-    >>>
     >>> df = rmat(
     ...    scale,
     ...    (2**scale)*edgefactor,
@@ -305,6 +304,7 @@ def rmat(
     ...    create_using=None,  # return edgelist instead of Graph instance
     ...    mg=False
     ... )
+
     """
 
     _ensure_args_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,

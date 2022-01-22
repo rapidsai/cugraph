@@ -68,7 +68,8 @@ def katz_centrality(input_graph,
     ----------
     input_graph : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph can
-        contain either directed (DiGraph) or undirected edges (Graph).
+        contain either directed or undirected edges.
+
     alpha : float
         Attenuation factor defaulted to None. If alpha is not specified then
         it is internally calculated as 1/(degree_max) where degree_max is the
@@ -83,14 +84,17 @@ def katz_centrality(input_graph,
             (1/degree_max). Therefore, setting alpha to (1/degree_max) will
             guarantee that it will never exceed alpha_max thus in turn
             fulfilling the requirement for convergence.
+
     beta : None
         A weight scalar - currently Not Supported
+
     max_iter : int
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 100.
+
     tolerance : float
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
@@ -99,6 +103,7 @@ def katz_centrality(input_graph,
         Setting too small a tolerance can lead to non-convergence due to
         numerical roundoff. Usually values between 1e-2 and 1e-6 are
         acceptable.
+
     nstart : dask_cudf.Dataframe
         GPU Dataframe containing the initial guess for katz centrality
 
@@ -122,19 +127,17 @@ def katz_centrality(input_graph,
 
     Examples
     --------
-    # import cugraph.dask as dcg
-    # ... Init a DASK Cluster
-    #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
-    #  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
-    # chunksize = dcg.get_chunksize(input_data_path)
-    # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
-    #                          delimiter=' ',
-    #                          names=['src', 'dst', 'value'],
-    #                          dtype=['int32', 'int32', 'float32'])
-    # dg = cugraph.DiGraph()
-    # dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
-    #                            edge_attr='value')
-    # pr = dcg.katz_centrality(dg)
+    >>> # import cugraph.dask as dcg
+    >>> # ... Init a DASK Cluster
+    >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
+    >>> #  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
+    >>> # chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
+    >>> # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize)
+    >>> # dg = cugraph.Graph(directed=True)
+    >>> # dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
+    >>> #                            edge_attr='value')
+    >>> # pr = dcg.katz_centrality(dg)
+
     """
 
     nstart = None

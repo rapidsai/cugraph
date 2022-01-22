@@ -46,9 +46,9 @@ def katz_centrality(
     ----------
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information. The graph can
-        contain either directed (DiGraph) or undirected edges (Graph).
+        contain either directed or undirected edges.
 
-    alpha : float, optional, default=None
+    alpha : float, optional (default=None)
         Attenuation factor defaulted to None. If alpha is not specified then
         it is internally calculated as 1/(degree_max) where degree_max is the
         maximum out degree.
@@ -63,17 +63,17 @@ def katz_centrality(
             guarantee that it will never exceed alpha_max thus in turn
             fulfilling the requirement for convergence.
 
-    beta : float, optional, default=None
+    beta : float, optional (default=None)
         A weight scalar - currently Not Supported
 
-    max_iter : int. optional
+    max_iter : int, optional
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 100.
 
-    tol : float, optional, default=1.0e-6
+    tol : float, optional (default=1.0e-6)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -82,7 +82,7 @@ def katz_centrality(
         numerical roundoff. Usually values between 1e-2 and 1e-6 are
         acceptable.
 
-    nstart : cudf.Dataframe, optional, default=None
+    nstart : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the initial guess for katz centrality.
 
         nstart['vertex'] : cudf.Series

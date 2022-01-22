@@ -25,5 +25,4 @@ Katz Centrality (MG)
 .. autosummary::
    :toctree: api/
 
-   cugraph.dask.centrality.katz_centrality.call_katz_centrality
    cugraph.dask.centrality.katz_centrality.katz_centrality

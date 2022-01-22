@@ -95,11 +95,14 @@ def from_adjlist(offsets, indices, values=None, create_using=Graph):
     ----------
     offsets : cudf.Series, pandas.Series
         The offsets of a CSR adjacency matrix.
+
     indices : cudf.Series, pandas.Series
         The indices of a CSR adjacency matrix.
+
     values : cudf.Series, pandas.Series, or None (default), optional
         The values in a CSR adjacency matrix, which represent edge weights in a
         graph. If not provided, the resulting graph is considered unweighted.
+
     create_using : cuGraph.Graph
         Specify the type of Graph to create.  Default is cugraph.Graph
 
@@ -227,7 +230,7 @@ def from_pandas_edgelist(df,
     renumber : bool
         Indicate whether or not to renumber the source and destination
         vertex IDs. Default is True.
-    create_using: cugraph.DiGraph or cugraph.Graph
+    create_using: cugraph.Graph
         Indicate whether to create a directed or undirected graph
 
     Returns
@@ -265,7 +268,7 @@ def to_pandas_edgelist(G, source='source', destination='destination'):
 
     Parameters
     ----------
-    G : cugraph.Graph or cugraph.DiGraph
+    G : cugraph.Graph
         Graph containg the edgelist.
     source : str or array-like
         source column name or array of column names

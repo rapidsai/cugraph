@@ -18,7 +18,7 @@ Pagerank
 .. autosummary::
    :toctree: api/
 
-   cugraph.dask.link_analysis.pagerank.pagerank
+   cugraph.link_analysis.pagerank.pagerank
 
 Pagerank (MG)
 -------------
