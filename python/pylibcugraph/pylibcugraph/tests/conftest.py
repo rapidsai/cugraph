@@ -57,7 +57,7 @@ Simple_2 = COOTestGraphDeviceData(
     srcs=cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32),
     dsts=cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32),
     weights=cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
-                         dtype=np.float32),
+                       dtype=np.float32),
     name="Simple_2"
     )
 
