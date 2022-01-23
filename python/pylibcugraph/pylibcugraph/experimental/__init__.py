@@ -49,3 +49,6 @@ GraphProperties = experimental_warning_wrapper(EXPERIMENTAL__GraphProperties)
 
 from pylibcugraph.pagerank import EXPERIMENTAL__pagerank
 pagerank = experimental_warning_wrapper(EXPERIMENTAL__pagerank)
+
+from pylibcugraph.sssp import EXPERIMENTAL__sssp
+sssp = experimental_warning_wrapper(EXPERIMENTAL__sssp)

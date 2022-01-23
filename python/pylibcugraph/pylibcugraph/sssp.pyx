@@ -20,17 +20,12 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
 )
-from pylibcugraph._cugraph_c.array cimport (
-    cugraph_type_erased_device_array_t,
-    cugraph_type_erased_device_array_create,
-    cugraph_type_erased_device_array_free,
-)
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
-    cugraph_pagerank_result_t,
-    cugraph_pagerank,
+    cugraph_paths_result_t,
+    cugraph_sssp,
 )
 
 from pylibcugraph.resource_handle cimport (
@@ -44,35 +39,29 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
-                           EXPERIMENTAL__Graph graph,
-                           precomputed_vertex_out_weight_sums,
-                           double alpha,
-                           double epsilon,
-                           size_t max_iterations,
-                           bool_t has_initial_guess,
-                           bool_t do_expensive_check):
+def EXPERIMENTAL__sssp(EXPERIMENTAL__ResourceHandle resource_handle,
+                       EXPERIMENTAL__Graph graph,
+                       size_t source,
+                       double cutoff,
+                       bool_t compute_predecessors,
+                       bool_t do_expensive_check):
     """
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
-    #cdef cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums_ptr = precomputed_vertex_out_weight_sums
-    cdef cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums_ptr = NULL
 
-    cdef cugraph_pagerank_result_t* result_ptr
+    cdef cugraph_paths_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    error_code = cugraph_pagerank(c_resource_handle_ptr,
-                                  c_graph_ptr,
-                                  precomputed_vertex_out_weight_sums_ptr,
-                                  alpha,
-                                  epsilon,
-                                  max_iterations,
-                                  has_initial_guess,
-                                  do_expensive_check,
-                                  &result_ptr,
-                                  &error_ptr)
+    error_code = cugraph_sssp(c_resource_handle_ptr,
+                              c_graph_ptr,
+                              source,
+                              cutoff,
+                              compute_predecessors,
+                              do_expensive_check,
+                              &result_ptr,
+                              &error_ptr)
 
 
 """
