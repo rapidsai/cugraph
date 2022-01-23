@@ -19,3 +19,15 @@ cdef assert_success(cugraph_error_code_t code,
     if code != cugraph_error_code_t.CUGRAPH_SUCCESS:
         # FIXME: extract message using cugraph_error_message()
         raise RuntimeError(f"non-success value returned from {api_name}")
+
+
+cdef assert_CAI_type(obj, var_name, allow_None=False):
+    if allow_None:
+        if obj is None:
+            return
+        msg = f"{var_name} must be None or support __cuda_array_interface__"
+    else:
+        msg = f"{var_name} does not support __cuda_array_interface__"
+
+    if not(hasattr(obj, "__cuda_array_interface__")):
+        raise TypeError(msg)

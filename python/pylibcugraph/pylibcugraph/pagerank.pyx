@@ -13,7 +13,7 @@
 
 from pylibcugraph._cugraph_c.cugraph_api cimport (
     bool_t,
-    #data_type_id_t,
+    data_type_id_t,
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -22,6 +22,8 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_t,
+    cugraph_type_erased_device_array_size,
+    cugraph_type_erased_device_array_type,
     cugraph_type_erased_device_array_create,
     cugraph_type_erased_device_array_free,
 )
@@ -31,6 +33,8 @@ from pylibcugraph._cugraph_c.graph cimport (
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_pagerank_result_t,
     cugraph_pagerank,
+    cugraph_pagerank_result_get_vertices,
+    cugraph_pagerank_result_get_pageranks,
 )
 
 from pylibcugraph.resource_handle cimport (
@@ -41,6 +45,7 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
+    assert_CAI_type,
 )
 
 
@@ -54,10 +59,17 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
                            bool_t do_expensive_check):
     """
     """
+    assert_CAI_type(precomputed_vertex_out_weight_sums,
+                    "precomputed_vertex_out_weight_sums",
+                    allow_None=True)
+
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
-    #cdef cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums_ptr = precomputed_vertex_out_weight_sums
     cdef cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums_ptr = NULL
+    if precomputed_vertex_out_weight_sums:
+        raise NotImplementedError("None is the only supported value for precomputed_vertex_out_weight_sums")
+        #precomputed_vertex_out_weight_sums_ptr = precomputed_vertex_out_weight_sums
+        pass
 
     cdef cugraph_pagerank_result_t* result_ptr
     cdef cugraph_error_code_t error_code
@@ -73,6 +85,19 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
                                   do_expensive_check,
                                   &result_ptr,
                                   &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_pagerank")
+
+    cdef cugraph_type_erased_device_array_t* vertices_ptr
+    cdef cugraph_type_erased_device_array_t* pageranks_ptr
+    vertices_ptr = cugraph_pagerank_result_get_vertices(result_ptr)
+    pageranks_ptr = cugraph_pagerank_result_get_pageranks(result_ptr)
+
+    cdef size_t num_verts
+    num_verts = cugraph_type_erased_device_array_size(vertices_ptr)
+    cdef data_type_id_t verts_type
+    verts_type = cugraph_type_erased_device_array_type(vertices_ptr)
+    cdef data_type_id_t pageranks_type
+    pageranks_type = cugraph_type_erased_device_array_type(pageranks_ptr)
 
 
 """

@@ -20,3 +20,5 @@ from pylibcugraph._cugraph_c.error cimport (
 cdef assert_success(cugraph_error_code_t code,
                     cugraph_error_t* err,
                     api_name)
+
+cdef assert_CAI_type(obj, var_name, allow_None=*)

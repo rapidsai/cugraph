@@ -39,6 +39,7 @@ from pylibcugraph.graph_properties cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
+    assert_CAI_type,
 )
 
 
@@ -67,15 +68,9 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
         if not(isinstance(expensive_check, (int, bool))):
             raise TypeError("expected int or bool for expensive_check, got "
                             f"{type(expensive_check)}")
-        if not(hasattr(src_array, "__cuda_array_interface__")):
-            raise TypeError("src_array does not have required "
-                            "__cuda_array_interface__ attr")
-        if not(hasattr(dst_array, "__cuda_array_interface__")):
-            raise TypeError("dst_array does not have required "
-                            "__cuda_array_interface__ attr")
-        if not(hasattr(weight_array, "__cuda_array_interface__")):
-            raise TypeError("weight_array does not have required "
-                            "__cuda_array_interface__ attr")
+        assert_CAI_type(src_array, "src_array")
+        assert_CAI_type(dst_array, "dst_array")
+        assert_CAI_type(weight_array, "weight_array")
 
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
