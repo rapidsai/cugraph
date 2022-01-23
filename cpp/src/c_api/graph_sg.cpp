@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,9 +32,9 @@ namespace c_api {
 struct create_graph_functor : public abstract_functor {
   raft::handle_t const& handle_;
   cugraph_graph_properties_t const* properties_;
-  c_api::cugraph_type_erased_device_array_t const* src_;
-  c_api::cugraph_type_erased_device_array_t const* dst_;
-  c_api::cugraph_type_erased_device_array_t const* weights_;
+  c_api::cugraph_type_erased_device_array_view_t const* src_;
+  c_api::cugraph_type_erased_device_array_view_t const* dst_;
+  c_api::cugraph_type_erased_device_array_view_t const* weights_;
   bool_t renumber_;
   bool_t check_;
   data_type_id_t edge_type_;
@@ -42,9 +42,9 @@ struct create_graph_functor : public abstract_functor {
 
   create_graph_functor(raft::handle_t const& handle,
                        cugraph_graph_properties_t const* properties,
-                       c_api::cugraph_type_erased_device_array_t const* src,
-                       c_api::cugraph_type_erased_device_array_t const* dst,
-                       c_api::cugraph_type_erased_device_array_t const* weights,
+                       c_api::cugraph_type_erased_device_array_view_t const* src,
+                       c_api::cugraph_type_erased_device_array_view_t const* dst,
+                       c_api::cugraph_type_erased_device_array_view_t const* weights,
                        bool_t renumber,
                        bool_t check,
                        data_type_id_t edge_type)
@@ -173,9 +173,9 @@ struct destroy_graph_functor : public abstract_functor {
 extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_t* src,
-  const cugraph_type_erased_device_array_t* dst,
-  const cugraph_type_erased_device_array_t* weights,
+  const cugraph_type_erased_device_array_view_t* src,
+  const cugraph_type_erased_device_array_view_t* dst,
+  const cugraph_type_erased_device_array_view_t* weights,
   bool_t store_transposed,
   bool_t renumber,
   bool_t check,
@@ -189,10 +189,12 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   *error = nullptr;
 
   auto p_handle = reinterpret_cast<raft::handle_t const*>(handle);
-  auto p_src    = reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(src);
-  auto p_dst    = reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(dst);
+  auto p_src =
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(src);
+  auto p_dst =
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(dst);
   auto p_weights =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(weights);
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(weights);
 
   CAPI_EXPECTS(p_src->size_ == p_dst->size_,
                CUGRAPH_INVALID_INPUT,
@@ -202,6 +204,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
                CUGRAPH_INVALID_INPUT,
                "Invalid input arguments: src type != dst type.",
                *error);
+
   CAPI_EXPECTS(!weights || (p_weights->size_ == p_src->size_),
                CUGRAPH_INVALID_INPUT,
                "Invalid input arguments: src size != weights size.",
