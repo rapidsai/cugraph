@@ -11,6 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Have cython use python 3 syntax
+# cython: language_level = 3
+
 from pylibcugraph._cugraph_c.cugraph_api cimport (
     cugraph_create_resource_handle,
     cugraph_free_resource_handle,

@@ -11,6 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Have cython use python 3 syntax
+# cython: language_level = 3
+
 from libc.stdint cimport int8_t
 
 

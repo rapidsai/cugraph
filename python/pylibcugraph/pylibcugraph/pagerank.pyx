@@ -11,6 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Have cython use python 3 syntax
+# cython: language_level = 3
+
+from libc.stdint cimport uintptr_t
+
 from pylibcugraph._cugraph_c.cugraph_api cimport (
     bool_t,
     data_type_id_t,
@@ -46,7 +51,11 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
+    get_numpy_type_from_c_type,
 )
+
+import cupy
+import numpy
 
 
 def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
@@ -67,7 +76,7 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
     cdef cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums_ptr = NULL
     if precomputed_vertex_out_weight_sums:
-        raise NotImplementedError("None is the only supported value for precomputed_vertex_out_weight_sums")
+        raise NotImplementedError("None is temporarily the only supported value for precomputed_vertex_out_weight_sums")
         #precomputed_vertex_out_weight_sums_ptr = precomputed_vertex_out_weight_sums
         pass
 
@@ -87,18 +96,32 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
                                   &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_pagerank")
 
+    # Extract individual device array pointers from result
     cdef cugraph_type_erased_device_array_t* vertices_ptr
     cdef cugraph_type_erased_device_array_t* pageranks_ptr
     vertices_ptr = cugraph_pagerank_result_get_vertices(result_ptr)
     pageranks_ptr = cugraph_pagerank_result_get_pageranks(result_ptr)
 
-    cdef size_t num_verts
-    num_verts = cugraph_type_erased_device_array_size(vertices_ptr)
-    cdef data_type_id_t verts_type
-    verts_type = cugraph_type_erased_device_array_type(vertices_ptr)
-    cdef data_type_id_t pageranks_type
-    pageranks_type = cugraph_type_erased_device_array_type(pageranks_ptr)
+    # Extract meta-data needed to copy results
+    vertex_numpy_type = get_numpy_type_from_c_type(
+        cugraph_type_erased_device_array_type(vertices_ptr))
+    pagerank_numpy_type = get_numpy_type_from_c_type(
+        cugraph_type_erased_device_array_type(pageranks_ptr))
+    num_vertices = cugraph_type_erased_device_array_size(vertices_ptr)
 
+    # Set up cupy arrays to return and copy results to those
+    cupy_vertices = cupy.array(numpy.zeros(num_vertices),
+                               dtype=vertex_numpy_type)
+    cupy_pageranks = cupy.array(numpy.zeros(num_vertices),
+                                dtype=pagerank_numpy_type)
+
+    cdef uintptr_t cupy_vertices_ptr = \
+        cupy_vertices.__cuda_array_interface__["data"][0]
+    cdef uintptr_t cupy_pageranks_ptr = \
+        cupy_pageranks.__cuda_array_interface__["data"][0]
+
+
+    return (cupy_vertices, cupy_pageranks)
 
 """
    cdef cugraph_pagerank_result_t* my_result

@@ -11,6 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Have cython use python 3 syntax
+# cython: language_level = 3
+
+import numpy
 
 # FIXME: add tests for this
 cdef assert_success(cugraph_error_code_t code,
@@ -31,3 +35,17 @@ cdef assert_CAI_type(obj, var_name, allow_None=False):
 
     if not(hasattr(obj, "__cuda_array_interface__")):
         raise TypeError(msg)
+
+
+cdef get_numpy_type_from_c_type(data_type_id_t c_type):
+    if c_type == data_type_id_t.INT32:
+        return numpy.int32
+    elif c_type == data_type_id_t.INT64:
+        return numpy.int64
+    elif c_type == data_type_id_t.FLOAT32:
+        return numpy.float32
+    elif c_type == data_type_id_t.FLOAT64:
+        return numpy.float64
+    else:
+        raise RuntimeError("Internal error: got invalid data type enum value "
+                           f"from C: {c_type}")
