@@ -314,10 +314,10 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy(
       return CUGRAPH_INVALID_INPUT;
     }
 
-    raft::update_host(reinterpret_cast<byte_t*>(internal_pointer_dst->data_),
-                      reinterpret_cast<byte_t const*>(internal_pointer_src->data_),
-                      internal_pointer_src->num_bytes(),
-                      raft_handle->get_stream());
+    raft::copy(reinterpret_cast<byte_t*>(internal_pointer_dst->data_),
+               reinterpret_cast<byte_t const*>(internal_pointer_src->data_),
+               internal_pointer_src->num_bytes(),
+               raft_handle->get_stream());
 
     return CUGRAPH_SUCCESS;
   } catch (std::exception const& ex) {
