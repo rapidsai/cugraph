@@ -200,19 +200,20 @@ def test_add_vertex_data(df_type):
     assert pG.num_edges == 0
     expected_props = merchants[0].copy()
     assert sorted(pG.vertex_property_names) == sorted(expected_props)
+
+
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_null_data(df_type):
     """
     test for null data
-    """    
+    """
     from cugraph.experimental import PropertyGraph
-    
+
     pG = PropertyGraph()
 
     assert pG.num_vertices == 0
     assert pG.num_edges == 0
     assert sorted(pG.vertex_property_names) == sorted([])
-
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
