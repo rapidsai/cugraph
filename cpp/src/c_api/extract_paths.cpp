@@ -151,7 +151,7 @@ cugraph_type_erased_device_array_view_t* cugraph_extract_paths_result_get_paths(
   cugraph_extract_paths_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_extract_paths_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->paths_);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->paths_->view());
 }
 
 extern "C" void cugraph_extract_paths_result_free(cugraph_extract_paths_result_t* result)

@@ -99,11 +99,11 @@ int generic_bfs_test_with_extract_paths(vertex_t* h_src,
                                    &ret_error);
 
   size_t max_path_length = cugraph_extract_paths_result_get_max_path_length(p_extract_paths_result);
-  cugraph_type_erased_device_array_t* paths =
-    cugraph_extract_paths_result_get_paths(p_extract_paths_result);
+  TEST_ASSERT(
+    test_ret_value, max_path_length == expected_max_path_length, "path lengths don't match");
 
   cugraph_type_erased_device_array_view_t* paths_view =
-    cugraph_type_erased_device_array_view(paths);
+    cugraph_extract_paths_result_get_paths(p_extract_paths_result);
 
   size_t paths_size = cugraph_type_erased_device_array_view_size(paths_view);
 
@@ -117,12 +117,11 @@ int generic_bfs_test_with_extract_paths(vertex_t* h_src,
     TEST_ASSERT(test_ret_value, expected_paths[i] == h_paths[i], "paths don't match");
   }
 
+  cugraph_type_erased_device_array_view_free(paths_view);
   cugraph_type_erased_device_array_view_free(p_sources_view);
   cugraph_type_erased_device_array_view_free(p_destinations_view);
-  cugraph_type_erased_device_array_view_free(paths_view);
   cugraph_type_erased_device_array_free(p_sources);
   cugraph_type_erased_device_array_free(p_destinations);
-  cugraph_type_erased_device_array_free(paths);
   cugraph_extract_paths_result_free(p_extract_paths_result);
   cugraph_paths_result_free(p_paths_result);
   cugraph_sg_graph_free(p_graph);
