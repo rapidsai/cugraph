@@ -586,7 +586,7 @@ class Graph:
         --------
         >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> DiG = cugraph.DiGraph()
+        >>> DiG = cugraph.Graph(directed=True)
         >>> DiG.from_cudf_edgelist(M, '0', '1')
         >>> G = DiG.to_undirected()
 

@@ -26,7 +26,7 @@ def random_walks(G,
     parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
-        The graph can be either directed or undirected.
+        The graph can be either directed (DiGraph) or undirected (Graph).
         Weights in the graph are ignored.
         Use weight parameter if weights need to be considered
         (currently not supported)

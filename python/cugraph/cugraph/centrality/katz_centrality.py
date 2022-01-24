@@ -46,7 +46,7 @@ def katz_centrality(
     ----------
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information. The graph can
-        contain either directed or undirected edges.
+        contain either directed (DiGraph) or undirected edges (Graph).
 
     alpha : float, optional (default=None)
         Attenuation factor defaulted to None. If alpha is not specified then
@@ -66,7 +66,7 @@ def katz_centrality(
     beta : float, optional (default=None)
         A weight scalar - currently Not Supported
 
-    max_iter : int, optional
+    max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.

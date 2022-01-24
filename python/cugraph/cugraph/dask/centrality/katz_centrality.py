@@ -68,7 +68,7 @@ def katz_centrality(input_graph,
     ----------
     input_graph : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph can
-        contain either directed or undirected edges.
+        contain either directed (DiGraph) or undirected edges (Graph).
 
     alpha : float
         Attenuation factor defaulted to None. If alpha is not specified then

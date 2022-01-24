@@ -230,7 +230,7 @@ def from_pandas_edgelist(df,
     renumber : bool
         Indicate whether or not to renumber the source and destination
         vertex IDs. Default is True.
-    create_using: cugraph.Graph
+    create_using: cugraph.DiGraph or cugraph.Graph
         Indicate whether to create a directed or undirected graph
 
     Returns
@@ -268,7 +268,7 @@ def to_pandas_edgelist(G, source='source', destination='destination'):
 
     Parameters
     ----------
-    G : cugraph.Graph
+    G : cugraph.Graph or cugraph.DiGraph
         Graph containg the edgelist.
     source : str or array-like
         source column name or array of column names

@@ -234,7 +234,7 @@ def rmat(
     seed,
     clip_and_flip,
     scramble_vertex_ids,
-    create_using=cugraph.Graph,
+    create_using=cugraph.DiGraph,
     mg=False
 ):
     """
