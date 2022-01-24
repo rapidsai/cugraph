@@ -20,7 +20,7 @@ REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_etl/build}
 
-VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests docs -v -g -n --allgpuarch --buildfaiss --show_depr_warn --skip_cpp_tests -h --help"
+VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests docs -v -g -n --allgpuarch --skip_cpp_tests -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean                - remove all existing build artifacts and configuration (start over)
@@ -37,8 +37,6 @@ HELP="$0 [<target> ...] [<flag> ...]
    -g                   - build for debug
    -n                   - do not install after a successful build
    --allgpuarch         - build for all supported GPU architectures
-   --buildfaiss         - build faiss statically into cugraph
-   --show_depr_warn     - show cmake deprecation warnings
    --skip_cpp_tests     - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
    -h                   - print this text
 
@@ -56,10 +54,8 @@ VERBOSE_FLAG=""
 CMAKE_VERBOSE_OPTION=""
 BUILD_TYPE=Release
 INSTALL_TARGET=install
-BUILD_DISABLE_DEPRECATION_WARNING=ON
 BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
-BUILD_STATIC_FAISS=OFF
 BUILD_ALL_GPU_ARCH=0
 
 # Set defaults for vars that may not have been defined externally
@@ -105,12 +101,6 @@ if hasArg -n; then
 fi
 if hasArg --allgpuarch; then
     BUILD_ALL_GPU_ARCH=1
-fi
-if hasArg --buildfaiss; then
-    BUILD_STATIC_FAISS=ON
-fi
-if hasArg --show_depr_warn; then
-    BUILD_DISABLE_DEPRECATION_WARNING=OFF
 fi
 if hasArg --skip_cpp_tests; then
     BUILD_CPP_TESTS=OFF
@@ -201,15 +191,13 @@ if buildAll || hasArg libcugraph; then
     fi
     mkdir -p ${LIBCUGRAPH_BUILD_DIR}
     cd ${LIBCUGRAPH_BUILD_DIR}
-    cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
+    cmake -B "${LIBCUGRAPH_BUILD_DIR}" -S "${REPODIR}/cpp" \
+          -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
           -DCMAKE_CUDA_ARCHITECTURES=${CUGRAPH_CMAKE_CUDA_ARCHITECTURES} \
-          -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-          -DBUILD_STATIC_FAISS=${BUILD_STATIC_FAISS} \
           -DBUILD_TESTS=${BUILD_CPP_TESTS} \
           -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
-          ${CMAKE_VERBOSE_OPTION} \
-          ${REPODIR}/cpp
+          ${CMAKE_VERBOSE_OPTION}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
 fi
 
@@ -265,11 +253,10 @@ if buildAll || hasArg docs; then
     if [ ! -d ${LIBCUGRAPH_BUILD_DIR} ]; then
         mkdir -p ${LIBCUGRAPH_BUILD_DIR}
         cd ${LIBCUGRAPH_BUILD_DIR}
-        cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
-            -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
-            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${REPODIR}/cpp \
-            -DBUILD_STATIC_FAISS=${BUILD_STATIC_FAISS} \
-            ${CMAKE_VERBOSE_OPTION}
+        cmake -B "${LIBCUGRAPH_BUILD_DIR}" -S "${REPODIR}/cpp" \
+              -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
+              -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+              ${CMAKE_VERBOSE_OPTION}
     fi
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}

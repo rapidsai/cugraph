@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,22 +20,24 @@
 #include <cugraph_c/graph.h>
 
 #include <math.h>
+#include <float.h>
 
 typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-int generic_bfs_test(vertex_t* h_src,
-                     vertex_t* h_dst,
-                     weight_t* h_wgt,
-                     vertex_t* h_seeds,
-                     vertex_t const* expected_distances,
-                     vertex_t const* expected_predecessors,
-                     size_t num_vertices,
-                     size_t num_edges,
-                     size_t num_seeds,
-                     size_t depth_limit,
-                     bool_t store_transposed)
+const weight_t EPSILON = 0.001;
+
+int generic_sssp_test(vertex_t* h_src,
+                      vertex_t* h_dst,
+                      weight_t* h_wgt,
+                      vertex_t source,
+                      weight_t const* expected_distances,
+                      vertex_t const* expected_predecessors,
+                      size_t num_vertices,
+                      size_t num_edges,
+                      weight_t cutoff,
+                      bool_t store_transposed)
 {
   int test_ret_value = 0;
 
@@ -45,7 +47,6 @@ int generic_bfs_test(vertex_t* h_src,
   cugraph_resource_handle_t* p_handle           = NULL;
   cugraph_graph_t* p_graph                      = NULL;
   cugraph_paths_result_t* p_result              = NULL;
-  cugraph_type_erased_device_array_t* p_sources = NULL;
 
   p_handle = cugraph_create_resource_handle();
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
@@ -53,17 +54,9 @@ int generic_bfs_test(vertex_t* h_src,
   ret_code = create_test_graph(
     p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
 
-  ret_code =
-    cugraph_type_erased_device_array_create(p_handle, INT32, num_seeds, &p_sources, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "p_sources create failed.");
-
-  ret_code = cugraph_type_erased_device_array_copy_from_host(
-    p_handle, p_sources, (byte_t*)h_seeds, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
-
-  ret_code = cugraph_bfs(
-    p_handle, p_graph, p_sources, FALSE, depth_limit, TRUE, FALSE, &p_result, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_bfs failed.");
+  ret_code = cugraph_sssp(
+    p_handle, p_graph, source, cutoff, TRUE, FALSE, &p_result, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_sssp failed.");
 
   cugraph_type_erased_device_array_t* vertices;
   cugraph_type_erased_device_array_t* distances;
@@ -74,7 +67,7 @@ int generic_bfs_test(vertex_t* h_src,
   predecessors = cugraph_paths_result_get_predecessors(p_result);
 
   vertex_t h_vertices[num_vertices];
-  vertex_t h_distances[num_vertices];
+  weight_t h_distances[num_vertices];
   vertex_t h_predecessors[num_vertices];
 
   ret_code = cugraph_type_erased_device_array_copy_to_host(
@@ -91,15 +84,14 @@ int generic_bfs_test(vertex_t* h_src,
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
-                expected_distances[h_vertices[i]] == h_distances[i],
-                "bfs distances don't match");
+                nearlyEqual(expected_distances[h_vertices[i]], h_distances[i], EPSILON),
+                "sssp distances don't match");
 
     TEST_ASSERT(test_ret_value,
                 expected_predecessors[h_vertices[i]] == h_predecessors[i],
-                "bfs predecessors don't match");
+                "sssp predecessors don't match");
   }
 
-  cugraph_type_erased_device_array_free(p_sources);
   cugraph_paths_result_free(p_result);
   cugraph_sg_graph_free(p_graph);
   cugraph_free_resource_handle(p_handle);
@@ -108,7 +100,7 @@ int generic_bfs_test(vertex_t* h_src,
   return test_ret_value;
 }
 
-int test_bfs()
+int test_sssp()
 {
   size_t num_edges    = 8;
   size_t num_vertices = 6;
@@ -116,25 +108,23 @@ int test_bfs()
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t seeds[]                 = {0};
-  vertex_t expected_distances[]    = {0, 1, 2147483647, 2, 2, 3};
-  vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 3};
+  weight_t expected_distances[]    = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
+  vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 4};
 
   // Bfs wants store_transposed = FALSE
-  return generic_bfs_test(src,
-                          dst,
-                          wgt,
-                          seeds,
-                          expected_distances,
-                          expected_predecessors,
-                          num_vertices,
-                          num_edges,
-                          1,
-                          10,
-                          FALSE);
+  return generic_sssp_test(src,
+                           dst,
+                           wgt,
+                           0,
+                           expected_distances,
+                           expected_predecessors,
+                           num_vertices,
+                           num_edges,
+                           10,
+                           FALSE);
 }
 
-int test_bfs_with_transpose()
+int test_sssp_with_transpose()
 {
   size_t num_edges    = 8;
   size_t num_vertices = 6;
@@ -142,23 +132,21 @@ int test_bfs_with_transpose()
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t seeds[]                 = {5};
-  vertex_t expected_distances[]    = {3, 2, 2, 1, 1, 0};
-  vertex_t expected_predecessors[] = {1, 3, 3, 5, 5, -1};
+  weight_t expected_distances[]    = {4.4, 4.3, 7.4, 7.2f, 3.2f, 0.0f};
+  vertex_t expected_predecessors[] = {1, 4, 1, 5, 5, -1};
 
   // Bfs wants store_transposed = FALSE
-  //    This call will force cugraph_bfs to transpose the graph
-  return generic_bfs_test(src,
-                          dst,
-                          wgt,
-                          seeds,
-                          expected_distances,
-                          expected_predecessors,
-                          num_vertices,
-                          num_edges,
-                          1,
-                          10,
-                          TRUE);
+  //    This call will force cugraph_sssp to transpose the graph
+  return generic_sssp_test(src,
+                           dst,
+                           wgt,
+                           5,
+                           expected_distances,
+                           expected_predecessors,
+                           num_vertices,
+                           num_edges,
+                           10,
+                           TRUE);
 }
 
 /******************************************************************************/
@@ -166,7 +154,7 @@ int test_bfs_with_transpose()
 int main(int argc, char** argv)
 {
   int result = 0;
-  result |= RUN_TEST(test_bfs);
-  result |= RUN_TEST(test_bfs_with_transpose);
+  result |= RUN_TEST(test_sssp);
+  result |= RUN_TEST(test_sssp_with_transpose);
   return result;
 }
