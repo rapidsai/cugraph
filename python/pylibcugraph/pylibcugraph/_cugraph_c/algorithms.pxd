@@ -23,7 +23,7 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_t,
 )
 from pylibcugraph._cugraph_c.array cimport (
-    cugraph_type_erased_device_array_t,
+    cugraph_type_erased_device_array_view_t,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -36,12 +36,12 @@ cdef extern from "cugraph_c/algorithms.h":
     ctypedef struct cugraph_pagerank_result_t:
         pass
 
-    cdef cugraph_type_erased_device_array_t* \
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_pagerank_result_get_vertices(
             cugraph_pagerank_result_t* result
         )
 
-    cdef cugraph_type_erased_device_array_t* \
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_pagerank_result_get_pageranks(
             cugraph_pagerank_result_t* result
         )
@@ -55,7 +55,7 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_pagerank(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
-            const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
+            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
             double alpha,
             double epsilon,
             size_t max_iterations,
@@ -69,9 +69,9 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_personalized_pagerank(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
-            const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
-            cugraph_type_erased_device_array_t* personalization_vertices,
-            const cugraph_type_erased_device_array_t* personalization_values,
+            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
+            cugraph_type_erased_device_array_view_t* personalization_vertices,
+            const cugraph_type_erased_device_array_view_t* personalization_values,
             double alpha,
             double epsilon,
             size_t max_iterations,
@@ -86,17 +86,17 @@ cdef extern from "cugraph_c/algorithms.h":
     ctypedef struct cugraph_paths_result_t:
         pass
 
-    cdef cugraph_type_erased_device_array_t* \
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_paths_result_get_vertices(
             cugraph_paths_result_t* result
         )
 
-    cdef cugraph_type_erased_device_array_t* \
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_paths_result_get_distances(
             cugraph_paths_result_t* result
         )
 
-    cdef cugraph_type_erased_device_array_t* \
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_paths_result_get_predecessors(
             cugraph_paths_result_t* result
         )
@@ -113,9 +113,9 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_extract_paths(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
-            const cugraph_type_erased_device_array_t* sources,
+            const cugraph_type_erased_device_array_view_t* sources,
             const cugraph_paths_result_t* paths_result,
-            const cugraph_type_erased_device_array_t* destinations,
+            const cugraph_type_erased_device_array_view_t* destinations,
             cugraph_extract_paths_result_t** result,
             cugraph_error_t** error
         )
@@ -125,7 +125,7 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_extract_paths_result_t* result
         )
 
-    cdef cugraph_type_erased_device_array_t* \
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_extract_paths_result_get_paths(
             cugraph_extract_paths_result_t* result
         )
@@ -142,7 +142,7 @@ cdef extern from "cugraph_c/algorithms.h":
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             # FIXME: this may become const
-            cugraph_type_erased_device_array_t* sources,
+            cugraph_type_erased_device_array_view_t* sources,
             bool_t direction_optimizing,
             size_t depth_limit,
             bool_t compute_predecessors,

@@ -23,8 +23,8 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_t,
 )
 from pylibcugraph._cugraph_c.array cimport (
-    cugraph_type_erased_device_array_t,
-    cugraph_type_erased_host_array_t,
+    cugraph_type_erased_device_array_view_t,
+    cugraph_type_erased_host_array_view_t,
 )
 
 
@@ -41,9 +41,9 @@ cdef extern from "cugraph_c/graph.h":
          cugraph_sg_graph_create(
              const cugraph_resource_handle_t* handle,
              const cugraph_graph_properties_t* properties,
-             const cugraph_type_erased_device_array_t* src,
-             const cugraph_type_erased_device_array_t* dst,
-             const cugraph_type_erased_device_array_t* weights,
+             const cugraph_type_erased_device_array_view_t* src,
+             const cugraph_type_erased_device_array_view_t* dst,
+             const cugraph_type_erased_device_array_view_t* weights,
              bool_t store_transposed,
              bool_t renumber,
              bool_t check,
@@ -60,11 +60,11 @@ cdef extern from "cugraph_c/graph.h":
         cugraph_mg_graph_create(
             const cugraph_resource_handle_t* handle,
             const cugraph_graph_properties_t* properties,
-            const cugraph_type_erased_device_array_t* src,
-            const cugraph_type_erased_device_array_t* dst,
-            const cugraph_type_erased_device_array_t* weights,
-            const cugraph_type_erased_host_array_t* vertex_partition_offsets,
-            const cugraph_type_erased_host_array_t* segment_offsets,
+            const cugraph_type_erased_device_array_view_t* src,
+            const cugraph_type_erased_device_array_view_t* dst,
+            const cugraph_type_erased_device_array_view_t* weights,
+            const cugraph_type_erased_host_array_view_t* vertex_partition_offsets,
+            const cugraph_type_erased_host_array_view_t* segment_offsets,
             bool_t store_transposed,
             size_t num_vertices,
             size_t num_edges,

@@ -14,6 +14,8 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
+from libc.stdint cimport uintptr_t
+
 from pylibcugraph._cugraph_c.cugraph_api cimport (
     bool_t,
     cugraph_resource_handle_t,
@@ -24,8 +26,8 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_t,
 )
 from pylibcugraph._cugraph_c.array cimport (
-    cugraph_type_erased_device_array_t,
-    cugraph_type_erased_device_array_create,
+    cugraph_type_erased_device_array_view_t,
+    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
@@ -78,66 +80,49 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
 
-        cdef cugraph_type_erased_device_array_t* srcs_ptr
-        cdef cugraph_type_erased_device_array_t* dsts_ptr
-        cdef cugraph_type_erased_device_array_t* weights_ptr
+        # FIXME: set dtype properly
+        cdef uintptr_t cai_srcs_ptr = \
+            src_array.__cuda_array_interface__["data"][0]
+        cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_srcs_ptr,
+                len(src_array),
+                data_type_id_t.INT32)
 
         # FIXME: set dtype properly
-        error_code = cugraph_type_erased_device_array_create(
-            resource_handle.c_resource_handle_ptr,
-            data_type_id_t.INT32,
-            len(src_array),
-            &srcs_ptr,
-            &error_ptr)
-
-        assert_success(error_code, error_ptr,
-                       "cugraph_type_erased_device_array_create()")
-        # FIXME: add call to to device-device copy of __cuda_array_interface__
-        # values to cugraph_type_erased_device_array
-        # FIXME: don't do above fixme, use device view API
+        cdef uintptr_t cai_dsts_ptr = \
+            dst_array.__cuda_array_interface__["data"][0]
+        cdef cugraph_type_erased_device_array_view_t* dsts_view_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_dsts_ptr,
+                len(dst_array),
+                data_type_id_t.INT32)
 
         # FIXME: set dtype properly
-        error_code = cugraph_type_erased_device_array_create(
-            resource_handle.c_resource_handle_ptr,
-            data_type_id_t.INT32,
-            len(dst_array),
-            &dsts_ptr,
-            &error_ptr)
-
-        assert_success(error_code, error_ptr,
-                       "cugraph_type_erased_device_array_create()")
-        # FIXME: add call to to device-device copy of __cuda_array_interface__
-        # values to cugraph_type_erased_device_array
-        # FIXME: don't do above fixme, use device view API
-
-        # FIXME: set dtype properly
-        error_code = cugraph_type_erased_device_array_create(
-            resource_handle.c_resource_handle_ptr,
-            data_type_id_t.FLOAT32,
-            len(weight_array),
-            &weights_ptr,
-            &error_ptr)
-
-        assert_success(error_code, error_ptr,
-                       "cugraph_type_erased_device_array_create()")
-        # FIXME: add call to to device-device copy of __cuda_array_interface__
-        # values to cugraph_type_erased_device_array
-        # FIXME: don't do above fixme, use device view API
+        cdef uintptr_t cai_weights_ptr = \
+            weight_array.__cuda_array_interface__["data"][0]
+        cdef cugraph_type_erased_device_array_view_t* weights_view_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_weights_ptr,
+                len(weight_array),
+                data_type_id_t.FLOAT32)
 
         error_code = cugraph_sg_graph_create(
             resource_handle.c_resource_handle_ptr,
             &(graph_properties.c_graph_properties),
-            srcs_ptr,
-            dsts_ptr,
-            weights_ptr,
-            int(store_transposed),
-            int(renumber),
-            int(expensive_check),
+            srcs_view_ptr,
+            dsts_view_ptr,
+            weights_view_ptr,
+            store_transposed,
+            renumber,
+            expensive_check,
             &(self.c_graph_ptr),
             &error_ptr)
 
         assert_success(error_code, error_ptr,
                        "cugraph_sg_graph_create()")
+
+        # FIXME: free the views
 
     def __dealloc__(self):
         if self.c_graph_ptr is not NULL:

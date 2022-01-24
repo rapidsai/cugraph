@@ -26,11 +26,12 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_t,
 )
 from pylibcugraph._cugraph_c.array cimport (
-    cugraph_type_erased_device_array_t,
-    cugraph_type_erased_device_array_size,
-    cugraph_type_erased_device_array_type,
-    cugraph_type_erased_device_array_create,
-    cugraph_type_erased_device_array_free,
+    cugraph_type_erased_device_array_view_t,
+    cugraph_type_erased_device_array_view_size,
+    cugraph_type_erased_device_array_view_type,
+    cugraph_type_erased_device_array_view_create,
+    cugraph_type_erased_device_array_view_free,
+    cugraph_type_erased_device_array_view_copy,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -40,6 +41,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_pagerank,
     cugraph_pagerank_result_get_vertices,
     cugraph_pagerank_result_get_pageranks,
+    cugraph_pagerank_result_free,
 )
 
 from pylibcugraph.resource_handle cimport (
@@ -74,7 +76,7 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
-    cdef cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums_ptr = NULL
+    cdef cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums_ptr = NULL
     if precomputed_vertex_out_weight_sums:
         raise NotImplementedError("None is temporarily the only supported value for precomputed_vertex_out_weight_sums")
         #precomputed_vertex_out_weight_sums_ptr = precomputed_vertex_out_weight_sums
@@ -97,17 +99,20 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
     assert_success(error_code, error_ptr, "cugraph_pagerank")
 
     # Extract individual device array pointers from result
-    cdef cugraph_type_erased_device_array_t* vertices_ptr
-    cdef cugraph_type_erased_device_array_t* pageranks_ptr
+    cdef cugraph_type_erased_device_array_view_t* vertices_ptr
+    cdef cugraph_type_erased_device_array_view_t* pageranks_ptr
     vertices_ptr = cugraph_pagerank_result_get_vertices(result_ptr)
     pageranks_ptr = cugraph_pagerank_result_get_pageranks(result_ptr)
 
     # Extract meta-data needed to copy results
-    vertex_numpy_type = get_numpy_type_from_c_type(
-        cugraph_type_erased_device_array_type(vertices_ptr))
-    pagerank_numpy_type = get_numpy_type_from_c_type(
-        cugraph_type_erased_device_array_type(pageranks_ptr))
-    num_vertices = cugraph_type_erased_device_array_size(vertices_ptr)
+    cdef data_type_id_t vertex_type = \
+        cugraph_type_erased_device_array_view_type(vertices_ptr)
+    cdef data_type_id_t pagerank_type = \
+        cugraph_type_erased_device_array_view_type(pageranks_ptr)
+    vertex_numpy_type = get_numpy_type_from_c_type(vertex_type)
+    pagerank_numpy_type = get_numpy_type_from_c_type(pagerank_type)
+
+    num_vertices = cugraph_type_erased_device_array_view_size(vertices_ptr)
 
     # Set up cupy arrays to return and copy results to those
     cupy_vertices = cupy.array(numpy.zeros(num_vertices),
@@ -120,8 +125,36 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
     cdef uintptr_t cupy_pageranks_ptr = \
         cupy_pageranks.__cuda_array_interface__["data"][0]
 
+    cdef cugraph_type_erased_device_array_view_t* cupy_vertices_view_ptr = \
+        cugraph_type_erased_device_array_view_create(
+            <void*>cupy_vertices_ptr, num_vertices, vertex_type)
+
+    cdef cugraph_type_erased_device_array_view_t* cupy_pageranks_view_ptr = \
+        cugraph_type_erased_device_array_view_create(
+            <void*>cupy_pageranks_ptr, num_vertices, vertex_type)
+
+    # FIXME: free the views somewhere
+
+    error_code = cugraph_type_erased_device_array_view_copy(
+        c_resource_handle_ptr,
+        cupy_vertices_view_ptr,
+        vertices_ptr,
+        &error_ptr)
+    assert_success(error_code, error_ptr,
+                   "cugraph_type_erased_device_array_view_copy")
+    error_code = cugraph_type_erased_device_array_view_copy(
+        c_resource_handle_ptr,
+        cupy_pageranks_view_ptr,
+        pageranks_ptr,
+        &error_ptr)
+    assert_success(error_code, error_ptr,
+                   "cugraph_type_erased_device_array_view_copy")
+
+    cugraph_pagerank_result_free(result_ptr)
 
     return (cupy_vertices, cupy_pageranks)
+
+
 
 """
    cdef cugraph_pagerank_result_t* my_result

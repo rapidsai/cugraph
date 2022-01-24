@@ -21,8 +21,22 @@ cdef assert_success(cugraph_error_code_t code,
                     cugraph_error_t* err,
                     api_name):
     if code != cugraph_error_code_t.CUGRAPH_SUCCESS:
+        if code == cugraph_error_code_t.CUGRAPH_UNKNOWN_ERROR:
+            code_str = "CUGRAPH_UNKNOWN_ERROR"
+        elif code == cugraph_error_code_t.CUGRAPH_INVALID_HANDLE:
+            code_str = "CUGRAPH_INVALID_HANDLE"
+        elif code == cugraph_error_code_t.CUGRAPH_ALLOC_ERROR:
+            code_str = "CUGRAPH_ALLOC_ERROR"
+        elif code == cugraph_error_code_t.CUGRAPH_INVALID_INPUT:
+            code_str = "CUGRAPH_INVALID_INPUT"
+        elif code == cugraph_error_code_t.CUGRAPH_NOT_IMPLEMENTED:
+            code_str = "CUGRAPH_NOT_IMPLEMENTED"
+        elif code == cugraph_error_code_t.CUGRAPH_UNSUPPORTED_TYPE_COMBINATION:
+            code_str = "CUGRAPH_UNSUPPORTED_TYPE_COMBINATION"
+        else:
+            code_str = "unknown error code"
         # FIXME: extract message using cugraph_error_message()
-        raise RuntimeError(f"non-success value returned from {api_name}")
+        raise RuntimeError(f"non-success value returned from {api_name}: {code_str}")
 
 
 cdef assert_CAI_type(obj, var_name, allow_None=False):
