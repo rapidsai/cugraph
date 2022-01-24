@@ -16,10 +16,9 @@ import importlib
 from numba import cuda
 
 import cudf
-from rmm._cuda.gpu import (
-    getDeviceAttribute,
-    cudaDeviceAttr,
-)
+
+from cuda.cudart import cudaDeviceAttr
+from rmm._cuda.gpu import getDeviceAttribute
 
 
 # optional dependencies
