@@ -89,11 +89,10 @@ _test_data = {"karate.csv":
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.skip(reason="UNFINISHED")
-def test_pagerank(sg_graph_objs):
+def test_pagerank(sg_transposed_graph_objs):
     from pylibcugraph.experimental import pagerank
 
-    (g, resource_handle, ds_name) = sg_graph_objs
+    (g, resource_handle, ds_name) = sg_transposed_graph_objs
     expected_result = _test_data[ds_name]
 
     precomputed_vertex_out_weight_sums = None
@@ -109,4 +108,22 @@ def test_pagerank(sg_graph_objs):
                       has_initial_guess,
                       do_expensive_check)
 
-    assert result == expected_result
+    (expected_verts, expected_pageranks) = expected_result
+    num_expected_verts = len(expected_verts)
+    (actual_verts, actual_pageranks) = result
+
+    # Do a simple check using the vertices as array indices.  First, ensure
+    # the test data vertices start from 0 with no gaps.
+    assert sum(range(num_expected_verts)) == sum(expected_verts)
+
+    assert actual_verts.dtype == expected_verts.dtype
+    assert actual_pageranks.dtype == expected_pageranks.dtype
+
+    actual_pageranks = actual_pageranks.tolist()
+    actual_verts = actual_verts.tolist()
+    expected_pageranks = expected_pageranks.tolist()
+
+    for i in range(num_expected_verts):
+        assert actual_pageranks[i] == \
+               pytest.approx(expected_pageranks[actual_verts[i]], 1e-4), \
+               f"actual != expected for result at index {i}"

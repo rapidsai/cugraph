@@ -28,7 +28,6 @@ cdef extern from "cugraph_c/cugraph_api.h":
         INT64
         FLOAT32
         FLOAT64
-        NTYPES
 
     ctypedef int8_t byte_t
 
