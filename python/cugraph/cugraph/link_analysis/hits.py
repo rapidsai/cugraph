@@ -38,17 +38,21 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm).
         The adjacency list will be computed if not already present.
-    max_iter : int
+
+    max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned.
         The gunrock implementation does not currently support tolerance,
         so this will in fact be the number of iterations the HITS algorithm
         executes.
-    tolerance : float
+
+    tolerance : float, optional (default=1.0e-5)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.  This parameter is not currently supported.
-    nstart : cudf.Dataframe
+
+    nstart : cudf.Dataframe, optional (default=None)
         Not currently supported
-    normalized : bool
+
+    normalized : bool, optional (default=True)
         Not currently supported, always used as True
 
     Returns

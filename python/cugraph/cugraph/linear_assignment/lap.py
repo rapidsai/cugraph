@@ -46,7 +46,7 @@ def hungarian(G, workers, epsilon=None):
         cudf.DataFrame. All vertices in G that are not in the workers
         set are implicitly assigned to the jobs set.
 
-    epsilon : float or double (matching weight type in graph)
+    epsilon : float/double (matching weight in graph), optional (default=None)
         Used for determining when value is close enough to zero to consider 0.
         Defaults (if not specified) to 1e-6 in the C++ code.  Unused for
         integer weight types.
@@ -65,12 +65,12 @@ def hungarian(G, workers, epsilon=None):
 
     Examples
     --------
-    #  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
-    # M = cudf.read_csv(datasets_path / 'bipartite.csv', delimiter=' ',
-    #                   dtype=['int32', 'int32', 'float32'], header=None)
-    # G = cugraph.Graph()
-    # G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
-    # cost, df = cugraph.hungarian(G, workers)
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
+    >>> #  M = cudf.read_csv(datasets_path / 'bipartite.csv', delimiter=' ',
+    >>> #                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> # G = cugraph.Graph()
+    >>> # G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
+    >>> # cost, df = cugraph.hungarian(G, workers)
 
     """
 

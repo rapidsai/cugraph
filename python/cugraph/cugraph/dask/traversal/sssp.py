@@ -64,6 +64,7 @@ def sssp(graph,
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe.
         Undirected Graph not currently supported.
+
     source : Integer
         Specify source vertex
 

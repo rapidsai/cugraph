@@ -64,12 +64,15 @@ def bfs(graph,
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
         algorithm). Undirected Graph not currently supported.
+
     start : Integer
         Specify starting vertex for breadth-first search; this function
         iterates over edges in the component reachable from this node.
-    depth_limit : Integer or None
+
+    depth_limit : Integer or None, optional (default=None)
         Limit the depth of the search
-    return_distances : bool, optional, default=True
+
+    return_distances : bool, optional (default=True)
         Indicates if distances should be returned
 
     Returns
@@ -88,7 +91,7 @@ def bfs(graph,
     >>> # import cugraph.dask as dcg
     >>> # ... Init a DASK Cluster
     >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
-    >>> #  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> # chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
     >>> # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize)
     >>> # dg = cugraph.Graph(directed=True)

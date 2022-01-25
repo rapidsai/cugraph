@@ -130,7 +130,7 @@ def katz_centrality(input_graph,
     >>> # import cugraph.dask as dcg
     >>> # ... Init a DASK Cluster
     >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
-    >>> #  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> # chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
     >>> # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize)
     >>> # dg = cugraph.Graph(directed=True)
