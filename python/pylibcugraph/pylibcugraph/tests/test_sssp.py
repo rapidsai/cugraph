@@ -60,7 +60,7 @@ _test_data = {"karate.csv": {
                    },
               "Simple_1": {
                   "start_vertex": 1,
-                  "vertex": cp.asarray(range(34), dtype=np.int32),
+                  "vertex": cp.asarray(range(4), dtype=np.int32),
                   "distance": cp.asarray(
                       [3.4028235e+38, 0.0000000e+00, 1.0000000e+00,
                        2.0000000e+00,
@@ -73,7 +73,7 @@ _test_data = {"karate.csv": {
                    },
               "Simple_2": {
                   "start_vertex": 1,
-                  "vertex": cp.asarray(range(34), dtype=np.int32),
+                  "vertex": cp.asarray(range(6), dtype=np.int32),
                   "distance": cp.asarray(
                       [3.4028235e+38, 0.0000000e+00, 3.4028235e+38,
                        2.0999999e+00, 1.1000000e+00, 4.3000002e+00
@@ -100,14 +100,13 @@ _test_data = {"karate.csv": {
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.skip(reason="UNFINISHED")
 def test_sssp(sg_graph_objs):
     from pylibcugraph.experimental import sssp
 
     (g, resource_handle, ds_name) = sg_graph_objs
 
     (source,
-     expected_vertices,
+     expected_verts,
      expected_distances,
      expected_predecessors) = _test_data[ds_name].values()
 
@@ -122,6 +121,39 @@ def test_sssp(sg_graph_objs):
                   compute_predecessors,
                   do_expensive_check)
 
-    assert result == (expected_vertices,
-                      expected_distances,
-                      expected_predecessors)
+    num_expected_verts = len(expected_verts)
+    (actual_verts, actual_distances, actual_predecessors) = result
+
+    # Do a simple check using the vertices as array indices.  First, ensure
+    # the test data vertices start from 0 with no gaps.
+    assert sum(range(num_expected_verts)) == sum(expected_verts)
+
+    assert actual_verts.dtype == expected_verts.dtype
+    assert actual_distances.dtype == expected_distances.dtype
+    assert actual_predecessors.dtype == expected_predecessors.dtype
+
+    actual_verts = actual_verts.tolist()
+    actual_distances = actual_distances.tolist()
+    actual_predecessors = actual_predecessors.tolist()
+    expected_distances = expected_distances.tolist()
+    expected_predecessors = expected_predecessors.tolist()
+
+    for i in range(num_expected_verts):
+        actual_distance = actual_distances[i]
+        expected_distance = expected_distances[actual_verts[i]]
+        # The distance value will be a MAX value (2**128) if there is no
+        # predecessor, so only do a closer compare if either the actual or
+        # expected are not that MAX value.
+        if (actual_distance <= 3.4e38) or (expected_distance <= 3.4e38):
+            assert actual_distance == \
+                pytest.approx(expected_distance, 1e-4), \
+                f"actual != expected for distance result at index {i}"
+
+        # predecessors for graphs with multiple paths which are equally short
+        # are non-deterministic, so skip those checks for specific graph inputs.
+        # FIXME: add a helper to verify paths are correct when results are valid
+        # but non-deterministic
+        if ds_name not in ["karate.csv", "dolphins.csv"]:
+            assert actual_predecessors[i] == \
+                pytest.approx(expected_predecessors[actual_verts[i]], 1e-4), \
+                f"actual != expected for predecessor result at index {i}"

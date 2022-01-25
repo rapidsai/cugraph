@@ -114,7 +114,7 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
 
     num_vertices = cugraph_type_erased_device_array_view_size(vertices_ptr)
 
-    # Set up cupy arrays to return and copy results to those
+    # Set up cupy arrays to return and copy results
     cupy_vertices = cupy.array(numpy.zeros(num_vertices),
                                dtype=vertex_numpy_type)
     cupy_pageranks = cupy.array(numpy.zeros(num_vertices),

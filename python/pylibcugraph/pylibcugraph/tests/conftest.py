@@ -107,28 +107,31 @@ def get_graph_data_for_dataset(ds, ds_name):
     return (device_srcs, device_dsts, device_weights, ds_name, is_valid)
 
 
-def create_SGGraph(resource_handle,
-                   device_srcs,
+def create_SGGraph(device_srcs,
                    device_dsts,
                    device_weights,
-                   transposed=True):
+                   transposed=False):
     """
-    Creates and returns a SGGraph instance using the parameters passed in.
+    Creates and returns a SGGraph instance and the corresponding ResourceHandle
+    using the parameters passed in.
     """
     from pylibcugraph.experimental import (SGGraph,
+                                           ResourceHandle,
                                            GraphProperties,
                                            )
+    resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
 
-    return SGGraph(resource_handle,
-                   graph_props,
-                   device_srcs,
-                   device_dsts,
-                   device_weights,
-                   store_transposed=transposed,
-                   renumber=False,
-                   expensive_check=False)
+    g = SGGraph(resource_handle,
+                graph_props,
+                device_srcs,
+                device_dsts,
+                device_weights,
+                store_transposed=transposed,
+                renumber=False,
+                expensive_check=False)
 
+    return (g, resource_handle)
 
 # =============================================================================
 # Pytest fixtures
@@ -163,17 +166,14 @@ def sg_graph_objs(valid_graph_data, request):
     the associated resource handle, and the name of the dataset
     used to construct the graph.
     """
-    from pylibcugraph.experimental import ResourceHandle
-
     (device_srcs, device_dsts, device_weights, ds_name, is_valid) = \
         valid_graph_data
 
     if is_valid is False:
         pytest.exit("got invalid graph data - expecting only valid data")
 
-    resource_handle = ResourceHandle()
-    g = create_SGGraph(resource_handle,
-                       device_srcs,
+    (g, resource_handle) = \
+        create_SGGraph(device_srcs,
                        device_dsts,
                        device_weights,
                        transposed=False)
@@ -190,17 +190,14 @@ def sg_transposed_graph_objs(valid_graph_data, request):
     used to construct the graph.
     The SGGraph object is created with the transposed arg set to True.
     """
-    from pylibcugraph.experimental import ResourceHandle
-
     (device_srcs, device_dsts, device_weights, ds_name, is_valid) = \
         valid_graph_data
 
     if is_valid is False:
         pytest.exit("got invalid graph data - expecting only valid data")
 
-    resource_handle = ResourceHandle()
-    g = create_SGGraph(resource_handle,
-                       device_srcs,
+    (g, resource_handle) = \
+        create_SGGraph(device_srcs,
                        device_dsts,
                        device_weights,
                        transposed=True)

@@ -82,18 +82,19 @@ _test_data = {"karate.csv":
 
 
 # =============================================================================
-# Helper functions
-# =============================================================================
-
-
-# =============================================================================
 # Tests
 # =============================================================================
+
+# FIXME: add tests for non-transposed graphs too, which should either work (via
+# auto-transposing in C) or raise the appropriate exception.
+
 def test_pagerank(sg_transposed_graph_objs):
+#def test_pagerank(sg_graph_objs):
     from pylibcugraph.experimental import pagerank
 
     (g, resource_handle, ds_name) = sg_transposed_graph_objs
-    expected_result = _test_data[ds_name]
+    #(g, resource_handle, ds_name) = sg_graph_objs
+    (expected_verts, expected_pageranks) = _test_data[ds_name]
 
     precomputed_vertex_out_weight_sums = None
     has_initial_guess = False
@@ -108,7 +109,6 @@ def test_pagerank(sg_transposed_graph_objs):
                       has_initial_guess,
                       do_expensive_check)
 
-    (expected_verts, expected_pageranks) = expected_result
     num_expected_verts = len(expected_verts)
     (actual_verts, actual_pageranks) = result
 
