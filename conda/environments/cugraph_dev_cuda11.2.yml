@@ -6,16 +6,16 @@ channels:
 - conda-forge
 dependencies:
 - cudatoolkit=11.2
-- cudf=22.02.*
-- libcudf=22.02.*
-- rmm=22.02.*
-- librmm=22.02.*
+- cudf=22.04.*
+- libcudf=22.04.*
+- rmm=22.04.*
+- librmm=22.04.*
 - dask>=2021.09.1
 - distributed>=2021.09.1
-- dask-cuda=22.02.*
-- dask-cudf=22.02.*
+- dask-cuda=22.04.*
+- dask-cudf=22.04.*
 - nccl>=2.9.9
-- ucx-py=0.24.*
+- ucx-py=0.25.*
 - ucx-proc=*=gpu
 - scipy
 - networkx>=2.5.1

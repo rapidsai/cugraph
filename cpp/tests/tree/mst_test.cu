@@ -17,8 +17,8 @@
 // Mst solver tests
 // Author: Alex Fender afender@nvidia.com
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
@@ -31,9 +31,9 @@
 
 #include <cmath>
 
+#include "../src/converters/COOtoCSR.cuh"
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
-#include "../src/converters/COOtoCSR.cuh"
 
 typedef struct Mst_Usecase_t {
   std::string matrix_file;

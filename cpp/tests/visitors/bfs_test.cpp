@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -165,7 +165,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                       graph_view.get_matrix_partition_view().get_indices(),
                       graph_view.get_number_of_edges(),
                       handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    handle.sync_stream();
 
     ASSERT_TRUE(configuration.source >= 0 &&
                 configuration.source <= graph_view.get_number_of_vertices())
@@ -188,7 +188,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     rmm::device_uvector<vertex_t> d_predecessors(graph_view.get_number_of_vertices(),
                                                  handle.get_stream());
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
     {
       // visitors version:
       //
@@ -242,7 +242,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       return_t ret = cugraph::api::bfs(graph_envelope, ep);
     }
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     std::vector<vertex_t> h_cugraph_distances(graph_view.get_number_of_vertices());
     std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
@@ -253,7 +253,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                       d_predecessors.data(),
                       d_predecessors.size(),
                       handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    handle.sync_stream();
 
     ASSERT_TRUE(std::equal(
       h_reference_distances.begin(), h_reference_distances.end(), h_cugraph_distances.begin()))

@@ -1,10 +1,85 @@
+# cuGraph 22.04.00 (Date TBD)
+
+Please see https://github.com/rapidsai/cugraph/releases/tag/v22.04.00a for the latest changes to this development branch.
+
 # cuGraph 22.02.00 (Date TBD)
 
 Please see https://github.com/rapidsai/cugraph/releases/tag/v22.02.00a for the latest changes to this development branch.
 
-# cuGraph 21.12.00 (Date TBD)
+# cuGraph 21.12.00 (9 Dec 2021)
 
-Please see https://github.com/rapidsai/cugraph/releases/tag/v21.12.00a for the latest changes to this development branch.
+## 🚨 Breaking Changes
+
+- Disable HITS and setup 11.5 env ([#1930](https://github.com/rapidsai/cugraph/pull/1930)) [@BradReesWork](https://github.com/BradReesWork)
+
+## 🐛 Bug Fixes
+
+- Updates to `libcugraph_etl` conda recipe for CUDA Enhanced Compatibility ([#1968](https://github.com/rapidsai/cugraph/pull/1968)) [@rlratzel](https://github.com/rlratzel)
+- Enforce renumbering for MNMG algos ([#1943](https://github.com/rapidsai/cugraph/pull/1943)) [@jnke2016](https://github.com/jnke2016)
+- Bug fix in the R-mat generator ([#1929](https://github.com/rapidsai/cugraph/pull/1929)) [@seunghwak](https://github.com/seunghwak)
+- Updates to support correct comparisons of cuDF Series with different names ([#1928](https://github.com/rapidsai/cugraph/pull/1928)) [@rlratzel](https://github.com/rlratzel)
+- Updated error message and using a proper TypeError exception when an invalid MultiGraph is passed in ([#1925](https://github.com/rapidsai/cugraph/pull/1925)) [@rlratzel](https://github.com/rlratzel)
+- Update calls to cuDF Series ctors, bug fix to `cugraph.subgraph()` for handling non-renumbered Graphs ([#1901](https://github.com/rapidsai/cugraph/pull/1901)) [@rlratzel](https://github.com/rlratzel)
+- Fix MG test bug ([#1897](https://github.com/rapidsai/cugraph/pull/1897)) [@seunghwak](https://github.com/seunghwak)
+- Temporary workaround for CI issues with 11.0 ([#1883](https://github.com/rapidsai/cugraph/pull/1883)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Ensuring dask workers are using local space ([#1879](https://github.com/rapidsai/cugraph/pull/1879)) [@jnke2016](https://github.com/jnke2016)
+- Disable WCC test until we get get on an A100 to debug on ([#1870](https://github.com/rapidsai/cugraph/pull/1870)) [@ChuckHastings](https://github.com/ChuckHastings)
+
+## 📖 Documentation
+
+- Enable crosslink to rmm ([#1918](https://github.com/rapidsai/cugraph/pull/1918)) [@AyodeAwe](https://github.com/AyodeAwe)
+
+## 🚀 New Features
+
+- C API Create Graph Implementation ([#1940](https://github.com/rapidsai/cugraph/pull/1940)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Count self-loops and multi-edges ([#1939](https://github.com/rapidsai/cugraph/pull/1939)) [@seunghwak](https://github.com/seunghwak)
+- Add a new graph primitive to filter edges (extract_if_e) ([#1938](https://github.com/rapidsai/cugraph/pull/1938)) [@seunghwak](https://github.com/seunghwak)
+- Add options to drop self-loops &amp; multi_edges in C++ test graph generation ([#1934](https://github.com/rapidsai/cugraph/pull/1934)) [@seunghwak](https://github.com/seunghwak)
+- K-core implementation for undirected graphs ([#1933](https://github.com/rapidsai/cugraph/pull/1933)) [@seunghwak](https://github.com/seunghwak)
+- K-core decomposition API update ([#1924](https://github.com/rapidsai/cugraph/pull/1924)) [@seunghwak](https://github.com/seunghwak)
+- Transpose ([#1834](https://github.com/rapidsai/cugraph/pull/1834)) [@seunghwak](https://github.com/seunghwak)
+- Symmetrize ([#1833](https://github.com/rapidsai/cugraph/pull/1833)) [@seunghwak](https://github.com/seunghwak)
+
+## 🛠️ Improvements
+
+- Fix Changelog Merge Conflicts for `branch-21.12` ([#1960](https://github.com/rapidsai/cugraph/pull/1960)) [@ajschmidt8](https://github.com/ajschmidt8)
+- Pin max `dask` &amp; `distributed` to `2021.11.2` ([#1958](https://github.com/rapidsai/cugraph/pull/1958)) [@galipremsagar](https://github.com/galipremsagar)
+- Explicitly install cusolver version with the correct ABI version ([#1954](https://github.com/rapidsai/cugraph/pull/1954)) [@robertmaynard](https://github.com/robertmaynard)
+- Upgrade `clang` to `11.1.0` ([#1949](https://github.com/rapidsai/cugraph/pull/1949)) [@galipremsagar](https://github.com/galipremsagar)
+- cugraph bring in the same cuco as raft and cudf ([#1945](https://github.com/rapidsai/cugraph/pull/1945)) [@robertmaynard](https://github.com/robertmaynard)
+- Re-enable HITS in the python API using the new primitive-based implementation ([#1941](https://github.com/rapidsai/cugraph/pull/1941)) [@rlratzel](https://github.com/rlratzel)
+- Accounting for raft::random detail changes ([#1937](https://github.com/rapidsai/cugraph/pull/1937)) [@divyegala](https://github.com/divyegala)
+- Use collections.abc.Sequence instead of deprecated collections.Sequence. ([#1932](https://github.com/rapidsai/cugraph/pull/1932)) [@bdice](https://github.com/bdice)
+- Update rapids-cmake to 21.12 ([#1931](https://github.com/rapidsai/cugraph/pull/1931)) [@dantegd](https://github.com/dantegd)
+- Disable HITS and setup 11.5 env ([#1930](https://github.com/rapidsai/cugraph/pull/1930)) [@BradReesWork](https://github.com/BradReesWork)
+- add new demo notebook for louvain ([#1927](https://github.com/rapidsai/cugraph/pull/1927)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Ensure empty shuffled columns have the appropriate dtype ([#1926](https://github.com/rapidsai/cugraph/pull/1926)) [@jnke2016](https://github.com/jnke2016)
+- improved Nx conversion performance ([#1921](https://github.com/rapidsai/cugraph/pull/1921)) [@BradReesWork](https://github.com/BradReesWork)
+- Fix metadata mismatch ([#1920](https://github.com/rapidsai/cugraph/pull/1920)) [@jnke2016](https://github.com/jnke2016)
+- Additional improvements to support (key, value) pairs when E/V is small and P is large ([#1919](https://github.com/rapidsai/cugraph/pull/1919)) [@seunghwak](https://github.com/seunghwak)
+- Remove unnecessary host barrier synchronization ([#1917](https://github.com/rapidsai/cugraph/pull/1917)) [@seunghwak](https://github.com/seunghwak)
+- Reduce MNMG memory requirements ([#1916](https://github.com/rapidsai/cugraph/pull/1916)) [@seunghwak](https://github.com/seunghwak)
+- Added separate helpers for moving buffers to either cudf column and series objects ([#1915](https://github.com/rapidsai/cugraph/pull/1915)) [@rlratzel](https://github.com/rlratzel)
+- C API for creating a graph ([#1907](https://github.com/rapidsai/cugraph/pull/1907)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Add raft ops for reduce_v and transform_reduce_v ([#1902](https://github.com/rapidsai/cugraph/pull/1902)) [@kaatish](https://github.com/kaatish)
+- Store benchmark results in json files ([#1900](https://github.com/rapidsai/cugraph/pull/1900)) [@jnke2016](https://github.com/jnke2016)
+- HITS primitive based implementation ([#1898](https://github.com/rapidsai/cugraph/pull/1898)) [@kaatish](https://github.com/kaatish)
+- Update to UCX-Py 0.23 ([#1895](https://github.com/rapidsai/cugraph/pull/1895)) [@Ethyling](https://github.com/Ethyling)
+- Updating WCC/SCC notebook ([#1893](https://github.com/rapidsai/cugraph/pull/1893)) [@BradReesWork](https://github.com/BradReesWork)
+- Update input argument check for graph_t constructor and remove expensive input argument check for graph_view_t ([#1890](https://github.com/rapidsai/cugraph/pull/1890)) [@seunghwak](https://github.com/seunghwak)
+- Update `conda` recipes for Enhanced Compatibility effort ([#1889](https://github.com/rapidsai/cugraph/pull/1889)) [@ajschmidt8](https://github.com/ajschmidt8)
+- Minor code clean-up ([#1888](https://github.com/rapidsai/cugraph/pull/1888)) [@seunghwak](https://github.com/seunghwak)
+- Sort local neighbors in the graph adjacency list. ([#1886](https://github.com/rapidsai/cugraph/pull/1886)) [@seunghwak](https://github.com/seunghwak)
+- initial creation of libcugraph_etl.so ([#1885](https://github.com/rapidsai/cugraph/pull/1885)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Fixing Nx and Graph/DiGraph issues ([#1882](https://github.com/rapidsai/cugraph/pull/1882)) [@BradReesWork](https://github.com/BradReesWork)
+- Remove unnecessary explicit template instantiation ([#1878](https://github.com/rapidsai/cugraph/pull/1878)) [@seunghwak](https://github.com/seunghwak)
+- node2vec Sampling Implementation ([#1875](https://github.com/rapidsai/cugraph/pull/1875)) [@aschaffer](https://github.com/aschaffer)
+- update docstring and examples ([#1866](https://github.com/rapidsai/cugraph/pull/1866)) [@jnke2016](https://github.com/jnke2016)
+- Copy v transform reduce out test ([#1856](https://github.com/rapidsai/cugraph/pull/1856)) [@kaatish](https://github.com/kaatish)
+- Unpin `dask` &amp; `distributed` ([#1849](https://github.com/rapidsai/cugraph/pull/1849)) [@galipremsagar](https://github.com/galipremsagar)
+- Fix automerger for `branch-21.12` ([#1848](https://github.com/rapidsai/cugraph/pull/1848)) [@galipremsagar](https://github.com/galipremsagar)
+- Extract BFS paths SG implementation ([#1838](https://github.com/rapidsai/cugraph/pull/1838)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Initial cuGraph C API - biased RW, C tests, script updates, cmake files, C library helpers ([#1799](https://github.com/rapidsai/cugraph/pull/1799)) [@aschaffer](https://github.com/aschaffer)
 
 # cuGraph 21.10.00 (7 Oct 2021)
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/row_col_properties.cuh>
@@ -41,6 +42,46 @@
 #include <type_traits>
 
 namespace cugraph {
+
+namespace {
+
+template <typename vertex_t, bool multi_gpu>
+struct e_op_t {
+  std::
+    conditional_t<multi_gpu, detail::minor_properties_device_view_t<vertex_t, uint8_t*>, uint32_t*>
+      visited_flags{nullptr};
+  uint32_t const* prev_visited_flags{
+    nullptr};  // relevant only if multi_gpu is false (this affects only local-computing with 0
+               // impact in communication volume, so this may improve performance in small-scale but
+               // will eat-up more memory with no benefit in performance in large-scale).
+  vertex_t dst_first{};  // relevant only if multi_gpu is true
+
+  __device__ thrust::optional<vertex_t> operator()(vertex_t src,
+                                                   vertex_t dst,
+                                                   thrust::nullopt_t,
+                                                   thrust::nullopt_t) const
+  {
+    thrust::optional<vertex_t> ret{};
+    if constexpr (multi_gpu) {
+      auto dst_offset = dst - dst_first;
+      auto old        = atomicOr(visited_flags.get_iter(dst_offset), uint8_t{1});
+      ret             = old == uint8_t{0} ? thrust::optional<vertex_t>{src} : thrust::nullopt;
+    } else {
+      auto mask = uint32_t{1} << (dst % (sizeof(uint32_t) * 8));
+      if (*(prev_visited_flags + (dst / (sizeof(uint32_t) * 8))) &
+          mask) {  // check if unvisited in previous iterations
+        ret = thrust::nullopt;
+      } else {  // check if unvisited in this iteration as well
+        auto old = atomicOr(visited_flags + (dst / (sizeof(uint32_t) * 8)), mask);
+        ret      = (old & mask) == 0 ? thrust::optional<vertex_t>{src} : thrust::nullopt;
+      }
+    }
+    return ret;
+  }
+};
+
+}  // namespace
+
 namespace detail {
 
 template <typename GraphViewType, typename PredecessorIterator>
@@ -132,6 +173,22 @@ void bfs(raft::handle_t const& handle,
     vertex_frontier(handle);
 
   vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(sources, sources + n_sources);
+  rmm::device_uvector<uint32_t> visited_flags(
+    (push_graph_view.get_number_of_local_vertices() + (sizeof(uint32_t) * 8 - 1)) /
+      (sizeof(uint32_t) * 8),
+    handle.get_stream());
+  thrust::fill(handle.get_thrust_policy(), visited_flags.begin(), visited_flags.end(), uint32_t{0});
+  rmm::device_uvector<uint32_t> prev_visited_flags(
+    GraphViewType::is_multi_gpu ? size_t{0} : visited_flags.size(),
+    handle.get_stream());  // relevant only if GraphViewType::is_multi_gpu is false
+  auto dst_visited_flags =
+    GraphViewType::is_multi_gpu
+      ? col_properties_t<GraphViewType, uint8_t>(handle, push_graph_view)
+      : col_properties_t<GraphViewType,
+                         uint8_t>();  // relevant only if GraphViewType::is_multi_gpu is true
+  if constexpr (GraphViewType::is_multi_gpu) {
+    dst_visited_flags.fill(uint8_t{0}, handle.get_stream());
+  }
 
   // 4. BFS iteration
   vertex_t depth{0};
@@ -139,8 +196,28 @@ void bfs(raft::handle_t const& handle,
     if (direction_optimizing) {
       CUGRAPH_FAIL("unimplemented.");
     } else {
-      auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-        push_graph_view.get_vertex_partition_view());
+      if (GraphViewType::is_multi_gpu) {
+        copy_to_adj_matrix_col(handle,
+                               push_graph_view,
+                               vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin(),
+                               vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end(),
+                               thrust::make_constant_iterator(uint8_t{1}),
+                               dst_visited_flags);
+      } else {
+        thrust::copy(handle.get_thrust_policy(),
+                     visited_flags.begin(),
+                     visited_flags.end(),
+                     prev_visited_flags.begin());
+      }
+
+      e_op_t<vertex_t, GraphViewType::is_multi_gpu> e_op{};
+      if constexpr (GraphViewType::is_multi_gpu) {
+        e_op.visited_flags = dst_visited_flags.mutable_device_view();
+        e_op.dst_first     = push_graph_view.get_local_adj_matrix_partition_col_first();
+      } else {
+        e_op.visited_flags      = visited_flags.data();
+        e_op.prev_visited_flags = prev_visited_flags.data();
+      }
 
       update_frontier_v_push_if_out_nbr(
         handle,
@@ -150,6 +227,12 @@ void bfs(raft::handle_t const& handle,
         std::vector<size_t>{static_cast<size_t>(Bucket::next)},
         dummy_properties_t<vertex_t>{}.device_view(),
         dummy_properties_t<vertex_t>{}.device_view(),
+#if 1
+        e_op,
+#else
+        // FIXME: need to test more about the performance trade-offs between additional
+        // communication in updating dst_visited_flags (+ using atomics) vs reduced number of pushes
+        // (leading to both less computation & communication in reduction)
         [vertex_partition, distances] __device__(
           vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
           auto push = true;
@@ -160,6 +243,7 @@ void bfs(raft::handle_t const& handle,
           }
           return push ? thrust::optional<vertex_t>{src} : thrust::nullopt;
         },
+#endif
         reduce_op::any<vertex_t>(),
         distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
@@ -185,7 +269,7 @@ void bfs(raft::handle_t const& handle,
     if (depth >= depth_limit) { break; }
   }
 
-  CUDA_TRY(cudaStreamSynchronize(
+  RAFT_CUDA_TRY(cudaStreamSynchronize(
     handle.get_stream()));  // this is as necessary vertex_frontier will become out-of-scope once
                             // this function returns (FIXME: should I stream sync in VertexFrontier
                             // destructor?)
