@@ -93,7 +93,8 @@ cugraph_type_erased_device_array_view_t* cugraph_type_erased_device_array_view_c
   void* pointer, size_t n_elems, data_type_id_t dtype)
 {
   return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    new cugraph::c_api::cugraph_type_erased_device_array_view_t{pointer, n_elems, dtype});
+    new cugraph::c_api::cugraph_type_erased_device_array_view_t{
+      pointer, n_elems, n_elems * (::data_type_sz[dtype]), dtype});
 }
 
 extern "C" void cugraph_type_erased_device_array_view_free(
@@ -189,7 +190,7 @@ extern "C" cugraph_type_erased_host_array_view_t* cugraph_type_erased_host_array
 {
   return reinterpret_cast<cugraph_type_erased_host_array_view_t*>(
     new cugraph::c_api::cugraph_type_erased_host_array_view_t{
-      static_cast<std::byte*>(pointer), n_elems, dtype});
+      static_cast<std::byte*>(pointer), n_elems, n_elems * (::data_type_sz[dtype]), dtype});
 }
 
 extern "C" void cugraph_type_erased_host_array_view_free(cugraph_type_erased_host_array_view_t* p)

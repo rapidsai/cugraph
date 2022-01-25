@@ -26,6 +26,8 @@
 
 #include <raft/handle.hpp>
 
+#include <limits>
+
 namespace cugraph {
 namespace c_api {
 
@@ -183,7 +185,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   cugraph_error_t** error)
 {
   constexpr bool multi_gpu = false;
-  constexpr size_t int32_threshold{2 ^ 31 - 1};
+  constexpr size_t int32_threshold{std::numeric_limits<int32_t>::max()};
 
   *graph = nullptr;
   *error = nullptr;
