@@ -89,11 +89,9 @@ _test_data = {"karate.csv":
 # auto-transposing in C) or raise the appropriate exception.
 
 def test_pagerank(sg_transposed_graph_objs):
-#def test_pagerank(sg_graph_objs):
     from pylibcugraph.experimental import pagerank
 
     (g, resource_handle, ds_name) = sg_transposed_graph_objs
-    #(g, resource_handle, ds_name) = sg_graph_objs
     (expected_verts, expected_pageranks) = _test_data[ds_name]
 
     precomputed_vertex_out_weight_sums = None

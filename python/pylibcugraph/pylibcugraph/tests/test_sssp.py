@@ -150,9 +150,9 @@ def test_sssp(sg_graph_objs):
                 f"actual != expected for distance result at index {i}"
 
         # predecessors for graphs with multiple paths which are equally short
-        # are non-deterministic, so skip those checks for specific graph inputs.
-        # FIXME: add a helper to verify paths are correct when results are valid
-        # but non-deterministic
+        # are non-deterministic so skip those checks for specific graph inputs.
+        # FIXME: add a helper to verify paths are correct when results are
+        # valid but non-deterministic
         if ds_name not in ["karate.csv", "dolphins.csv"]:
             assert actual_predecessors[i] == \
                 pytest.approx(expected_predecessors[actual_verts[i]], 1e-4), \
