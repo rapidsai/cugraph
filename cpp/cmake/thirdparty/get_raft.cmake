@@ -32,7 +32,11 @@ function(find_and_configure_raft)
                 "RAFT_COMPILE_LIBRARIES OFF"
     )
 
-    message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_SOURCE_DIR}")
+    if(raft_ADDED)
+        message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_SOURCE_DIR}")
+    else()
+        message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_DIR}")
+    endif()
 
 endfunction()
 

@@ -20,24 +20,25 @@ REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_etl/build}
 
-VALIDARGS="clean uninstall libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests docs -v -g -n --allgpuarch --skip_cpp_tests -h --help"
+VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests docs -v -g -n --allgpuarch --skip_cpp_tests -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
-   clean            - remove all existing build artifacts and configuration (start over)
-   uninstall        - uninstall libcugraph and cugraph from a prior build/install (see also -n)
-   libcugraph       - build libcugraph.so and SG test binaries
-   libcugraph_etl   - build libcugraph_etl.so and SG test binaries
-   cugraph          - build the cugraph Python package
-   pylibcugraph     - build the pylibcugraph Python package
-   cpp-mgtests      - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
-   docs             - build the docs
+   clean                - remove all existing build artifacts and configuration (start over)
+   uninstall            - uninstall libcugraph and cugraph from a prior build/install (see also -n)
+   uninstall_cmake_deps - uninstall headers from external dependencies installed by cmake (raft, rmm, cuco, etc.) (see also -n)
+   libcugraph           - build libcugraph.so and SG test binaries
+   libcugraph_etl       - build libcugraph_etl.so and SG test binaries
+   cugraph              - build the cugraph Python package
+   pylibcugraph         - build the pylibcugraph Python package
+   cpp-mgtests          - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
+   docs                 - build the docs
  and <flag> is:
-   -v               - verbose build mode
-   -g               - build for debug
-   -n               - do not install after a successful build
-   --allgpuarch     - build for all supported GPU architectures
-   --skip_cpp_tests - do not build the SG test binaries as part of the libcugraph target
-   -h               - print this text
+   -v                   - verbose build mode
+   -g                   - build for debug
+   -n                   - do not install after a successful build
+   --allgpuarch         - build for all supported GPU architectures
+   --skip_cpp_tests     - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
+   -h                   - print this text
 
  default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'docs' targets
 
@@ -50,6 +51,7 @@ BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR} ${LIBCUGRAPH_ETL_BUILD_DIR} ${CUGRAPH_BUILD_
 
 # Set defaults for vars modified by flags to this script
 VERBOSE_FLAG=""
+CMAKE_VERBOSE_OPTION=""
 BUILD_TYPE=Release
 INSTALL_TARGET=install
 BUILD_CPP_TESTS=ON
@@ -89,6 +91,7 @@ fi
 # Process flags
 if hasArg -v; then
     VERBOSE_FLAG="-v"
+    CMAKE_VERBOSE_OPTION="--log-level=VERBOSE"
 fi
 if hasArg -g; then
     BUILD_TYPE=Debug
@@ -106,9 +109,8 @@ if hasArg cpp-mgtests; then
     BUILD_CPP_MG_TESTS=ON
 fi
 
-# If clean or uninstall given, run them prior to any other steps
+# If clean or uninstall targets given, run them prior to any other steps
 if hasArg uninstall; then
-    # uninstall libcugraph
     if [[ "$INSTALL_PREFIX" != "" ]]; then
         rm -rf ${INSTALL_PREFIX}/include/cugraph
         rm -f ${INSTALL_PREFIX}/lib/libcugraph.so
@@ -116,6 +118,8 @@ if hasArg uninstall; then
         rm -f ${INSTALL_PREFIX}/lib/libcugraph_c.so
         rm -rf ${INSTALL_PREFIX}/include/cugraph_etl
         rm -f ${INSTALL_PREFIX}/lib/libcugraph_etl.so
+        rm -rf ${INSTALL_PREFIX}/lib/cmake/cugraph
+        rm -rf ${INSTALL_PREFIX}/lib/cmake/cugraph_etl
     fi
     # This may be redundant given the above, but can also be used in case
     # there are other installed files outside of the locations above.
@@ -124,7 +128,23 @@ if hasArg uninstall; then
     fi
     # uninstall cugraph and pylibcugraph installed from a prior "setup.py
     # install"
+    # FIXME: if multiple versions of these packages are installed, this only
+    # removes the latest one and leaves the others installed. build.sh uninstall
+    # can be run multiple times to remove all of them, but that is not obvious.
     pip uninstall -y cugraph pylibcugraph
+fi
+
+if hasArg uninstall_cmake_deps; then
+    if [[ "$INSTALL_PREFIX" != "" ]]; then
+        rm -rf ${INSTALL_PREFIX}/include/raft
+        rm -rf ${INSTALL_PREFIX}/lib/cmake/raft
+        rm -rf ${INSTALL_PREFIX}/include/cub
+        rm -rf ${INSTALL_PREFIX}/lib/cmake/cub
+        rm -rf ${INSTALL_PREFIX}/include/cuco
+        rm -rf ${INSTALL_PREFIX}/lib/cmake/cuco
+        rm -rf ${INSTALL_PREFIX}/include/rmm
+        rm -rf ${INSTALL_PREFIX}/lib/cmake/rmm
+    fi
 fi
 
 if hasArg clean; then
@@ -141,6 +161,7 @@ if hasArg clean; then
         find . -name "__pycache__" -type d -exec rm -rf {} \; > /dev/null 2>&1
         find . -name "*.cpp" -type f -delete
         find . -name "*.cpython*.so" -type f -delete
+        find . -type d -name _external_repositories -exec rm -rf {} \; > /dev/null 2>&1
         popd > /dev/null
     fi
 
@@ -175,8 +196,8 @@ if buildAll || hasArg libcugraph; then
           -DCMAKE_CUDA_ARCHITECTURES=${CUGRAPH_CMAKE_CUDA_ARCHITECTURES} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DBUILD_TESTS=${BUILD_CPP_TESTS} \
-          -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS}
-
+          -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
+          ${CMAKE_VERBOSE_OPTION}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
 fi
 
@@ -196,7 +217,8 @@ if buildAll || hasArg libcugraph_etl; then
           -DDISABLE_DEPRECATION_WARNING=${BUILD_DISABLE_DEPRECATION_WARNING} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DBUILD_TESTS=${BUILD_CPP_TESTS} \
-          -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} --log-level=VERBOSE \
+          -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
+          ${CMAKE_VERBOSE_OPTION} \
           ${REPODIR}/cpp/libcugraph_etl
     cmake --build "${LIBCUGRAPH_ETL_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
 fi
@@ -233,7 +255,8 @@ if buildAll || hasArg docs; then
         cd ${LIBCUGRAPH_BUILD_DIR}
         cmake -B "${LIBCUGRAPH_BUILD_DIR}" -S "${REPODIR}/cpp" \
               -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
-              -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+              -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+              ${CMAKE_VERBOSE_OPTION}
     fi
     cd ${LIBCUGRAPH_BUILD_DIR}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target docs_cugraph ${VERBOSE_FLAG}
