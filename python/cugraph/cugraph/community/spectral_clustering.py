@@ -33,30 +33,30 @@ def spectralBalancedCutClustering(
     Parameters
     ----------
     G : cugraph.Graph or networkx.Graph
-         graph descriptor
+        Graph descriptor
 
     num_clusters : integer
-         Specifies the number of clusters to find, must be greater than 1
+        Specifies the number of clusters to find, must be greater than 1
 
     num_eigen_vects : integer, optional
-         Specifies the number of eigenvectors to use. Must be lower or equal to
-         num_clusters. Default is 2
+        Specifies the number of eigenvectors to use. Must be lower or equal to
+        num_clusters. Default is 2
 
     evs_tolerance: float, optional
-         Specifies the tolerance to use in the eigensolver.
-         Default is 0.00001
+        Specifies the tolerance to use in the eigensolver.
+        Default is 0.00001
 
     evs_max_iter: integer, optional
-         Specifies the maximum number of iterations for the eigensolver.
-         Default is 100
+        Specifies the maximum number of iterations for the eigensolver.
+        Default is 100
 
     kmean_tolerance: float, optional
-         Specifies the tolerance to use in the k-means solver.
-         Default is 0.00001
+        Specifies the tolerance to use in the k-means solver.
+        Default is 0.00001
 
     kmean_max_iter: integer, optional
-         Specifies the maximum number of iterations for the k-means solver.
-         Default is 100
+        Specifies the maximum number of iterations for the k-means solver.
+        Default is 100
 
     Returns
     -------
@@ -123,33 +123,34 @@ def spectralModularityMaximizationClustering(
         cuGraph graph descriptor. This graph should have edge weights.
 
     num_clusters : integer
-         Specifies the number of clusters to find
+        Specifies the number of clusters to find
 
     num_eigen_vects : integer, optional
-         Specifies the number of eigenvectors to use. Must be lower or equal to
-         num_clusters.  Default is 2
+        Specifies the number of eigenvectors to use. Must be lower or equal to
+        num_clusters.  Default is 2
 
     evs_tolerance: float, optional
-         Specifies the tolerance to use in the eigensolver.
-         Default is 0.00001
+        Specifies the tolerance to use in the eigensolver.
+        Default is 0.00001
 
     evs_max_iter: integer, optional
-         Specifies the maximum number of iterations for the eigensolver.
-         Default is 100
+        Specifies the maximum number of iterations for the eigensolver.
+        Default is 100
 
     kmean_tolerance: float, optional
-         Specifies the tolerance to use in the k-means solver.
-         Default is 0.00001
+        Specifies the tolerance to use in the k-means solver.
+        Default is 0.00001
 
     kmean_max_iter: integer, optional
-         Specifies the maximum number of iterations for the k-means solver.
-         Default is 100
+        Specifies the maximum number of iterations for the k-means solver.
+        Default is 100
 
     Returns
     -------
     df : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding cluster assignments.
+
         df['vertex'] : cudf.Series
             contains the vertex identifiers
         df['cluster'] : cudf.Series

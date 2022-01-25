@@ -186,14 +186,14 @@ def symmetrize(source_col, dest_col, value_col=None, multi=False,
 
     Examples
     --------
-    from cugraph.structure.symmetrize import symmetrize
-    Download dataset from https://github.com/rapidsai/cugraph/datasets/...
-    M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-                      dtype=['int32', 'int32', 'float32'], header=None)
-    sources = cudf.Series(M['0'])
-    destinations = cudf.Series(M['1'])
-    values = cudf.Series(M['2'])
-    src, dst, val = symmetrize(sources, destinations, values)
+    >>> from cugraph.structure.symmetrize import symmetrize
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
+    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
+    ...                    dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sources = cudf.Series(M['0'])
+    >>> destinations = cudf.Series(M['1'])
+    >>> values = cudf.Series(M['2'])
+    >>> src, dst, val = symmetrize(sources, destinations, values)
 
     """
 

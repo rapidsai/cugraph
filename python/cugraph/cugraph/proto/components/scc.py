@@ -17,7 +17,6 @@ import cugraph
 import numpy as np
 
 
-#
 # TRIM Process:
 #   - removed single vertex componenets
 #   - select vertex with highest out degree
@@ -35,11 +34,11 @@ def strong_connected_component(source, destination):
 
     Parameters
     ----------
-    source : cudf.Seriers
-        A cudf seriers that contains the source side of an edge list
+    source : cudf.Series
+        A cudf series that contains the source side of an edge list
 
-    destination : cudf.Seriers
-        A cudf seriers that contains the destination side of an edge list
+    destination : cudf.Series
+        A cudf series that contains the destination side of an edge list
 
     Returns
     -------

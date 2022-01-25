@@ -45,7 +45,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
         weights['weight'] : cudf.Series
             Contains the weights of vertices
 
-    vertex_pair : cudf.DataFrame
+    vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the overlap coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.

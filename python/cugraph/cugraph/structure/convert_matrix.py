@@ -38,17 +38,22 @@ def from_edgelist(df, source='source', destination='destination',
         This DataFrame contains columns storing edge source vertices,
         destination (or target following NetworkX's terminology) vertices, and
         (optional) weights.
-    source : string or integer
+
+    source : string or integer, optional (default='source')
         This is used to index the source column.
-    destination : string or integer
+
+    destination : string or integer, optional (default='destination')
         This is used to index the destination (or target following NetworkX's
         terminology) column.
-    edge_attr : string or integer, optional
+
+    edge_attr : string or integer, optional (default=None)
         This pointer can be ``None``. If not, this is used to index the weight
         column.
-    create_using : cuGraph.Graph
-        Specify the type of Graph to create.  Default is cugraph.Graph
-    renumber : bool
+
+    create_using : cuGraph.Graph, optional (default=cugraph.Graph)
+        Specify the type of Graph to create.
+
+    renumber : bool, optional (default=True)
         If source and destination indices are not in range 0 to V where V
         is number of vertices, renumber argument should be True.
 
@@ -99,12 +104,12 @@ def from_adjlist(offsets, indices, values=None, create_using=Graph):
     indices : cudf.Series, pandas.Series
         The indices of a CSR adjacency matrix.
 
-    values : cudf.Series, pandas.Series, or None (default), optional
+    values : cudf.Series or pandas.Series, optional (default=None)
         The values in a CSR adjacency matrix, which represent edge weights in a
         graph. If not provided, the resulting graph is considered unweighted.
 
-    create_using : cuGraph.Graph
-        Specify the type of Graph to create.  Default is cugraph.Graph
+    create_using : cuGraph.Graph, optional (default=cugraph.Graph)
+        Specify the type of Graph to create.
 
     Examples
     --------
@@ -162,17 +167,22 @@ def from_cudf_edgelist(df, source='source', destination='destination',
         This cudf.DataFrame contains columns storing edge source vertices,
         destination (or target following NetworkX's terminology) vertices, and
         (optional) weights.
-    source : string or integer
+
+    source : string or integer, optional (default='source')
         This is used to index the source column.
-    destination : string or integer
+
+    destination : string or integer, optional (default='destination')
         This is used to index the destination (or target following NetworkX's
         terminology) column.
-    edge_attr : string or integer, optional
+
+    edge_attr : string or integer, optional (default=None)
         This pointer can be ``None``. If not, this is used to index the weight
         column.
-    create_using : cuGraph.Graph
-        Specify the type of Graph to create.  Default is cugraph.Graph
-    renumber : bool
+
+    create_using : cuGraph.Graph, optional (default=cugraph.Graph)
+        Specify the type of Graph to create.
+
+    renumber : bool, optional (default=True)
         If source and destination indices are not in range 0 to V where V
         is number of vertices, renumber argument should be True.
 
@@ -219,18 +229,23 @@ def from_pandas_edgelist(df,
 
     Parameters
     ----------
-    input_df : pandas.DataFrame
+    df : pandas.DataFrame
         A DataFrame that contains edge information
-    source : str or array-like
+
+    source : str or array-like, optional (default='source')
         source column name or array of column names
-    destination : str or array-like
+
+    destination : str or array-like, optional (default='destination')
         destination column name or array of column names
-    edge_attr : str or None
-        the weights column name. Default is None
-    renumber : bool
+
+    edge_attr : str or None, optional (default=None)
+        the weights column name.
+
+    renumber : bool, optional (default=True)
         Indicate whether or not to renumber the source and destination
-        vertex IDs. Default is True.
-    create_using: cugraph.DiGraph or cugraph.Graph
+        vertex IDs.
+
+    create_using: cugraph.DiGraph or cugraph.Graph, optional (default=Graph)
         Indicate whether to create a directed or undirected graph
 
     Returns
@@ -269,10 +284,12 @@ def to_pandas_edgelist(G, source='source', destination='destination'):
     Parameters
     ----------
     G : cugraph.Graph or cugraph.DiGraph
-        Graph containg the edgelist.
-    source : str or array-like
+        Graph containing the edgelist.
+
+    source : str or array-like, optional (default='source')
         source column name or array of column names
-    destination : str or array-like
+
+    destination : str or array-like, optional (default='destination')
         destination column name or array of column names
 
     Returns
@@ -288,8 +305,14 @@ def to_pandas_edgelist(G, source='source', destination='destination'):
 def from_pandas_adjacency(df, create_using=Graph):
     """
     Initializes the graph from pandas adjacency matrix.
-    Set create_using to cugraph.DiGraph for directed graph and
-    cugraph.Graph for undirected Graph.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        A DataFrame that contains edge information
+
+    create_using: cugraph.DiGraph or cugraph.Graph, optional (default=Graph)
+        Indicate whether to create a directed or undirected graph
     """
     if create_using is Graph:
         G = Graph()
@@ -306,6 +329,11 @@ def to_pandas_adjacency(G):
     """
     Returns the graph adjacency matrix as a Pandas DataFrame.
     The row indices denote source and column names denote destination.
+
+    Parameters
+    ----------
+    G : cugraph.Graph or cugraph.DiGraph
+        Graph containing the adjacency matrix.
     """
     pdf = G.to_pandas_adjacency()
     return pdf
@@ -314,8 +342,14 @@ def to_pandas_adjacency(G):
 def from_numpy_array(A, create_using=Graph):
     """
     Initializes the graph from numpy array containing adjacency matrix.
-    Set create_using to cugraph.DiGraph for directed graph and
-    cugraph.Graph for undirected Graph.
+
+    Parameters
+    ----------
+    A : numpy.array
+        A Numpy array that contains adjacency information
+
+    create_using: cugraph.DiGraph or cugraph.Graph, optional (default=Graph)
+        Indicate whether to create a directed or undirected graph
     """
     if create_using is Graph:
         G = Graph()

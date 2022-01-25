@@ -35,13 +35,14 @@ def sorensen(input_graph, vertex_pair=None):
 
     Parameters
     ----------
-    graph : cugraph.Graph
+    input_graph : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
         not already present.
-    vertex_pair : cudf.DataFrame
+
+    vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the Sorensen coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
@@ -98,13 +99,13 @@ def sorensen_coefficient(G, ebunch=None):
 
     Parameters
     ----------
-    graph : cugraph.Graph
+    G : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
         not already present.
-    ebunch : cudf.DataFrame
+    ebunch : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the sorensen coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the

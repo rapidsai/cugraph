@@ -137,7 +137,8 @@ def jaccard_coefficient(G, ebunch=None):
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
         not already present.
-    ebunch : cudf.DataFrame
+
+    ebunch : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the jaccard coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the

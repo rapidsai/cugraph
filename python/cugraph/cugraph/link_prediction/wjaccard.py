@@ -31,7 +31,7 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
 
     Parameters
     ----------
-    graph : cugraph.Graph
+    input_graph : cugraph.Graph
         cuGraph Graph instance , should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
@@ -46,7 +46,7 @@ def jaccard_w(input_graph, weights, vertex_pair=None):
         weights['weight'] : cudf.Series
             Contains the weights of vertices
 
-    vertex_pair : cudf.DataFrame
+    vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the jaccard coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.

@@ -90,9 +90,9 @@ def get_traversed_path(df, id):
     >>> path = cugraph.utils.get_traversed_path(sssp_df, 32)
     >>> path
         distance  vertex  predecessor
-    2        2.0      32            2
-    3        1.0       2            1
-    15       0.0       1           -1
+    ...       ...     ...         ...
+    ...       ...     ...         ...
+    ...       ...     ...         ...
 
     """
 

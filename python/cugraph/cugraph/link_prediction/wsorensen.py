@@ -26,7 +26,7 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
 
     Parameters
     ----------
-    graph : cugraph.Graph
+    input_graph : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
@@ -41,7 +41,7 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
         weights['weight'] : cudf.Series
             Contains the weights of vertices
 
-    vertex_pair : cudf.DataFrame
+    vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the sorensen coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.
@@ -82,6 +82,7 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
     >>> weights['weight'] = [random.random() for w in range(
     ...                      len(weights['vertex']))]
     >>> df = cugraph.sorensen_w(G, weights)
+
     """
     if type(input_graph) is not Graph:
         raise TypeError("input graph must a Graph")

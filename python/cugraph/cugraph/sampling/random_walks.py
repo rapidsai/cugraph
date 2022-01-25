@@ -36,10 +36,10 @@ def random_walks(G,
         the random walks. In case of multi-column vertices it should be
         a cudf.DataFrame
 
-    max_depth : int
+    max_depth : int, optional (default=None)
         The maximum depth of the random walks
 
-    use_padding : bool
+    use_padding : bool, optional (default=False)
         If True, padded paths are returned else coalesced paths are returned.
 
     Returns
