@@ -56,9 +56,6 @@ from pylibcugraph.utils cimport (
     get_numpy_type_from_c_type,
 )
 
-import cupy
-import numpy
-
 
 def EXPERIMENTAL__sssp(EXPERIMENTAL__ResourceHandle resource_handle,
                        EXPERIMENTAL__Graph graph,
@@ -67,8 +64,58 @@ def EXPERIMENTAL__sssp(EXPERIMENTAL__ResourceHandle resource_handle,
                        bool_t compute_predecessors,
                        bool_t do_expensive_check):
     """
+    Compute the distance and predecessors for shortest paths from the specified
+    source to all the vertices in the graph. The returned distances array will
+    contain the distance from the source to each vertex in the returned vertex
+    array at the same index. The returned predecessors array will contain the
+    previous vertex in the shortest path for each vertex in the vertex array at
+    the same index. Vertices that are unreachable will have a distance of
+    infinity denoted by the maximum value of the data type and the predecessor
+    set as -1. The source vertex predecessor will be set to -1. Graphs with
+    negative weight cycles are not supported.
+
+    Parameters
+    ----------
+    resource_handle :
+
+    graph :
+
+    source :
+
+    cutoff :
+
+    compute_predecessors : bool
+
+    do_expensive_check : bool
+
+    Returns
+    -------
+
+    Examples
+    --------
+
     """
-    cdef cugraph_resource_handle_t* c_resource_handle_ptr = resource_handle.c_resource_handle_ptr
+
+    # FIXME: import these modules here for now until a better pattern can be
+    # used for optional imports (perhaps 'import_optional()' from cugraph), or
+    # these are made hard dependencies.
+    try:
+        import cupy
+    except ModuleNotFoundError:
+        raise RuntimeError("sssp requires the cupy package, which could not "
+                           "be imported")
+    try:
+        import numpy
+    except ModuleNotFoundError:
+        raise RuntimeError("sssp requires the numpy package, which could not "
+                           "be imported")
+
+    if compute_predecessors is False:
+        raise ValueError("compute_predecessors must be True for the current "
+                         "release.")
+
+    cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
+        resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
 
     cdef cugraph_paths_result_t* result_ptr
@@ -106,7 +153,13 @@ def EXPERIMENTAL__sssp(EXPERIMENTAL__ResourceHandle resource_handle,
 
     num_vertices = cugraph_type_erased_device_array_view_size(vertices_ptr)
 
-    # Set up cupy arrays to return and copy results
+    # Set up cupy arrays to return and copy results to:
+    # * create cupy array object (these will be what the caller uses).
+    # * access the underlying device pointers.
+    # * create device array views which can be used with the copy APIs.
+    # * call copy APIs. This will copy data to the array pointed to the pointer
+    #   in the cupy array objects that will be returned.
+    # * free view objects.
     cupy_vertices = cupy.array(numpy.zeros(num_vertices),
                                dtype=vertex_numpy_type)
     cupy_distances = cupy.array(numpy.zeros(num_vertices),
@@ -127,11 +180,9 @@ def EXPERIMENTAL__sssp(EXPERIMENTAL__ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* cupy_distances_view_ptr = \
         cugraph_type_erased_device_array_view_create(
             <void*>cupy_distances_ptr, num_vertices, vertex_type)
-    cdef cugraph_type_erased_device_array_view_t* cupy_predecessors_view_ptr = \
+    cdef cugraph_type_erased_device_array_view_t* cupy_predecessors_view_ptr =\
         cugraph_type_erased_device_array_view_create(
             <void*>cupy_predecessors_ptr, num_vertices, vertex_type)
-
-    # FIXME: free the views somewhere
 
     error_code = cugraph_type_erased_device_array_view_copy(
         c_resource_handle_ptr,
@@ -155,6 +206,9 @@ def EXPERIMENTAL__sssp(EXPERIMENTAL__ResourceHandle resource_handle,
     assert_success(error_code, error_ptr,
                    "cugraph_type_erased_device_array_view_copy")
 
+    cugraph_type_erased_device_array_view_free(cupy_distances_view_ptr)
+    cugraph_type_erased_device_array_view_free(cupy_predecessors_view_ptr)
+    cugraph_type_erased_device_array_view_free(cupy_vertices_view_ptr)
     cugraph_paths_result_free(result_ptr)
 
     return (cupy_vertices, cupy_distances, cupy_predecessors)

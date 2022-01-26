@@ -56,9 +56,6 @@ from pylibcugraph.utils cimport (
     get_numpy_type_from_c_type,
 )
 
-import cupy
-import numpy
-
 
 def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
                            EXPERIMENTAL__Graph graph,
@@ -69,18 +66,85 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
                            bool_t has_initial_guess,
                            bool_t do_expensive_check):
     """
+    Find the PageRank score for every vertex in a graph by computing an
+    approximation of the Pagerank eigenvector using the power method. The
+    number of iterations depends on the properties of the network itself; it
+    increases when the tolerance descreases and/or alpha increases toward the
+    limiting value of 1.
+
+    Parameters
+    ----------
+    handle : ResourceHandle
+        Handle to the underlying device resources needed for referencing data
+        and running algorithms.
+
+    graph : Graph
+        The input graph.
+
+    precomputed_vertex_out_weight_sums : None
+        This parameter is unsupported in this release and only None is
+        accepted.
+
+    alpha : float
+        The damping factor alpha represents the probability to follow an
+        outgoing edge, standard value is 0.85.
+        Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
+        Alpha should be greater than 0.0 and strictly lower than 1.0.
+
+    epsilon : float
+        Set the tolerance the approximation, this parameter should be a small
+        magnitude value.
+        The lower the tolerance the better the approximation. If this value is
+        0.0f, cuGraph will use the default value which is 1.0E-5.
+        Setting too small a tolerance can lead to non-convergence due to
+        numerical roundoff. Usually values between 0.01 and 0.00001 are
+        acceptable.
+
+    max_iterations : int
+        The maximum number of iterations before an answer is returned. This can
+        be used to limit the execution time and do an early exit before the
+        solver reaches the convergence tolerance.
+        If this value is lower or equal to 0 cuGraph will use the default
+        value, which is 100.
+
+    has_initial_guess : bool
+
+    do_expensive_check : bool
+
+    Returns
+    -------
+
+    Examples
+    --------
+
     """
+
+    # FIXME: import these modules here for now until a better pattern can be
+    # used for optional imports (perhaps 'import_optional()' from cugraph), or
+    # these are made hard dependencies.
+    try:
+        import cupy
+    except ModuleNotFoundError:
+        raise RuntimeError("pagerank requires the cupy package, which could "
+                           "not be imported")
+    try:
+        import numpy
+    except ModuleNotFoundError:
+        raise RuntimeError("pagerank requires the numpy package, which could "
+                           "not be imported")
+
     assert_CAI_type(precomputed_vertex_out_weight_sums,
                     "precomputed_vertex_out_weight_sums",
                     allow_None=True)
 
-    cdef cugraph_resource_handle_t* c_resource_handle_ptr = resource_handle.c_resource_handle_ptr
+    cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
+        resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
-    cdef cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums_ptr = NULL
+    cdef cugraph_type_erased_device_array_view_t* \
+        precomputed_vertex_out_weight_sums_ptr = NULL
     if precomputed_vertex_out_weight_sums:
-        raise NotImplementedError("None is temporarily the only supported value for precomputed_vertex_out_weight_sums")
-        #precomputed_vertex_out_weight_sums_ptr = precomputed_vertex_out_weight_sums
-        pass
+        raise NotImplementedError("None is temporarily the only supported "
+                                  "value for precomputed_vertex_out_weight_sums")
 
     cdef cugraph_pagerank_result_t* result_ptr
     cdef cugraph_error_code_t error_code
@@ -114,7 +178,13 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
 
     num_vertices = cugraph_type_erased_device_array_view_size(vertices_ptr)
 
-    # Set up cupy arrays to return and copy results
+    # Set up cupy arrays to return and copy results to:
+    # * create cupy array object (these will be what the caller uses).
+    # * access the underlying device pointers.
+    # * create device array views which can be used with the copy APIs.
+    # * call copy APIs. This will copy data to the array pointed to the pointer
+    #   in the cupy array objects that will be returned.
+    # * free view objects.
     cupy_vertices = cupy.array(numpy.zeros(num_vertices),
                                dtype=vertex_numpy_type)
     cupy_pageranks = cupy.array(numpy.zeros(num_vertices),
@@ -133,8 +203,6 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
         cugraph_type_erased_device_array_view_create(
             <void*>cupy_pageranks_ptr, num_vertices, vertex_type)
 
-    # FIXME: free the views somewhere
-
     error_code = cugraph_type_erased_device_array_view_copy(
         c_resource_handle_ptr,
         cupy_vertices_view_ptr,
@@ -150,26 +218,8 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
     assert_success(error_code, error_ptr,
                    "cugraph_type_erased_device_array_view_copy")
 
+    cugraph_type_erased_device_array_view_free(cupy_pageranks_view_ptr)
+    cugraph_type_erased_device_array_view_free(cupy_vertices_view_ptr)
     cugraph_pagerank_result_free(result_ptr)
 
     return (cupy_vertices, cupy_pageranks)
-
-
-
-"""
-   cdef cugraph_pagerank_result_t* my_result
-   cugraph_pagerank(... , &my_result, ...)
-
-   cdef cugraph_type_erased_device_array_t* verts
-   cdef cugraph_type_erased_device_array_t* prs
-   verts = cugraph_pagerank_result_get_vertices(my_result)
-   prs = cugraph_pagerank_result_get_pageranks(my_result)
-
-   do device-device copy on verts to user array
-   do device-device copy on prs to user array
-/*
-size_t cugraph_type_erased_device_array_size(const cugraph_type_erased_device_array_t* p);
-data_type_id_t cugraph_type_erased_device_array_type(const cugraph_type_erased_device_array_t* p);
-const void* cugraph_type_erased_device_array_pointer(const cugraph_type_erased_device_array_t* p);
-*/
-"""
