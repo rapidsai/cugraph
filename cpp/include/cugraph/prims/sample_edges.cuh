@@ -454,14 +454,15 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_global_degree_offset(
  * @return
  */
 template <typename GraphViewType, typename VertexIterator, typename EdgeIndexIterator>
-void gather_edges(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexIterator vertex_input_first,
-  VertexIterator vertex_input_last,
-  EdgeIndexIterator edge_index_first,
-  int indices_per_source,
-  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offset)
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>>
+gather_edges(raft::handle_t const& handle,
+             GraphViewType const& graph_view,
+             VertexIterator vertex_input_first,
+             VertexIterator vertex_input_last,
+             EdgeIndexIterator edge_index_first,
+             int indices_per_source,
+             const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offset)
 {
   static_assert(GraphViewType::is_adj_matrix_transposed == false);
   using vertex_t = typename GraphViewType::vertex_type;
@@ -486,6 +487,7 @@ void gather_edges(
                                                             active_source_adjacency_lists,
                                                             graph_view.get_number_of_vertices(),
                                                             indices_per_source);
+  return std::make_tuple(sources, destinations);
 }
 
 }  // namespace cugraph
