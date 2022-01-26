@@ -52,6 +52,46 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
     """
     RAII-stye Graph class for use with single-GPU APIs that manages the
     individual create/free calls and the corresponding cugraph_graph_t pointer.
+
+    Parameters
+    ----------
+    resource_handle : ResourceHandle
+        Handle to the underlying device resources needed for referencing data
+        and running algorithms.
+
+    graph_properties : GraphProperties
+        Object defining intended properties for the graph.
+
+    src_array : device array type
+        Device array containing the vertex identifiers of the source of each
+        directed edge. The order of the array corresponds to the ordering of the
+        dst_array, where the ith item in src_array and the ith item in dst_array
+        define the ith edge of the graph.
+
+    dst_array : device array type
+        Device array containing the vertex identifiers of the destination of each
+        directed edge. The order of the array corresponds to the ordering of the
+        src_array, where the ith item in src_array and the ith item in dst_array
+        define the ith edge of the graph.
+
+    weight_array : device array type
+        Device array containing the weight values of each directed edge. The
+        order of the array corresponds to the ordering of the src_array and
+        dst_array arrays, where the ith item in weight_array is the weight value
+        of the ith edge of the graph.
+
+    store_transposed : bool
+        Set to True if the graph should be transposed. This is required for some
+        algorithms, such as pagerank.
+
+    renumber : bool
+        Set to True to indicate the vertices used in src_array and dst_array are
+        not appropriate for use as internal array indices, and should be mapped
+        to continuous integrers starting from 0.
+
+    do_expensive_check : bool
+        If True, performs more extensive tests on the inputs to ensure
+        validitity, at the expense of increased run time.
     """
     def __cinit__(self,
                   EXPERIMENTAL__ResourceHandle resource_handle,

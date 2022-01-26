@@ -74,12 +74,13 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
 
     Parameters
     ----------
-    handle : ResourceHandle
+    resource_handle : ResourceHandle
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
 
-    graph : Graph
-        The input graph.
+    graph : SGGraph
+        The input graph. The graph must be created with the store_transposed
+        option set to True.
 
     precomputed_vertex_out_weight_sums : None
         This parameter is unsupported in this release and only None is
@@ -108,15 +109,41 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
         value, which is 100.
 
     has_initial_guess : bool
+        This parameter is unsupported in this release and only False is
+        accepted.
 
     do_expensive_check : bool
+        If True, performs more extensive tests on the inputs to ensure
+        validitity, at the expense of increased run time.
 
     Returns
     -------
+    A tuple of device arrays, where the first item in the tuple is a device
+    array containing the vertex identifiers, and the second item is a device
+    array containing the pagerank values for the corresponding vertices. For
+    example, the vertex identifier at the ith element of the vertex array has
+    the pagerank value of the ith element in the pagerank array.
 
     Examples
     --------
-
+    >>> import pylibcugraph, cupy, numpy
+    >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
+    >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
+    >>> resource_handle = pylibcugraph.experimental.ResourceHandle()
+    >>> graph_props = pylibcugraph.experimental.GraphProperties(
+    ...     is_symmetric=False, is_multigraph=False)
+    >>> G = pylibcugraph.experimental.SGGraph(
+    ...     resource_handle, graph_props, srcs, dsts, weights,
+    ...     store_transposed=True, renumber=False, expensive_check=False)
+    >>> (vertices, pageranks) = pylibcugraph.experimental.pagerank(
+    ...     resource_handle, G, None, alpha=0.85, epsilon=1.0e-6,
+    ...     max_iterations=500, has_initial_guess=False,
+    ...     do_expensive_check=False)
+    >>> vertices
+    array([0, 1, 2, 3], dtype=int32)
+    >>> pageranks
+    array([0.11615585, 0.21488841, 0.2988108 , 0.3701449 ], dtype=float32)
     """
 
     # FIXME: import these modules here for now until a better pattern can be
@@ -132,6 +159,10 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
     except ModuleNotFoundError:
         raise RuntimeError("pagerank requires the numpy package, which could "
                            "not be imported")
+
+    if has_initial_guess is True:
+        raise ValueError("has_initial_guess must be False for the current "
+                         "release.")
 
     assert_CAI_type(precomputed_vertex_out_weight_sums,
                     "precomputed_vertex_out_weight_sums",
