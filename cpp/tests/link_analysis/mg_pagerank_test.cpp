@@ -61,7 +61,7 @@ class Tests_MGPageRank
   {
     // 1. initialize handle
 
-    raft::handle_t handle{};
+    raft::handle_t handle(rmm::cuda_stream_per_thread, std::make_shared<rmm::cuda_stream_pool>());
     HighResClock hr_clock{};
 
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
