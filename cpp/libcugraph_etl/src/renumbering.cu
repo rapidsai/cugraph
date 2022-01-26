@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,28 @@
 #include <cugraph_etl/functions.hpp>
 
 #include <cugraph/utilities/error.hpp>
+
+#include <raft/mr/host/allocator.hpp>
+#include <raft/mr/host/buffer.hpp>
+
+// #include <cudf/types.hpp>
+// #include <cudf/table/table.hpp>
+#include <cudf/table/table_view.hpp>
+//#include <cudf/column/column.hpp>
+#include <cudf/column/column_view.hpp>
+#include <cudf/column/column_factories.hpp>
+#include <cudf/strings/strings_column_view.hpp>
+#include <cudf/utilities/type_dispatcher.hpp>
+
+#include <rmm/exec_policy.hpp>
+
+#include <hash/concurrent_unordered_map.cuh>
+
+#include <cub/device/device_radix_sort.cuh>
+
 #include <cuda.h>
 #include <cuda_runtime_api.h>
-#include <cudf/types.hpp>
-#include <cudf/table/table.hpp>
-#include <cudf/table/table_view.hpp>
-#include <cudf/column/column.hpp>
-#include <cudf/column/column_view.hpp>
-#include <cudf/strings/strings_column_view.hpp>
-#include <rmm/exec_policy.hpp>
-#include <hash/concurrent_unordered_map.cuh>
-#include <cub/device/device_radix_sort.cuh>
-#include <cudf/column/column_factories.hpp>
 #include <tuple>
-#include <cudf/utilities/type_dispatcher.hpp>
 
 namespace cugraph {
 namespace etl {
@@ -39,20 +47,19 @@ using accum_type = uint32_t;
 constexpr uint32_t hash_inc_constant = 9999;
 
 typedef struct str_hash_value{
-  __host__ __device__ str_hash_value() {
-    row_ = std::numeric_limits<size_type>::max();
-    count_ = std::numeric_limits<accum_type>::max();
-    col_ = std::numeric_limits<int32_t>::max();
-  }
+  __host__ __device__ str_hash_value() {};
+
   __host__ __device__ str_hash_value(size_type row, accum_type count, int32_t col)
   {
     row_ = row;
     count_ = count;
     col_ = col;
   };
-  size_type row_;
-  accum_type count_;
-  int32_t col_; // 0 or 1 based on src or dst vertex
+
+  size_type row_{std::numeric_limits<size_type>::max()};
+  accum_type count_{std::numeric_limits<accum_type>::max()};
+  int32_t col_{std::numeric_limits<int32_t>::max()}; // 0 or 1 based on src or dst vertex
+
 } str_hash_value;
 
 // key is uint32 hash value
@@ -678,7 +685,8 @@ struct renumber_functor {
                 std::enable_if_t<not std::is_integral<Dtype>::value>* = nullptr>
   std::tuple<std::unique_ptr<cudf::column>,
               std::unique_ptr<cudf::column>,
-              std::unique_ptr<cudf::table>> operator() (cudf::table_view const& src_view,
+              std::unique_ptr<cudf::table>> operator() (raft::handle_t const& handle,
+                                            cudf::table_view const& src_view,
                                             cudf::table_view const& dst_view) {
     return std::make_tuple(std::unique_ptr<cudf::column>(new cudf::column(
                                                             cudf::data_type(cudf::type_id::INT32),
@@ -697,7 +705,8 @@ struct renumber_functor {
                 std::enable_if_t<std::is_integral<Dtype>::value>* = nullptr>
   std::tuple<std::unique_ptr<cudf::column>,
         std::unique_ptr<cudf::column>,
-        std::unique_ptr<cudf::table>> operator() (cudf::table_view const& src_view,
+        std::unique_ptr<cudf::table>> operator() (raft::handle_t const& handle,
+                                            cudf::table_view const& src_view,
                                             cudf::table_view const& dst_view) {
     assert(src_view.num_columns() == 2);
     assert(dst_view.num_columns() == 2);
@@ -725,11 +734,14 @@ struct renumber_functor {
                                             str_col_view.offsets().data<str_offset_type>()));
     }
 
-    accum_type *hist_insert_counter = nullptr;
-    CHECK_CUDA(cudaMallocHost(&hist_insert_counter, sizeof(accum_type)*32));
+    cudaStream_t exec_strm = handle.get_stream();
+
+    auto alloc = std::make_shared<raft::mr::host::default_allocator>();
+    raft::mr::host::buffer<accum_type> buff(alloc, exec_strm);
+    buff.resize(sizeof(accum_type)*32, exec_strm);
+    accum_type *hist_insert_counter = buff.data();
     *hist_insert_counter = 0;
 
-    cudaStream_t exec_strm = NULL;
     float load_factor = 0.7;
 
     rmm::device_uvector<accum_type> atomic_agg(32, exec_strm);  // just padded to 32
@@ -740,23 +752,17 @@ struct renumber_functor {
                                                     static_cast<double>(num_rows) / load_factor),
                                                     (size_t)num_rows + 1),
                                               exec_strm,
-                                              str_hash_value{
-                                                std::numeric_limits<size_type>::max(),
-                                                std::numeric_limits<accum_type>::max(),
-                                                std::numeric_limits<int32_t>::max() }
-                                                ).release();
+                                              str_hash_value{}).release();
     dim3 block(512, 1, 1);
     dim3 grid((num_rows -  1)/ block.x + 1, 1, 1);
 
     int32_t num_multiprocessors = 80; // get from cuda properties
 
-    std::cout << "hash map size: " << cuda_map_obj->capacity()  << " rows_: "<< num_rows << std::endl;
     // assumes warp_size is 32
     size_t warp_size = 32;
     size_t smem_size = (block.x+1) * 2 * sizeof(int32_t) +
                           (block.x / warp_size) * sizeof(accum_type);
 
-    //std::cout << "smem_size: " << smem_size << std::endl;
     concat_and_create_histogram<<<grid, block, smem_size, exec_strm>>>(
                                                       src_vertex_chars_ptrs[0],
                                                       src_vertex_offset_ptrs[0],
@@ -764,10 +770,6 @@ struct renumber_functor {
                                                       src_vertex_offset_ptrs[1],
                                                       num_rows, *cuda_map_obj,
                                                       atomic_agg.data());
-
-    // CHECK_CUDA(cudaMemcpy(hist_insert_counter, atomic_agg.data(), sizeof(uint32_t), cudaMemcpyDeviceToHost));
-    // CHECK_CUDA(cudaStreamSynchronize(exec_strm));
-    // std::cout << "insert count: " << hist_insert_counter[0] << std::endl;
 
     concat_and_create_histogram_2<<<grid, block, smem_size, exec_strm>>>(
                                                       dst_vertex_chars_ptrs[0],
@@ -784,7 +786,6 @@ struct renumber_functor {
     CHECK_CUDA(cudaMemcpy(hist_insert_counter, atomic_agg.data(),
                             sizeof(accum_type), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaStreamSynchronize(exec_strm));
-    std::cout << "insert count: " << hist_insert_counter[0] << std::endl;
 
     accum_type key_value_count = hist_insert_counter[0];
     // {row, count} pairs, sortDesecending on count w/ custom comparator
@@ -801,8 +802,8 @@ struct renumber_functor {
 
     // can release original histogram memory here
 
-    // cub doesnt have custom comparator sort
-    // new cub release will have sort with custom comparator - @ToDo
+    // FIXME: cub doesnt have custom comparator sort
+    // new cub release will have sort with custom comparator
     thrust::sort_by_key(rmm::exec_policy(exec_strm),
                         sort_key.begin(), sort_key.end(), sort_value.begin(),
                         struct_sort_descending());
@@ -853,8 +854,6 @@ struct renumber_functor {
 
     CHECK_CUDA(cudaStreamSynchronize(exec_strm));
     // allocate output columns buffers
-    std::cout << "col1 size: " << hist_insert_counter[0] << " col2 size: " << hist_insert_counter[1] << std::endl;
-
     rmm::device_buffer unrenumber_col1_chars(hist_insert_counter[0], exec_strm);
     rmm::device_buffer unrenumber_col2_chars(hist_insert_counter[1], exec_strm);
 
@@ -910,10 +909,7 @@ struct renumber_functor {
     // net HT just insert K-V pairs
     auto cuda_map_obj_mapping = cudf_map_type::create(static_cast<size_t>(
                                                 static_cast<double>(key_value_count) / load_factor),
-                                                exec_strm, str_hash_value{
-                                                std::numeric_limits<size_type>::max(),
-                                                std::numeric_limits<accum_type>::max(),
-                                                std::numeric_limits<int32_t>::max()}).release();
+                                                exec_strm, str_hash_value{}).release();
 
     grid.x = (key_value_count -  1)/ block.x + 1;
     create_mapping_histogram<<<grid, block, 0, exec_strm>>>(sort_value.data(), sort_key.data(),
@@ -958,7 +954,6 @@ struct renumber_functor {
                                                           ));
 
     CHECK_CUDA(cudaDeviceSynchronize());
-    CHECK_CUDA(cudaFreeHost(hist_insert_counter));
 
     return std::make_tuple(std::move(cols_vector[0]), std::move(cols_vector[1]),
                                       std::move(std::make_unique<cudf::table>(std::move(renumber_table_vectors))));
@@ -967,17 +962,18 @@ struct renumber_functor {
 
 std::
   tuple<std::unique_ptr<cudf::column>, std::unique_ptr<cudf::column>, std::unique_ptr<cudf::table>>
-  renumber_cudf_tables(cudf::table_view const& src_table,
+  renumber_cudf_tables(raft::handle_t const& handle,
+                       cudf::table_view const& src_table,
                        cudf::table_view const& dst_table,
                        cudf::type_id dtype)
 {
-  CUGRAPH_FAIL("not implemented yet");
   CUGRAPH_EXPECTS(src_table.num_columns() == 2, "Src col: only two string column vertex are supported");
   CUGRAPH_EXPECTS(dst_table.num_columns() == 2, "Dst col: only two string column vertex are supported");
 
   size_type num_rows_ = src_table.num_rows();
 
-  auto x = cudf::type_dispatcher(cudf::data_type{dtype}, renumber_functor{}, src_table, dst_table);
+  auto x = cudf::type_dispatcher(cudf::data_type{dtype}, renumber_functor{},
+                                  handle, src_table, dst_table);
   return x;
 }
 
