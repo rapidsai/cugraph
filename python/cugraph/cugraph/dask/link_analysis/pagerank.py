@@ -67,16 +67,18 @@ def pagerank(input_graph,
 
     Parameters
     ----------
-    graph : cugraph.DiGraph
+    input_graph : cugraph.DiGraph
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
         algorithm). Undirected Graph not currently supported.
-    alpha : float
+
+    alpha : float, optional (default=0.85)
         The damping factor alpha represents the probability to follow an
         outgoing edge, standard value is 0.85.
         Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
         Alpha should be greater than 0.0 and strictly lower than 1.0.
-    personalization : cudf.Dataframe
+
+    personalization : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the personalization information.
         Currently not supported.
 
@@ -84,11 +86,13 @@ def pagerank(input_graph,
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
             Personalization values for vertices
-    max_iter : int
+
+    max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned.
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 30.
-    tolerance : float
+
+    tol : float, optional (default=1.0e-5)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -96,6 +100,7 @@ def pagerank(input_graph,
         Setting too small a tolerance can lead to non-convergence due to
         numerical roundoff. Usually values between 0.01 and 0.00001 are
         acceptable.
+
     nstart : not supported
         initial guess for pagerank
 

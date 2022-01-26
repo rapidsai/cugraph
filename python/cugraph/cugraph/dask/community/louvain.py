@@ -106,6 +106,7 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
     >>> #                            edge_attr='value')
     >>> # parts, modularity_score = dcg.louvain(dg)
     """
+    # FIXME: Uncomment out the above (broken) example
 
     # MG Louvain currently requires CUDA 10.2 or higher.
     # FIXME: remove this check once RAPIDS drops support for CUDA < 10.2

@@ -123,6 +123,7 @@ class simpleDistributedGraphImpl:
         matrix of the symmetrized edgelist. Hence the displayed source and
         destination pairs in both will represent the same edge but node values
         could be swapped.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -188,11 +189,13 @@ class simpleDistributedGraphImpl:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
-        vertex_subset : cudf.Series or iterable container, optional
+        vertex_subset : cudf.Series or iterable container, opt. (default=None)
             A container of vertices for displaying corresponding in-degree.
             If not set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -223,11 +226,13 @@ class simpleDistributedGraphImpl:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
-        vertex_subset : cudf.Series or iterable container, optional
+        vertex_subset : cudf.Series or iterable container, opt. (default=None)
             A container of vertices for displaying corresponding out-degree.
             If not set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -294,11 +299,13 @@ class simpleDistributedGraphImpl:
         computes vertex degrees for the entire set of vertices. If
         vertex_subset is provided, this method optionally filters out all but
         those listed in vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -313,6 +320,7 @@ class simpleDistributedGraphImpl:
                 The in-degree of the vertex.
             df['out_degree'] : cudf.Series
                 The out-degree of the vertex.
+
         Examples
         --------
         >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -344,11 +352,13 @@ class simpleDistributedGraphImpl:
         Return a directed representation of the graph.
         This function sets the type of graph as DiGraph() and returns the
         directed view.
+
         Returns
         -------
         G : DiGraph
             A directed graph with the same nodes, and each edge (u,v,weights)
             replaced by two directed edges (u,v,weights) and (v,u,weights).
+
         Examples
         --------
         >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -364,14 +374,16 @@ class simpleDistributedGraphImpl:
     def to_undirected(self, G):
         """
         Return an undirected copy of the graph.
+
         Returns
         -------
         G : Graph
             A undirected graph with the same nodes, and each directed edge
             (u,v,weights) replaced by an undirected edge (u,v,weights).
+
         Examples
         --------
-        >>> M = cudf.read_csv(datasets / 'karate.csv', delimiter=' ',
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...         dtype=['int32', 'int32', 'float32'], header=None)
         >>> DiG = cugraph.Graph(directed=True)
         >>> DiG.from_cudf_edgelist(M, '0', '1')
@@ -446,6 +458,7 @@ class simpleDistributedGraphImpl:
         algorithm.
         When creating a CSR-like structure, set transposed to False.
         When creating a CSC-like structure, set transposed to True.
+
         Parameters
         ----------
         transposed : (optional) bool

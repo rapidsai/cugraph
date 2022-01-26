@@ -417,6 +417,7 @@ class NumberMap:
         """
         Given a collection of internal vertex ids, return a DataFrame of
         the external vertex ids
+
         Parameters
         ----------
         df: cudf.DataFrame, cudf.Series, dask_cudf.DataFrame, dask_cudf.Series

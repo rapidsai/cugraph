@@ -70,8 +70,8 @@ def katz_centrality(input_graph,
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed (DiGraph) or undirected edges (Graph).
 
-    alpha : float
-        Attenuation factor defaulted to None. If alpha is not specified then
+    alpha : float, optional (default=None)
+        Attenuation factor. If alpha is not specified then
         it is internally calculated as 1/(degree_max) where degree_max is the
         maximum out degree.
 
@@ -88,14 +88,14 @@ def katz_centrality(input_graph,
     beta : None
         A weight scalar - currently Not Supported
 
-    max_iter : int
+    max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 100.
 
-    tolerance : float
+    tol : float, optional (default=1.0e-5)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -104,14 +104,15 @@ def katz_centrality(input_graph,
         numerical roundoff. Usually values between 1e-2 and 1e-6 are
         acceptable.
 
-    nstart : dask_cudf.Dataframe
+    nstart : dask_cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the initial guess for katz centrality
 
         nstart['vertex'] : dask_cudf.Series
             Contains the vertex identifiers
         nstart['values'] : dask_cudf.Series
             Contains the katz centrality values of vertices
-    normalized : bool
+
+    normalized : bool, optional (default=True)
         If True normalize the resulting katz centrality values
 
     Returns
@@ -139,6 +140,7 @@ def katz_centrality(input_graph,
     >>> # pr = dcg.katz_centrality(dg)
 
     """
+    # FIXME: Uncomment out the above (broken) example
 
     nstart = None
 

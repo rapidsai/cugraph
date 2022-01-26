@@ -280,7 +280,7 @@ def rmat(
         and duplicated edges.  Default is cugraph.DiGraph.
         NOTE: only the cugraph.DiGraph type is supported for multi-GPU
 
-    mg : bool, optional
+    mg : bool, optional (default=False)
         If True, R-MAT generation occurs across multiple GPUs. If False, only a
         single GPU is used.  Default is False (single-GPU)
 

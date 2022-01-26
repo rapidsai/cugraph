@@ -91,6 +91,7 @@ def sssp(graph,
     >>> # df = dcg.sssp(dg, 0)
 
     """
+    # FIXME: Uncomment out the above (broken) example
 
     client = default_client()
 

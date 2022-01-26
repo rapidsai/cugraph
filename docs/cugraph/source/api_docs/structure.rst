@@ -80,4 +80,4 @@ Other
    :toctree: api/
 
    Graph.unrenumber
-   cugraph.structure.hypergraph
+   cugraph.structure.hypergraph.hypergraph

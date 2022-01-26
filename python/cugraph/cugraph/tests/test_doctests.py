@@ -60,10 +60,12 @@ def _find_doctests_in_obj(finder, obj, criteria=None):
     """Find all doctests in a module or class.
     Parameters
     ----------
-    obj : module or class
-        The object to search for docstring examples.
     finder : doctest.DocTestFinder
         The DocTestFinder object to use.
+
+    obj : module or class
+        The object to search for docstring examples.
+
     criteria : callable, optional
 
     Yields

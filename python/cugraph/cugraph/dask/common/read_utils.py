@@ -30,6 +30,7 @@ def get_chunksize(input_path):
     >>> # chunksize = dcg.get_chunksize(edge_list.csv)
 
     """
+    # FIXME: Uncomment out the above example
 
     import os
     from glob import glob

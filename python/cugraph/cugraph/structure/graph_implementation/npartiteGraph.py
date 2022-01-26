@@ -63,6 +63,7 @@ class npartiteGraphImpl(simpleGraphImpl):
     def add_nodes_from(self, nodes, bipartite=None, multipartite=None):
         """
         Add nodes information to the Graph.
+
         Parameters
         ----------
         nodes : list or cudf.Series

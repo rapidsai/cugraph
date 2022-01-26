@@ -61,8 +61,6 @@ def hungarian(G, workers, epsilon=None):
       df['assignment'][i] gives the vertex id of the "job" assigned to the
                           corresponding vertex.
 
-    FIXME: Update this with a real example...
-
     Examples
     --------
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
@@ -73,6 +71,7 @@ def hungarian(G, workers, epsilon=None):
     >>> # cost, df = cugraph.hungarian(G, workers)
 
     """
+    # FIXME: Create bipartite.csv and uncomment out the above example
 
     if G.renumbered:
         if isinstance(workers, cudf.DataFrame):

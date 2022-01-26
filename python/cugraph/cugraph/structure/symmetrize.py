@@ -51,7 +51,7 @@ def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
         Set to True if graph is a Multi(Di)Graph. This allows multiple
         edges instead of dropping them.
 
-    symmetrize : bool, optional
+    symmetrize : bool, optional (default=True)
         Default is True to perform symmetrization. If False only duplicate
         edges are dropped.
 
@@ -139,6 +139,8 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
     >>> # sym_ddf = symmetrize_ddf(ddf, "src", "dst", "weight")
 
     """
+    # FIXME: Uncomment out the above (broken) example
+
     if weight_name:
         ddf2 = df[[dst_name, src_name, weight_name]]
         ddf2.columns = [src_name, dst_name, weight_name]

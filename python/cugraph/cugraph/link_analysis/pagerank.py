@@ -59,7 +59,7 @@ def pagerank(
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 100.
 
-    tolerance : float, optional (default=1e-05)
+    tol : float, optional (default=1e-05)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is

@@ -45,7 +45,7 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
         so this will in fact be the number of iterations the HITS algorithm
         executes.
 
-    tolerance : float, optional (default=1.0e-5)
+    tol : float, optional (default=1.0e-5)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.  This parameter is not currently supported.
 

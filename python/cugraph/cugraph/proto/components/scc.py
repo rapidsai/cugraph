@@ -54,13 +54,14 @@ def strong_connected_component(source, destination):
 
     Examples
     --------
-    # M = read_mtx_file(graph_file)
-    # sources = cudf.Series(M.row)
-    # destinations = cudf.Series(M.col)
-    # components, single_components, count =
-    #   cugraph.strong_connected_component(source, destination)
+    >>> # M = read_mtx_file(graph_file)
+    >>> # sources = cudf.Series(M.row)
+    >>> # destinations = cudf.Series(M.col)
+    >>> # components, single_components, count =
+    >>> #   cugraph.strong_connected_component(source, destination)
 
     """
+    # FIXME: Uncomment out the above example
     max_value = np.iinfo(np.int32).max  # NOQA
 
     # create the FW and BW graphs - this version dopes nopt modify the graphs

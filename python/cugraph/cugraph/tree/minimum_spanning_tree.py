@@ -96,6 +96,7 @@ def minimum_spanning_tree(
     >>> # cugraph.minimum_spanning_tree(G)
 
     """
+    # FIXME: Uncomment out the above example
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
@@ -144,6 +145,7 @@ def maximum_spanning_tree(
     >>> # cugraph.maximum_spanning_tree(G)
 
     """
+    # FIXME: Uncomment out the above (broken) example
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
