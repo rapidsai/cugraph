@@ -79,8 +79,7 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
         and running algorithms.
 
     graph : SGGraph
-        The input graph. The graph must be created with the store_transposed
-        option set to True.
+        The input graph.
 
     precomputed_vertex_out_weight_sums : None
         This parameter is unsupported in this release and only None is

@@ -101,7 +101,7 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
                   weight_array,
                   store_transposed,
                   renumber,
-                  expensive_check):
+                  do_expensive_check):
 
         # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
@@ -110,9 +110,9 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
         if not(isinstance(renumber, (int, bool))):
             raise TypeError("expected int or bool for renumber, got "
                             f"{type(renumber)}")
-        if not(isinstance(expensive_check, (int, bool))):
-            raise TypeError("expected int or bool for expensive_check, got "
-                            f"{type(expensive_check)}")
+        if not(isinstance(do_expensive_check, (int, bool))):
+            raise TypeError("expected int or bool for do_expensive_check, got "
+                            f"{type(do_expensive_check)}")
         assert_CAI_type(src_array, "src_array")
         assert_CAI_type(dst_array, "dst_array")
         assert_CAI_type(weight_array, "weight_array")
@@ -157,7 +157,7 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
             weights_view_ptr,
             store_transposed,
             renumber,
-            expensive_check,
+            do_expensive_check,
             &(self.c_graph_ptr),
             &error_ptr)
 

@@ -131,6 +131,8 @@ def create_SGGraph(device_srcs,
                 renumber=False,
                 expensive_check=False)
 
+    # FIXME: add coverage for renumber=True and expensive_check=True
+
     return (g, resource_handle)
 
 
