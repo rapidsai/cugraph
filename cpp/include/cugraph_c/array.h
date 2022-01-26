@@ -64,6 +64,8 @@ cugraph_error_code_t cugraph_type_erased_device_array_create(
 void cugraph_type_erased_device_array_free(cugraph_type_erased_device_array_t* p);
 
 #if 0
+// FIXME: Not implemented, need to discuss if this can work.  We will either implement
+//        this later or delete it from the interface once we resolve how to handle this
 /**
  * @brief    Release the raw pointer of the type erased device array
  *
@@ -155,6 +157,8 @@ cugraph_error_code_t cugraph_type_erased_host_array_create(const cugraph_resourc
 void cugraph_type_erased_host_array_free(cugraph_type_erased_host_array_t* p);
 
 #if 0
+// FIXME: Not implemented, need to discuss if this can work.  We will either implement
+//        this later or delete it from the interface once we resolve how to handle this
 /**
  * @brief    Release the raw pointer of the type erased host array
  *
