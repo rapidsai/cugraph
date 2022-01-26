@@ -56,6 +56,8 @@ cdef extern from "cugraph_c/graph.h":
             cugraph_graph_t* graph
         )
 
+    # FIXME: the API parameters may change to remove vertex_partition_offsets
+    # and segment_offsets
     cdef cugraph_error_code_t \
         cugraph_mg_graph_create(
             const cugraph_resource_handle_t* handle,

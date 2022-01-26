@@ -54,6 +54,11 @@ int generic_bfs_test(vertex_t* h_src,
   ret_code = create_test_graph(
     p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
 
+  /*
+   * FIXME: in create_graph_test.c, variables are defined but then hard-coded to
+   * the constant INT32. It would be better to pass the types into the functions
+   * in both cases so that the test cases could be parameterized in the main.
+   */
   ret_code =
     cugraph_type_erased_device_array_create(p_handle, num_seeds, INT32, &p_sources, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "p_sources create failed.");

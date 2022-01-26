@@ -185,6 +185,9 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   cugraph_error_t** error)
 {
   constexpr bool multi_gpu = false;
+  // FIXME: There could be a case where the vertex_t is int64_t but the number
+  // of edges is less than 2^31-1. The if statement below could then be modified
+  // to catch this case.
   constexpr size_t int32_threshold{std::numeric_limits<int32_t>::max()};
 
   *graph = nullptr;

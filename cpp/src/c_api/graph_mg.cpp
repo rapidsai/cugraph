@@ -16,6 +16,12 @@
 
 #include <cugraph_c/graph.h>
 
+// FIXME: assume that this function will directly call
+// create_graph_from_edgelist() instead of invoking a graph constructor, in
+// which case, some parameters here (e.g. vertex_partition_offsets,
+// segment_offsets) are related to implementation details and unnecessary if
+// this function calls create_graph_from_edgelist().
+
 extern "C" cugraph_error_code_t cugraph_mg_graph_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_properties_t* properties,
