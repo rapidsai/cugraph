@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,12 +23,14 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/misc_utils.cuh>
 
 #include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cub/cub.cuh>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/equal.h>
@@ -376,14 +378,6 @@ void sort_adjacency_list(raft::handle_t const& handle,
                          vertex_t num_vertices,
                          edge_t num_edges)
 {
-  // FIXME: The current cub's segmented sort based implementation is slower than the global sort
-  // based approach, but we expect cub's segmented sort performance will get significantly better in
-  // few months. We also need to re-evaluate performance & memory overhead of presorting edge list
-  // and running thrust::reduce to update offset vs the current approach after updating the python
-  // interface. If we take r-values of rmm::device_uvector edge list, we can do indcies_ =
-  // std::move(minors) & weights_ = std::move (weights). This affects peak memory use and we may
-  // find the presorting approach more attractive under this scenario.
-
   // 1. Check if there is anything to sort
 
   if (num_edges == 0) { return; }
@@ -394,36 +388,9 @@ void sort_adjacency_list(raft::handle_t const& handle,
   // to limit memory footprint ((1 << 20) is a tuning parameter)
   auto approx_edges_to_sort_per_iteration =
     static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
-  auto search_offset_first =
-    thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
-                                    [approx_edges_to_sort_per_iteration] __device__(auto i) {
-                                      return i * approx_edges_to_sort_per_iteration;
-                                    });
-  auto num_chunks =
-    (num_edges + approx_edges_to_sort_per_iteration - 1) / approx_edges_to_sort_per_iteration;
-  rmm::device_uvector<vertex_t> d_vertex_offsets(num_chunks - 1, handle.get_stream());
-  thrust::lower_bound(handle.get_thrust_policy(),
-                      offsets,
-                      offsets + num_vertices + 1,
-                      search_offset_first,
-                      search_offset_first + d_vertex_offsets.size(),
-                      d_vertex_offsets.begin());
-  rmm::device_uvector<edge_t> d_edge_offsets(d_vertex_offsets.size(), handle.get_stream());
-  thrust::gather(handle.get_thrust_policy(),
-                 d_vertex_offsets.begin(),
-                 d_vertex_offsets.end(),
-                 offsets,
-                 d_edge_offsets.begin());
-  std::vector<edge_t> h_edge_offsets(num_chunks + 1, edge_t{0});
-  h_edge_offsets.back() = num_edges;
-  raft::update_host(
-    h_edge_offsets.data() + 1, d_edge_offsets.data(), d_edge_offsets.size(), handle.get_stream());
-  std::vector<vertex_t> h_vertex_offsets(num_chunks + 1, vertex_t{0});
-  h_vertex_offsets.back() = num_vertices;
-  raft::update_host(h_vertex_offsets.data() + 1,
-                    d_vertex_offsets.data(),
-                    d_vertex_offsets.size(),
-                    handle.get_stream());
+  auto [h_vertex_offsets, h_edge_offsets] = detail::compute_offset_aligned_edge_chunks(
+    handle, offsets, num_vertices, num_edges, approx_edges_to_sort_per_iteration);
+  auto num_chunks = h_vertex_offsets.size() - 1;
 
   // 3. Segmented sort each vertex's neighbors
 
@@ -436,67 +403,59 @@ void sort_adjacency_list(raft::handle_t const& handle,
   auto segment_sorted_weights =
     weights ? std::make_optional<rmm::device_uvector<weight_t>>(max_chunk_size, handle.get_stream())
             : std::nullopt;
-  rmm::device_uvector<std::byte> d_temp_storage(0, handle.get_stream());
+  rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
   for (size_t i = 0; i < num_chunks; ++i) {
-    size_t temp_storage_bytes{0};
+    size_t tmp_storage_bytes{0};
     auto offset_first = thrust::make_transform_iterator(offsets + h_vertex_offsets[i],
                                                         rebase_offset_t<edge_t>{h_edge_offsets[i]});
     if (weights) {
-      cub::DeviceSegmentedRadixSort::SortPairs(static_cast<void*>(nullptr),
-                                               temp_storage_bytes,
-                                               indices + h_edge_offsets[i],
-                                               segment_sorted_indices.data(),
-                                               (*weights) + h_edge_offsets[i],
-                                               (*segment_sorted_weights).data(),
-                                               h_edge_offsets[i + 1] - h_edge_offsets[i],
-                                               h_vertex_offsets[i + 1] - h_vertex_offsets[i],
-                                               offset_first,
-                                               offset_first + 1,
-                                               0,
-                                               sizeof(vertex_t) * 8,
-                                               handle.get_stream());
+      cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
+                                          tmp_storage_bytes,
+                                          indices + h_edge_offsets[i],
+                                          segment_sorted_indices.data(),
+                                          (*weights) + h_edge_offsets[i],
+                                          (*segment_sorted_weights).data(),
+                                          h_edge_offsets[i + 1] - h_edge_offsets[i],
+                                          h_vertex_offsets[i + 1] - h_vertex_offsets[i],
+                                          offset_first,
+                                          offset_first + 1,
+                                          handle.get_stream());
     } else {
-      cub::DeviceSegmentedRadixSort::SortKeys(static_cast<void*>(nullptr),
-                                              temp_storage_bytes,
-                                              indices + h_edge_offsets[i],
-                                              segment_sorted_indices.data(),
-                                              h_edge_offsets[i + 1] - h_edge_offsets[i],
-                                              h_vertex_offsets[i + 1] - h_vertex_offsets[i],
-                                              offset_first,
-                                              offset_first + 1,
-                                              0,
-                                              sizeof(vertex_t) * 8,
-                                              handle.get_stream());
+      cub::DeviceSegmentedSort::SortKeys(static_cast<void*>(nullptr),
+                                         tmp_storage_bytes,
+                                         indices + h_edge_offsets[i],
+                                         segment_sorted_indices.data(),
+                                         h_edge_offsets[i + 1] - h_edge_offsets[i],
+                                         h_vertex_offsets[i + 1] - h_vertex_offsets[i],
+                                         offset_first,
+                                         offset_first + 1,
+                                         handle.get_stream());
     }
-    if (temp_storage_bytes > d_temp_storage.size()) {
-      d_temp_storage = rmm::device_uvector<std::byte>(temp_storage_bytes, handle.get_stream());
+    if (tmp_storage_bytes > d_tmp_storage.size()) {
+      d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
     }
     if (weights) {
-      cub::DeviceSegmentedRadixSort::SortPairs(d_temp_storage.data(),
-                                               temp_storage_bytes,
-                                               indices + h_edge_offsets[i],
-                                               segment_sorted_indices.data(),
-                                               (*weights) + h_edge_offsets[i],
-                                               (*segment_sorted_weights).data(),
-                                               h_edge_offsets[i + 1] - h_edge_offsets[i],
-                                               h_vertex_offsets[i + 1] - h_vertex_offsets[i],
-                                               offset_first,
-                                               offset_first + 1,
-                                               0,
-                                               sizeof(vertex_t) * 8,
-                                               handle.get_stream());
+      cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
+                                          tmp_storage_bytes,
+                                          indices + h_edge_offsets[i],
+                                          segment_sorted_indices.data(),
+                                          (*weights) + h_edge_offsets[i],
+                                          (*segment_sorted_weights).data(),
+                                          h_edge_offsets[i + 1] - h_edge_offsets[i],
+                                          h_vertex_offsets[i + 1] - h_vertex_offsets[i],
+                                          offset_first,
+                                          offset_first + 1,
+                                          handle.get_stream());
     } else {
-      cub::DeviceSegmentedRadixSort::SortKeys(d_temp_storage.data(),
-                                              temp_storage_bytes,
-                                              indices + h_edge_offsets[i],
-                                              segment_sorted_indices.data(),
-                                              h_edge_offsets[i + 1] - h_edge_offsets[i],
-                                              h_vertex_offsets[i + 1] - h_vertex_offsets[i],
-                                              offset_first,
-                                              offset_first + 1,
-                                              0,
-                                              sizeof(vertex_t) * 8,
-                                              handle.get_stream());
+      cub::DeviceSegmentedSort::SortKeys(d_tmp_storage.data(),
+                                         tmp_storage_bytes,
+                                         indices + h_edge_offsets[i],
+                                         segment_sorted_indices.data(),
+                                         h_edge_offsets[i + 1] - h_edge_offsets[i],
+                                         h_vertex_offsets[i + 1] - h_vertex_offsets[i],
+                                         offset_first,
+                                         offset_first + 1,
+                                         handle.get_stream());
     }
     thrust::copy(handle.get_thrust_policy(),
                  segment_sorted_indices.begin(),
@@ -539,7 +498,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_rank = col_comm.get_rank();
   auto const col_comm_size = col_comm.get_size();
-  auto default_stream_view = this->get_handle_ptr()->get_stream_view();
+  auto default_stream_view = this->get_handle_ptr()->get_stream();
 
   CUGRAPH_EXPECTS(edgelists.size() == static_cast<size_t>(col_comm_size),
                   "Invalid input argument: erroneous edgelists.size().");
@@ -914,13 +873,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, edgelist.number_of_edges, meta.properties),
-    offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream_view())),
-    indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream_view())),
+    offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
+    indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
     segment_offsets_(meta.segment_offsets)
 {
   // cheap error checks
 
-  auto default_stream_view = this->get_handle_ptr()->get_stream_view();
+  auto default_stream_view = this->get_handle_ptr()->get_stream();
 
   auto is_weighted = edgelist.p_edge_weights.has_value();
 
@@ -1341,7 +1300,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                         d_segment_offsets.data(),
                         d_segment_offsets.size(),
                         handle.get_stream());
-      handle.get_stream_view().synchronize();
+      handle.sync_stream();
       cur_size += edgelist_edge_counts[i];
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -65,9 +65,9 @@ class Tests_Renumbering
     std::vector<vertex_t> h_final_src_v{};
     std::vector<vertex_t> h_final_dst_v{};
 
-    rmm::device_uvector<vertex_t> src_v(0, handle.get_stream_view());
-    rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream_view());
-    rmm::device_uvector<vertex_t> renumber_map_labels_v(0, handle.get_stream_view());
+    rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> renumber_map_labels_v(0, handle.get_stream());
     vertex_t number_of_vertices{};
 
     std::tie(src_v, dst_v, std::ignore, std::ignore, number_of_vertices, std::ignore) =
@@ -83,7 +83,7 @@ class Tests_Renumbering
     }
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -92,7 +92,7 @@ class Tests_Renumbering
         handle, std::nullopt, src_v.begin(), dst_v.begin(), src_v.size());
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "renumbering took " << elapsed_time * 1e-6 << " s.\n";

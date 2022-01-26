@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/paths_result.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -29,20 +30,14 @@
 namespace cugraph {
 namespace c_api {
 
-struct cugraph_paths_result_t {
-  cugraph_type_erased_device_array_t* vertex_ids_;
-  cugraph_type_erased_device_array_t* distances_;
-  cugraph_type_erased_device_array_t* predecessors_;
-};
-
 struct bfs_functor : public abstract_functor {
   raft::handle_t const& handle_;
   cugraph_graph_t* graph_;
   cugraph_type_erased_device_array_t* sources_;
   bool direction_optimizing_;
   size_t depth_limit_;
-  bool do_expensive_check_;
   bool compute_predecessors_;
+  bool do_expensive_check_;
   cugraph_paths_result_t* result_{};
 
   bfs_functor(raft::handle_t const& handle,
@@ -50,16 +45,16 @@ struct bfs_functor : public abstract_functor {
               cugraph_type_erased_device_array_t* sources,
               bool direction_optimizing,
               size_t depth_limit,
-              bool do_expensive_check,
-              bool compute_predecessors)
+              bool compute_predecessors,
+              bool do_expensive_check)
     : abstract_functor(),
       handle_(handle),
       graph_(graph),
       sources_(sources),
       direction_optimizing_(direction_optimizing),
       depth_limit_(depth_limit),
-      do_expensive_check_(do_expensive_check),
-      compute_predecessors_(compute_predecessors)
+      compute_predecessors_(compute_predecessors),
+      do_expensive_check_(do_expensive_check)
   {
   }
 
@@ -136,9 +131,9 @@ struct bfs_functor : public abstract_functor {
       }
 
       result_ = new cugraph_paths_result_t{
-        new cugraph_type_erased_device_array_t(std::move(vertex_ids), graph_->vertex_type_),
-        new cugraph_type_erased_device_array_t(std::move(distances), graph_->weight_type_),
-        new cugraph_type_erased_device_array_t(std::move(predecessors), graph_->weight_type_)};
+        new cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
+        new cugraph_type_erased_device_array_t(distances, graph_->vertex_type_),
+        new cugraph_type_erased_device_array_t(predecessors, graph_->vertex_type_)};
     }
   }
 };
@@ -181,8 +176,8 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
                                             cugraph_type_erased_device_array_t* sources,
                                             bool_t direction_optimizing,
                                             size_t depth_limit,
-                                            bool_t do_expensive_check,
                                             bool_t compute_predecessors,
+                                            bool_t do_expensive_check,
                                             cugraph_paths_result_t** result,
                                             cugraph_error_t** error)
 {
@@ -199,8 +194,8 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
                                         p_sources,
                                         direction_optimizing,
                                         depth_limit,
-                                        do_expensive_check,
-                                        compute_predecessors);
+                                        compute_predecessors,
+                                        do_expensive_check);
 
     // FIXME:  This seems like a recurring pattern.  Can I encapsulate
     //    The vertex_dispatcher and error handling calls into a reusable function?

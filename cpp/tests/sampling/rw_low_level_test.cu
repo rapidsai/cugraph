@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#include <gtest/gtest.h>
 #include "cuda_profiler_api.h"
+#include <gtest/gtest.h>
 
 #include <topology/topology.cuh>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <thrust/random.h>
 #include <rmm/exec_policy.hpp>
+#include <thrust/random.h>
 
 #include <cugraph/algorithms.hpp>
 #include <sampling/random_walks.cuh>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,10 +75,15 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
              static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
     invalid_vertex_id<vertex_t>::value,
     invalid_vertex_id<vertex_t>::value,
-    stream_adapter);
+    stream_adapter,
+    stream_view);
   {
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first));
-    kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
+    kv_map_ptr->insert(pair_first,
+                       pair_first + thrust::distance(map_key_first, map_key_last),
+                       cuco::detail::MurmurHash3_32<vertex_t>{},
+                       thrust::equal_to<vertex_t>{},
+                       stream_view);
   }
 
   // 2. collect values for the unique keys in [collect_key_first, collect_key_last)
@@ -107,10 +112,12 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
 
     rmm::device_uvector<value_t> values_for_rx_unique_keys(rx_unique_keys.size(), stream_view);
 
-    stream_view.synchronize();  // cuco::static_map currently does not take stream
-
-    kv_map_ptr->find(
-      rx_unique_keys.begin(), rx_unique_keys.end(), values_for_rx_unique_keys.begin());
+    kv_map_ptr->find(rx_unique_keys.begin(),
+                     rx_unique_keys.end(),
+                     values_for_rx_unique_keys.begin(),
+                     cuco::detail::MurmurHash3_32<vertex_t>{},
+                     thrust::equal_to<vertex_t>{},
+                     stream_view);
 
     rmm::device_uvector<value_t> rx_values_for_unique_keys(0, stream_view);
     std::tie(rx_values_for_unique_keys, std::ignore) =
@@ -122,8 +129,6 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
   // 3. re-build a cuco::static_map object for the k, v pairs in unique_keys,
   // values_for_unique_keys.
 
-  stream_view.synchronize();  // cuco::static_map currently does not take stream
-
   kv_map_ptr.reset();
 
   kv_map_ptr = std::make_unique<
@@ -133,18 +138,28 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
              unique_keys.size() + 1),
     invalid_vertex_id<vertex_t>::value,
     invalid_vertex_id<vertex_t>::value,
-    stream_adapter);
+    stream_adapter,
+    stream_view);
   {
     auto pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(unique_keys.begin(), values_for_unique_keys.begin()));
-    kv_map_ptr->insert(pair_first, pair_first + unique_keys.size());
+    kv_map_ptr->insert(pair_first,
+                       pair_first + unique_keys.size(),
+                       cuco::detail::MurmurHash3_32<vertex_t>{},
+                       thrust::equal_to<vertex_t>{},
+                       stream_view);
   }
 
   // 4. find values for [collect_key_first, collect_key_last)
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
     thrust::distance(collect_key_first, collect_key_last), stream_view);
-  kv_map_ptr->find(collect_key_first, collect_key_last, get_dataframe_buffer_begin(value_buffer));
+  kv_map_ptr->find(collect_key_first,
+                   collect_key_last,
+                   get_dataframe_buffer_begin(value_buffer),
+                   cuco::detail::MurmurHash3_32<vertex_t>{},
+                   thrust::equal_to<vertex_t>{},
+                   stream_view);
 
   return value_buffer;
 }
@@ -189,10 +204,15 @@ collect_values_for_unique_keys(raft::comms::comms_t const& comm,
              static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
     invalid_vertex_id<vertex_t>::value,
     invalid_vertex_id<vertex_t>::value,
-    stream_adapter);
+    stream_adapter,
+    stream_view);
   {
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first));
-    kv_map_ptr->insert(pair_first, pair_first + thrust::distance(map_key_first, map_key_last));
+    kv_map_ptr->insert(pair_first,
+                       pair_first + thrust::distance(map_key_first, map_key_last),
+                       cuco::detail::MurmurHash3_32<vertex_t>{},
+                       thrust::equal_to<vertex_t>{},
+                       stream_view);
   }
 
   // 2. collect values for the unique keys in [collect_unique_key_first, collect_unique_key_last)
@@ -217,10 +237,12 @@ collect_values_for_unique_keys(raft::comms::comms_t const& comm,
 
     rmm::device_uvector<value_t> values_for_rx_unique_keys(rx_unique_keys.size(), stream_view);
 
-    stream_view.synchronize();  // cuco::static_map currently does not take stream
-
-    kv_map_ptr->find(
-      rx_unique_keys.begin(), rx_unique_keys.end(), values_for_rx_unique_keys.begin());
+    kv_map_ptr->find(rx_unique_keys.begin(),
+                     rx_unique_keys.end(),
+                     values_for_rx_unique_keys.begin(),
+                     cuco::detail::MurmurHash3_32<vertex_t>{},
+                     thrust::equal_to<vertex_t>{},
+                     stream_view);
 
     rmm::device_uvector<value_t> rx_values_for_unique_keys(0, stream_view);
     std::tie(rx_values_for_unique_keys, std::ignore) =
@@ -232,8 +254,6 @@ collect_values_for_unique_keys(raft::comms::comms_t const& comm,
   // 3. re-build a cuco::static_map object for the k, v pairs in unique_keys,
   // values_for_unique_keys.
 
-  stream_view.synchronize();  // cuco::static_map currently does not take stream
-
   kv_map_ptr.reset();
 
   kv_map_ptr = std::make_unique<
@@ -243,19 +263,28 @@ collect_values_for_unique_keys(raft::comms::comms_t const& comm,
              unique_keys.size() + 1),
     invalid_vertex_id<vertex_t>::value,
     invalid_vertex_id<vertex_t>::value,
-    stream_adapter);
+    stream_adapter,
+    stream_view);
   {
     auto pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(unique_keys.begin(), values_for_unique_keys.begin()));
-    kv_map_ptr->insert(pair_first, pair_first + unique_keys.size());
+    kv_map_ptr->insert(pair_first,
+                       pair_first + unique_keys.size(),
+                       cuco::detail::MurmurHash3_32<vertex_t>{},
+                       thrust::equal_to<vertex_t>{},
+                       stream_view);
   }
 
   // 4. find values for [collect_unique_key_first, collect_unique_key_last)
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
     thrust::distance(collect_unique_key_first, collect_unique_key_last), stream_view);
-  kv_map_ptr->find(
-    collect_unique_key_first, collect_unique_key_last, get_dataframe_buffer_begin(value_buffer));
+  kv_map_ptr->find(collect_unique_key_first,
+                   collect_unique_key_last,
+                   get_dataframe_buffer_begin(value_buffer),
+                   cuco::detail::MurmurHash3_32<vertex_t>{},
+                   thrust::equal_to<vertex_t>{},
+                   stream_view);
 
   return value_buffer;
 }
