@@ -145,9 +145,9 @@ int test_bfs_with_transpose()
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t seeds[]                 = {5};
-  vertex_t expected_distances[]    = {3, 2, 2, 1, 1, 0};
-  vertex_t expected_predecessors[] = {1, 3, 3, 5, 5, -1};
+  vertex_t seeds[]                 = {0};
+  vertex_t expected_distances[]    = {0, 1, 2147483647, 2, 2, 3};
+  vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 3};
 
   // Bfs wants store_transposed = FALSE
   //    This call will force cugraph_bfs to transpose the graph

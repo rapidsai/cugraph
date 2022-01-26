@@ -128,7 +128,43 @@ int test_pagerank_with_transpose()
   //    This call will force cugraph_pagerank to transpose the graph
   //    But we're passing src/dst backwards so the results will be the same
   return generic_pagerank_test(
-    h_dst, h_src, h_wgt, h_result, num_vertices, num_edges, FALSE, alpha, epsilon, max_iterations);
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, alpha, epsilon, max_iterations);
+}
+
+int test_pagerank_4()
+{
+  size_t num_edges    = 3;
+  size_t num_vertices = 4;
+
+  vertex_t h_src[]    = {0, 1, 2};
+  vertex_t h_dst[]    = {1, 2, 3};
+  weight_t h_wgt[]    = {1.f, 1.f, 1.f};
+  weight_t h_result[] = {0.11615584790706635f, 0.21488840878009796f, 0.29881080985069275f, 0.37014490365982056f};
+
+  double alpha          = 0.85;
+  double epsilon        = 1.0e-6;
+  size_t max_iterations = 500;
+
+  return generic_pagerank_test(
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, alpha, epsilon, max_iterations);
+}
+
+int test_pagerank_4_with_transpose()
+{
+  size_t num_edges    = 3;
+  size_t num_vertices = 4;
+
+  vertex_t h_src[]    = {0, 1, 2};
+  vertex_t h_dst[]    = {1, 2, 3};
+  weight_t h_wgt[]    = {1.f, 1.f, 1.f};
+  weight_t h_result[] = {0.11615584790706635f, 0.21488840878009796f, 0.29881080985069275f, 0.37014490365982056f};
+
+  double alpha          = 0.85;
+  double epsilon        = 1.0e-6;
+  size_t max_iterations = 500;
+
+  return generic_pagerank_test(
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, alpha, epsilon, max_iterations);
 }
 
 /******************************************************************************/
@@ -138,5 +174,7 @@ int main(int argc, char** argv)
   int result = 0;
   result |= RUN_TEST(test_pagerank);
   result |= RUN_TEST(test_pagerank_with_transpose);
+  result |= RUN_TEST(test_pagerank_4);
+  result |= RUN_TEST(test_pagerank_4_with_transpose);
   return result;
 }

@@ -135,15 +135,15 @@ int test_sssp_with_transpose()
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t expected_distances[]    = {4.4, 4.3, 7.4, 7.2f, 3.2f, 0.0f};
-  vertex_t expected_predecessors[] = {1, 4, 1, 5, 5, -1};
+  weight_t expected_distances[]    = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
+  vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 4};
 
   // Bfs wants store_transposed = FALSE
   //    This call will force cugraph_sssp to transpose the graph
   return generic_sssp_test(src,
                            dst,
                            wgt,
-                           5,
+                           0,
                            expected_distances,
                            expected_predecessors,
                            num_vertices,
