@@ -149,10 +149,9 @@ class Tests_TransposeStorage
         std::vector<std::tuple<vertex_t, vertex_t, weight_t>> storage_transposed_edges(
           h_storage_transposed_rows.size());
         for (size_t i = 0; i < storage_transposed_edges.size(); ++i) {
-          storage_transposed_edges[i] =
-            std::make_tuple(h_storage_transposed_cols[i],
-                            h_storage_transposed_rows[i],
-                            (*h_storage_transposed_weights)[i]);  // flip rows and cols
+          storage_transposed_edges[i] = std::make_tuple(h_storage_transposed_rows[i],
+                                                        h_storage_transposed_cols[i],
+                                                        (*h_storage_transposed_weights)[i]);
         }
         std::sort(storage_transposed_edges.begin(), storage_transposed_edges.end());
 
@@ -168,8 +167,8 @@ class Tests_TransposeStorage
         std::vector<std::tuple<vertex_t, vertex_t>> storage_transposed_edges(
           h_storage_transposed_rows.size());
         for (size_t i = 0; i < storage_transposed_edges.size(); ++i) {
-          storage_transposed_edges[i] = std::make_tuple(
-            h_storage_transposed_cols[i], h_storage_transposed_rows[i]);  // flip rows and cols
+          storage_transposed_edges[i] =
+            std::make_tuple(h_storage_transposed_rows[i], h_storage_transposed_cols[i]);
         }
         std::sort(storage_transposed_edges.begin(), storage_transposed_edges.end());
 
