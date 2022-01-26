@@ -129,9 +129,9 @@ def create_SGGraph(device_srcs,
                 device_weights,
                 store_transposed=transposed,
                 renumber=False,
-                expensive_check=False)
+                do_expensive_check=False)
 
-    # FIXME: add coverage for renumber=True and expensive_check=True
+    # FIXME: add coverage for renumber=True and do_expensive_check=True
 
     return (g, resource_handle)
 

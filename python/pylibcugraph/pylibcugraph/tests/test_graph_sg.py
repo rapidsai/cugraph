@@ -88,7 +88,7 @@ def test_sg_graph(graph_data):
                     device_weights,
                     store_transposed=False,
                     renumber=False,
-                    expensive_check=False)
+                    do_expensive_check=False)
         # call SGGraph.__dealloc__()
         del g
 
@@ -101,4 +101,4 @@ def test_sg_graph(graph_data):
                     device_weights,
                     store_transposed=False,
                     renumber=False,
-                    expensive_check=False)
+                    do_expensive_check=False)
