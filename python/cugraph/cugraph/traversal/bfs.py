@@ -94,23 +94,26 @@ def bfs(G,
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
-    start : Integer
+    start : Integer, optional (default=None)
         The index of the graph vertex from which the traversal begins
 
-    i_start : Integer, optional
+    depth_limit : Integer or None, optional (default=None)
+        Limit the depth of the search
+
+    i_start : Integer, optional (default=None)
         Identical to start, added for API compatibility. Only start or i_start
         can be set, not both.
 
-    depth_limit : Integer or None
-        Limit the depth of the search
-
-    directed : bool, optional
+    directed : bool, optional (default=None)
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to a cugraph.DiGraph,
+        If True, then convert the input matrix to a cugraph.DiGraph,
         otherwise a cugraph.Graph object will be used.
+
+    return_predecessors :
+
 
     Returns
     -------
@@ -198,14 +201,14 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     source : Integer
         The starting vertex index
 
-    reverse : boolean
+    reverse : boolean, optional (default=False)
         If a directed graph, then process edges in a reverse direction
         Currently not implemented
 
-    depth_limit : Int or None
+    depth_limit : Int or None, optional (default=None)
         Limit the depth of the search
 
-    sort_neighbors : None or Function
+    sort_neighbors : None or Function, optional (default=None)
         Currently not implemented
 
     Returns
@@ -250,6 +253,7 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> df = cugraph.bfs_edges(G, 0)
+
     """
 
     if reverse is True:

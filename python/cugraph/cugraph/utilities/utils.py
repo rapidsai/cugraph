@@ -71,6 +71,7 @@ def get_traversed_path(df, id):
     ----------
     df : cudf.DataFrame
         The dataframe containing the results of a BFS or SSSP call
+
     id : vertex ID
         most be the same data types as what is in the dataframe
 
@@ -144,6 +145,7 @@ def get_traversed_path_list(df, id):
     ----------
     df : cudf.DataFrame
         The dataframe containing the results of a BFS or SSSP call
+
     id : Int
         The vertex ID
 
@@ -160,8 +162,6 @@ def get_traversed_path_list(df, id):
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> sssp_df = cugraph.sssp(G, 1)
     >>> path = cugraph.utils.get_traversed_path_list(sssp_df, 32)
-    >>> path
-    [32, 2, 1]
 
     """
 

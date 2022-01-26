@@ -293,7 +293,7 @@ def to_pandas_edgelist(G, source='source', destination='destination'):
         destination column name or array of column names
 
     Returns
-    ------
+    -------
     df : pandas.DataFrame
         pandas dataframe containing the edgelist as source and
         destination columns.
@@ -365,6 +365,11 @@ def from_numpy_array(A, create_using=Graph):
 def to_numpy_array(G):
     """
     Returns the graph adjacency matrix as a NumPy array.
+
+    Parameters
+    ----------
+    G : cugraph.Graph or cugraph.DiGraph
+        Graph containing the adjacency matrix.
     """
     A = G.to_numpy_array()
     return A
@@ -375,6 +380,14 @@ def from_numpy_matrix(A, create_using=Graph):
     Initializes the graph from numpy matrix containing adjacency matrix.
     Set create_using to cugraph.DiGraph for directed graph and
     cugraph.Graph for undirected Graph.
+
+    Parameters
+    ----------
+    A : numpy.matrix
+        A Numpy matrix that contains adjacency information
+
+    create_using: cugraph.DiGraph or cugraph.Graph, optional (default=Graph)
+        Indicate whether to create a directed or undirected graph
     """
     if create_using is Graph:
         G = Graph()
@@ -389,6 +402,11 @@ def from_numpy_matrix(A, create_using=Graph):
 def to_numpy_matrix(G):
     """
     Returns the graph adjacency matrix as a NumPy matrix.
+
+    Parameters
+    ----------
+    G : cugraph.Graph or cugraph.DiGraph
+        Graph containing the adjacency matrix.
     """
     A = G.to_numpy_matrix()
     return A

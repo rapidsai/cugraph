@@ -627,22 +627,28 @@ class NumberMap:
         df: cudf.DataFrame or dask_cudf.DataFrame
             A DataFrame containing internal vertex identifiers that will be
             converted into external vertex identifiers.
+
         column_name: string
             Name of the column containing the internal vertex id.
-        preserve_order: (optional) bool
+
+        preserve_order: bool, optional (default=False)
             If True, preserve the ourder of the rows in the output
             DataFrame to match the input DataFrame
-        get_column_names: (optional) bool
+
+        get_column_names: bool, optional (default=False)
             If True, the unrenumbered column names are returned.
+
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
             The original DataFrame columns exist unmodified.  The external
             vertex identifiers are added to the DataFrame, the internal
             vertex identifier column is removed from the dataframe.
+
         column_names: string or list of strings
             If get_column_names is True, the unrenumbered column names are
             returned.
+
         Examples
         --------
         >>> from cugraph.structure import number_map

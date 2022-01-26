@@ -35,18 +35,16 @@ class Graph:
 
     Parameters
     ----------
-    m_graph : cuGraph.MultiGraph object or None
+    m_graph : cuGraph.MultiGraph object or None (default=None)
         Initialize the graph from a cugraph.MultiGraph object
-    directed : boolean
+    directed : boolean, optional (default=False)
         Indicated is the graph is directed.
-        Default is False - Undirected
 
     Examples
     --------
-    # undirected graph
+    >>> # undirected graph
     >>> G = cugraph.Graph()
-
-    # directed graph
+    >>> # directed graph
     >>> G = cugraph.Graph(directed=True)
 
     """

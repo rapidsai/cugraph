@@ -41,6 +41,10 @@ def shuffle(dg, transposed=False):
     partitioning divides the matrix into P*pcols rectangular partitions
     as per vertex partitioning performed in renumbering, and then shuffles
     these partitions into P gpus.
+
+    Parameters
+    ----------
+    transposed : bool, optional (default=False)
     """
 
     ddf = dg.edgelist.edgelist_df

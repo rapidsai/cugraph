@@ -32,10 +32,12 @@ def k_core(G, k=None, core_number=None):
         should contain undirected edges where undirected edges are represented
         as directed edges in both directions. While this graph can contain edge
         weights, they don't participate in the calculation of the k-core.
-    k : int, optional
+
+    k : int, optional (default=None)
         Order of the core. This value must not be negative. If set to None, the
         main core is returned.
-    core_number : cudf.DataFrame, optional
+
+    core_number : cudf.DataFrame, optional (default=None)
         Precomputed core number of the nodes of the graph G containing two
         cudf.Series of size V: the vertex identifiers and the corresponding
         core number values. If set to None, the core numbers of the nodes are
