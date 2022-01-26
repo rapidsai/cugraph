@@ -87,7 +87,7 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
     renumber : bool
         Set to True to indicate the vertices used in src_array and dst_array are
         not appropriate for use as internal array indices, and should be mapped
-        to continuous integrers starting from 0.
+        to continuous integers starting from 0.
 
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
@@ -116,6 +116,8 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
         assert_CAI_type(src_array, "src_array")
         assert_CAI_type(dst_array, "dst_array")
         assert_CAI_type(weight_array, "weight_array")
+
+        # FIXME: assert that src_array and dst_array have the same type
 
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code

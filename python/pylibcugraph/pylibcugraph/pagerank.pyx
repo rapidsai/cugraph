@@ -167,6 +167,7 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
     assert_CAI_type(precomputed_vertex_out_weight_sums,
                     "precomputed_vertex_out_weight_sums",
                     allow_None=True)
+    # FIXME: assert that precomputed_vertex_out_weight_sums type == weight type
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr

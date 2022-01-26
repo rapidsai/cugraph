@@ -36,6 +36,7 @@ cdef assert_success(cugraph_error_code_t code,
         else:
             code_str = "unknown error code"
         # FIXME: extract message using cugraph_error_message()
+        # FIXME: If error_ptr has a value, free it using cugraph_error_free()
         raise RuntimeError(f"non-success value returned from {api_name}: {code_str}")
 
 
