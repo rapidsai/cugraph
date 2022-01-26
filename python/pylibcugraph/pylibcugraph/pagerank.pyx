@@ -134,7 +134,7 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
     ...     is_symmetric=False, is_multigraph=False)
     >>> G = pylibcugraph.experimental.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
-    ...     store_transposed=True, renumber=False, expensive_check=False)
+    ...     store_transposed=True, renumber=False, do_expensive_check=False)
     >>> (vertices, pageranks) = pylibcugraph.experimental.pagerank(
     ...     resource_handle, G, None, alpha=0.85, epsilon=1.0e-6,
     ...     max_iterations=500, has_initial_guess=False,

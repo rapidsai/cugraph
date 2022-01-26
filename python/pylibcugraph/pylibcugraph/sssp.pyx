@@ -118,7 +118,7 @@ def EXPERIMENTAL__sssp(EXPERIMENTAL__ResourceHandle resource_handle,
     ...     is_symmetric=False, is_multigraph=False)
     >>> G = pylibcugraph.experimental.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
-    ...     store_transposed=False, renumber=False, expensive_check=False)
+    ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> (vertices, distances, predecessors) = pylibcugraph.experimental.sssp(
     ...     resource_handle, G, source=1, cutoff=999,
     ...     compute_predecessors=True, do_expensive_check=False)
