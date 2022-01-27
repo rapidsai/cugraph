@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -64,6 +64,7 @@ def sssp(graph,
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe.
         Undirected Graph not currently supported.
+
     source : Integer
         Specify source vertex
 
@@ -80,18 +81,17 @@ def sssp(graph,
 
     Examples
     --------
-    >>> import cugraph.dask as dcg
-    >>> ... Init a DASK Cluster
-    >>    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
-    >>> chunksize = dcg.get_chunksize(input_data_path)
-    >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
-                                 delimiter=' ',
-                                 names=['src', 'dst', 'value'],
-                                 dtype=['int32', 'int32', 'float32'])
-    >>> dg = cugraph.DiGraph()
-    >>> dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
-    >>> df = dcg.sssp(dg, 0)
+    >>> # import cugraph.dask as dcg
+    >>> #... Init a DASK Cluster
+    >>> #   see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
+    >>> # chunksize = dcg.get_chunksize(input_data_path)
+    >>> # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize...)
+    >>> # dg = cugraph.Graph(directed=True)
+    >>> # dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
+    >>> # df = dcg.sssp(dg, 0)
+
     """
+    # FIXME: Uncomment out the above (broken) example
 
     client = default_client()
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -417,6 +417,7 @@ class NumberMap:
         """
         Given a collection of internal vertex ids, return a DataFrame of
         the external vertex ids
+
         Parameters
         ----------
         df: cudf.DataFrame, cudf.Series, dask_cudf.DataFrame, dask_cudf.Series
@@ -627,37 +628,41 @@ class NumberMap:
         df: cudf.DataFrame or dask_cudf.DataFrame
             A DataFrame containing internal vertex identifiers that will be
             converted into external vertex identifiers.
+
         column_name: string
             Name of the column containing the internal vertex id.
-        preserve_order: (optional) bool
+
+        preserve_order: bool, optional (default=False)
             If True, preserve the ourder of the rows in the output
             DataFrame to match the input DataFrame
-        get_column_names: (optional) bool
+
+        get_column_names: bool, optional (default=False)
             If True, the unrenumbered column names are returned.
+
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
             The original DataFrame columns exist unmodified.  The external
             vertex identifiers are added to the DataFrame, the internal
             vertex identifier column is removed from the dataframe.
+
         column_names: string or list of strings
             If get_column_names is True, the unrenumbered column names are
             returned.
+
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>>
-        >>> df, number_map = NumberMap.renumber(df, '0', '1')
-        >>>
+        >>> from cugraph.structure import number_map
+        >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                    dtype=['int32', 'int32', 'float32'],
+        ...                    header=None)
+        >>> df, number_map = number_map.NumberMap.renumber(df, '0', '1')
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(df, 'src', 'dst')
-        >>>
         >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500,
-        >>>                       tol = 1.0e-05)
-        >>>
+        ...                       tol = 1.0e-05)
         >>> pr = number_map.unrenumber(pr, 'vertex')
-        >>>
+
         """
         if len(self.implementation.col_names) == 1:
             # Output will be renamed to match input

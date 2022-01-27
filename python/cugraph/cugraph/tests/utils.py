@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -454,9 +454,14 @@ def genFixtureParamsProduct(*args):
     for paramCombo in product(*paramLists):
         values = [p.values[0] for p in paramCombo]
         marks = [m for p in paramCombo for m in p.marks]
-        comboid = ",".join(
-            ["%s=%s" % (id, p.values[0]) for (p, id) in zip(paramCombo, ids)]
-        )
+        id_strings = []
+        for (p, id) in zip(paramCombo, ids):
+            # Assume id is either a string or a callable
+            if isinstance(id, str):
+                id_strings.append("%s=%s" % (id, p.values[0]))
+            else:
+                id_strings.append(id(p.values[0]))
+        comboid = ",".join(id_strings)
         retList.append(pytest.param(values, marks=marks, id=comboid))
     return retList
 

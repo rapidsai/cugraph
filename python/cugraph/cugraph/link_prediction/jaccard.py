@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -54,8 +54,8 @@ def jaccard(input_graph, vertex_pair=None):
     you can get the interesting (non-zero) values that are part of the networkx
     solution by doing the following:
 
-    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> pairs = G.get_two_hop_neighbors()
@@ -74,7 +74,8 @@ def jaccard(input_graph, vertex_pair=None):
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
         not already present.
-    vertex_pair : cudf.DataFrame
+
+    vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the jaccard coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
@@ -100,11 +101,12 @@ def jaccard(input_graph, vertex_pair=None):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> df = cugraph.jaccard(G)
+
     """
     if type(input_graph) is not Graph:
         raise TypeError("input graph must a Graph")
@@ -135,7 +137,8 @@ def jaccard_coefficient(G, ebunch=None):
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
         not already present.
-    ebunch : cudf.DataFrame
+
+    ebunch : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the jaccard coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
@@ -161,11 +164,12 @@ def jaccard_coefficient(G, ebunch=None):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> df = cugraph.jaccard_coefficient(G)
+
     """
     vertex_pair = None
 

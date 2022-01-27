@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,16 +27,39 @@ namespace c_api {
 
 extern cugraph::visitors::DTypes dtypes_mapping[data_type_id_t::NTYPES];
 
-struct cugraph_type_erased_device_array_t {
+struct cugraph_type_erased_device_array_view_t {
+  void* data_;
   size_t size_;
+  size_t num_bytes_;
+  data_type_id_t type_;
+
+  template <typename T>
+  T* as_type()
+  {
+    return reinterpret_cast<T*>(data_);
+  }
+
+  template <typename T>
+  T const* as_type() const
+  {
+    return reinterpret_cast<T const*>(data_);
+  }
+
+  size_t num_bytes() const { return num_bytes_; }
+};
+
+struct cugraph_type_erased_device_array_t {
+  // NOTE: size must be first here because the device buffer is released
+  size_t size_;
+  //  Why doesn't rmm::device_buffer support release?
   rmm::device_buffer data_;
   data_type_id_t type_;
 
   cugraph_type_erased_device_array_t(size_t size,
-                                     size_t nbytes,
+                                     size_t num_bytes,
                                      data_type_id_t type,
                                      rmm::cuda_stream_view const& stream_view)
-    : data_(nbytes, stream_view), size_(size), type_(type)
+    : size_(size), data_(num_bytes, stream_view), type_(type)
   {
   }
 
@@ -46,29 +69,36 @@ struct cugraph_type_erased_device_array_t {
   {
   }
 
-  template <typename T>
-  T* as_type()
+  auto view()
   {
-    return reinterpret_cast<T*>(data_.data());
-  }
-
-  template <typename T>
-  T const* as_type() const
-  {
-    return reinterpret_cast<T const*>(data_.data());
+    return new cugraph_type_erased_device_array_view_t{data_.data(), size_, data_.size(), type_};
   }
 };
 
-struct cugraph_type_erased_host_array_t {
+struct cugraph_type_erased_host_array_view_t {
   std::byte* data_;
   size_t size_;
-  size_t nbytes_;
+  size_t num_bytes_;
   data_type_id_t type_;
 
   template <typename T>
   T* as_type()
   {
     return reinterpret_cast<T*>(data_);
+  }
+
+  size_t num_bytes() const { return num_bytes_; }
+};
+
+struct cugraph_type_erased_host_array_t {
+  std::unique_ptr<std::byte[]> data_;
+  size_t size_;
+  size_t num_bytes_;
+  data_type_id_t type_;
+
+  auto view()
+  {
+    return new cugraph_type_erased_host_array_view_t{data_.get(), size_, num_bytes_, type_};
   }
 };
 

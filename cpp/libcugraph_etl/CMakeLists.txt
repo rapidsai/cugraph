@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -119,6 +119,10 @@ target_compile_options(cugraph_etl
             PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_ETL_CXX_FLAGS}>"
 )
 
+target_compile_options(cugraph_etl PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+                       --expt-relaxed-constexpr
+                       --expt-extended-lambda
+                       >)
 ################################################################################
 # - ETL include paths --------------------------------------------------------
 target_include_directories(cugraph_etl
