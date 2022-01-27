@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,12 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
-
 import pytest
-import pandas as pd
-import cudf
-from cudf.testing import assert_frame_equal, assert_series_equal
 
 import cugraph
 from cugraph.tests import utils
@@ -38,9 +33,10 @@ def test_using_graph(graph_file):
         cu_M = utils.read_csv_file(graph_file)
 
         g = cugraph.Graph()
-        g.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2', renumber=True)
+        g.from_cudf_edgelist(cu_M, source='0',
+                             destination='1', edge_attr='2', renumber=True)
 
-        gstore = cugraph.gnn.CuGraphStore(graph=g)
+        cugraph.gnn.CuGraphStore(graph=g)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
@@ -48,7 +44,8 @@ def test_using_pgraph(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
     g = cugraph.Graph(directed=True)
-    g.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2', renumber=True)
+    g.from_cudf_edgelist(cu_M, source='0', destination='1',
+                         edge_attr='2', renumber=True)
 
     pG = PropertyGraph()
     pG.add_edge_data(cu_M,
@@ -63,6 +60,7 @@ def test_using_pgraph(graph_file):
     assert g.number_of_vertices() == pG.num_vertices
     assert g.number_of_vertices() == gstore.num_vertices
 
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_node_data_pg(graph_file):
     with pytest.raises(NotImplementedError):
@@ -71,13 +69,13 @@ def test_node_data_pg(graph_file):
 
         pG = PropertyGraph()
         pG.add_edge_data(cu_M,
-                        type_name="edge",
-                        vertex_id_columns=("0", "1"),
-                        property_columns=None)
+                         type_name="edge",
+                         vertex_id_columns=("0", "1"),
+                         property_columns=None)
 
         gstore = cugraph.gnn.CuGraphStore(graph=pG)
 
-        ndata = gstore.ndata
+        gstore.ndata
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
@@ -98,10 +96,10 @@ def test_egonet(graph_file):
 
     gstore = cugraph.gnn.CuGraphStore(graph=pG)
 
-    nodes = [1,2]
+    nodes = [1, 2]
 
-    ego_edge_list1, seeds_offsets1 = gstore.egonet(nodes, k = 1)
-    ego_edge_list2, seeds_offsets2 = batched_ego_graphs(g, nodes, radius = 1)
+    ego_edge_list1, seeds_offsets1 = gstore.egonet(nodes, k=1)
+    ego_edge_list2, seeds_offsets2 = batched_ego_graphs(g, nodes, radius=1)
 
     assert ego_edge_list1 == ego_edge_list2
     assert seeds_offsets1 == seeds_offsets2
