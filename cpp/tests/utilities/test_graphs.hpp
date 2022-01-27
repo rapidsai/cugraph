@@ -147,6 +147,13 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                       static_cast<size_t>(std::numeric_limits<edge_t>::max()),
                     "Invalid template parameter: (scale_, edge_factor_) too large for edge_t");
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    if constexpr (multi_gpu) {
+      handle.get_comms().barrier();
+    }
+    auto time0 = std::chrono::steady_clock::now();
+#endif
     std::vector<size_t> partition_ids(1);
     size_t num_partitions;
 
@@ -191,6 +198,10 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       }
     }
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    auto time1 = std::chrono::steady_clock::now();
+#endif
     rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
     auto weights_v = test_weighted
@@ -247,13 +258,25 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       }
     }
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    auto time2 = std::chrono::steady_clock::now();
+#endif
     translate(handle, src_v, dst_v);
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    auto time3 = std::chrono::steady_clock::now();
+#endif
     if (undirected_)
       std::tie(src_v, dst_v, weights_v) =
         cugraph::symmetrize_edgelist_from_triangular<vertex_t, weight_t>(
           handle, std::move(src_v), std::move(dst_v), std::move(weights_v));
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    auto time4 = std::chrono::steady_clock::now();
+#endif
     if (multi_gpu) {
       std::tie(store_transposed ? dst_v : src_v, store_transposed ? src_v : dst_v, weights_v) =
         cugraph::detail::shuffle_edgelist_by_gpu_id(
@@ -263,6 +286,10 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
           std::move(weights_v));
     }
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    auto time5 = std::chrono::steady_clock::now();
+#endif
     rmm::device_uvector<vertex_t> vertices_v(0, handle.get_stream());
     for (size_t i = 0; i < partition_ids.size(); ++i) {
       auto id = partition_ids[i];
@@ -276,10 +303,27 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                                      partition_vertex_firsts[i]);
     }
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    auto time6 = std::chrono::steady_clock::now();
+#endif
     if constexpr (multi_gpu) {
       vertices_v = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(vertices_v));
     }
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    auto time7 = std::chrono::steady_clock::now();
+    std::chrono::duration<double> elapsed_total = time7 - time0;
+    std::chrono::duration<double> elapsed0 = time1 - time0;
+    std::chrono::duration<double> elapsed1 = time2 - time1;
+    std::chrono::duration<double> elapsed2 = time3 - time2;
+    std::chrono::duration<double> elapsed3 = time4 - time3;
+    std::chrono::duration<double> elapsed4 = time5 - time4;
+    std::chrono::duration<double> elapsed5 = time6 - time5;
+    std::chrono::duration<double> elapsed6 = time7 - time6;
+    std::cout << "Edge generation took " << elapsed_total.count() * 1e3 << " ms, breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << "," << elapsed3.count() * 1e3 << "," << elapsed4.count() * 1e3 << "," << elapsed5.count() * 1e3 << "," << elapsed6.count() * 1e3 << ") ms." << std::endl;
+#endif
     return std::make_tuple(
       std::move(src_v),
       std::move(dst_v),
