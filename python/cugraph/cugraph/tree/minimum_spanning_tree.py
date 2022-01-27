@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -87,7 +87,16 @@ def minimum_spanning_tree(
         A graph descriptor with a minimum spanning tree or forest.
         The networkx graph will not have all attributes copied over
 
+    Examples
+    --------
+    >>> M = cudf.read_csv(datasets_path / 'netscience.csv', delimiter='\t',
+    ...                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> # cugraph.minimum_spanning_tree(G)
+
     """
+    # FIXME: Uncomment out the above example
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
@@ -127,7 +136,16 @@ def maximum_spanning_tree(
         A graph descriptor with a maximum spanning tree or forest.
         The networkx graph will not have all attributes copied over
 
+    Examples
+    --------
+    >>> M = cudf.read_csv(datasets_path / 'netscience.csv', delimiter='\t',
+    ...                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> # cugraph.maximum_spanning_tree(G)
+
     """
+    # FIXME: Uncomment out the above (broken) example
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 

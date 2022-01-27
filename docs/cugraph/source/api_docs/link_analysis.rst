@@ -18,7 +18,7 @@ Pagerank
 .. autosummary::
    :toctree: api/
 
-   cugraph.centrality.katz_centrality.katz_centrality
+   cugraph.link_analysis.pagerank.pagerank
 
 Pagerank (MG)
 -------------
