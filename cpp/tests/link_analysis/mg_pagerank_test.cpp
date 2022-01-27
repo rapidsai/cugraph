@@ -63,6 +63,9 @@ class Tests_MGPageRank
 
     raft::handle_t handle{};
     HighResClock hr_clock{};
+#if 1  // FIXME: delete
+    auto time0 = std::chrono::steady_clock::now();
+#endif
 
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
     auto& comm           = handle.get_comms();
@@ -75,6 +78,25 @@ class Tests_MGPageRank
     }
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
       subcomm_factory(handle, row_comm_size);
+#if 1  // FIXME: delete
+    {
+      rmm::device_uvector<int32_t> tx_ints(comm_size, handle.get_stream());
+      rmm::device_uvector<int32_t> rx_ints(comm_size, handle.get_stream());
+      std::vector<size_t> tx_sizes(comm_size, size_t{1});
+      std::vector<size_t> tx_offsets(comm_size);
+      std::iota(tx_offsets.begin(), tx_offsets.end(), size_t{0});
+      std::vector<int32_t> tx_ranks(comm_size);
+      std::iota(tx_ranks.begin(), tx_ranks.end(), int32_t{0});
+      auto rx_sizes = tx_sizes;
+      auto rx_offsets = tx_offsets;
+      auto rx_ranks = tx_ranks;
+      handle.get_comms().device_multicast_sendrecv(tx_ints.data(), tx_sizes, tx_offsets, tx_ranks, rx_ints.data(), rx_sizes, rx_offsets, rx_ranks, handle.get_stream());
+      handle.sync_stream();
+    }
+    auto time1 = std::chrono::steady_clock::now();
+    std::chrono::duration<double> elapsed = time1 - time0;
+    std::cout << "Handle initialization and 1st all-to-all took " << elapsed.count() * 1e3 << " ms." << std::endl;
+#endif
 
     // 2. create MG graph
 

@@ -556,6 +556,13 @@ renumber_edgelist(
   std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check)
 {
+#if 1 // FIXME: delete
+  handle.sync_stream();
+  if constexpr (multi_gpu) {
+    handle.get_comms().barrier();
+  }
+  auto time0 = std::chrono::steady_clock::now();
+#endif
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
   auto const comm_rank     = comm.get_rank();
@@ -613,6 +620,10 @@ renumber_edgelist(
 
   // 1. compute renumber map
 
+#if 1 // FIXME: delete
+  handle.sync_stream();
+  auto time1 = std::chrono::steady_clock::now();
+#endif
   auto [renumber_map_labels,
         vertex_partition_segment_offsets,
         num_unique_edge_majors,
@@ -626,6 +637,10 @@ renumber_edgelist(
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges for the coarsened
   // graph
 
+#if 1 // FIXME: delete
+  handle.sync_stream();
+  auto time2 = std::chrono::steady_clock::now();
+#endif
   auto vertex_counts = host_scalar_allgather(
     comm, static_cast<vertex_t>(renumber_map_labels.size()), handle.get_stream());
   std::vector<vertex_t> vertex_partition_offsets(comm_size + 1, 0);
@@ -649,6 +664,10 @@ renumber_edgelist(
   // FIXME: compare this hash based approach with a binary search based approach in both memory
   // footprint and execution time
 
+#if 1 // FIXME: delete
+  handle.sync_stream();
+  auto time3 = std::chrono::steady_clock::now();
+#endif
   {
     vertex_t max_matrix_partition_major_size{0};
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
@@ -696,6 +715,10 @@ renumber_edgelist(
     }
   }
 
+#if 1 // FIXME: delete
+  handle.sync_stream();
+  auto time4 = std::chrono::steady_clock::now();
+#endif
   if ((partition.get_matrix_partition_minor_size() >= number_of_edges / comm_size) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
@@ -791,6 +814,17 @@ renumber_edgelist(
                         handle.get_stream());
     }
   }
+#if 1 // FIXME: delete
+  handle.sync_stream();
+  auto time5 = std::chrono::steady_clock::now();
+  std::chrono::duration<double> elapsed_total = time5 - time0;
+  std::chrono::duration<double> elapsed0 = time1 - time0;
+  std::chrono::duration<double> elapsed1 = time2 - time1;
+  std::chrono::duration<double> elapsed2 = time3 - time2;
+  std::chrono::duration<double> elapsed3 = time4 - time3;
+  std::chrono::duration<double> elapsed4 = time5 - time4;
+  std::cout << "Renumber took " << elapsed_total.count() * 1e3 << " ms, breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << "," << elapsed3.count() * 1e3 << "," << elapsed4.count() * 1e3 << ") ms." << std::endl;
+#endif
 
   return std::make_tuple(
     std::move(renumber_map_labels),
