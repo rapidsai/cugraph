@@ -11,10 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
 import cugraph
-from cugraph.experimental import PropertyGraph
+from cugraph.experimental import EXPERIMENTAL__PropertyGraph
 from cugraph.community.egonet import batched_ego_graphs
+
 
 class CuGraphStore:
     """
@@ -27,71 +27,53 @@ class CuGraphStore:
     hetrogeneous graphs - use PropertyGraph
     """
 
-    __G          = None
-    __clinet     = None
-
+    __G = None
+    __clinet = None
 
     @property
     def ndata(self):
         raise NotImplementedError("not yet implemented")
 
-
     @property
     def edata(self):
         raise NotImplementedError("not yet implemented")
-
 
     @property
     def gdata(self):
         return self.__G
 
-
-
-
     def __init__(self, graph=None, cluster=None):
         if graph is not None:
-            if isinstance(graph,
-                cugraph.structure.property_graph.EXPERIMENTAL__PropertyGraph):
+            if isinstance(graph, EXPERIMENTAL__PropertyGraph):
                 self.__G = graph
             else:
                 raise ValueError("graph must be a PropertyGraph")
 
         self.__client = cluster
 
-
-
     ######################################
-    # Utilities 
+    # Utilities
     ######################################
     @property
     def num_vertices(self):
         if self.__G is None:
             raise ValueError("graph has not been set")
 
-        if self.__isPG:
-            return self.__G.num_vertices
-        else:
-            return self.__G.number_of_vertices()
+        return self.__G.num_vertices
 
     @property
     def num_edges(self):
         if self.__G is None:
             raise ValueError("graph has not been set")
-        if self.__isPG:            
-            return self.__G.num_edges
-        else:
-            return self.__G.number_of_edges()
 
+        return self.__G.num_edges
 
     def get_vertices_id(self):
+        if self.__G is None:
+            raise ValueError("graph has not been set")
+
         _g = self.__G.extract_subgraph(create_using=cugraph.Graph)
         return _g.nodes()
-
-
-
-
-
-
 
     ######################################
     # Sampling APIs
@@ -102,7 +84,8 @@ class CuGraphStore:
                          edge_dir='in',
                          prob=None,
                          replace=False):
-        """Sample neighboring edges of the given nodes and return the subgraph.
+        """
+        Sample neighboring edges of the given nodes and return the subgraph.
 
         Parameters
         ----------
@@ -114,12 +97,12 @@ class CuGraphStore:
             Determines whether to sample inbound or outbound edges.
             Can take either in for inbound edges or out for outbound edges.
         prob : str
-            Feature name used as the (unnormalized) probabilities associated with
-            each neighboring edge of a node. Each feature must be a scalar.
-            The features must be non-negative floats, and the sum of the features
-            of inbound/outbound edges for every node must be positive
-            (though they don't have to sum up to one). Otherwise, the result will
-            be undefined. If not specified, sample uniformly.
+            Feature name used as the (unnormalized) probabilities associated
+            with each neighboring edge of a node. Each feature must be a
+            scalar. The features must be non-negative floats, and the sum of
+            the features of inbound/outbound edges for every node must be
+            positive (though they don't have to sum up to one). Otherwise,
+            the result will be undefined. If not specified, sample uniformly.
         replace : bool
             If True, sample with replacement.
 
@@ -134,8 +117,8 @@ class CuGraphStore:
     def node_subgraph(self, nodes):
         """Return a subgraph induced on the given nodes.
 
-        A node-induced subgraph is a graph with edges whose endpoints are both in
-        the specified node set.
+        A node-induced subgraph is a graph with edges whose endpoints are both
+        in the specified node set.
 
         Parameters
         ----------
@@ -149,7 +132,6 @@ class CuGraphStore:
             graph.
         """
         pass
-
 
     def egonet(self, nodes, k):
         """Return the k-hop egonet of the given nodes.
@@ -165,35 +147,31 @@ class CuGraphStore:
         Returns
         -------
         ego_edge_lists :  cudf.DataFrame
-            GPU data frame containing all induced sources identifiers, destination
-            identifiers, edge weights
+            GPU data frame containing all induced sources identifiers,
+            destination identifiers, edge weights
 
         seeds_offsets: cudf.Series
             Series containing the starting offset in the returned edge list
             for each seed.
         """
 
-        _g = None
+        _g = self.__G.extract_subgraph(create_using=cugraph.Graph)
 
-        if self.__isPG:
-            _g = self.__G.extract_subgraph(create_using=cugraph.Graph)
-        else:
-            _g = self.__G
-
-        ego_edge_list, seeds_offsets = batched_ego_graphs(_g, nodes, radius = k)
+        ego_edge_list, seeds_offsets = batched_ego_graphs(_g, nodes, radius=k)
 
         return ego_edge_list, seeds_offsets
-
 
         pass
 
     def randomwalk(self, nodes, length,
                    prob=None,
                    restart_prob=None):
-        """Perform randomwalks starting from the given nodes and return the traces.
+        """
+        Perform randomwalks starting from the given nodes and return the
+        traces.
 
-        A k-hop egonet of a node is the subgraph induced by the k-hop neighbors
-        of the node.
+        A k-hop egonet of a node is the subgraph induced by the k-hop
+        neighbors of the node.
 
         Parameters
         ----------
@@ -202,31 +180,31 @@ class CuGraphStore:
         length : int
             Walk length.
         prob : str
-            Feature name used as the (unnormalized) probabilities associated with
-            each neighboring edge of a node. Each feature must be a scalar.
-            The features must be non-negative floats, and the sum of the features
-            of inbound/outbound edges for every node must be positive
-            (though they don't have to sum up to one). Otherwise, the result will
-            be undefined. If not specified, pick the next stop uniformly.
+            Feature name used as the (unnormalized) probabilities associated
+            with each neighboring edge of a node. Each feature must be a
+            scalar.
+            The features must be non-negative floats, and the sum of the
+            features of inbound/outbound edges for every node must be positive
+            (though they don't have to sum up to one). Otherwise, the result
+            will be undefined. If not specified, pick the next stop uniformly.
         restart_prob : float
             Probability to terminate the current trace before each transition.
 
         Returns
         -------
         traces : Tensor
-            A 2-D tensor of shape (len(nodes), length + 1). traces[i] stores the
-            node IDs reached by the randomwalk starting from nodes[i]. -1 means the
-            walk has stopped.
+            A 2-D tensor of shape (len(nodes), length + 1). traces[i] stores
+            the node IDs reached by the randomwalk starting from nodes[i]. -1
+            means the walk has stopped.
         """
         pass
-
 
 
 class CuFeatureStorage:
     """Storage for node/edge feature data.
 
-    Either subclassing this class or implementing the same set of interfaces is fine.
-    DGL simply uses duck-typing to implement its sampling pipeline.
+    Either subclassing this class or implementing the same set of interfaces
+    is fine. DGL simply uses duck-typing to implement its sampling pipeline.
     """
 
     def __getitem__(self, ids):
@@ -262,4 +240,3 @@ class CuFeatureStorage:
         """
         # Default implementation uses synchronous fetch.
         return self.__getitem__(ids).to(device)
-

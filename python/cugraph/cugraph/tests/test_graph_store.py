@@ -33,16 +33,15 @@ def test_no_graph(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_using_graph(graph_file):
-    cu_M = utils.read_csv_file(graph_file)
+    with pytest.raises(ValueError):
 
-    g = cugraph.Graph()
-    g.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2', renumber=True)
+        cu_M = utils.read_csv_file(graph_file)
 
-    gstore = cugraph.gnn.CuGraphStore(graph=g)
+        g = cugraph.Graph()
+        g.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2', renumber=True)
 
-    assert g == gstore.gdata
-    assert g.number_of_edges() == gstore.num_edges
-    assert g.number_of_vertices() == gstore.num_vertices
+        gstore = cugraph.gnn.CuGraphStore(graph=g)
+
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_using_pgraph(graph_file):
@@ -80,19 +79,6 @@ def test_node_data_pg(graph_file):
 
         ndata = gstore.ndata
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_node_data_g(graph_file):
-
-    cu_M = utils.read_csv_file(graph_file)
-
-    g = cugraph.Graph(directed=True)
-    g.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2', renumber=True)
-
-    gstore = cugraph.gnn.CuGraphStore(graph=g)
-
-    ndata = gstore.ndata
-
-    assert len(ndata) == g.number_of_vertices()
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_egonet(graph_file):
@@ -102,7 +88,7 @@ def test_egonet(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
     g = cugraph.Graph(directed=True)
-    g.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2', renumber=True)
+    g.from_cudf_edgelist(cu_M, source='0', destination='1', renumber=True)
 
     pG = PropertyGraph()
     pG.add_edge_data(cu_M,
