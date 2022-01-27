@@ -26,26 +26,20 @@ class CuGraphStore:
     homogeneous graphs, graphs with no attributes - use Property Graph
     hetrogeneous graphs - use PropertyGraph
     """
-s
+
     __G          = None
     __clinet     = None
 
 
     @property
     def ndata(self):
-        if self.__isPG:
-            raise NotImplementedError("not yet implemented")
-        else:
-            df = cudf.DataFrame()
-            df["vertex"] = self.__G.nodes()
-            return df
+        raise NotImplementedError("not yet implemented")
+
 
     @property
     def edata(self):
-        if self.__isPG:
-            raise NotImplementedError("not yet implemented")
-        else:
-            return cudf.DataFrame(self.__G.edges())
+        raise NotImplementedError("not yet implemented")
+
 
     @property
     def gdata(self):
@@ -56,12 +50,12 @@ s
 
     def __init__(self, graph=None, cluster=None):
         if graph is not None:
-            if isinstance(graph, cugraph.structure.property_graph.EXPERIMENTAL__PropertyGraph):
-                self.__isPG = True
+            if isinstance(graph,
+                cugraph.structure.property_graph.EXPERIMENTAL__PropertyGraph):
+                self.__G = graph
             else:
-                self.__isPG = False
+                raise ValueError("graph must be a PropertyGraph")
 
-        self.__G = graph
         self.__client = cluster
 
 
@@ -90,11 +84,7 @@ s
 
 
     def get_vertices_id(self):
-        _g = self.__G
-
-        if self.__isPG:
-            _g = self.__G.extract_subgraph(create_using=cugraph.Graph)
-        
+        _g = self.__G.extract_subgraph(create_using=cugraph.Graph)
         return _g.nodes()
 
 
