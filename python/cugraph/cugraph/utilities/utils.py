@@ -71,6 +71,7 @@ def get_traversed_path(df, id):
     ----------
     df : cudf.DataFrame
         The dataframe containing the results of a BFS or SSSP call
+
     id : vertex ID
         most be the same data types as what is in the dataframe
 
@@ -82,13 +83,18 @@ def get_traversed_path(df, id):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>>
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> sssp_df = cugraph.sssp(G, 1)
     >>> path = cugraph.utils.get_traversed_path(sssp_df, 32)
+    >>> path
+        distance  vertex  predecessor
+    ...       ...     ...         ...
+    ...       ...     ...         ...
+    ...       ...     ...         ...
+
     """
 
     if "vertex" not in df.columns:
@@ -139,6 +145,7 @@ def get_traversed_path_list(df, id):
     ----------
     df : cudf.DataFrame
         The dataframe containing the results of a BFS or SSSP call
+
     id : Int
         The vertex ID
 
@@ -149,11 +156,13 @@ def get_traversed_path_list(df, id):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv(graph_file)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> sssp_df = cugraph.sssp(G, 1)
     >>> path = cugraph.utils.get_traversed_path_list(sssp_df, 32)
+
     """
 
     if "vertex" not in df.columns:
@@ -400,8 +409,9 @@ def import_optional(mod, default_mod_class=MissingModule):
 
     Example
     -------
-    >>> nx = import_optional("networkx")  # networkx is not installed
-    >>> G = nx.Graph()
+    >> from cugraph.utils import import_optional
+    >> nx = import_optional("networkx")  # networkx is not installed
+    >> G = nx.Graph()
     Traceback (most recent call last):
       File "<stdin>", line 1, in <module>
       ...
@@ -409,24 +419,25 @@ def import_optional(mod, default_mod_class=MissingModule):
 
     Example
     -------
-    >>> class CuDFFallback:
-    ...   def __init__(self, mod_name):
-    ...     assert mod_name == "cudf"
-    ...     warnings.warn("cudf could not be imported, using pandas instead!")
-    ...   def __getattr__(self, attr):
-    ...     import pandas
-    ...     return getattr(pandas, attr)
+    >> class CuDFFallback:
+    ..   def __init__(self, mod_name):
+    ..     assert mod_name == "cudf"
+    ..     warnings.warn("cudf could not be imported, using pandas instead!")
+    ..   def __getattr__(self, attr):
+    ..     import pandas
+    ..     return getattr(pandas, attr)
     ...
-    >>> df_mod = import_optional("cudf", default_mod_class=CuDFFallback)
+    >> from cugraph.utils import import_optional
+    >> df_mod = import_optional("cudf", default_mod_class=CuDFFallback)
     <stdin>:4: UserWarning: cudf could not be imported, using pandas instead!
-    >>> df = df_mod.DataFrame()
-    >>> df
+    >> df = df_mod.DataFrame()
+    >> df
     Empty DataFrame
     Columns: []
     Index: []
-    >>> type(df)
+    >> type(df)
     <class 'pandas.core.frame.DataFrame'>
-    >>>
+    >>
     """
     try:
         return importlib.import_module(mod)

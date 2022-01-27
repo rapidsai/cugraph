@@ -24,11 +24,3 @@ Overlap Coefficient
    cugraph.link_prediction.overlap.overlap_coefficient
    cugraph.link_prediction.woverlap.overlap_w
 
-
-Pagerank (MG)
--------------
-.. autosummary::
-   :toctree: api/
-
-   cugraph.dask.link_analysis.pagerank.pagerank
-

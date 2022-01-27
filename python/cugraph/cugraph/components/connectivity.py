@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -129,7 +129,7 @@ def weakly_connected_components(G,
         algorithm can progress from point i to j along csgraph[i, j] or
         csgraph[j, i].
 
-    connection : str, optional
+    connection : str, optional (default=None)
 
         Added for SciPy compatibility, can only be specified for non-Graph-type
         (eg. sparse matrix) values of G only (raises TypeError if used with a
@@ -171,13 +171,14 @@ def weakly_connected_components(G,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.weakly_connected_components(G)
+
     """
     (directed, connection, return_labels) = _ensure_args(
         "weakly_connected_components", G, directed, connection, return_labels)
@@ -226,7 +227,7 @@ def strongly_connected_components(G,
         algorithm can progress from point i to j along csgraph[i, j] or
         csgraph[j, i].
 
-    connection : str, optional
+    connection : str, optional (default=None)
 
         Added for SciPy compatibility, can only be specified for non-Graph-type
         (eg. sparse matrix) values of G only (raises TypeError if used with a
@@ -268,13 +269,14 @@ def strongly_connected_components(G,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.strongly_connected_components(G)
+
     """
     (directed, connection, return_labels) = _ensure_args(
         "strongly_connected_components", G, directed,
@@ -298,7 +300,7 @@ def connected_components(G,
                          connection="weak",
                          return_labels=None):
     """
-    Generate either the stronlgly or weakly connected components and attach a
+    Generate either the strongly or weakly connected components and attach a
     component label to each vertex.
 
     Parameters
@@ -324,7 +326,7 @@ def connected_components(G,
         algorithm can progress from point i to j along csgraph[i, j] or
         csgraph[j, i].
 
-    connection : str, optional
+    connection : str, optional (default='weak')
 
         [‘weak’|’strong’]. Return either weakly or strongly connected
         components.
@@ -365,13 +367,14 @@ def connected_components(G,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.connected_components(G, connection="weak")
+
     """
     if connection == "weak":
         return weakly_connected_components(G, directed,

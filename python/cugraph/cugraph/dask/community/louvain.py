@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -53,23 +53,60 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
     Compute the modularity optimizing partition of the input graph using the
     Louvain method on multiple GPUs
 
+    It uses the Louvain method described in:
+
+    VD Blondel, J-L Guillaume, R Lambiotte and E Lefebvre: Fast unfolding of
+    community hierarchies in large networks, J Stat Mech P10008 (2008),
+    http://arxiv.org/abs/0803.0476
+
+    Parameters
+    ----------
+    input_graph : cugraph.Graph or NetworkX Graph
+        The graph descriptor should contain the connectivity information
+        and weights. The adjacency list will be computed if not already
+        present.
+
+    max_iter : integer, optional (default=100)
+        This controls the maximum number of levels/iterations of the Louvain
+        algorithm. When specified the algorithm will terminate after no more
+        than the specified number of iterations. No error occurs when the
+        algorithm terminates early in this manner.
+
+    resolution: float/double, optional (default=1.0)
+        Called gamma in the modularity formula, this changes the size
+        of the communities.  Higher resolutions lead to more smaller
+        communities, lower resolutions lead to fewer larger communities.
+        Defaults to 1.
+
+    Returns
+    -------
+    parts : cudf.DataFrame
+        GPU data frame of size V containing two columns the vertex id and the
+        partition id it is assigned to.
+
+        df['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        df['partition'] : cudf.Series
+            Contains the partition assigned to the vertices
+
+    modularity_score : float
+        a floating point number containing the global modularity score of the
+        partitioning.
+
     Examples
     --------
-    >>> import cugraph.dask as dcg
-    >>> ... Init a DASK Cluster
-    >>    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
-    >>  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
-    >>> chunksize = dcg.get_chunksize(input_data_path)
-    >>> ddf = dask_cudf.read_csv('datasets/karate.csv', chunksize=chunksize,
-                                 delimiter=' ',
-                                 names=['src', 'dst', 'value'],
-                                 dtype=['int32', 'int32', 'float32'])
-    >>> dg = cugraph.Graph()
-    >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
-                                   edge_attr='value')
-    >>> parts, modularity_score = dcg.louvain(dg)
+    >>> # import cugraph.dask as dcg
+    >>> # ... Init a DASK Cluster
+    >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
+    >>> # chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
+    >>> # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize)
+    >>> # dg = cugraph.Graph(directed=True)
+    >>> # dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
+    >>> #                            edge_attr='value')
+    >>> # parts, modularity_score = dcg.louvain(dg)
     """
-    # FIXME: finish docstring: describe parameters, etc.
+    # FIXME: Uncomment out the above (broken) example
 
     # MG Louvain currently requires CUDA 10.2 or higher.
     # FIXME: remove this check once RAPIDS drops support for CUDA < 10.2

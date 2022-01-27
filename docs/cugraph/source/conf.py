@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2018-2021, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 #
 # pygdf documentation build configuration file, created by
 # sphinx-quickstart on Wed May  3 10:59:22 2017.
@@ -73,7 +73,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'cugraph'
-copyright = '2019-2021, NVIDIA'
+copyright = '2019-2022, NVIDIA'
 author = 'NVIDIA'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -120,8 +120,9 @@ if not on_rtd:
     # otherwise, readthedocs.org uses their theme by default,
     # so no need to specify it
     import pydata_sphinx_theme
+    import sphinx_rtd_theme
     html_theme = 'pydata_sphinx_theme'
-    html_theme_path = pydata_sphinx_theme.get_html_theme_path()
+    html_theme_path = sphinx_rtd_theme.get_html_theme_path()
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +17,6 @@ import cugraph
 import numpy as np
 
 
-#
 # TRIM Process:
 #   - removed single vertex componenets
 #   - select vertex with highest out degree
@@ -35,11 +34,11 @@ def strong_connected_component(source, destination):
 
     Parameters
     ----------
-    source : cudf.Seriers
-        A cudf seriers that contains the source side of an edge list
+    source : cudf.Series
+        A cudf series that contains the source side of an edge list
 
-    destination : cudf.Seriers
-        A cudf seriers that contains the destination side of an edge list
+    destination : cudf.Series
+        A cudf series that contains the destination side of an edge list
 
     Returns
     -------
@@ -55,13 +54,14 @@ def strong_connected_component(source, destination):
 
     Examples
     --------
-    >>> M = read_mtx_file(graph_file)
-    >>> sources = cudf.Series(M.row)
-    >>> destinations = cudf.Series(M.col)
+    >>> # M = read_mtx_file(graph_file)
+    >>> # sources = cudf.Series(M.row)
+    >>> # destinations = cudf.Series(M.col)
+    >>> # components, single_components, count =
+    >>> #   cugraph.strong_connected_component(source, destination)
 
-   >>> components, single_components, count =
-        scc.strong_connected_component(source, destination)
     """
+    # FIXME: Uncomment out the above example
     max_value = np.iinfo(np.int32).max  # NOQA
 
     # create the FW and BW graphs - this version dopes nopt modify the graphs
