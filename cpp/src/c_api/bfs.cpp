@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,28 +33,28 @@ namespace c_api {
 struct bfs_functor : public abstract_functor {
   raft::handle_t const& handle_;
   cugraph_graph_t* graph_;
-  cugraph_type_erased_device_array_t* sources_;
+  cugraph_type_erased_device_array_view_t* sources_;
   bool direction_optimizing_;
   size_t depth_limit_;
-  bool do_expensive_check_;
   bool compute_predecessors_;
+  bool do_expensive_check_;
   cugraph_paths_result_t* result_{};
 
   bfs_functor(raft::handle_t const& handle,
               cugraph_graph_t* graph,
-              cugraph_type_erased_device_array_t* sources,
+              cugraph_type_erased_device_array_view_t* sources,
               bool direction_optimizing,
               size_t depth_limit,
-              bool do_expensive_check,
-              bool compute_predecessors)
+              bool compute_predecessors,
+              bool do_expensive_check)
     : abstract_functor(),
       handle_(handle),
       graph_(graph),
       sources_(sources),
       direction_optimizing_(direction_optimizing),
       depth_limit_(depth_limit),
-      do_expensive_check_(do_expensive_check),
-      compute_predecessors_(compute_predecessors)
+      compute_predecessors_(compute_predecessors),
+      do_expensive_check_(do_expensive_check)
   {
   }
 
@@ -141,25 +141,28 @@ struct bfs_functor : public abstract_functor {
 }  // namespace c_api
 }  // namespace cugraph
 
-extern "C" cugraph_type_erased_device_array_t* cugraph_paths_result_get_vertices(
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_vertices(
   cugraph_paths_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_paths_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_t*>(internal_pointer->vertex_ids_);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->vertex_ids_->view());
 }
 
-extern "C" cugraph_type_erased_device_array_t* cugraph_paths_result_get_distances(
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_distances(
   cugraph_paths_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_paths_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_t*>(internal_pointer->distances_);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->distances_->view());
 }
 
-extern "C" cugraph_type_erased_device_array_t* cugraph_paths_result_get_predecessors(
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_predecessors(
   cugraph_paths_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_paths_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_t*>(internal_pointer->predecessors_);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->predecessors_->view());
 }
 
 extern "C" void cugraph_paths_result_free(cugraph_paths_result_t* result)
@@ -173,11 +176,11 @@ extern "C" void cugraph_paths_result_free(cugraph_paths_result_t* result)
 
 extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* handle,
                                             cugraph_graph_t* graph,
-                                            cugraph_type_erased_device_array_t* sources,
+                                            cugraph_type_erased_device_array_view_t* sources,
                                             bool_t direction_optimizing,
                                             size_t depth_limit,
-                                            bool_t do_expensive_check,
                                             bool_t compute_predecessors,
+                                            bool_t do_expensive_check,
                                             cugraph_paths_result_t** result,
                                             cugraph_error_t** error)
 {
@@ -185,17 +188,18 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
   *error  = nullptr;
 
   try {
-    auto p_handle  = reinterpret_cast<raft::handle_t const*>(handle);
-    auto p_graph   = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
-    auto p_sources = reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(sources);
+    auto p_handle = reinterpret_cast<raft::handle_t const*>(handle);
+    auto p_graph  = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
+    auto p_sources =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(sources);
 
     cugraph::c_api::bfs_functor functor(*p_handle,
                                         p_graph,
                                         p_sources,
                                         direction_optimizing,
                                         depth_limit,
-                                        do_expensive_check,
-                                        compute_predecessors);
+                                        compute_predecessors,
+                                        do_expensive_check);
 
     // FIXME:  This seems like a recurring pattern.  Can I encapsulate
     //    The vertex_dispatcher and error handling calls into a reusable function?

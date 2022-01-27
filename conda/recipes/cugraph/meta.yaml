@@ -39,11 +39,12 @@ requirements:
     - cudf={{ minor_version }}
     - dask-cudf {{ minor_version }}
     - dask-cuda {{ minor_version }}
-    - dask>=2021.09.1
-    - distributed>=2021.09.1
+    - dask>=2021.11.1,<=2022.01.0
+    - distributed>=2021.11.1,<=2022.01.0
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
+    - cuda-python >=11.5,<12.0
 
 tests:                                 # [linux64]
   requirements:                        # [linux64]
