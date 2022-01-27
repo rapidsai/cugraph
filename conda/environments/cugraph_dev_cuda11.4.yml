@@ -11,8 +11,8 @@ dependencies:
 - rmm=22.04.*
 - librmm=22.04.*
 - cuda-python>=11.5,<12.0
-- dask>=2021.11.1,<=2022.01.0
-- distributed>=2021.11.1,<=2022.01.0
+- dask>=2021.11.1
+- distributed>=2021.11.1
 - dask-cuda=22.04.*
 - dask-cudf=22.04.*
 - nccl>=2.9.9
