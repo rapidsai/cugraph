@@ -37,7 +37,7 @@ typedef struct {
  * @param [in]   result   The result from pagerank
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_t* cugraph_pagerank_result_get_vertices(
+cugraph_type_erased_device_array_view_t* cugraph_pagerank_result_get_vertices(
   cugraph_pagerank_result_t* result);
 
 /**
@@ -46,7 +46,7 @@ cugraph_type_erased_device_array_t* cugraph_pagerank_result_get_vertices(
  * @param [in]   result   The result from pagerank
  * @return type erased array of pagerank values
  */
-cugraph_type_erased_device_array_t* cugraph_pagerank_result_get_pageranks(
+cugraph_type_erased_device_array_view_t* cugraph_pagerank_result_get_pageranks(
   cugraph_pagerank_result_t* result);
 
 /**
@@ -84,7 +84,7 @@ void cugraph_pagerank_result_free(cugraph_pagerank_result_t* result);
 cugraph_error_code_t cugraph_pagerank(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
+  const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
   double alpha,
   double epsilon,
   size_t max_iterations,
@@ -127,10 +127,10 @@ cugraph_error_code_t cugraph_pagerank(
 cugraph_error_code_t cugraph_personalized_pagerank(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_t* precomputed_vertex_out_weight_sums,
+  const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
   // FIXME:  Make this const, copy it if I need to temporarily modify internally
-  cugraph_type_erased_device_array_t* personalization_vertices,
-  const cugraph_type_erased_device_array_t* personalization_values,
+  cugraph_type_erased_device_array_view_t* personalization_vertices,
+  const cugraph_type_erased_device_array_view_t* personalization_values,
   double alpha,
   double epsilon,
   size_t max_iterations,
@@ -155,7 +155,7 @@ typedef struct {
  * @param [in]   result   The result from bfs or sssp
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_t* cugraph_paths_result_get_vertices(
+cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_vertices(
   cugraph_paths_result_t* result);
 
 /**
@@ -164,7 +164,7 @@ cugraph_type_erased_device_array_t* cugraph_paths_result_get_vertices(
  * @param [in]   result   The result from bfs or sssp
  * @return type erased array of distances
  */
-cugraph_type_erased_device_array_t* cugraph_paths_result_get_distances(
+cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_distances(
   cugraph_paths_result_t* result);
 
 /**
@@ -175,7 +175,7 @@ cugraph_type_erased_device_array_t* cugraph_paths_result_get_distances(
  *         compute_predecessors was FALSE in the call to bfs or sssp that
  *         produced this result.
  */
-cugraph_type_erased_device_array_t* cugraph_paths_result_get_predecessors(
+cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_predecessors(
   cugraph_paths_result_t* result);
 
 /**
@@ -216,7 +216,7 @@ cugraph_error_code_t cugraph_bfs(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   // FIXME:  Make this const, copy it if I need to temporarily modify internally
-  cugraph_type_erased_device_array_t* sources,
+  cugraph_type_erased_device_array_view_t* sources,
   bool_t direction_optimizing,
   size_t depth_limit,
   bool_t compute_predecessors,
@@ -280,13 +280,14 @@ typedef struct {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_extract_paths(const cugraph_resource_handle_t* handle,
-                                           cugraph_graph_t* graph,
-                                           const cugraph_type_erased_device_array_t* sources,
-                                           const cugraph_paths_result_t* paths_result,
-                                           const cugraph_type_erased_device_array_t* destinations,
-                                           cugraph_extract_paths_result_t** result,
-                                           cugraph_error_t** error);
+cugraph_error_code_t cugraph_extract_paths(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* sources,
+  const cugraph_paths_result_t* paths_result,
+  const cugraph_type_erased_device_array_view_t* destinations,
+  cugraph_extract_paths_result_t** result,
+  cugraph_error_t** error);
 
 /**
  * @brief     Get the max path length from extract_paths result
@@ -302,7 +303,7 @@ size_t cugraph_extract_paths_result_get_max_path_length(cugraph_extract_paths_re
  * @param [in]   result   The result from extract_paths
  * @return type erased array pointing to the matrix in device memory
  */
-cugraph_type_erased_device_array_t* cugraph_extract_paths_result_get_paths(
+cugraph_type_erased_device_array_view_t* cugraph_extract_paths_result_get_paths(
   cugraph_extract_paths_result_t* result);
 
 /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,16 +38,16 @@ struct cugraph_extract_paths_result_t {
 struct extract_paths_functor : public abstract_functor {
   raft::handle_t const& handle_;
   cugraph_graph_t* graph_;
-  cugraph_type_erased_device_array_t const* sources_;
+  cugraph_type_erased_device_array_view_t const* sources_;
   cugraph_paths_result_t const* paths_result_;
-  cugraph_type_erased_device_array_t const* destinations_;
+  cugraph_type_erased_device_array_view_t const* destinations_;
   cugraph_extract_paths_result_t* result_{};
 
   extract_paths_functor(raft::handle_t const& handle,
                         cugraph_graph_t* graph,
-                        cugraph_type_erased_device_array_t const* sources,
+                        cugraph_type_erased_device_array_view_t const* sources,
                         cugraph_paths_result_t const* paths_result,
-                        cugraph_type_erased_device_array_t const* destinations)
+                        cugraph_type_erased_device_array_view_t const* destinations)
     : abstract_functor(),
       handle_(handle),
       graph_(graph),
@@ -93,8 +93,8 @@ struct extract_paths_functor : public abstract_functor {
       rmm::device_uvector<vertex_t> predecessors(paths_result_->predecessors_->size_,
                                                  handle_.get_stream());
       raft::copy(predecessors.data(),
-                 paths_result_->predecessors_->as_type<vertex_t>(),
-                 paths_result_->predecessors_->size_,
+                 paths_result_->predecessors_->view()->as_type<vertex_t>(),
+                 paths_result_->predecessors_->view()->size_,
                  handle_.get_stream());
 
       //
@@ -120,7 +120,7 @@ struct extract_paths_functor : public abstract_functor {
         cugraph::extract_bfs_paths<vertex_t, edge_t, weight_t, multi_gpu>(
           handle_,
           graph_view,
-          paths_result_->distances_->as_type<vertex_t>(),
+          paths_result_->distances_->view()->as_type<vertex_t>(),
           predecessors.data(),
           destinations.data(),
           destinations.size());
@@ -147,11 +147,12 @@ extern "C" size_t cugraph_extract_paths_result_get_max_path_length(
   return internal_pointer->max_path_length_;
 }
 
-cugraph_type_erased_device_array_t* cugraph_extract_paths_result_get_paths(
+cugraph_type_erased_device_array_view_t* cugraph_extract_paths_result_get_paths(
   cugraph_extract_paths_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_extract_paths_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_t*>(internal_pointer->paths_);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->paths_->view());
 }
 
 extern "C" void cugraph_extract_paths_result_free(cugraph_extract_paths_result_t* result)
@@ -164,9 +165,9 @@ extern "C" void cugraph_extract_paths_result_free(cugraph_extract_paths_result_t
 extern "C" cugraph_error_code_t cugraph_extract_paths(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_t* sources,
+  const cugraph_type_erased_device_array_view_t* sources,
   const cugraph_paths_result_t* paths_result,
-  const cugraph_type_erased_device_array_t* destinations,
+  const cugraph_type_erased_device_array_view_t* destinations,
   cugraph_extract_paths_result_t** result,
   cugraph_error_t** error)
 {
@@ -177,11 +178,12 @@ extern "C" cugraph_error_code_t cugraph_extract_paths(
     auto p_handle = reinterpret_cast<raft::handle_t const*>(handle);
     auto p_graph  = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
     auto p_sources =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(sources);
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources);
     auto p_paths_result =
       reinterpret_cast<cugraph::c_api::cugraph_paths_result_t const*>(paths_result);
     auto p_destinations =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(destinations);
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+        destinations);
 
     cugraph::c_api::extract_paths_functor functor(
       *p_handle, p_graph, p_sources, p_paths_result, p_destinations);

@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,9 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .components._connectivity import (
-    strongly_connected_components,
-    weakly_connected_components,
+# Have cython use python 3 syntax
+# cython: language_level = 3
+
+from pylibcugraph._cugraph_c.cugraph_api cimport (
+    cugraph_resource_handle_t,
 )
 
-from . import experimental
+
+cdef class EXPERIMENTAL__ResourceHandle:
+    cdef cugraph_resource_handle_t* c_resource_handle_ptr
