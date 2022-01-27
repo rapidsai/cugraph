@@ -22,13 +22,15 @@ build:
     - CUDAHOSTCXX
     - PARALLEL_LEVEL
     - VERSION_SUFFIX
-    - CCACHE_DIR
-    - CCACHE_NOHASHDIR
-    - CCACHE_COMPILERCHECK
     - CMAKE_GENERATOR
     - CMAKE_C_COMPILER_LAUNCHER
     - CMAKE_CXX_COMPILER_LAUNCHER
     - CMAKE_CUDA_COMPILER_LAUNCHER
+    - SCCACHE_S3_KEY_PREFIX=libcugraph-aarch64 # [aarch64]
+    - SCCACHE_S3_KEY_PREFIX=libcugraph-linux64 # [linux64]
+    - SCCACHE_BUCKET=rapids-sccache
+    - SCCACHE_REGION=us-west-2
+    - SCCACHE_IDLE_TIMEOUT=32768
 
 requirements:
   build:

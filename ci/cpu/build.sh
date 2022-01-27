@@ -36,6 +36,10 @@ export CONDA_BLD_DIR="${WORKSPACE}/.conda-bld"
 # ucx-py version
 export UCX_PY_VERSION='0.24.*'
 
+export CMAKE_CUDA_COMPILER_LAUNCHER="sccache"
+export CMAKE_CXX_COMPILER_LAUNCHER="sccache"
+export CMAKE_C_COMPILER_LAUNCHER="sccache"
+
 ################################################################################
 # SETUP - Check environment
 ################################################################################
