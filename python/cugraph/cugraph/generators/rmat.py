@@ -18,6 +18,7 @@ from cugraph.generators import rmat_wrapper
 from cugraph.comms import comms as Comms
 import cugraph
 
+_graph_types = [None, cugraph.Graph]
 
 def _ensure_args_rmat(
     scale,
@@ -29,31 +30,35 @@ def _ensure_args_rmat(
     clip_and_flip,
     scramble_vertex_ids,
     create_using,
+    directed,
     mg
 ):
     """
     Ensures the args passed in are usable for the rmat() API, raises the
     appropriate exception if incorrect, else returns None.
     """
-    if mg and create_using not in [None, cugraph.DiGraph]:
-        raise TypeError("Only cugraph.DiGraph and None are supported types "
-                        "for `create_using` for multi-GPU R-MAT")
-    if create_using not in [None, cugraph.Graph, cugraph.DiGraph]:
-        raise TypeError("Only cugraph.Graph, cugraph.DiGraph, and None are "
-                        "supported types for 'create_using'")
+    if mg and (create_using is not None or create_using in [cugraph.Graph] and directed):
+        raise TypeError("Only directed cugraph.Graph and None are supported types "
+                        "for `create_using` and `directed` for multi-GPU R-MAT")
+    if create_using not in _graph_types:
+        raise TypeError("Graph must be one of the following types: "
+                            f"{_graph_types}, got: {type(create_using)}")
     if not isinstance(scale, int):
-        raise TypeError("'scale' must be an int")
+        raise TypeError("'scale' must be an int, got:" f"{type(scale)}")
     if not isinstance(num_edges, int):
-        raise TypeError("'num_edges' must be an int")
+        raise TypeError("'num_edges' must be an int, got:" f"{type(num_edges)}")
     if (a+b+c > 1):
         raise ValueError(
             "a + b + c should be non-negative and no larger than 1.0")
     if (clip_and_flip not in [True, False]):
-        raise ValueError("'clip_and_flip' must be a bool")
+        raise ValueError("'clip_and_flip' must be a bool, got:" f"{type(clip_and_flip)}")
     if (scramble_vertex_ids not in [True, False]):
-        raise ValueError("'clip_and_flip' must be a bool")
+        raise ValueError("'scramble_vertex_ids' must be a bool, got:" f"{type(scramble_vertex_ids)}")
+    if (directed not in [True, False]):
+        raise ValueError("'directed' must be a bool, got:" f"{type(directed)}")
     if not isinstance(seed, int):
-        raise TypeError("'seed' must be an int")
+        raise TypeError("'seed' must be an int, got:" f"{type(seed)}")
+
 
 
 def _ensure_args_multi_rmat(
@@ -73,23 +78,23 @@ def _ensure_args_multi_rmat(
 
     """
     if not isinstance(n_edgelists, int):
-        raise TypeError("'n_edgelists' must be an int")
+        raise TypeError("'n_edgelists' must be an int, got:" f"{type(n_edgelists)}")
     if not isinstance(min_scale, int):
-        raise TypeError("'min_scale' must be an int")
+        raise TypeError("'min_scale' must be an int, got:" f"{type(min_scale)}")
     if not isinstance(max_scale, int):
-        raise TypeError("'max_scale' must be an int")
+        raise TypeError("'max_scale' must be an int, got:" f"{type(max_scale)}")
     if not isinstance(edge_factor, int):
-        raise TypeError("'edge_factor' must be an int")
+        raise TypeError("'edge_factor' must be an int, got:" f"{type(edge_factor)}")
     if (size_distribution not in [0, 1]):
-        raise TypeError("'size_distribution' must be either 0 or 1")
+        raise TypeError("'size_distribution' must be either 0 or 1, got:" f"{size_distribution}")
     if (edge_distribution not in [0, 1]):
-        raise TypeError("'edge_distribution' must be either 0 or 1")
+        raise TypeError("'edge_distribution' must be either 0 or 1, got:" f"{edge_distribution}")
     if (clip_and_flip not in [True, False]):
-        raise ValueError("'clip_and_flip' must be a bool")
+        raise ValueError("'clip_and_flip' must be a bool, got:" f"{type(clip_and_flip)}")
     if (scramble_vertex_ids not in [True, False]):
-        raise ValueError("'clip_and_flip' must be a bool")
+        raise ValueError("'clip_and_flip' must be a bool, got:" f"{type(scramble_vertex_ids)}")
     if not isinstance(seed, int):
-        raise TypeError("'seed' must be an int")
+        raise TypeError("'seed' must be an int, got:" f"{type(seed)}")
 
 
 def _sg_rmat(
@@ -101,7 +106,8 @@ def _sg_rmat(
     seed,
     clip_and_flip,
     scramble_vertex_ids,
-    create_using=cugraph.DiGraph
+    create_using=cugraph.Graph,
+    directed=True
 ):
     """
     Calls RMAT on a single GPU and uses the resulting cuDF DataFrame
@@ -119,7 +125,7 @@ def _sg_rmat(
     if create_using is None:
         return df
 
-    G = create_using()
+    G = create_using(directed=directed)
     G.from_cudf_edgelist(df, source='src', destination='dst', renumber=False)
 
     return G
@@ -134,7 +140,8 @@ def _mg_rmat(
     seed,
     clip_and_flip,
     scramble_vertex_ids,
-    create_using=cugraph.DiGraph
+    create_using=cugraph.Graph,
+    directed=True
 ):
     """
     Calls RMAT on multiple GPUs and uses the resulting Dask cuDF DataFrame to
@@ -171,7 +178,7 @@ def _mg_rmat(
     if create_using is None:
         return ddf
 
-    G = create_using()
+    G = create_using(directed=directed)
     G.from_dask_cudf_edgelist(ddf, source="src", destination="dst")
 
     return G
@@ -234,7 +241,8 @@ def rmat(
     seed,
     clip_and_flip,
     scramble_vertex_ids,
-    create_using=cugraph.DiGraph,
+    create_using=cugraph.Graph,
+    directed=True,
     mg=False
 ):
     """
@@ -277,8 +285,12 @@ def rmat(
         edgelist cuDF DataFrame (or dask_cudf DataFrame for MG) is returned
         as-is. This is useful for benchmarking Graph construction steps that
         require raw data that includes potential self-loops, isolated vertices,
-        and duplicated edges.  Default is cugraph.DiGraph.
-        NOTE: only the cugraph.DiGraph type is supported for multi-GPU
+        and duplicated edges.  Default is cugraph.Graph.
+
+    directed : bool, optional (default=True)
+        If create_using is cugraph.Graph, determines whether the graph is directed
+        or undirected
+        NOTE: only the directed cugraph.Graph type is supported for multi-GPU
 
     mg : bool, optional (default=False)
         If True, R-MAT generation occurs across multiple GPUs. If False, only a
@@ -302,20 +314,21 @@ def rmat(
     ...    clip_and_flip=False,
     ...    scramble_vertex_ids=True,
     ...    create_using=None,  # return edgelist instead of Graph instance
+    ...    directed=False,
     ...    mg=False
     ... )
 
     """
 
     _ensure_args_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,
-                      scramble_vertex_ids, create_using, mg)
+                      scramble_vertex_ids, create_using, directed, mg)
 
     if mg:
         return _mg_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,
-                        scramble_vertex_ids, create_using)
+                        scramble_vertex_ids, create_using, directed)
     else:
         return _sg_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,
-                        scramble_vertex_ids, create_using)
+                        scramble_vertex_ids, create_using, directed)
 
 
 def multi_rmat(

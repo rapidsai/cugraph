@@ -106,23 +106,6 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
 
-def test_digraph_rejected():
-    gc.collect()
-
-    df = cudf.DataFrame()
-    df["src"] = cudf.Series(range(10))
-    df["dst"] = cudf.Series(range(10))
-    df["val"] = cudf.Series(range(10))
-
-    G = cugraph.DiGraph()
-    G.from_cudf_edgelist(
-        df, source="src", destination="dst", edge_attr="val", renumber=False
-    )
-
-    with pytest.raises(Exception):
-        cugraph_call(G, 2)
-
-
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):

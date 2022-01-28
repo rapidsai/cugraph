@@ -14,7 +14,7 @@
 import cudf
 
 from cugraph.traversal import bfs_wrapper
-from cugraph.structure.graph_classes import Graph, DiGraph
+from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import (ensure_cugraph_obj,
                                is_matrix_type,
                                is_cp_matrix_type,

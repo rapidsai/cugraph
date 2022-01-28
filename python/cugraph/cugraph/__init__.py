@@ -30,11 +30,8 @@ from cugraph.community import (
 
 from cugraph.structure import (
     Graph,
-    DiGraph,
     MultiGraph,
-    MultiDiGraph,
     BiPartiteGraph,
-    BiPartiteDiGraph,
     from_edgelist,
     from_cudf_edgelist,
     from_pandas_edgelist,

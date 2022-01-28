@@ -19,7 +19,7 @@ from cugraph.utilities import (df_score_to_dictionary,
                                is_nx_graph_type,
                                cupy_package as cp,
                                )
-from cugraph.structure import Graph, DiGraph
+from cugraph.structure import Graph
 from cugraph.components import connectivity_wrapper
 
 

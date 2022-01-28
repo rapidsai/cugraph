@@ -550,12 +550,12 @@ class Graph:
     def to_directed(self):
         """
         Return a directed representation of the graph.
-        This function sets the type of graph as DiGraph() and returns the
+        This function sets the directed attribute as True and returns the
         directed view.
 
         Returns
         -------
-        G : DiGraph
+        G : Graph
             A directed graph with the same nodes, and each edge (u,v,weights)
             replaced by two directed edges (u,v,weights) and (v,u,weights).
 
@@ -622,13 +622,13 @@ class Graph:
     # def properties():
 
 
-class DiGraph(Graph):
-    def __init__(self, m_graph=None):
-        warnings.warn(
-            "DiGraph is deprecated, use Graph(directed=True) instead",
-            DeprecationWarning
-        )
-        super(DiGraph, self).__init__(m_graph, directed=True)
+#class DiGraph(Graph):
+#    def __init__(self, m_graph=None):
+#        warnings.warn(
+#            "DiGraph is deprecated, use Graph(directed=True) instead",
+#            DeprecationWarning
+#        )
+#        super(DiGraph, self).__init__(m_graph, directed=True)
 
 
 class MultiGraph(Graph):
@@ -647,14 +647,14 @@ class MultiGraph(Graph):
         return True
 
 
-class MultiDiGraph(MultiGraph):
-    def __init__(self):
-        warnings.warn(
-            "MultiDiGraph is deprecated,\
-                use MultiGraph(directed=True) instead",
-            DeprecationWarning
-        )
-        super(MultiDiGraph, self).__init__(directed=True)
+#class MultiDiGraph(MultiGraph):
+#    def __init__(self):
+#        warnings.warn(
+#            "MultiDiGraph is deprecated,\
+#                use MultiGraph(directed=True) instead",
+#            DeprecationWarning
+#        )
+#        super(MultiDiGraph, self).__init__(directed=True)
 
 
 class Tree(Graph):
@@ -826,27 +826,27 @@ class BiPartiteGraph(NPartiteGraph):
         return True
 
 
-class BiPartiteDiGraph(BiPartiteGraph):
-    """
-    A Directed Bipartite Graph
-    """
-    def __init__(self):
-        warnings.warn(
-            "BiPartiteDiGraph is deprecated,\
- use BiPartiteGraph(directed=True) instead",
-            DeprecationWarning
-        )
-        super(BiPartiteDiGraph, self).__init__(directed=True)
+#class BiPartiteDiGraph(BiPartiteGraph):
+#    """
+#    A Directed Bipartite Graph
+#    """
+#    def __init__(self):
+#        warnings.warn(
+#            "BiPartiteDiGraph is deprecated,\
+# use BiPartiteGraph(directed=True) instead",
+#            DeprecationWarning
+#        )
+#        super(BiPartiteDiGraph, self).__init__(directed=True)
 
 
-class NPartiteDiGraph(NPartiteGraph):
-    def __init__(self):
-        warnings.warn(
-            "NPartiteDiGraph is deprecated,\
- use NPartiteGraph(directed=True) instead",
-            DeprecationWarning
-        )
-        super(NPartiteGraph, self).__init__(directed=True)
+#class NPartiteDiGraph(NPartiteGraph):
+#    def __init__(self):
+#        warnings.warn(
+#            "NPartiteDiGraph is deprecated,\
+# use NPartiteGraph(directed=True) instead",
+#            DeprecationWarning
+#        )
+#        super(NPartiteGraph, self).__init__(directed=True)
 
 
 def is_directed(G):

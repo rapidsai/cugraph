@@ -18,7 +18,7 @@
 import cudf
 import dask_cudf
 
-from cugraph.structure.graph_classes import DiGraph, Graph
+from cugraph.structure.graph_classes import Graph
 
 # optional dependencies used for handling different input types
 try:

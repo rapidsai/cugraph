@@ -58,7 +58,6 @@ DEPTH_LIMITS = [None, 1, 5, 18]
 # connected_components calls.
 cuGraph_input_output_map = {
     cugraph.Graph: cudf.DataFrame,
-    cugraph.DiGraph: cudf.DataFrame,
     nx.Graph: pd.DataFrame,
     nx.DiGraph: pd.DataFrame,
     cp_coo_matrix: tuple,
@@ -386,9 +385,7 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc,
     # independent of the directed parameter. Unfortunately this does not
     # change the "id" in the pytest output.
     if directed:
-        if cugraph_input_type is cugraph.Graph:
-            cugraph_input_type = cugraph.DiGraph
-        elif cugraph_input_type is nx.Graph:
+        if cugraph_input_type is nx.Graph:
             cugraph_input_type = nx.DiGraph
 
     G_or_matrix = utils.create_obj_from_csv(dataset, cugraph_input_type)

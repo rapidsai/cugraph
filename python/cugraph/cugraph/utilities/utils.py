@@ -262,7 +262,7 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
     cugraph Graph-type obj to create when converting from a matrix type.
     """
     # FIXME: importing here to avoid circular import
-    from cugraph.structure import Graph, DiGraph
+    from cugraph.structure import Graph
     from cugraph.utilities.nx_factory import convert_from_nx
 
     input_type = type(obj)
@@ -276,10 +276,10 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
          (input_type in __sp_matrix_types):
         if matrix_graph_type is None:
             matrix_graph_type = Graph
-        elif matrix_graph_type not in [Graph, DiGraph]:
+        elif matrix_graph_type not in [Graph]:
             raise TypeError(
                 f"matrix_graph_type must be either a cugraph "
-                f"Graph or DiGraph, got: {matrix_graph_type}"
+                f"Graph, got: {matrix_graph_type}"
             )
 
         if input_type in (
@@ -356,9 +356,9 @@ def is_nx_graph_type(g):
 
 def is_cugraph_graph_type(g):
     # FIXME: importing here to avoid circular import
-    from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
+    from cugraph.structure import Graph, MultiGraph
 
-    return g in [Graph, DiGraph, MultiGraph, MultiDiGraph]
+    return g in [Graph, MultiGraph]
 
 
 def renumber_vertex_pair(input_graph, vertex_pair):
