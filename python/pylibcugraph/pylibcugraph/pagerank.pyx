@@ -48,7 +48,7 @@ from pylibcugraph.resource_handle cimport (
     EXPERIMENTAL__ResourceHandle,
 )
 from pylibcugraph.graphs cimport (
-    EXPERIMENTAL__Graph,
+    _GPUGraph,
 )
 from pylibcugraph.utils cimport (
     assert_success,
@@ -58,7 +58,7 @@ from pylibcugraph.utils cimport (
 
 
 def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
-                           EXPERIMENTAL__Graph graph,
+                           _GPUGraph graph,
                            precomputed_vertex_out_weight_sums,
                            double alpha,
                            double epsilon,
