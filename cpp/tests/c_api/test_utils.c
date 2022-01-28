@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,7 @@ int nearlyEqual(float a, float b, float epsilon)
   // FIXME:  There is a better test than this,
   //   perhaps use the gtest comparison for consistency
   //   with C++ and wrap it in a C wrapper.
-  int x = (fabsf(a - b) < (fabsf(a) * epsilon));
-  return (fabsf(a - b) < (fabsf(a) * epsilon));
+  return (fabsf(a - b) <= (((fabsf(a) < fabsf(b)) ? fabs(b) : fabs(a)) * epsilon));
 }
 
 /*
@@ -53,36 +52,54 @@ int create_test_graph(const cugraph_resource_handle_t* p_handle,
   cugraph_type_erased_device_array_t* src;
   cugraph_type_erased_device_array_t* dst;
   cugraph_type_erased_device_array_t* wgt;
+  cugraph_type_erased_device_array_view_t* src_view;
+  cugraph_type_erased_device_array_view_t* dst_view;
+  cugraph_type_erased_device_array_view_t* wgt_view;
 
   ret_code =
-    cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges, &src, ret_error);
+    cugraph_type_erased_device_array_create(p_handle, num_edges, vertex_tid, &src, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(*ret_error));
 
   ret_code =
-    cugraph_type_erased_device_array_create(p_handle, vertex_tid, num_edges, &dst, ret_error);
+    cugraph_type_erased_device_array_create(p_handle, num_edges, vertex_tid, &dst, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
 
   ret_code =
-    cugraph_type_erased_device_array_create(p_handle, weight_tid, num_edges, &wgt, ret_error);
+    cugraph_type_erased_device_array_create(p_handle, num_edges, weight_tid, &wgt, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
 
+  src_view = cugraph_type_erased_device_array_view(src);
+  dst_view = cugraph_type_erased_device_array_view(dst);
+  wgt_view = cugraph_type_erased_device_array_view(wgt);
+
   ret_code =
-    cugraph_type_erased_device_array_copy_from_host(p_handle, src, (byte_t*)h_src, ret_error);
+    cugraph_type_erased_device_array_view_copy_from_host(p_handle, src_view, (byte_t*)h_src, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
 
   ret_code =
-    cugraph_type_erased_device_array_copy_from_host(p_handle, dst, (byte_t*)h_dst, ret_error);
+    cugraph_type_erased_device_array_view_copy_from_host(p_handle, dst_view, (byte_t*)h_dst, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_from_host failed.");
 
   ret_code =
-    cugraph_type_erased_device_array_copy_from_host(p_handle, wgt, (byte_t*)h_wgt, ret_error);
+    cugraph_type_erased_device_array_view_copy_from_host(p_handle, wgt_view, (byte_t*)h_wgt, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_sg_graph_create(
-    p_handle, &properties, src, dst, wgt, store_transposed, FALSE, FALSE, p_graph, ret_error);
+  ret_code = cugraph_sg_graph_create(p_handle,
+                                     &properties,
+                                     src_view,
+                                     dst_view,
+                                     wgt_view,
+                                     store_transposed,
+                                     FALSE,
+                                     FALSE,
+                                     p_graph,
+                                     ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
+  cugraph_type_erased_device_array_view_free(wgt_view);
+  cugraph_type_erased_device_array_view_free(dst_view);
+  cugraph_type_erased_device_array_view_free(src_view);
   cugraph_type_erased_device_array_free(wgt);
   cugraph_type_erased_device_array_free(dst);
   cugraph_type_erased_device_array_free(src);

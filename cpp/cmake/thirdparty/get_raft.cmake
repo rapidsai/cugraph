@@ -27,10 +27,16 @@ function(find_and_configure_raft)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
             GIT_TAG        imp-2202-hide_comms_impl
             SOURCE_SUBDIR  cpp
-            OPTIONS "BUILD_TESTS OFF"
+            OPTIONS
+                "BUILD_TESTS OFF"
+                "RAFT_COMPILE_LIBRARIES OFF"
     )
 
-    message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_SOURCE_DIR}")
+    if(raft_ADDED)
+        message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_SOURCE_DIR}")
+    else()
+        message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_DIR}")
+    endif()
 
 endfunction()
 
