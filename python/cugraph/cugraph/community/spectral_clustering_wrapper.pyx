@@ -39,9 +39,6 @@ def spectralBalancedCutClustering(input_graph,
     """
     Call balancedCutClustering_nvgraph
     """
-    if isinstance(input_graph, cugraph.DiGraph):
-        raise TypeError("DiGraph objects are not supported")
-
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
@@ -110,9 +107,6 @@ def spectralModularityMaximizationClustering(input_graph,
     """
     Call spectralModularityMaximization_nvgraph
     """
-    if isinstance(input_graph, cugraph.DiGraph):
-        raise TypeError("DiGraph objects are not supported")
-
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
@@ -172,9 +166,6 @@ def analyzeClustering_modularity(input_graph, n_clusters, clustering):
     """
     Call analyzeClustering_modularity_nvgraph
     """
-    if isinstance(input_graph, cugraph.DiGraph):
-        raise TypeError("DiGraph objects are not supported")
-
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
@@ -228,9 +219,6 @@ def analyzeClustering_edge_cut(input_graph, n_clusters, clustering):
     """
     Call analyzeClustering_edge_cut_nvgraph
     """
-    if isinstance(input_graph, cugraph.DiGraph):
-        raise TypeError("DiGraph objects are not supported")
-
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
@@ -281,9 +269,6 @@ def analyzeClustering_ratio_cut(input_graph, n_clusters, clustering):
     """
     Call analyzeClustering_ratio_cut_nvgraph
     """
-    if isinstance(input_graph, cugraph.DiGraph):
-        raise TypeError("DiGraph objects are not supported")
-
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 

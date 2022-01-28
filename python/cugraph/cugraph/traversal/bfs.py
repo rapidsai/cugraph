@@ -37,7 +37,7 @@ def _ensure_args(G, start, i_start, directed):
 
     G_type = type(G)
     # Check for Graph-type inputs
-    if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
+    if (G_type in [Graph]) or is_nx_graph_type(G_type):
         if directed is not None:
             raise TypeError("'directed' cannot be specified for a "
                             "Graph-type input")
@@ -54,7 +54,7 @@ def _convert_df_to_output_type(df, input_type):
     Given a cudf.DataFrame df, convert it to a new type appropriate for the
     graph algos in this module, based on input_type.
     """
-    if input_type in [Graph, DiGraph]:
+    if input_type in [Graph]:
         return df
 
     elif is_nx_graph_type(input_type):
@@ -109,8 +109,8 @@ def bfs(G,
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True, then convert the input matrix to a cugraph.DiGraph,
-        otherwise a cugraph.Graph object will be used.
+        If True, then convert the input matrix to a directed cugraph.Graph,
+        otherwise an undirected cugraph.Graph object will be used.
 
     return_predecessors :
 
@@ -165,7 +165,7 @@ def bfs(G,
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight",
-        matrix_graph_type=DiGraph if directed else Graph)
+        matrix_graph_type=Graph)
 
     # The BFS C++ extension assumes the start vertex is a cudf.Series object,
     # and operates on internal vertex IDs if renumbered.
