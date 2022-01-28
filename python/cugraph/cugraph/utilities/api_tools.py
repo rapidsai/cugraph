@@ -18,6 +18,7 @@ import types
 
 experimental_prefix = "EXPERIMENTAL"
 
+
 # FIXME: this utility is copied from pylibcugraph. Remove this copy and have
 # cugraph code call the version in pylibcugraph.
 
@@ -56,17 +57,19 @@ def experimental_warning_wrapper(obj):
 
     # If obj is a class, create a wrapper class which 1) inherits from the
     # incoming class, and 2) has a ctor that simply prints the warning and
-    # assigns self to an instance of the incoming class. Ideally a wrapper
-    # around __init__ would be created and assigned to the class as the new
-    # __init__, but #2 is necessary since assigning attributes cannot be done to
-    # a builtin type (such as what a class defined in cython produces).
+    # calls the base class ctor. A wrapper class is needed so the new type
+    # matches the incoming type.
+    # Ideally a wrapper function would be created and assigned to the class as
+    # the new __init__, but #2 is necessary since assigning attributes cannot
+    # be done to a builtin type (such as a class defined in cython).
     if obj_type is type:
         class WarningWrapperClass(obj):
             def __init__(self, *args, **kwargs):
                 warnings.warn(warning_msg, PendingDeprecationWarning)
-                # cython classes do not have a standard __init__, but assigning
-                # to self works instead.
-                if type(obj.__init__) is types.FunctionType:
+                # call base class __init__ for python, but cython classes do
+                # not have a standard callable __init__ and assigning to self
+                # works instead.
+                if isinstance(obj.__init__, types.FunctionType):
                     super(WarningWrapperClass, self).__init__(*args, **kwargs)
                 else:
                     self = obj(*args, **kwargs)
@@ -76,8 +79,9 @@ def experimental_warning_wrapper(obj):
 
         return WarningWrapperClass
 
-    # If this point is reached, the incoming obj is a function so wrap it and
-    # return the wrapper (which is also a function type).
+    # If this point is reached, the incoming obj is a function so simply wrap
+    # it and return the wrapper. Since the wrapper is a function type, it will
+    # match the incoming obj type.
     @functools.wraps(obj)
     def warning_wrapper_function(*args, **kwargs):
         warnings.warn(warning_msg, PendingDeprecationWarning)

@@ -50,4 +50,4 @@ def test_experimental_warning_wrapper_for_unsupported_type():
     # A module type should not be allowed to be wrapped
     mod = types.ModuleType("modname")
     with pytest.raises(TypeError):
-        exp_mod = experimental_warning_wrapper(mod)
+        experimental_warning_wrapper(mod)
