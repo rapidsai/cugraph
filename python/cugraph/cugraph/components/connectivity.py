@@ -123,11 +123,11 @@ def weakly_connected_components(G,
             For non-Graph-type (eg. sparse matrix) values of G only.
             Raises TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to directed cugraph.Graph
-        and only move from point i to point j along paths csgraph[i, j]. If
-        False, then find the shortest path on an undirected graph: the
-        algorithm can progress from point i to j along csgraph[i, j] or
-        csgraph[j, i].
+        If True (default), then convert the input matrix to directed
+        cugraph.Graph and only move from point i to point j along paths
+        csgraph[i, j]. If False, then find the shortest path on an undirected
+        graph: the algorithm can progress from point i to j along csgraph[i, j]
+        or csgraph[j, i].
 
     connection : str, optional (default=None)
 
@@ -221,11 +221,11 @@ def strongly_connected_components(G,
             For non-Graph-type (eg. sparse matrix) values of G only.
             Raises TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to directed cugraph.Graph
-        and only move from point i to point j along paths csgraph[i, j]. If
-        False, then find the shortest path on an undirected graph: the
-        algorithm can progress from point i to j along csgraph[i, j] or
-        csgraph[j, i].
+        If True (default), then convert the input matrix to directed
+        cugraph.Graph and only move from point i to point j along paths
+        csgraph[i, j]. If False, then find the shortest path on an undirected
+        graph: the algorithm can progress from point i to j along csgraph[i, j]
+        or csgraph[j, i].
 
     connection : str, optional (default=None)
 
@@ -320,11 +320,11 @@ def connected_components(G,
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to directed cugraph.Graph
-        and only move from point i to point j along paths csgraph[i, j]. If
-        False, then find the shortest path on an undirected graph: the
-        algorithm can progress from point i to j along csgraph[i, j] or
-        csgraph[j, i].
+        If True (default), then convert the input matrix to directed
+        cugraph.Graph and only move from point i to point j along paths
+        csgraph[i, j]. If False, then find the shortest path on an undirected
+        graph: the algorithm can progress from point i to j along csgraph[i, j]
+        or csgraph[j, i].
 
     connection : str, optional (default='weak')
 

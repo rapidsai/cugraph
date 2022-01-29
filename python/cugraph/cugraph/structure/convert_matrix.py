@@ -52,7 +52,8 @@ def from_edgelist(df, source='source', destination='destination',
 
     create_using: cugraph.Graph (instance or class), optional (default=Graph)
         Graph object to use. Currently supports only cugraph.Graph. Can pass in
-        an instance to create a Graph instance with specified 'directed' attribute.
+        an instance to create a Graph instance with specified 'directed'
+        attribute.
 
     renumber : bool, optional (default=True)
         If source and destination indices are not in range 0 to V where V
@@ -79,11 +80,11 @@ def from_edgelist(df, source='source', destination='destination',
 
     elif df_type is dask_cudf.core.DataFrame:
         if create_using is None:
-            G = cugraph.Graph()
-        elif isinstance(create_using, cugraph.Graph):
+            G = Graph()
+        elif isinstance(create_using, Graph):
             attrs = {"directed": create_using.is_directed()}
             G = type(create_using)(**attrs)
-        elif type(create_using) is type(cugraph.Graph):
+        elif type(create_using) is type(Graph):
             G = create_using()
         else:
             raise TypeError("create_using must be a cugraph.Graph "
@@ -113,9 +114,10 @@ def from_adjlist(offsets, indices, values=None, create_using=Graph):
         The values in a CSR adjacency matrix, which represent edge weights in a
         graph. If not provided, the resulting graph is considered unweighted.
 
-    create_using: cugraph.Graph (instance or class), optional (default=Graph)   
+    create_using: cugraph.Graph (instance or class), optional (default=Graph)
         Graph object to use. Currently supports only cugraph.Graph. Can pass in
-        an instance to create a Graph instance with specified 'directed' attribute.
+        an instance to create a Graph instance with specified 'directed'
+        attribute.
 
     Examples
     --------
@@ -141,11 +143,11 @@ def from_adjlist(offsets, indices, values=None, create_using=Graph):
                             f"type {offsets_type}")
 
     if create_using is None:
-        G = cugraph.Graph()
-    elif isinstance(create_using, cugraph.Graph):
+        G = Graph()
+    elif isinstance(create_using, Graph):
         attrs = {"directed": create_using.is_directed()}
         G = type(create_using)(**attrs)
-    elif type(create_using) is type(cugraph.Graph):
+    elif type(create_using) is type(Graph):
         G = create_using()
     else:
         raise TypeError("create_using must be a cugraph.Graph "
@@ -193,7 +195,8 @@ def from_cudf_edgelist(df, source='source', destination='destination',
 
     create_using: cugraph.Graph (instance or class), optional (default=Graph)
         Graph object to use. Currently supports only cugraph.Graph. Can pass in
-        an instance to create a Graph instance with specified 'directed' attribute.
+        an instance to create a Graph instance with specified 'directed'
+        attribute.
 
     renumber : bool, optional (default=True)
         If source and destination indices are not in range 0 to V where V
@@ -209,11 +212,11 @@ def from_cudf_edgelist(df, source='source', destination='destination',
 
     """
     if create_using is None:
-        G = cugraph.Graph()
-    elif isinstance(create_using, cugraph.Graph):
+        G = Graph()
+    elif isinstance(create_using, Graph):
         attrs = {"directed": create_using.is_directed()}
         G = type(create_using)(**attrs)
-    elif type(create_using) is type(cugraph.Graph):
+    elif type(create_using) is type(Graph):
         G = create_using()
     else:
         raise TypeError("create_using must be a cugraph.Graph "
@@ -265,7 +268,8 @@ def from_pandas_edgelist(df,
 
     create_using: cugraph.Graph (instance or class), optional (default=Graph)
         Graph object to use. Currently supports only cugraph.Graph. Can pass in
-        an instance to create a Graph instance with specified 'directed' attribute.
+        an instance to create a Graph instance with specified 'directed'
+        attribute.
 
     Returns
     -------
@@ -285,11 +289,11 @@ def from_pandas_edgelist(df,
 
     """
     if create_using is None:
-        G = cugraph.Graph()
-    elif isinstance(create_using, cugraph.Graph):
+        G = Graph()
+    elif isinstance(create_using, Graph):
         attrs = {"directed": create_using.is_directed()}
         G = type(create_using)(**attrs)
-    elif type(create_using) is type(cugraph.Graph):
+    elif type(create_using) is type(Graph):
         G = create_using()
     else:
         raise TypeError("create_using must be a cugraph.Graph "
@@ -337,14 +341,15 @@ def from_pandas_adjacency(df, create_using=Graph):
 
     create_using: cugraph.Graph (instance or class), optional (default=Graph)
         Graph object to use. Currently supports only cugraph.Graph. Can pass in
-        an instance to create a Graph instance with specified 'directed' attribute.
+        an instance to create a Graph instance with specified 'directed'
+        attribute.
     """
     if create_using is None:
-        G = cugraph.Graph()
-    elif isinstance(create_using, cugraph.Graph):
+        G = Graph()
+    elif isinstance(create_using, Graph):
         attrs = {"directed": create_using.is_directed()}
         G = type(create_using)(**attrs)
-    elif type(create_using) is type(cugraph.Graph):
+    elif type(create_using) is type(Graph):
         G = create_using()
     else:
         raise TypeError("create_using must be a cugraph.Graph "
@@ -380,14 +385,15 @@ def from_numpy_array(A, create_using=Graph):
 
     create_using: cugraph.Graph (instance or class), optional (default=Graph)
         Graph object to use. Currently supports only cugraph.Graph. Can pass in
-        an instance to create a Graph instance with specified 'directed' attribute.
+        an instance to create a Graph instance with specified 'directed'
+        attribute.
     """
     if create_using is None:
-        G = cugraph.Graph()
-    elif isinstance(create_using, cugraph.Graph):
+        G = Graph()
+    elif isinstance(create_using, Graph):
         attrs = {"directed": create_using.is_directed()}
         G = type(create_using)(**attrs)
-    elif type(create_using) is type(cugraph.Graph):
+    elif type(create_using) is type(Graph):
         G = create_using()
     else:
         raise TypeError("create_using must be a cugraph.Graph "
@@ -422,20 +428,21 @@ def from_numpy_matrix(A, create_using=Graph):
 
     create_using: cugraph.Graph (instance or class), optional (default=Graph)
         Graph object to use. Currently supports only cugraph.Graph. Can pass in
-        an instance to create a Graph instance with specified 'directed' attribute.
+        an instance to create a Graph instance with specified 'directed'
+        attribute.
     """
     if create_using is None:
-        G = cugraph.Graph()
-    elif isinstance(create_using, cugraph.Graph):
+        G = Graph()
+    elif isinstance(create_using, Graph):
         attrs = {"directed": create_using.is_directed()}
         G = type(create_using)(**attrs)
-    elif type(create_using) is type(cugraph.Graph):
+    elif type(create_using) is type(Graph):
         G = create_using()
     else:
         raise TypeError("create_using must be a cugraph.Graph "
                         "(or subclass) type or instance, got: "
                         f"{type(create_using)}")
-    
+
     G.from_numpy_matrix(A)
     return G
 
