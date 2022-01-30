@@ -295,6 +295,7 @@ class NumberMap:
         self.renumbered_src_col_name = "renumbered_src"
         self.renumbered_dst_col_name = "renumbered_dst"
 
+    @staticmethod
     def compute_vals_types(df, column_names):
         """
         Helper function to compute internal column names and types
@@ -315,6 +316,7 @@ class NumberMap:
             counter += 1
         return name
 
+    @staticmethod
     def compute_vals(column_names):
         """
         Helper function to compute internal column names based on external
@@ -483,6 +485,7 @@ class NumberMap:
 
         return output_df
 
+    @staticmethod
     def renumber_and_segment(
         df, src_col_names, dst_col_names, preserve_order=False,
         store_transposed=False
@@ -501,8 +504,8 @@ class NumberMap:
             dst_col_names = [dst_col_names]
 
         # Assign the new src and dst column names to be used in the renumbered
-        # dataframe to return (self.renumbered_src_col_name and
-        # self.renumbered_dst_col_name)
+        # dataframe to return (renumbered_src_col_name and
+        # renumbered_dst_col_name)
         renumber_map.set_renumbered_col_names(
             src_col_names, dst_col_names, df.columns)
 
@@ -635,6 +638,7 @@ class NumberMap:
             renumber_map.implementation.numbered = True
             return renumbered_df, renumber_map, segment_offsets
 
+    @staticmethod
     def renumber(df, src_col_names, dst_col_names, preserve_order=False,
                  store_transposed=False):
         return NumberMap.renumber_and_segment(
