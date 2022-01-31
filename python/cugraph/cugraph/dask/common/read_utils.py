@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,9 +26,11 @@ def get_chunksize(input_path):
 
     Examples
     --------
-    >>> import dask_cugraph.pagerank as dcg
-    >>> chunksize = dcg.get_chunksize(edge_list.csv)
+    >>> import cugraph.dask as dcg
+    >>> # chunksize = dcg.get_chunksize(edge_list.csv)
+
     """
+    # FIXME: Uncomment out the above example
 
     import os
     from glob import glob

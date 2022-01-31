@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,23 +13,30 @@
 # limitations under the License.
 #
 
+from collections.abc import Iterable
+
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_distributed_data
-from cugraph.structure import renumber_wrapper as c_renumber
-import cugraph.comms.comms as Comms
 import dask_cudf
 import numpy as np
 import cudf
 
+from cugraph.dask.common.input_utils import get_distributed_data
+from cugraph.structure import renumber_wrapper as c_renumber
+import cugraph.comms.comms as Comms
+
 
 def call_renumber(sID,
                   data,
+                  renumbered_src_col_name,
+                  renumbered_dst_col_name,
                   num_edges,
                   is_mnmg,
                   store_transposed):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
     return c_renumber.renumber(data[0],
+                               renumbered_src_col_name,
+                               renumbered_dst_col_name,
                                num_edges,
                                wid,
                                handle,
@@ -282,7 +289,13 @@ class NumberMap:
     def __init__(self, id_type=np.int32):
         self.implementation = None
         self.id_type = id_type
+        # The default src/dst column names in the resulting renumbered
+        # dataframe. These may be updated by the renumbering methods if the
+        # input dataframe uses the default names.
+        self.renumbered_src_col_name = "renumbered_src"
+        self.renumbered_dst_col_name = "renumbered_dst"
 
+    @staticmethod
     def compute_vals_types(df, column_names):
         """
         Helper function to compute internal column names and types
@@ -291,16 +304,19 @@ class NumberMap:
             str(i): df[column_names[i]].dtype for i in range(len(column_names))
         }
 
-    def generate_unused_column_name(column_names):
+    @staticmethod
+    def generate_unused_column_name(column_names, start_with_name="col"):
         """
         Helper function to generate an unused column name
         """
-        name = 'x'
+        name = start_with_name
+        counter = 2
         while name in column_names:
-            name = name + "x"
-
+            name = f"{start_with_name}{counter}"
+            counter += 1
         return name
 
+    @staticmethod
     def compute_vals(column_names):
         """
         Helper function to compute internal column names based on external
@@ -417,6 +433,7 @@ class NumberMap:
         """
         Given a collection of internal vertex ids, return a DataFrame of
         the external vertex ids
+
         Parameters
         ----------
         df: cudf.DataFrame, cudf.Series, dask_cudf.DataFrame, dask_cudf.Series
@@ -468,6 +485,7 @@ class NumberMap:
 
         return output_df
 
+    @staticmethod
     def renumber_and_segment(
         df, src_col_names, dst_col_names, preserve_order=False,
         store_transposed=False
@@ -485,6 +503,12 @@ class NumberMap:
             src_col_names = [src_col_names]
             dst_col_names = [dst_col_names]
 
+        # Assign the new src and dst column names to be used in the renumbered
+        # dataframe to return (renumbered_src_col_name and
+        # renumbered_dst_col_name)
+        renumber_map.set_renumbered_col_names(
+            src_col_names, dst_col_names, df.columns)
+
         id_type = df[src_col_names[0]].dtype
         if isinstance(df, cudf.DataFrame):
             renumber_map.implementation = NumberMap.SingleGPU(
@@ -497,7 +521,7 @@ class NumberMap:
                 store_transposed
             )
         else:
-            raise Exception("df must be cudf.DataFrame or dask_cudf.DataFrame")
+            raise TypeError("df must be cudf.DataFrame or dask_cudf.DataFrame")
 
         if renumber_type == 'legacy':
             indirection_map = renumber_map.implementation.\
@@ -505,17 +529,20 @@ class NumberMap:
                                               src_col_names,
                                               dst_col_names)
             df = renumber_map.add_internal_vertex_id(
-                df, "src", src_col_names, drop=True,
-                preserve_order=preserve_order
+                df, renumber_map.renumbered_src_col_name, src_col_names,
+                drop=True, preserve_order=preserve_order
             )
             df = renumber_map.add_internal_vertex_id(
-                df, "dst", dst_col_names, drop=True,
-                preserve_order=preserve_order
+                df, renumber_map.renumbered_dst_col_name, dst_col_names,
+                drop=True, preserve_order=preserve_order
             )
         else:
-            df = df.rename(columns={src_col_names[0]: "src",
-                                    dst_col_names[0]: "dst"})
-
+            df = df.rename(
+                columns={src_col_names[0]:
+                         renumber_map.renumbered_src_col_name,
+                         dst_col_names[0]:
+                         renumber_map.renumbered_dst_col_name}
+            )
         num_edges = len(df)
 
         if isinstance(df, dask_cudf.DataFrame):
@@ -529,6 +556,8 @@ class NumberMap:
             result = [(client.submit(call_renumber,
                                      Comms.get_session_id(),
                                      wf[1],
+                                     renumber_map.renumbered_src_col_name,
+                                     renumber_map.renumbered_dst_col_name,
                                      num_edges,
                                      is_mnmg,
                                      store_transposed,
@@ -543,10 +572,12 @@ class NumberMap:
                 return data[1]
 
             def get_renumbered_df(id_type, data):
-                # FIXME: This assume the column names are always 'src'
-                # and 'dst' which is the case now
-                data[2]['src'] = data[2]['src'].astype(id_type)
-                data[2]['dst'] = data[2]['dst'].astype(id_type)
+                data[2][renumber_map.renumbered_src_col_name] = \
+                    data[2][renumber_map.renumbered_src_col_name]\
+                    .astype(id_type)
+                data[2][renumber_map.renumbered_dst_col_name] = \
+                    data[2][renumber_map.renumbered_dst_col_name]\
+                    .astype(id_type)
                 return data[2]
 
             renumbering_map = dask_cudf.from_delayed(
@@ -587,6 +618,8 @@ class NumberMap:
         else:
             renumbering_map, segment_offsets, renumbered_df = \
                 c_renumber.renumber(df,
+                                    renumber_map.renumbered_src_col_name,
+                                    renumber_map.renumbered_dst_col_name,
                                     num_edges,
                                     0,
                                     Comms.get_default_handle(),
@@ -605,6 +638,7 @@ class NumberMap:
             renumber_map.implementation.numbered = True
             return renumbered_df, renumber_map, segment_offsets
 
+    @staticmethod
     def renumber(df, src_col_names, dst_col_names, preserve_order=False,
                  store_transposed=False):
         return NumberMap.renumber_and_segment(
@@ -627,37 +661,43 @@ class NumberMap:
         df: cudf.DataFrame or dask_cudf.DataFrame
             A DataFrame containing internal vertex identifiers that will be
             converted into external vertex identifiers.
+
         column_name: string
             Name of the column containing the internal vertex id.
-        preserve_order: (optional) bool
+
+        preserve_order: bool, optional (default=False)
             If True, preserve the ourder of the rows in the output
             DataFrame to match the input DataFrame
-        get_column_names: (optional) bool
+
+        get_column_names: bool, optional (default=False)
             If True, the unrenumbered column names are returned.
+
         Returns
         ---------
         df : cudf.DataFrame or dask_cudf.DataFrame
             The original DataFrame columns exist unmodified.  The external
             vertex identifiers are added to the DataFrame, the internal
             vertex identifier column is removed from the dataframe.
+
         column_names: string or list of strings
             If get_column_names is True, the unrenumbered column names are
             returned.
+
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>>
-        >>> df, number_map = NumberMap.renumber(df, '0', '1')
-        >>>
+        >>> from cugraph.structure import number_map
+        >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                    dtype=['int32', 'int32', 'float32'],
+        ...                    header=None)
+        >>> df, number_map = number_map.NumberMap.renumber(df, '0', '1')
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(df, 'src', 'dst')
-        >>>
+        >>> G.from_cudf_edgelist(df,
+        ...                      number_map.renumbered_src_col_name,
+        ...                      number_map.renumbered_dst_col_name)
         >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500,
-        >>>                       tol = 1.0e-05)
-        >>>
+        ...                       tol = 1.0e-05)
         >>> pr = number_map.unrenumber(pr, 'vertex')
-        >>>
+
         """
         if len(self.implementation.col_names) == 1:
             # Output will be renamed to match input
@@ -694,3 +734,34 @@ class NumberMap:
 
     def vertex_column_size(self):
         return len(self.implementation.col_names)
+
+    def set_renumbered_col_names(self,
+                                 src_col_names_to_replace,
+                                 dst_col_names_to_replace,
+                                 all_col_names):
+        """
+        Sets self.renumbered_src_col_name and self.renumbered_dst_col_name to
+        values that can be used to replace src_col_names_to_replace and
+        dst_col_names_to_replace to values that will not collide with any other
+        column names in all_col_names.
+
+        The new unique column names are generated using the existing
+        self.renumbered_src_col_name and self.renumbered_dst_col_name as
+        starting points.
+        """
+        assert isinstance(src_col_names_to_replace, Iterable)
+        assert isinstance(dst_col_names_to_replace, Iterable)
+        assert isinstance(all_col_names, Iterable)
+        # No need to consider the col_names_to_replace when picking new unique
+        # names, since those names will be replaced anyway, and replacing a
+        # name with the same value is allowed.
+        reserved_col_names = set(all_col_names) - \
+            set(src_col_names_to_replace + dst_col_names_to_replace)
+        self.renumbered_src_col_name = \
+            self.generate_unused_column_name(
+                reserved_col_names,
+                start_with_name=self.renumbered_src_col_name)
+        self.renumbered_dst_col_name = \
+            self.generate_unused_column_name(
+                reserved_col_names,
+                start_with_name=self.renumbered_dst_col_name)

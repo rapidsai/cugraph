@@ -15,7 +15,7 @@
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
-file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.02/RAPIDS.cmake
+file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.04/RAPIDS.cmake
     ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 
@@ -27,7 +27,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 22.02.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 22.04.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -55,7 +55,11 @@ endforeach()
 # arch > 86
 list(POP_BACK usable_arch_values latest_arch)
 list(TRANSFORM usable_arch_values APPEND "-real")
-list(APPEND usable_arch_values ${latest_arch})
+if (usable_arch_values)
+    list(APPEND usable_arch_values ${latest_arch})
+else()
+    list(APPEND usable_arch_values ${latest_arch}-real)
+endif()
 
 set(CMAKE_CUDA_ARCHITECTURES ${usable_arch_values})
 
@@ -73,8 +77,6 @@ rapids_cmake_build_type(Release)
 # - User Options  --------------------------------------------------------------
 
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
-set(BLAS_LIBRARIES "" CACHE STRING "Location of BLAS library for FAISS build.")
-option(BUILD_STATIC_FAISS "Build the FAISS library for nearest neighbors search on GPU" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 
@@ -122,30 +124,30 @@ if(OpenMP_FOUND)
     list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=${OpenMP_CXX_FLAGS})
 endif()
 
-
-################################################################################
-# - find blas ------------------------------------------------------------------
-
-if(NOT DEFINED BLAS_LIBRARIES)
-  find_package( BLAS REQUIRED )
-else()
-  message(STATUS "Manually setting BLAS to ${BLAS_LIBRARIES}")
-endif()
-
-################################################################################
-# - find CPM based dependencies  -----------------------------------------------
+###################################################################################################
+# - find CPM based dependencies  ------------------------------------------------------------------
 
 rapids_cpm_init()
 
-include(cmake/thirdparty/get_thrust.cmake)
-include(cmake/thirdparty/get_faiss.cmake)
-include(cmake/thirdparty/get_nccl.cmake)
-include(cmake/thirdparty/get_rmm.cmake)
-
+###
+# Linking to the `raft::raft` target implicitly links cugraph targets to the
+# following public header-only  raft dependencies:
+# * RMM
+# * Thrust
+# * libcu++
+# * GTest/GMock
+# * cuCollections
+#
+# The CMakeLists.txt for each of these projects are properly configured
+# to generate a build and install export-set, so reimplementing finding or
+# fetching those targets in cuGraph is redundant (at best), and potentially
+# error-prone if something about those targets change and our implementation
+# lags behind.
+###
 include(cmake/thirdparty/get_raft.cmake)
 include(cmake/thirdparty/get_libcugraphops.cmake)
 
-include(cmake/thirdparty/get_cuco.cmake)
+include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
 
 if(BUILD_TESTS)
@@ -274,7 +276,6 @@ target_include_directories(cugraph
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty"
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
-        "${NCCL_INCLUDE_DIRS}"
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         "$<INSTALL_INTERFACE:include>"
@@ -284,17 +285,9 @@ target_include_directories(cugraph
 # - link libraries -------------------------------------------------------------
 target_link_libraries(cugraph
     PUBLIC
-        rmm::rmm
-        cugraph::Thrust
         raft::raft
     PRIVATE
-        cuco::cuco
-        CUDA::cublas
-        CUDA::curand
-        CUDA::cusolver
-        CUDA::cusparse
         cugraph::cuHornet
-        FAISS::FAISS
         NCCL::NCCL
 )
 
@@ -360,6 +353,7 @@ add_library(cugraph_c SHARED
         src/c_api/graph_mg.cpp
         src/c_api/pagerank.cpp
         src/c_api/bfs.cpp
+        src/c_api/sssp.cpp
         src/c_api/extract_paths.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
@@ -393,7 +387,6 @@ target_include_directories(cugraph_c
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c
         PUBLIC
-                FAISS::FAISS
                 CUDA::cublas
                 CUDA::curand
                 CUDA::cusolver
@@ -446,17 +439,11 @@ cuGraph library is a collection of GPU accelerated graph algorithms that process
 
 ]=])
 
-set(code_string
-[=[
-thrust_create_target(cugraph::Thrust FROM_OPTIONS)
-]=])
-
- rapids_export(INSTALL cugraph
+rapids_export(INSTALL cugraph
     EXPORT_SET cugraph-exports
     GLOBAL_TARGETS cugraph cugraph_c
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
-    FINAL_CODE_BLOCK code_string
     )
 
 ################################################################################
@@ -466,7 +453,6 @@ rapids_export(BUILD cugraph
     GLOBAL_TARGETS cugraph cugraph_c
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
-    FINAL_CODE_BLOCK code_string
     )
 
 ################################################################################
