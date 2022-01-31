@@ -21,6 +21,8 @@ import dask_cudf
 
 def call_wcc(sID,
              data,
+             src_col_name,
+             dst_col_name,
              num_verts,
              num_edges,
              vertex_partition_offsets,
@@ -31,6 +33,8 @@ def call_wcc(sID,
     segment_offsets = \
         aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
     return mg_connectivity.mg_wcc(data[0],
+                                  src_col_name,
+                                  dst_col_name,
                                   num_verts,
                                   num_edges,
                                   vertex_partition_offsets,
@@ -62,9 +66,14 @@ def weakly_connected_components(input_graph):
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
+    src_col_name = input_graph.renumber_map.renumbered_src_col_name
+    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+
     result = [client.submit(call_wcc,
                             Comms.get_session_id(),
                             wf[1],
+                            src_col_name,
+                            dst_col_name,
                             num_verts,
                             num_edges,
                             vertex_partition_offsets,

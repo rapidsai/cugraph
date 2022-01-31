@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 
 def mg_sssp(input_df,
+            src_col_name,
+            dst_col_name,
             num_global_verts,
             num_global_edges,
             vertex_partition_offsets,
@@ -37,8 +39,8 @@ def mg_sssp(input_df,
     handle_ = <c_sssp.handle_t*>handle_size_t
 
     # Local COO information
-    src = input_df['src']
-    dst = input_df['dst']
+    src = input_df[src_col_name]
+    dst = input_df[dst_col_name]
     vertex_t = src.dtype
     if num_global_edges > (2**31 - 1):
         edge_t = np.dtype("int64")
@@ -98,7 +100,7 @@ def mg_sssp(input_df,
                              num_global_verts, num_global_edges,
                              is_weighted,
                              False,
-                             False, True) 
+                             False, True)
 
     # Generate the cudf.DataFrame result
     df = cudf.DataFrame()

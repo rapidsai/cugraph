@@ -101,8 +101,7 @@ class simpleGraphImpl:
             set(s_col).issubset(set(input_df.columns))
             and set(d_col).issubset(set(input_df.columns))
         ):
-            # FIXME: Raise concrete Exceptions
-            raise Exception(
+            raise ValueError(
                 "source column names and/or destination column "
                 "names not found in input. Recheck the source and "
                 "destination parameters"
@@ -114,20 +113,20 @@ class simpleGraphImpl:
         # Consolidation
         if isinstance(input_df, cudf.DataFrame):
             if len(input_df[source]) > 2147483100:
-                raise Exception(
+                raise ValueError(
                     "cudf dataFrame edge list is too big "
                     "to fit in a single GPU"
                 )
             elist = input_df
         elif isinstance(input_df, dask_cudf.DataFrame):
             if len(input_df[source]) > 2147483100:
-                raise Exception(
+                raise ValueError(
                     "dask_cudf dataFrame edge list is too big "
                     "to fit in a single GPU"
                 )
             elist = input_df.compute().reset_index(drop=True)
         else:
-            raise Exception(
+            raise TypeError(
                 "input should be a cudf.DataFrame or "
                 "a dask_cudf dataFrame"
             )
@@ -139,13 +138,13 @@ class simpleGraphImpl:
             elist, renumber_map = NumberMap.renumber(
                 elist, source, destination, store_transposed=False
             )
-            source = "src"
-            destination = "dst"
+            source = renumber_map.renumbered_src_col_name
+            destination = renumber_map.renumbered_dst_col_name
             self.properties.renumbered = True
             self.renumber_map = renumber_map
         else:
             if type(source) is list and type(destination) is list:
-                raise Exception("set renumber to True for multi column ids")
+                raise ValueError("set renumber to True for multi column ids")
 
         # Populate graph edgelist
         source_col = elist[source]
@@ -400,11 +399,8 @@ class simpleGraphImpl:
         comms = Comms.get_comms()
 
         if client is None or comms is None:
-            msg = (
-                "MG Batch needs a Dask Client and the "
-                "Communicator needs to be initialized."
-            )
-            raise Exception(msg)
+            raise RuntimeError("MG Batch needs a Dask Client and the "
+                               "Communicator needs to be initialized.")
 
         self.batch_enabled = True
 
@@ -506,7 +502,7 @@ class simpleGraphImpl:
                 df = self.edgelist.edgelist_df[["src", "dst"]]
                 self.properties.node_count = df.max().max() + 1
             else:
-                raise Exception("Graph is Empty")
+                raise RuntimeError("Graph is Empty")
         return self.properties.node_count
 
     def number_of_nodes(self):
@@ -833,7 +829,7 @@ class simpleGraphImpl:
 
     def neighbors(self, n):
         if self.edgelist is None:
-            raise Exception("Graph has no Edgelist.")
+            raise RuntimeError("Graph has no Edgelist.")
         if self.properties.renumbered:
             node = self.renumber_map.to_internal_vertex_id(cudf.Series([n]))
             if len(node) == 0:

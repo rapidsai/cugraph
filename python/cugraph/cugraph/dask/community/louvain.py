@@ -26,6 +26,8 @@ import dask_cudf
 
 def call_louvain(sID,
                  data,
+                 src_col_name,
+                 dst_col_name,
                  num_verts,
                  num_edges,
                  vertex_partition_offsets,
@@ -38,6 +40,8 @@ def call_louvain(sID,
     segment_offsets = \
         aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
     return c_mg_louvain.louvain(data[0],
+                                src_col_name,
+                                dst_col_name,
                                 num_verts,
                                 num_edges,
                                 vertex_partition_offsets,
@@ -130,9 +134,14 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
+    src_col_name = input_graph.renumber_map.renumbered_src_col_name
+    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+
     futures = [client.submit(call_louvain,
                              Comms.get_session_id(),
                              wf[1],
+                             src_col_name,
+                             dst_col_name,
                              num_verts,
                              num_edges,
                              vertex_partition_offsets,
