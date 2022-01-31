@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -66,26 +66,30 @@ def test_mg_renumber(graph_file, dask_client):
                                                      ["src", "src_old"],
                                                      ["dst", "dst_old"],
                                                      preserve_order=False)
-    unrenumbered_df = renumber_map.unrenumber(renumbered_df, "src",
-                                              preserve_order=False)
-    unrenumbered_df = renumber_map.unrenumber(unrenumbered_df, "dst",
-                                              preserve_order=False)
+    unrenumbered_df = renumber_map.unrenumber(
+        renumbered_df, renumber_map.renumbered_src_col_name,
+        preserve_order=False)
+    unrenumbered_df = renumber_map.unrenumber(
+        unrenumbered_df, renumber_map.renumbered_dst_col_name,
+        preserve_order=False)
 
     # sort needed only for comparisons, since preserve_order is False
     gdf = gdf.sort_values(by=["src", "src_old", "dst", "dst_old"])
     gdf = gdf.reset_index()
     unrenumbered_df = unrenumbered_df.compute()
-    unrenumbered_df = unrenumbered_df.sort_values(by=["0_src", "1_src",
-                                                      "0_dst", "1_dst"])
+    src = renumber_map.renumbered_src_col_name
+    dst = renumber_map.renumbered_dst_col_name
+    unrenumbered_df = unrenumbered_df.sort_values(by=[f"0_{src}", f"1_{src}",
+                                                      f"0_{dst}", f"1_{dst}"])
     unrenumbered_df = unrenumbered_df.reset_index()
 
-    assert_series_equal(gdf["src"], unrenumbered_df["0_src"],
+    assert_series_equal(gdf["src"], unrenumbered_df[f"0_{src}"],
                         check_names=False)
-    assert_series_equal(gdf["src_old"], unrenumbered_df["1_src"],
+    assert_series_equal(gdf["src_old"], unrenumbered_df[f"1_{src}"],
                         check_names=False)
-    assert_series_equal(gdf["dst"], unrenumbered_df["0_dst"],
+    assert_series_equal(gdf["dst"], unrenumbered_df[f"0_{dst}"],
                         check_names=False)
-    assert_series_equal(gdf["dst_old"], unrenumbered_df["1_dst"],
+    assert_series_equal(gdf["dst_old"], unrenumbered_df[f"1_{dst}"],
                         check_names=False)
 
 
@@ -118,12 +122,9 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
 
     test_df = gdf[["src", "src_old"]].head()
 
-    #
-    #  This call raises an exception in branch-0.15
-    #  prior to this PR
-    #
-    test_df = num2.add_internal_vertex_id(test_df, "src", ["src", "src_old"])
-    assert True
+    # simply check that this does not raise an exception
+    num2.add_internal_vertex_id(test_df, num2.renumbered_src_col_name,
+                                ["src", "src_old"])
 
 
 @pytest.mark.skipif(
@@ -222,3 +223,59 @@ def test_multi_directed_graph_renumber_false(renumber, dask_client):
 
     with pytest.raises(ValueError):
         dg.from_dask_cudf_edgelist(ddf, "src", "dst", renumber=renumber)
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED,
+                         ids=[f"dataset={d.as_posix()}"
+                              for d in utils.DATASETS_UNRENUMBERED])
+def test_mg_renumber_common_col_names(graph_file, dask_client):
+    """
+    Ensure that commonly-used column names in the input do not conflict with
+    names used internally by NumberMap.
+    """
+    M = utils.read_csv_for_nx(graph_file)
+    sources = cudf.Series(M["0"])
+    destinations = cudf.Series(M["1"])
+
+    numbers = range(len(sources))
+    offset_numbers = [n + 1 for n in numbers]
+    floats = [float(n) for n in numbers]
+
+    # test multi-column ("legacy" renumbering code path)
+    gdf = cudf.DataFrame({"src": numbers,
+                          "dst": numbers,
+                          "weights": floats,
+                          "col_a": sources,
+                          "col_b": sources,
+                          "col_c": destinations,
+                          "col_d": destinations})
+    ddf = dask.dataframe.from_pandas(
+        gdf, npartitions=len(dask_client.scheduler_info()['workers']))
+
+    renumbered_df, renumber_map = NumberMap.renumber(
+        ddf, ["col_a", "col_b"], ["col_c", "col_d"])
+
+    assert renumber_map.renumbered_src_col_name != "src"
+    assert renumber_map.renumbered_dst_col_name != "dst"
+    assert renumber_map.renumbered_src_col_name in renumbered_df.columns
+    assert renumber_map.renumbered_dst_col_name in renumbered_df.columns
+
+    # test experimental renumbering code path
+    gdf = cudf.DataFrame({"src": numbers,
+                          "dst": offset_numbers,
+                          "weights": floats,
+                          "col_a": sources,
+                          "col_b": destinations})
+
+    ddf = dask.dataframe.from_pandas(
+        gdf, npartitions=len(dask_client.scheduler_info()['workers']))
+
+    renumbered_df, renumber_map = NumberMap.renumber(ddf, "col_a", "col_b")
+
+    assert renumber_map.renumbered_src_col_name != "src"
+    assert renumber_map.renumbered_dst_col_name != "dst"
+    assert renumber_map.renumbered_src_col_name in renumbered_df.columns
+    assert renumber_map.renumbered_dst_col_name in renumbered_df.columns
