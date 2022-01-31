@@ -13,6 +13,8 @@
 # limitations under the License.
 #
 
+from collections.abc import Iterable
+
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
@@ -24,6 +26,8 @@ import dask_cudf
 
 def call_bfs(sID,
              data,
+             src_col_name,
+             dst_col_name,
              num_verts,
              num_edges,
              vertex_partition_offsets,
@@ -37,6 +41,8 @@ def call_bfs(sID,
     segment_offsets = \
         aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
     return mg_bfs.mg_bfs(data[0],
+                         src_col_name,
+                         dst_col_name,
                          num_verts,
                          num_edges,
                          vertex_partition_offsets,
@@ -48,7 +54,7 @@ def call_bfs(sID,
                          return_distances)
 
 
-def bfs(graph,
+def bfs(input_graph,
         start,
         depth_limit=None,
         return_distances=True):
@@ -60,8 +66,8 @@ def bfs(graph,
 
     Parameters
     ----------
-    graph : cugraph.DiGraph
-        cuGraph graph descriptor, should contain the connectivity information
+    input_graph : directed cugraph.Graph
+        cuGraph graph instance, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
         algorithm). Undirected Graph not currently supported.
 
@@ -104,9 +110,9 @@ def bfs(graph,
 
     client = default_client()
 
-    graph.compute_renumber_edge_list(transposed=False)
-    ddf = graph.edgelist.edgelist_df
-    vertex_partition_offsets = get_vertex_partition_offsets(graph)
+    input_graph.compute_renumber_edge_list(transposed=False)
+    ddf = input_graph.edgelist.edgelist_df
+    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
     num_verts = vertex_partition_offsets.iloc[-1]
 
     num_edges = len(ddf)
@@ -116,9 +122,11 @@ def bfs(graph,
         x = df[0].merge(tmp_df, on=tmp_col_names, how='inner')
         return x['global_id']
 
-    if graph.renumbered:
-        renumber_ddf = graph.renumber_map.implementation.ddf
-        col_names = graph.renumber_map.implementation.col_names
+    if input_graph.renumbered:
+        src_col_name = input_graph.renumber_map.renumbered_src_col_name
+        dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+        renumber_ddf = input_graph.renumber_map.implementation.ddf
+        col_names = input_graph.renumber_map.implementation.col_names
         if isinstance(start,
                       dask_cudf.DataFrame) or isinstance(start,
                                                          cudf.DataFrame):
@@ -141,15 +149,39 @@ def bfs(graph,
                  for idx, wf in enumerate(renumber_data.worker_to_parts.items()
                                           )
                  ]
+    else:
+        # If the input graph was created with renumbering disabled (Graph(...,
+        # renumber=False), the above compute_renumber_edge_list() call will not
+        # perform a renumber step and the renumber_map will not have src/dst
+        # col names. In that case, the src/dst values specified when reading
+        # the edgelist dataframe are to be used, but only if they were single
+        # string values (ie. not a list representing multi-columns).
+        if isinstance(input_graph.source_columns, Iterable):
+            raise RuntimeError("input_graph was not renumbered but has a "
+                               "non-string source column name (got: "
+                               f"{input_graph.source_columns}). Re-create "
+                               "input_graph with either renumbering enabled "
+                               "or a source column specified as a string.")
+        if isinstance(input_graph.destination_columns, Iterable):
+            raise RuntimeError("input_graph was not renumbered but has a "
+                               "non-string destination column name (got: "
+                               f"{input_graph.destination_columns}). "
+                               "Re-create input_graph with either renumbering "
+                               "enabled or a destination column specified as "
+                               "a string.")
+        src_col_name = input_graph.source_columns
+        dst_col_name = input_graph.destination_columns
 
     result = [client.submit(
               call_bfs,
               Comms.get_session_id(),
               wf[1],
+              src_col_name,
+              dst_col_name,
               num_verts,
               num_edges,
               vertex_partition_offsets,
-              graph.aggregate_segment_offsets,
+              input_graph.aggregate_segment_offsets,
               start[idx],
               depth_limit,
               return_distances,
@@ -158,8 +190,8 @@ def bfs(graph,
     wait(result)
     ddf = dask_cudf.from_delayed(result)
 
-    if graph.renumbered:
-        ddf = graph.unrenumber(ddf, 'vertex')
-        ddf = graph.unrenumber(ddf, 'predecessor')
+    if input_graph.renumbered:
+        ddf = input_graph.unrenumber(ddf, 'vertex')
+        ddf = input_graph.unrenumber(ddf, 'predecessor')
         ddf = ddf.fillna(-1)
     return ddf
