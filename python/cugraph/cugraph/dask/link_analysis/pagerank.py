@@ -24,6 +24,8 @@ from dask.dataframe.shuffle import rearrange_by_column
 
 def call_pagerank(sID,
                   data,
+                  src_col_name,
+                  dst_col_name,
                   num_verts,
                   num_edges,
                   vertex_partition_offsets,
@@ -39,6 +41,8 @@ def call_pagerank(sID,
     segment_offsets = \
         aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
     return mg_pagerank.mg_pagerank(data[0],
+                                   src_col_name,
+                                   dst_col_name,
                                    num_verts,
                                    num_edges,
                                    vertex_partition_offsets,
@@ -141,6 +145,9 @@ def pagerank(input_graph,
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
+    src_col_name = input_graph.renumber_map.renumbered_src_col_name
+    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+
     if personalization is not None:
         if input_graph.renumbered is True:
             personalization = input_graph.add_internal_vertex_id(
@@ -181,6 +188,8 @@ def pagerank(input_graph,
         result = [client.submit(call_pagerank,
                                 Comms.get_session_id(),
                                 wf[1],
+                                src_col_name,
+                                dst_col_name,
                                 num_verts,
                                 num_edges,
                                 vertex_partition_offsets,
@@ -196,6 +205,8 @@ def pagerank(input_graph,
         result = [client.submit(call_pagerank,
                                 Comms.get_session_id(),
                                 wf[1],
+                                src_col_name,
+                                dst_col_name,
                                 num_verts,
                                 num_edges,
                                 vertex_partition_offsets,
