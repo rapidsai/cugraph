@@ -264,14 +264,25 @@ coarsen_graph(
 
 template void single_gpu_renumber_edgelist_given_number_map(
   raft::handle_t const& handle,
-  rmm::device_uvector<int>& d_edgelist_rows,
-  rmm::device_uvector<int>& d_edgelist_cols,
-  rmm::device_uvector<int>& d_renumber_map_gathered_v);
+  rmm::device_uvector<int32_t>& d_edgelist_rows,
+  rmm::device_uvector<int32_t>& d_edgelist_cols,
+  rmm::device_uvector<int32_t>& d_renumber_map_gathered_v);
+
+template void single_gpu_renumber_edgelist_given_number_map(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>& d_edgelist_rows,
+  rmm::device_uvector<int64_t>& d_edgelist_cols,
+  rmm::device_uvector<int64_t>& d_renumber_map_gathered_v);
 
 template std::unique_ptr<cugraph::graph_t<int32_t, int32_t, float, false, false>> coarsen_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
   int32_t const* labels);
+
+template std::unique_ptr<cugraph::graph_t<int64_t, int64_t, float, false, false>> coarsen_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+  int64_t const* labels);
 
 }  // namespace test
 }  // namespace cugraph
