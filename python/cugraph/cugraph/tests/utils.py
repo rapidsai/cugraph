@@ -189,7 +189,7 @@ def create_obj_from_csv(
     elif isinstance(obj_type, (cugraph.Graph, cugraph.DiGraph)):
         return generate_cugraph_graph_from_file(
             csv_file_name,
-            directed=(isinstance(obj_type, cugraph.DiGraph)),
+            directed=(obj_type.is_directed()),
             edgevals=edgevals,
         )
 

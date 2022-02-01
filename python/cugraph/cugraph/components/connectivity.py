@@ -186,7 +186,7 @@ def weakly_connected_components(G,
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight",
-        matrix_graph_type=Graph)
+        matrix_graph_type=Graph(directed=directed))
 
     df = connectivity_wrapper.weakly_connected_components(G)
 
@@ -285,7 +285,7 @@ def strongly_connected_components(G,
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight",
-        matrix_graph_type=Graph)
+        matrix_graph_type=Graph(directed=directed))
 
     df = connectivity_wrapper.strongly_connected_components(G)
 

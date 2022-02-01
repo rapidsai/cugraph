@@ -47,6 +47,7 @@ print("Networkx version : {} ".format(nx.__version__))
 # connected_components calls.
 cuGraph_input_output_map = {
     cugraph.Graph: cudf.DataFrame,
+    cugraph.DiGraph: cudf.DataFrame,
     nx.Graph: dict,
     nx.DiGraph: dict,
     cp_coo_matrix: tuple,
@@ -358,7 +359,6 @@ def test_strong_cc(gpubenchmark, dataset_nxresults_strong,
         assert isinstance(input_G_or_matrix, type(cugraph_input_type))
     else:
         assert isinstance(input_G_or_matrix, cugraph_input_type)
-
     # while cugraph returns a component label for each vertex;
     cg_n_components = len(cugraph_labels)
 
