@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cugraph
-from cugraph.experimental import EXPERIMENTAL__PropertyGraph
+from cugraph.experimental import EXPERIMENTAL__PropertyGraph as PropertyGraph
 from cugraph.community.egonet import batched_ego_graphs
 
 
@@ -44,7 +44,7 @@ class CuGraphStore:
 
     def __init__(self, graph=None, cluster=None):
         if graph is not None:
-            if isinstance(graph, EXPERIMENTAL__PropertyGraph):
+            if isinstance(graph, PropertyGraph):
                 self.__G = graph
             else:
                 raise ValueError("graph must be a PropertyGraph")
@@ -68,12 +68,13 @@ class CuGraphStore:
 
         return self.__G.num_edges
 
-    def get_vertices_id(self):
+    @property
+    def vertices_ids(self):
         if self.__G is None:
             raise ValueError("graph has not been set")
 
-        _g = self.__G.extract_subgraph(create_using=cugraph.Graph)
-        return _g.nodes()
+        # _g = self.__G.extract_subgraph(create_using=cugraph.Graph)
+        return self.__G.vertices_ids
 
     ######################################
     # Sampling APIs
@@ -114,7 +115,8 @@ class CuGraphStore:
         """
         pass
 
-    def node_subgraph(self, nodes):
+    def node_subgraph(self, nodes=None, create_using=cugraph.Graph,
+                      multigraph=True):
         """Return a subgraph induced on the given nodes.
 
         A node-induced subgraph is a graph with edges whose endpoints are both
@@ -127,11 +129,13 @@ class CuGraphStore:
 
         Returns
         -------
-        DGLGraph
+        cuGraph
             The sampled subgraph with the same node ID space with the original
             graph.
         """
-        pass
+        _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
+                                       allow_multi_edges=multigraph)
+        return _g
 
     def egonet(self, nodes, k):
         """Return the k-hop egonet of the given nodes.
@@ -155,7 +159,8 @@ class CuGraphStore:
             for each seed.
         """
 
-        _g = self.__G.extract_subgraph(create_using=cugraph.Graph)
+        _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
+                                       allow_multi_edges=True)
 
         ego_edge_list, seeds_offsets = batched_ego_graphs(_g, nodes, radius=k)
 

@@ -135,7 +135,7 @@ class EXPERIMENTAL__PropertyGraph:
 
     # PropertyGraph read-only attributes
     @property
-    def num_vertices(self):
+    def vertices_ids(self):
         # Create a Series of the appropriate type (cudf.Series, pandas.Series,
         # etc.) based on the type currently in use, then use it to gather all
         # unique vertices.
@@ -145,7 +145,7 @@ class EXPERIMENTAL__PropertyGraph:
             return 0
 
         # Assume __series_type is set if this point reached!
-        verts = self.__series_type(dtype="object")
+        verts = self.__series_type(dtype="object", name=self.__vertex_col_name)
         if vpd is not None:
             verts = verts.append(vpd[self.__vertex_col_name])
         if epd is not None:
@@ -157,6 +157,11 @@ class EXPERIMENTAL__PropertyGraph:
             verts = verts.append(
                 self.__series_type(epd[self.__dst_col_name].unique()))
             verts = verts.unique()
+        return verts
+
+    @property
+    def num_vertices(self):
+        verts = self.vertices_ids
         return len(verts)
 
     @property
