@@ -316,12 +316,13 @@ compute_renumber_map(raft::handle_t const& handle,
 
       auto kv_pair_first =
         thrust::make_zip_iterator(thrust::make_tuple(tmp_keys.begin(), tmp_values.begin()));
-      thrust::for_each(rmm::exec_policy(loop_stream),
-                       kv_pair_first,
-                       kv_pair_first + tmp_keys.size(),
-                       search_and_set_degree_t{sorted_majors.data(),
-                                               static_cast<vertex_t>(sorted_majors.size()),
-                                               sorted_major_degrees.data()});
+      thrust::for_each(
+        rmm::exec_policy(loop_stream),
+        kv_pair_first,
+        kv_pair_first + tmp_keys.size(),
+        search_and_set_degree_t<vertex_t, edge_t>{sorted_majors.data(),
+                                                  static_cast<vertex_t>(sorted_majors.size()),
+                                                  sorted_major_degrees.data()});
 
       device_reduce(col_comm,
                     sorted_major_degrees.begin(),
@@ -369,12 +370,13 @@ compute_renumber_map(raft::handle_t const& handle,
 
     auto kv_pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(tmp_keys.begin(), tmp_values.begin()));
-    thrust::for_each(handle.get_thrust_policy(),
-                     kv_pair_first,
-                     kv_pair_first + tmp_keys.size(),
-                     search_and_set_degree_t{sorted_local_vertices.data(),
-                                             static_cast<vertex_t>(sorted_local_vertices.size()),
-                                             sorted_major_degrees.data()});
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      kv_pair_first,
+      kv_pair_first + tmp_keys.size(),
+      search_and_set_degree_t<vertex_t, edge_t>{sorted_local_vertices.data(),
+                                                static_cast<vertex_t>(sorted_local_vertices.size()),
+                                                sorted_local_vertex_degrees.data()});
   }
 
   // 4. sort local vertices by degree (descending)
