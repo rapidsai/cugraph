@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cudf
 import cugraph
 from cugraph.experimental import EXPERIMENTAL__PropertyGraph as PropertyGraph
 from cugraph.community.egonet import batched_ego_graphs
@@ -19,16 +20,16 @@ from cugraph.community.egonet import batched_ego_graphs
 class CuGraphStore:
     """
     A wrapper around a cuGraph Property Graph that
-    then adds functions to match the DGL GraphStorage API.
-    However, this class only return cuGraph types.  Conversion to other types,
-    like DGLGraph, needs to be done in DGL or other external packages.
+    then adds functions to basically match the DGL GraphStorage API.
+    This is not a full duck-types match to a DGL GraphStore.  This class
+    return cuGraph types and had additional functional arguments.
+    For true integration with DGL, a second class would need to be written
+    in DGL that handles the conversion to other types, like DGLGraph, and
+    handles the extra arguments.
 
     homogeneous graphs, graphs with no attributes - use Property Graph
     hetrogeneous graphs - use PropertyGraph
     """
-
-    __G = None
-    __clinet = None
 
     @property
     def ndata(self):
@@ -42,45 +43,33 @@ class CuGraphStore:
     def gdata(self):
         return self.__G
 
-    def __init__(self, graph=None, cluster=None):
-        if graph is not None:
-            if isinstance(graph, PropertyGraph):
-                self.__G = graph
-            else:
-                raise ValueError("graph must be a PropertyGraph")
+    def __init__(self, graph):
+        if isinstance(graph, PropertyGraph):
+            self.__G = graph
+        else:
+            raise ValueError("graph must be a PropertyGraph")
 
-        self.__client = cluster
 
     ######################################
     # Utilities
     ######################################
     @property
     def num_vertices(self):
-        if self.__G is None:
-            raise ValueError("graph has not been set")
-
         return self.__G.num_vertices
 
     @property
     def num_edges(self):
-        if self.__G is None:
-            raise ValueError("graph has not been set")
-
         return self.__G.num_edges
 
-    @property
-    def vertices_ids(self):
-        if self.__G is None:
-            raise ValueError("graph has not been set")
-
-        # _g = self.__G.extract_subgraph(create_using=cugraph.Graph)
-        return self.__G.vertices_ids
+    def get_vertex_ids(self):
+        return self.__G.vertices_ids()
 
     ######################################
     # Sampling APIs
     ######################################
 
-    def sample_neighbors(self, nodes,
+    def sample_neighbors(self,
+                         nodes,
                          fanout=-1,
                          edge_dir='in',
                          prob=None,
@@ -90,11 +79,11 @@ class CuGraphStore:
 
         Parameters
         ----------
-        nodes : Tensor
+        nodes : array (single dimension;  cupy for on device or numpy for on host)
             Node IDs to sample neighbors from.
         fanout : int
             The number of edges to be sampled for each node on each edge type.
-        edge_dir : str
+        edge_dir : str {"in" or "out"}
             Determines whether to sample inbound or outbound edges.
             Can take either in for inbound edges or out for outbound edges.
         prob : str
@@ -115,9 +104,13 @@ class CuGraphStore:
         """
         pass
 
-    def node_subgraph(self, nodes=None, create_using=cugraph.Graph,
-                      multigraph=True):
-        """Return a subgraph induced on the given nodes.
+    def node_subgraph(self, 
+                     nodes=None,
+                     create_using=cugraph.Graph,
+                     directed=False,
+                     multigraph=True):
+        """
+        Return a subgraph induced on the given nodes.
 
         A node-induced subgraph is a graph with edges whose endpoints are both
         in the specified node set.
@@ -133,9 +126,19 @@ class CuGraphStore:
             The sampled subgraph with the same node ID space with the original
             graph.
         """
-        _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
+
+        # expr="(_SRC in nodes) | (_DST_ in nodes)"
+
+        _g = self.__G.extract_subgraph(
+                                       create_using=cugraph.Graph(directed=directed),
                                        allow_multi_edges=multigraph)
-        return _g
+
+        if nodes is None:
+            return _g
+        else:
+            _n = cudf.Series(nodes)
+            _subg = cugraph.subgraph(_g, _n)
+            return _subg
 
     def egonet(self, nodes, k):
         """Return the k-hop egonet of the given nodes.
@@ -145,8 +148,8 @@ class CuGraphStore:
 
         Parameters
         ----------
-        nodes : Tensor
-            The center nodes of the egonet.
+        nodes : single dimension array
+            The center nodes of the egonets.
 
         Returns
         -------
@@ -166,9 +169,10 @@ class CuGraphStore:
 
         return ego_edge_list, seeds_offsets
 
-        pass
 
-    def randomwalk(self, nodes, length,
+    def randomwalk(self,
+                   nodes,
+                   length,
                    prob=None,
                    restart_prob=None):
         """
@@ -180,8 +184,8 @@ class CuGraphStore:
 
         Parameters
         ----------
-        nodes : Tensor
-            The center nodes of the egonet.
+        nodes : single dimension array
+            The nodes to start the walk.
         length : int
             Walk length.
         prob : str
@@ -202,7 +206,13 @@ class CuGraphStore:
             the node IDs reached by the randomwalk starting from nodes[i]. -1
             means the walk has stopped.
         """
-        pass
+        _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
+                                       allow_multi_edges=True)
+
+        p, w, s = cugraph.random_walks(_g, nodes,
+                                       max_depth=length, use_padding=True)
+
+        return p, w, s
 
 
 class CuFeatureStorage:

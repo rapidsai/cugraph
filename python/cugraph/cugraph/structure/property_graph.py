@@ -134,7 +134,6 @@ class EXPERIMENTAL__PropertyGraph:
         self.__last_edge_id = None
 
     # PropertyGraph read-only attributes
-    @property
     def vertices_ids(self):
         # Create a Series of the appropriate type (cudf.Series, pandas.Series,
         # etc.) based on the type currently in use, then use it to gather all
@@ -142,10 +141,11 @@ class EXPERIMENTAL__PropertyGraph:
         vpd = self.__vertex_prop_dataframe
         epd = self.__edge_prop_dataframe
         if (vpd is None) and (epd is None):
-            return 0
+            return None
 
         # Assume __series_type is set if this point reached!
-        verts = self.__series_type(dtype="object", name=self.__vertex_col_name)
+        verts = self.__series_type( name=self.__vertex_col_name)
+
         if vpd is not None:
             verts = verts.append(vpd[self.__vertex_col_name])
         if epd is not None:
@@ -161,8 +161,11 @@ class EXPERIMENTAL__PropertyGraph:
 
     @property
     def num_vertices(self):
-        verts = self.vertices_ids
-        return len(verts)
+        verts = self.vertices_ids()
+        if verts is None:
+            return 0
+        else:
+            return len(verts)
 
     @property
     def num_edges(self):

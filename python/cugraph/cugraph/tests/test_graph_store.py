@@ -22,7 +22,7 @@ from cugraph.experimental import PropertyGraph
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_no_graph(graph_file):
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         gstore = cugraph.gnn.CuGraphStore()
         gstore.num_edges()
 
