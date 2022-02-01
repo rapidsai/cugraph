@@ -16,11 +16,11 @@
 
 #pragma once
 
-#include <raft/handle.hpp>
-#include <rmm/device_vector.hpp>
 #include "../traversal_common.cuh"
 #include "common_utils.cuh"
 #include "frontier_expand.cuh"
+#include <raft/handle.hpp>
+#include <rmm/device_vector.hpp>
 
 namespace cugraph {
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -63,9 +63,9 @@ class simpleDistributedGraphImpl:
         store_transposed=False,
     ):
         if not isinstance(input_ddf, dask_cudf.DataFrame):
-            raise Exception("input should be a dask_cudf dataFrame")
+            raise TypeError("input should be a dask_cudf dataFrame")
         if self.properties.directed is False:
-            raise Exception("Undirected distributed graph not supported")
+            raise TypeError("Undirected distributed graph not supported")
 
         s_col = source
         d_col = destination
@@ -77,7 +77,7 @@ class simpleDistributedGraphImpl:
             set(s_col).issubset(set(input_ddf.columns))
             and set(d_col).issubset(set(input_ddf.columns))
         ):
-            raise Exception(
+            raise ValueError(
                 "source column names and/or destination column "
                 "names not found in input. Recheck the source "
                 "and destination parameters"
@@ -85,7 +85,7 @@ class simpleDistributedGraphImpl:
         ddf_columns = s_col + d_col
         if edge_attr is not None:
             if not (set([edge_attr]).issubset(set(input_ddf.columns))):
-                raise Exception(
+                raise ValueError(
                     "edge_attr column name not found in input."
                     "Recheck the edge_attr parameter")
             self.properties.weighted = True
@@ -123,6 +123,7 @@ class simpleDistributedGraphImpl:
         matrix of the symmetrized edgelist. Hence the displayed source and
         destination pairs in both will represent the same edge but node values
         could be swapped.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -136,20 +137,18 @@ class simpleDistributedGraphImpl:
                 then containing the weight value for each edge
         """
         if self.edgelist is None:
-            raise Exception("Graph has no Edgelist.")
+            raise RuntimeError("Graph has no Edgelist.")
         return self.edgelist.edgelist_df
 
     def delete_edge_list(self):
         """
         Delete the edge list.
         """
-        # decrease reference count to free memory if the referenced objects are
-        # no longer used.
         self.edgelist = None
 
     def clear(self):
         """
-        Empty this graph. This function is added for NetworkX compatibility.
+        Empty this graph.
         """
         self.edgelist = None
 
@@ -162,13 +161,12 @@ class simpleDistributedGraphImpl:
                 ddf = self.edgelist.edgelist_df[["src", "dst"]]
                 self.properties.node_count = ddf.max().max().compute() + 1
             else:
-                raise Exception("Graph is Empty")
+                raise RuntimeError("Graph is Empty")
         return self.properties.node_count
 
     def number_of_nodes(self):
         """
-        An alias of number_of_vertices(). This function is added for NetworkX
-        compatibility.
+        An alias of number_of_vertices().
         """
         return self.number_of_vertices()
 
@@ -179,7 +177,7 @@ class simpleDistributedGraphImpl:
         if self.edgelist is not None:
             return len(self.edgelist.edgelist_df)
         else:
-            raise Exception("Graph is Empty")
+            raise RuntimeError("Graph is Empty")
 
     def in_degree(self, vertex_subset=None):
         """
@@ -188,11 +186,13 @@ class simpleDistributedGraphImpl:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
-        vertex_subset : cudf.Series or iterable container, optional
+        vertex_subset : cudf.Series or iterable container, opt. (default=None)
             A container of vertices for displaying corresponding in-degree.
             If not set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -207,11 +207,12 @@ class simpleDistributedGraphImpl:
                 The computed in-degree of the corresponding vertex.
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.in_degree([0,9,12])
+
         """
         return self._degree(vertex_subset, direction=Direction.IN)
 
@@ -222,11 +223,13 @@ class simpleDistributedGraphImpl:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
-        vertex_subset : cudf.Series or iterable container, optional
+        vertex_subset : cudf.Series or iterable container, opt. (default=None)
             A container of vertices for displaying corresponding out-degree.
             If not set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -241,11 +244,12 @@ class simpleDistributedGraphImpl:
                 The computed out-degree of the corresponding vertex.
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.out_degree([0,9,12])
+
         """
         return self._degree(vertex_subset, direction=Direction.OUT)
 
@@ -275,14 +279,15 @@ class simpleDistributedGraphImpl:
                 The computed degree of the corresponding vertex.
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> all_df = G.degree()
         >>> subset_df = G.degree([0,9,12])
+
         """
-        raise Exception("Not supported for distributed graph")
+        raise NotImplementedError("Not supported for distributed graph")
 
     # FIXME:  vertex_subset could be a DataFrame for multi-column vertices
     def degrees(self, vertex_subset=None):
@@ -291,11 +296,13 @@ class simpleDistributedGraphImpl:
         computes vertex degrees for the entire set of vertices. If
         vertex_subset is provided, this method optionally filters out all but
         those listed in vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -310,15 +317,17 @@ class simpleDistributedGraphImpl:
                 The in-degree of the vertex.
             df['out_degree'] : cudf.Series
                 The out-degree of the vertex.
+
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.degrees([0,9,12])
+
         """
-        raise Exception("Not supported for distributed graph")
+        raise NotImplementedError("Not supported for distributed graph")
 
     def _degree(self, vertex_subset, direction=Direction.ALL):
         vertex_col, degree_col = graph_primtypes_wrapper._mg_degree(self,
@@ -340,48 +349,53 @@ class simpleDistributedGraphImpl:
         Return a directed representation of the graph.
         This function sets the type of graph as DiGraph() and returns the
         directed view.
+
         Returns
         -------
         G : DiGraph
             A directed graph with the same nodes, and each edge (u,v,weights)
             replaced by two directed edges (u,v,weights) and (v,u,weights).
+
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> DiG = G.to_directed()
+
         """
         # TODO: Add support
-        raise Exception("Not supported for distributed graph")
+        raise NotImplementedError("Not supported for distributed graph")
 
     def to_undirected(self, G):
         """
         Return an undirected copy of the graph.
+
         Returns
         -------
         G : Graph
             A undirected graph with the same nodes, and each directed edge
             (u,v,weights) replaced by an undirected edge (u,v,weights).
+
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> DiG = cugraph.DiGraph()
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...         dtype=['int32', 'int32', 'float32'], header=None)
+        >>> DiG = cugraph.Graph(directed=True)
         >>> DiG.from_cudf_edgelist(M, '0', '1')
         >>> G = DiG.to_undirected()
         """
 
         # TODO: Add support
-        raise Exception("Not supported for distributed graph")
+        raise NotImplementedError("Not supported for distributed graph")
 
     def has_node(self, n):
         """
         Returns True if the graph contains the node n.
         """
         if self.edgelist is None:
-            raise Exception("Graph has no Edgelist.")
+            raise RuntimeError("Graph has no Edgelist.")
         # FIXME: Check renumber map
         ddf = self.edgelist.edgelist_df[["src", "dst"]]
         return (ddf == n).any().any().compute()
@@ -392,10 +406,12 @@ class simpleDistributedGraphImpl:
         """
         # TODO: Verify Correctness
         if self.properties.renumbered:
-            tmp = cudf.DataFrame({"src": [u, v]})
-            tmp = tmp.astype({"src": "int"})
+            src_col_name = self.renumber_map.renumbered_src_col_name
+
+            tmp = cudf.DataFrame({src_col_name: [u, v]})
+            tmp = tmp.astype({src_col_name: "int"})
             tmp = self.add_internal_vertex_id(
-                tmp, "id", "src", preserve_order=True
+                tmp, "id", src_col_name, preserve_order=True
             )
 
             u = tmp["id"][0]
@@ -417,11 +433,11 @@ class simpleDistributedGraphImpl:
         Returns all the nodes in the graph as a cudf.Series
         """
         # FIXME: Return renumber map nodes
-        raise Exception("Not supported for distributed graph")
+        raise NotImplementedError("Not supported for distributed graph")
 
     def neighbors(self, n):
         if self.edgelist is None:
-            raise Exception("Graph has no Edgelist.")
+            raise RuntimeError("Graph has no Edgelist.")
         # FIXME: Add renumbering of node n
         ddf = self.edgelist.edgelist_df
         return ddf[ddf["src"] == n]["dst"].reset_index(drop=True)
@@ -441,6 +457,7 @@ class simpleDistributedGraphImpl:
         algorithm.
         When creating a CSR-like structure, set transposed to False.
         When creating a CSC-like structure, set transposed to True.
+
         Parameters
         ----------
         transposed : (optional) bool
@@ -451,6 +468,9 @@ class simpleDistributedGraphImpl:
         # FIXME:  What to do about edge_attr???
         #         currently ignored for MNMG
 
+        # FIXME: this is confusing - in the code below,
+        # self.properties.renumbered needs to be interpreted as "needs to be
+        # renumbered", everywhere else it means "has been renumbered".
         if not self.properties.renumbered:
             self.edgelist = self.EdgeList(self.input_df)
             self.renumber_map = None

@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <rmm/device_vector.hpp>
 #include "../traversal_common.cuh"
+#include <rmm/device_vector.hpp>
 
 namespace cugraph {
 

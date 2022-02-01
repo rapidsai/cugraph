@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,7 +27,7 @@ def core_number(G):
 
     Parameters
     ----------
-    graph : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph or networkx.Graph
         The graph should contain undirected edges where undirected edges are
         represented as directed edges in both directions. While this graph
         can contain edge weights, they don't participate in the calculation
@@ -46,11 +46,12 @@ def core_number(G):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> cn = cugraph.core_number(G)
+
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
