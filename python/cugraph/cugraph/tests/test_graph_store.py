@@ -106,7 +106,7 @@ def test_egonet(graph_file):
     assert seeds_offsets1 == seeds_offsets2
 
 
-@pytest.mark.skipped()
+@pytest.mark.skip("in development")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_workflow(graph_file):
     # from cugraph.community.egonet import batched_ego_graphs
@@ -125,6 +125,6 @@ def test_workflow(graph_file):
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
 
     nodes = gstore.vertices_ids
-    nodesG = cudf.Series(g, nodes, name=nodes.name)
+    nodesG = cudf.Series(nodes, name=nodes.name)
 
     assert nodes.sort_values() == nodesG.sort_values()
