@@ -135,7 +135,8 @@ CUGRAPH_INPUT_TYPES = [
 
 CUGRAPH_DIR_INPUT_TYPES = [
     pytest.param(
-        cugraph.Graph(directed=True), marks=pytest.mark.cugraph_types, id="cugraph.Graph"
+        cugraph.Graph(directed=True), marks=pytest.mark.cugraph_types,
+        id="cugraph.Graph"
     ),
 ]
 

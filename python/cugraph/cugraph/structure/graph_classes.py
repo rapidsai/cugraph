@@ -656,6 +656,7 @@ class MultiDiGraph(MultiGraph):
         )
         super(MultiDiGraph, self).__init__(directed=True)
 
+
 class Tree(Graph):
     """
     A Tree
