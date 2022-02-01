@@ -144,7 +144,7 @@ class EXPERIMENTAL__PropertyGraph:
             return None
 
         # Assume __series_type is set if this point reached!
-        verts = self.__series_type( name=self.__vertex_col_name)
+        verts = self.__series_type(name=self.__vertex_col_name)
 
         if vpd is not None:
             verts = verts.append(vpd[self.__vertex_col_name])

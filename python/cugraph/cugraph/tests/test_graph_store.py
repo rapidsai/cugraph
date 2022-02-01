@@ -13,7 +13,6 @@
 
 import pytest
 
-import cudf
 import cugraph
 from cugraph.tests import utils
 from cugraph.experimental import PropertyGraph
@@ -106,7 +105,6 @@ def test_egonet(graph_file):
     assert seeds_offsets1 == seeds_offsets2
 
 
-@pytest.mark.skip("in development")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_workflow(graph_file):
     # from cugraph.community.egonet import batched_ego_graphs
@@ -124,7 +122,13 @@ def test_workflow(graph_file):
 
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
 
-    nodes = gstore.vertices_ids
-    nodesG = cudf.Series(nodes, name=nodes.name)
+    nodes = gstore.get_vertex_ids()
+    num_nodes = len(nodes)
 
-    assert nodes.sort_values() == nodesG.sort_values()
+    assert num_nodes > 0
+
+    sampled_nodes = nodes[:5]
+
+    ego_edge_list, seeds_offsets = gstore.egonet(sampled_nodes, k=1)
+
+    assert len(ego_edge_list) > 0

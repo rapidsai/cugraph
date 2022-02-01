@@ -49,7 +49,6 @@ class CuGraphStore:
         else:
             raise ValueError("graph must be a PropertyGraph")
 
-
     ######################################
     # Utilities
     ######################################
@@ -79,7 +78,7 @@ class CuGraphStore:
 
         Parameters
         ----------
-        nodes : array (single dimension;  cupy for on device or numpy for on host)
+        nodes : array (single dimension)
             Node IDs to sample neighbors from.
         fanout : int
             The number of edges to be sampled for each node on each edge type.
@@ -104,11 +103,11 @@ class CuGraphStore:
         """
         pass
 
-    def node_subgraph(self, 
-                     nodes=None,
-                     create_using=cugraph.Graph,
-                     directed=False,
-                     multigraph=True):
+    def node_subgraph(self,
+                      nodes=None,
+                      create_using=cugraph.Graph,
+                      directed=False,
+                      multigraph=True):
         """
         Return a subgraph induced on the given nodes.
 
@@ -130,8 +129,8 @@ class CuGraphStore:
         # expr="(_SRC in nodes) | (_DST_ in nodes)"
 
         _g = self.__G.extract_subgraph(
-                                       create_using=cugraph.Graph(directed=directed),
-                                       allow_multi_edges=multigraph)
+                        create_using=cugraph.Graph(directed=directed),
+                        allow_multi_edges=multigraph)
 
         if nodes is None:
             return _g
@@ -168,7 +167,6 @@ class CuGraphStore:
         ego_edge_list, seeds_offsets = batched_ego_graphs(_g, nodes, radius=k)
 
         return ego_edge_list, seeds_offsets
-
 
     def randomwalk(self,
                    nodes,
