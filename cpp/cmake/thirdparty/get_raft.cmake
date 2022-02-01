@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,10 +27,16 @@ function(find_and_configure_raft)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
-            OPTIONS "BUILD_TESTS OFF"
+            OPTIONS
+                "BUILD_TESTS OFF"
+                "RAFT_COMPILE_LIBRARIES OFF"
     )
 
-    message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_SOURCE_DIR}")
+    if(raft_ADDED)
+        message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_SOURCE_DIR}")
+    else()
+        message(VERBOSE "CUGRAPH: Using RAFT located in ${raft_DIR}")
+    endif()
 
 endfunction()
 

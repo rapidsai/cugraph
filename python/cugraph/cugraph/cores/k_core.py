@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,10 +32,12 @@ def k_core(G, k=None, core_number=None):
         should contain undirected edges where undirected edges are represented
         as directed edges in both directions. While this graph can contain edge
         weights, they don't participate in the calculation of the k-core.
-    k : int, optional
+
+    k : int, optional (default=None)
         Order of the core. This value must not be negative. If set to None, the
         main core is returned.
-    core_number : cudf.DataFrame, optional
+
+    core_number : cudf.DataFrame, optional (default=None)
         Precomputed core number of the nodes of the graph G containing two
         cudf.Series of size V: the vertex identifiers and the corresponding
         core number values. If set to None, the core numbers of the nodes are
@@ -53,11 +55,12 @@ def k_core(G, k=None, core_number=None):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> KCoreGraph = cugraph.k_core(G)
+
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)

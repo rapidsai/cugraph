@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,6 +21,8 @@ import dask_cudf
 
 def call_wcc(sID,
              data,
+             src_col_name,
+             dst_col_name,
              num_verts,
              num_edges,
              vertex_partition_offsets,
@@ -31,6 +33,8 @@ def call_wcc(sID,
     segment_offsets = \
         aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
     return mg_connectivity.mg_wcc(data[0],
+                                  src_col_name,
+                                  dst_col_name,
                                   num_verts,
                                   num_edges,
                                   vertex_partition_offsets,
@@ -40,6 +44,17 @@ def call_wcc(sID,
 
 
 def weakly_connected_components(input_graph):
+    """
+    Generate the Weakly Connected Components and attach a component label to
+    each vertex.
+
+    Parameters
+    ----------
+    input_graph : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+
+        Graph or matrix object, which should contain the connectivity
+        information
+    """
 
     client = default_client()
 
@@ -51,9 +66,14 @@ def weakly_connected_components(input_graph):
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
+    src_col_name = input_graph.renumber_map.renumbered_src_col_name
+    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+
     result = [client.submit(call_wcc,
                             Comms.get_session_id(),
                             wf[1],
+                            src_col_name,
+                            dst_col_name,
                             num_verts,
                             num_edges,
                             vertex_partition_offsets,

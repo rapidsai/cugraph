@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -101,8 +101,7 @@ class simpleGraphImpl:
             set(s_col).issubset(set(input_df.columns))
             and set(d_col).issubset(set(input_df.columns))
         ):
-            # FIXME: Raise concrete Exceptions
-            raise Exception(
+            raise ValueError(
                 "source column names and/or destination column "
                 "names not found in input. Recheck the source and "
                 "destination parameters"
@@ -114,20 +113,20 @@ class simpleGraphImpl:
         # Consolidation
         if isinstance(input_df, cudf.DataFrame):
             if len(input_df[source]) > 2147483100:
-                raise Exception(
+                raise ValueError(
                     "cudf dataFrame edge list is too big "
                     "to fit in a single GPU"
                 )
             elist = input_df
         elif isinstance(input_df, dask_cudf.DataFrame):
             if len(input_df[source]) > 2147483100:
-                raise Exception(
+                raise ValueError(
                     "dask_cudf dataFrame edge list is too big "
                     "to fit in a single GPU"
                 )
             elist = input_df.compute().reset_index(drop=True)
         else:
-            raise Exception(
+            raise TypeError(
                 "input should be a cudf.DataFrame or "
                 "a dask_cudf dataFrame"
             )
@@ -139,13 +138,13 @@ class simpleGraphImpl:
             elist, renumber_map = NumberMap.renumber(
                 elist, source, destination, store_transposed=False
             )
-            source = "src"
-            destination = "dst"
+            source = renumber_map.renumbered_src_col_name
+            destination = renumber_map.renumbered_dst_col_name
             self.properties.renumbered = True
             self.renumber_map = renumber_map
         else:
             if type(source) is list and type(destination) is list:
-                raise Exception("set renumber to True for multi column ids")
+                raise ValueError("set renumber to True for multi column ids")
 
         # Populate graph edgelist
         source_col = elist[source]
@@ -182,12 +181,14 @@ class simpleGraphImpl:
     def to_pandas_edgelist(self, source='source', destination='destination'):
         """
         Returns the graph edge list as a Pandas DataFrame.
+
         Parameters
         ----------
-        source : str or array-like
+        source : str or array-like, optional (default='source')
             source column name or array of column names
-        destination : str or array-like
+        destination : str or array-like, optional (default='destination')
             destination column name or array of column names
+
         Returns
         -------
         df : pandas.DataFrame
@@ -248,6 +249,7 @@ class simpleGraphImpl:
         matrix of the symmetrized edgelist. Hence the displayed source and
         destination pairs in both will represent the same edge but node values
         could be swapped.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -295,6 +297,7 @@ class simpleGraphImpl:
     def view_adj_list(self):
         """
         Display the adjacency list. Compute it if needed.
+
         Returns
         -------
         offset_col : cudf.Series
@@ -336,6 +339,7 @@ class simpleGraphImpl:
     def view_transposed_adj_list(self):
         """
         Display the transposed adjacency list. Compute it if needed.
+
         Returns
         -------
         offset_col : cudf.Series
@@ -343,11 +347,13 @@ class simpleGraphImpl:
             vertices).
             The gdf column contains the offsets for the vertices in this graph.
             Offsets are in the range [0, E] (E: number of edges).
+
         index_col : cudf.Series
             This cudf.Series wraps a gdf_column of size E (E: number of edges).
             The gdf column contains the destination index for each edge.
             Destination indices are in the range [0, V) (V: number of
             vertices).
+
         value_col : cudf.Series or ``None``
             This pointer is ``None`` for unweighted graphs.
             For weighted graphs, this cudf.Series wraps a gdf_column of size E
@@ -393,11 +399,8 @@ class simpleGraphImpl:
         comms = Comms.get_comms()
 
         if client is None or comms is None:
-            msg = (
-                "MG Batch needs a Dask Client and the "
-                "Communicator needs to be initialized."
-            )
-            raise Exception(msg)
+            raise RuntimeError("MG Batch needs a Dask Client and the "
+                               "Communicator needs to be initialized.")
 
         self.batch_enabled = True
 
@@ -465,6 +468,7 @@ class simpleGraphImpl:
         """
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -498,7 +502,7 @@ class simpleGraphImpl:
                 df = self.edgelist.edgelist_df[["src", "dst"]]
                 self.properties.node_count = df.max().max() + 1
             else:
-                raise Exception("Graph is Empty")
+                raise RuntimeError("Graph is Empty")
         return self.properties.node_count
 
     def number_of_nodes(self):
@@ -542,11 +546,13 @@ class simpleGraphImpl:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding in-degree.
             If not set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -559,13 +565,15 @@ class simpleGraphImpl:
                 specified).
             df[degree] : cudf.Series
                 The computed in-degree of the corresponding vertex.
+
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.in_degree([0,9,12])
+
         """
         return self._degree(vertex_subset, direction=Direction.IN)
 
@@ -576,11 +584,13 @@ class simpleGraphImpl:
         degrees for the entire set of vertices. If vertex_subset is provided,
         this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding out-degree.
             If not set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -593,13 +603,15 @@ class simpleGraphImpl:
                 specified).
             df[degree] : cudf.Series
                 The computed out-degree of the corresponding vertex.
+
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.out_degree([0,9,12])
+
         """
         return self._degree(vertex_subset, direction=Direction.OUT)
 
@@ -610,11 +622,13 @@ class simpleGraphImpl:
         degrees for the entire set of vertices. If vertex_subset is provided,
         then this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             a container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -627,14 +641,16 @@ class simpleGraphImpl:
                 specified).
             df['degree'] : cudf.Series
                 The computed degree of the corresponding vertex.
+
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> all_df = G.degree()
         >>> subset_df = G.degree([0,9,12])
+
         """
         return self._degree(vertex_subset)
 
@@ -645,11 +661,13 @@ class simpleGraphImpl:
         computes vertex degrees for the entire set of vertices. If
         vertex_subset is provided, this method optionally filters out all but
         those listed in vertex_subset.
+
         Parameters
         ----------
         vertex_subset : cudf.Series or iterable container, optional
             A container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : cudf.DataFrame
@@ -664,13 +682,15 @@ class simpleGraphImpl:
                 The in-degree of the vertex.
             df['out_degree'] : cudf.Series
                 The out-degree of the vertex.
+
         Examples
         --------
-        >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-        >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(M, '0', '1')
         >>> df = G.degrees([0,9,12])
+
         """
         (
             vertex_col,
@@ -809,7 +829,7 @@ class simpleGraphImpl:
 
     def neighbors(self, n):
         if self.edgelist is None:
-            raise Exception("Graph has no Edgelist.")
+            raise RuntimeError("Graph has no Edgelist.")
         if self.properties.renumbered:
             node = self.renumber_map.to_internal_vertex_id(cudf.Series([n]))
             if len(node) == 0:

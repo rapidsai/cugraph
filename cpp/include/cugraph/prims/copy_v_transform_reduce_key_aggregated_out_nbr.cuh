@@ -336,11 +336,10 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                                                                   handle.get_stream());
 
     if (matrix_partition.get_number_of_edges() > 0) {
+      auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+
       detail::decompress_matrix_partition_to_fill_edgelist_majors(
-        handle,
-        matrix_partition,
-        tmp_major_vertices.data(),
-        graph_view.get_local_adj_matrix_partition_segment_offsets(i));
+        handle, matrix_partition, tmp_major_vertices.data(), segment_offsets);
 
       auto minor_key_first = thrust::make_transform_iterator(
         matrix_partition.get_indices(),
@@ -351,12 +350,15 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       // to limit memory footprint ((1 << 20) is a tuning parameter)
       auto approx_edges_to_sort_per_iteration =
         static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
-      auto [h_vertex_offsets, h_edge_offsets] =
-        detail::compute_offset_aligned_edge_chunks(handle,
-                                                   matrix_partition.get_offsets(),
-                                                   matrix_partition.get_major_size(),
-                                                   matrix_partition.get_number_of_edges(),
-                                                   approx_edges_to_sort_per_iteration);
+      auto [h_vertex_offsets, h_edge_offsets] = detail::compute_offset_aligned_edge_chunks(
+        handle,
+        matrix_partition.get_offsets(),
+        matrix_partition.get_dcs_nzd_vertices()
+          ? (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition] +
+              *(matrix_partition.get_dcs_nzd_vertex_count())
+          : matrix_partition.get_major_size(),
+        matrix_partition.get_number_of_edges(),
+        approx_edges_to_sort_per_iteration);
       auto num_chunks = h_vertex_offsets.size() - 1;
 
       size_t max_chunk_size{0};
