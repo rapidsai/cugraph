@@ -45,6 +45,38 @@
 namespace cugraph {
 namespace detail {
 
+template <typename vertex_t>
+struct check_edge_src_and_dst_t {
+  vertex_t const* sorted_majors{nullptr};
+  vertex_t num_majors{0};
+  vertex_t const* sorted_minors{nullptr};
+  vertex_t num_minors{0};
+
+  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> e) const
+  {
+    return !thrust::binary_search(
+             thrust::seq, sorted_majors, sorted_majors + num_majors, thrust::get<0>(e)) ||
+           !thrust::binary_search(
+             thrust::seq, sorted_minors, sorted_minors + num_minors, thrust::get<1>(e));
+  }
+};
+
+template <typename vertex_t, typename edge_t>
+struct search_and_set_degree_t {
+  vertex_t const* sorted_vertices{nullptr};
+  vertex_t num_vertices{0};
+  edge_t* degrees{nullptr};
+
+  __device__ void operator()(thrust::tuple<vertex_t, edge_t> vertex_degree_pair) const
+  {
+    auto it                                            = thrust::lower_bound(thrust::seq,
+                                  sorted_vertices,
+                                  sorted_vertices + num_vertices,
+                                  thrust::get<0>(vertex_degree_pair));
+    *(degrees + thrust::distance(sorted_vertices, it)) = thrust::get<1>(vertex_degree_pair);
+  }
+};
+
 // returns renumber map, segment_offsets, and # unique edge majors & minors
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t, vertex_t>
@@ -192,7 +224,8 @@ compute_renumber_map(raft::handle_t const& handle,
   auto time3 = std::chrono::steady_clock::now();
 #endif
   rmm::device_uvector<edge_t> sorted_local_vertex_degrees(0, handle.get_stream());
-  std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};  // FIXME: move this inside the if statement
+  std::optional<std::vector<size_t>> stream_pool_indices{
+    std::nullopt};  // FIXME: move this inside the if statement
   if constexpr (multi_gpu) {
     auto& comm               = handle.get_comms();
     auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
@@ -249,13 +282,10 @@ compute_renumber_map(raft::handle_t const& handle,
                    edgelist_majors[i] + edgelist_edge_counts[i],
                    tmp_majors.begin());
       thrust::sort(rmm::exec_policy(loop_stream), tmp_majors.begin(), tmp_majors.end());
-      auto num_unique_majors =
-        thrust::count_if(rmm::exec_policy(loop_stream),
-                         thrust::make_counting_iterator(size_t{0}),
-                         thrust::make_counting_iterator(tmp_majors.size()),
-                         [majors = tmp_majors.data()] __device__(auto idx) {
-                           return (idx == 0) || (majors[idx - 1] != majors[idx]);
-                         });
+      auto num_unique_majors = thrust::count_if(rmm::exec_policy(loop_stream),
+                                                thrust::make_counting_iterator(size_t{0}),
+                                                thrust::make_counting_iterator(tmp_majors.size()),
+                                                is_first_in_run_t<vertex_t>{tmp_majors.data()});
       rmm::device_uvector<vertex_t> tmp_keys(num_unique_majors, loop_stream);
       rmm::device_uvector<edge_t> tmp_values(num_unique_majors, loop_stream);
       thrust::reduce_by_key(rmm::exec_policy(loop_stream),
@@ -286,17 +316,12 @@ compute_renumber_map(raft::handle_t const& handle,
 
       auto kv_pair_first =
         thrust::make_zip_iterator(thrust::make_tuple(tmp_keys.begin(), tmp_values.begin()));
-      thrust::for_each(
-        rmm::exec_policy(loop_stream),
-        kv_pair_first,
-        kv_pair_first + tmp_keys.size(),
-        [sorted_major_first = sorted_majors.begin(),
-         sorted_major_last  = sorted_majors.end(),
-         degrees            = sorted_major_degrees.begin()] __device__(auto pair) {
-          auto it = thrust::lower_bound(
-            thrust::seq, sorted_major_first, sorted_major_last, thrust::get<0>(pair));
-          *(degrees + thrust::distance(sorted_major_first, it)) = thrust::get<1>(pair);
-        });
+      thrust::for_each(rmm::exec_policy(loop_stream),
+                       kv_pair_first,
+                       kv_pair_first + tmp_keys.size(),
+                       search_and_set_degree_t{sorted_majors.data(),
+                                               static_cast<vertex_t>(sorted_majors.size()),
+                                               sorted_major_degrees.data()});
 
       device_reduce(col_comm,
                     sorted_major_degrees.begin(),
@@ -318,13 +343,10 @@ compute_renumber_map(raft::handle_t const& handle,
                  edgelist_majors[0] + edgelist_edge_counts[0],
                  tmp_majors.begin());
     thrust::sort(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end());
-    auto num_unique_majors =
-      thrust::count_if(handle.get_thrust_policy(),
-                       thrust::make_counting_iterator(size_t{0}),
-                       thrust::make_counting_iterator(tmp_majors.size()),
-                       [majors = tmp_majors.data()] __device__(auto idx) {
-                         return (idx == 0) || (majors[idx - 1] != majors[idx]);
-                       });
+    auto num_unique_majors = thrust::count_if(handle.get_thrust_policy(),
+                                              thrust::make_counting_iterator(size_t{0}),
+                                              thrust::make_counting_iterator(tmp_majors.size()),
+                                              is_first_in_run_t<vertex_t>{tmp_majors.data()});
     rmm::device_uvector<vertex_t> tmp_keys(num_unique_majors, handle.get_stream());
     rmm::device_uvector<edge_t> tmp_values(num_unique_majors, handle.get_stream());
     thrust::reduce_by_key(handle.get_thrust_policy(),
@@ -350,13 +372,9 @@ compute_renumber_map(raft::handle_t const& handle,
     thrust::for_each(handle.get_thrust_policy(),
                      kv_pair_first,
                      kv_pair_first + tmp_keys.size(),
-                     [sorted_major_first = sorted_local_vertices.begin(),
-                      sorted_major_last  = sorted_local_vertices.end(),
-                      degrees = sorted_local_vertex_degrees.begin()] __device__(auto pair) {
-                       auto it = thrust::lower_bound(
-                         thrust::seq, sorted_major_first, sorted_major_last, thrust::get<0>(pair));
-                       *(degrees + thrust::distance(sorted_major_first, it)) = thrust::get<1>(pair);
-                     });
+                     search_and_set_degree_t{sorted_local_vertices.data(),
+                                             static_cast<vertex_t>(sorted_local_vertices.size()),
+                                             sorted_major_degrees.data()});
   }
 
   // 4. sort local vertices by degree (descending)
@@ -577,22 +595,16 @@ void expensive_check_edgelist(
 
         auto edge_first =
           thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
-        CUGRAPH_EXPECTS(
-          thrust::count_if(
-            handle.get_thrust_policy(),
-            edge_first,
-            edge_first + edgelist_edge_counts[i],
-            [num_majors    = static_cast<vertex_t>(sorted_majors.size()),
-             sorted_majors = sorted_majors.data(),
-             num_minors    = static_cast<vertex_t>(sorted_minors.size()),
-             sorted_minors = sorted_minors.data()] __device__(auto e) {
-              return !thrust::binary_search(
-                       thrust::seq, sorted_majors, sorted_majors + num_majors, thrust::get<0>(e)) ||
-                     !thrust::binary_search(
-                       thrust::seq, sorted_minors, sorted_minors + num_minors, thrust::get<1>(e));
-            }) == 0,
-          "Invalid input argument: edgelist_majors and/or edgelist_minors have "
-          "invalid vertex ID(s).");
+        CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
+                                         edge_first,
+                                         edge_first + edgelist_edge_counts[i],
+                                         check_edge_src_and_dst_t<vertex_t>{
+                                           sorted_majors.data(),
+                                           static_cast<vertex_t>(sorted_majors.size()),
+                                           sorted_minors.data(),
+                                           static_cast<vertex_t>(sorted_minors.size())}) == 0,
+                        "Invalid input argument: edgelist_majors and/or edgelist_minors have "
+                        "invalid vertex ID(s).");
       }
 
       if (edgelist_intra_partition_segment_offsets) {
@@ -623,22 +635,14 @@ void expensive_check_edgelist(
       auto edge_first =
         thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[0], edgelist_minors[0]));
       CUGRAPH_EXPECTS(
-        thrust::count_if(
-          handle.get_thrust_policy(),
-          edge_first,
-          edge_first + edgelist_edge_counts[0],
-          [sorted_local_vertices = (*sorted_local_vertices).data(),
-           num_sorted_local_vertices =
-             static_cast<vertex_t>((*sorted_local_vertices).size())] __device__(auto e) {
-            return !thrust::binary_search(thrust::seq,
-                                          sorted_local_vertices,
-                                          sorted_local_vertices + num_sorted_local_vertices,
-                                          thrust::get<0>(e)) ||
-                   !thrust::binary_search(thrust::seq,
-                                          sorted_local_vertices,
-                                          sorted_local_vertices + num_sorted_local_vertices,
-                                          thrust::get<1>(e));
-          }) == 0,
+        thrust::count_if(handle.get_thrust_policy(),
+                         edge_first,
+                         edge_first + edgelist_edge_counts[0],
+                         check_edge_src_and_dst_t<vertex_t>{
+                           (*sorted_local_vertices).data(),
+                           static_cast<vertex_t>((*sorted_local_vertices).size()),
+                           (*sorted_local_vertices).data(),
+                           static_cast<vertex_t>((*sorted_local_vertices).size())}) == 0,
         "Invalid input argument: edgelist_majors and/or edgelist_minors have "
         "invalid vertex ID(s).");
     }
