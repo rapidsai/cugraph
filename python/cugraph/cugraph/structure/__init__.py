@@ -12,8 +12,11 @@
 # limitations under the License.
 
 from cugraph.structure.graph_classes import (Graph,
+                                             DiGraph,
                                              MultiGraph,
-                                             BiPartiteGraph)
+                                             MultiDiGraph,
+                                             BiPartiteGraph,
+                                             BiPartiteDiGraph)
 from cugraph.structure.graph_classes import (is_weighted,
                                              is_directed,
                                              is_multigraph,

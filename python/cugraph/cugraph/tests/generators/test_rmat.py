@@ -107,7 +107,7 @@ def test_rmat_return_type(graph_type, mg):
     scale = 2
     num_edges = (2**scale)*4
 
-    if (mg and (graph_type not in [None])) or \
+    if (mg and (graph_type is not None)) or \
        (graph_type not in [cugraph.Graph, None]):
 
         with pytest.raises(TypeError):

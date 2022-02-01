@@ -129,13 +129,13 @@ NX_DIR_INPUT_TYPES = [
 
 CUGRAPH_INPUT_TYPES = [
     pytest.param(
-        cugraph.Graph, marks=pytest.mark.cugraph_types, id="cugraph.Graph"
+        cugraph.Graph(), marks=pytest.mark.cugraph_types, id="cugraph.Graph"
     ),
 ]
 
 CUGRAPH_DIR_INPUT_TYPES = [
     pytest.param(
-        cugraph.Graph, marks=pytest.mark.cugraph_types, id="cugraph.Graph"
+        cugraph.Graph(directed=True), marks=pytest.mark.cugraph_types, id="cugraph.Graph"
     ),
 ]
 

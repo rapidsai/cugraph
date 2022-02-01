@@ -356,9 +356,9 @@ def is_nx_graph_type(g):
 
 def is_cugraph_graph_type(g):
     # FIXME: importing here to avoid circular import
-    from cugraph.structure import Graph, MultiGraph
-
-    return g in [Graph, MultiGraph]
+    from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
+    # FIXME: Remove DiGraph when support is dropped
+    return g in [Graph, DiGraph, MultiGraph, MultiDiGraph]
 
 
 def renumber_vertex_pair(input_graph, vertex_pair):

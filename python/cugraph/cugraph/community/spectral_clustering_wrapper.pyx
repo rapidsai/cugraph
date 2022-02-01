@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -39,6 +39,11 @@ def spectralBalancedCutClustering(input_graph,
     """
     Call balancedCutClustering_nvgraph
     """
+    if isinstance(input_graph, cugraph.Graph):
+        if input_graph.is_directed():
+            raise ValueError("directed graphs are not supported")
+    else:
+        raise TypeError(f"only cugraph.Graph objects are supported, got: {type(input_graph)}")
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
@@ -107,6 +112,11 @@ def spectralModularityMaximizationClustering(input_graph,
     """
     Call spectralModularityMaximization_nvgraph
     """
+    if isinstance(input_graph, cugraph.Graph):
+        if input_graph.is_directed():
+            raise ValueError("directed graphs are not supported")
+    else:
+        raise TypeError(f"only cugraph.Graph objects are supported, got: {type(input_graph)}")
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
@@ -166,6 +176,11 @@ def analyzeClustering_modularity(input_graph, n_clusters, clustering):
     """
     Call analyzeClustering_modularity_nvgraph
     """
+    if isinstance(input_graph, cugraph.Graph):
+        if input_graph.is_directed():
+            raise ValueError("directed graphs are not supported")
+    else:
+        raise TypeError(f"only cugraph.Graph objects are supported, got: {type(input_graph)}")
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
@@ -219,6 +234,11 @@ def analyzeClustering_edge_cut(input_graph, n_clusters, clustering):
     """
     Call analyzeClustering_edge_cut_nvgraph
     """
+    if isinstance(input_graph, cugraph.Graph):
+        if input_graph.is_directed():
+            raise ValueError("directed graphs are not supported")
+    else:
+        raise TypeError(f"only cugraph.Graph objects are supported, got: {type(input_graph)}")
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
@@ -269,6 +289,11 @@ def analyzeClustering_ratio_cut(input_graph, n_clusters, clustering):
     """
     Call analyzeClustering_ratio_cut_nvgraph
     """
+    if isinstance(input_graph, cugraph.Graph):
+        if input_graph.is_directed():
+            raise ValueError("directed graphs are not supported")
+    else:
+        raise TypeError(f"only cugraph.Graph objects are supported, got: {type(input_graph)}")
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 

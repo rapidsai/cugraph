@@ -14,7 +14,7 @@
 import numpy as np
 
 import cudf
-from cugraph.structure import Graph, MultiGraph
+from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
 from cugraph.traversal import sssp_wrapper
 from cugraph.utilities import (ensure_cugraph_obj,
                                is_matrix_type,
@@ -43,7 +43,7 @@ def _ensure_args(G, source, method, directed,
 
     G_type = type(G)
     # Check for Graph-type inputs
-    if (G_type in [Graph]) or is_nx_graph_type(G_type):
+    if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
         # FIXME: Improve Graph-type checking
         exc_value = "'%s' cannot be specified for a Graph-type input"
         if directed is not None:
@@ -86,7 +86,7 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
     return_predecessors is only used for return values from cupy/scipy input
     types.
     """
-    if input_type in [Graph, MultiGraph]:
+    if input_type in [Graph, DiGraph, MultiGraph, MultiDiGraph]:
         return df
 
     elif is_nx_graph_type(input_type):
@@ -192,7 +192,7 @@ def sssp(G,
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight",
-        matrix_graph_type=Graph)
+        matrix_graph_type=Graph(directed=directed))
 
     if G.renumbered:
         if isinstance(source, cudf.DataFrame):

@@ -19,7 +19,7 @@ from cugraph.utilities import (df_score_to_dictionary,
                                is_nx_graph_type,
                                cupy_package as cp,
                                )
-from cugraph.structure import Graph
+from cugraph.structure import Graph, DiGraph
 from cugraph.components import connectivity_wrapper
 
 
@@ -31,7 +31,7 @@ def _ensure_args(api_name, G, directed, connection, return_labels):
     """
     G_type = type(G)
     # Check for Graph-type inputs and set defaults if unset
-    if (G_type in [Graph]) or is_nx_graph_type(G_type):
+    if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
         exc_value = "'%s' cannot be specified for a Graph-type input"
         if directed is not None:
             raise TypeError(exc_value % "directed")
@@ -70,7 +70,7 @@ def _convert_df_to_output_type(df, input_type, return_labels):
     graph algos in this module, based on input_type.
     return_labels is only used for return values from cupy/scipy input types.
     """
-    if input_type in [Graph]:
+    if input_type in [Graph, DiGraph]:
         return df
 
     elif is_nx_graph_type(input_type):

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -104,6 +104,23 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
 
 # Test to ensure DiGraph objs are not accepted
 # Test all combinations of default/managed and pooled/non-pooled allocation
+
+
+def test_digraph_rejected():
+    gc.collect()
+
+    df = cudf.DataFrame()
+    df["src"] = cudf.Series(range(10))
+    df["dst"] = cudf.Series(range(10))
+    df["val"] = cudf.Series(range(10))
+
+    G = cugraph.DiGraph()
+    G.from_cudf_edgelist(
+        df, source="src", destination="dst", edge_attr="val", renumber=False
+    )
+
+    with pytest.warns(DeprecationWarning):
+        cugraph_call(G, 2)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
