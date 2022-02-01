@@ -52,10 +52,12 @@ def test_renumber_ips():
     input_check = renumbered_gdf.merge(gdf, on=["source_list", "dest_list"])
 
     output_check = renumber_map.from_internal_vertex_id(
-        renumbered_gdf, "src", external_column_names=["check_src"]
+        renumbered_gdf, renumber_map.renumbered_src_col_name,
+        external_column_names=["check_src"]
     )
     output_check = renumber_map.from_internal_vertex_id(
-        output_check, "dst", external_column_names=["check_dst"]
+        output_check, renumber_map.renumbered_dst_col_name,
+        external_column_names=["check_dst"]
     )
 
     merged = output_check.merge(input_check, on=["source_list", "dest_list"])
@@ -97,10 +99,12 @@ def test_renumber_ips_cols():
     input_check = renumbered_gdf.merge(gdf, on=["source_list", "dest_list"])
 
     output_check = renumber_map.from_internal_vertex_id(
-        renumbered_gdf, "src", external_column_names=["check_src"]
+        renumbered_gdf, renumber_map.renumbered_src_col_name,
+        external_column_names=["check_src"]
     )
     output_check = renumber_map.from_internal_vertex_id(
-        output_check, "dst", external_column_names=["check_dst"]
+        output_check, renumber_map.renumbered_dst_col_name,
+        external_column_names=["check_dst"]
     )
 
     merged = output_check.merge(input_check, on=["source_list", "dest_list"])
@@ -132,10 +136,12 @@ def test_renumber_negative():
     )
 
     output_check = renumber_map.from_internal_vertex_id(
-        renumbered_gdf, "src", external_column_names=["check_src"]
+        renumbered_gdf, renumber_map.renumbered_src_col_name,
+        external_column_names=["check_src"]
     )
     output_check = renumber_map.from_internal_vertex_id(
-        output_check, "dst", external_column_names=["check_dst"]
+        output_check, renumber_map.renumbered_dst_col_name,
+        external_column_names=["check_dst"]
     )
 
     merged = output_check.merge(
@@ -169,10 +175,12 @@ def test_renumber_negative_col():
     )
 
     output_check = renumber_map.from_internal_vertex_id(
-        renumbered_gdf, "src", external_column_names=["check_src"]
+        renumbered_gdf, renumber_map.renumbered_src_col_name,
+        external_column_names=["check_src"]
     )
     output_check = renumber_map.from_internal_vertex_id(
-        output_check, "dst", external_column_names=["check_dst"]
+        output_check, renumber_map.renumbered_dst_col_name,
+        external_column_names=["check_dst"]
     )
 
     merged = output_check.merge(
@@ -209,14 +217,20 @@ def test_renumber_files(graph_file):
     )
 
     unrenumbered_df = renumber_map.unrenumber(
-        renumbered_df, "src", preserve_order=True
+        renumbered_df, renumber_map.renumbered_src_col_name,
+        preserve_order=True
     )
     unrenumbered_df = renumber_map.unrenumber(
-        unrenumbered_df, "dst", preserve_order=True
+        unrenumbered_df, renumber_map.renumbered_dst_col_name,
+        preserve_order=True
     )
 
-    assert_series_equal(exp_src, unrenumbered_df["src"], check_names=False)
-    assert_series_equal(exp_dst, unrenumbered_df["dst"], check_names=False)
+    assert_series_equal(exp_src,
+                        unrenumbered_df[renumber_map.renumbered_src_col_name],
+                        check_names=False)
+    assert_series_equal(exp_dst,
+                        unrenumbered_df[renumber_map.renumbered_dst_col_name],
+                        check_names=False)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
@@ -241,14 +255,20 @@ def test_renumber_files_col(graph_file):
     )
 
     unrenumbered_df = renumber_map.unrenumber(
-        renumbered_df, "src", preserve_order=True
+        renumbered_df, renumber_map.renumbered_src_col_name,
+        preserve_order=True
     )
     unrenumbered_df = renumber_map.unrenumber(
-        unrenumbered_df, "dst", preserve_order=True
+        unrenumbered_df, renumber_map.renumbered_dst_col_name,
+        preserve_order=True
     )
 
-    assert_series_equal(exp_src, unrenumbered_df["src"], check_names=False)
-    assert_series_equal(exp_dst, unrenumbered_df["dst"], check_names=False)
+    assert_series_equal(exp_src,
+                        unrenumbered_df[renumber_map.renumbered_src_col_name],
+                        check_names=False)
+    assert_series_equal(exp_dst,
+                        unrenumbered_df[renumber_map.renumbered_dst_col_name],
+                        check_names=False)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
@@ -272,21 +292,83 @@ def test_renumber_files_multi_col(graph_file):
     )
 
     unrenumbered_df = renumber_map.unrenumber(
-        renumbered_df, "src", preserve_order=True
+        renumbered_df, renumber_map.renumbered_src_col_name,
+        preserve_order=True
     )
     unrenumbered_df = renumber_map.unrenumber(
-        unrenumbered_df, "dst", preserve_order=True
+        unrenumbered_df, renumber_map.renumbered_dst_col_name,
+        preserve_order=True
     )
 
+    src = renumber_map.renumbered_src_col_name
+    dst = renumber_map.renumbered_dst_col_name
     assert_series_equal(
-        gdf["src"], unrenumbered_df["0_src"], check_names=False
+        gdf["src"], unrenumbered_df[f"0_{src}"], check_names=False
     )
     assert_series_equal(
-        gdf["src_old"], unrenumbered_df["1_src"], check_names=False
+        gdf["src_old"], unrenumbered_df[f"1_{src}"], check_names=False
     )
     assert_series_equal(
-        gdf["dst"], unrenumbered_df["0_dst"], check_names=False
+        gdf["dst"], unrenumbered_df[f"0_{dst}"], check_names=False
     )
     assert_series_equal(
-        gdf["dst_old"], unrenumbered_df["1_dst"], check_names=False
+        gdf["dst_old"], unrenumbered_df[f"1_{dst}"], check_names=False
     )
+
+
+def test_renumber_common_col_names():
+    """
+    Ensure that commonly-used column names in the input do not conflict with
+    names used internally by NumberMap.
+    """
+    # test multi-column ("legacy" renumbering code path)
+    gdf = cudf.DataFrame({"src": [0, 1, 2],
+                          "dst": [1, 2, 3],
+                          "weights": [0.1, 0.2, 0.3],
+                          "col_a": [8, 1, 82],
+                          "col_b": [1, 82, 3],
+                          "col_c": [9, 7, 2],
+                          "col_d": [1, 2, 3]})
+
+    renumbered_df, renumber_map = NumberMap.renumber(
+        gdf, ["col_a", "col_b"], ["col_c", "col_d"])
+
+    assert renumber_map.renumbered_src_col_name != "src"
+    assert renumber_map.renumbered_dst_col_name != "dst"
+    assert renumber_map.renumbered_src_col_name in renumbered_df.columns
+    assert renumber_map.renumbered_dst_col_name in renumbered_df.columns
+
+    # test experimental renumbering code path
+    gdf = cudf.DataFrame({"src": [0, 1, 2],
+                          "dst": [1, 2, 3],
+                          "weights": [0.1, 0.2, 0.3],
+                          "col_a": [0, 1, 2],
+                          "col_b": [1, 2, 3]})
+
+    renumbered_df, renumber_map = NumberMap.renumber(gdf, "col_a", "col_b")
+
+    assert renumber_map.renumbered_src_col_name != "src"
+    assert renumber_map.renumbered_dst_col_name != "dst"
+    assert renumber_map.renumbered_src_col_name in renumbered_df.columns
+    assert renumber_map.renumbered_dst_col_name in renumbered_df.columns
+
+
+def test_renumber_unrenumber_non_default_vert_names():
+    """
+    Test that renumbering a dataframe with generated src/dst column names can
+    be used for unrenumbering results.
+    """
+    input_gdf = cudf.DataFrame({"dst": [1, 2, 3],
+                                "weights": [0.1, 0.2, 0.3],
+                                "col_a": [99, 199, 2],
+                                "col_b": [199, 2, 32]})
+
+    renumbered_df, number_map = NumberMap.renumber(input_gdf, "col_a", "col_b")
+
+    some_result_gdf = cudf.DataFrame({"vertex": [0, 1, 2, 3]})
+    expected_values = [99, 199, 2, 32]
+
+    some_result_gdf = number_map.unrenumber(some_result_gdf, "vertex")
+
+    assert sorted(expected_values) == \
+           sorted(some_result_gdf["vertex"].to_arrow().to_pylist())

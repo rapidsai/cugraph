@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,13 +36,13 @@ def louvain(G, max_iter=100, resolution=1.):
         and weights. The adjacency list will be computed if not already
         present.
 
-    max_iter : integer
+    max_iter : integer, optional (default=100)
         This controls the maximum number of levels/iterations of the Louvain
         algorithm. When specified the algorithm will terminate after no more
         than the specified number of iterations. No error occurs when the
         algorithm terminates early in this manner.
 
-    resolution: float/double, optional
+    resolution: float/double, optional (default=1.0)
         Called gamma in the modularity formula, this changes the size
         of the communities.  Higher resolutions lead to more smaller
         communities, lower resolutions lead to fewer larger communities.
@@ -65,13 +65,14 @@ def louvain(G, max_iter=100, resolution=1.):
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> parts, modularity_score = cugraph.louvain(G)
+
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)

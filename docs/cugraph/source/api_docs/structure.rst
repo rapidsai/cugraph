@@ -45,7 +45,6 @@ Checks
    Graph.lookup_internal_vertex_id
    Graph.to_directed
    Graph.to_undirected
-   Graph.unrenumber
 
 
 Symmetrize
@@ -74,3 +73,11 @@ Conversion from Other Formats
    cugraph.structure.convert_matrix.to_numpy_matrix
    cugraph.structure.convert_matrix.to_pandas_adjacency
    cugraph.structure.convert_matrix.to_pandas_edgelist
+
+Other
+-----------------------------
+.. autosummary::
+   :toctree: api/
+
+   Graph.unrenumber
+   cugraph.structure.hypergraph.hypergraph
