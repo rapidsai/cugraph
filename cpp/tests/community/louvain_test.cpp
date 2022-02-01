@@ -300,10 +300,10 @@ TEST(louvain_legacy_renumbered, success)
   }
 }
 
-using Tests_Louvain_File = Tests_Louvain<cugraph::test::File_Usecase>;
+using Tests_Louvain_File   = Tests_Louvain<cugraph::test::File_Usecase>;
 using Tests_Louvain_File32 = Tests_Louvain<cugraph::test::File_Usecase>;
 using Tests_Louvain_File64 = Tests_Louvain<cugraph::test::File_Usecase>;
-using Tests_Louvain_Rmat = Tests_Louvain<cugraph::test::Rmat_Usecase>;
+using Tests_Louvain_Rmat   = Tests_Louvain<cugraph::test::Rmat_Usecase>;
 using Tests_Louvain_Rmat32 = Tests_Louvain<cugraph::test::Rmat_Usecase>;
 using Tests_Louvain_Rmat64 = Tests_Louvain<cugraph::test::Rmat_Usecase>;
 

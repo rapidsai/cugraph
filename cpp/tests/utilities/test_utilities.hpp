@@ -347,9 +347,8 @@ bool renumbered_vectors_same(raft::handle_t const& handle,
 {
   if (v1.size() != v2.size()) return false;
 
-  return renumbered_vectors_same(handle,
-                                 to_host(handle, v1.data(), v1.size()),
-                                 to_host(handle, v2.data(), v2.size()));
+  return renumbered_vectors_same(
+    handle, to_host(handle, v1.data(), v1.size()), to_host(handle, v2.data(), v2.size()));
 }
 
 template <typename T, typename L>
