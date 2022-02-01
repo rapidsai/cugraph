@@ -21,7 +21,6 @@ Breadth-first-search (MG)
    cugraph.dask.traversal.bfs.bfs
    cugraph.dask.traversal.bfs.call_bfs
 
-
 Single-source-shortest-path
 ---------------------------
 .. autosummary::

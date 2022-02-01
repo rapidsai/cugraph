@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -71,6 +71,8 @@ cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w, vertex_t, weights):
 
 
 def renumber(input_df,           # maybe use cpdef ?
+             renumbered_src_col_name,
+             renumbered_dst_col_name,
              num_global_edges,
              rank,
              handle,
@@ -84,11 +86,11 @@ def renumber(input_df,           # maybe use cpdef ?
     handle_ptr = <handle_t*>handle_size_t
 
     if not transposed:
-        major_vertices = input_df['src']
-        minor_vertices = input_df['dst']
+        major_vertices = input_df[renumbered_src_col_name]
+        minor_vertices = input_df[renumbered_dst_col_name]
     else:
-        major_vertices = input_df['dst']
-        minor_vertices = input_df['src']
+        major_vertices = input_df[renumbered_dst_col_name]
+        minor_vertices = input_df[renumbered_src_col_name]
 
     cdef uintptr_t c_edge_weights = <uintptr_t>NULL # set below...
 
@@ -175,9 +177,9 @@ def renumber(input_df,           # maybe use cpdef ?
                     minor_vertices = shuffled_df['minor_vertices']
                     num_local_edges = len(shuffled_df)
                     if not transposed:
-                        major = 'src'; minor = 'dst'
+                        major = renumbered_src_col_name; minor = renumbered_dst_col_name
                     else:
-                        major = 'dst'; minor = 'src'
+                        major = renumbered_dst_col_name; minor = renumbered_src_col_name
                     shuffled_df = shuffled_df.rename(columns={'major_vertices':major, 'minor_vertices':minor}, copy=False)
                     edge_counts_32 = move(ptr_shuffled_32_32_32.get().get_edge_counts_wrap())
                 else:
@@ -240,9 +242,9 @@ def renumber(input_df,           # maybe use cpdef ?
                     minor_vertices = shuffled_df['minor_vertices']
                     num_local_edges = len(shuffled_df)
                     if not transposed:
-                        major = 'src'; minor = 'dst'
+                        major = renumbered_src_col_name; minor = renumbered_dst_col_name
                     else:
-                        major = 'dst'; minor = 'src'
+                        major = renumbered_dst_col_name; minor = renumbered_src_col_name
                     shuffled_df = shuffled_df.rename(columns={'major_vertices':major, 'minor_vertices':minor}, copy=False)
                     edge_counts_32 = move(ptr_shuffled_32_32_64.get().get_edge_counts_wrap())
                 else:
@@ -307,9 +309,9 @@ def renumber(input_df,           # maybe use cpdef ?
                     minor_vertices = shuffled_df['minor_vertices']
                     num_local_edges = len(shuffled_df)
                     if not transposed:
-                        major = 'src'; minor = 'dst'
+                        major = renumbered_src_col_name; minor = renumbered_dst_col_name
                     else:
-                        major = 'dst'; minor = 'src'
+                        major = renumbered_dst_col_name; minor = renumbered_src_col_name
                     shuffled_df = shuffled_df.rename(columns={'major_vertices':major, 'minor_vertices':minor}, copy=False)
                     edge_counts_64 = move(ptr_shuffled_32_64_32.get().get_edge_counts_wrap())
                 else:
@@ -372,9 +374,9 @@ def renumber(input_df,           # maybe use cpdef ?
                     minor_vertices = shuffled_df['minor_vertices']
                     num_local_edges = len(shuffled_df)
                     if not transposed:
-                        major = 'src'; minor = 'dst'
+                        major = renumbered_src_col_name; minor = renumbered_dst_col_name
                     else:
-                        major = 'dst'; minor = 'src'
+                        major = renumbered_dst_col_name; minor = renumbered_src_col_name
                     shuffled_df = shuffled_df.rename(columns={'major_vertices':major, 'minor_vertices':minor}, copy=False)
                     edge_counts_64 = move(ptr_shuffled_32_64_64.get().get_edge_counts_wrap())
                 else:
@@ -439,9 +441,9 @@ def renumber(input_df,           # maybe use cpdef ?
                     minor_vertices = shuffled_df['minor_vertices']
                     num_local_edges = len(shuffled_df)
                     if not transposed:
-                        major = 'src'; minor = 'dst'
+                        major = renumbered_src_col_name; minor = renumbered_dst_col_name
                     else:
-                        major = 'dst'; minor = 'src'
+                        major = renumbered_dst_col_name; minor = renumbered_src_col_name
                     shuffled_df = shuffled_df.rename(columns={'major_vertices':major, 'minor_vertices':minor}, copy=False)
                     edge_counts_64 = move(ptr_shuffled_64_64_32.get().get_edge_counts_wrap())
                 else:
@@ -505,9 +507,9 @@ def renumber(input_df,           # maybe use cpdef ?
                     minor_vertices = shuffled_df['minor_vertices']
                     num_local_edges = len(shuffled_df)
                     if not transposed:
-                        major = 'src'; minor = 'dst'
+                        major = renumbered_src_col_name; minor = renumbered_dst_col_name
                     else:
-                        major = 'dst'; minor = 'src'
+                        major = renumbered_dst_col_name; minor = renumbered_src_col_name
                     shuffled_df = shuffled_df.rename(columns={'major_vertices':major, 'minor_vertices':minor}, copy=False)
                     edge_counts_64 = move(ptr_shuffled_64_64_64.get().get_edge_counts_wrap())
                 else:

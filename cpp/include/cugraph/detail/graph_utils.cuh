@@ -77,5 +77,13 @@ struct compute_partition_id_from_edge_t {
   }
 };
 
+template <typename vertex_t>
+struct is_first_in_run_t {
+  vertex_t const* vertices{nullptr};
+  __device__ bool operator()(size_t i) const {
+    return (i == 0) || (vertices[i - 1] != vertices[i]);
+  }
+};
+
 }  // namespace detail
 }  // namespace cugraph

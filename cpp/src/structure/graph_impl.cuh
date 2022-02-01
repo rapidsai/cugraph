@@ -1224,8 +1224,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   return create_graph_from_edgelist<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>(
     handle,
     std::move(vertex_span),
-    std::move(edgelist_cols),
     std::move(edgelist_rows),
+    std::move(edgelist_cols),
     std::move(edgelist_weights),
     graph_properties_t{is_multigraph, false},
     renumber);

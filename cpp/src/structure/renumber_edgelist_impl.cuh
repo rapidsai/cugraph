@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/device_comm.cuh>
@@ -44,6 +45,38 @@
 namespace cugraph {
 namespace detail {
 
+template <typename vertex_t>
+struct check_edge_src_and_dst_t {
+  vertex_t const* sorted_majors{nullptr};
+  vertex_t num_majors{0};
+  vertex_t const* sorted_minors{nullptr};
+  vertex_t num_minors{0};
+
+  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> e) const
+  {
+    return !thrust::binary_search(
+             thrust::seq, sorted_majors, sorted_majors + num_majors, thrust::get<0>(e)) ||
+           !thrust::binary_search(
+             thrust::seq, sorted_minors, sorted_minors + num_minors, thrust::get<1>(e));
+  }
+};
+
+template <typename vertex_t, typename edge_t>
+struct search_and_set_degree_t {
+  vertex_t const* sorted_vertices{nullptr};
+  vertex_t num_vertices{0};
+  edge_t* degrees{nullptr};
+
+  __device__ void operator()(thrust::tuple<vertex_t, edge_t> vertex_degree_pair) const
+  {
+    auto it                                            = thrust::lower_bound(thrust::seq,
+                                  sorted_vertices,
+                                  sorted_vertices + num_vertices,
+                                  thrust::get<0>(vertex_degree_pair));
+    *(degrees + thrust::distance(sorted_vertices, it)) = thrust::get<1>(vertex_degree_pair);
+  }
+};
+
 // returns renumber map, segment_offsets, and # unique edge majors & minors
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t, vertex_t>
@@ -53,240 +86,314 @@ compute_renumber_map(raft::handle_t const& handle,
                      std::vector<vertex_t const*> const& edgelist_minors,
                      std::vector<edge_t> const& edgelist_edge_counts)
 {
-  // FIXME: compare this sort based approach with hash based approach in both speed and memory
-  // footprint
-
-  // 1. acquire (unique major label, count) pairs
-
-  rmm::device_uvector<vertex_t> major_labels(0, handle.get_stream());
-  rmm::device_uvector<edge_t> major_counts(0, handle.get_stream());
+#if 1  // FIXME: delete
+  handle.sync_stream();
+  if constexpr (multi_gpu) {
+    rmm::device_uvector<int32_t> dummy(1, handle.get_stream());
+    handle.get_comms().allreduce(
+      dummy.data(), dummy.data(), 1, raft::comms::op_t::SUM, handle.get_stream());
+  }
+  auto time0 = std::chrono::steady_clock::now();
+#endif
+  rmm::device_uvector<vertex_t> sorted_local_vertices(0, handle.get_stream());
   vertex_t num_local_unique_edge_majors{0};
-  for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-    rmm::device_uvector<vertex_t> tmp_major_labels(0, handle.get_stream());
-    rmm::device_uvector<edge_t> tmp_major_counts(0, handle.get_stream());
-    {
-      rmm::device_uvector<vertex_t> sorted_major_labels(edgelist_edge_counts[i],
-                                                        handle.get_stream());
+  vertex_t num_local_unique_edge_minors{0};
+
+  edge_t num_local_edges = std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
+
+  // 1. if local_vertices.has_value() is false, keep unique vertices from edge majors as well (to
+  // construct local_vertices)
+
+  rmm::device_uvector<vertex_t> sorted_unique_majors(0, handle.get_stream());
+  if (!local_vertices) {
+    sorted_unique_majors.resize(num_local_edges, handle.get_stream());
+    size_t major_offset{0};
+    for (size_t i = 0; i < edgelist_majors.size(); ++i) {
       thrust::copy(handle.get_thrust_policy(),
                    edgelist_majors[i],
                    edgelist_majors[i] + edgelist_edge_counts[i],
-                   sorted_major_labels.begin());
-      // FIXME: better refactor this sort-count_if-reduce_by_key routine for reuse
+                   sorted_unique_majors.begin() + major_offset);
+      thrust::sort(handle.get_thrust_policy(),
+                   sorted_unique_majors.begin() + major_offset,
+                   sorted_unique_majors.begin() + major_offset + edgelist_edge_counts[i]);
+      major_offset += static_cast<size_t>(thrust::distance(
+        sorted_unique_majors.begin() + major_offset,
+        thrust::unique(handle.get_thrust_policy(),
+                       sorted_unique_majors.begin() + major_offset,
+                       sorted_unique_majors.begin() + major_offset + edgelist_edge_counts[i])));
+    }
+    sorted_unique_majors.resize(major_offset, handle.get_stream());
+
+    if (edgelist_majors.size() > 1) {
       thrust::sort(
-        handle.get_thrust_policy(), sorted_major_labels.begin(), sorted_major_labels.end());
-      auto num_unique_labels =
-        thrust::count_if(handle.get_thrust_policy(),
-                         thrust::make_counting_iterator(size_t{0}),
-                         thrust::make_counting_iterator(sorted_major_labels.size()),
-                         [labels = sorted_major_labels.data()] __device__(auto i) {
-                           return (i == 0) || (labels[i - 1] != labels[i]);
-                         });
-      tmp_major_labels.resize(num_unique_labels, handle.get_stream());
-      tmp_major_counts.resize(tmp_major_labels.size(), handle.get_stream());
-      thrust::reduce_by_key(handle.get_thrust_policy(),
-                            sorted_major_labels.begin(),
-                            sorted_major_labels.end(),
-                            thrust::make_constant_iterator(edge_t{1}),
-                            tmp_major_labels.begin(),
-                            tmp_major_counts.begin());
+        handle.get_thrust_policy(), sorted_unique_majors.begin(), sorted_unique_majors.end());
+      sorted_unique_majors.resize(thrust::distance(sorted_unique_majors.begin(),
+                                                   thrust::unique(handle.get_thrust_policy(),
+                                                                  sorted_unique_majors.begin(),
+                                                                  sorted_unique_majors.end())),
+                                  handle.get_stream());
     }
-    num_local_unique_edge_majors += static_cast<vertex_t>(tmp_major_labels.size());
-
-    if (multi_gpu) {
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-      auto const col_comm_size = col_comm.get_size();
-
-      rmm::device_uvector<vertex_t> rx_major_labels(0, handle.get_stream());
-      rmm::device_uvector<edge_t> rx_major_counts(0, handle.get_stream());
-      auto rx_sizes = host_scalar_gather(
-        col_comm, tmp_major_labels.size(), static_cast<int>(i), handle.get_stream());
-      std::vector<size_t> rx_displs{};
-      if (static_cast<int>(i) == col_comm_rank) {
-        rx_displs.assign(col_comm_size, size_t{0});
-        std::partial_sum(rx_sizes.begin(), rx_sizes.end() - 1, rx_displs.begin() + 1);
-        rx_major_labels.resize(rx_displs.back() + rx_sizes.back(), handle.get_stream());
-        rx_major_counts.resize(rx_major_labels.size(), handle.get_stream());
-      }
-      device_gatherv(col_comm,
-                     thrust::make_zip_iterator(
-                       thrust::make_tuple(tmp_major_labels.begin(), tmp_major_counts.begin())),
-                     thrust::make_zip_iterator(
-                       thrust::make_tuple(rx_major_labels.begin(), rx_major_counts.begin())),
-                     tmp_major_labels.size(),
-                     rx_sizes,
-                     rx_displs,
-                     static_cast<int>(i),
-                     handle.get_stream());
-      if (static_cast<int>(i) == col_comm_rank) {
-        major_labels = std::move(rx_major_labels);
-        major_counts = std::move(rx_major_counts);
-      }
-    } else {
-      assert(i == 0);
-      major_labels = std::move(tmp_major_labels);
-      major_counts = std::move(tmp_major_counts);
-    }
-  }
-  if (multi_gpu) {
-    // FIXME: better refactor this sort-count_if-reduce_by_key routine for reuse
-    thrust::sort_by_key(
-      handle.get_thrust_policy(), major_labels.begin(), major_labels.end(), major_counts.begin());
-    auto num_unique_labels = thrust::count_if(handle.get_thrust_policy(),
-                                              thrust::make_counting_iterator(size_t{0}),
-                                              thrust::make_counting_iterator(major_labels.size()),
-                                              [labels = major_labels.data()] __device__(auto i) {
-                                                return (i == 0) || (labels[i - 1] != labels[i]);
-                                              });
-    rmm::device_uvector<vertex_t> tmp_major_labels(num_unique_labels, handle.get_stream());
-    rmm::device_uvector<edge_t> tmp_major_counts(tmp_major_labels.size(), handle.get_stream());
-    thrust::reduce_by_key(handle.get_thrust_policy(),
-                          major_labels.begin(),
-                          major_labels.end(),
-                          major_counts.begin(),
-                          tmp_major_labels.begin(),
-                          tmp_major_counts.begin());
-    major_labels = std::move(tmp_major_labels);
-    major_counts = std::move(tmp_major_counts);
+    sorted_unique_majors.shrink_to_fit(handle.get_stream());
   }
 
-  // 2. acquire unique minor labels
+  // 2. count unique edge minors.
+  // if local_vertices.has_value() is false, keep unique vertices from edge minors as well (to
+  // construct local_vertices)
 
-  std::vector<edge_t> minor_displs(edgelist_minors.size(), edge_t{0});
-  std::partial_sum(
-    edgelist_edge_counts.begin(), edgelist_edge_counts.end() - 1, minor_displs.begin() + 1);
-  rmm::device_uvector<vertex_t> minor_labels(minor_displs.back() + edgelist_edge_counts.back(),
-                                             handle.get_stream());
-  vertex_t minor_offset{0};
+#if 1  // FIXME: delete
+  handle.sync_stream();
+  auto time1 = std::chrono::steady_clock::now();
+#endif
+  rmm::device_uvector<vertex_t> sorted_unique_minors(num_local_edges, handle.get_stream());
+  size_t minor_offset{0};
   for (size_t i = 0; i < edgelist_minors.size(); ++i) {
     thrust::copy(handle.get_thrust_policy(),
                  edgelist_minors[i],
                  edgelist_minors[i] + edgelist_edge_counts[i],
-                 minor_labels.begin() + minor_offset);
+                 sorted_unique_minors.begin() + minor_offset);
     thrust::sort(handle.get_thrust_policy(),
-                 minor_labels.begin() + minor_offset,
-                 minor_labels.begin() + minor_offset + edgelist_edge_counts[i]);
-    minor_offset += thrust::distance(
-      minor_labels.begin() + minor_offset,
+                 sorted_unique_minors.begin() + minor_offset,
+                 sorted_unique_minors.begin() + minor_offset + edgelist_edge_counts[i]);
+    minor_offset += static_cast<size_t>(thrust::distance(
+      sorted_unique_minors.begin() + minor_offset,
       thrust::unique(handle.get_thrust_policy(),
-                     minor_labels.begin() + minor_offset,
-                     minor_labels.begin() + minor_offset + edgelist_edge_counts[i]));
+                     sorted_unique_minors.begin() + minor_offset,
+                     sorted_unique_minors.begin() + minor_offset + edgelist_edge_counts[i])));
   }
-  minor_labels.resize(minor_offset, handle.get_stream());
-  thrust::sort(handle.get_thrust_policy(), minor_labels.begin(), minor_labels.end());
-  minor_labels.resize(
-    thrust::distance(
-      minor_labels.begin(),
-      thrust::unique(handle.get_thrust_policy(), minor_labels.begin(), minor_labels.end())),
-    handle.get_stream());
-  auto num_local_unique_edge_minors = static_cast<vertex_t>(minor_labels.size());
-  if (multi_gpu) {
+  sorted_unique_minors.resize(minor_offset, handle.get_stream());
+  if (edgelist_minors.size() > 1) {
+    thrust::sort(
+      handle.get_thrust_policy(), sorted_unique_minors.begin(), sorted_unique_minors.end());
+    sorted_unique_minors.resize(thrust::distance(sorted_unique_minors.begin(),
+                                                 thrust::unique(handle.get_thrust_policy(),
+                                                                sorted_unique_minors.begin(),
+                                                                sorted_unique_minors.end())),
+                                handle.get_stream());
+  }
+
+  num_local_unique_edge_minors = static_cast<vertex_t>(sorted_unique_minors.size());
+
+  if (local_vertices) { sorted_unique_minors.resize(0, handle.get_stream()); }
+  sorted_unique_minors.shrink_to_fit(handle.get_stream());
+
+  // 3. update sorted_local_vertices.
+  // if local_vertices.has_value() is false, reconstruct local_vertices first
+
+#if 1  // FIXME: delete
+  handle.sync_stream();
+  auto time2 = std::chrono::steady_clock::now();
+#endif
+  if (!local_vertices) {
+    sorted_local_vertices.resize(sorted_unique_majors.size() + sorted_unique_minors.size(),
+                                 handle.get_stream());
+
+    thrust::merge(handle.get_thrust_policy(),
+                  sorted_unique_majors.begin(),
+                  sorted_unique_majors.end(),
+                  sorted_unique_minors.begin(),
+                  sorted_unique_minors.end(),
+                  sorted_local_vertices.begin());
+
+    sorted_unique_majors.resize(0, handle.get_stream());
+    sorted_unique_majors.shrink_to_fit(handle.get_stream());
+    sorted_unique_minors.resize(0, handle.get_stream());
+    sorted_unique_minors.shrink_to_fit(handle.get_stream());
+
+    sorted_local_vertices.resize(thrust::distance(sorted_local_vertices.begin(),
+                                                  thrust::unique(handle.get_thrust_policy(),
+                                                                 sorted_local_vertices.begin(),
+                                                                 sorted_local_vertices.end())),
+                                 handle.get_stream());
+    sorted_local_vertices.shrink_to_fit(handle.get_stream());
+
+    if constexpr (multi_gpu) {
+      sorted_local_vertices =
+        cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(sorted_local_vertices));
+    }
+  } else {
+    sorted_local_vertices = std::move(*local_vertices);
+    thrust::sort(
+      handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
+  }
+
+  // 4. compute global degrees for the sorted local vertices, and count unique edge majors on the
+  // way
+
+#if 1  // FIXME: delete
+  handle.sync_stream();
+  auto time3 = std::chrono::steady_clock::now();
+#endif
+  rmm::device_uvector<edge_t> sorted_local_vertex_degrees(0, handle.get_stream());
+  std::optional<std::vector<size_t>> stream_pool_indices{
+    std::nullopt};  // FIXME: move this inside the if statement
+  if constexpr (multi_gpu) {
     auto& comm               = handle.get_comms();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
+    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto const col_comm_rank = col_comm.get_rank();
+    auto const col_comm_size = col_comm.get_size();
 
-    if (row_comm_size > 1) {
-      rmm::device_uvector<vertex_t> rx_minor_labels(0, handle.get_stream());
-      std::tie(rx_minor_labels, std::ignore) = groupby_gpuid_and_shuffle_values(
-        row_comm,
-        minor_labels.begin(),
-        minor_labels.end(),
-        [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{row_comm_size}] __device__(
-          auto val) { return key_func(val); },
+    assert(edgelist_majors.size() == col_comm_size);
+
+    auto edge_partition_major_sizes =
+      host_scalar_allgather(col_comm, sorted_local_vertices.size(), handle.get_stream());
+
+    if ((col_comm_size >= 2) && (handle.get_stream_pool_size() >= 2)) {
+      auto vertex_edge_counts = host_scalar_allreduce(
+        comm,
+        thrust::make_tuple(static_cast<vertex_t>(sorted_local_vertices.size()), num_local_edges),
+        raft::comms::op_t::SUM,
         handle.get_stream());
-      thrust::sort(handle.get_thrust_policy(), rx_minor_labels.begin(), rx_minor_labels.end());
-      rx_minor_labels.resize(thrust::distance(rx_minor_labels.begin(),
-                                              thrust::unique(handle.get_thrust_policy(),
-                                                             rx_minor_labels.begin(),
-                                                             rx_minor_labels.end())),
-                             handle.get_stream());
-      minor_labels = std::move(rx_minor_labels);
+      // memory footprint vs parallelism trade-off
+      // peak memory requirement per loop is
+      // min(
+      //   (E / (comm_size * col_comm_size)) * sizeof(vertex_t) * 2,
+      //   (E / (comm_size * col_comm_size)) * sizeof(vertex_t) +
+      //     (V/P) * (sizeof(vertex_t) + sizeof(edge_t)),
+      //   (V/P) * (sizeof(vertex_t) + sizeof(edge_t)) * 2
+      // )
+      // and limit temporary memory requirement to (E / comm_size) * sizeof(vertex_t) * 2
+      auto avg_vertex_degree = thrust::get<0>(vertex_edge_counts) > 0
+                                 ? static_cast<double>(thrust::get<1>(vertex_edge_counts)) /
+                                     static_cast<double>(thrust::get<0>(vertex_edge_counts))
+                                 : double{0.0};
+      auto num_streams =
+        std::min(static_cast<size_t>(avg_vertex_degree *
+                                     (static_cast<double>(sizeof(vertex_t)) /
+                                      static_cast<double>(sizeof(vertex_t) + sizeof(edge_t)))),
+                 static_cast<size_t>(
+                   std::min(static_cast<size_t>(col_comm_size), handle.get_stream_pool_size())));
+      if (num_streams >= 2) {
+        stream_pool_indices = std::vector<size_t>(num_streams);
+        std::iota((*stream_pool_indices).begin(), (*stream_pool_indices).end(), size_t{0});
+        handle.sync_stream();
+      }
     }
-  }
-  minor_labels.shrink_to_fit(handle.get_stream());
+    stream_pool_indices = std::nullopt;  // FIXME: delete
 
-  // 3. merge major and minor labels and vertex labels
+    for (int i = 0; i < col_comm_size; ++i) {
+      auto loop_stream = stream_pool_indices
+                           ? handle.get_stream_from_stream_pool(
+                               (*stream_pool_indices)[i % (*stream_pool_indices).size()])
+                           : handle.get_stream();
 
-  rmm::device_uvector<vertex_t> merged_labels(major_labels.size() + minor_labels.size(),
-                                              handle.get_stream());
-  rmm::device_uvector<edge_t> merged_counts(merged_labels.size(), handle.get_stream());
-  thrust::merge_by_key(handle.get_thrust_policy(),
-                       major_labels.begin(),
-                       major_labels.end(),
-                       minor_labels.begin(),
-                       minor_labels.end(),
-                       major_counts.begin(),
-                       thrust::make_constant_iterator(edge_t{0}),
-                       merged_labels.begin(),
-                       merged_counts.begin());
+      rmm::device_uvector<vertex_t> tmp_majors(edgelist_edge_counts[i], loop_stream);
+      thrust::copy(rmm::exec_policy(loop_stream),
+                   edgelist_majors[i],
+                   edgelist_majors[i] + edgelist_edge_counts[i],
+                   tmp_majors.begin());
+      thrust::sort(rmm::exec_policy(loop_stream), tmp_majors.begin(), tmp_majors.end());
+      auto num_unique_majors = thrust::count_if(rmm::exec_policy(loop_stream),
+                                                thrust::make_counting_iterator(size_t{0}),
+                                                thrust::make_counting_iterator(tmp_majors.size()),
+                                                is_first_in_run_t<vertex_t>{tmp_majors.data()});
+      rmm::device_uvector<vertex_t> tmp_keys(num_unique_majors, loop_stream);
+      rmm::device_uvector<edge_t> tmp_values(num_unique_majors, loop_stream);
+      thrust::reduce_by_key(rmm::exec_policy(loop_stream),
+                            tmp_majors.begin(),
+                            tmp_majors.end(),
+                            thrust::make_constant_iterator(edge_t{1}),
+                            tmp_keys.begin(),
+                            tmp_values.begin());
 
-  major_labels.resize(0, handle.get_stream());
-  major_counts.resize(0, handle.get_stream());
-  minor_labels.resize(0, handle.get_stream());
-  major_labels.shrink_to_fit(handle.get_stream());
-  major_counts.shrink_to_fit(handle.get_stream());
-  minor_labels.shrink_to_fit(handle.get_stream());
+      num_local_unique_edge_majors += num_unique_majors;
 
-  rmm::device_uvector<vertex_t> labels(merged_labels.size(), handle.get_stream());
-  rmm::device_uvector<edge_t> counts(labels.size(), handle.get_stream());
-  auto pair_it = thrust::reduce_by_key(handle.get_thrust_policy(),
-                                       merged_labels.begin(),
-                                       merged_labels.end(),
-                                       merged_counts.begin(),
-                                       labels.begin(),
-                                       counts.begin());
-  merged_labels.resize(0, handle.get_stream());
-  merged_counts.resize(0, handle.get_stream());
-  merged_labels.shrink_to_fit(handle.get_stream());
-  merged_counts.shrink_to_fit(handle.get_stream());
-  labels.resize(thrust::distance(labels.begin(), thrust::get<0>(pair_it)), handle.get_stream());
-  counts.resize(labels.size(), handle.get_stream());
-  labels.shrink_to_fit(handle.get_stream());
-  counts.shrink_to_fit(handle.get_stream());
+      tmp_majors.resize(0, loop_stream);
+      tmp_majors.shrink_to_fit(loop_stream);
 
-  auto num_non_isolated_vertices = static_cast<vertex_t>(labels.size());
+      rmm::device_uvector<vertex_t> sorted_majors(edge_partition_major_sizes[i], loop_stream);
+      device_bcast(col_comm,
+                   sorted_local_vertices.data(),
+                   sorted_majors.data(),
+                   edge_partition_major_sizes[i],
+                   static_cast<int>(i),
+                   loop_stream);
 
-  // 4. if local_vertices.has_value() == true, append isolated vertices
+      rmm::device_uvector<edge_t> sorted_major_degrees(sorted_majors.size(), loop_stream);
+      thrust::fill(rmm::exec_policy(loop_stream),
+                   sorted_major_degrees.begin(),
+                   sorted_major_degrees.end(),
+                   edge_t{0});
 
-  if (local_vertices) {
-    rmm::device_uvector<vertex_t> isolated_vertices(0, handle.get_stream());
+      auto kv_pair_first =
+        thrust::make_zip_iterator(thrust::make_tuple(tmp_keys.begin(), tmp_values.begin()));
+      thrust::for_each(rmm::exec_policy(loop_stream),
+                       kv_pair_first,
+                       kv_pair_first + tmp_keys.size(),
+                       search_and_set_degree_t{sorted_majors.data(),
+                                               static_cast<vertex_t>(sorted_majors.size()),
+                                               sorted_major_degrees.data()});
 
-    auto num_isolated_vertices = thrust::count_if(
-      handle.get_thrust_policy(),
-      (*local_vertices).begin(),
-      (*local_vertices).end(),
-      [label_first = labels.begin(), label_last = labels.end()] __device__(auto v) {
-        return !thrust::binary_search(thrust::seq, label_first, label_last, v);
-      });
-    isolated_vertices.resize(num_isolated_vertices, handle.get_stream());
-    thrust::copy_if(handle.get_thrust_policy(),
-                    (*local_vertices).begin(),
-                    (*local_vertices).end(),
-                    isolated_vertices.begin(),
-                    [label_first = labels.begin(), label_last = labels.end()] __device__(auto v) {
-                      return !thrust::binary_search(thrust::seq, label_first, label_last, v);
-                    });
-    (*local_vertices).resize(0, handle.get_stream());
-    (*local_vertices).shrink_to_fit(handle.get_stream());
-
-    if (isolated_vertices.size() > 0) {
-      labels.resize(labels.size() + isolated_vertices.size(), handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   isolated_vertices.begin(),
-                   isolated_vertices.end(),
-                   labels.end() - isolated_vertices.size());
+      device_reduce(col_comm,
+                    sorted_major_degrees.begin(),
+                    sorted_major_degrees.begin(),
+                    edge_partition_major_sizes[i],
+                    raft::comms::op_t::SUM,
+                    i,
+                    loop_stream);
+      if (i == col_comm_rank) { sorted_local_vertex_degrees = std::move(sorted_major_degrees); }
     }
+
+    if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+  } else {
+    assert(edgelist_majors.size() == 1);
+
+    rmm::device_uvector<vertex_t> tmp_majors(edgelist_edge_counts[0], handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelist_majors[0],
+                 edgelist_majors[0] + edgelist_edge_counts[0],
+                 tmp_majors.begin());
+    thrust::sort(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end());
+    auto num_unique_majors = thrust::count_if(handle.get_thrust_policy(),
+                                              thrust::make_counting_iterator(size_t{0}),
+                                              thrust::make_counting_iterator(tmp_majors.size()),
+                                              is_first_in_run_t<vertex_t>{tmp_majors.data()});
+    rmm::device_uvector<vertex_t> tmp_keys(num_unique_majors, handle.get_stream());
+    rmm::device_uvector<edge_t> tmp_values(num_unique_majors, handle.get_stream());
+    thrust::reduce_by_key(handle.get_thrust_policy(),
+                          tmp_majors.begin(),
+                          tmp_majors.end(),
+                          thrust::make_constant_iterator(edge_t{1}),
+                          tmp_keys.begin(),
+                          tmp_values.begin());
+
+    num_local_unique_edge_majors += num_unique_majors;
+
+    tmp_majors.resize(0, handle.get_stream());
+    tmp_majors.shrink_to_fit(handle.get_stream());
+
+    sorted_local_vertex_degrees.resize(sorted_local_vertices.size(), handle.get_stream());
+    thrust::fill(handle.get_thrust_policy(),
+                 sorted_local_vertex_degrees.begin(),
+                 sorted_local_vertex_degrees.end(),
+                 edge_t{0});
+
+    auto kv_pair_first =
+      thrust::make_zip_iterator(thrust::make_tuple(tmp_keys.begin(), tmp_values.begin()));
+    thrust::for_each(handle.get_thrust_policy(),
+                     kv_pair_first,
+                     kv_pair_first + tmp_keys.size(),
+                     search_and_set_degree_t{sorted_local_vertices.data(),
+                                             static_cast<vertex_t>(sorted_local_vertices.size()),
+                                             sorted_major_degrees.data()});
   }
 
-  // 5. sort non-isolated vertices by degree
+  // 4. sort local vertices by degree (descending)
+#if 1  // FIXME: delete
+  handle.sync_stream();
+  auto time4 = std::chrono::steady_clock::now();
+#endif
 
   thrust::sort_by_key(handle.get_thrust_policy(),
-                      counts.begin(),
-                      counts.begin() + num_non_isolated_vertices,
-                      labels.begin(),
+                      sorted_local_vertex_degrees.begin(),
+                      sorted_local_vertex_degrees.end(),
+                      sorted_local_vertices.begin(),
                       thrust::greater<edge_t>());
 
-  // 6. compute segment_offsets
+  // 5. compute segment_offsets
+#if 1  // FIXME: delete
+  handle.sync_stream();
+  auto time5 = std::chrono::steady_clock::now();
+#endif
 
   static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
   static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
@@ -320,14 +427,14 @@ compute_renumber_map(raft::handle_t const& handle,
                                                   handle.get_stream());
 
   auto zero_vertex  = vertex_t{0};
-  auto vertex_count = static_cast<vertex_t>(labels.size());
+  auto vertex_count = static_cast<vertex_t>(sorted_local_vertices.size());
   d_segment_offsets.set_element_async(0, zero_vertex, handle.get_stream());
   d_segment_offsets.set_element_async(
     num_segments_per_vertex_partition, vertex_count, handle.get_stream());
 
   thrust::upper_bound(handle.get_thrust_policy(),
-                      counts.begin(),
-                      counts.end(),
+                      sorted_local_vertex_degrees.begin(),
+                      sorted_local_vertex_degrees.end(),
                       d_thresholds.begin(),
                       d_thresholds.end(),
                       d_segment_offsets.begin() + 1,
@@ -340,7 +447,25 @@ compute_renumber_map(raft::handle_t const& handle,
                     handle.get_stream());
   handle.sync_stream();
 
-  return std::make_tuple(std::move(labels),
+#if 1  // FIXME: delete
+  handle.sync_stream();
+  auto time6                                  = std::chrono::steady_clock::now();
+  std::chrono::duration<double> elapsed_total = time6 - time0;
+  std::chrono::duration<double> elapsed0      = time1 - time0;
+  std::chrono::duration<double> elapsed1      = time2 - time1;
+  std::chrono::duration<double> elapsed2      = time3 - time2;
+  std::chrono::duration<double> elapsed3      = time4 - time3;
+  std::chrono::duration<double> elapsed4      = time5 - time4;
+  std::chrono::duration<double> elapsed5      = time6 - time5;
+  std::cout << "Compute renumber map (num_streams:"
+            << (stream_pool_indices ? (*stream_pool_indices).size() : size_t{0}) << ") took "
+            << elapsed_total.count() * 1e3 << " ms, breakdown=(" << elapsed0.count() * 1e3 << ","
+            << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << ","
+            << elapsed3.count() * 1e3 << "," << elapsed4.count() * 1e3 << ","
+            << elapsed5.count() * 1e3 << ") ms." << std::endl;
+#endif
+
+  return std::make_tuple(std::move(sorted_local_vertices),
                          h_segment_offsets,
                          num_local_unique_edge_majors,
                          num_local_unique_edge_minors);
@@ -436,17 +561,19 @@ void expensive_check_edgelist(
 
         rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
         {
-          auto recvcounts =
-            host_scalar_allgather(col_comm, (*sorted_local_vertices).size(), handle.get_stream());
-          std::vector<size_t> displacements(recvcounts.size(), size_t{0});
-          std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
-          sorted_majors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
-          device_allgatherv(col_comm,
-                            (*sorted_local_vertices).data(),
-                            sorted_majors.data(),
-                            recvcounts,
-                            displacements,
-                            handle.get_stream());
+          auto major_size =
+            host_scalar_bcast(col_comm,
+                              static_cast<int>(i) == col_comm_rank ? (*sorted_local_vertices).size()
+                                                                   : size_t{0} /* dummy */,
+                              i,
+                              handle.get_stream());
+          sorted_majors.resize(major_size, handle.get_stream());
+          device_bcast(col_comm,
+                       (*sorted_local_vertices).begin(),
+                       sorted_majors.begin(),
+                       major_size,
+                       i,
+                       handle.get_stream());
           thrust::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
         }
 
@@ -468,22 +595,16 @@ void expensive_check_edgelist(
 
         auto edge_first =
           thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
-        CUGRAPH_EXPECTS(
-          thrust::count_if(
-            handle.get_thrust_policy(),
-            edge_first,
-            edge_first + edgelist_edge_counts[i],
-            [num_majors    = static_cast<vertex_t>(sorted_majors.size()),
-             sorted_majors = sorted_majors.data(),
-             num_minors    = static_cast<vertex_t>(sorted_minors.size()),
-             sorted_minors = sorted_minors.data()] __device__(auto e) {
-              return !thrust::binary_search(
-                       thrust::seq, sorted_majors, sorted_majors + num_majors, thrust::get<0>(e)) ||
-                     !thrust::binary_search(
-                       thrust::seq, sorted_minors, sorted_minors + num_minors, thrust::get<1>(e));
-            }) == 0,
-          "Invalid input argument: edgelist_majors and/or edgelist_minors have "
-          "invalid vertex ID(s).");
+        CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
+                                         edge_first,
+                                         edge_first + edgelist_edge_counts[i],
+                                         check_edge_src_and_dst_t<vertex_t>{
+                                           sorted_majors.data(),
+                                           static_cast<vertex_t>(sorted_majors.size()),
+                                           sorted_minors.data(),
+                                           static_cast<vertex_t>(sorted_minors.size())}) == 0,
+                        "Invalid input argument: edgelist_majors and/or edgelist_minors have "
+                        "invalid vertex ID(s).");
       }
 
       if (edgelist_intra_partition_segment_offsets) {
@@ -514,22 +635,14 @@ void expensive_check_edgelist(
       auto edge_first =
         thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[0], edgelist_minors[0]));
       CUGRAPH_EXPECTS(
-        thrust::count_if(
-          handle.get_thrust_policy(),
-          edge_first,
-          edge_first + edgelist_edge_counts[0],
-          [sorted_local_vertices = (*sorted_local_vertices).data(),
-           num_sorted_local_vertices =
-             static_cast<vertex_t>((*sorted_local_vertices).size())] __device__(auto e) {
-            return !thrust::binary_search(thrust::seq,
-                                          sorted_local_vertices,
-                                          sorted_local_vertices + num_sorted_local_vertices,
-                                          thrust::get<0>(e)) ||
-                   !thrust::binary_search(thrust::seq,
-                                          sorted_local_vertices,
-                                          sorted_local_vertices + num_sorted_local_vertices,
-                                          thrust::get<1>(e));
-          }) == 0,
+        thrust::count_if(handle.get_thrust_policy(),
+                         edge_first,
+                         edge_first + edgelist_edge_counts[0],
+                         check_edge_src_and_dst_t<vertex_t>{
+                           (*sorted_local_vertices).data(),
+                           static_cast<vertex_t>((*sorted_local_vertices).size()),
+                           (*sorted_local_vertices).data(),
+                           static_cast<vertex_t>((*sorted_local_vertices).size())}) == 0,
         "Invalid input argument: edgelist_majors and/or edgelist_minors have "
         "invalid vertex ID(s).");
     }
@@ -556,10 +669,12 @@ renumber_edgelist(
   std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check)
 {
-#if 1 // FIXME: delete
+#if 1  // FIXME: delete
   handle.sync_stream();
   if constexpr (multi_gpu) {
-    handle.get_comms().barrier();
+    rmm::device_uvector<int32_t> dummy(1, handle.get_stream());
+    handle.get_comms().allreduce(
+      dummy.data(), dummy.data(), 1, raft::comms::op_t::SUM, handle.get_stream());
   }
   auto time0 = std::chrono::steady_clock::now();
 #endif
@@ -620,7 +735,7 @@ renumber_edgelist(
 
   // 1. compute renumber map
 
-#if 1 // FIXME: delete
+#if 1  // FIXME: delete
   handle.sync_stream();
   auto time1 = std::chrono::steady_clock::now();
 #endif
@@ -637,7 +752,7 @@ renumber_edgelist(
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges for the coarsened
   // graph
 
-#if 1 // FIXME: delete
+#if 1  // FIXME: delete
   handle.sync_stream();
   auto time2 = std::chrono::steady_clock::now();
 #endif
@@ -664,7 +779,7 @@ renumber_edgelist(
   // FIXME: compare this hash based approach with a binary search based approach in both memory
   // footprint and execution time
 
-#if 1 // FIXME: delete
+#if 1  // FIXME: delete
   handle.sync_stream();
   auto time3 = std::chrono::steady_clock::now();
 #endif
@@ -715,7 +830,7 @@ renumber_edgelist(
     }
   }
 
-#if 1 // FIXME: delete
+#if 1  // FIXME: delete
   handle.sync_stream();
   auto time4 = std::chrono::steady_clock::now();
 #endif
@@ -814,16 +929,19 @@ renumber_edgelist(
                         handle.get_stream());
     }
   }
-#if 1 // FIXME: delete
+#if 1  // FIXME: delete
   handle.sync_stream();
-  auto time5 = std::chrono::steady_clock::now();
+  auto time5                                  = std::chrono::steady_clock::now();
   std::chrono::duration<double> elapsed_total = time5 - time0;
-  std::chrono::duration<double> elapsed0 = time1 - time0;
-  std::chrono::duration<double> elapsed1 = time2 - time1;
-  std::chrono::duration<double> elapsed2 = time3 - time2;
-  std::chrono::duration<double> elapsed3 = time4 - time3;
-  std::chrono::duration<double> elapsed4 = time5 - time4;
-  std::cout << "Renumber took " << elapsed_total.count() * 1e3 << " ms, breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << "," << elapsed3.count() * 1e3 << "," << elapsed4.count() * 1e3 << ") ms." << std::endl;
+  std::chrono::duration<double> elapsed0      = time1 - time0;
+  std::chrono::duration<double> elapsed1      = time2 - time1;
+  std::chrono::duration<double> elapsed2      = time3 - time2;
+  std::chrono::duration<double> elapsed3      = time4 - time3;
+  std::chrono::duration<double> elapsed4      = time5 - time4;
+  std::cout << "Renumber took " << elapsed_total.count() * 1e3 << " ms, breakdown=("
+            << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << ","
+            << elapsed2.count() * 1e3 << "," << elapsed3.count() * 1e3 << ","
+            << elapsed4.count() * 1e3 << ") ms." << std::endl;
 #endif
 
   return std::make_tuple(

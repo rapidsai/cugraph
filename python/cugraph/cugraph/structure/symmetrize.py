@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -40,24 +40,29 @@ def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
         Input data frame containing COO.  Columns should contain source
         ids, destination ids and any properties associated with the
         edges.
+
     src_name : string
         Name of the column in the data frame containing the source ids
+
     dst_name : string
         Name of the column in the data frame containing the destination ids
-    multi : bool
+
+    multi : bool, optional (default=False)
         Set to True if graph is a Multi(Di)Graph. This allows multiple
         edges instead of dropping them.
-    symmetrize : bool
+
+    symmetrize : bool, optional (default=True)
         Default is True to perform symmetrization. If False only duplicate
         edges are dropped.
 
     Examples
     --------
     >>> from cugraph.structure.symmetrize import symmetrize_df
-    >>  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sym_df = symmetrize(M, '0', '1')
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> sym_df = symmetrize_df(M, '0', '1')
+
     """
     #
     #  Now append the columns.  We add sources to the end of destinations,
@@ -110,31 +115,32 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
         Input data frame containing COO.  Columns should contain source
         ids, destination ids and any properties associated with the
         edges.
+
     src_name : string
         Name of the column in the data frame containing the source ids
+
     dst_name : string
         Name of the column in the data frame containing the destination ids
-    multi : bool
-        Set to True if graph is a Multi(Di)Graph. This allows multiple
-        edges instead of dropping them.
-    symmetrize : bool
-        Default is True to perform symmetrization. If False only duplicate
-        edges are dropped.
+
+    weight_name : string, optional (default=None)
+        Name of the column in the data frame containing the weights
 
     Examples
     --------
-    >>> import cugraph.dask as dcg
-    >>> from cugraph.structure.symmetrize import symmetrize_ddf
-    >>> ... Init a DASK Cluster
-    >>  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
-    >>> chunksize = dcg.get_chunksize(input_data_path)
-    >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
-                                 delimiter=' ',
-                                 names=['src', 'dst', 'weight'],
-                                 dtype=['int32', 'int32', 'float32'])
-    >>> sym_ddf = symmetrize_ddf(ddf, "src", "dst", "weight")
-    >>> Comms.destroy()
+    >>> # import cugraph.dask as dcg
+    >>> # from cugraph.structure.symmetrize import symmetrize_ddf
+    >>> # Init a DASK Cluster
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
+    >>> # chunksize = dcg.get_chunksize(datasets / 'karate.csv')
+    >>> # ddf = dask_cudf.read_csv(datasets/'karate.csv', chunksize=chunksize,
+    >>> #                          delimiter=' ',
+    >>> #                          names=['src', 'dst', 'weight'],
+    >>> #                          dtype=['int32', 'int32', 'float32'])
+    >>> # sym_ddf = symmetrize_ddf(ddf, "src", "dst", "weight")
+
     """
+    # FIXME: Uncomment out the above (broken) example
+
     if weight_name:
         ddf2 = df[[dst_name, src_name, weight_name]]
         ddf2.columns = [src_name, dst_name, weight_name]
@@ -172,26 +178,38 @@ def symmetrize(source_col, dest_col, value_col=None, multi=False,
         This cudf.Series wraps a gdf_column of size E (E: number of edges).
         The gdf column contains the source index for each edge.
         Source indices must be an integer type.
+
     dest_col : cudf.Series or dask_cudf.Series
         This cudf.Series wraps a gdf_column of size E (E: number of edges).
         The gdf column contains the destination index for each edge.
         Destination indices must be an integer type.
-    value_col : cudf.Series or dask_cudf.Series (optional)
+
+    value_col : cudf.Series or dask_cudf.Series, optional (default=None)
         This cudf.Series wraps a gdf_column of size E (E: number of edges).
         The gdf column contains values associated with this edge.
         For this function the values can be any type, they are not
         examined, just copied.
 
+    multi : bool, optional (default=False)
+        Set to True if graph is a Multi(Di)Graph. This allows multiple
+        edges instead of dropping them.
+
+    symmetrize : bool, optional
+        Default is True to perform symmetrization. If False only duplicate
+        edges are dropped.
+
+
     Examples
     --------
     >>> from cugraph.structure.symmetrize import symmetrize
-    >>  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> sources = cudf.Series(M['0'])
     >>> destinations = cudf.Series(M['1'])
     >>> values = cudf.Series(M['2'])
     >>> src, dst, val = symmetrize(sources, destinations, values)
+
     """
 
     input_df = None
