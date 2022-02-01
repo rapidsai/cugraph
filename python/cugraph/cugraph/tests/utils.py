@@ -186,6 +186,12 @@ def create_obj_from_csv(
             directed=(obj_type is cugraph.DiGraph),
             edgevals=edgevals,
         )
+    elif isinstance(obj_type, (cugraph.Graph, cugraph.DiGraph)):
+        return generate_cugraph_graph_from_file(
+            csv_file_name,
+            directed=(isinstance(obj_type, cugraph.DiGraph)),
+            edgevals=edgevals,
+        )
 
     elif obj_type in SCIPY_MATRIX_TYPES + CUPY_MATRIX_TYPES:
         # FIXME: assuming float32

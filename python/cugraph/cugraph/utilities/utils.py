@@ -277,11 +277,11 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
         if matrix_graph_type is None:
             matrix_graph_type = Graph
         elif matrix_graph_type not in [Graph]:
-            raise TypeError(
-                f"matrix_graph_type must be either a cugraph "
-                f"Graph, got: {matrix_graph_type}"
-            )
-
+            if not isinstance(matrix_graph_type, Graph):
+                raise TypeError(
+                    f"matrix_graph_type must be either a cugraph "
+                    f"Graph, got: {matrix_graph_type}"
+                )
         if input_type in (
             __cp_compressed_matrix_types + __sp_compressed_matrix_types
         ):
@@ -306,7 +306,10 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
         #   data for sym matrices (ie. for each uv, check vu is there)
         # * populate the cugraph graph with directed data and set renumbering
         #   to false in from edge list call.
-        G = matrix_graph_type()
+        if isinstance(matrix_graph_type, Graph):
+            G = matrix_graph_type
+        else:
+            G = matrix_graph_type()
         G.from_cudf_edgelist(df, edge_attr="weight", renumber=True)
 
         return (G, input_type)

@@ -114,12 +114,13 @@ def test_digraph_rejected():
     df["dst"] = cudf.Series(range(10))
     df["val"] = cudf.Series(range(10))
 
-    G = cugraph.DiGraph()
+    with pytest.deprecated_call():
+        G = cugraph.DiGraph()
     G.from_cudf_edgelist(
         df, source="src", destination="dst", edge_attr="val", renumber=False
     )
 
-    with pytest.warns(DeprecationWarning):
+    with pytest.raises(Exception):
         cugraph_call(G, 2)
 
 
