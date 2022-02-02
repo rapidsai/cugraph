@@ -88,7 +88,6 @@ fi
 ###############################################################################
 
 if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
-  sccache --zero-stats
   gpuci_logger "Building conda package for libcugraph and libcugraph_etl"
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph
