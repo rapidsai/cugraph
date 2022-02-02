@@ -383,9 +383,11 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc,
     # special case: ensure cugraph and Nx Graph types are DiGraphs if
     # "directed" is set, since the graph type parameterization is currently
     # independent of the directed parameter. Unfortunately this does not
-    # change the "id" in the pytest output.
+    # change the "id" in the pytest output. Ignore for nonnative inputs
     if directed:
-        if cugraph_input_type is nx.Graph:
+        if isinstance(cugraph_input_type, cugraph.Graph):
+            cugraph_input_type = cugraph.Graph(directed=True)
+        elif cugraph_input_type is nx.Graph:
             cugraph_input_type = nx.DiGraph
 
     G_or_matrix = utils.create_obj_from_csv(dataset, cugraph_input_type)

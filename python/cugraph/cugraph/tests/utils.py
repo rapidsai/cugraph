@@ -136,7 +136,7 @@ CUGRAPH_INPUT_TYPES = [
 CUGRAPH_DIR_INPUT_TYPES = [
     pytest.param(
         cugraph.Graph(directed=True), marks=pytest.mark.cugraph_types,
-        id="cugraph.Graph"
+        id="cugraph.Graph(directed=True)"
     ),
 ]
 
@@ -186,7 +186,7 @@ def create_obj_from_csv(
             directed=(obj_type is cugraph.DiGraph),
             edgevals=edgevals,
         )
-    elif isinstance(obj_type, (cugraph.Graph, cugraph.DiGraph)):
+    elif isinstance(obj_type, cugraph.Graph):
         return generate_cugraph_graph_from_file(
             csv_file_name,
             directed=(obj_type.is_directed()),

@@ -354,7 +354,7 @@ def test_strong_cc(gpubenchmark, dataset_nxresults_strong,
                                   cugraph.strongly_connected_components,
                                   input_G_or_matrix)
 
-    if isinstance(cugraph_input_type, (cugraph.Graph, cugraph.DiGraph)):
+    if isinstance(cugraph_input_type, cugraph.Graph):
         assert isinstance(input_G_or_matrix, type(cugraph_input_type))
     else:
         assert isinstance(input_G_or_matrix, cugraph_input_type)

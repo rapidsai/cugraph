@@ -131,6 +131,10 @@ def _sg_rmat(
         G = type(create_using)(**attrs)
     elif create_using in _graph_types:
         G = create_using()
+    else:
+        raise TypeError("create_using must be a cugraph.Graph "
+                        "(or subclass) type or instance, got: "
+                        f"{type(create_using)}")
     G.from_cudf_edgelist(df, source='src', destination='dst', renumber=False)
 
     return G
@@ -187,6 +191,10 @@ def _mg_rmat(
         G = type(create_using)(**attrs)
     elif create_using in _graph_types:
         G = create_using()
+    else:
+        raise TypeError("create_using must be a cugraph.Graph "
+                        "(or subclass) type or instance, got: "
+                        f"{type(create_using)}")
     G.from_dask_cudf_edgelist(ddf, source="src", destination="dst")
 
     return G
