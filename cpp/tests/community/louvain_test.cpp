@@ -29,7 +29,8 @@
 #include <vector>
 
 struct Louvain_Usecase {
-  bool test_weighted_{false};
+  size_t max_level_{100};
+  double resolution_{1};
   bool check_correctness_{false};
   int expected_level_{0};
   float expected_modularity_{0};
@@ -47,8 +48,10 @@ class Tests_Louvain
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-  void run_legacy_test(Louvain_Usecase const& louvain_usecase, input_usecase_t const& input_usecase)
+  void run_legacy_test(std::tuple<Louvain_Usecase const&, input_usecase_t const&> const& param)
   {
+    auto [louvain_usecase, input_usecase] = param;
+
     raft::handle_t handle{};
 
     bool directed{false};
@@ -82,9 +85,10 @@ class Tests_Louvain
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-  void run_current_test(Louvain_Usecase const& louvain_usecase,
-                        input_usecase_t const& input_usecase)
+  void run_current_test(std::tuple<Louvain_Usecase const&, input_usecase_t const&> const& param)
   {
+    auto [louvain_usecase, input_usecase] = param;
+
     raft::handle_t handle{};
 
     // Can't currently check correctness if we renumber
@@ -93,7 +97,7 @@ class Tests_Louvain
 
     auto [graph, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, louvain_usecase.test_weighted_, renumber);
+        handle, input_usecase, true, renumber);
 
     auto graph_view = graph.view();
 
@@ -296,54 +300,103 @@ TEST(louvain_legacy_renumbered, success)
   }
 }
 
-using Tests_Louvain_File = Tests_Louvain<cugraph::test::File_Usecase>;
-using Tests_Louvain_Rmat = Tests_Louvain<cugraph::test::Rmat_Usecase>;
+using Tests_Louvain_File   = Tests_Louvain<cugraph::test::File_Usecase>;
+using Tests_Louvain_File32 = Tests_Louvain<cugraph::test::File_Usecase>;
+using Tests_Louvain_File64 = Tests_Louvain<cugraph::test::File_Usecase>;
+using Tests_Louvain_Rmat   = Tests_Louvain<cugraph::test::Rmat_Usecase>;
+using Tests_Louvain_Rmat32 = Tests_Louvain<cugraph::test::Rmat_Usecase>;
+using Tests_Louvain_Rmat64 = Tests_Louvain<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_Louvain_File, CheckInt32Int32FloatFloatLegacy)
 {
-  auto param = GetParam();
-  run_legacy_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
+  run_legacy_test<int32_t, int32_t, float, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Louvain_File, CheckInt32Int32FloatFloat)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Louvain_File, CheckInt64Int64FloatFloat)
 {
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int64_t, int64_t, float, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Louvain_File32, CheckInt32Int32FloatFloat)
+{
+  run_current_test<int32_t, int32_t, float, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Louvain_File64, CheckInt64Int64FloatFloat)
+{
+  run_current_test<int64_t, int64_t, float, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Louvain_Rmat, CheckInt32Int32FloatFloatLegacy)
 {
-  auto param = GetParam();
   run_legacy_test<int32_t, int32_t, float, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Louvain_Rmat, CheckInt32Int32FloatFloat)
 {
-  auto param = GetParam();
   run_current_test<int32_t, int32_t, float, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_Louvain_Rmat, CheckInt64Int64FloatFloat)
 {
-  auto param = GetParam();
   run_current_test<int64_t, int64_t, float, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Louvain_Rmat32, CheckInt32Int32FloatFloat)
+{
+  run_current_test<int32_t, int32_t, float, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Louvain_Rmat64, CheckInt64Int64FloatFloat)
+{
+  run_current_test<int64_t, int64_t, float, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 // FIXME: Expand testing once we evaluate RMM memory use
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_Louvain_File,
-  ::testing::Combine(::testing::Values(Louvain_Usecase{true, true, 3, 0.408695}),
+  ::testing::Combine(::testing::Values(Louvain_Usecase{100, 1, true, 3, 0.408695}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Louvain_File32,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Louvain_Usecase{}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file64_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Louvain_File64,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Louvain_Usecase{}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -351,10 +404,22 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_Louvain_Rmat,
+  Tests_Louvain_Rmat32,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Louvain_Usecase{true, false}),
+    ::testing::Values(Louvain_Usecase{}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat64_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
+  Tests_Louvain_Rmat64,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Louvain_Usecase{}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

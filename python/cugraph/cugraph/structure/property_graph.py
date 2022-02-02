@@ -195,6 +195,10 @@ class EXPERIMENTAL__PropertyGraph:
         return self.__edge_prop_dataframe
 
     def get_vertices(self, selection=None):
+        """
+        Return a Series containing the unique vertex IDs contained in both
+        the vertex and edge property data.
+        """
         vert_sers = self.__get_all_vertices_series()
         if vert_sers:
             if self.__series_type is cudf.Series:
@@ -202,6 +206,12 @@ class EXPERIMENTAL__PropertyGraph:
             else:
                 return self.__series_type(pd.concat(vert_sers).unique())
         return self.__series_type()
+
+    def vertices_ids(self):
+        """
+        Alias for get_vertices()
+        """
+        return self.get_vertices()
 
     def add_vertex_data(self,
                         dataframe,

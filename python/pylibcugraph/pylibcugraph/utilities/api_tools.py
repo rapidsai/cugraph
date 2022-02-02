@@ -21,9 +21,9 @@ experimental_prefix = "EXPERIMENTAL"
 
 def experimental_warning_wrapper(obj):
     """
-    Return a callable obj wrapped in a callable the prints a warning about
-    it being "experimental" (an object that is in the public API but subject
-    to change or removal) prior to calling it and returning its value.
+    Wrap obj in a function or class that prints a warning about it being
+    "experimental" (ie. it is in the public API but subject to change or
+    removal), prior to calling obj and returning its value.
 
     The object's name used in the warning message also has any leading __
     and/or EXPERIMENTAL string are removed from the name used in warning
