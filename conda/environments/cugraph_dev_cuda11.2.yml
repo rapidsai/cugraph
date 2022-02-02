@@ -3,6 +3,7 @@ channels:
 - rapidsai
 - nvidia
 - rapidsai-nightly
+- rapidsai-nightly/label/testing
 - conda-forge
 dependencies:
 - cudatoolkit=11.2
