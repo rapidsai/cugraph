@@ -48,7 +48,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
+cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
     """
     RAII-stye Graph class for use with single-GPU APIs that manages the
     individual create/free calls and the corresponding cugraph_graph_t pointer.

@@ -19,11 +19,14 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 
 
-cdef class EXPERIMENTAL__Graph:
+# Base class allowing functions to accept either SGGraph or MGGraph
+# This is not visible in python
+cdef class _GPUGraph:
     cdef cugraph_graph_t* c_graph_ptr
 
-cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
+cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
     pass
 
-# cdef class EXPERIMENTAL__MGGraph(EXPERIMENTAL__Graph):
+# Not yet supported
+# cdef class EXPERIMENTAL__MGGraph(_GPUGraph):
 #     pass

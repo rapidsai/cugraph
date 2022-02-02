@@ -49,7 +49,7 @@ from pylibcugraph.resource_handle cimport (
     EXPERIMENTAL__ResourceHandle,
 )
 from pylibcugraph.graphs cimport (
-    EXPERIMENTAL__Graph,
+    _GPUGraph,
 )
 from pylibcugraph.utils cimport (
     assert_success,
@@ -58,7 +58,7 @@ from pylibcugraph.utils cimport (
 
 
 def EXPERIMENTAL__sssp(EXPERIMENTAL__ResourceHandle resource_handle,
-                       EXPERIMENTAL__Graph graph,
+                       _GPUGraph graph,
                        size_t source,
                        double cutoff,
                        bool_t compute_predecessors,
