@@ -678,7 +678,7 @@ class EXPERIMENTAL__PropertyGraph:
         --------
         >>>
         """
-        # FIXME: all check args
+        # FIXME: check all args
         (src_col_name, dst_col_name) = edge_vertex_id_columns
 
         df_type = type(df)
@@ -686,11 +686,6 @@ class EXPERIMENTAL__PropertyGraph:
             raise TypeError(f"df type {df_type} does not match DataFrame type "
                             f"{self.__dataframe_type} used in PropertyGraph")
 
-        # Add the src, dst, edge_id info from the Graph to a DataFrame
-        # edge_info_df = self.__dataframe_type(columns=[self.src_col_name,
-        #                                               self.dst_col_name,
-        #                                               self.edge_id_col_name],
-        #                                      data=G.edge_data)
         if hasattr(G, "edge_data"):
             edge_info_df = G.edge_data
         else:
