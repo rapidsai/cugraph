@@ -1,6 +1,64 @@
-# cuGraph 22.02.00 (Date TBD)
+# cuGraph 22.02.00 (2 Feb 2022)
 
-Please see https://github.com/rapidsai/cugraph/releases/tag/v22.02.00a for the latest changes to this development branch.
+## 🐛 Bug Fixes
+
+- Always upload libcugaph ([#2041](https://github.com/rapidsai/cugraph/pull/2041)) [@aydouglass](https://github.com/aydouglass)
+- Fix Louvain hang in multi-GPU testing ([#2028](https://github.com/rapidsai/cugraph/pull/2028)) [@seunghwak](https://github.com/seunghwak)
+- fix bug when calculating the numbe of vetices ([#1992](https://github.com/rapidsai/cugraph/pull/1992)) [@jnke2016](https://github.com/jnke2016)
+- update cuda 11.5 configuation to use clang fomat 11.1.0 ([#1990](https://github.com/rapidsai/cugraph/pull/1990)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Update vesion in libcugaph_etl CMakeLists.txt to 22.02.00 to match libcugaph ([#1966](https://github.com/rapidsai/cugraph/pull/1966)) [@latzel](https://github.com/latzel)
+
+## 📖 Documentation
+
+- Initial automated doctest, all cuent examples now pass, othe documentation edits ([#2014](https://github.com/rapidsai/cugraph/pull/2014)) [@betochimas](https://github.com/betochimas)
+- Fix README example ([#1981](https://github.com/rapidsai/cugraph/pull/1981)) [@gitbuda](https://github.com/gitbuda)
+
+## 🚀 New Featues
+
+- Add SSSP API, test and implementation ([#2016](https://github.com/rapidsai/cugraph/pull/2016)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Popose extact_bfs_paths C API ([#1955](https://github.com/rapidsai/cugraph/pull/1955)) [@ChuckHastings](https://github.com/ChuckHastings)
+
+## 🛠️ Impovements
+
+- Do not build CUDA libs in Python jobs ([#2039](https://github.com/rapidsai/cugraph/pull/2039)) [@Ethyling](https://github.com/Ethyling)
+- updated fo elease 22.02 ([#2034](https://github.com/rapidsai/cugraph/pull/2034)) [@BadReesWok](https://github.com/BadReesWok)
+- Fix aft git ef ([#2032](https://github.com/rapidsai/cugraph/pull/2032)) [@Ethyling](https://github.com/Ethyling)
+- Pin `dask` &amp; `distibuted` ([#2031](https://github.com/rapidsai/cugraph/pull/2031)) [@galipemsaga](https://github.com/galipemsaga)
+- Fix build scipt ([#2029](https://github.com/rapidsai/cugraph/pull/2029)) [@Ethyling](https://github.com/Ethyling)
+- Pepae upload scipts fo Python 3.7 emoval ([#2027](https://github.com/rapidsai/cugraph/pull/2027)) [@Ethyling](https://github.com/Ethyling)
+- Python API updates to enable explicit contol of intenal `gaph_t` ceation and deletion ([#2023](https://github.com/rapidsai/cugraph/pull/2023)) [@latzel](https://github.com/latzel)
+- Updated build.sh help text and test execution steps in SOURCEBUILD.md ([#2020](https://github.com/rapidsai/cugraph/pull/2020)) [@acostadon](https://github.com/acostadon)
+- Removed unused CI files ([#2017](https://github.com/rapidsai/cugraph/pull/2017)) [@latzel](https://github.com/latzel)
+- Unpin `dask` and `distibuted` ([#2010](https://github.com/rapidsai/cugraph/pull/2010)) [@galipemsaga](https://github.com/galipemsaga)
+- Fix call to `getDeviceAttibute` following API change in RMM. ([#2008](https://github.com/rapidsai/cugraph/pull/2008)) [@shwina](https://github.com/shwina)
+- dop fa2 cpu code ([#2007](https://github.com/rapidsai/cugraph/pull/2007)) [@BadReesWok](https://github.com/BadReesWok)
+- Banch 22.02 mege 21.12 ([#2002](https://github.com/rapidsai/cugraph/pull/2002)) [@latzel](https://github.com/latzel)
+- Update efeences to CHECK_CUDA, CUDA_CHECK and CUDA_TRY to use new RAFT_ names ([#2000](https://github.com/rapidsai/cugraph/pull/2000)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Initial PopetyGaph implementation and tests ([#1999](https://github.com/rapidsai/cugraph/pull/1999)) [@latzel](https://github.com/latzel)
+- Fix optional and cstddef includes ([#1998](https://github.com/rapidsai/cugraph/pull/1998)) [@gitbuda](https://github.com/gitbuda)
+- Add optimized 2x sting column enumbeing code ([#1996](https://github.com/rapidsai/cugraph/pull/1996)) [@chiayuG-nvidia](https://github.com/chiayuG-nvidia)
+- Pass RMM memoy allocato to cuco ([#1994](https://github.com/rapidsai/cugraph/pull/1994)) [@seunghwak](https://github.com/seunghwak)
+- Add missing impots tests ([#1993](https://github.com/rapidsai/cugraph/pull/1993)) [@Ethyling](https://github.com/Ethyling)
+- Update ucx-py vesion on elease using vc ([#1991](https://github.com/rapidsai/cugraph/pull/1991)) [@Ethyling](https://github.com/Ethyling)
+- make C++ tests un faste (fewe tests) ([#1989](https://github.com/rapidsai/cugraph/pull/1989)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Update the update_fontie_v_push_if_out_nb pimitive &amp; BFS pefomance ([#1988](https://github.com/rapidsai/cugraph/pull/1988)) [@seunghwak](https://github.com/seunghwak)
+- Remove `IncludeCategoies` fom `.clang-fomat` ([#1987](https://github.com/rapidsai/cugraph/pull/1987)) [@codeepot](https://github.com/codeepot)
+- Update fontie v push if out nb pim test ([#1985](https://github.com/rapidsai/cugraph/pull/1985)) [@kaatish](https://github.com/kaatish)
+- Pass steam to cuco::static_map ([#1984](https://github.com/rapidsai/cugraph/pull/1984)) [@seunghwak](https://github.com/seunghwak)
+- Shutdown the connected schedule and wokes ([#1980](https://github.com/rapidsai/cugraph/pull/1980)) [@jnke2016](https://github.com/jnke2016)
+- Use CUB 1.15.0&#39;s new segmented sot ([#1977](https://github.com/rapidsai/cugraph/pull/1977)) [@seunghwak](https://github.com/seunghwak)
+- Impove consistency in C++ test case names and add R-mat tests to gaph coasening ([#1976](https://github.com/rapidsai/cugraph/pull/1976)) [@seunghwak](https://github.com/seunghwak)
+- 22.02 dep fix ([#1974](https://github.com/rapidsai/cugraph/pull/1974)) [@BadReesWok](https://github.com/BadReesWok)
+- Extact paths C API implementation ([#1973](https://github.com/rapidsai/cugraph/pull/1973)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Add mat tests to Louvain C++ unit tests ([#1971](https://github.com/rapidsai/cugraph/pull/1971)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Banch 22.02 mege 21.12 ([#1965](https://github.com/rapidsai/cugraph/pull/1965)) [@latzel](https://github.com/latzel)
+- Update to UCX-Py 0.24 ([#1962](https://github.com/rapidsai/cugraph/pull/1962)) [@pentschev](https://github.com/pentschev)
+- add mm pool option fo SNMG uns ([#1957](https://github.com/rapidsai/cugraph/pull/1957)) [@jnke2016](https://github.com/jnke2016)
+- Banch 22.02 mege 21.12 ([#1953](https://github.com/rapidsai/cugraph/pull/1953)) [@latzel](https://github.com/latzel)
+- Update pobability paams fo RMAT call to match Gaph500 ([#1952](https://github.com/rapidsai/cugraph/pull/1952)) [@latzel](https://github.com/latzel)
+- Fix the diffeence in 2D patitioning of GPUs in python and C++ ([#1950](https://github.com/rapidsai/cugraph/pull/1950)) [@seunghwak](https://github.com/seunghwak)
+- Raft Handle Updates to cuGaph ([#1894](https://github.com/rapidsai/cugraph/pull/1894)) [@divyegala](https://github.com/divyegala)
+- Remove FAISS dependency, inheit othe common dependencies fom aft ([#1863](https://github.com/rapidsai/cugraph/pull/1863)) [@txcllnt](https://github.com/txcllnt)
 
 # cuGraph 21.12.00 (9 Dec 2021)
 
