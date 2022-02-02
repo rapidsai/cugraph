@@ -52,6 +52,8 @@ conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11
 # for CUDA 11.4
 conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.4.yml
 
+# for CUDA 11.5
+conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.5.yml
 
 # activate the environment
 conda activate cugraph_dev
@@ -65,11 +67,8 @@ conda deactivate
 
 ```bash
 
-# for CUDA 11.0
-conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.0.yml
-
-# for CUDA 11.2
-conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.2.yml
+# Where XXX is the CUDA 11 version
+conda env update --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.XXX.yml
 
 conda activate cugraph_dev
 ```
@@ -90,16 +89,22 @@ There are several other options available on the build script for advanced users
 ```bash
 build.sh [<target> ...] [<flag> ...]
  where <target> is:
-    clean            - remove all existing build artifacts and configuration (start over)
-    libcugraph       - build the cugraph C++ code
-    cugraph          - build the cugraph Python package
-    docs             - build the docs
+   clean            - remove all existing build artifacts and configuration (start over)
+   uninstall        - uninstall libcugraph and cugraph from a prior build/install (see also -n)
+   libcugraph       - build libcugraph.so and SG test binaries
+   libcugraph_etl   - build libcugraph_etl.so and SG test binaries
+   cugraph          - build the cugraph Python package
+   pylibcugraph     - build the pylibcugraph Python package
+   cpp-mgtests      - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
+   docs             - build the docs
  and <flag> is:
    -v               - verbose build mode
    -g               - build for debug
-   -n               - no install step
+   -n               - do not install after a successful build
    --allgpuarch     - build for all supported GPU architectures
+   --buildfaiss     - build faiss statically into cugraph
    --show_depr_warn - show cmake deprecation warnings
+   --skip_cpp_tests - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
    -h               - print this text
 
  default action (no args) is to build and install 'libcugraph' then 'cugraph' then 'docs' targets
@@ -142,24 +147,43 @@ The default installation locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_I
 
 ### Building and installing the Python package
 
-2) Install the Python package to your Python path:
+2) Install the Python packages to your Python path:
 
 ```bash
 cd $CUGRAPH_HOME
 cd python
+cd pylibcugraph
+python setup.py build_ext --inplace
+python setup.py install    # install pylibcugraph
+cd ../cugraph
 python setup.py build_ext --inplace
 python setup.py install    # install cugraph python bindings
+
 ```
 
 
 
 ## Run tests
 
+If you already have the datasets:
+
+   ```bash
+   export RAPIDS_DATASET_ROOT_DIR=<path_to_ccp_test_and_reference_data>
+   ```
+   If you do not have the datasets:
+
+   ```bash
+   cd $CUGRAPH_HOME/datasets
+   source get_test_data.sh #This takes about 10 minutes and downloads 1GB data (>5 GB uncompressed)
+   ```
+
 Run either the C++ or the Python tests with datasets
 
   - **Python tests with datasets**
+  
 
     ```bash
+    pip install python-louvain #some tests require this package to run
     cd $CUGRAPH_HOME
     cd python
     pytest
@@ -176,17 +200,7 @@ Run either the C++ or the Python tests with datasets
     ```
  - **C++ tests with larger datasets**
 
-   If you already have the datasets:
-
-   ```bash
-   export RAPIDS_DATASET_ROOT_DIR=<path_to_ccp_test_and_reference_data>
-   ```
-   If you do not have the datasets:
-
-   ```bash
-   cd $CUGRAPH_HOME/datasets
-   source get_test_data.sh #This takes about 10 minutes and downloads 1GB data (>5 GB uncompressed)
-   ```
+   
 
    Run the C++ tests on large input:
 

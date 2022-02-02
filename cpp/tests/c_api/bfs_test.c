@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,50 +42,58 @@ int generic_bfs_test(vertex_t* h_src,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_resource_handle_t* p_handle = NULL;
-  cugraph_graph_t* p_graph            = NULL;
-  cugraph_bfs_result_t* p_result      = NULL;
+  cugraph_resource_handle_t* p_handle           = NULL;
+  cugraph_graph_t* p_graph                      = NULL;
+  cugraph_paths_result_t* p_result              = NULL;
   cugraph_type_erased_device_array_t* p_sources = NULL;
+  cugraph_type_erased_device_array_view_t* p_source_view = NULL;
 
-  p_handle = cugraph_create_handle();
-  TEST_ASSERT(test_ret_value, p_handle != NULL, "raft handle creation failed.");
+  p_handle = cugraph_create_resource_handle();
+  TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
     p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
 
+  /*
+   * FIXME: in create_graph_test.c, variables are defined but then hard-coded to
+   * the constant INT32. It would be better to pass the types into the functions
+   * in both cases so that the test cases could be parameterized in the main.
+   */
   ret_code =
-    cugraph_type_erased_device_array_create(p_handle, INT32, num_seeds, &p_sources, &ret_error);
+    cugraph_type_erased_device_array_create(p_handle, num_seeds, INT32, &p_sources, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "p_sources create failed.");
 
-  ret_code =
-    cugraph_type_erased_device_array_copy_from_host(p_handle, p_sources, (byte_t*)h_seeds, &ret_error);
+  p_source_view = cugraph_type_erased_device_array_view(p_sources);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    p_handle, p_source_view, (byte_t*)h_seeds, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
 
   ret_code = cugraph_bfs(
-    p_handle, p_graph, p_sources, FALSE, depth_limit, FALSE, TRUE, &p_result, &ret_error);
+    p_handle, p_graph, p_source_view, FALSE, depth_limit, TRUE, FALSE, &p_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_bfs failed.");
 
   cugraph_type_erased_device_array_t* vertices;
   cugraph_type_erased_device_array_t* distances;
   cugraph_type_erased_device_array_t* predecessors;
 
-  vertices     = cugraph_bfs_result_get_vertices(p_result);
-  distances    = cugraph_bfs_result_get_distances(p_result);
-  predecessors = cugraph_bfs_result_get_predecessors(p_result);
+  vertices     = cugraph_paths_result_get_vertices(p_result);
+  distances    = cugraph_paths_result_get_distances(p_result);
+  predecessors = cugraph_paths_result_get_predecessors(p_result);
 
   vertex_t h_vertices[num_vertices];
   vertex_t h_distances[num_vertices];
   vertex_t h_predecessors[num_vertices];
 
-  ret_code = cugraph_type_erased_device_array_copy_to_host(
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     p_handle, (byte_t*)h_vertices, vertices, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_copy_to_host(
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     p_handle, (byte_t*)h_distances, distances, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_copy_to_host(
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     p_handle, (byte_t*)h_predecessors, predecessors, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
@@ -100,9 +108,9 @@ int generic_bfs_test(vertex_t* h_src,
   }
 
   cugraph_type_erased_device_array_free(p_sources);
-  cugraph_bfs_result_free(p_result);
+  cugraph_paths_result_free(p_result);
   cugraph_sg_graph_free(p_graph);
-  cugraph_free_handle(p_handle);
+  cugraph_free_resource_handle(p_handle);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
@@ -142,9 +150,9 @@ int test_bfs_with_transpose()
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t seeds[]                 = {5};
-  vertex_t expected_distances[]    = {3, 2, 2, 1, 1, 0};
-  vertex_t expected_predecessors[] = {1, 3, 3, 5, 5, -1};
+  vertex_t seeds[]                 = {0};
+  vertex_t expected_distances[]    = {0, 1, 2147483647, 2, 2, 3};
+  vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 3};
 
   // Bfs wants store_transposed = FALSE
   //    This call will force cugraph_bfs to transpose the graph

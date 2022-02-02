@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -101,13 +101,13 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
                 return (cp.fromDlpack(sorted_df["distance"].to_dlpack()),
                         cp.fromDlpack(sorted_df["predecessor"].to_dlpack()))
             else:
-                return (sorted_df["distance"].to_array(),
-                        sorted_df["predecessor"].to_array())
+                return (sorted_df["distance"].to_numpy(),
+                        sorted_df["predecessor"].to_numpy())
         else:
             if is_cp_matrix_type(input_type):
                 return cp.fromDlpack(sorted_df["distance"].to_dlpack())
             else:
-                return sorted_df["distance"].to_array()
+                return sorted_df["distance"].to_numpy()
     else:
         raise TypeError(f"input type {input_type} is not a supported type.")
 
@@ -177,11 +177,12 @@ def sssp(G,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> distances = cugraph.sssp(G, 0)
+
     """
     (source, directed, return_predecessors) = _ensure_args(
         G, source, method, directed, return_predecessors, unweighted,

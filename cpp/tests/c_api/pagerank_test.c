@@ -45,20 +45,21 @@ int generic_pagerank_test(vertex_t* h_src,
   cugraph_graph_t* p_graph            = NULL;
   cugraph_pagerank_result_t* p_result = NULL;
 
-  p_handle = cugraph_create_handle();
-  TEST_ASSERT(test_ret_value, p_handle != NULL, "raft handle creation failed.");
+  p_handle = cugraph_create_resource_handle();
+  TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
     p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   ret_code = cugraph_pagerank(
     p_handle, p_graph, NULL, alpha, epsilon, max_iterations, FALSE, FALSE, &p_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_pagerank failed.");
 
-  cugraph_type_erased_device_array_t* vertices;
-  cugraph_type_erased_device_array_t* pageranks;
+  cugraph_type_erased_device_array_view_t* vertices;
+  cugraph_type_erased_device_array_view_t* pageranks;
 
   vertices  = cugraph_pagerank_result_get_vertices(p_result);
   pageranks = cugraph_pagerank_result_get_pageranks(p_result);
@@ -66,11 +67,11 @@ int generic_pagerank_test(vertex_t* h_src,
   vertex_t h_vertices[num_vertices];
   weight_t h_pageranks[num_vertices];
 
-  ret_code = cugraph_type_erased_device_array_copy_to_host(
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     p_handle, (byte_t*)h_vertices, vertices, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_copy_to_host(
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     p_handle, (byte_t*)h_pageranks, pageranks, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
@@ -80,9 +81,11 @@ int generic_pagerank_test(vertex_t* h_src,
                 "pagerank results don't match");
   }
 
+  cugraph_type_erased_device_array_view_free(pageranks);
+  cugraph_type_erased_device_array_view_free(vertices);
   cugraph_pagerank_result_free(p_result);
   cugraph_sg_graph_free(p_graph);
-  cugraph_free_handle(p_handle);
+  cugraph_free_resource_handle(p_handle);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
@@ -125,7 +128,43 @@ int test_pagerank_with_transpose()
   //    This call will force cugraph_pagerank to transpose the graph
   //    But we're passing src/dst backwards so the results will be the same
   return generic_pagerank_test(
-    h_dst, h_src, h_wgt, h_result, num_vertices, num_edges, FALSE, alpha, epsilon, max_iterations);
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, alpha, epsilon, max_iterations);
+}
+
+int test_pagerank_4()
+{
+  size_t num_edges    = 3;
+  size_t num_vertices = 4;
+
+  vertex_t h_src[]    = {0, 1, 2};
+  vertex_t h_dst[]    = {1, 2, 3};
+  weight_t h_wgt[]    = {1.f, 1.f, 1.f};
+  weight_t h_result[] = {0.11615584790706635f, 0.21488840878009796f, 0.29881080985069275f, 0.37014490365982056f};
+
+  double alpha          = 0.85;
+  double epsilon        = 1.0e-6;
+  size_t max_iterations = 500;
+
+  return generic_pagerank_test(
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, alpha, epsilon, max_iterations);
+}
+
+int test_pagerank_4_with_transpose()
+{
+  size_t num_edges    = 3;
+  size_t num_vertices = 4;
+
+  vertex_t h_src[]    = {0, 1, 2};
+  vertex_t h_dst[]    = {1, 2, 3};
+  weight_t h_wgt[]    = {1.f, 1.f, 1.f};
+  weight_t h_result[] = {0.11615584790706635f, 0.21488840878009796f, 0.29881080985069275f, 0.37014490365982056f};
+
+  double alpha          = 0.85;
+  double epsilon        = 1.0e-6;
+  size_t max_iterations = 500;
+
+  return generic_pagerank_test(
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, alpha, epsilon, max_iterations);
 }
 
 /******************************************************************************/
@@ -135,5 +174,7 @@ int main(int argc, char** argv)
   int result = 0;
   result |= RUN_TEST(test_pagerank);
   result |= RUN_TEST(test_pagerank_with_transpose);
+  result |= RUN_TEST(test_pagerank_4);
+  result |= RUN_TEST(test_pagerank_4_with_transpose);
   return result;
 }

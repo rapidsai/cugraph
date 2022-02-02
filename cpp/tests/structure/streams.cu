@@ -14,27 +14,28 @@
  * limitations under the License.
  */
 
+#include "gtest/gtest.h"
 #include <raft/cudart_utils.h>
-#include <thrust/transform.h>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
-#include "gtest/gtest.h"
+#include <thrust/transform.h>
 struct StreamTest : public ::testing::Test {
 };
 TEST_F(StreamTest, basic_test)
 {
-  int n_streams = 4;
-  raft::handle_t handle(n_streams);
+  int n_streams    = 4;
+  auto stream_pool = std::make_shared<rmm::cuda_stream_pool>(n_streams);
+  raft::handle_t handle(rmm::cuda_stream_per_thread, stream_pool);
 
   const size_t intput_size = 4096;
 
 #pragma omp parallel for
   for (int i = 0; i < n_streams; i++) {
-    rmm::device_uvector<int> u(intput_size, handle.get_internal_stream_view(i)),
-      v(intput_size, handle.get_internal_stream_view(i));
-    thrust::transform(rmm::exec_policy(handle.get_internal_stream_view(i)),
+    rmm::device_uvector<int> u(intput_size, handle.get_next_usable_stream(i)),
+      v(intput_size, handle.get_next_usable_stream(i));
+    thrust::transform(rmm::exec_policy(handle.get_next_usable_stream(i)),
                       u.begin(),
                       u.end(),
                       v.begin(),

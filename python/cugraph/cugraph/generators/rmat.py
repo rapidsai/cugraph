@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -280,7 +280,7 @@ def rmat(
         and duplicated edges.  Default is cugraph.DiGraph.
         NOTE: only the cugraph.DiGraph type is supported for multi-GPU
 
-    mg : bool
+    mg : bool, optional (default=False)
         If True, R-MAT generation occurs across multiple GPUs. If False, only a
         single GPU is used.  Default is False (single-GPU)
 
@@ -292,19 +292,19 @@ def rmat(
     --------
     >>> import cugraph
     >>> from cugraph.generators import rmat
-    >>>
     >>> df = rmat(
     ...    scale,
     ...    (2**scale)*edgefactor,
-    ...    0.1,
-    ...    0.2,
-    ...    0.3,
+    ...    0.57,
+    ...    0.19,
+    ...    0.19,
     ...    seed or 42,
     ...    clip_and_flip=False,
     ...    scramble_vertex_ids=True,
     ...    create_using=None,  # return edgelist instead of Graph instance
     ...    mg=False
     ... )
+
     """
 
     _ensure_args_rmat(scale, num_edges, a, b, c, seed, clip_and_flip,

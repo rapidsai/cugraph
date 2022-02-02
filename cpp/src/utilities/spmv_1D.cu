@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <raft/spectral/matrix_wrappers.hpp>
 #include "spmv_1D.cuh"
+#include <raft/spectral/matrix_wrappers.hpp>
 
 namespace cugraph {
 namespace mg {
@@ -38,7 +38,7 @@ MGcsrmv<vertex_t, edge_t, weight_t>::MGcsrmv(raft::handle_t const& handle,
   v_glob_ = part_off_[p_ - 1] + local_vertices_[p_ - 1];
   v_loc_  = local_vertices_[i_];
   vertex_t tmp;
-  CUDA_TRY(cudaMemcpy(&tmp, &off_[v_loc_], sizeof(vertex_t), cudaMemcpyDeviceToHost));
+  RAFT_CUDA_TRY(cudaMemcpy(&tmp, &off_[v_loc_], sizeof(vertex_t), cudaMemcpyDeviceToHost));
   e_loc_ = tmp;
   y_loc_.resize(v_loc_);
 }

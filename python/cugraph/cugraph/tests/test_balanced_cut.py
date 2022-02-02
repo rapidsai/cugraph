@@ -30,7 +30,7 @@ def cugraph_call(G, partitions):
     score = cugraph.analyzeClustering_edge_cut(
         G, partitions, df, 'vertex', 'cluster'
     )
-    return set(df["vertex"].to_array()), score
+    return set(df["vertex"].to_numpy()), score
 
 
 def random_call(G, partitions):
@@ -149,7 +149,7 @@ def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
         G, partitions, gdf, 'vertex', 'cluster'
     )
 
-    df = set(gdf["vertex"].to_array())
+    df = set(gdf["vertex"].to_numpy())
 
     Gcu = cugraph.utilities.convert_from_nx(G)
     rand_vid, rand_score = random_call(Gcu, partitions)

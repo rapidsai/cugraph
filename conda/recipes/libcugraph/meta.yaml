@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2021, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 
 # Usage:
 #   conda build -c nvidia -c rapidsai -c conda-forge .
@@ -33,6 +33,7 @@ build:
 requirements:
   build:
     - cmake>=3.20.1
+    - doxygen>=1.8.11
     - cudatoolkit {{ cuda_version }}.*
     - librmm {{ minor_version }}.*
     - cudf {{ minor_version }}.*
@@ -41,14 +42,10 @@ requirements:
     - ucx-proc=*=gpu
     - gtest
     - gmock
-    - faiss-proc=*=cuda
-    - libfaiss 1.7.0 *_cuda
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
     - nccl>=2.9.9
     - ucx-proc=*=gpu
-    - faiss-proc=*=cuda
-    - libfaiss 1.7.0 *_cuda
     - libcusolver>=11.2.1
 
 about:

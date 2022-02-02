@@ -33,11 +33,13 @@ build:
 requirements:
   build:
     - cmake>=3.20.1
+    - doxygen>=1.8.11
     - cudatoolkit {{ cuda_version }}.*
-    - cudf {{ minor_version }}.*
+    - libcudf {{ minor_version }}.*
     - libcugraph {{ minor_version }}.*
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
+    - libcudf {{ minor_version }}.*
     - libcugraph {{ minor_version }}.*
     - faiss-proc=*=cuda
     - libfaiss 1.7.0 *_cuda

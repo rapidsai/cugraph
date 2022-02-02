@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -9,19 +9,15 @@
  *
  */
 #include <utilities/base_fixture.hpp>
+#include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
+
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-
-#include <cugraph/graph.hpp>
-
-#include <cugraph/algorithms.hpp>
-
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <gtest/gtest.h>
@@ -33,28 +29,15 @@
 #include <vector>
 
 struct Louvain_Usecase {
-  std::string graph_file_full_path_{};
   bool test_weighted_{false};
+  bool check_correctness_{false};
   int expected_level_{0};
   float expected_modularity_{0};
-
-  Louvain_Usecase(std::string const& graph_file_path,
-                  bool test_weighted,
-                  int expected_level,
-                  float expected_modularity)
-    : test_weighted_(test_weighted),
-      expected_level_(expected_level),
-      expected_modularity_(expected_modularity)
-  {
-    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
-      graph_file_full_path_ = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
-    } else {
-      graph_file_full_path_ = graph_file_path;
-    }
-  };
 };
 
-class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
+template <typename input_usecase_t>
+class Tests_Louvain
+  : public ::testing::TestWithParam<std::tuple<Louvain_Usecase, input_usecase_t>> {
  public:
   Tests_Louvain() {}
   static void SetupTestCase() {}
@@ -64,14 +47,14 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-  void run_legacy_test(Louvain_Usecase const& configuration)
+  void run_legacy_test(Louvain_Usecase const& louvain_usecase, input_usecase_t const& input_usecase)
   {
     raft::handle_t handle{};
 
     bool directed{false};
 
-    auto graph = cugraph::test::generate_graph_csr_from_mm<vertex_t, edge_t, weight_t>(
-      directed, configuration.graph_file_full_path_);
+    auto graph = cugraph::test::legacy::construct_graph_csr<vertex_t, edge_t, weight_t>(
+      handle, input_usecase, true);
     auto graph_view = graph->view();
 
     // "FIXME": remove this check once we drop support for Pascal
@@ -80,31 +63,37 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
     // this is the behavior while we still support Pascal (device_prop.major < 7)
     //
     cudaDeviceProp device_prop;
-    CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+    RAFT_CUDA_TRY(cudaGetDeviceProperties(&device_prop, 0));
 
     if (device_prop.major < 7) {
       EXPECT_THROW(louvain(graph_view,
                            graph_view.get_number_of_vertices(),
-                           configuration.expected_level_,
-                           configuration.expected_modularity_),
+                           louvain_usecase.check_correctness_,
+                           louvain_usecase.expected_level_,
+                           louvain_usecase.expected_modularity_),
                    cugraph::logic_error);
     } else {
       louvain(graph_view,
               graph_view.get_number_of_vertices(),
-              configuration.expected_level_,
-              configuration.expected_modularity_);
+              louvain_usecase.check_correctness_,
+              louvain_usecase.expected_level_,
+              louvain_usecase.expected_modularity_);
     }
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
-  void run_current_test(Louvain_Usecase const& configuration)
+  void run_current_test(Louvain_Usecase const& louvain_usecase,
+                        input_usecase_t const& input_usecase)
   {
     raft::handle_t handle{};
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
-    std::tie(graph, std::ignore) =
-      cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-        handle, configuration.graph_file_full_path_, configuration.test_weighted_, false);
+    // Can't currently check correctness if we renumber
+    bool renumber = true;
+    if (louvain_usecase.check_correctness_) renumber = false;
+
+    auto [graph, d_renumber_map_labels] =
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+        handle, input_usecase, louvain_usecase.test_weighted_, renumber);
 
     auto graph_view = graph.view();
 
@@ -114,25 +103,28 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
     // this is the behavior while we still support Pascal (device_prop.major < 7)
     //
     cudaDeviceProp device_prop;
-    CUDA_CHECK(cudaGetDeviceProperties(&device_prop, 0));
+    RAFT_CUDA_TRY(cudaGetDeviceProperties(&device_prop, 0));
 
     if (device_prop.major < 7) {
       EXPECT_THROW(louvain(graph_view,
                            graph_view.get_number_of_local_vertices(),
-                           configuration.expected_level_,
-                           configuration.expected_modularity_),
+                           louvain_usecase.check_correctness_,
+                           louvain_usecase.expected_level_,
+                           louvain_usecase.expected_modularity_),
                    cugraph::logic_error);
     } else {
       louvain(graph_view,
               graph_view.get_number_of_local_vertices(),
-              configuration.expected_level_,
-              configuration.expected_modularity_);
+              louvain_usecase.check_correctness_,
+              louvain_usecase.expected_level_,
+              louvain_usecase.expected_modularity_);
     }
   }
 
   template <typename graph_t>
   void louvain(graph_t const& graph_view,
                typename graph_t::vertex_type num_vertices,
+               bool check_correctness,
                int expected_level,
                float expected_modularity)
   {
@@ -148,12 +140,14 @@ class Tests_Louvain : public ::testing::TestWithParam<Louvain_Usecase> {
     std::tie(level, modularity) =
       cugraph::louvain(handle, graph_view, clustering_v.data(), size_t{100}, weight_t{1});
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     float compare_modularity = static_cast<float>(modularity);
 
-    ASSERT_FLOAT_EQ(compare_modularity, expected_modularity);
-    ASSERT_EQ(level, expected_level);
+    if (check_correctness) {
+      ASSERT_FLOAT_EQ(compare_modularity, expected_modularity);
+      ASSERT_EQ(level, expected_level);
+    }
   }
 };
 
@@ -222,7 +216,7 @@ TEST(louvain_legacy, success)
 
     raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-    CUDA_TRY(cudaDeviceSynchronize());
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 
@@ -293,7 +287,7 @@ TEST(louvain_legacy_renumbered, success)
 
     raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-    CUDA_TRY(cudaDeviceSynchronize());
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 
@@ -302,25 +296,65 @@ TEST(louvain_legacy_renumbered, success)
   }
 }
 
-TEST_P(Tests_Louvain, CheckInt32Int32FloatFloatLegacy)
+using Tests_Louvain_File = Tests_Louvain<cugraph::test::File_Usecase>;
+using Tests_Louvain_Rmat = Tests_Louvain<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_Louvain_File, CheckInt32Int32FloatFloatLegacy)
 {
-  run_legacy_test<int32_t, int32_t, float, float>(GetParam());
+  auto param = GetParam();
+  run_legacy_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_Louvain, CheckInt32Int32FloatFloat)
+TEST_P(Tests_Louvain_File, CheckInt32Int32FloatFloat)
 {
-  run_current_test<int32_t, int32_t, float, float>(GetParam());
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, float>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_Louvain, CheckInt64Int64FloatFloat)
+TEST_P(Tests_Louvain_File, CheckInt64Int64FloatFloat)
 {
-  run_current_test<int64_t, int64_t, float, float>(GetParam());
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, float>(std::get<0>(param), std::get<1>(param));
+}
+
+TEST_P(Tests_Louvain_Rmat, CheckInt32Int32FloatFloatLegacy)
+{
+  auto param = GetParam();
+  run_legacy_test<int32_t, int32_t, float, float>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_Louvain_Rmat, CheckInt32Int32FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, float>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_Louvain_Rmat, CheckInt64Int64FloatFloat)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, float>(
+    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 // FIXME: Expand testing once we evaluate RMM memory use
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
-  Tests_Louvain,
-  ::testing::Values(Louvain_Usecase("test/datasets/karate.mtx", true, 3, 0.408695)));
+  Tests_Louvain_File,
+  ::testing::Combine(::testing::Values(Louvain_Usecase{true, true, 3, 0.408695}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
+  Tests_Louvain_Rmat,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Louvain_Usecase{true, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
