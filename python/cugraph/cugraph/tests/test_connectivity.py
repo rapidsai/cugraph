@@ -47,7 +47,6 @@ print("Networkx version : {} ".format(nx.__version__))
 # connected_components calls.
 cuGraph_input_output_map = {
     cugraph.Graph: cudf.DataFrame,
-    cugraph.DiGraph: cudf.DataFrame,
     nx.Graph: dict,
     nx.DiGraph: dict,
     cp_coo_matrix: tuple,

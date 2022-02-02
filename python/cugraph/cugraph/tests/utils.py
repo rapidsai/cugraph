@@ -315,10 +315,7 @@ def generate_cugraph_graph_from_file(graph_file, directed=True,
                                      edgevals=False):
     cu_M = read_csv_file(graph_file)
 
-    if directed is False:
-        G = cugraph.Graph()
-    else:
-        G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=directed)
 
     if edgevals:
         G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
