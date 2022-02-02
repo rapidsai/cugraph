@@ -21,9 +21,9 @@ function(find_and_configure_cugraphops)
     endif()
 
     rapids_find_generate_module(cugraphops
-        HEADER_NAMES          graph/sampling.h
-        LIBRARY_NAMES         cugraphops
-        INCLUDE_SUFFIXES      cugraph-ops
+        HEADER_NAMES            graph/sampling.h
+        LIBRARY_NAMES           cugraph-ops++
+        INCLUDE_SUFFIXES        cugraph-ops
     )
 
     rapids_find_package(cugraphops REQUIRED)
