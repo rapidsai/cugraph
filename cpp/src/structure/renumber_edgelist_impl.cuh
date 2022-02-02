@@ -101,8 +101,8 @@ compute_renumber_map(raft::handle_t const& handle,
 
   edge_t num_local_edges = std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
 
-  // 1. if local_vertices.has_value() is false, keep unique vertices from edge majors as well (to
-  // construct local_vertices)
+  // 1. if local_vertices.has_value() is false, find unique vertices from edge majors (to construct
+  // local_vertices) unique edge majors will be counted in step 4.
 
   rmm::device_uvector<vertex_t> sorted_unique_majors(0, handle.get_stream());
   if (!local_vertices) {
@@ -183,7 +183,11 @@ compute_renumber_map(raft::handle_t const& handle,
   handle.sync_stream();
   auto time2 = std::chrono::steady_clock::now();
 #endif
-  if (!local_vertices) {
+  if (local_vertices) {
+    sorted_local_vertices = std::move(*local_vertices);
+    thrust::sort(
+      handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
+  } else {
     sorted_local_vertices.resize(sorted_unique_majors.size() + sorted_unique_minors.size(),
                                  handle.get_stream());
 
@@ -209,11 +213,15 @@ compute_renumber_map(raft::handle_t const& handle,
     if constexpr (multi_gpu) {
       sorted_local_vertices =
         cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(sorted_local_vertices));
+      thrust::sort(
+        handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
+      sorted_local_vertices.resize(thrust::distance(sorted_local_vertices.begin(),
+                                                    thrust::unique(handle.get_thrust_policy(),
+                                                                   sorted_local_vertices.begin(),
+                                                                   sorted_local_vertices.end())),
+                                   handle.get_stream());
+      sorted_local_vertices.shrink_to_fit(handle.get_stream());
     }
-  } else {
-    sorted_local_vertices = std::move(*local_vertices);
-    thrust::sort(
-      handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
   }
 
   // 4. compute global degrees for the sorted local vertices, and count unique edge majors on the
@@ -272,8 +280,7 @@ compute_renumber_map(raft::handle_t const& handle,
 
     for (int i = 0; i < col_comm_size; ++i) {
       auto loop_stream = stream_pool_indices
-                           ? handle.get_stream_from_stream_pool(
-                               (*stream_pool_indices)[i % (*stream_pool_indices).size()])
+                           ? handle.get_stream_from_stream_pool(i % (*stream_pool_indices).size())
                            : handle.get_stream();
 
       rmm::device_uvector<vertex_t> tmp_majors(edgelist_edge_counts[i], loop_stream);
@@ -305,7 +312,7 @@ compute_renumber_map(raft::handle_t const& handle,
                    sorted_local_vertices.data(),
                    sorted_majors.data(),
                    edge_partition_major_sizes[i],
-                   static_cast<int>(i),
+                   i,
                    loop_stream);
 
       rmm::device_uvector<edge_t> sorted_major_degrees(sorted_majors.size(), loop_stream);
@@ -517,20 +524,6 @@ void expensive_check_edgelist(
                     "Invalid input argument: both edgelist_majors.size() & "
                     "edgelist_minors.size() should coincide with col_comm_size.");
 
-    if (sorted_local_vertices) {
-      CUGRAPH_EXPECTS(
-        thrust::count_if(
-          handle.get_thrust_policy(),
-          (*sorted_local_vertices).begin(),
-          (*sorted_local_vertices).end(),
-          [comm_rank,
-           key_func =
-             detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
-            return key_func(val) != comm_rank;
-          }) == 0,
-        "Invalid input argument: local_vertices should be pre-shuffled.");
-    }
-
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
       auto edge_first =
         thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
@@ -557,58 +550,6 @@ void expensive_check_edgelist(
         "Invalid input argument: edgelist_majors & edgelist_minors should be "
         "pre-shuffled.");
 
-      if (sorted_local_vertices) {
-        auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-        auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-
-        rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
-        {
-          auto major_size =
-            host_scalar_bcast(col_comm,
-                              static_cast<int>(i) == col_comm_rank ? (*sorted_local_vertices).size()
-                                                                   : size_t{0} /* dummy */,
-                              i,
-                              handle.get_stream());
-          sorted_majors.resize(major_size, handle.get_stream());
-          device_bcast(col_comm,
-                       (*sorted_local_vertices).begin(),
-                       sorted_majors.begin(),
-                       major_size,
-                       i,
-                       handle.get_stream());
-          thrust::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
-        }
-
-        rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
-        {
-          auto recvcounts =
-            host_scalar_allgather(row_comm, (*sorted_local_vertices).size(), handle.get_stream());
-          std::vector<size_t> displacements(recvcounts.size(), size_t{0});
-          std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
-          sorted_minors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
-          device_allgatherv(row_comm,
-                            (*sorted_local_vertices).data(),
-                            sorted_minors.data(),
-                            recvcounts,
-                            displacements,
-                            handle.get_stream());
-          thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
-        }
-
-        auto edge_first =
-          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
-        CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
-                                         edge_first,
-                                         edge_first + edgelist_edge_counts[i],
-                                         check_edge_src_and_dst_t<vertex_t>{
-                                           sorted_majors.data(),
-                                           static_cast<vertex_t>(sorted_majors.size()),
-                                           sorted_minors.data(),
-                                           static_cast<vertex_t>(sorted_minors.size())}) == 0,
-                        "Invalid input argument: edgelist_majors and/or edgelist_minors have "
-                        "invalid vertex ID(s).");
-      }
-
       if (edgelist_intra_partition_segment_offsets) {
         for (int j = 0; j < row_comm_size; ++j) {
           CUGRAPH_EXPECTS(
@@ -627,6 +568,67 @@ void expensive_check_edgelist(
             "true, edgelist_majors & edgelist_minors should be properly grouped "
             "within each local partition.");
         }
+      }
+    }
+
+    if (sorted_local_vertices) {
+      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+
+      CUGRAPH_EXPECTS(
+        thrust::count_if(
+          handle.get_thrust_policy(),
+          (*sorted_local_vertices).begin(),
+          (*sorted_local_vertices).end(),
+          [comm_rank,
+           key_func =
+             detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
+            return key_func(val) != comm_rank;
+          }) == 0,
+        "Invalid input argument: local_vertices should be pre-shuffled.");
+
+      auto major_sizes =
+        host_scalar_allgather(col_comm, (*sorted_local_vertices).size(), handle.get_stream());
+
+      rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
+      auto recvcounts =
+        host_scalar_allgather(row_comm, (*sorted_local_vertices).size(), handle.get_stream());
+      std::vector<size_t> displacements(recvcounts.size(), size_t{0});
+      std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
+      sorted_minors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
+      device_allgatherv(row_comm,
+                        (*sorted_local_vertices).data(),
+                        sorted_minors.data(),
+                        recvcounts,
+                        displacements,
+                        handle.get_stream());
+      thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
+
+      for (size_t i = 0; i < edgelist_majors.size(); ++i) {
+        rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
+        {
+          sorted_majors.resize(major_sizes[i], handle.get_stream());
+          device_bcast(col_comm,
+                       (*sorted_local_vertices).begin(),
+                       sorted_majors.begin(),
+                       major_sizes[i],
+                       i,
+                       handle.get_stream());
+        }
+
+        auto edge_first =
+          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
+
+        CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
+                                         edge_first,
+                                         edge_first + edgelist_edge_counts[i],
+                                         check_edge_src_and_dst_t<vertex_t>{
+                                           sorted_majors.data(),
+                                           static_cast<vertex_t>(sorted_majors.size()),
+                                           sorted_minors.data(),
+                                           static_cast<vertex_t>(sorted_minors.size())}) == 0,
+                        "Invalid input argument: edgelist_majors and/or edgelist_minors have "
+                        "invalid vertex ID(s).");
       }
     }
   } else {
