@@ -486,13 +486,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
     partition_(meta.partition)
 {
-#if 1 // FIXME: delete
-  handle.sync_stream();
-  if constexpr (multi_gpu) {
-    handle.get_comms().barrier();
-  }
-  auto time0 = std::chrono::steady_clock::now();
-#endif
   // cheap error checks
 
   auto& comm           = this->get_handle_ptr()->get_comms();
@@ -625,10 +618,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   }
 
   // aggregate segment_offsets
-#if 1 // FIXME: delete
-  handle.sync_stream();
-  auto time1 = std::chrono::steady_clock::now();
-#endif
 
   if (meta.segment_offsets) {
     // FIXME: we need to add host_allgather
@@ -658,10 +647,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   }
 
   // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
-#if 1 // FIXME: delete
-  handle.sync_stream();
-  auto time2 = std::chrono::steady_clock::now();
-#endif
 
   adj_matrix_partition_offsets_.reserve(edgelists.size());
   adj_matrix_partition_indices_.reserve(edgelists.size());
@@ -704,10 +689,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   }
 
   // segmented sort neighbors
-#if 1 // FIXME: delete
-  handle.sync_stream();
-  auto time3 = std::chrono::steady_clock::now();
-#endif
 
   for (size_t i = 0; i < adj_matrix_partition_offsets_.size(); ++i) {
     sort_adjacency_list(handle,
@@ -722,10 +703,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // if # unique edge rows/cols << V / row_comm_size|col_comm_size, store unique edge rows/cols to
   // support storing edge row/column properties in (key, value) pairs.
-#if 1 // FIXME: delete
-  handle.sync_stream();
-  auto time4 = std::chrono::steady_clock::now();
-#endif
 
   auto num_local_unique_edge_majors =
     store_transposed ? meta.num_local_unique_edge_cols : meta.num_local_unique_edge_rows;
@@ -882,17 +859,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       local_sorted_unique_edge_col_offsets_ = std::move(h_key_offsets);
     }
   }
-#if 1 // FIXME: delete
-  handle.sync_stream();
-  auto time5 = std::chrono::steady_clock::now();
-  std::chrono::duration<double> elapsed_total = time5 - time0;
-  std::chrono::duration<double> elapsed0 = time1 - time0;
-  std::chrono::duration<double> elapsed1 = time2 - time1;
-  std::chrono::duration<double> elapsed2 = time3 - time2;
-  std::chrono::duration<double> elapsed3 = time4 - time3;
-  std::chrono::duration<double> elapsed4 = time5 - time4;
-  std::cout << "Graph constructor took " << elapsed_total.count() * 1e3 << " ms, breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << "," << elapsed3.count() * 1e3 << "," << elapsed4.count() * 1e3 << ") ms." << std::endl;
-#endif
 }
 
 template <typename vertex_t,
