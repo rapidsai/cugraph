@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,7 +80,8 @@ struct compute_partition_id_from_edge_t {
 template <typename vertex_t>
 struct is_first_in_run_t {
   vertex_t const* vertices{nullptr};
-  __device__ bool operator()(size_t i) const {
+  __device__ bool operator()(size_t i) const
+  {
     return (i == 0) || (vertices[i - 1] != vertices[i]);
   }
 };
