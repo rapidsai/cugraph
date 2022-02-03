@@ -93,7 +93,7 @@ compute_renumber_map(raft::handle_t const& handle,
   edge_t num_local_edges = std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
 
   // 1. if local_vertices.has_value() is false, find unique vertices from edge majors (to construct
-  // local_vertices) unique edge majors will be counted in step 4.
+  // local_vertices), unique edge majors will be counted in step 4.
 
   rmm::device_uvector<vertex_t> sorted_unique_majors(0, handle.get_stream());
   if (!local_vertices) {
