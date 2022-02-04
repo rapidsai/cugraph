@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -58,7 +58,6 @@ DEPTH_LIMITS = [None, 1, 5, 18]
 # connected_components calls.
 cuGraph_input_output_map = {
     cugraph.Graph: cudf.DataFrame,
-    cugraph.DiGraph: cudf.DataFrame,
     nx.Graph: pd.DataFrame,
     nx.DiGraph: pd.DataFrame,
     cp_coo_matrix: tuple,
@@ -384,10 +383,10 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc,
     # special case: ensure cugraph and Nx Graph types are DiGraphs if
     # "directed" is set, since the graph type parameterization is currently
     # independent of the directed parameter. Unfortunately this does not
-    # change the "id" in the pytest output.
+    # change the "id" in the pytest output. Ignore for nonnative inputs
     if directed:
-        if cugraph_input_type is cugraph.Graph:
-            cugraph_input_type = cugraph.DiGraph
+        if isinstance(cugraph_input_type, cugraph.Graph):
+            cugraph_input_type = cugraph.Graph(directed=True)
         elif cugraph_input_type is nx.Graph:
             cugraph_input_type = nx.DiGraph
 
