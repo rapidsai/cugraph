@@ -18,4 +18,4 @@ K-Core
 .. autosummary::
    :toctree: api/
 
-   cugraph.centrality.katz_centrality.katz_centrality
+   cugraph.cores.k_core.k_core

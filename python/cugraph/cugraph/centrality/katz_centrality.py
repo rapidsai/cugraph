@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -47,12 +47,13 @@ def katz_centrality(
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed (DiGraph) or undirected edges (Graph).
-    alpha : float
+
+    alpha : float, optional (default=None)
         Attenuation factor defaulted to None. If alpha is not specified then
         it is internally calculated as 1/(degree_max) where degree_max is the
         maximum out degree.
 
-        NOTE
+        NOTE:
             The maximum acceptable value of alpha for convergence
             alpha_max = 1/(lambda_max) where lambda_max is the largest
             eigenvalue of the graph.
@@ -61,15 +62,18 @@ def katz_centrality(
             (1/degree_max). Therefore, setting alpha to (1/degree_max) will
             guarantee that it will never exceed alpha_max thus in turn
             fulfilling the requirement for convergence.
-    beta : None
+
+    beta : float, optional (default=None)
         A weight scalar - currently Not Supported
-    max_iter : int
+
+    max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 100.
-    tolerance : float
+
+    tol : float, optional (default=1.0e-6)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -77,7 +81,8 @@ def katz_centrality(
         Setting too small a tolerance can lead to non-convergence due to
         numerical roundoff. Usually values between 1e-2 and 1e-6 are
         acceptable.
-    nstart : cudf.Dataframe
+
+    nstart : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the initial guess for katz centrality.
 
         nstart['vertex'] : cudf.Series
@@ -85,7 +90,7 @@ def katz_centrality(
         nstart['values'] : cudf.Series
             Contains the katz centrality values of vertices
 
-    normalized : bool
+    normalized : bool, optional, default=True
         If True normalize the resulting katz centrality values
 
     Returns
@@ -101,11 +106,12 @@ def katz_centrality(
 
     Examples
     --------
-    >>> gdf = cudf.read_csv('datasets/karate.csv', delimiter=' ',
-    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
     >>> kc = cugraph.katz_centrality(G)
+
     """
 
     if beta is not None:

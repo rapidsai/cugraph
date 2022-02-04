@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,10 +36,10 @@ def random_walks(G,
         the random walks. In case of multi-column vertices it should be
         a cudf.DataFrame
 
-    max_depth : int
+    max_depth : int, optional (default=None)
         The maximum depth of the random walks
 
-    use_padding : bool
+    use_padding : bool, optional (default=False)
         If True, padded paths are returned else coalesced paths are returned.
 
     Returns
@@ -53,6 +53,15 @@ def random_walks(G,
 
     sizes: int
         The path size in case of coalesced paths.
+
+    Examples
+    --------
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> _, _, _ = cugraph.random_walks(G, M, 3)
+
     """
     if max_depth is None:
         raise TypeError("must specify a 'max_depth'")
