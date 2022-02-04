@@ -136,11 +136,12 @@ function(ConfigureTest CMAKE_TEST_NAME)
 
     set_target_properties(
         ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../lib")
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
     install(
         TARGETS ${CMAKE_TEST_NAME}
         COMPONENT testing
+        DESTINATION bin/gtests/libcugraph
         EXCLUDE_FROM_ALL)
 endfunction()
 
@@ -222,11 +223,12 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
 
     set_target_properties(
         ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../lib")
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
         install(
             TARGETS ${CMAKE_TEST_NAME}
             COMPONENT testing
+            DESTINATION bin/gtests/libcugraph_mg
             EXCLUDE_FROM_ALL)
 endfunction()
 
@@ -247,11 +249,12 @@ function(ConfigureCTest CMAKE_TEST_NAME)
 
     set_target_properties(
         ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../lib")
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
         install(
             TARGETS ${CMAKE_TEST_NAME}
             COMPONENT testing
+            DESTINATION bin/gtests/libcugraph_c
             EXCLUDE_FROM_ALL)
 endfunction()
 
