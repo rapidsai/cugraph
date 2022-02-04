@@ -192,6 +192,14 @@ void pagerank(
   row_properties_t<GraphViewType, result_t> adj_matrix_row_pageranks(handle, pull_graph_view);
   size_t iter{0};
   while (true) {
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    if constexpr (GraphViewType::is_multi_gpu) {
+      rmm::device_uvector<int32_t> dummy(1, handle.get_stream());
+      handle.get_comms().allreduce(dummy.data(), dummy.data(), 1, raft::comms::op_t::SUM, handle.get_stream());
+    }
+    auto time0 = std::chrono::steady_clock::now();
+#endif
     thrust::copy(handle.get_thrust_policy(),
                  pageranks,
                  pageranks + pull_graph_view.get_number_of_local_vertices(),
@@ -223,8 +231,16 @@ void pagerank(
                         return pagerank / divisor;
                       });
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    auto time1 = std::chrono::steady_clock::now();
+#endif
     copy_to_adj_matrix_row(handle, pull_graph_view, pageranks, adj_matrix_row_pageranks);
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    auto time2 = std::chrono::steady_clock::now();
+#endif
     auto unvarying_part = aggregate_personalization_vector_size == 0
                             ? (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) /
                                 static_cast<result_t>(num_vertices)
@@ -241,6 +257,10 @@ void pagerank(
       unvarying_part,
       pageranks);
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    auto time3 = std::chrono::steady_clock::now();
+#endif
     if (aggregate_personalization_vector_size > 0) {
       auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
         pull_graph_view.get_vertex_partition_view());
@@ -260,6 +280,10 @@ void pagerank(
         });
     }
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    auto time4 = std::chrono::steady_clock::now();
+#endif
     auto diff_sum = transform_reduce_v(
       handle,
       pull_graph_view,
@@ -267,6 +291,17 @@ void pagerank(
       [] __device__(auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0.0});
 
+#if 1 // FIXME: delete
+    handle.sync_stream();
+    auto time5 = std::chrono::steady_clock::now();
+    std::chrono::duration<double> elapsed_total = time5 - time0;
+    std::chrono::duration<double> elapsed0 = time1 - time0;
+    std::chrono::duration<double> elapsed1 = time2 - time1;
+    std::chrono::duration<double> elapsed2 = time3 - time2;
+    std::chrono::duration<double> elapsed3 = time4 - time3;
+    std::chrono::duration<double> elapsed4 = time5 - time4;
+    std::cout << "PageRank iter " << iter << " took " << elapsed_total.count() * 1e3 << " ms, breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << "," << elapsed3.count() * 1e3 << "," << elapsed4.count() * 1e3 << ") ms." << std::endl;
+#endif
     iter++;
 
     if (diff_sum < epsilon) {
