@@ -17,13 +17,10 @@
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
-import warnings
 import pytest
 from cugraph.tests import utils
 
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+import networkx as nx
 
 
 def test_nx_gbuilder():
