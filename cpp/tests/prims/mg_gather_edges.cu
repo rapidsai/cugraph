@@ -337,9 +337,11 @@ class Tests_MG_GatherEdges
       hr_clock.start();
     }
 
+    constexpr bool sort_adjacency_list = true;
+
     auto [mg_graph, mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        handle, input_usecase, true, true);
+        handle, input_usecase, true, true, false, sort_adjacency_list);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
