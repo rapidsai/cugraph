@@ -180,12 +180,15 @@ rmm::device_uvector<edge_t> generate_random_destination_indices(
     create_segmented_data(handle, invalid_vertex_id, out_degrees);
   // Generate random weights to shuffle sequence of destination indices
   rmm::device_uvector<int> random_weights(segmented_sequence.size(), handle.get_stream());
+  auto& row_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto const row_rank        = row_comm.get_rank();
   thrust::transform(handle.get_thrust_policy(),
                     thrust::make_counting_iterator<size_t>(0),
                     thrust::make_counting_iterator<size_t>(random_weights.size()),
                     random_weights.begin(),
-                    [] __device__(auto index) {
+                    [row_rank] __device__(auto index) {
                       thrust::default_random_engine g;
+                      g.seed(row_rank);
                       thrust::uniform_int_distribution<int> dist;
                       g.discard(index);
                       return dist(g);
