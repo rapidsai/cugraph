@@ -18,6 +18,8 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <raft/handle.hpp>
 
@@ -25,62 +27,92 @@
 #include <thrust/distance.h>
 #include <utility>
 
+#define DEBUG
+
+#ifdef DEBUG
+#include <sstream>
+#include <string>
+#endif
+
 namespace cugraph {
 
 namespace detail {
 
-/**
- * @brief Row wise exclusive scan of a local buffer
- *
- * Iteratively exchange buffers with neighbor gpu in column communicator and add them up.
- *
- * @tparam Type Data type of the buffer
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param input Reference to device buffer
- * @return A single vector containing the row wise exclusive scan
- */
-template <typename Type>
-rmm::device_uvector<Type> device_exclusive_scan(raft::handle_t const& handle,
-                                                const rmm::device_uvector<Type>& input)
+#ifdef DEBUG
+namespace debug {
+template <typename Iter>
+void print(raft::handle_t const& handle,
+           Iter begin,
+           Iter end,
+           std::string prefix = "",
+           std::string delim  = "\n")
 {
-  auto& col_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_size = col_comm.get_size();
-  auto const col_rank = col_comm.get_rank();
-  auto& row_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_size = row_comm.get_size();
-  auto const row_rank = row_comm.get_rank();
-
+  using T    = typename std::iterator_traits<Iter>::value_type;
+  auto count = thrust::distance(begin, end);
+  std::vector<T> hdata(count);
+  raft::update_host(hdata.data(), begin, count, handle.get_stream());
   auto& comm           = handle.get_comms();
-  auto const comm_size = comm.get_size();
   auto const comm_rank = comm.get_rank();
-
-  rmm::device_uvector<Type> temp_input(input.size(), handle.get_stream());
-  raft::update_device(temp_input.data(), input.data(), input.size(), handle.get_stream());
-
-  rmm::device_uvector<Type> recv_data(input.size(), handle.get_stream());
-  if (col_rank == 0) {
-    thrust::fill(handle.get_thrust_policy(), recv_data.begin(), recv_data.end(), Type{0});
+  std::stringstream ss;
+  ss << prefix;
+  ss << "comm_rank " << comm_rank << "\n";
+  for (auto& d : hdata) {
+    ss << d << delim;
   }
-  for (int i = 0; i < col_size - 1; ++i) {
-    if (col_rank == i) {
-      comm.device_send(
-        temp_input.begin(), temp_input.size(), comm_rank + row_size, handle.get_stream());
-    }
-    if (col_rank == i + 1) {
-      comm.device_recv(
-        recv_data.begin(), recv_data.size(), comm_rank - row_size, handle.get_stream());
-      thrust::transform(handle.get_thrust_policy(),
-                        temp_input.begin(),
-                        temp_input.end(),
-                        recv_data.begin(),
-                        temp_input.begin(),
-                        thrust::plus<Type>());
-    }
-    handle.get_comms().barrier();
-  }
-  return recv_data;
+  ss << "\n";
+  std::cout << ss.str();
+  std::cout << std::flush;
 }
+template <typename T>
+void print(raft::handle_t const& handle,
+           rmm::device_uvector<T> const& data,
+           std::string prefix = "",
+           std::string delim  = "\n")
+{
+  print(handle, data.begin(), data.end(), prefix, delim);
+}
+void point(raft::handle_t const& handle, std::string str)
+{
+  auto& comm           = handle.get_comms();
+  auto const comm_rank = comm.get_rank();
+  std::stringstream ss;
+  ss << "comm_rank " << comm_rank << " ";
+  ss << str << "\n";
+  std::cerr << ss.str();
+  std::cerr << std::flush;
+}
+
+template <typename GraphViewType>
+void print(raft::handle_t const& handle, GraphViewType graph_view)
+{
+  using partition_t = matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+                                                     typename GraphViewType::edge_type,
+                                                     typename GraphViewType::weight_type,
+                                                     GraphViewType::is_multi_gpu>;
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    auto matrix_partition = partition_t(graph_view.get_matrix_partition_view(i));
+    std::string offset_label =
+      std::string("\noffset ") +
+      std::to_string(graph_view.get_local_adj_matrix_partition_row_first(i));
+    std::string indices_label =
+      std::string("\nindices ") +
+      std::to_string(graph_view.get_local_adj_matrix_partition_row_first(i));
+    cugraph::detail::debug::print(
+      handle,
+      matrix_partition.get_offsets(),
+      matrix_partition.get_offsets() + graph_view.get_number_of_local_vertices() + 1,
+      offset_label,
+      " ");
+    cugraph::detail::debug::print(
+      handle,
+      matrix_partition.get_indices(),
+      matrix_partition.get_indices() + matrix_partition.get_number_of_edges(),
+      indices_label,
+      " ");
+  }
+}
+}  // namespace debug
+#endif
 
 /**
  * @brief Calculate local out degrees of the sources belonging to the adjacency matrices
@@ -154,22 +186,23 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
                                                      typename GraphViewType::weight_type,
                                                      GraphViewType::is_multi_gpu>;
 
-  std::vector<vertex_t> id_firsts;
+  std::vector<vertex_t> id_segments;
   std::vector<vertex_t> vertex_count_offsets;
   std::vector<edge_t const*> adjacency_list_offsets;
   std::vector<vertex_t const*> adjacency_list_indices;
 
-  id_firsts.reserve(graph_view.get_number_of_local_adj_matrix_partitions());
+  id_segments.reserve(1 + graph_view.get_number_of_local_adj_matrix_partitions());
   vertex_count_offsets.reserve(graph_view.get_number_of_local_adj_matrix_partitions());
   adjacency_list_offsets.reserve(graph_view.get_number_of_local_adj_matrix_partitions());
   adjacency_list_indices.reserve(graph_view.get_number_of_local_adj_matrix_partitions());
 
+  id_segments.push_back(0);
   vertex_t counter{0};
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     auto matrix_partition = partition_t(graph_view.get_matrix_partition_view(i));
 
     // Starting vertex ids of each partition
-    id_firsts.push_back(graph_view.get_local_adj_matrix_partition_row_first(i));
+    id_segments.push_back(graph_view.get_local_adj_matrix_partition_row_last(i));
     // Count of relative position of the vertices
     vertex_count_offsets.push_back(counter);
     // Adjacency list offset pointer of each partition
@@ -181,14 +214,15 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
   }
 
   // Allocate device memory for transfer
-  rmm::device_uvector<vertex_t> r_firsts(id_firsts.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> r_segments(id_segments.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> vc_offsets(vertex_count_offsets.size(), handle.get_stream());
   rmm::device_uvector<edge_t const*> al_offsets(adjacency_list_offsets.size(), handle.get_stream());
   rmm::device_uvector<vertex_t const*> al_indices(adjacency_list_indices.size(),
                                                   handle.get_stream());
 
   // Transfer data
-  raft::update_device(r_firsts.data(), id_firsts.data(), id_firsts.size(), handle.get_stream());
+  raft::update_device(
+    r_segments.data(), id_segments.data(), id_segments.size(), handle.get_stream());
   raft::update_device(vc_offsets.data(),
                       vertex_count_offsets.data(),
                       vertex_count_offsets.size(),
@@ -202,145 +236,17 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
                       adjacency_list_indices.size(),
                       handle.get_stream());
 
-  return std::make_tuple(r_firsts, vc_offsets, al_offsets, al_indices);
+  return std::make_tuple(
+    std::move(r_segments), std::move(vc_offsets), std::move(al_offsets), std::move(al_indices));
 }
 
-/**
- * @brief Gather active source across gpus in a column communicator
- *
- * Collect all the vertex ids to be processed by every gpu in the column communicator and
- * call sort and unique on the list.
- *
- * @tparam vertex_t Type of vertex indices.
- * @tparam VertexIterator  Type of the iterator for vertex identifiers.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param vertex_input_first Iterator pointing to the first vertex id to be processed
- * @param vertex_input_last Iterator pointing to the last (exclusive) vertex id to be processed
- * @return Device vector containing all the vertices that are to be processed by every gpu
- * in the column communicator
- */
-template <typename vertex_t, typename VertexIterator>
-rmm::device_uvector<vertex_t> gather_active_sources_in_row(raft::handle_t const& handle,
-                                                           VertexIterator vertex_input_first,
-                                                           VertexIterator vertex_input_last)
-{
-  auto& col_comm    = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto source_count = thrust::distance(vertex_input_first, vertex_input_last);
-  auto external_source_counts = host_scalar_allgather(col_comm, source_count, handle.get_stream());
-  auto total_external_source_count =
-    std::accumulate(external_source_counts.begin(), external_source_counts.end(), size_t{0});
-  std::vector<size_t> displacements(external_source_counts.size(), size_t{0});
-  std::exclusive_scan(
-    external_source_counts.begin(), external_source_counts.end(), displacements.begin(), size_t{0});
-
-  rmm::device_uvector<vertex_t> active_sources(total_external_source_count, handle.get_stream());
-  // Get the sources other gpus on the same row are working on
-  // TODO : replace with device_bcast for better scaling
-  device_allgatherv(col_comm,
-                    vertex_input_first,
-                    active_sources.begin(),
-                    external_source_counts,
-                    displacements,
-                    handle.get_stream());
-  thrust::sort(handle.get_thrust_policy(), active_sources.begin(), active_sources.end());
-  active_sources.resize(
-    thrust::distance(
-      active_sources.begin(),
-      thrust::unique(handle.get_thrust_policy(), active_sources.begin(), active_sources.end())),
-    handle.get_stream());
-
-  return active_sources;
-}
+}  // namespace detail
 
 /**
- * @brief Gather active source across gpus in a column communicator
+ * @brief Return global out degrees of active sources
  *
- * Collect all the vertex ids to be processed by every gpu in the column communicator and
- * call sort and unique on the list.
- *
- * @tparam vertex_t Type of vertex indices.
- * @tparam VertexIterator Type of the iterator for vertex identifiers.
- * @tparam EdgeIndexIterator Type of the iterator for edge indices.
- * @tparam edge_t type of edge indices.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param vertex_input_first Iterator pointing to the first vertex id to be processed
- * @param vertex_input_last Iterator pointing to the last (exclusive) vertex id to be processed
- * @param edge_index_first Iterator pointing to the first destination index
- * @param active_sources_in_row Device vector containing all the vertex id that are processed by
- * gpus in the column communicator
- * @param active_sources_local_degrees Device vector containing local out degrees of the
- * vertices in active_sources_in_row
- * @param active_sources_global_degree_offsets Device vector containing out degrees offsets
- * of the vertices in active_sources_in_row
- * @param active_sources_adjacency_lists Device vector containing adjacency list pointers of the
- * vertices in active_sources_in_row
- * @param invalid_vertex_id Vertex id to fill in result if destination index is not accessible
- * on current gpu
- * @param indices_per_source Number of indices supplied for every source in the range
- * [vertex_input_first, vertex_input_last)
- * @return A tuple of device vector containing the sources and destinations gathered locally
- */
-template <typename VertexIterator, typename vertex_t, typename EdgeIndexIterator, typename edge_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> gather_local_edges(
-  raft::handle_t const& handle,
-  VertexIterator vertex_input_first,
-  VertexIterator vertex_input_last,
-  EdgeIndexIterator edge_index_first,
-  rmm::device_uvector<vertex_t>& active_sources_in_row,
-  rmm::device_uvector<edge_t>& active_sources_local_degrees,
-  rmm::device_uvector<edge_t>& active_sources_global_degree_offsets,
-  rmm::device_uvector<const vertex_t*>& active_sources_adjacency_lists,
-  vertex_t invalid_vertex_id,
-  int indices_per_source)
-{
-  auto source_count = thrust::distance(vertex_input_first, vertex_input_last);
-  auto edge_count   = source_count * indices_per_source;
-  rmm::device_uvector<vertex_t> sources(edge_count, handle.get_stream());
-  rmm::device_uvector<vertex_t> destinations(edge_count, handle.get_stream());
-  thrust::for_each(
-    handle.get_thrust_policy(),
-    thrust::make_counting_iterator(0),
-    thrust::make_counting_iterator(edge_count),
-    [vertex_input_first,
-     indices_per_source,
-     edge_index_first,
-     active_sources      = active_sources_in_row.data(),
-     active_source_count = active_sources_in_row.size(),
-     adjacency_lists     = active_sources_adjacency_lists.data(),
-     degrees             = active_sources_local_degrees.data(),
-     degree_offsets      = active_sources_global_degree_offsets.data(),
-     sources             = sources.data(),
-     destinations        = destinations.data(),
-     invalid_vertex_id] __device__(auto index) {
-      // source which this edge index refers to
-      auto source    = vertex_input_first[index / indices_per_source];
-      sources[index] = source;
-
-      // location of source in active_sources
-      auto loc = thrust::distance(
-        active_sources.begin(),
-        thrust::lower_bound(
-          thrust::seq, active_sources, active_sources + active_source_count, source));
-      auto global_dst_index = edge_index_first[index];
-      if ((global_dst_index >= degree_offsets[loc]) &&
-          (global_dst_index < degree_offsets[loc] + degrees[loc])) {
-        destinations[index] = adjacency_lists[loc][global_dst_index - degree_offsets[loc]];
-      } else {
-        destinations[index] = invalid_vertex_id;
-      }
-    });
-
-  return std::make_tuple(sources, destinations);
-}
-
-/**
- * @brief Return local out degrees, global out degrees offsets and adjacency list pointer
- * of active sources
- *
- * Get partition information of all graph partitions on the gpu and select information of
- * all active sources
+ * Get partition information of all graph partitions on the gpu and select
+ * global degrees of all active sources
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -348,72 +254,72 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> gather_
  * @param graph_view Non-owning graph object.
  * @param active_sources Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
- * @param global_degree_offset Global degree offset to local adjacency list for every source
- * represented by current gpu
- * @return Tuple of device vectors. The first vector denotes the local out degrees.
- * The second vector denotes the global degree offset (edges per vertex encountered by gpus
- * in column communicator prior to current gpu).
- * The third vector is the pointer to the local adjacency list for every active source
+ * @param global_out_degrees Global out degrees for every source represented by current gpu
+ * @return Global out degrees of all sources in active_sources
  */
 template <typename GraphViewType>
-std::tuple<rmm::device_uvector<typename GraphViewType::edge_type>,
-           rmm::device_uvector<typename GraphViewType::edge_type>,
-           rmm::device_uvector<typename GraphViewType::vertex_type const*>>
-get_active_sources_information(
+rmm::device_uvector<typename GraphViewType::edge_type> get_active_source_global_degrees(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   rmm::device_uvector<typename GraphViewType::vertex_type>& active_sources,
-  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offset)
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_out_degrees)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  auto [vertex_id_first, vertex_count_offsets, graph_offsets, graph_indices] =
-    partition_information(handle, graph_view);
-  rmm::device_uvector<edge_t> active_source_degree_offsets(active_sources.size(),
-                                                           handle.get_stream());
+  using vertex_t    = typename GraphViewType::vertex_type;
+  using edge_t      = typename GraphViewType::edge_type;
+  using partition_t = matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+                                                     typename GraphViewType::edge_type,
+                                                     typename GraphViewType::weight_type,
+                                                     GraphViewType::is_multi_gpu>;
   rmm::device_uvector<edge_t> active_source_degrees(active_sources.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t const*> active_source_adjacency_lists(active_sources.size(),
-                                                                     handle.get_stream());
+
+  std::vector<vertex_t> id_segments;
+  std::vector<vertex_t> count_offsets;
+  id_segments.reserve(1 + graph_view.get_number_of_local_adj_matrix_partitions());
+  count_offsets.reserve(graph_view.get_number_of_local_adj_matrix_partitions());
+  id_segments.push_back(0);
+  vertex_t counter{0};
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    // Starting vertex ids of each partition
+    id_segments.push_back(graph_view.get_local_adj_matrix_partition_row_last(i));
+    count_offsets.push_back(counter);
+  }
+  rmm::device_uvector<vertex_t> vertex_id_segments(id_segments.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> vertex_count_offsets(count_offsets.size(), handle.get_stream());
+  raft::update_device(
+    vertex_id_segments.data(), id_segments.data(), id_segments.size(), handle.get_stream());
+  raft::update_device(
+    vertex_count_offsets.data(), count_offsets.data(), count_offsets.size(), handle.get_stream());
+
   thrust::transform(
-    handle.get_stream(),
+    handle.get_thrust_policy(),
     active_sources.begin(),
     active_sources.end(),
-    thrust::make_zip_iterator(thrust::make_tuple(active_source_degree_offsets.begin(),
-                                                 active_source_degrees.begin(),
-                                                 active_source_adjacency_lists.begin())),
-    [first                = vertex_id_first.data(),
-     global_degree_offset = global_degree_offset.data(),
+    active_source_degrees.begin(),
+    [seg                  = vertex_id_segments.data(),
+     global_out_degrees   = global_out_degrees.data(),
      vertex_count_offsets = vertex_count_offsets.data(),
-     graph_offsets        = graph_offsets.data(),
-     graph_indices        = graph_indices.data(),
-     count                = vertex_id_first.size()] __device__(auto v) {
+     count                = vertex_id_segments.size()] __device__(auto v) {
       // Find which partition id did the source belong to
-      auto partition_id = thrust::lower_bound(thrust::seq, first, first + count, v);
+      auto partition_id =
+        thrust::distance(seg, thrust::upper_bound(thrust::seq, seg, seg + count, v)) - 1;
       // starting position of the segment within global_degree_offset
       // where the information for partition (partition_id) starts
       //  vertex_count_offsets[partition_id]
       // The relative location of offset information for vertex id v within
       // the segment
-      //  v - first[partition_id]
-      auto location_in_segment = v - first[partition_id];
-      // csr offset value for vertex v that belongs to partition (partition_id)
-      auto csr_offset       = graph_offsets[partition_id][location_in_segment];
-      auto local_out_degree = graph_offsets[partition_id][location_in_segment + 1] - csr_offset;
+      //  v - seg[partition_id]
+      auto location_in_segment = v - seg[partition_id];
       // read location of global_degree_offset needs to take into account the
       // partition offsets because it is a concatenation of all the offsets
       // across all partitions
       auto location = location_in_segment + vertex_count_offsets[partition_id];
-      return thrust::make_tuple(
-        global_degree_offset[location], local_out_degree, graph_indices[partition_id] + csr_offset);
+      return global_out_degrees[location];
     });
-  return std::make_tuple(
-    active_source_degrees, active_source_degree_offsets, active_source_adjacency_lists);
+  return active_source_degrees;
 }
 
-}  // namespace detail
-
 /**
- * @brief Calculate global degree offset for all vertices represented by current gpu
+ * @brief Calculate global degree information for all vertices represented by current gpu
  *
  * Calculate local degree and perform row wise exclusive scan over all gpus in column
  * communicator.
@@ -422,72 +328,247 @@ get_active_sources_information(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @return Device vector containing per source edge count encountered by gpus in the
- * column communicator before current gpu
+ * @return Tuple of two device vectors. The first one contains per source edge-count encountered
+ * by gpus in the column communicator before current gpu. The second device vector contains the
+ * global out degree for every source represented by current gpu
  */
 template <typename GraphViewType>
-rmm::device_uvector<typename GraphViewType::edge_type> get_global_degree_offset(
-  raft::handle_t const& handle, GraphViewType const& graph_view)
+std::tuple<rmm::device_uvector<typename GraphViewType::edge_type>,
+           rmm::device_uvector<typename GraphViewType::edge_type>>
+get_global_degree_information(raft::handle_t const& handle, GraphViewType const& graph_view)
 {
+  using edge_t       = typename GraphViewType::edge_type;
   auto local_degrees = detail::calculate_local_degrees(handle, graph_view);
-  return detail::device_exclusive_scan(handle, local_degrees);
+
+  auto& col_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto const col_size = col_comm.get_size();
+  auto const col_rank = col_comm.get_rank();
+  auto& row_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto const row_size = row_comm.get_size();
+
+  auto& comm           = handle.get_comms();
+  auto const comm_size = comm.get_size();
+  auto const comm_rank = comm.get_rank();
+
+  rmm::device_uvector<edge_t> temp_input(local_degrees.size(), handle.get_stream());
+  raft::update_device(
+    temp_input.data(), local_degrees.data(), local_degrees.size(), handle.get_stream());
+
+  rmm::device_uvector<edge_t> recv_data(local_degrees.size(), handle.get_stream());
+  if (col_rank == 0) {
+    thrust::fill(handle.get_thrust_policy(), recv_data.begin(), recv_data.end(), edge_t{0});
+  }
+  for (int i = 0; i < col_size - 1; ++i) {
+    if (col_rank == i) {
+      comm.device_send(
+        temp_input.begin(), temp_input.size(), comm_rank + row_size, handle.get_stream());
+    }
+    if (col_rank == i + 1) {
+      comm.device_recv(
+        recv_data.begin(), recv_data.size(), comm_rank - row_size, handle.get_stream());
+      thrust::transform(handle.get_thrust_policy(),
+                        temp_input.begin(),
+                        temp_input.end(),
+                        recv_data.begin(),
+                        temp_input.begin(),
+                        thrust::plus<edge_t>());
+    }
+    handle.get_comms().barrier();
+  }
+  // Get global degrees
+  device_bcast(col_comm,
+               temp_input.begin(),
+               temp_input.begin(),
+               temp_input.size(),
+               col_size - 1,
+               handle.get_stream());
+
+  return std::make_tuple(std::move(recv_data), std::move(temp_input));
 }
 
 /**
- * @brief Gather edges based on destination indices
+ * @brief Gather active sources and associated client gpu ids across gpus in a
+ * column communicator
  *
- * Assumes supplied vertex ids input belongs to target gpu
+ * Collect all the vertex ids and client gpu ids to be processed by every gpu in
+ * the column communicator and call sort on the list.
+ *
+ * @tparam vertex_t Type of vertex indices.
+ * @tparam VertexIterator  Type of the iterator for vertex identifiers.
+ * @tparam GPUIdIterator  Type of the iterator for gpu id identifiers.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param vertex_input_first Iterator pointing to the first vertex id to be processed
+ * @param vertex_input_last Iterator pointing to the last (exclusive) vertex id to be processed
+ * @param gpu_id_first Iterator pointing to the first gpu id to be processed
+ * @return Device vector containing all the vertices that are to be processed by every gpu
+ * in the column communicator
+ */
+template <typename GraphViewType, typename VertexIterator, typename GPUIdIterator>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename std::iterator_traits<GPUIdIterator>::value_type>>
+gather_active_sources_in_row(raft::handle_t const& handle,
+                             GraphViewType const& graph_view,
+                             VertexIterator vertex_input_first,
+                             VertexIterator vertex_input_last,
+                             GPUIdIterator gpu_id_first)
+{
+  static_assert(GraphViewType::is_adj_matrix_transposed == false);
+  using vertex_t = typename GraphViewType::vertex_type;
+  using gpu_t    = typename std::iterator_traits<GPUIdIterator>::value_type;
+
+  auto& col_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  size_t source_count = thrust::distance(vertex_input_first, vertex_input_last);
+  auto external_source_counts = host_scalar_allgather(col_comm, source_count, handle.get_stream());
+  auto total_external_source_count =
+    std::accumulate(external_source_counts.begin(), external_source_counts.end(), size_t{0});
+  std::vector<size_t> displacements(external_source_counts.size(), size_t{0});
+  std::exclusive_scan(
+    external_source_counts.begin(), external_source_counts.end(), displacements.begin(), size_t{0});
+
+  rmm::device_uvector<vertex_t> active_sources(total_external_source_count, handle.get_stream());
+  rmm::device_uvector<gpu_t> active_source_gpu_ids(total_external_source_count,
+                                                   handle.get_stream());
+  // Get the sources other gpus on the same row are working on
+  // TODO : replace with device_bcast for better scaling
+  device_allgatherv(col_comm,
+                    vertex_input_first,
+                    active_sources.data(),
+                    external_source_counts,
+                    displacements,
+                    handle.get_stream());
+  device_allgatherv(col_comm,
+                    gpu_id_first,
+                    active_source_gpu_ids.data(),
+                    external_source_counts,
+                    displacements,
+                    handle.get_stream());
+  thrust::sort_by_key(handle.get_thrust_policy(),
+                      active_sources.begin(),
+                      active_sources.end(),
+                      active_source_gpu_ids.begin());
+  return std::make_tuple(std::move(active_sources), std::move(active_source_gpu_ids));
+}
+
+/**
+ * @brief Gather valid edges present on the current gpu
+ *
+ * Collect all the edges that are present in the adjacency lists on the current gpu
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexIterator  Type of the iterator for vertex identifiers.
  * @tparam EdgeIndexIterator Type of the iterator for edge indices.
+ * @tparam GPUIdIterator  Type of the iterator for gpu id identifiers.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_input_first Iterator pointing to the first vertex id to be processed
- * @param vertex_input_last Iterator pointing to the last (exclusive) vertex id to be processed
+ * @param active_sources_in_row Device vector containing all the vertex id that are processed by
+ * gpus in the column communicator
+ * @param active_source_gpu_ids Device vector containing the gpu id associated by every vertex
+ * present in active_sources_in_row
  * @param edge_index_first Iterator pointing to the first destination index
+ * @param invalid_vertex_id Vertex id to fill in result if destination index is not accessible
+ * on current gpu
  * @param indices_per_source Number of indices supplied for every source in the range
  * [vertex_input_first, vertex_input_last)
  * @param global_degree_offset Global degree offset to local adjacency list for every source
  * represented by current gpu
- * @return
+ * @return A tuple of device vector containing the sources and destinations gathered locally
  */
-template <typename GraphViewType, typename VertexIterator, typename EdgeIndexIterator>
+template <typename GraphViewType, typename EdgeIndexIterator, typename gpu_t>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<typename GraphViewType::vertex_type>>
-gather_edges(raft::handle_t const& handle,
-             GraphViewType const& graph_view,
-             VertexIterator vertex_input_first,
-             VertexIterator vertex_input_last,
-             EdgeIndexIterator edge_index_first,
-             int indices_per_source,
-             const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offset)
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<gpu_t>>
+gather_local_edges(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  rmm::device_uvector<typename GraphViewType::vertex_type>& active_sources_in_row,
+  rmm::device_uvector<gpu_t>& active_source_gpu_ids,
+  EdgeIndexIterator edge_index_first,
+  typename GraphViewType::vertex_type invalid_vertex_id,
+  int indices_per_source,
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets)
 {
-  static_assert(GraphViewType::is_adj_matrix_transposed == false);
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
+  using vertex_t  = typename GraphViewType::vertex_type;
+  using edge_t    = typename GraphViewType::edge_type;
+  auto edge_count = active_sources_in_row.size() * indices_per_source;
+  rmm::device_uvector<vertex_t> sources(edge_count, handle.get_stream());
+  rmm::device_uvector<vertex_t> destinations(edge_count, handle.get_stream());
+  rmm::device_uvector<gpu_t> destination_gpu_ids(edge_count, handle.get_stream());
 
-  // active_sources_in_row is sorted and unique
-  auto active_sources_in_row =
-    detail::gather_active_sources_in_row<vertex_t>(handle, vertex_input_first, vertex_input_last);
+  auto [vertex_id_seg, vertex_count_offsets, graph_offsets, graph_indices] =
+    detail::partition_information(handle, graph_view);
 
-  auto [active_source_degrees, active_source_degree_offsets, active_source_adjacency_lists] =
-    detail::get_active_sources_information(
-      handle, graph_view, active_sources_in_row, global_degree_offset);
+  thrust::for_each(
+    handle.get_thrust_policy(),
+    thrust::make_counting_iterator<size_t>(0),
+    thrust::make_counting_iterator<size_t>(edge_count),
+    [edge_index_first,
+     active_sources        = active_sources_in_row.data(),
+     active_source_gpu_ids = active_source_gpu_ids.data(),
+     vertex_id_seg         = vertex_id_seg.data(),
+     vertex_id_seg_count   = vertex_id_seg.size(),
+     vertex_count_offsets  = vertex_count_offsets.data(),
+     global_degree_offsets = global_degree_offsets.data(),
+     graph_offsets         = graph_offsets.data(),
+     graph_indices         = graph_indices.data(),
+     sources               = sources.data(),
+     destinations          = destinations.data(),
+     dst_gpu_ids           = destination_gpu_ids.data(),
+     invalid_vertex_id,
+     indices_per_source] __device__(auto index) {
+      // source which this edge index refers to
+      auto loc           = index / indices_per_source;
+      auto source        = active_sources[loc];
+      sources[index]     = source;
+      dst_gpu_ids[index] = active_source_gpu_ids[loc];
 
-  // Gather valid destinations
-  auto [sources, destinations] = detail::gather_local_edges(handle,
-                                                            vertex_input_first,
-                                                            vertex_input_last,
-                                                            edge_index_first,
-                                                            active_sources_in_row,
-                                                            active_source_degrees,
-                                                            active_source_degree_offsets,
-                                                            active_source_adjacency_lists,
-                                                            graph_view.get_number_of_vertices(),
-                                                            indices_per_source);
-  return std::make_tuple(sources, destinations);
+      // Find which partition id did the source belong to
+      auto partition_id =
+        thrust::distance(
+          vertex_id_seg,
+          thrust::upper_bound(
+            thrust::seq, vertex_id_seg, vertex_id_seg + vertex_id_seg_count, source)) -
+        1;
+      // starting position of the segment within global_degree_offset
+      // where the information for partition (partition_id) starts
+      //  vertex_count_offsets[partition_id]
+      // The relative location of offset information for vertex id v within
+      // the segment
+      //  v - seg[partition_id]
+      auto location_in_segment = source - vertex_id_seg[partition_id];
+
+      // csr offset value for vertex v that belongs to partition (partition_id)
+      auto csr_offset       = graph_offsets[partition_id][location_in_segment];
+      auto local_out_degree = graph_offsets[partition_id][location_in_segment + 1] - csr_offset;
+      edge_t const* adjacency_list = graph_indices[partition_id] + csr_offset;
+      // read location of global_degree_offset needs to take into account the
+      // partition offsets because it is a concatenation of all the offsets
+      // across all partitions
+      auto location        = location_in_segment + vertex_count_offsets[partition_id];
+      auto g_degree_offset = global_degree_offsets[location];
+      auto g_dst_index     = edge_index_first[index];
+      if ((g_dst_index >= g_degree_offset) && (g_dst_index < g_degree_offset + local_out_degree)) {
+        destinations[index] = adjacency_list[g_dst_index - g_degree_offset];
+      } else {
+        destinations[index] = invalid_vertex_id;
+      }
+    });
+  auto input_iter = thrust::make_zip_iterator(
+    thrust::make_tuple(sources.begin(), destinations.begin(), destination_gpu_ids.begin()));
+
+  auto compacted_length = thrust::distance(
+    input_iter,
+    thrust::remove_if(
+      handle.get_thrust_policy(),
+      input_iter,
+      input_iter + destinations.size(),
+      destinations.begin(),
+      [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
+  sources.resize(compacted_length, handle.get_stream());
+  destinations.resize(compacted_length, handle.get_stream());
+  destination_gpu_ids.resize(compacted_length, handle.get_stream());
+  return std::make_tuple(
+    std::move(sources), std::move(destinations), std::move(destination_gpu_ids));
 }
 
 }  // namespace cugraph
