@@ -69,10 +69,10 @@ cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
         define the ith edge of the graph.
 
     dst_array : device array type
-        Device array containing the vertex identifiers of the destination of each
-        directed edge. The order of the array corresponds to the ordering of the
-        src_array, where the ith item in src_array and the ith item in dst_array
-        define the ith edge of the graph.
+        Device array containing the vertex identifiers of the destination of
+        each directed edge. The order of the array corresponds to the ordering
+        of the src_array, where the ith item in src_array and the ith item in
+        dst_array define the ith edge of the graph.
 
     weight_array : device array type
         Device array containing the weight values of each directed edge. The

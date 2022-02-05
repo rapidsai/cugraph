@@ -16,6 +16,10 @@
 
 from pylibcugraph._cugraph_c.cugraph_api cimport (
     data_type_id_t,
+    cugraph_resource_handle_t,
+)
+from pylibcugraph._cugraph_c.array cimport (
+    cugraph_type_erased_device_array_view_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
@@ -30,3 +34,7 @@ cdef assert_success(cugraph_error_code_t code,
 cdef assert_CAI_type(obj, var_name, allow_None=*)
 
 cdef get_numpy_type_from_c_type(data_type_id_t c_type)
+
+cdef copy_to_cupy_array(
+   cugraph_resource_handle_t* c_resource_handle_ptr,
+   cugraph_type_erased_device_array_view_t* device_array_view_ptr)
