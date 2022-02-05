@@ -586,6 +586,7 @@ ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
 ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)
 ConfigureCTest(CAPI_EXTRACT_PATHS_TEST c_api/extract_paths_test.c)
+ConfigureCTest(CAPI_NODE2VEC_TEST c_api/node2vec_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################
