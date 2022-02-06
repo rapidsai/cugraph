@@ -94,6 +94,7 @@ def test_nx_analysis():
     assert list(nx.connected_components(G)) == [{1, 2, 3}, {'spam'}]
     assert sorted(d for n, d in G.degree()) == [0, 1, 1, 2]
     assert nx.clustering(G) == {1: 0, 2: 0, 3: 0, 'spam': 0}
+    assert list(nx.bfs_edges(G, 1)) == [(1, 2), (1, 3)]
 
 
 @pytest.mark.parametrize(
