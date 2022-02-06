@@ -319,7 +319,7 @@ void cugraph_extract_paths_result_free(cugraph_extract_paths_result_t* result);
 typedef struct {
   int32_t align_;
 } cugraph_random_walk_result_t;
-  
+
 /**
  * @brief  Compute random walks using the node2vec framework.
  *
@@ -335,16 +335,15 @@ typedef struct {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_node2vec(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* sources,
-  size_t max_depth,
-  bool_t flag_use_padding,
-  double p,
-  double q,
-  cugraph_random_walk_result_t** result,
-  cugraph_error_t** error);
+cugraph_error_code_t cugraph_node2vec(const cugraph_resource_handle_t* handle,
+                                      cugraph_graph_t* graph,
+                                      const cugraph_type_erased_device_array_view_t* sources,
+                                      size_t max_depth,
+                                      bool_t flag_use_padding,
+                                      double p,
+                                      double q,
+                                      cugraph_random_walk_result_t** result,
+                                      cugraph_error_t** error);
 
 /**
  * @brief     Get the max path length from random walk result
