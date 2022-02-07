@@ -159,7 +159,7 @@ class Tests_MG_Louvain
     HighResClock hr_clock{};
 
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    const auto& comm = handle.get_comms();
+    const auto& comm     = handle.get_comms();
     auto const comm_size = comm.get_size();
     auto const comm_rank = comm.get_rank();
 
@@ -306,7 +306,8 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Louvain_Usecase{}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+    ::testing::Values(
+      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat64_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -318,6 +319,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Louvain_Usecase{}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+    ::testing::Values(
+      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
