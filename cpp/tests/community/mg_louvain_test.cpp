@@ -192,7 +192,6 @@ class Tests_MG_Louvain
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
       subcomm_factory(handle, row_comm_size);
 
-    cudaStream_t stream = handle.get_stream();
 #if 1  // FIXME: delete
     {
       rmm::device_uvector<int32_t> tx_ints(comm_size, handle.get_stream());
@@ -223,17 +222,42 @@ class Tests_MG_Louvain
               << std::endl;
 #endif
 
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
+      hr_clock.start();
+    }
+
     auto [mg_graph, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         handle, input_usecase, true, true);
 
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+    }
+
     auto mg_graph_view = mg_graph.view();
 
-    std::unique_ptr<cugraph::Dendrogram<vertex_t>> dendrogram;
-    weight_t mg_modularity;
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
+      hr_clock.start();
+    }
 
-    std::tie(dendrogram, mg_modularity) = cugraph::louvain(
+    auto [dendrogram, mg_modularity] = cugraph::louvain(
       handle, mg_graph_view, louvain_usecase.max_level_, louvain_usecase.resolution_);
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle.get_comms().barrier();
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "MG Louvain took " << elapsed_time * 1e-6 << " s.\n";
+    }
 
     if (louvain_usecase.check_correctness_) {
       SCOPED_TRACE("compare modularity input");
@@ -333,7 +357,8 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Louvain_Usecase{}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
+    ::testing::Values(
+      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat64_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -345,6 +370,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Louvain_Usecase{}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
+    ::testing::Values(
+      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
