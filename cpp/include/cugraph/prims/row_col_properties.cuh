@@ -173,6 +173,18 @@ class minor_properties_device_view_t {
   {
   }
 
+  std::optional<vertex_t const*> key_data() const
+  {
+    return key_first_ ? std::optional<vertex_t const*>{*key_first_} : std::nullopt;
+  }
+
+  std::optional<vertex_t> number_of_keys() const
+  {
+    return key_first_ ? std::optional<vertex_t>{static_cast<vertex_t>(
+                          thrust::distance(*key_first_, *key_last_))}
+                      : std::nullopt;
+  }
+
   ValueIterator value_data() const { return value_first_; }
 
   __device__ ValueIterator get_iter(vertex_t offset) const
