@@ -11,22 +11,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Have cython use python 3 syntax
-# cython: language_level = 3
-
-from pylibcugraph._cugraph_c.graph cimport (
-    cugraph_graph_t,
-)
-
-
-# Base class allowing functions to accept either SGGraph or MGGraph
-# This is not visible in python
-cdef class _GPUGraph:
-    cdef cugraph_graph_t* c_graph_ptr
-
-cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
-    pass
-
-# Not yet supported
-# cdef class EXPERIMENTAL__MGGraph(_GPUGraph):
-#     pass
+from .graph_store import CuGraphStore
+from .graph_store import CuFeatureStorage
