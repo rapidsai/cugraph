@@ -167,20 +167,51 @@ class Louvain {
       weight_t{0});
 
     while (dendrogram_->num_levels() < max_level) {
+#if 1  // FIXME: delete
+handle_.sync_stream();
+auto time0 = std::chrono::steady_clock::now();
+#endif
       //
       //  Initialize every cluster to reference each vertex to itself
       //
       initialize_dendrogram_level();
+#if 1  // FIXME: delete
+handle_.sync_stream();
+auto time1 = std::chrono::steady_clock::now();
+#endif
 
       compute_vertex_and_cluster_weights();
+#if 1  // FIXME: delete
+handle_.sync_stream();
+auto time2 = std::chrono::steady_clock::now();
+#endif
 
       weight_t new_Q = update_clustering(total_edge_weight, resolution);
+#if 1  // FIXME: delete
+handle_.sync_stream();
+auto time3 = std::chrono::steady_clock::now();
+std::chrono::duration<double> elapsed_total = time3 - time0;
+std::chrono::duration<double> elapsed0 = time1 - time0;
+std::chrono::duration<double> elapsed1 = time2 - time1;
+std::chrono::duration<double> elapsed2 = time3 - time2;
+std::cout << "Louvain level took " << elapsed_total.count() * 1e3 << " breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << ") ms." << std::endl;
+#endif
 
       if (new_Q <= best_modularity) { break; }
 
       best_modularity = new_Q;
 
+#if 1  // FIXME: delete
+handle_.sync_stream();
+auto time4 = std::chrono::steady_clock::now();
+#endif
       shrink_graph();
+#if 1  // FIXME: delete
+handle_.sync_stream();
+auto time5 = std::chrono::steady_clock::now();
+std::chrono::duration<double> elapsed4 = time5 - time4;
+std::cout << "Louvain shrink took " << elapsed4.count() * 1e3 << " ms." << std::endl;
+#endif
     }
 
     timer_display(std::cout);
