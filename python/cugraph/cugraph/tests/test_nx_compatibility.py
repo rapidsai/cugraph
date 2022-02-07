@@ -20,7 +20,7 @@
 import pytest
 from cugraph.tests import utils
 
-import networkx as nx
+import cugraph.nx.Graph as nx
 
 
 def test_nx_gbuilder():
