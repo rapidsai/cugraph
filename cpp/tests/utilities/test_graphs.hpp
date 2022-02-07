@@ -148,7 +148,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                     "Invalid template parameter: (scale_, edge_factor_) too large for edge_t");
 
     std::vector<size_t> partition_ids(1);
-    size_t num_partitions;
+    size_t num_partitions{};
 
     if (multi_gpu_usecase_) {
       auto& comm           = handle.get_comms();
