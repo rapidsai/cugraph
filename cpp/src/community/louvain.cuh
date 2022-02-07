@@ -478,6 +478,10 @@ class Louvain {
                              thrust::make_zip_iterator(thrust::make_tuple(
                                old_cluster_sum_v.begin(), cluster_subtract_v.begin())),
                              src_old_cluster_sum_subtract_pairs);
+      old_cluster_sum_v.resize(0, handle_.get_stream());
+      old_cluster_sum_v.shrink_to_fit(handle_.get_stream());
+      cluster_subtract_v.resize(0, handle_.get_stream());
+      cluster_subtract_v.shrink_to_fit(handle_.get_stream());
     }
 
     auto output_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
