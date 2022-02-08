@@ -24,10 +24,11 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
-
-#include <cuco/detail/hash_functions.cuh>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/gather_edges.cuh>
+
+#include <cuco/detail/hash_functions.cuh>
 
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
@@ -90,7 +91,7 @@ create_segmented_data(raft::handle_t const& handle,
   thrust::fill(handle.get_thrust_policy(),
                segmented_sources.begin(),
                segmented_sources.end(),
-               vertex_t{invalid_vertex_id});
+               vertex_t{0});
   thrust::fill(
     handle.get_thrust_policy(), segmented_sequence.begin(), segmented_sequence.end(), edge_t{1});
   thrust::for_each(handle.get_thrust_policy(),
@@ -116,7 +117,7 @@ create_segmented_data(raft::handle_t const& handle,
                          segmented_sources.begin(),
                          segmented_sources.end(),
                          segmented_sources.begin(),
-                         thrust::minimum<vertex_t>());
+                         thrust::maximum<vertex_t>());
   return std::make_tuple(
     std::move(offset), std::move(segmented_sources), std::move(segmented_sequence));
 }
@@ -129,6 +130,7 @@ sg_gather_edges(raft::handle_t const& handle,
                 VertexIterator vertex_input_first,
                 VertexIterator vertex_input_last,
                 EdgeIndexIterator edge_index_first,
+                typename GraphViewType::vertex_type invalid_vertex_id,
                 int indices_per_source)
 {
   static_assert(GraphViewType::is_adj_matrix_transposed == false);
@@ -151,11 +153,31 @@ sg_gather_edges(raft::handle_t const& handle,
                     sources      = sources.data(),
                     destinations = destinations.data(),
                     offsets      = matrix_partition.get_offsets(),
-                    indices      = matrix_partition.get_indices()] __device__(auto index) {
+                    indices      = matrix_partition.get_indices(),
+                    invalid_vertex_id] __device__(auto index) {
                      auto source         = vertex_input_first[index / indices_per_source];
                      sources[index]      = source;
-                     destinations[index] = indices[offsets[source] + edge_index_first[index]];
+                     auto source_offset = offsets[source];
+                     auto degree = offsets[source + 1] - source_offset;
+                     auto e_index = edge_index_first[index];
+                     if (e_index < degree) {
+                     destinations[index] = indices[source_offset + e_index];
+                     } else {
+                     destinations[index] = invalid_vertex_id;
+                     }
                    });
+  auto input_iter = thrust::make_zip_iterator(
+    thrust::make_tuple(sources.begin(), destinations.begin()));
+  auto compacted_length = thrust::distance(
+    input_iter,
+    thrust::remove_if(
+      handle.get_thrust_policy(),
+      input_iter,
+      input_iter + destinations.size(),
+      destinations.begin(),
+      [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
+  sources.resize(compacted_length, handle.get_stream());
+  destinations.resize(compacted_length, handle.get_stream());
   return std::make_tuple(std::move(sources), std::move(destinations));
 }
 
@@ -200,6 +222,7 @@ rmm::device_uvector<edge_t> generate_random_destination_indices(
     thrust::make_zip_iterator(thrust::make_tuple(segmented_source_ids.end(), random_weights.end())),
     segmented_sequence.begin(),
     [] __device__(auto left, auto right) { return left < right; });
+
   rmm::device_uvector<edge_t> dst_index(indices_per_source * out_degrees.size(),
                                         handle.get_stream());
 
@@ -354,12 +377,10 @@ class Tests_MG_GatherEdges
     auto mg_graph_view                        = mg_graph.view();
     constexpr int indices_per_source          = 2;
     constexpr vertex_t repetitions_per_vertex = 5;
-    constexpr vertex_t source_sample_count    = 8;
+    constexpr vertex_t source_sample_count    = 3;
 
     // 3. Gather mnmg call
     // Generate random vertex ids in the range of current gpu
-
-    // cugraph::detail::debug::print(handle, mg_graph_view);
 
     auto [global_degree_offset, global_out_degrees] =
       cugraph::get_global_degree_information(handle, mg_graph_view);
@@ -399,122 +420,84 @@ class Tests_MG_GatherEdges
                                                            active_sources_in_row,
                                                            active_source_gpu_ids,
                                                            random_destination_indices.begin(),
-                                                           mg_graph_view.get_number_of_edges(),
+                                                           mg_graph_view.get_number_of_vertices(),
                                                            indices_per_source,
                                                            global_degree_offset);
 
-    // cugraph::detail::debug::print(handle, src, "src");
-    // cugraph::detail::debug::print(handle, dst, "dst");
-    //    if (prims_usecase.check_correctness) {
-    //      //Gather renumbering labels
-    //      auto mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-    //        handle, (*mg_renumber_map_labels).data(), (*mg_renumber_map_labels).size());
-    //
-    //      //Gather inputs
-    //      auto sg_random_srcs = cugraph::test::device_gatherv(
-    //        handle, random_sources.data(), random_sources.size());
-    //      auto sg_random_dst_indices = cugraph::test::device_gatherv(
-    //        handle, random_destination_indices.data(), random_destination_indices.size());
-    //
-    //      //Gather outputs
-    //      auto mg_out_srcs = cugraph::test::device_gatherv(
-    //        handle, src.data(), src.size());
-    //      auto mg_out_dsts = cugraph::test::device_gatherv(
-    //        handle, dst.data(), dst.size());
-    //
-    //      if (handle.get_comms().get_rank() == int{0}) {
-    //        //Create sg graph
-    //        cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(
-    //          handle);
-    //        std::tie(sg_graph, std::ignore) = cugraph::test::
-    //          construct_graph<vertex_t, edge_t, weight_t, false, false>(
-    //            handle, input_usecase, false, false);
-    //        auto sg_graph_view = sg_graph.view();
-    //
-    //        //Unrenumber input
-    //        cugraph::unrenumber_int_vertices<vertex_t, false>(
-    //          handle,
-    //          sg_random_srcs.begin(),
-    //          sg_random_srcs.size(),
-    //          mg_aggregate_renumber_map_labels.data(),
-    //          std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
-    //        //cugraph::unrenumber_int_vertices<vertex_t, false>(
-    //        //  handle,
-    //        //  sg_random_dst_indices.begin(),
-    //        //  sg_random_dst_indices.size(),
-    //        //  mg_aggregate_renumber_map_labels.data(),
-    //        //  std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
-    //
-    //        //Unrenumber output
-    //        cugraph::unrenumber_int_vertices<vertex_t, false>(
-    //          handle,
-    //          mg_out_srcs.begin(),
-    //          mg_out_srcs.size(),
-    //          mg_aggregate_renumber_map_labels.data(),
-    //          std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
-    //        cugraph::unrenumber_int_vertices<vertex_t, false>(
-    //          handle,
-    //          mg_out_dsts.begin(),
-    //          mg_out_dsts.size(),
-    //          mg_aggregate_renumber_map_labels.data(),
-    //          std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
-    //
-    //        //Call single gpu gather
-    //        auto [sg_out_srcs, sg_out_dsts] =
-    //          sg_gather_edges(handle,
-    //                          sg_graph_view,
-    //                          sg_random_srcs.begin(),
-    //                          sg_random_srcs.end(),
-    //                          sg_random_dst_indices.begin(),
-    //                          indices_per_source);
+    if (prims_usecase.check_correctness) {
+      rmm::device_uvector<vertex_t> sg_src(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> sg_dst(0, handle.get_stream());
+      std::tie(sg_src, sg_dst, std::ignore) =
+        mg_graph_view.decompress_to_edgelist(handle, std::nullopt);
 
-    // Sort mg output for comparison
-    // sort_coo(handle, sg_out_srcs, sg_out_dsts);
-    // sort_coo(handle, mg_out_srcs, mg_out_dsts);
+      //Gather outputs
+      auto mg_out_srcs = cugraph::test::device_gatherv(handle, src.data(), src.size());
+      auto mg_out_dsts = cugraph::test::device_gatherv(handle, dst.data(), dst.size());
 
-#if 0
-  auto matrix_partition =
-    cugraph::matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
-      sg_graph_view.get_matrix_partition_view());
-  rmm::device_uvector<vertex_t> ur_indices(sg_graph_view.get_number_of_edges(), handle.get_stream());
-  raft::update_device(ur_indices.data(), 
-                      matrix_partition.get_indices(),
-                      sg_graph_view.get_number_of_edges(), handle.get_stream());
-  //cugraph::unrenumber_int_vertices<vertex_t, false>(
-  //  handle,
-  //  ur_indices.begin(),
-  //  ur_indices.size(),
-  //  mg_aggregate_renumber_map_labels.data(),
-  //  std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
-  //cugraph::detail::debug::print(handle,
-  //                              matrix_partition.get_offsets(),
-  //                              matrix_partition.get_offsets() + sg_graph_view.get_number_of_vertices()+1,
-  //                              "offsets", "\t");
-  //cugraph::detail::debug::print(handle,
-  //                              ur_indices.begin(),
-  //                              ur_indices.end(),
-  //                              "indices", "\t");
-#endif
-    // cugraph::detail::debug::print(handle, sg_random_srcs, "sg_random_srcs");
-    // cugraph::detail::debug::print(handle, sg_random_dst_indices, "sg_random_dst_indices");
+      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
+      {
+      //Gather input graph edgelist
+      auto aggregated_sg_src = cugraph::test::device_gatherv(handle, sg_src.begin(), sg_src.size());
+      auto aggregated_sg_dst = cugraph::test::device_gatherv(handle, sg_dst.begin(), sg_dst.size());
 
-    // cugraph::detail::debug::print(handle, sg_out_srcs, "sg_out_srcs");
-    // cugraph::detail::debug::print(handle, sg_out_dsts, "sg_out_dsts");
+      auto aggregated_edge_iter =
+        thrust::make_zip_iterator(thrust::make_tuple(aggregated_sg_src.begin(), aggregated_sg_dst.begin()));
+      thrust::sort(handle.get_thrust_policy(),
+                   aggregated_edge_iter,
+                   aggregated_edge_iter + aggregated_sg_src.size());
+      auto sg_graph_properties =
+        cugraph::graph_properties_t{mg_graph_view.is_symmetric(),
+                                    mg_graph_view.is_multigraph()};
 
-    // cugraph::detail::debug::print(handle, mg_out_srcs, "mg_out_srcs");
-    // cugraph::detail::debug::print(handle, mg_out_dsts, "mg_out_dsts");
+      std::tie(sg_graph, std::ignore) =
+        cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(handle,
+                                            std::nullopt,
+                                            std::move(aggregated_sg_src),
+                                            std::move(aggregated_sg_dst),
+                                            std::nullopt,
+                                            sg_graph_properties,
+                                            false);
+      auto sg_graph_view = sg_graph.view();
+      //Gather inputs
+      auto& col_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_rank = col_comm.get_rank();
+      auto sg_random_srcs = cugraph::test::device_gatherv(
+        handle, active_sources_in_row.data(), col_rank == 0? active_sources_in_row.size() : 0);
+      thrust::sort(handle.get_thrust_policy(),
+                   sg_random_srcs.begin(),
+                   sg_random_srcs.end());
+      auto sg_random_dst_indices = cugraph::test::device_gatherv(
+        handle, random_destination_indices.data(), col_rank == 0? random_destination_indices.size() : 0);
+      //Call single gpu gather
+      auto [sg_out_srcs, sg_out_dsts] =
+        sg_gather_edges(handle,
+                        sg_graph_view,
+                        sg_random_srcs.begin(),
+                        sg_random_srcs.end(),
+                        sg_random_dst_indices.begin(),
+                        sg_graph_view.get_number_of_vertices(),
+                        indices_per_source);
+      sort_coo(handle, sg_out_srcs, sg_out_dsts);
+      sort_coo(handle, mg_out_srcs, mg_out_dsts);
 
-    //        auto passed = thrust::equal(handle.get_thrust_policy(),
-    //                      sg_out_srcs.begin(),
-    //                      sg_out_srcs.end(),
-    //                      mg_out_srcs.begin());
-    //        passed &= thrust::equal(handle.get_thrust_policy(),
-    //                      sg_out_dsts.begin(),
-    //                      sg_out_dsts.end(),
-    //                      mg_out_dsts.begin());
-    //        ASSERT_TRUE(passed);
-    //      }
-    //    }
+      cugraph::detail::debug::print(handle, sg_out_srcs, "sg_out_srcs");
+      cugraph::detail::debug::print(handle, sg_out_dsts, "sg_out_dsts");
+      cugraph::detail::debug::print(handle, mg_out_srcs, "mg_out_srcs");
+      cugraph::detail::debug::print(handle, mg_out_dsts, "mg_out_dsts");
+
+      auto passed = thrust::equal(handle.get_thrust_policy(),
+                    sg_out_srcs.begin(),
+                    sg_out_srcs.end(),
+                    mg_out_srcs.begin());
+      passed &= thrust::equal(handle.get_thrust_policy(),
+                    sg_out_dsts.begin(),
+                    sg_out_dsts.end(),
+                    mg_out_dsts.begin());
+      ASSERT_TRUE(passed);
+      }
+
+    }
+
   }
 };
 

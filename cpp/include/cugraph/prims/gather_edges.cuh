@@ -47,6 +47,7 @@ void print(raft::handle_t const& handle,
            std::string prefix = "",
            std::string delim  = "\n")
 {
+  cudaStreamSynchronize(handle.get_stream());
   using T    = typename std::iterator_traits<Iter>::value_type;
   auto count = thrust::distance(begin, end);
   std::vector<T> hdata(count);
@@ -55,7 +56,7 @@ void print(raft::handle_t const& handle,
   auto const comm_rank = comm.get_rank();
   std::stringstream ss;
   ss << prefix;
-  ss << "comm_rank " << comm_rank << "\n";
+  ss << " comm_rank " << comm_rank << "\n";
   for (auto& d : hdata) {
     ss << d << delim;
   }
@@ -76,14 +77,14 @@ void point(raft::handle_t const& handle, std::string str)
   auto& comm           = handle.get_comms();
   auto const comm_rank = comm.get_rank();
   std::stringstream ss;
-  ss << "comm_rank " << comm_rank << " ";
+  ss << " comm_rank(" << comm_rank << ")";
   ss << str << "\n";
   std::cerr << ss.str();
   std::cerr << std::flush;
 }
 
 template <typename GraphViewType>
-void print(raft::handle_t const& handle, GraphViewType graph_view)
+void print(raft::handle_t const& handle, GraphViewType graph_view, std::string str = "")
 {
   using partition_t = matrix_partition_device_view_t<typename GraphViewType::vertex_type,
                                                      typename GraphViewType::edge_type,
@@ -92,6 +93,7 @@ void print(raft::handle_t const& handle, GraphViewType graph_view)
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     auto matrix_partition = partition_t(graph_view.get_matrix_partition_view(i));
     std::string offset_label =
+      str +
       std::string("\noffset ") +
       std::to_string(graph_view.get_local_adj_matrix_partition_row_first(i));
     std::string indices_label =
@@ -279,9 +281,11 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_source_global_
   id_segments.push_back(0);
   vertex_t counter{0};
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    auto matrix_partition = partition_t(graph_view.get_matrix_partition_view(i));
     // Starting vertex ids of each partition
     id_segments.push_back(graph_view.get_local_adj_matrix_partition_row_last(i));
     count_offsets.push_back(counter);
+    counter += matrix_partition.get_major_size();
   }
   rmm::device_uvector<vertex_t> vertex_id_segments(id_segments.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> vertex_count_offsets(count_offsets.size(), handle.get_stream());
@@ -313,6 +317,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_source_global_
       // partition offsets because it is a concatenation of all the offsets
       // across all partitions
       auto location = location_in_segment + vertex_count_offsets[partition_id];
+
       return global_out_degrees[location];
     });
   return active_source_degrees;

@@ -632,6 +632,12 @@ class graph_view_t<vertex_t,
     return local_sorted_unique_edge_col_offsets_;
   }
 
+  std::tuple<rmm::device_uvector<vertex_t>,
+             rmm::device_uvector<vertex_t>,
+             std::optional<rmm::device_uvector<weight_t>>>
+  decompress_to_edgelist(raft::handle_t const& handle,
+                         std::optional<rmm::device_uvector<vertex_t>> const& renumber_map) const;
+
  private:
   std::vector<edge_t const*> adj_matrix_partition_offsets_{};
   std::vector<vertex_t const*> adj_matrix_partition_indices_{};
@@ -858,6 +864,12 @@ class graph_view_t<vertex_t,
   {
     return std::nullopt;
   }
+
+  std::tuple<rmm::device_uvector<vertex_t>,
+             rmm::device_uvector<vertex_t>,
+             std::optional<rmm::device_uvector<weight_t>>>
+  decompress_to_edgelist(raft::handle_t const& handle,
+                         std::optional<rmm::device_uvector<vertex_t>> const& renumber_map) const;
 
  private:
   edge_t const* offsets_{nullptr};
