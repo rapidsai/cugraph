@@ -28,7 +28,7 @@ from pylibcugraph._cugraph_c.error cimport (
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_device_array_view_create,
-    cugraph_type_erased_device_array_free,
+    cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -164,7 +164,9 @@ cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
         assert_success(error_code, error_ptr,
                        "cugraph_sg_graph_create()")
 
-        # FIXME: free the views
+        cugraph_type_erased_device_array_view_free(srcs_view_ptr)
+        cugraph_type_erased_device_array_view_free(dsts_view_ptr)
+        cugraph_type_erased_device_array_view_free(weights_view_ptr)
 
     def __dealloc__(self):
         if self.c_graph_ptr is not NULL:
