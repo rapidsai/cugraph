@@ -93,8 +93,7 @@ void print(raft::handle_t const& handle, GraphViewType graph_view, std::string s
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     auto matrix_partition = partition_t(graph_view.get_matrix_partition_view(i));
     std::string offset_label =
-      str +
-      std::string("\noffset ") +
+      str + std::string("\noffset ") +
       std::to_string(graph_view.get_local_adj_matrix_partition_row_first(i));
     std::string indices_label =
       std::string("\nindices ") +
