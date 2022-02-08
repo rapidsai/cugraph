@@ -549,12 +549,12 @@ class Graph:
     def to_directed(self):
         """
         Return a directed representation of the graph.
-        This function sets the type of graph as DiGraph() and returns the
+        This function sets the directed attribute as True and returns the
         directed view.
 
         Returns
         -------
-        G : DiGraph
+        G : Graph
             A directed graph with the same nodes, and each edge (u,v,weights)
             replaced by two directed edges (u,v,weights) and (v,u,weights).
 
