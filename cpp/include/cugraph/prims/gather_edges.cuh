@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #pragma once
 
 #include <cugraph/graph_view.hpp>
@@ -27,93 +28,9 @@
 #include <thrust/distance.h>
 #include <utility>
 
-#define DEBUG
-
-#ifdef DEBUG
-#include <sstream>
-#include <string>
-#endif
-
 namespace cugraph {
 
 namespace detail {
-
-#ifdef DEBUG
-namespace debug {
-template <typename Iter>
-void print(raft::handle_t const& handle,
-           Iter begin,
-           Iter end,
-           std::string prefix = "",
-           std::string delim  = "\n")
-{
-  cudaStreamSynchronize(handle.get_stream());
-  using T    = typename std::iterator_traits<Iter>::value_type;
-  auto count = thrust::distance(begin, end);
-  std::vector<T> hdata(count);
-  raft::update_host(hdata.data(), begin, count, handle.get_stream());
-  auto& comm           = handle.get_comms();
-  auto const comm_rank = comm.get_rank();
-  std::stringstream ss;
-  ss << prefix;
-  ss << " comm_rank " << comm_rank << "\n";
-  for (auto& d : hdata) {
-    ss << d << delim;
-  }
-  ss << "\n";
-  std::cout << ss.str();
-  std::cout << std::flush;
-}
-template <typename T>
-void print(raft::handle_t const& handle,
-           rmm::device_uvector<T> const& data,
-           std::string prefix = "",
-           std::string delim  = "\n")
-{
-  print(handle, data.begin(), data.end(), prefix, delim);
-}
-void point(raft::handle_t const& handle, std::string str)
-{
-  auto& comm           = handle.get_comms();
-  auto const comm_rank = comm.get_rank();
-  std::stringstream ss;
-  ss << " comm_rank(" << comm_rank << ")";
-  ss << str << "\n";
-  std::cerr << ss.str();
-  std::cerr << std::flush;
-}
-
-template <typename GraphViewType>
-void print(raft::handle_t const& handle, GraphViewType graph_view, std::string str = "")
-{
-  using partition_t = matrix_partition_device_view_t<typename GraphViewType::vertex_type,
-                                                     typename GraphViewType::edge_type,
-                                                     typename GraphViewType::weight_type,
-                                                     GraphViewType::is_multi_gpu>;
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    auto matrix_partition = partition_t(graph_view.get_matrix_partition_view(i));
-    std::string offset_label =
-      str + std::string("\noffset ") +
-      std::to_string(graph_view.get_local_adj_matrix_partition_row_first(i));
-    std::string indices_label =
-      std::string("\nindices ") +
-      std::to_string(graph_view.get_local_adj_matrix_partition_row_first(i));
-    cugraph::detail::debug::print(
-      handle,
-      matrix_partition.get_offsets(),
-      matrix_partition.get_offsets() + graph_view.get_number_of_local_vertices() + 1,
-      offset_label,
-      " ");
-    cugraph::detail::debug::print(
-      handle,
-      matrix_partition.get_indices(),
-      matrix_partition.get_indices() + matrix_partition.get_number_of_edges(),
-      indices_label,
-      " ");
-  }
-}
-}  // namespace debug
-#endif
 
 /**
  * @brief Calculate local out degrees of the sources belonging to the adjacency matrices
