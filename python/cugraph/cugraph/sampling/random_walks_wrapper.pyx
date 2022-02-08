@@ -162,3 +162,15 @@ def rw_path_retrieval(num_paths, sizes):
     df['weight_sizes'] = weight_sizes
     df['weight_offsets'] = weight_offsets
     return df
+
+
+def node2vec():
+    """
+    Call node2vec
+    """
+
+    # Stubbed out code - layer 2 being the wrapper in cugraph
+    return 222
+
+    # UNCOMMENT when pylibcugraph wrapper is ready
+    # return 

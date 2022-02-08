@@ -164,3 +164,27 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_paths_result_t** result,
             cugraph_error_t** error
         )
+    
+    ###########################################################################
+    # random_walks
+    ctypedef struct cugraph_random_walk_result_t:
+        pass
+
+    cdef void \
+        cugraph_random_walk_result_free(
+            cugraph_random_walk_result_t* result
+        )
+
+    # node2vec
+    cdef cugraph_error_code_t \
+        cugraph_node2vec(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            # const cugraph_type_erased_device_array_view_t* sources,
+            size_t max_depth,
+            bool_t flag_use_padding,
+            double p,
+            double q,
+            cugraph_random_walk_result_t** result,
+            cugraph_error_t** error
+        )

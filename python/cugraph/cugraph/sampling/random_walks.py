@@ -125,3 +125,30 @@ def rw_path(num_paths, sizes):
         edge weight sizes for each path.
     """
     return random_walks_wrapper.rw_path_retrieval(num_paths, sizes)
+
+
+# def node2vec(G, start_vertices, max_depth, use_padding, p, q):
+def node2vec():
+    """
+    TODO: Write description of node2vec, plus parameters, returns, and possible examples
+
+    Parameters
+    ----------
+    G:
+
+    start_vertices:
+
+    max_depth:
+
+    use_padding:
+
+    p:
+
+    q:
+    
+    """
+    # Stubbed out code - layer 1 being cugraph
+    return 111
+
+    # UNCOMMENT when node2vec in random_walks_wrapper is ready
+    # return random_walks_wrapper.node2vec()

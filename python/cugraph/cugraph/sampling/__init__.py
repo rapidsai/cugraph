@@ -11,4 +11,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.sampling.random_walks import random_walks, rw_path
+from cugraph.sampling.random_walks import random_walks, rw_path, node2vec
