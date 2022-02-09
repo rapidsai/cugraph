@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,6 +74,15 @@ struct compute_partition_id_from_edge_t {
     auto major_comm_rank = static_cast<int>(hash_func(major) % comm_size);
     auto minor_comm_rank = static_cast<int>(hash_func(minor) % comm_size);
     return major_comm_rank * col_comm_size + minor_comm_rank / row_comm_size;
+  }
+};
+
+template <typename vertex_t>
+struct is_first_in_run_t {
+  vertex_t const* vertices{nullptr};
+  __device__ bool operator()(size_t i) const
+  {
+    return (i == 0) || (vertices[i - 1] != vertices[i]);
   }
 };
 
