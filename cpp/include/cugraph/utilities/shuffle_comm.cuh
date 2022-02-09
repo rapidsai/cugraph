@@ -44,6 +44,8 @@ struct compute_group_id_count_pair_t {
 
   __device__ thrust::tuple<int, size_t> operator()(size_t i) const
   {
+    static_assert(
+      std::is_same_v<typename thrust::iterator_traits<GroupIdIterator>::value_type, int>);
     auto lower_it =
       thrust::lower_bound(thrust::seq, group_id_first, group_id_last, static_cast<int>(i));
     auto upper_it = thrust::upper_bound(thrust::seq, lower_it, group_id_last, static_cast<int>(i));
