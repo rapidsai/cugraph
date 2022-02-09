@@ -51,7 +51,7 @@ MGcsrmv<vertex_t, edge_t, weight_t>::~MGcsrmv()
 template <typename vertex_t, typename edge_t, typename weight_t>
 void MGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t* x)
 {
-  using namespace raft::matrix;
+  using namespace raft::spectral::matrix;
 
   weight_t h_one  = 1.0;
   weight_t h_zero = 0.0;
