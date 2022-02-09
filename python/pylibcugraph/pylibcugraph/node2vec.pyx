@@ -14,6 +14,7 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
+from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.cugraph_api cimport (
     bool_t,
@@ -25,7 +26,9 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_t,
 )
 from pylibcugraph._cugraph_c.array cimport (
-    cugraph_type_erased_device_array_view_t
+    cugraph_type_erased_device_array_view_t,
+    cugraph_type_erased_device_array_view_create,
+    cugraph_type_erased_device_array_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -49,12 +52,14 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
+    assert_CAI_type,
+    get_c_type_from_numpy_type,
 )
 
 
 def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
                            _GPUGraph graph,
-                           # cugraph_type_erased_device_array_view_t* sources,
+                           src_array,
                            size_t max_depth,
                            bool_t flag_use_padding,
                            double p,
@@ -71,7 +76,8 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     graph : SGGraph
         The input graph.
 
-    sources: N/A
+    src_array: device array type
+        Device array containing the
         The pointer to the array of source vertices.
 
     max_depth : size_t
@@ -85,9 +91,24 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     q : double
         Input parameter (default to be 1)
 
+    Returns
+    -------
+    dfr :
+        DataFrame result
+
     Examples
     --------
     >>> import pylibcugraph, cupy, numpy
+    >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
+    >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
+    >>> resource_handle = pylibcugraph.experimental.ResourceHandle()
+    >>> graph_props = pylibcugraph.experimental.GraphProperties(
+    ...     is_symmetric=False, is_multigraph=False)
+    >>> G = pylibcugraph.experimental.SGGraph(
+    ...     resource_handle, graph_props, srcs, dsts, weights,
+    ...     store_transposed=False, renumber=False, do_expensive_check=False)
+    >>> dfr = pylibcugraph.experimental.EXPERIMENTAL__node2vec(resource_handle, G, srcs, 3, True, p=1.0, q=1.0)
 
     """
 
@@ -104,24 +125,28 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     except ModuleNotFoundError:
         raise RuntimeError("node2vec requires the numpy package, which could not "
                            "be imported")
+    assert_CAI_type(src_array, "src_array")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
 
-    # FIXME: Unsure how to obtain the sources_ptr currently
-    # cdef cugraph_type_erased_device_array_view_t* sources_ptr = NULL
-
     cdef cugraph_random_walk_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    # cdef cugraph_type_erased_device_array_view_t* sources_ptr = sources
+    cdef uintptr_t cai_srcs_ptr = \
+        src_array.__cuda_array_interface__["data"][0]
+    cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr = \
+        cugraph_type_erased_device_array_view_create(
+            <void*>cai_srcs_ptr,
+            len(src_array),
+            get_c_type_from_numpy_type(src_array.dtype))
 
     """
     error_code = cugraph_node2vec(c_resource_handle_ptr,
                                   c_graph_ptr,
-                                  # sources,
+                                  srcs_view_ptr,
                                   max_depth,
                                   flag_use_padding,
                                   p,
