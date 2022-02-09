@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 #include "spmv_1D.cuh"
-#include <raft/spectral/matrix_wrappers.hpp>
+
+// TODO: Need to fix this once we establish shared formats in RAFT
+#include <raft/spectral/detail/matrix_wrappers.cuh>
 
 namespace cugraph {
 namespace mg {

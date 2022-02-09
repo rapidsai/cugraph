@@ -30,6 +30,7 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <raft/spectral/eigen_solvers.hpp>
 #include <raft/spectral/modularity_maximization.hpp>
 #include <raft/spectral/partition.hpp>
 
@@ -94,13 +95,13 @@ void balancedCutClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t>
 
   raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
-  raft::eigen_solver_config_t<index_type, value_type> eig_cfg{
+  raft::spectral::eigen_solver_config_t<index_type, value_type> eig_cfg{
     n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed};
-  raft::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
+  raft::spectral::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
 
-  raft::cluster_solver_config_t<index_type, value_type> clust_cfg{
+  raft::spectral::cluster_solver_config_t<index_type, value_type> clust_cfg{
     n_clusters, kmean_max_it, kmean_tol, seed};
-  raft::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
+  raft::spectral::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
 
   raft::spectral::partition(
     handle, r_csr_m, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
@@ -162,13 +163,13 @@ void spectralModularityMaximization_impl(
 
   raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
-  raft::eigen_solver_config_t<index_type, value_type> eig_cfg{
+  raft::spectral::eigen_solver_config_t<index_type, value_type> eig_cfg{
     n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed};
-  raft::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
+  raft::spectral::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
 
-  raft::cluster_solver_config_t<index_type, value_type> clust_cfg{
+  raft::spectral::cluster_solver_config_t<index_type, value_type> clust_cfg{
     n_clusters, kmean_max_it, kmean_tol, seed};
-  raft::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
+  raft::spectral::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
 
   // not returned...
   // auto result =
