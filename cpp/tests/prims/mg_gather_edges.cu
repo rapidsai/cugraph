@@ -202,13 +202,16 @@ rmm::device_uvector<edge_t> generate_random_destination_indices(
   rmm::device_uvector<int> random_weights(segmented_sequence.size(), handle.get_stream());
   auto& row_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_rank = row_comm.get_rank();
+  auto& comm           = handle.get_comms();
+  auto const comm_rank = comm.get_rank();
+  auto force_seed = 0;
   thrust::transform(handle.get_thrust_policy(),
                     thrust::make_counting_iterator<size_t>(0),
                     thrust::make_counting_iterator<size_t>(random_weights.size()),
                     random_weights.begin(),
-                    [row_rank] __device__(auto index) {
+                    [force_seed] __device__(auto index) {
                       thrust::default_random_engine g;
-                      g.seed(row_rank);
+                      g.seed(force_seed);
                       thrust::uniform_int_distribution<int> dist;
                       g.discard(index);
                       return dist(g);
@@ -247,72 +250,6 @@ rmm::device_uvector<edge_t> generate_random_destination_indices(
                      }
                    });
   return dst_index;
-}
-
-template <typename GraphViewType>
-std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<typename GraphViewType::edge_type>>
-generate_random_destination_indices(raft::handle_t const& handle,
-                                    GraphViewType const& graph_view,
-                                    typename GraphViewType::vertex_type vertex_count,
-                                    int indices_per_source,
-                                    int repetitions_per_vertex)
-{
-  auto random_sources = random_vertex_ids(handle,
-                                          graph_view.get_local_vertex_first(),
-                                          graph_view.get_local_vertex_last(),
-                                          repetitions_per_vertex);
-  auto out_degrees    = graph_view.compute_out_degrees(handle);
-  auto [random_source_offsets, segmented_sources, segmented_sequence] =
-    create_segmented_data(handle, graph_view, random_sources, out_degrees);
-
-  // Generate random weights to shuffle sequence of destination indices
-  rmm::device_uvector<int> random_weights(segmented_sequence.size(), handle.get_stream());
-  thrust::transform(handle.get_thrust_policy(),
-                    thrust::make_counting_iterator<size_t>(0),
-                    thrust::make_counting_iterator<size_t>(random_weights.size()),
-                    random_weights.begin(),
-                    [] __device__(auto index) {
-                      thrust::default_random_engine g;
-                      thrust::uniform_int_distribution<int> dist;
-                      g.discard(index);
-                      return dist(g);
-                    });
-  thrust::sort_by_key(handle.get_thrust_policy(),
-                      segmented_sources.begin(),
-                      segmented_sources.end(),
-                      thrust::make_zip_iterator(
-                        thrust::make_tuple(segmented_sequence.begin(), random_weights.begin())));
-
-  using edge_t = typename GraphViewType::edge_type;
-  rmm::device_uvector<edge_t> dst_index(indices_per_source * random_sources.size(),
-                                        handle.get_stream());
-
-  // random_source_offsets.size() == random_sources.size() + 1
-  thrust::for_each(handle.get_thrust_policy(),
-                   thrust::counting_iterator<size_t>(0),
-                   thrust::counting_iterator<size_t>(random_sources.size()),
-                   [offset            = random_source_offsets.data(),
-                    dst_index         = dst_index.data(),
-                    seg_seq           = segmented_sequence.data(),
-                    k                 = static_cast<edge_t>(indices_per_source),
-                    invalid_dst_index = graph_view.get_number_of_edges()] __device__(auto index) {
-                     auto length = thrust::minimum<edge_t>()(offset[index + 1] - offset[index], k);
-                     auto source_offset = offset[index];
-                     // copy first k valid destination indices. If k is larger
-                     // than out degree then stop at out degree to avoid
-                     // out of bounds access
-                     for (edge_t i = 0; i < length; ++i) {
-                       dst_index[index * k + i] = seg_seq[source_offset + i];
-                     }
-                     // If requested number of destination indices is larger than
-                     // out degree then write out invalid destination index
-                     for (edge_t i = length; i < k; ++i) {
-                       dst_index[index * k + i] = invalid_dst_index;
-                     }
-                   });
-
-  return std::make_tuple(std::move(random_sources), std::move(dst_index));
 }
 
 struct Prims_Usecase {
@@ -432,7 +369,6 @@ class Tests_MG_GatherEdges
       auto const col_rank = col_comm.get_rank();
       auto sg_random_srcs = cugraph::test::device_gatherv(
         handle, active_sources_in_row.data(), col_rank == 0 ? active_sources_in_row.size() : 0);
-      thrust::sort(handle.get_thrust_policy(), sg_random_srcs.begin(), sg_random_srcs.end());
       auto sg_random_dst_indices =
         cugraph::test::device_gatherv(handle,
                                       random_destination_indices.data(),
@@ -446,6 +382,8 @@ class Tests_MG_GatherEdges
 
       auto aggregated_sg_src = cugraph::test::device_gatherv(handle, sg_src.begin(), sg_src.size());
       auto aggregated_sg_dst = cugraph::test::device_gatherv(handle, sg_dst.begin(), sg_dst.size());
+
+        sort_coo(handle, mg_out_srcs, mg_out_dsts);
 
       if (handle.get_comms().get_rank() == int{0}) {
         cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
@@ -476,7 +414,6 @@ class Tests_MG_GatherEdges
                                                           sg_graph_view.get_number_of_vertices(),
                                                           indices_per_source);
         sort_coo(handle, sg_out_srcs, sg_out_dsts);
-        sort_coo(handle, mg_out_srcs, mg_out_dsts);
 
         auto passed = thrust::equal(
           handle.get_thrust_policy(), sg_out_srcs.begin(), sg_out_srcs.end(), mg_out_srcs.begin());
@@ -490,20 +427,73 @@ class Tests_MG_GatherEdges
 
 using Tests_MG_GatherEdges_File = Tests_MG_GatherEdges<cugraph::test::File_Usecase>;
 
+using Tests_MG_GatherEdges_Rmat = Tests_MG_GatherEdges<cugraph::test::Rmat_Usecase>;
+
 TEST_P(Tests_MG_GatherEdges_File, CheckInt32Int32Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
+//TEST_P(Tests_MG_GatherEdges_File, CheckInt32Int64Float)
+//{
+//  auto param = GetParam();
+//  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+//}
+//
+//TEST_P(Tests_MG_GatherEdges_File, CheckInt64Int64Float)
+//{
+//  auto param = GetParam();
+//  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+//}
+//
+//TEST_P(Tests_MG_GatherEdges_Rmat, CheckInt32Int32Float)
+//{
+//  auto param = GetParam();
+//  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+//}
+
+//TEST_P(Tests_MG_GatherEdges_Rmat, CheckInt32Int64Float)
+//{
+//  auto param = GetParam();
+//  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+//}
+//
+//TEST_P(Tests_MG_GatherEdges_Rmat, CheckInt64Int64Float)
+//{
+//  auto param = GetParam();
+//  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+//}
+
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MG_GatherEdges_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{true}),
+#if 0
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"))));
+#else
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                      //cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+#endif
+
+//INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+//                         Tests_MG_GatherEdges_Rmat,
+//                         ::testing::Combine(::testing::Values(Prims_Usecase{false}),
+//                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+//                                              10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
+  Tests_MG_GatherEdges_Rmat,
+  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
