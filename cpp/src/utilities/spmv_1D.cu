@@ -64,11 +64,11 @@ void MGcsrmv<vertex_t, edge_t, weight_t>::run(weight_t* x)
                                           static_cast<vertex_t>(v_glob_),  // n_cols
                                           static_cast<vertex_t>(e_loc_)};  // nnz
 
-  mat.mv(h_one,                             // alpha
-         x,                                 // x
-         h_zero,                            // beta
-         y_loc_.data().get(),               // y
-         sparse_mv_alg_t::SPARSE_MV_ALG2);  // SpMV algorithm
+  mat.mv(h_one,                                                     // alpha
+         x,                                                         // x
+         h_zero,                                                    // beta
+         y_loc_.data().get(),                                       // y
+         raft::spectral::matrix::sparse_mv_alg_t::SPARSE_MV_ALG2);  // SpMV algorithm
 
   auto stream = handle_.get_stream();
 
