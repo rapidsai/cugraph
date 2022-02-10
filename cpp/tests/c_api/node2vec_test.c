@@ -80,3 +80,4 @@ int main(int argc, char** argv)
   result |= RUN_TEST(test_node2vec);
   return result;
 }
+

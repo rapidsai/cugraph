@@ -101,16 +101,6 @@ struct call_key_aggregated_e_op_t {
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t>
-struct is_first_in_run_t {
-  vertex_t const* major_vertices{nullptr};
-  __device__ bool operator()(size_t i) const
-  {
-    return ((i == 0) || (major_vertices[i] != major_vertices[i - 1])) ? true : false;
-  }
-};
-
-// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
-template <typename vertex_t>
 struct is_valid_vertex_t {
   __device__ bool operator()(vertex_t v) const { return v != invalid_vertex_id<vertex_t>::value; }
 };
