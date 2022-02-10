@@ -131,12 +131,7 @@ class Tests_MGPageRank
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-#if 1  // FIXME: should use handle.get_comms().barrier() instead once raft is updated to internally
-       // use NCCL All-Reduce instead of MPI barrier
-      rmm::device_uvector<int32_t> dummy(1, handle.get_stream());
-      handle.get_comms().allreduce(
-        dummy.data(), dummy.data(), 1, raft::comms::op_t::SUM, handle.get_stream());
-#endif
+      handle.get_comms().barrier();
       hr_clock.start();
     }
 
@@ -146,12 +141,7 @@ class Tests_MGPageRank
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-#if 1  // FIXME: should use handle.get_comms().barrier() instead once raft is updated to internally
-       // use NCCL All-Reduce instead of MPI barrier
-      rmm::device_uvector<int32_t> dummy(1, handle.get_stream());
-      handle.get_comms().allreduce(
-        dummy.data(), dummy.data(), 1, raft::comms::op_t::SUM, handle.get_stream());
-#endif
+      handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -216,12 +206,7 @@ class Tests_MGPageRank
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-#if 1  // FIXME: should use handle.get_comms().barrier() instead once raft is updated to internally
-       // use NCCL All-Reduce instead of MPI barrier
-      rmm::device_uvector<int32_t> dummy(1, handle.get_stream());
-      handle.get_comms().allreduce(
-        dummy.data(), dummy.data(), 1, raft::comms::op_t::SUM, handle.get_stream());
-#endif
+      handle.get_comms().barrier();
       hr_clock.start();
     }
 
@@ -246,12 +231,7 @@ class Tests_MGPageRank
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-#if 1  // FIXME: should use handle.get_comms().barrier() instead once raft is updated to internally
-       // use NCCL All-Reduce instead of MPI barrier
-      rmm::device_uvector<int32_t> dummy(1, handle.get_stream());
-      handle.get_comms().allreduce(
-        dummy.data(), dummy.data(), 1, raft::comms::op_t::SUM, handle.get_stream());
-#endif
+      handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG PageRank took " << elapsed_time * 1e-6 << " s.\n";

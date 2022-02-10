@@ -246,23 +246,11 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const& comm,
                                       ValueToGPUIdOp value_to_gpu_id_op,
                                       rmm::cuda_stream_view stream_view)
 {
-#if 1  // FIXME: delete
-  rmm::device_uvector<int32_t> dummy(1, stream_view);
-  stream_view.synchronize();
-  comm.allreduce(dummy.data(), dummy.data(), 1, raft::comms::op_t::SUM, stream_view);
-  auto time0 = std::chrono::steady_clock::now();
-#endif
   auto const comm_size = comm.get_size();
 
   auto d_tx_value_counts = groupby_and_count(
     tx_value_first, tx_value_last, value_to_gpu_id_op, comm.get_size(), stream_view);
 
-#if 1  // FIXME: delete
-  stream_view.synchronize();
-  auto time1 = std::chrono::steady_clock::now();
-  comm.allreduce(dummy.data(), dummy.data(), 1, raft::comms::op_t::SUM, stream_view);
-  auto time2 = std::chrono::steady_clock::now();
-#endif
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};
   std::vector<int> tx_dst_ranks{};
@@ -276,12 +264,6 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const& comm,
     allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
       rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
 
-#if 1  // FIXME: delete
-  stream_view.synchronize();
-  auto time3 = std::chrono::steady_clock::now();
-  comm.allreduce(dummy.data(), dummy.data(), 1, raft::comms::op_t::SUM, stream_view);
-  auto time4 = std::chrono::steady_clock::now();
-#endif
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,
@@ -295,10 +277,6 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const& comm,
                             rx_src_ranks,
                             stream_view);
 
-#if 1  // FIXME: delete
-  stream_view.synchronize();
-  auto time5 = std::chrono::steady_clock::now();
-#endif
   if (rx_counts.size() < static_cast<size_t>(comm_size)) {
     std::vector<size_t> tmp_rx_counts(comm_size, size_t{0});
     for (size_t i = 0; i < rx_src_ranks.size(); ++i) {
@@ -306,18 +284,6 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const& comm,
     }
     rx_counts = std::move(tmp_rx_counts);
   }
-#if 1  // FIXME: delete
-  stream_view.synchronize();
-  auto time6 = std::chrono::steady_clock::now();
-  std::chrono::duration<double> elapsed_total = time6 - time0;
-  std::chrono::duration<double> elapsed0 = time1 - time0;
-  std::chrono::duration<double> elapsed1 = time2 - time1;
-  std::chrono::duration<double> elapsed2 = time3 - time2;
-  std::chrono::duration<double> elapsed3 = time4 - time3;
-  std::chrono::duration<double> elapsed4 = time5 - time4;
-  std::chrono::duration<double> elapsed5 = time6 - time5;
-  std::cout << "Shuffle values (" << thrust::distance(tx_value_first, tx_value_last) << ") took " << elapsed_total.count() * 1e3 << " ms, breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << "," << elapsed3.count() * 1e3 << "," << elapsed4.count() * 1e3 << "," << elapsed5.count() * 1e3 << ") ms." << std::endl;
-#endif
 
   return std::make_tuple(std::move(rx_value_buffer), rx_counts);
 }
