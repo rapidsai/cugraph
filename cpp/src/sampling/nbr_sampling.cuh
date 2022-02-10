@@ -68,6 +68,29 @@ void project(raft::handle_t const& handle,
     });
 }
 
+/**
+ * @brief Projects output from one iteration onto the input for the next: extracts the
+ (destination_vertex_id, rank_to_send_it_to) components from the output quadruplet; overload acting
+ on zip-iterators;
+ * @tparam zip_out_it_t zip type for the output tuple;
+ * @tparam zip_in_it_t zip type for the input tuple;
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] begin zip begin iterator of quadruplets from which new input is extracted; typically
+ (vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index)
+ * @param[in] end zip end iterator of quadruplets from which new input is extracted;
+ * @param[out] result begin of result zip iterator of pairs for next iteration; typically
+ (vertex_t source_vertex, int rank)
+ */
+template <typename zip_out_it_t, typename zip_in_it_t>
+void project(raft::handle_t const& handle, zip_out_it_t begin, zip_out_it_t end, zip_in_it_t result)
+{
+  thrust::transform(
+    handle.get_thrust_policy(), begin, end, result, [] __device__(auto const& quad) {
+      return thrust::make_tuple(thrust::get<1>(quad), thrust::get<2>(quad));
+    });
+}
+
 }  // namespace detail
 
 /**
@@ -160,6 +183,8 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample(
     for (auto&& k_level : h_fan_out) {
       // main body:
       //{
+
+      // zipping is necessary to preserve rank info during shuffle!
       //}
       ++level;
     }
