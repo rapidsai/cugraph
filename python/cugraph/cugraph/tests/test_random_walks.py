@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.:
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.:
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -218,6 +218,7 @@ def test_random_walks(
 
     check_random_walks(df, offsets, seeds, df_G)
 """
+
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)

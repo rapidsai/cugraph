@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
+# import pytest
 import cupy as cp
 import numpy as np
 
@@ -57,5 +57,5 @@ _test_data = {"karate.csv": {
                        6, 41, 38, 36, 32, 37,
                        ],
                       dtype=np.int32),
-                   }
-            }
+                  }
+              }
