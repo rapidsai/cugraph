@@ -499,7 +499,7 @@ get_global_degree_information(raft::handle_t const& handle, GraphViewType const&
                         temp_input.begin(),
                         thrust::plus<edge_t>());
     }
-    handle.get_comms().barrier();
+    col_comm.barrier();
   }
   // Get global degrees
   device_bcast(col_comm,
