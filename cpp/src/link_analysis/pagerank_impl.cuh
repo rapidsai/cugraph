@@ -195,8 +195,7 @@ void pagerank(
 #if 1 // FIXME: delete
     handle.sync_stream();
     if constexpr (GraphViewType::is_multi_gpu) {
-      rmm::device_uvector<int32_t> dummy(1, handle.get_stream());
-      handle.get_comms().allreduce(dummy.data(), dummy.data(), 1, raft::comms::op_t::SUM, handle.get_stream());
+      handle.get_comms().barrier();
     }
     auto time0 = std::chrono::steady_clock::now();
 #endif
