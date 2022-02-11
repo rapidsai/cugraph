@@ -95,7 +95,7 @@ class Graph():
             property_columns=property_column_names
             )
 
-    
+
     def add_nodes_from(self,nodes):
         """
         Adds nodes from a provided list.
@@ -122,6 +122,113 @@ class Graph():
         int with the number of nodes in the underlying Property_Graph 
         """
         return self.__pG.num_vertices
+
+    def remove_node(self, node):
+        """
+        Checks the node name to avoid mixed types
+        sets the type if it is the first insert in the graph 
+
+        Parameters
+        ----------
+        data : single item to represent the node id in the graph.
+            Must be able to be represented as an str.
+        """
+
+        print("Not yet implemented")
+        return
+
+
+    def remove_nodes_from(self):
+        print("Not yet implemented")
+        return
+
+
+    def order(self):
+        print("Not yet implemented")
+        return
+
+
+    def has_node(self):
+        print("Not yet implemented")
+        return
+
+
+    def add_weighted_edges_from(self):
+        print("Not yet implemented")
+        return
+
+
+    def remove_edge(self):
+        print("Not yet implemented")
+        return
+
+
+    def remove_edges_from(self):
+        print("Not yet implemented")
+        return
+
+
+    def update(self):
+        print("Not yet implemented")
+        return
+
+
+    def has_edge(self):
+        print("Not yet implemented")
+        return
+
+    def get_connections(self, nodelist):
+        edgefilter = f"{self.__pG.src_col_name}.isin({nodelist}) | {self.__pG.src_col_name}.isin({nodelist})"
+        selected_edges = self.__pG.select_edges(edgefilter)
+        subgraph = self.__pG.extract_subgraph(create_using=cugraph.Graph(directed=True),
+                 selection=selected_edges,
+                 default_edge_weight=1.0,
+                 allow_multi_edges=True)
+        return subgraph
+
+    def neighbors(self):
+        print("Not yet implemented")
+        return
+
+
+    def get_edge_data(self):
+        print("Not yet implemented")
+        return
+
+
+    def adjacency(self):
+        print("Not yet implemented")
+        return
+
+
+    def degree(self):    
+        print("Not yet implemented")
+        return
+
+
+    def clear(self):
+        print("Not yet implemented")
+        return
+
+
+    def clear_edges(self):
+        print("Not yet implemented")
+        return
+
+
+    def read_edgelist(self):
+        print("Not yet implemented")
+        return
+
+
+    def read_weighted_edgelist(self):
+        print("Not yet implemented")
+        return
+
+
+    def read_adjlist(self):
+        print("Not yet implemented")
+        return
 
 
     def number_of_edges(self):

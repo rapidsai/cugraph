@@ -19,7 +19,7 @@ except ImportError:
 
 dataset = {
     "newedges": [
-    ["source", "destination"],
+    ["src", "dst"],
         [(1, 2),
          (2, 3),
          (4, 2),
@@ -73,7 +73,7 @@ def test_add_vertex_data(df_type):
     pG = PropertyGraph()
     
     pG.add_edge_data(newedges_df, 
-    vertex_id_columns=("source", "destination"), 
+    vertex_id_columns=("src", "dst"), 
                        type_name="newedges", 
                        property_columns=None)
     assert pG.num_vertices == 6
@@ -123,6 +123,19 @@ def test_nx_add_edge_from_list():
     G.add_edges_from([(1,2), (1, 3)])
     assert G.number_of_edges() == 2
     assert G.number_of_nodes() == 3
+
+def test_adjacencies():
+    cnG = Graph()
+    newedges = dataset["newedges"]
+    newedges_df = cudf.DataFrame(columns=newedges[0], data=newedges[1])
+    cnG.add_edges_from(newedges_df)
+
+    assert cnG.number_of_nodes() == 6
+    assert cnG.number_of_edges() == 5
+
+    print(cnG.edges)
+    sg = cnG.get_connections([3])
+    print(sg)
 
 
 def nx_edges():
