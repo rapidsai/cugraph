@@ -19,13 +19,12 @@
 # third-party group once this gets fixed.
 import pytest
 from cugraph.tests import utils
+import networkx as nx
+import cugraph
 
-import cugraph.nx.Graph as nx
 
 
 def test_nx_gbuilder():
-
-    # Create an empty graph
     G = nx.Graph()
     assert G.number_of_edges() == 0
     assert G.number_of_nodes() == 0
@@ -47,12 +46,23 @@ def test_nx_gbuilder():
     assert G.number_of_edges() == 2
     assert G.number_of_nodes() == 3
 
+
+def test_nx_node_attributes(): 
+    G = nx.Graph()
     # Add nodes with a property from a list
     G.add_nodes_from([(4, {"color": "red"}), (5, {"color": "green"}), ])
-    assert G.nodes[4]["color"] == "red"
+    assert G.number_of_nodes() == 2
+ #   assert G.nodes[4]["color"] == "red"
+    print(G.nodes())
 
-    G.add_node("spam")        # adds node "spam"
-    G.add_nodes_from("spam")  # adds 4 nodes: 's', 'p', 'a', 'm'
+
+def nx_node_string_types():
+
+    G = nx.Graph()
+    # adds node "spam"
+    G.add_node("spam")
+    # adds 4 nodes: 's', 'p', 'a', 'm'
+    G.add_nodes_from("spam")
     G.add_edge(3, 'm')
     assert G.number_of_edges() == 3
     assert G.number_of_nodes() == 10
@@ -69,7 +79,7 @@ def test_nx_gbuilder():
     assert G.edges[1, 2] == {'color': 'yellow'}
 
 
-def test_nx_graph_functions():
+def test_graph_functions():
     # test adjacency
     FG = nx.Graph()
     FG.add_weighted_edges_from([(1, 2, 0.125), (1, 3, 0.75),
@@ -100,7 +110,7 @@ def test_nx_analysis():
 @pytest.mark.parametrize(
     "graph_file",
     [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"dolphins.csv"])
-def test_with_dolphins(graph_file):
+def with_dolphins(graph_file):
 
     df = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
     G = nx.from_pandas_edgelist(df, create_using=nx.Graph(),
