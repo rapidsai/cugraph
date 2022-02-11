@@ -93,6 +93,55 @@ void project(raft::handle_t const& handle, zip_out_it_t begin, zip_out_it_t end,
 
 }  // namespace detail
 
+// Stub functions namespace:
+// TODO: remove when stub functions inside are ready:
+//
+namespace mnmg {
+using gpu_t = int;
+
+template <typename GraphViewType, typename VertexIterator, typename GPUIdIterator>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename std::iterator_traits<GPUIdIterator>::value_type>>
+gather_active_sources_in_row(raft::handle_t const& handle,
+                             GraphViewType const& graph_view,
+                             VertexIterator vertex_input_first,
+                             VertexIterator vertex_input_last,
+                             GPUIdIterator gpu_id_first);
+
+template <typename GraphViewType>
+rmm::device_uvector<typename GraphViewType::edge_type> get_active_source_global_degrees(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  rmm::device_uvector<typename GraphViewType::vertex_type>& active_sources,
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_out_degrees);
+
+template <typename GraphViewType, typename EdgeIndexIterator, typename gpu_t>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<gpu_t>>
+gather_local_edges(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  rmm::device_uvector<typename GraphViewType::vertex_type>& active_sources_in_row,
+  rmm::device_uvector<gpu_t>& active_source_gpu_ids,
+  EdgeIndexIterator edge_index_first,
+  typename GraphViewType::vertex_type invalid_vertex_id,
+  int indices_per_source,
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets);
+
+namespace ops {
+// see cugraph-ops/cpp/src/graph/sampling/sampling_index.cuh
+template <typename IdxT>
+void get_sampling_index(IdxT* index,
+                        raft::random::Rng& rng,
+                        const IdxT* sizes,
+                        IdxT n_sizes,
+                        int32_t sample_size,
+                        bool replace,
+                        cudaStream_t stream);
+}  // namespace ops
+}  // namespace mnmg
+
 /**
  * @brief Multi-GPU Uniform Neighborhood Sampling. The outline of the algorithm:
  *
@@ -134,35 +183,40 @@ void project(raft::handle_t const& handle, zip_out_it_t begin, zip_out_it_t end,
  * }
  *
  * @tparam graph_view_t Type of graph view.
- * @tparam vertex_in_tuple_t Tuple type of the input device array;
- * typically (vertex_t source_vertex, int rank)
+ * @tparam index_t Type used for indexing; typically edge_t
  * @tparam vertex_out_tuple_t Tuple type of the out device vector;
  * typically (vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index)
- * @tparam index_t Type used for indexing; typically edge_t
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph Graph View object to generate NBR Sampling on.
+ * @param graph_view Graph View object to generate NBR Sampling on.
  * @param ptr_d_start Device array of pairs: (starting_vertex_index, rank) for the NBR Sampling.
  * @param num_starting_vs size of starting vertex set
  * @param h_fan_out vector of branching out (fan-out) degree per source vertex for each level
- * @param ptr_d_partition_global_out_deg local partition of global out-degree cache; pass-through
+ * @param global_degree_offsets local partition of global out-degree cache; pass-through
  * parameter used for obtaining local out-degree information
  * @param flag_replacement boolean flag specifying if random sampling is done without replacement
  * (true); or, with replacement (false); default = true;
  */
 template <typename graph_view_t,
-          typename vertex_in_tuple_t,
-          typename vertex_out_tuple_t = vertex_in_tuple_t,
-          typename index_t            = typename graph_view_t::edge_type>
+          typename index_t            = typename graph_view_t::edge_type,
+          typename vertex_out_tuple_t = thrust::tuple<typename graph_view_t::vertex_type,
+                                                      typename graph_view_t::vertex_type,
+                                                      mnmg::gpu_t,  // TODO: replace after
+                                                                    // integration of PR 2064
+                                                      index_t>>
 rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample(
   raft::handle_t const& handle,
-  graph_view_t const& graph,
-  vertex_in_tuple_t const* ptr_d_start,
+  graph_view_t const& graph_view,
+  typename graph_view_t::vertex_type const* ptr_d_start,
+  mnmg::gpu_t const* ptr_d_ranks,
   size_t num_starting_vs,
   std::vector<int> const& h_fan_out,
-  typename graph_view_t::edge_type const* ptr_d_partition_global_out_deg,
+  rmm::device_uvector<typename GraphViewType::edge_type> const& global_degree_offsets,
   bool flag_replacement)
 {
+  using vertex_t = typename graph_view_t::vertex_type;
+  using edge_t   = typename graph_view_t::edge_type;
+
   if constexpr (graph_view_t::is_multi_gpu) {
     CUGRAPH_EXPECTS((ptr_d_start != nullptr) && (num_starting_vs > 0),
                     "Invalid input argument: starting vertex set cannot be null.");
@@ -172,9 +226,14 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample(
     CUGRAPH_EXPECTS(num_levels > 0, "Invalid input argument: number of levels must be non-zero.");
 
     // running input growing from one level to the next:
+    // plus it gets shuffled, so need copies
     //
-    detail::device_vec_t<vertex_in_tuple_t> d_in(num_starting_vs);
+    detail::device_vec_t<vertex_t> d_in(num_starting_vs);
+    detail::device_vec_t<mnmg::gpu_t> d_ranks(num_starting_vs);
+
     thrust::copy_n(handle.get_thrust_policy(), ptr_d_start, num_starting_vs, d_in.begin());
+    thrust::copy_n(handle.get_thrust_policy(), ptr_d_ranks, num_starting_vs, d_ranks.begin());
+
     // Output to accumulate results into:
     //
     detail::device_vec_t<vertex_out_tuple_t> d_out{};  // starts as empty
@@ -183,6 +242,19 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample(
     for (auto&& k_level : h_fan_out) {
       // main body:
       //{
+
+      // line 4 in specs:
+      //
+      auto&& [d_new_in, d_new_rank] = mnmg::gather_active_sources_in_row(
+        handle, graph_view, d_in.begin(), d_in.end(), d_ranks.begin());
+
+      // line 7 in specs:
+      //
+      auto&& d_out_degs =
+        mnmg::get_active_source_global_degrees(handle, graph_view, d_in, global_degree_offsets);
+
+      // resize everything:
+      // d_out_degs, d_in, d_out, d_ranks
 
       // zipping is necessary to preserve rank info during shuffle!
       //}
