@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -331,22 +331,6 @@ bool renumbered_vectors_same(raft::handle_t const& handle,
   return (error_count == 0);
 }
 
-template <typename vertex_t>
-bool renumbered_vectors_same(raft::handle_t const& handle,
-                             rmm::device_uvector<vertex_t> const& v1,
-                             rmm::device_uvector<vertex_t> const& v2)
-{
-  if (v1.size() != v2.size()) return false;
-
-  std::vector<vertex_t> h_v1(v1.size());
-  std::vector<vertex_t> h_v2(v1.size());
-
-  raft::update_host(h_v1.data(), v1.data(), v1.size(), handle.get_stream());
-  raft::update_host(h_v2.data(), v2.data(), v2.size(), handle.get_stream());
-
-  return renumbered_vectors_same(handle, h_v1, h_v2);
-}
-
 template <typename T, typename L>
 std::vector<T> to_host(raft::handle_t const& handle, T const* data, L size)
 {
@@ -354,6 +338,17 @@ std::vector<T> to_host(raft::handle_t const& handle, T const* data, L size)
   raft::update_host(h_data.data(), data, size, handle.get_stream());
   handle.sync_stream();
   return h_data;
+}
+
+template <typename vertex_t>
+bool renumbered_vectors_same(raft::handle_t const& handle,
+                             rmm::device_uvector<vertex_t> const& v1,
+                             rmm::device_uvector<vertex_t> const& v2)
+{
+  if (v1.size() != v2.size()) return false;
+
+  return renumbered_vectors_same(
+    handle, to_host(handle, v1.data(), v1.size()), to_host(handle, v2.data(), v2.size()));
 }
 
 template <typename T, typename L>

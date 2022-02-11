@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/reduce.h>
@@ -35,6 +36,23 @@
 namespace cugraph {
 
 namespace detail {
+
+template <typename GroupIdIterator>
+struct compute_group_id_count_pair_t {
+  GroupIdIterator group_id_first{};
+  GroupIdIterator group_id_last{};
+
+  __device__ thrust::tuple<int, size_t> operator()(size_t i) const
+  {
+    static_assert(
+      std::is_same_v<typename thrust::iterator_traits<GroupIdIterator>::value_type, int>);
+    auto lower_it =
+      thrust::lower_bound(thrust::seq, group_id_first, group_id_last, static_cast<int>(i));
+    auto upper_it = thrust::upper_bound(thrust::seq, lower_it, group_id_last, static_cast<int>(i));
+    return thrust::make_tuple(static_cast<int>(i),
+                              static_cast<size_t>(thrust::distance(lower_it, upper_it)));
+  }
+};
 
 // inline to suppress a complaint about ODR violation
 inline std::tuple<std::vector<size_t>,
@@ -128,23 +146,14 @@ rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [I
     [value_to_group_id_op] __device__(auto value) { return value_to_group_id_op(value); });
   rmm::device_uvector<int> d_tx_dst_ranks(num_groups, stream_view);
   rmm::device_uvector<size_t> d_tx_value_counts(d_tx_dst_ranks.size(), stream_view);
-  auto last =
-    thrust::reduce_by_key(rmm::exec_policy(stream_view),
-                          group_id_first,
-                          group_id_first + thrust::distance(tx_value_first, tx_value_last),
-                          thrust::make_constant_iterator(size_t{1}),
-                          d_tx_dst_ranks.begin(),
-                          d_tx_value_counts.begin());
-  if (thrust::distance(d_tx_dst_ranks.begin(), thrust::get<0>(last)) < num_groups) {
-    rmm::device_uvector<size_t> d_counts(num_groups, stream_view);
-    thrust::fill(rmm::exec_policy(stream_view), d_counts.begin(), d_counts.end(), size_t{0});
-    thrust::scatter(rmm::exec_policy(stream_view),
-                    d_tx_value_counts.begin(),
-                    thrust::get<1>(last),
-                    d_tx_dst_ranks.begin(),
-                    d_counts.begin());
-    d_tx_value_counts = std::move(d_counts);
-  }
+  auto rank_count_pair_first = thrust::make_zip_iterator(
+    thrust::make_tuple(d_tx_dst_ranks.begin(), d_tx_value_counts.begin()));
+  thrust::tabulate(
+    rmm::exec_policy(stream_view),
+    rank_count_pair_first,
+    rank_count_pair_first + num_groups,
+    detail::compute_group_id_count_pair_t<decltype(group_id_first)>{
+      group_id_first, group_id_first + thrust::distance(tx_value_first, tx_value_last)});
 
   return d_tx_value_counts;
 }
@@ -169,22 +178,13 @@ rmm::device_uvector<size_t> groupby_and_count(VertexIterator tx_key_first /* [IN
     tx_key_first, [key_to_group_id_op] __device__(auto key) { return key_to_group_id_op(key); });
   rmm::device_uvector<int> d_tx_dst_ranks(num_groups, stream_view);
   rmm::device_uvector<size_t> d_tx_value_counts(d_tx_dst_ranks.size(), stream_view);
-  auto last = thrust::reduce_by_key(rmm::exec_policy(stream_view),
-                                    group_id_first,
-                                    group_id_first + thrust::distance(tx_key_first, tx_key_last),
-                                    thrust::make_constant_iterator(size_t{1}),
-                                    d_tx_dst_ranks.begin(),
-                                    d_tx_value_counts.begin());
-  if (thrust::distance(d_tx_dst_ranks.begin(), thrust::get<0>(last)) < num_groups) {
-    rmm::device_uvector<size_t> d_counts(num_groups, stream_view);
-    thrust::fill(rmm::exec_policy(stream_view), d_counts.begin(), d_counts.end(), size_t{0});
-    thrust::scatter(rmm::exec_policy(stream_view),
-                    d_tx_value_counts.begin(),
-                    thrust::get<1>(last),
-                    d_tx_dst_ranks.begin(),
-                    d_counts.begin());
-    d_tx_value_counts = std::move(d_counts);
-  }
+  auto rank_count_pair_first = thrust::make_zip_iterator(
+    thrust::make_tuple(d_tx_dst_ranks.begin(), d_tx_value_counts.begin()));
+  thrust::tabulate(rmm::exec_policy(stream_view),
+                   rank_count_pair_first,
+                   rank_count_pair_first + num_groups,
+                   detail::compute_group_id_count_pair_t<decltype(group_id_first)>{
+                     group_id_first, group_id_first + thrust::distance(tx_key_first, tx_key_last)});
 
   return d_tx_value_counts;
 }

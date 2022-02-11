@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -33,7 +33,7 @@ _scale_values = [2, 4, 16]
 _scale_test_ids = [f"scale={x}" for x in _scale_values]
 _mg_values = [False, True]
 _mg_test_ids = [f"mg={x}" for x in _mg_values]
-_graph_types = [cugraph.Graph, cugraph.DiGraph, None, int]
+_graph_types = [cugraph.Graph, None, int]
 _graph_test_ids = [f"create_using={getattr(x,'__name__',str(x))}"
                    for x in _graph_types]
 
@@ -107,9 +107,8 @@ def test_rmat_return_type(graph_type, mg):
     scale = 2
     num_edges = (2**scale)*4
 
-    if (mg and (graph_type not in [cugraph.DiGraph, None])) or \
-       (graph_type not in [cugraph.Graph, cugraph.DiGraph, None]):
-
+    if (mg and (graph_type is not None)) or \
+       (graph_type not in [cugraph.Graph, None]):
         with pytest.raises(TypeError):
             _call_rmat(scale, num_edges, graph_type, mg)
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -478,6 +478,10 @@ class Louvain {
                              thrust::make_zip_iterator(thrust::make_tuple(
                                old_cluster_sum_v.begin(), cluster_subtract_v.begin())),
                              src_old_cluster_sum_subtract_pairs);
+      old_cluster_sum_v.resize(0, handle_.get_stream());
+      old_cluster_sum_v.shrink_to_fit(handle_.get_stream());
+      cluster_subtract_v.resize(0, handle_.get_stream());
+      cluster_subtract_v.shrink_to_fit(handle_.get_stream());
     }
 
     auto output_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(

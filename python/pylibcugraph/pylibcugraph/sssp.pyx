@@ -14,8 +14,6 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from libc.stdint cimport uintptr_t
-
 from pylibcugraph._cugraph_c.cugraph_api cimport (
     bool_t,
     data_type_id_t,
@@ -27,11 +25,6 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_size,
-    cugraph_type_erased_device_array_view_type,
-    cugraph_type_erased_device_array_view_create,
-    cugraph_type_erased_device_array_view_free,
-    cugraph_type_erased_device_array_view_copy,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -44,21 +37,20 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_paths_result_get_predecessors,
     cugraph_paths_result_free,
 )
-
 from pylibcugraph.resource_handle cimport (
     EXPERIMENTAL__ResourceHandle,
 )
 from pylibcugraph.graphs cimport (
-    EXPERIMENTAL__Graph,
+    _GPUGraph,
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    get_numpy_type_from_c_type,
+    copy_to_cupy_array,
 )
 
 
 def EXPERIMENTAL__sssp(EXPERIMENTAL__ResourceHandle resource_handle,
-                       EXPERIMENTAL__Graph graph,
+                       _GPUGraph graph,
                        size_t source,
                        double cutoff,
                        bool_t compute_predecessors,
@@ -167,83 +159,20 @@ def EXPERIMENTAL__sssp(EXPERIMENTAL__ResourceHandle resource_handle,
                               &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_sssp")
 
-    # Extract individual device array pointers from result
-    cdef cugraph_type_erased_device_array_view_t* vertices_ptr
-    cdef cugraph_type_erased_device_array_view_t* distances_ptr
-    cdef cugraph_type_erased_device_array_view_t* predecessors_ptr
-    vertices_ptr = cugraph_paths_result_get_vertices(result_ptr)
-    distances_ptr = cugraph_paths_result_get_distances(result_ptr)
-    predecessors_ptr = cugraph_paths_result_get_predecessors(result_ptr)
+    # Extract individual device array pointers from result and copy to cupy
+    # arrays for returning.
+    cdef cugraph_type_erased_device_array_view_t* vertices_ptr = \
+        cugraph_paths_result_get_vertices(result_ptr)
+    cdef cugraph_type_erased_device_array_view_t* distances_ptr = \
+        cugraph_paths_result_get_distances(result_ptr)
+    cdef cugraph_type_erased_device_array_view_t* predecessors_ptr = \
+        cugraph_paths_result_get_predecessors(result_ptr)
 
-    # Extract meta-data needed to copy results
-    cdef data_type_id_t vertex_type = \
-        cugraph_type_erased_device_array_view_type(vertices_ptr)
-    cdef data_type_id_t distance_type = \
-        cugraph_type_erased_device_array_view_type(distances_ptr)
-    cdef data_type_id_t predecessor_type = \
-        cugraph_type_erased_device_array_view_type(predecessors_ptr)
-    vertex_numpy_type = get_numpy_type_from_c_type(vertex_type)
-    distance_numpy_type = get_numpy_type_from_c_type(distance_type)
-    predecessor_numpy_type = get_numpy_type_from_c_type(predecessor_type)
+    cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
+    cupy_distances = copy_to_cupy_array(c_resource_handle_ptr, distances_ptr)
+    cupy_predecessors = copy_to_cupy_array(c_resource_handle_ptr,
+                                           predecessors_ptr)
 
-    num_vertices = cugraph_type_erased_device_array_view_size(vertices_ptr)
-
-    # Set up cupy arrays to return and copy results to:
-    # * create cupy array object (these will be what the caller uses).
-    # * access the underlying device pointers.
-    # * create device array views which can be used with the copy APIs.
-    # * call copy APIs. This will copy data to the array pointed to the pointer
-    #   in the cupy array objects that will be returned.
-    # * free view objects.
-    cupy_vertices = cupy.array(numpy.zeros(num_vertices),
-                               dtype=vertex_numpy_type)
-    cupy_distances = cupy.array(numpy.zeros(num_vertices),
-                                dtype=distance_numpy_type)
-    cupy_predecessors = cupy.array(numpy.zeros(num_vertices),
-                                   dtype=predecessor_numpy_type)
-
-    cdef uintptr_t cupy_vertices_ptr = \
-        cupy_vertices.__cuda_array_interface__["data"][0]
-    cdef uintptr_t cupy_distances_ptr = \
-        cupy_distances.__cuda_array_interface__["data"][0]
-    cdef uintptr_t cupy_predecessors_ptr = \
-        cupy_predecessors.__cuda_array_interface__["data"][0]
-
-    cdef cugraph_type_erased_device_array_view_t* cupy_vertices_view_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cupy_vertices_ptr, num_vertices, vertex_type)
-    cdef cugraph_type_erased_device_array_view_t* cupy_distances_view_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cupy_distances_ptr, num_vertices, vertex_type)
-    cdef cugraph_type_erased_device_array_view_t* cupy_predecessors_view_ptr =\
-        cugraph_type_erased_device_array_view_create(
-            <void*>cupy_predecessors_ptr, num_vertices, vertex_type)
-
-    error_code = cugraph_type_erased_device_array_view_copy(
-        c_resource_handle_ptr,
-        cupy_vertices_view_ptr,
-        vertices_ptr,
-        &error_ptr)
-    assert_success(error_code, error_ptr,
-                   "cugraph_type_erased_device_array_view_copy")
-    error_code = cugraph_type_erased_device_array_view_copy(
-        c_resource_handle_ptr,
-        cupy_distances_view_ptr,
-        distances_ptr,
-        &error_ptr)
-    assert_success(error_code, error_ptr,
-                   "cugraph_type_erased_device_array_view_copy")
-    error_code = cugraph_type_erased_device_array_view_copy(
-        c_resource_handle_ptr,
-        cupy_predecessors_view_ptr,
-        predecessors_ptr,
-        &error_ptr)
-    assert_success(error_code, error_ptr,
-                   "cugraph_type_erased_device_array_view_copy")
-
-    cugraph_type_erased_device_array_view_free(cupy_distances_view_ptr)
-    cugraph_type_erased_device_array_view_free(cupy_predecessors_view_ptr)
-    cugraph_type_erased_device_array_view_free(cupy_vertices_view_ptr)
     cugraph_paths_result_free(result_ptr)
 
     return (cupy_vertices, cupy_distances, cupy_predecessors)
