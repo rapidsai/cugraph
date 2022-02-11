@@ -209,11 +209,11 @@ def bench_build_cyber(gpubenchmark,graph_file):
     dest_col_name = "dstip"
 
     def func():
-        df = pd.read_csv(graph_file, delimiter=",",
-                         dtype={"idx": "int32",
+        df = pd.read_csv(graph_file, delimiter=",",dtype={"idx": "int32",
                          source_col_name: "str",
                          dest_col_name: "str"},
-                         header=0)
+                         header=0
+                         )
         gpuG = nx.from_pandas_edgelist(df,
                                        create_using=nx.Graph(),
                                        source=source_col_name, target=dest_col_name)
