@@ -37,6 +37,7 @@
 #include "rw_traversals.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <type_traits>
 #include <vector>
 
@@ -118,7 +119,8 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_source_global_
 template <typename GraphViewType, typename EdgeIndexIterator, typename gpu_t>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<gpu_t>>
+           rmm::device_uvector<gpu_t>,
+           rmm::device_uvector<typename GraphViewType::edge_type>>
 gather_local_edges(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
@@ -203,7 +205,9 @@ template <typename graph_view_t,
                                                       typename graph_view_t::vertex_type,
                                                       mnmg::gpu_t,  // TODO: replace after
                                                                     // integration of PR 2064
-                                                      index_t>>
+                                                      index_t>,
+          typename seeder_t =
+            detail::clock_seeding_t<uint64_t>>  // TODO: move clock_... to "rw_traversal.hpp"
 rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample(
   raft::handle_t const& handle,
   graph_view_t const& graph_view,
@@ -243,18 +247,51 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample(
       // main body:
       //{
 
-      // line 4 in specs:
+      // line 4 in specs (prep for extracting out-degs(sources)):
       //
       auto&& [d_new_in, d_new_rank] = mnmg::gather_active_sources_in_row(
         handle, graph_view, d_in.begin(), d_in.end(), d_ranks.begin());
 
-      // line 7 in specs:
+      // line 7 in specs (extract out-degs(sources)):
       //
       auto&& d_out_degs =
         mnmg::get_active_source_global_degrees(handle, graph_view, d_in, global_degree_offsets);
 
+      // line 8 in specs (segemented-random-generation of indices):
+      //
+      decltype(d_out_degs) d_indices(d_in.size() * k_level);
+      seeder_t seeder{};
+      raft::random::Rng rng(seeder() + k_level);  // TODO: check if this works for uniform
+      mnmg::ops::get_sampling_index(detail::raw_ptr(d_indices),
+                                    rng,
+                                    detail::raw_const_ptr(d_out_degs),
+                                    static_cast<edge_t>(d_out_degs.size()),
+                                    static_cast<int32_t>(k_level),
+                                    flag_replacement,
+                                    handle.get_stream());
+
+      // line 10 (gather edges):
+      //
+      auto&& [d_out_src, d_out_dst, d_out_ranks, d_out_indx] =
+        mnmg::gather_local_edges(handle,
+                                 graph_view,
+                                 d_new_in.begin(),
+                                 d_new_rank.begin(),
+                                 d_indices.begin(),
+                                 std::numeric_limits<vertex_t>::max(),
+                                 static_cast<int>(k_level),
+                                 global_degree_offsets);
+
       // resize everything:
       // d_out_degs, d_in, d_out, d_ranks
+      auto out_sz = d_out.size();
+      d_out.resize(out_sz + d_out_dst.size());
+
+      // line 12 (union step):
+
+      // line 13 (shuffle step):
+
+      // line 14 (project output onto input):
 
       // zipping is necessary to preserve rank info during shuffle!
       //}
