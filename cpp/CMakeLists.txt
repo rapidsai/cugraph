@@ -159,7 +159,6 @@ endif()
 add_library(cugraph SHARED
     src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
-    src/utilities/spmv_1D.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
     src/utilities/graph_bcast.cu
