@@ -30,6 +30,8 @@
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
@@ -284,16 +286,24 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample(
 
       // resize everything:
       // d_out_degs, d_in, d_out, d_ranks
-      auto out_sz = d_out.size();
-      d_out.resize(out_sz + d_out_dst.size());
+      auto old_sz = d_out.size();
+      auto add_sz = d_out_dst.size();
+      d_out.resize(old_sz + add_sz);
 
       // line 12 (union step):
+      //
+      auto in = thrust::make_zip_iterator(thrust::make_tuple(detail::raw_const_ptr(d_out_src),
+                                                             detail::raw_const_ptr(d_out_dst),
+                                                             detail::raw_const_ptr(d_out_ranks),
+                                                             detail::raw_const_ptr(d_out_indx)));
+      thrust::copy_n(handle.get_thrust_policy(), in, add_sz, d_out.begin() + old_sz);
 
       // line 13 (shuffle step):
+      // zipping is necessary to preserve rank info during shuffle!
+      //
 
       // line 14 (project output onto input):
 
-      // zipping is necessary to preserve rank info during shuffle!
       //}
       ++level;
     }
