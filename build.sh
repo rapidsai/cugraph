@@ -220,7 +220,8 @@ if buildAll || hasArg libcugraph_etl; then
           -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
           ${CMAKE_VERBOSE_OPTION} \
           ${REPODIR}/cpp/libcugraph_etl
-    cmake --build "${LIBCUGRAPH_ETL_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
+    # FIXME: remove --trace, added for debugging a CI run
+    cmake --build "${LIBCUGRAPH_ETL_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG} --trace
 fi
 
 # Build, and install pylibcugraph
