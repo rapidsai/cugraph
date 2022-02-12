@@ -567,6 +567,12 @@ handle.sync_stream(); auto tmp_time0 = std::chrono::steady_clock::now();  // FIX
           detail::triplet_to_col_rank_t<vertex_t, weight_t>{
             detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}, row_comm_size},
           handle.get_stream());
+      tmp_major_vertices.resize(0, handle.get_stream());
+      tmp_minor_keys.resize(0, handle.get_stream());
+      tmp_key_aggregated_edge_weights.resize(0, handle.get_stream());
+      tmp_major_vertices.shrink_to_fit(handle.get_stream());
+      tmp_minor_keys.shrink_to_fit(handle.get_stream());
+      tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
 handle.sync_stream(); auto tmp_time1 = std::chrono::steady_clock::now();  // FIXME: delete
 
       auto pair_first = thrust::make_zip_iterator(
@@ -576,26 +582,23 @@ handle.sync_stream(); auto tmp_time1 = std::chrono::steady_clock::now();  // FIX
                           pair_first + rx_major_vertices.size(),
                           rx_key_aggregated_edge_weights.begin());
 handle.sync_stream(); auto tmp_time2 = std::chrono::steady_clock::now();  // FIXME: delete
-      tmp_major_vertices.resize(rx_major_vertices.size(), handle.get_stream());
+      auto num_uniques =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(rx_major_vertices.size()),
+                         detail::is_first_in_run_pair_t<vertex_t>{rx_major_vertices.data(), rx_minor_keys.data()});
+      tmp_major_vertices.resize(num_uniques, handle.get_stream());
       tmp_minor_keys.resize(tmp_major_vertices.size(), handle.get_stream());
       tmp_key_aggregated_edge_weights.resize(tmp_major_vertices.size(), handle.get_stream());
 handle.sync_stream(); auto tmp_time3 = std::chrono::steady_clock::now();  // FIXME: delete
-      auto pair_it = thrust::reduce_by_key(handle.get_thrust_policy(),
-                                           pair_first,
-                                           pair_first + rx_major_vertices.size(),
-                                           rx_key_aggregated_edge_weights.begin(),
-                                           thrust::make_zip_iterator(thrust::make_tuple(
-                                             tmp_major_vertices.begin(), tmp_minor_keys.begin())),
-                                           tmp_key_aggregated_edge_weights.begin());
+      thrust::reduce_by_key(handle.get_thrust_policy(),
+                            pair_first,
+                            pair_first + rx_major_vertices.size(),
+                            rx_key_aggregated_edge_weights.begin(),
+                            thrust::make_zip_iterator(thrust::make_tuple(
+                              tmp_major_vertices.begin(), tmp_minor_keys.begin())),
+                              tmp_key_aggregated_edge_weights.begin());
 handle.sync_stream(); auto tmp_time4 = std::chrono::steady_clock::now();  // FIXME: delete
-      tmp_major_vertices.resize(
-        thrust::distance(tmp_key_aggregated_edge_weights.begin(), thrust::get<1>(pair_it)),
-        handle.get_stream());
-      tmp_minor_keys.resize(tmp_major_vertices.size(), handle.get_stream());
-      tmp_key_aggregated_edge_weights.resize(tmp_major_vertices.size(), handle.get_stream());
-      tmp_major_vertices.shrink_to_fit(handle.get_stream());
-      tmp_minor_keys.shrink_to_fit(handle.get_stream());
-      tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
 #if 1  // FIXME: delete
 handle.sync_stream(); auto tmp_time5 = std::chrono::steady_clock::now();
 std::chrono::duration<double> elapsed_total = tmp_time5 - tmp_time0;
