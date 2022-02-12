@@ -147,7 +147,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   rmm::device_uvector<vertex_t>& d_edgelist_majors,
   rmm::device_uvector<vertex_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
-  bool groupby_and_count_local_partition)
+  bool groupby_and_count_local_partition_by_minor)
 {
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
@@ -162,7 +162,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
 
-  if (groupby_and_count_local_partition) {
+  if (groupby_and_count_local_partition_by_minor) {
     auto local_partition_id_gpu_id_pair_op =
       [comm_size,
        row_comm_size,
