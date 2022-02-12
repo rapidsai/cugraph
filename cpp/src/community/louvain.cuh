@@ -392,7 +392,7 @@ auto time0 = std::chrono::steady_clock::now();
 
 #if 1  // FIXME: delete
 handle_.sync_stream();
-handle_.get_comms().barrier();
+if (graph_view_type::is_multi_gpu) { handle_.get_comms().barrier(); }
 auto time1 = std::chrono::steady_clock::now();
 #endif
     if constexpr (graph_view_t::is_multi_gpu) {
@@ -496,7 +496,7 @@ std::cout << "update_clustering (# iterations: " << iter << ") took " << elapsed
   {
 #if 1  // FIXME: delete
 handle_.sync_stream();
-handle_.get_comms().barrier();
+if (graph_view_type::is_multi_gpu) { handle_.get_comms().barrier(); }
 auto time0 = std::chrono::steady_clock::now();
 #endif
     rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle_.get_stream());
