@@ -1248,11 +1248,13 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
                                                     ptr_ret->get_weights().data(),
                                                     local_partition_id_op,
                                                     col_comm_size,
+                                                    false,
                                                     handle.get_stream())
                        : cugraph::groupby_and_count(pair_first,
                                                     pair_first + ptr_ret->get_major().size(),
                                                     local_partition_id_op,
                                                     col_comm_size,
+                                                    false,
                                                     handle.get_stream());
 
   std::vector<size_t> h_edge_counts(edge_counts.size());

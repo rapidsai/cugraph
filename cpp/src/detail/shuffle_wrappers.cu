@@ -159,6 +159,15 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   auto const col_comm_size = col_comm.get_size();
   auto const col_comm_rank = col_comm.get_rank();
 
+  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+  auto element_size = sizeof(vertex_t) * 2 + (d_edgelist_weights ? sizeof(weight_t) : size_t{0});
+  auto mem_frugal =
+    d_edgelist_majors.size() * element_size >=
+    total_global_mem /
+      4;  // if the data size exceeds 1/4 of the device memory (1/4 is a tuning parameter),
+          // groupby_and_count requires temporary buffer comparable to the input data size, if
+          // mem_frugal is set to true, temporary buffer size can be reduced up to 50%
+
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
 
@@ -183,11 +192,13 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                                            d_edgelist_weights->begin(),
                                                            local_partition_id_gpu_id_pair_op,
                                                            comm_size,
+                                                           mem_frugal,
                                                            handle.get_stream())
                               : cugraph::groupby_and_count(pair_first,
                                                            pair_first + d_edgelist_majors.size(),
                                                            local_partition_id_gpu_id_pair_op,
                                                            comm_size,
+                                                           mem_frugal,
                                                            handle.get_stream());
   } else {
     auto local_partition_id_op =
@@ -203,11 +214,13 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                                            d_edgelist_weights->begin(),
                                                            local_partition_id_op,
                                                            col_comm_size,
+                                                           mem_frugal,
                                                            handle.get_stream())
                               : cugraph::groupby_and_count(pair_first,
                                                            pair_first + d_edgelist_majors.size(),
                                                            local_partition_id_op,
                                                            col_comm_size,
+                                                           mem_frugal,
                                                            handle.get_stream());
   }
 }
