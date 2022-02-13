@@ -133,6 +133,16 @@ function(ConfigureTest CMAKE_TEST_NAME)
     endif(OpenMP_CXX_FOUND)
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
+
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureTestMG CMAKE_TEST_NAME)
@@ -211,6 +221,15 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
              ${CMAKE_TEST_NAME}
              ${MPIEXEC_POSTFLAGS})
 
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+
+        install(
+            TARGETS ${CMAKE_TEST_NAME}
+            COMPONENT testing
+            DESTINATION bin/gtests/libcugraph_mg
+            EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureCTest CMAKE_TEST_NAME)
@@ -227,6 +246,16 @@ function(ConfigureCTest CMAKE_TEST_NAME)
     )
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
+
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+
+        install(
+            TARGETS ${CMAKE_TEST_NAME}
+            COMPONENT testing
+            DESTINATION bin/gtests/libcugraph_c
+            EXCLUDE_FROM_ALL)
 endfunction()
 
 ###################################################################################################
@@ -586,6 +615,7 @@ ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
 ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)
 ConfigureCTest(CAPI_EXTRACT_PATHS_TEST c_api/extract_paths_test.c)
+ConfigureCTest(CAPI_NODE2VEC_TEST c_api/node2vec_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################

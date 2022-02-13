@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -92,15 +92,15 @@ void balancedCutClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t>
   using index_type = vertex_t;
   using value_type = weight_t;
 
-  raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
+  raft::spectral::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
-  raft::eigen_solver_config_t<index_type, value_type> eig_cfg{
+  raft::spectral::eigen_solver_config_t<index_type, value_type> eig_cfg{
     n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed};
-  raft::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
+  raft::spectral::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
 
-  raft::cluster_solver_config_t<index_type, value_type> clust_cfg{
+  raft::spectral::cluster_solver_config_t<index_type, value_type> clust_cfg{
     n_clusters, kmean_max_it, kmean_tol, seed};
-  raft::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
+  raft::spectral::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
 
   raft::spectral::partition(
     handle, r_csr_m, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
@@ -160,15 +160,15 @@ void spectralModularityMaximization_impl(
   using index_type = vertex_t;
   using value_type = weight_t;
 
-  raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
+  raft::spectral::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
-  raft::eigen_solver_config_t<index_type, value_type> eig_cfg{
+  raft::spectral::eigen_solver_config_t<index_type, value_type> eig_cfg{
     n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed};
-  raft::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
+  raft::spectral::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
 
-  raft::cluster_solver_config_t<index_type, value_type> clust_cfg{
+  raft::spectral::cluster_solver_config_t<index_type, value_type> clust_cfg{
     n_clusters, kmean_max_it, kmean_tol, seed};
-  raft::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
+  raft::spectral::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
 
   // not returned...
   // auto result =
@@ -192,7 +192,7 @@ void analyzeModularityClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, wei
   using index_type = vertex_t;
   using value_type = weight_t;
 
-  raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
+  raft::spectral::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
   weight_t mod;
   raft::spectral::analyzeModularity(handle, r_csr_m, n_clusters, clustering, mod);
@@ -218,7 +218,7 @@ void analyzeBalancedCut_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t> co
   using index_type = vertex_t;
   using value_type = weight_t;
 
-  raft::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
+  raft::spectral::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
   raft::spectral::analyzePartition(handle, r_csr_m, n_clusters, clustering, edge_cut, cost);
 

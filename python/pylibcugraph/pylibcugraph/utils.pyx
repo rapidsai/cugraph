@@ -14,7 +14,18 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
+from libc.stdint cimport uintptr_t
+
 import numpy
+import cupy
+
+from pylibcugraph._cugraph_c.array cimport (
+    cugraph_type_erased_device_array_view_size,
+    cugraph_type_erased_device_array_view_type,
+    cugraph_type_erased_device_array_view_create,
+    cugraph_type_erased_device_array_view_copy,
+    cugraph_type_erased_device_array_view_free,
+)
 
 # FIXME: add tests for this
 cdef assert_success(cugraph_error_code_t code,
@@ -64,3 +75,40 @@ cdef get_numpy_type_from_c_type(data_type_id_t c_type):
     else:
         raise RuntimeError("Internal error: got invalid data type enum value "
                            f"from C: {c_type}")
+
+
+cdef copy_to_cupy_array(
+   cugraph_resource_handle_t* c_resource_handle_ptr,
+   cugraph_type_erased_device_array_view_t* device_array_view_ptr):
+    """
+    Copy the contents from a device array view as returned by various cugraph_*
+    APIs to a new cupy device array, typically intended to be used as a return
+    value from pylibcugraph APIs.
+    """
+    cdef c_type = cugraph_type_erased_device_array_view_type(
+        device_array_view_ptr)
+    array_size = cugraph_type_erased_device_array_view_size(
+        device_array_view_ptr)
+
+    cupy_array = cupy.zeros(
+        array_size, dtype=get_numpy_type_from_c_type(c_type))
+
+    cdef uintptr_t cupy_array_ptr = \
+        cupy_array.__cuda_array_interface__["data"][0]
+
+    cdef cugraph_type_erased_device_array_view_t* cupy_array_view_ptr = \
+        cugraph_type_erased_device_array_view_create(
+            <void*>cupy_array_ptr, array_size, c_type)
+
+    cdef cugraph_error_t* error_ptr
+    error_code = cugraph_type_erased_device_array_view_copy(
+        c_resource_handle_ptr,
+        cupy_array_view_ptr,
+        device_array_view_ptr,
+        &error_ptr)
+    assert_success(error_code, error_ptr,
+                   "cugraph_type_erased_device_array_view_copy")
+
+    cugraph_type_erased_device_array_view_free(device_array_view_ptr)
+
+    return cupy_array

@@ -139,7 +139,7 @@ def input_and_expected_output(request):
 
     offsets = cp.asarray(csr.indptr, dtype=np.int32)
     indices = cp.asarray(csr.indices, dtype=np.int32)
-    labels_to_populate = cp.asarray(np.zeros(num_verts, dtype=np.int32))
+    labels_to_populate = cp.zeros(num_verts, dtype=np.int32)
 
     return ((offsets, indices, labels_to_populate, num_verts, num_edges),
             expected_output_dict)
@@ -301,8 +301,7 @@ def test_bad_dtypes(api_name):
 
     cp_offsets = cp.asarray(scipy_csr.indptr)
     cp_indices = cp.asarray(scipy_csr.indices)
-    cp_labels = cp.asarray(np.zeros(num_verts,
-                                    dtype=np.int64))  # unsupported
+    cp_labels = cp.zeros(num_verts, dtype=np.int64)  # unsupported
     with pytest.raises(TypeError):
         api(offsets=cp_offsets,
             indices=cp_indices,
@@ -314,8 +313,7 @@ def test_bad_dtypes(api_name):
     cp_offsets = cp.asarray(scipy_csr.indptr,
                             dtype=np.int64)  # unsupported
     cp_indices = cp.asarray(scipy_csr.indices)
-    cp_labels = cp.asarray(np.zeros(num_verts),
-                           dtype=np.int32)
+    cp_labels = cp.zeros(num_verts, dtype=np.int32)
     with pytest.raises(TypeError):
         api(offsets=cp_offsets,
             indices=cp_indices,
@@ -327,8 +325,7 @@ def test_bad_dtypes(api_name):
     cp_offsets = cp.asarray(scipy_csr.indptr)
     cp_indices = cp.asarray(scipy_csr.indices,
                             dtype=np.float32)  # unsupported
-    cp_labels = cp.asarray(np.zeros(num_verts),
-                           dtype=np.int32)
+    cp_labels = cp.zeros(num_verts, dtype=np.int32)
     with pytest.raises(TypeError):
         api(offsets=cp_offsets,
             indices=cp_indices,

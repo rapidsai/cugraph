@@ -313,6 +313,74 @@ cugraph_type_erased_device_array_view_t* cugraph_extract_paths_result_get_paths(
  */
 void cugraph_extract_paths_result_free(cugraph_extract_paths_result_t* result);
 
+/**
+ * @brief     Opaque extract_paths result type
+ */
+typedef struct {
+  int32_t align_;
+} cugraph_random_walk_result_t;
+
+/**
+ * @brief  Compute random walks using the node2vec framework.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  sources      Array of source vertices
+ * @param [in]  max_depth    Maximum length of the generated path
+ * @param [in]  p            The return parameter
+ * @param [in]  q            The in/out parameter
+ * @param [in]  result       Output from the node2vec call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_node2vec(const cugraph_resource_handle_t* handle,
+                                      cugraph_graph_t* graph,
+                                      const cugraph_type_erased_device_array_view_t* sources,
+                                      size_t max_depth,
+                                      bool_t flag_use_padding,
+                                      double p,
+                                      double q,
+                                      cugraph_random_walk_result_t** result,
+                                      cugraph_error_t** error);
+
+/**
+ * @brief     Get the max path length from random walk result
+ *
+ * @param [in]   result   The result from random walks
+ * @return maximum path length
+ */
+size_t cugraph_random_walk_result_get_max_path_length(cugraph_random_walk_result_t* result);
+
+// FIXME:  Should this be the same as extract_paths_result_t?  The only
+//         difference at the moment is that RW results contain weights
+//         and extract_paths results don't.  But that's probably wrong.
+/**
+ * @brief     Get the matrix (row major order) of vertices in the paths
+ *
+ * @param [in]   result   The result from extract_paths
+ * @return type erased array pointing to the matrix in device memory
+ */
+cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_paths(
+  cugraph_random_walk_result_t* result);
+
+/**
+ * @brief     Get the matrix (row major order) of edge weights in the paths
+ *
+ * @param [in]   result   The result from extract_paths
+ * @return type erased array pointing to the edge weights in device memory
+ */
+cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_weights(
+  cugraph_random_walk_result_t* result);
+
+/**
+ * @brief     Free random walks result
+ *
+ * @param [in]   result   The result from random walks
+ */
+void cugraph_random_walk_result_free(cugraph_random_walk_result_t* result);
+
 #ifdef __cplusplus
 }
 #endif
