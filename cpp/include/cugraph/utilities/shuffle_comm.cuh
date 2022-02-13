@@ -278,10 +278,10 @@ std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
 
 }  // namespace detail
 
-template <typename ValueIterator, typename ValueToGPUIdOp>
+template <typename ValueIterator, typename ValueToGroupIdOp>
 rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [INOUT */,
                                               ValueIterator tx_value_last /* [INOUT */,
-                                              ValueToGPUIdOp value_to_group_id_op,
+                                              ValueToGroupIdOp value_to_group_id_op,
                                               int num_groups,
                                               bool mem_frugal,
                                               rmm::cuda_stream_view stream_view)
@@ -328,11 +328,11 @@ rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [I
   return d_tx_value_counts;
 }
 
-template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
+template <typename VertexIterator, typename ValueIterator, typename KeyToGroupIdOp>
 rmm::device_uvector<size_t> groupby_and_count(VertexIterator tx_key_first /* [INOUT */,
                                               VertexIterator tx_key_last /* [INOUT */,
                                               ValueIterator tx_value_first /* [INOUT */,
-                                              KeyToGPUIdOp key_to_group_id_op,
+                                              KeyToGroupIdOp key_to_group_id_op,
                                               int num_groups,
                                               bool mem_frugal,
                                               rmm::cuda_stream_view stream_view)
@@ -402,7 +402,7 @@ auto shuffle_values(raft::comms::comms_t const& comm,
     detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
 
   auto rx_value_buffer =
-    allocate_dataframe_buffer<typename std::iterator_traits<TxValueIterator>::value_type>(
+    allocate_dataframe_buffer<typename thrust::iterator_traits<TxValueIterator>::value_type>(
       rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
@@ -431,11 +431,11 @@ auto shuffle_values(raft::comms::comms_t const& comm,
 }
 
 template <typename ValueIterator, typename ValueToGPUIdOp>
-auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const& comm,
-                                      ValueIterator tx_value_first /* [INOUT */,
-                                      ValueIterator tx_value_last /* [INOUT */,
-                                      ValueToGPUIdOp value_to_gpu_id_op,
-                                      rmm::cuda_stream_view stream_view)
+auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
+                                       ValueIterator tx_value_first /* [INOUT */,
+                                       ValueIterator tx_value_last /* [INOUT */,
+                                       ValueToGPUIdOp value_to_gpu_id_op,
+                                       rmm::cuda_stream_view stream_view)
 {
   auto const comm_size = comm.get_size();
 
@@ -452,7 +452,7 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const& comm,
     detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
 
   auto rx_value_buffer =
-    allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
+    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
       rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
@@ -480,12 +480,12 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const& comm,
 }
 
 template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
-auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
-                                        VertexIterator tx_key_first /* [INOUT */,
-                                        VertexIterator tx_key_last /* [INOUT */,
-                                        ValueIterator tx_value_first /* [INOUT */,
-                                        KeyToGPUIdOp key_to_gpu_id_op,
-                                        rmm::cuda_stream_view stream_view)
+auto groupby_gpu_id_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
+                                         VertexIterator tx_key_first /* [INOUT */,
+                                         VertexIterator tx_key_last /* [INOUT */,
+                                         ValueIterator tx_value_first /* [INOUT */,
+                                         KeyToGPUIdOp key_to_gpu_id_op,
+                                         rmm::cuda_stream_view stream_view)
 {
   auto const comm_size = comm.get_size();
 
@@ -506,10 +506,10 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
   std::tie(tx_counts, tx_offsets, tx_dst_ranks, rx_counts, rx_offsets, rx_src_ranks) =
     detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
 
-  rmm::device_uvector<typename std::iterator_traits<VertexIterator>::value_type> rx_keys(
+  rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type> rx_keys(
     rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
   auto rx_value_buffer =
-    allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
+    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
       rx_keys.size(), stream_view);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released

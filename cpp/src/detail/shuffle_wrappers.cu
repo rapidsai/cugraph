@@ -51,7 +51,7 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
     std::forward_as_tuple(
       std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors, d_rx_edgelist_weights),
       std::ignore) =
-      cugraph::groupby_gpuid_and_shuffle_values(
+      cugraph::groupby_gpu_id_and_shuffle_values(
         comm,  // handle.get_comms(),
         edge_first,
         edge_first + d_edgelist_majors.size(),
@@ -67,7 +67,7 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
 
     std::forward_as_tuple(std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors),
                           std::ignore) =
-      cugraph::groupby_gpuid_and_shuffle_values(
+      cugraph::groupby_gpu_id_and_shuffle_values(
         comm,  // handle.get_comms(),
         edge_first,
         edge_first + d_edgelist_majors.size(),
@@ -124,7 +124,7 @@ rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(raft::handle_t const& h
   auto const comm_size = comm.get_size();
 
   rmm::device_uvector<vertex_t> d_rx_vertices(0, handle.get_stream());
-  std::tie(d_rx_vertices, std::ignore) = cugraph::groupby_gpuid_and_shuffle_values(
+  std::tie(d_rx_vertices, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(
     comm,  // handle.get_comms(),
     d_vertices.begin(),
     d_vertices.end(),
