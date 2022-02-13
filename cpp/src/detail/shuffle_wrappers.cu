@@ -51,7 +51,7 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
     std::forward_as_tuple(
       std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors, d_rx_edgelist_weights),
       std::ignore) =
-      cugraph::groupby_gpuid_and_shuffle_values(
+      cugraph::groupby_gpu_id_and_shuffle_values(
         comm,  // handle.get_comms(),
         edge_first,
         edge_first + d_edgelist_majors.size(),
@@ -67,7 +67,7 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
 
     std::forward_as_tuple(std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors),
                           std::ignore) =
-      cugraph::groupby_gpuid_and_shuffle_values(
+      cugraph::groupby_gpu_id_and_shuffle_values(
         comm,  // handle.get_comms(),
         edge_first,
         edge_first + d_edgelist_majors.size(),
@@ -124,7 +124,7 @@ rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(raft::handle_t const& h
   auto const comm_size = comm.get_size();
 
   rmm::device_uvector<vertex_t> d_rx_vertices(0, handle.get_stream());
-  std::tie(d_rx_vertices, std::ignore) = cugraph::groupby_gpuid_and_shuffle_values(
+  std::tie(d_rx_vertices, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(
     comm,  // handle.get_comms(),
     d_vertices.begin(),
     d_vertices.end(),
@@ -147,7 +147,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   rmm::device_uvector<vertex_t>& d_edgelist_majors,
   rmm::device_uvector<vertex_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
-  bool groupby_and_count_local_partition)
+  bool groupby_and_count_local_partition_by_minor)
 {
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
@@ -159,10 +159,19 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   auto const col_comm_size = col_comm.get_size();
   auto const col_comm_rank = col_comm.get_rank();
 
+  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+  auto element_size = sizeof(vertex_t) * 2 + (d_edgelist_weights ? sizeof(weight_t) : size_t{0});
+  auto mem_frugal =
+    d_edgelist_majors.size() * element_size >=
+    total_global_mem /
+      4;  // if the data size exceeds 1/4 of the device memory (1/4 is a tuning parameter),
+          // groupby_and_count requires temporary buffer comparable to the input data size, if
+          // mem_frugal is set to true, temporary buffer size can be reduced up to 50%
+
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
 
-  if (groupby_and_count_local_partition) {
+  if (groupby_and_count_local_partition_by_minor) {
     auto local_partition_id_gpu_id_pair_op =
       [comm_size,
        row_comm_size,
@@ -183,11 +192,13 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                                            d_edgelist_weights->begin(),
                                                            local_partition_id_gpu_id_pair_op,
                                                            comm_size,
+                                                           mem_frugal,
                                                            handle.get_stream())
                               : cugraph::groupby_and_count(pair_first,
                                                            pair_first + d_edgelist_majors.size(),
                                                            local_partition_id_gpu_id_pair_op,
                                                            comm_size,
+                                                           mem_frugal,
                                                            handle.get_stream());
   } else {
     auto local_partition_id_op =
@@ -203,11 +214,13 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                                            d_edgelist_weights->begin(),
                                                            local_partition_id_op,
                                                            col_comm_size,
+                                                           mem_frugal,
                                                            handle.get_stream())
                               : cugraph::groupby_and_count(pair_first,
                                                            pair_first + d_edgelist_majors.size(),
                                                            local_partition_id_op,
                                                            col_comm_size,
+                                                           mem_frugal,
                                                            handle.get_stream());
   }
 }

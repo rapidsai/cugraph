@@ -125,21 +125,191 @@ compute_tx_rx_counts_offsets_ranks(raft::comms::comms_t const& comm,
   return std::make_tuple(tx_counts, tx_offsets, tx_dst_ranks, rx_counts, rx_offsets, rx_src_ranks);
 }
 
+template <typename value_type, typename ValueToGroupIdOp>
+struct value_group_id_less_t {
+  ValueToGroupIdOp value_to_group_id_op{};
+  int pivot{};
+  __device__ bool operator()(value_type v) const { return value_to_group_id_op(v) < pivot; }
+};
+
+template <typename key_type, typename value_type, typename KeyToGroupIdOp>
+struct kv_pair_group_id_less_t {
+  KeyToGroupIdOp key_to_group_id_op{};
+  int pivot{};
+  __device__ bool operator()(thrust::tuple<key_type, value_type> t) const
+  {
+    return key_to_group_id_op(thrust::get<0>(t)) < pivot;
+  }
+};
+
+template <typename value_type, typename ValueToGroupIdOp>
+struct value_group_id_greater_equal_t {
+  ValueToGroupIdOp value_to_group_id_op{};
+  int pivot{};
+  __device__ bool operator()(value_type v) const { return value_to_group_id_op(v) >= pivot; }
+};
+
+template <typename key_type, typename value_type, typename KeyToGroupIdOp>
+struct kv_pair_group_id_greater_equal_t {
+  KeyToGroupIdOp key_to_group_id_op{};
+  int pivot{};
+  __device__ bool operator()(thrust::tuple<key_type, value_type> t) const
+  {
+    return key_to_group_id_op(thrust::get<0>(t)) >= pivot;
+  }
+};
+
+// use roughly half temporary buffer than thrust::partition (if first & second partition sizes are
+// comparable)
+template <typename ValueIterator, typename ValueToGroupIdOp>
+ValueIterator mem_frugal_partition(
+  ValueIterator value_first,
+  ValueIterator value_last,
+  ValueToGroupIdOp value_to_group_id_op,
+  int pivot,  // group Id less than pivot goes to the first partition
+  rmm::cuda_stream_view stream_view)
+{
+  auto num_elements = static_cast<size_t>(thrust::distance(value_first, value_last));
+  auto first_size   = static_cast<size_t>(thrust::count_if(
+    rmm::exec_policy(stream_view),
+    value_first,
+    value_last,
+    value_group_id_less_t<typename thrust::iterator_traits<ValueIterator>::value_type,
+                          ValueToGroupIdOp>{value_to_group_id_op, pivot}));
+  auto second_size  = num_elements - first_size;
+
+  auto tmp_buffer =
+    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
+      second_size, stream_view);
+
+  // to limit memory footprint (16 * 1024 * 1024 is a tuning parameter)
+  // thrust::copy_if (1.15.0) also uses temporary buffer
+  auto constexpr max_elements_per_iteration = size_t{16} * 1024 * 1024;
+  auto num_chunks = (num_elements + max_elements_per_iteration - 1) / max_elements_per_iteration;
+  auto output_chunk_first = get_dataframe_buffer_begin(tmp_buffer);
+  for (size_t i = 0; i < num_chunks; ++i) {
+    output_chunk_first = thrust::copy_if(
+      rmm::exec_policy(stream_view),
+      value_first + max_elements_per_iteration * i,
+      value_first + std::min(max_elements_per_iteration * (i + 1), num_elements),
+      output_chunk_first,
+      value_group_id_greater_equal_t<typename thrust::iterator_traits<ValueIterator>::value_type,
+                                     ValueToGroupIdOp>{value_to_group_id_op, pivot});
+  }
+
+  thrust::remove_if(
+    rmm::exec_policy(stream_view),
+    value_first,
+    value_last,
+    value_group_id_greater_equal_t<typename thrust::iterator_traits<ValueIterator>::value_type,
+                                   ValueToGroupIdOp>{value_to_group_id_op, pivot});
+  thrust::copy(rmm::exec_policy(stream_view),
+               get_dataframe_buffer_cbegin(tmp_buffer),
+               get_dataframe_buffer_cend(tmp_buffer),
+               value_first + first_size);
+
+  return value_first + first_size;
+}
+
+// use roughly half temporary buffer than thrust::partition (if first & second partition sizes are
+// comparable)
+template <typename KeyIterator, typename ValueIterator, typename KeyToGroupIdOp>
+std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
+  KeyIterator key_first,
+  KeyIterator key_last,
+  ValueIterator value_first,
+  KeyToGroupIdOp key_to_group_id_op,
+  int pivot,  // group Id less than pivot goes to the first partition
+  rmm::cuda_stream_view stream_view)
+{
+  auto num_elements = static_cast<size_t>(thrust::distance(key_first, key_last));
+  auto first_size   = static_cast<size_t>(thrust::count_if(
+    rmm::exec_policy(stream_view),
+    key_first,
+    key_last,
+    kv_pair_group_id_less_t<typename thrust::iterator_traits<KeyIterator>::value_type,
+                            typename thrust::iterator_traits<ValueIterator>::value_type,
+                            KeyToGroupIdOp>{key_to_group_id_op, pivot}));
+  auto second_size  = num_elements - first_size;
+
+  auto tmp_key_buffer =
+    allocate_dataframe_buffer<typename thrust::iterator_traits<KeyIterator>::value_type>(
+      second_size, stream_view);
+  auto tmp_value_buffer =
+    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
+      second_size, stream_view);
+
+  // to limit memory footprint (16 * 1024 * 1024 is a tuning parameter)
+  // thrust::copy_if (1.15.0) also uses temporary buffer
+  auto max_elements_per_iteration = size_t{16} * 1024 * 1024;
+  auto num_chunks    = (num_elements + max_elements_per_iteration - 1) / max_elements_per_iteration;
+  auto kv_pair_first = thrust::make_zip_iterator(thrust::make_tuple(key_first, value_first));
+  auto output_chunk_first = thrust::make_zip_iterator(thrust::make_tuple(
+    get_dataframe_buffer_begin(tmp_key_buffer), get_dataframe_buffer_begin(tmp_value_buffer)));
+  for (size_t i = 0; i < num_chunks; ++i) {
+    output_chunk_first = thrust::copy_if(
+      rmm::exec_policy(stream_view),
+      kv_pair_first + max_elements_per_iteration * i,
+      kv_pair_first + std::min(max_elements_per_iteration * (i + 1), num_elements),
+      output_chunk_first,
+      kv_pair_group_id_greater_equal_t<typename thrust::iterator_traits<KeyIterator>::value_type,
+                                       typename thrust::iterator_traits<ValueIterator>::value_type,
+                                       KeyToGroupIdOp>{key_to_group_id_op, pivot});
+  }
+
+  thrust::remove_if(
+    rmm::exec_policy(stream_view),
+    kv_pair_first,
+    kv_pair_first + num_elements,
+    kv_pair_group_id_greater_equal_t<typename thrust::iterator_traits<KeyIterator>::value_type,
+                                     typename thrust::iterator_traits<ValueIterator>::value_type,
+                                     KeyToGroupIdOp>{key_to_group_id_op, pivot});
+  thrust::copy(rmm::exec_policy(stream_view),
+               get_dataframe_buffer_cbegin(tmp_key_buffer),
+               get_dataframe_buffer_cend(tmp_key_buffer),
+               key_first + first_size);
+  thrust::copy(rmm::exec_policy(stream_view),
+               get_dataframe_buffer_cbegin(tmp_value_buffer),
+               get_dataframe_buffer_cend(tmp_value_buffer),
+               value_first + first_size);
+
+  return std::make_tuple(key_first + first_size, value_first + first_size);
+}
+
 }  // namespace detail
 
-template <typename ValueIterator, typename ValueToGPUIdOp>
+template <typename ValueIterator, typename ValueToGroupIdOp>
 rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [INOUT */,
                                               ValueIterator tx_value_last /* [INOUT */,
-                                              ValueToGPUIdOp value_to_group_id_op,
+                                              ValueToGroupIdOp value_to_group_id_op,
                                               int num_groups,
+                                              bool mem_frugal,
                                               rmm::cuda_stream_view stream_view)
 {
-  thrust::sort(rmm::exec_policy(stream_view),
-               tx_value_first,
-               tx_value_last,
-               [value_to_group_id_op] __device__(auto lhs, auto rhs) {
-                 return value_to_group_id_op(lhs) < value_to_group_id_op(rhs);
-               });
+  if (mem_frugal) {
+    auto pivot        = num_groups / 2;
+    auto second_first = detail::mem_frugal_partition(
+      tx_value_first, tx_value_last, value_to_group_id_op, pivot, stream_view);
+    thrust::sort(rmm::exec_policy(stream_view),
+                 tx_value_first,
+                 second_first,
+                 [value_to_group_id_op] __device__(auto lhs, auto rhs) {
+                   return value_to_group_id_op(lhs) < value_to_group_id_op(rhs);
+                 });
+    thrust::sort(rmm::exec_policy(stream_view),
+                 second_first,
+                 tx_value_last,
+                 [value_to_group_id_op] __device__(auto lhs, auto rhs) {
+                   return value_to_group_id_op(lhs) < value_to_group_id_op(rhs);
+                 });
+  } else {
+    thrust::sort(rmm::exec_policy(stream_view),
+                 tx_value_first,
+                 tx_value_last,
+                 [value_to_group_id_op] __device__(auto lhs, auto rhs) {
+                   return value_to_group_id_op(lhs) < value_to_group_id_op(rhs);
+                 });
+  }
 
   auto group_id_first = thrust::make_transform_iterator(
     tx_value_first,
@@ -158,21 +328,42 @@ rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [I
   return d_tx_value_counts;
 }
 
-template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
+template <typename VertexIterator, typename ValueIterator, typename KeyToGroupIdOp>
 rmm::device_uvector<size_t> groupby_and_count(VertexIterator tx_key_first /* [INOUT */,
                                               VertexIterator tx_key_last /* [INOUT */,
                                               ValueIterator tx_value_first /* [INOUT */,
-                                              KeyToGPUIdOp key_to_group_id_op,
+                                              KeyToGroupIdOp key_to_group_id_op,
                                               int num_groups,
+                                              bool mem_frugal,
                                               rmm::cuda_stream_view stream_view)
 {
-  thrust::sort_by_key(rmm::exec_policy(stream_view),
-                      tx_key_first,
-                      tx_key_last,
-                      tx_value_first,
-                      [key_to_group_id_op] __device__(auto lhs, auto rhs) {
-                        return key_to_group_id_op(lhs) < key_to_group_id_op(rhs);
-                      });
+  if (mem_frugal) {
+    auto pivot        = num_groups / 2;
+    auto second_first = detail::mem_frugal_partition(
+      tx_key_first, tx_key_last, tx_value_first, key_to_group_id_op, pivot, stream_view);
+    thrust::sort_by_key(rmm::exec_policy(stream_view),
+                        tx_key_first,
+                        std::get<0>(second_first),
+                        tx_value_first,
+                        [key_to_group_id_op] __device__(auto lhs, auto rhs) {
+                          return key_to_group_id_op(lhs) < key_to_group_id_op(rhs);
+                        });
+    thrust::sort_by_key(rmm::exec_policy(stream_view),
+                        std::get<0>(second_first),
+                        tx_key_last,
+                        std::get<1>(second_first),
+                        [key_to_group_id_op] __device__(auto lhs, auto rhs) {
+                          return key_to_group_id_op(lhs) < key_to_group_id_op(rhs);
+                        });
+  } else {
+    thrust::sort_by_key(rmm::exec_policy(stream_view),
+                        tx_key_first,
+                        tx_key_last,
+                        tx_value_first,
+                        [key_to_group_id_op] __device__(auto lhs, auto rhs) {
+                          return key_to_group_id_op(lhs) < key_to_group_id_op(rhs);
+                        });
+  }
 
   auto group_id_first = thrust::make_transform_iterator(
     tx_key_first, [key_to_group_id_op] __device__(auto key) { return key_to_group_id_op(key); });
@@ -211,7 +402,7 @@ auto shuffle_values(raft::comms::comms_t const& comm,
     detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
 
   auto rx_value_buffer =
-    allocate_dataframe_buffer<typename std::iterator_traits<TxValueIterator>::value_type>(
+    allocate_dataframe_buffer<typename thrust::iterator_traits<TxValueIterator>::value_type>(
       rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
@@ -240,16 +431,16 @@ auto shuffle_values(raft::comms::comms_t const& comm,
 }
 
 template <typename ValueIterator, typename ValueToGPUIdOp>
-auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const& comm,
-                                      ValueIterator tx_value_first /* [INOUT */,
-                                      ValueIterator tx_value_last /* [INOUT */,
-                                      ValueToGPUIdOp value_to_gpu_id_op,
-                                      rmm::cuda_stream_view stream_view)
+auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
+                                       ValueIterator tx_value_first /* [INOUT */,
+                                       ValueIterator tx_value_last /* [INOUT */,
+                                       ValueToGPUIdOp value_to_gpu_id_op,
+                                       rmm::cuda_stream_view stream_view)
 {
   auto const comm_size = comm.get_size();
 
   auto d_tx_value_counts = groupby_and_count(
-    tx_value_first, tx_value_last, value_to_gpu_id_op, comm.get_size(), stream_view);
+    tx_value_first, tx_value_last, value_to_gpu_id_op, comm.get_size(), false, stream_view);
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};
@@ -261,7 +452,7 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const& comm,
     detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
 
   auto rx_value_buffer =
-    allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
+    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
       rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released
@@ -289,17 +480,22 @@ auto groupby_gpuid_and_shuffle_values(raft::comms::comms_t const& comm,
 }
 
 template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
-auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
-                                        VertexIterator tx_key_first /* [INOUT */,
-                                        VertexIterator tx_key_last /* [INOUT */,
-                                        ValueIterator tx_value_first /* [INOUT */,
-                                        KeyToGPUIdOp key_to_gpu_id_op,
-                                        rmm::cuda_stream_view stream_view)
+auto groupby_gpu_id_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
+                                         VertexIterator tx_key_first /* [INOUT */,
+                                         VertexIterator tx_key_last /* [INOUT */,
+                                         ValueIterator tx_value_first /* [INOUT */,
+                                         KeyToGPUIdOp key_to_gpu_id_op,
+                                         rmm::cuda_stream_view stream_view)
 {
   auto const comm_size = comm.get_size();
 
-  auto d_tx_value_counts = groupby_and_count(
-    tx_key_first, tx_key_last, tx_value_first, key_to_gpu_id_op, comm.get_size(), stream_view);
+  auto d_tx_value_counts = groupby_and_count(tx_key_first,
+                                             tx_key_last,
+                                             tx_value_first,
+                                             key_to_gpu_id_op,
+                                             comm.get_size(),
+                                             false,
+                                             stream_view);
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};
@@ -310,10 +506,10 @@ auto groupby_gpuid_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
   std::tie(tx_counts, tx_offsets, tx_dst_ranks, rx_counts, rx_offsets, rx_src_ranks) =
     detail::compute_tx_rx_counts_offsets_ranks(comm, d_tx_value_counts, stream_view);
 
-  rmm::device_uvector<typename std::iterator_traits<VertexIterator>::value_type> rx_keys(
+  rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type> rx_keys(
     rx_offsets.size() > 0 ? rx_offsets.back() + rx_counts.back() : size_t{0}, stream_view);
   auto rx_value_buffer =
-    allocate_dataframe_buffer<typename std::iterator_traits<ValueIterator>::value_type>(
+    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
       rx_keys.size(), stream_view);
 
   // FIXME: this needs to be replaced with AlltoAll once NCCL 2.8 is released

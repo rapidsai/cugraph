@@ -349,7 +349,7 @@ std::cout << "Louvain shrink took " << elapsed4.count() * 1e3 << " ms." << std::
         thrust::make_tuple(cluster_keys_v_.begin(), cluster_weights_v_.begin()));
 
       std::forward_as_tuple(std::tie(rx_keys_v, rx_weights_v), std::ignore) =
-        groupby_gpuid_and_shuffle_values(
+        groupby_gpu_id_and_shuffle_values(
           handle_.get_comms(),
           pair_first,
           pair_first + current_graph_view_.get_number_of_local_vertices(),
