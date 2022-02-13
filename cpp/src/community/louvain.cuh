@@ -204,7 +204,7 @@ std::chrono::duration<double> elapsed_total = time3 - time0;
 std::chrono::duration<double> elapsed0 = time1 - time0;
 std::chrono::duration<double> elapsed1 = time2 - time1;
 std::chrono::duration<double> elapsed2 = time3 - time2;
-std::cout << "Louvain level (V=" << current_graph_view_.get_number_of_vertices() << ", E=" << current_graph_view_.get_number_of_edges() << ") took " << elapsed_total.count() * 1e3 << " breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << ") ms." << std::endl;
+prev best_modularity=" << best_modularity << " std::cout << "Louvain level prev best_modularity=" << best_modularity << " new_Q=" << new_Q << " (V=" << current_graph_view_.get_number_of_vertices() << ", E=" << current_graph_view_.get_number_of_edges() << ") took " << elapsed_total.count() * 1e3 << " breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << ") ms." << std::endl;
 #endif
 
       if (new_Q <= best_modularity) { break; }
@@ -669,6 +669,18 @@ std::cout << "update_by_delta_modularity took " << elapsed_total.count() * 1e3 <
   void shrink_graph()
   {
     timer_start("shrinking graph");
+
+    cluster_keys_v_.resize(0, handle_.get_stream());
+    cluster_weights_v_.resize(0, handle_.get_stream());
+    vertex_weights_v_.resize(0, handle_.get_stream());
+    next_clusters_v_.resize(0, handle_.get_stream());
+    cluster_keys_v_.shrink_to_fit(handle_.get_stream());
+    cluster_weights_v_.shrink_to_fit(handle_.get_stream());
+    vertex_weights_v_.shrink_to_fit(handle_.get_stream());
+    next_clusters_v_.shrink_to_fit(handle_.get_stream());
+    src_vertex_weights_cache_ = row_properties_t<graph_view_t, weight_t>();
+    src_clusters_cache_ = row_properties_t<graph_view_t, vertex_t>();
+    dst_clusters_cache_ = col_properties_t<graph_view_t, vertex_t>();
 
     rmm::device_uvector<vertex_t> numbering_map(0, handle_.get_stream());
 
