@@ -36,13 +36,10 @@ from cugraph.structure.graph_primtypes cimport (move_device_buffer_to_column,
                                                 )
 
 
-def node2vec():
+def node2vec(input_graph, start_vertices, max_depth, p, q):
     """
     Call node2vec
     """
 
     # Stubbed out code - layer 2 being the wrapper in cugraph
     return 222
-
-    # UNCOMMENT when pylibcugraph wrapper is ready
-    # return 

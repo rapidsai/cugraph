@@ -170,6 +170,21 @@ cdef extern from "cugraph_c/algorithms.h":
     ctypedef struct cugraph_random_walk_result_t:
         pass
 
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_random_walk_result_get_paths(
+            cugraph_random_walk_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_random_walk_result_get_weights(
+            cugraph_random_walk_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_random_walk_result_get_offsets(
+            cugraph_random_walk_result_t* result
+        )
+
     cdef void \
         cugraph_random_walk_result_free(
             cugraph_random_walk_result_t* result
@@ -180,9 +195,9 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_node2vec(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
-            # const cugraph_type_erased_device_array_view_t* sources,
+            const cugraph_type_erased_device_array_view_t* sources,
             size_t max_depth,
-            bool_t flag_use_padding,
+            bool_t compress_result,
             double p,
             double q,
             cugraph_random_walk_result_t** result,

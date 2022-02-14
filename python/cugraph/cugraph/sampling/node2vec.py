@@ -16,7 +16,7 @@ from cugraph.sampling import node2vec_wrapper
 # from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 
-def node2vec(G, start_vertices, max_depth, use_padding, p, q):
+def node2vec(G, start_vertices, max_depth, p, q):
     """
     TODO: Write description of node2vec, plus parameters, returns, and
     possible examples.
@@ -31,12 +31,10 @@ def node2vec(G, start_vertices, max_depth, use_padding, p, q):
 
     max_depth: int, optional
 
-    use_padding: bool, optional
-
     p: double, optional
 
     q: double, optional
 
     """
-    # FIXME: Fix call and perform checks of parameters
-    return node2vec_wrapper.node2vec()
+    # FIXME: Implementation is incomplete
+    return node2vec_wrapper.node2vec(G, start_vertices, max_depth, p, q)

@@ -35,12 +35,10 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_node2vec,
-    cugraph_paths_result_t,
-    cugraph_paths_result_get_vertices,
-    cugraph_paths_result_get_distances,
-    cugraph_paths_result_get_predecessors,
-    cugraph_paths_result_free,
     cugraph_random_walk_result_t,
+    cugraph_random_walk_result_get_paths,
+    cugraph_random_walk_result_get_weights,
+    cugraph_random_walk_result_get_offsets,
     cugraph_random_walk_result_free,
 )
 from pylibcugraph.resource_handle cimport (
@@ -61,11 +59,11 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
                            _GPUGraph graph,
                            src_array,
                            size_t max_depth,
-                           bool_t flag_use_padding,
+                           bool_t compress_result,
                            double p,
                            double q):
     """
-    FIXME: Add description once node2vec C API is confirmed
+    Computes random walks under node2vec sampling procedure.
 
     Parameters
     ----------
@@ -83,18 +81,29 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     max_depth : size_t
         Maximum length of generated path
 
-    flag_use_padding : bool_t
+    compress_result : bool_t
+        If true, the third return device array contains the offset positions
+        for each path, otherwise outputs empty device array.
 
     p : double
-        Return hyper parameter (default to be 1)
+        The return factor p represents the likelihood of backtracking to a node
+        in the walk. A higher value (> max(q, 1)) makes it less likely to sample
+        a previously visited node, while a lower value (< min(q, 1)) would make it
+        more likely to backtrack, making the walk more "local".
 
     q : double
-        Input parameter (default to be 1)
+        The in-out factor q represents the likelihood of visiting nodes closer or
+        further from the outgoing node. If q > 1, the random walk is likelier to
+        visit nodes closer to the outgoing node. If q < 1, the random walk is
+        likelier to visit nodes further from the outgoing node.
 
     Returns
     -------
-    dfr :
-        DataFrame result
+    A tuple of device arrays, where the first item in the tuple is a device
+    array containing the compressed paths, the second item is a device
+    array containing the corresponding weights for each edge traversed in
+    each path, and the third item is a device array containing the offset
+    positions for each of the compressed paths, if compress_result is True.
 
     Examples
     --------
@@ -108,7 +117,8 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     >>> G = pylibcugraph.experimental.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
-    >>> dfr = pylibcugraph.experimental.EXPERIMENTAL__node2vec(resource_handle, G, srcs, 3, True, p=1.0, q=1.0)
+    >>> (paths, weights, offsets) = pylibcugraph.experimental.EXPERIMENTAL__node2vec(
+    ...                             resource_handle, G, srcs, 3, True, p=1.0, q=1.0)
 
     """
 
@@ -148,7 +158,7 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
                                   c_graph_ptr,
                                   srcs_view_ptr,
                                   max_depth,
-                                  flag_use_padding,
+                                  compress_result,
                                   p,
                                   q,
                                   &result_ptr,
@@ -157,19 +167,18 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
 
     # Extract individual device array pointers from result and copy to cupy
     # arrays for returning.
-    cdef cugraph_type_erased_device_array_view_t* vertices_ptr = \
-        cugraph_paths_result_get_vertices(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* distances_ptr = \
-        cugraph_paths_result_get_distances(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* predecessors_ptr = \
-        cugraph_paths_result_get_predecessors(result_ptr)
+    cdef cugraph_type_erased_device_array_view_t* paths_ptr = \
+        cugraph_random_walk_result_get_paths(result_ptr)
+    cdef cugraph_type_erased_device_array_view_t* weights_ptr = \
+        cugraph_random_walk_result_get_weights(result_ptr)
+    cdef cugraph_type_erased_device_array_view_t* offsets_ptr = \
+        cugraph_random_walk_result_get_offsets(result_ptr)
 
-    cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
-    cupy_distances = copy_to_cupy_array(c_resource_handle_ptr, distances_ptr)
-    cupy_predecessors = copy_to_cupy_array(c_resource_handle_ptr,
-                                           predecessors_ptr)
+    cupy_paths = copy_to_cupy_array(c_resource_handle_ptr, paths_ptr)
+    cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
+    cupy_offsets = copy_to_cupy_array(c_resource_handle_ptr,
+                                           offsets_ptr)
 
     cugraph_random_walk_result_free(result_ptr)
 
-    # return (cupy_vertices, cupy_distances, cupy_predecessors)
-    return 777
+    return (cupy_paths, cupy_weights, cupy_offsets)
