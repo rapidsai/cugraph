@@ -856,6 +856,19 @@ def test_extract_subgraph_default_edge_weight(dataset1_PropertyGraph):
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
+def test_extract_subgraph_default_edge_weight_no_property(
+        dataset1_PropertyGraph):
+    """
+    Ensure default_edge_weight can be used to provide an edge value when a
+    property for the edge weight is not specified.
+    """
+    pG = dataset1_PropertyGraph
+    edge_weight = 99.2
+    G = pG.extract_subgraph(allow_multi_edges=True,
+                            default_edge_weight=edge_weight)
+    assert (G.edgelist.edgelist_df["weights"] == edge_weight).all()
+
+
 def test_graph_edge_data_added(dataset1_PropertyGraph):
     """
     Ensures the subgraph returned from extract_subgraph() has the edge_data

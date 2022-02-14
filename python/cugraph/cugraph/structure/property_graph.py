@@ -64,6 +64,7 @@ class EXPERIMENTAL__PropertyGraph:
     type_col_name = "_TYPE_"
     edge_id_col_name = "_EDGE_ID_"
     vertex_id_col_name = "_VERTEX_ID_"
+    weight_col_name = "_WEIGHT_"
 
     def __init__(self):
         # The dataframe containing the properties for each vertex.
@@ -605,7 +606,7 @@ class EXPERIMENTAL__PropertyGraph:
             selected_vertex_dataframe = \
                 self.__vertex_prop_dataframe[selection.vertex_selections]
         else:
-            selected_vertex_dataframe = self.__vertex_prop_dataframe
+            selected_vertex_dataframe = None
 
         if (selection is not None) and \
            (selection.edge_selections is not None):
@@ -629,25 +630,6 @@ class EXPERIMENTAL__PropertyGraph:
         else:
             edges = selected_edge_dataframe
 
-        if edge_weight_property:
-            if edge_weight_property not in edges.columns:
-                raise ValueError("edge_weight_property "
-                                 f'"{edge_weight_property}" was not found in '
-                                 "the properties of the subgraph")
-
-            # Ensure a valid edge_weight_property can be used for applying
-            # weights to the subgraph, and if a default_edge_weight was
-            # specified, apply it to all NAs in the weight column.
-            prop_col = edges[edge_weight_property]
-            if prop_col.count() != prop_col.size:
-                if default_edge_weight is None:
-                    raise ValueError("edge_weight_property "
-                                     f'"{edge_weight_property}" '
-                                     "contains NA values in the subgraph and "
-                                     "default_edge_weight is not set")
-                else:
-                    prop_col.fillna(default_edge_weight, inplace=True)
-
         # The __*_prop_dataframes have likely been merged several times and
         # possibly had their dtypes converted in order to accommodate NaN
         # values. Restore the original dtypes in the resulting edges df prior
@@ -658,6 +640,7 @@ class EXPERIMENTAL__PropertyGraph:
             edges,
             create_using=create_using,
             edge_weight_property=edge_weight_property,
+            default_edge_weight=default_edge_weight,
             allow_multi_edges=allow_multi_edges)
 
     def annotate_dataframe(self, df, G, edge_vertex_id_columns):
@@ -729,15 +712,42 @@ class EXPERIMENTAL__PropertyGraph:
                             edge_prop_df,
                             create_using,
                             edge_weight_property=None,
+                            default_edge_weight=None,
                             allow_multi_edges=False):
         """
         Create and return a Graph from the edges in edge_prop_df.
         """
-        if edge_weight_property and \
-           (edge_weight_property not in edge_prop_df.columns):
-            raise ValueError("edge_weight_property "
-                             f'"{edge_weight_property}" was not found in '
-                             "edge_prop_df")
+        # FIXME: check default_edge_weight is valid
+
+        if edge_weight_property:
+            if edge_weight_property not in edge_prop_df.columns:
+                raise ValueError("edge_weight_property "
+                                 f'"{edge_weight_property}" was not found in '
+                                 "edge_prop_df")
+
+            # Ensure a valid edge_weight_property can be used for applying
+            # weights to the subgraph, and if a default_edge_weight was
+            # specified, apply it to all NAs in the weight column.
+            prop_col = edge_prop_df[edge_weight_property]
+            if prop_col.count() != prop_col.size:
+                if default_edge_weight is None:
+                    raise ValueError("edge_weight_property "
+                                     f'"{edge_weight_property}" '
+                                     "contains NA values in the subgraph and "
+                                     "default_edge_weight is not set")
+                else:
+                    prop_col.fillna(default_edge_weight, inplace=True)
+            edge_attr = edge_weight_property
+
+        # If a default_edge_weight was specified but an edge_weight_property was
+        # not, a new edge weight column must be added.
+        elif default_edge_weight:
+            edge_attr = self.__gen_unique_name(edge_prop_df.columns,
+                                               prefix=self.weight_col_name)
+            edge_prop_df[edge_attr] = default_edge_weight
+
+        else:
+            edge_attr = None
 
         # Set up the new Graph to return
         if isinstance(create_using, cugraph.Graph):
@@ -771,7 +781,7 @@ class EXPERIMENTAL__PropertyGraph:
 
         create_args = {"source": self.src_col_name,
                        "destination": self.dst_col_name,
-                       "edge_attr": edge_weight_property,
+                       "edge_attr": edge_attr,
                        "renumber": True,
                        }
         if type(edge_prop_df) is cudf.DataFrame:
@@ -850,6 +860,18 @@ class EXPERIMENTAL__PropertyGraph:
             vert_sers.append(epd[self.src_col_name])
             vert_sers.append(epd[self.dst_col_name])
         return vert_sers
+
+    @staticmethod
+    def __gen_unique_name(current_names, prefix="col"):
+        """
+        Helper function to generate a currently unused name.
+        """
+        name = prefix
+        counter = 2
+        while name in current_names:
+            name = f"{prefix}{counter}"
+            counter += 1
+        return name
 
     @staticmethod
     def __get_new_column_dtypes(from_df, to_df):
