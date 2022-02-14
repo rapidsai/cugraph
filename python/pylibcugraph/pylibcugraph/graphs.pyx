@@ -28,7 +28,7 @@ from pylibcugraph._cugraph_c.error cimport (
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_device_array_view_create,
-    cugraph_type_erased_device_array_free,
+    cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -48,7 +48,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
+cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
     """
     RAII-stye Graph class for use with single-GPU APIs that manages the
     individual create/free calls and the corresponding cugraph_graph_t pointer.
@@ -69,10 +69,10 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
         define the ith edge of the graph.
 
     dst_array : device array type
-        Device array containing the vertex identifiers of the destination of each
-        directed edge. The order of the array corresponds to the ordering of the
-        src_array, where the ith item in src_array and the ith item in dst_array
-        define the ith edge of the graph.
+        Device array containing the vertex identifiers of the destination of
+        each directed edge. The order of the array corresponds to the ordering
+        of the src_array, where the ith item in src_array and the ith item in
+        dst_array define the ith edge of the graph.
 
     weight_array : device array type
         Device array containing the weight values of each directed edge. The
@@ -164,7 +164,9 @@ cdef class EXPERIMENTAL__SGGraph(EXPERIMENTAL__Graph):
         assert_success(error_code, error_ptr,
                        "cugraph_sg_graph_create()")
 
-        # FIXME: free the views
+        cugraph_type_erased_device_array_view_free(srcs_view_ptr)
+        cugraph_type_erased_device_array_view_free(dsts_view_ptr)
+        cugraph_type_erased_device_array_view_free(weights_view_ptr)
 
     def __dealloc__(self):
         if self.c_graph_ptr is not NULL:

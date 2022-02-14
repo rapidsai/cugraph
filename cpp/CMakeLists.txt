@@ -145,6 +145,7 @@ rapids_cpm_init()
 # lags behind.
 ###
 include(cmake/thirdparty/get_raft.cmake)
+include(cmake/thirdparty/get_libcugraphops.cmake)
 
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
@@ -159,7 +160,6 @@ endif()
 add_library(cugraph SHARED
     src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
-    src/utilities/spmv_1D.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
     src/utilities/graph_bcast.cu

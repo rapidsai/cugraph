@@ -49,10 +49,11 @@ class Direction(enum.Enum):
 
 
 def view_adj_list(input_graph):
-
+    # FIXME: this function assumes columns named "src" and "dst" and can only
+    # be used for SG graphs due to that assumption.
     if input_graph.adjlist is None:
         if input_graph.edgelist is None:
-            raise Exception('Graph is Empty')
+            raise ValueError('Graph is Empty')
 
         [src, dst] = datatype_cast([input_graph.edgelist.edgelist_df['src'], input_graph.edgelist.edgelist_df['dst']], [np.int32])
         weights = None
@@ -63,11 +64,12 @@ def view_adj_list(input_graph):
 
 
 def view_transposed_adj_list(input_graph):
-
+    # FIXME: this function assumes columns named "src" and "dst" and can only
+    # be used for SG graphs due to that assumption.
     if input_graph.transposedadjlist is None:
         if input_graph.edgelist is None:
             if input_graph.adjlist is None:
-                raise Exception('Graph is Empty')
+                raise ValueError('Graph is Empty')
             else:
                 input_graph.view_edge_list()
 
@@ -82,7 +84,7 @@ def view_transposed_adj_list(input_graph):
 def view_edge_list(input_graph):
 
     if input_graph.adjlist is None:
-        raise Exception('Graph is Empty')
+        raise RuntimeError('Graph is Empty')
 
     [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
     [weights] = datatype_cast([input_graph.adjlist.weights], [np.float32, np.float64])
@@ -117,7 +119,7 @@ def _degree_coo(edgelist_df, src_name, dst_name, direction=Direction.ALL, num_ve
     elif direction == Direction.OUT:
         dir = DIRECTION_OUT
     else:
-        raise Exception("x should be 0, 1 or 2")
+        raise ValueError("direction should be 0, 1 or 2")
 
     [src, dst] = datatype_cast([src, dst], [np.int32])
 
@@ -159,7 +161,7 @@ def _degree_csr(offsets, indices, direction=Direction.ALL):
     elif direction == Direction.OUT:
         dir = DIRECTION_OUT
     else:
-        raise Exception("direction should be 0, 1 or 2")
+        raise ValueError("direction should be 0, 1 or 2")
 
     [offsets, indices] = datatype_cast([offsets, indices], [np.int32])
 
@@ -187,6 +189,11 @@ def _degree_csr(offsets, indices, direction=Direction.ALL):
 def _mg_degree(input_graph, direction=Direction.ALL):
     if input_graph.edgelist is None:
         input_graph.compute_renumber_edge_list(transposed=False)
+    # The edge list renumbering step gives the columns that were renumbered
+    # potentially new unique names.
+    src_col_name = input_graph.renumber_map.renumbered_src_col_name
+    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+
     input_ddf = input_graph.edgelist.edgelist_df
     # Get the total number of vertices by summing each partition's number of vertices
     num_verts = input_graph.renumber_map.implementation.ddf.\
@@ -196,14 +203,32 @@ def _mg_degree(input_graph, direction=Direction.ALL):
     client = default_client()
     data.calculate_parts_to_sizes(comms)
     if direction==Direction.IN:
-        degree_ddf = [client.submit(_degree_coo, wf[1][0], 'src', 'dst', Direction.IN, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
+        degree_ddf = [client.submit(_degree_coo,
+                                    wf[1][0],
+                                    src_col_name,
+                                    dst_col_name,
+                                    Direction.IN,
+                                    num_verts,
+                                    comms.sessionId,
+                                    workers=[wf[0]])
+                      for idx, wf in enumerate(data.worker_to_parts.items())]
     if direction==Direction.OUT:
-        degree_ddf = [client.submit(_degree_coo, wf[1][0], 'dst', 'src', Direction.IN, num_verts, comms.sessionId, workers=[wf[0]]) for idx, wf in enumerate(data.worker_to_parts.items())]
+        degree_ddf = [client.submit(_degree_coo,
+                                    wf[1][0],
+                                    dst_col_name,
+                                    src_col_name,
+                                    Direction.IN,
+                                    num_verts,
+                                    comms.sessionId,
+                                    workers=[wf[0]])
+                      for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(degree_ddf)
     return degree_ddf[0].result()
 
 
 def _degree(input_graph, direction=Direction.ALL):
+    # FIXME: this function assumes columns named "src" and "dst" and can only
+    # be used for SG graphs due to that assumption.
     transpose_direction = { Direction.ALL: Direction.ALL,
                             Direction.IN: Direction.OUT,
                             Direction.OUT: Direction.IN }
@@ -222,7 +247,7 @@ def _degree(input_graph, direction=Direction.ALL):
         return _degree_coo(input_graph.edgelist.edgelist_df,
                            'src', 'dst', direction)
 
-    raise Exception("input_graph not COO, CSR or CSC")
+    raise ValueError("input_graph not COO, CSR or CSC")
 
 
 def _degrees(input_graph):
@@ -232,7 +257,11 @@ def _degrees(input_graph):
     return verts, indegrees, outdegrees
 
 
+# FIXME: this generates a cython warning about overriding a cdef method of the
+# same name.
 def get_two_hop_neighbors(input_graph):
+    # FIXME: this function assumes columns named "src" and "dst" and can only
+    # be used for SG graphs due to that assumption.
     cdef GraphCSRView[int,int,float] graph
 
     offsets = None

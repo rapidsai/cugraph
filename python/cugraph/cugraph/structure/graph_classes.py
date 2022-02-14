@@ -46,7 +46,6 @@ class Graph:
     >>> G = cugraph.Graph()
     >>> # directed graph
     >>> G = cugraph.Graph(directed=True)
-
     """
 
     class Properties:
@@ -140,10 +139,10 @@ class Graph:
         if self._Impl is None:
             self._Impl = simpleGraphImpl(self.graph_properties)
         elif type(self._Impl) is not simpleGraphImpl:
-            raise Exception("Graph is already initialized")
+            raise RuntimeError("Graph is already initialized")
         elif (self._Impl.edgelist is not None or
               self._Impl.adjlist is not None):
-            raise Exception("Graph already has values")
+            raise RuntimeError("Graph already has values")
         self._Impl._simpleGraphImpl__from_edgelist(input_df,
                                                    source=source,
                                                    destination=destination,
@@ -197,10 +196,10 @@ class Graph:
         if self._Impl is None:
             self._Impl = simpleGraphImpl(self.graph_properties)
         elif type(self._Impl) is not simpleGraphImpl:
-            raise Exception("Graph is already initialized")
+            raise RuntimeError("Graph is already initialized")
         elif (self._Impl.edgelist is not None or
               self._Impl.adjlist is not None):
-            raise Exception("Graph already has values")
+            raise RuntimeError("Graph already has values")
         self._Impl._simpleGraphImpl__from_adjlist(offset_col,
                                                   index_col,
                                                   value_col)
@@ -247,9 +246,9 @@ class Graph:
         if self._Impl is None:
             self._Impl = simpleDistributedGraphImpl(self.graph_properties)
         elif type(self._Impl) is not simpleDistributedGraphImpl:
-            raise Exception("Graph is already initialized")
+            raise RuntimeError("Graph is already initialized")
         elif (self._Impl.edgelist is not None):
-            raise Exception("Graph already has values")
+            raise RuntimeError("Graph already has values")
         self._Impl._simpleDistributedGraphImpl__from_edgelist(input_ddf,
                                                               source,
                                                               destination,
@@ -550,12 +549,12 @@ class Graph:
     def to_directed(self):
         """
         Return a directed representation of the graph.
-        This function sets the type of graph as DiGraph() and returns the
+        This function sets the directed attribute as True and returns the
         directed view.
 
         Returns
         -------
-        G : DiGraph
+        G : Graph
             A directed graph with the same nodes, and each edge (u,v,weights)
             replaced by two directed edges (u,v,weights) and (v,u,weights).
 
@@ -770,7 +769,7 @@ class NPartiteGraph(Graph):
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
         """
-        raise Exception("Distributed N-partite graph not supported")
+        raise TypeError("Distributed N-partite graph not supported")
 
     def add_nodes_from(self, nodes, bipartite=None, multipartite=None):
         """

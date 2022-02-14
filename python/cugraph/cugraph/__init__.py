@@ -111,6 +111,9 @@ from cugraph.sampling import random_walks, rw_path
 
 from cugraph import experimental
 
+from cugraph import gnn
+
+
 # Versioneer
 from ._version import get_versions
 
