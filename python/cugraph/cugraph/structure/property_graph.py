@@ -216,7 +216,7 @@ class EXPERIMENTAL__PropertyGraph:
 
     def add_vertex_data(self,
                         dataframe,
-                        vertex_id_column,
+                        vertex_col_name,
                         type_name=None,
                         property_columns=None
                         ):
@@ -228,7 +228,7 @@ class EXPERIMENTAL__PropertyGraph:
         dataframe : DataFrame-compatible instance
             A DataFrame instance with a compatible Pandas-like DataFrame
             interface.
-        vertex_id_column : string
+        vertex_col_name : string
             The column name that contains the values to be used as vertex IDs.
         type_name : string
             The name to be assigned to the type of property being added. For
@@ -251,8 +251,8 @@ class EXPERIMENTAL__PropertyGraph:
         if type(dataframe) not in _dataframe_types:
             raise TypeError("dataframe must be one of the following types: "
                             f"{_dataframe_types}, got: {type(dataframe)}")
-        if vertex_id_column not in dataframe.columns:
-            raise ValueError(f"{vertex_id_column} is not a column in "
+        if vertex_col_name not in dataframe.columns:
+            raise ValueError(f"{vertex_col_name} is not a column in "
                              f"dataframe: {dataframe.columns}")
         if (type_name is not None) and not(isinstance(type_name, str)):
             raise TypeError("type_name must be a string, got: "
@@ -294,7 +294,7 @@ class EXPERIMENTAL__PropertyGraph:
             # https://github.com/rapidsai/cudf/issues/9981)
             self.__update_dataframe_dtypes(
                 self.__vertex_prop_dataframe,
-                {self.vertex_col_name: dataframe[vertex_id_column].dtype})
+                {self.vertex_col_name: dataframe[vertex_col_name].dtype})
 
         # Ensure that both the predetermined vertex ID column name and vertex
         # type column name are present for proper merging.
@@ -303,7 +303,7 @@ class EXPERIMENTAL__PropertyGraph:
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
         tmp_df = dataframe.copy(deep=True)
-        tmp_df[self.vertex_col_name] = tmp_df[vertex_id_column]
+        tmp_df[self.vertex_col_name] = tmp_df[vertex_col_name]
         # FIXME: handle case of a type_name column already being in tmp_df
         tmp_df[self.type_col_name] = type_name
 
@@ -332,7 +332,7 @@ class EXPERIMENTAL__PropertyGraph:
 
     def add_edge_data(self,
                       dataframe,
-                      vertex_id_columns,
+                      vertex_col_names,
                       type_name=None,
                       property_columns=None
                       ):
@@ -344,7 +344,7 @@ class EXPERIMENTAL__PropertyGraph:
         dataframe : DataFrame-compatible instance
             A DataFrame instance with a compatible Pandas-like DataFrame
             interface.
-        vertex_id_columns : list of strings
+        vertex_col_names : list of strings
             The column names that contain the values to be used as the source
             and destination vertex IDs for the edges.
         type_name : string
@@ -368,12 +368,12 @@ class EXPERIMENTAL__PropertyGraph:
         if type(dataframe) not in _dataframe_types:
             raise TypeError("dataframe must be one of the following types: "
                             f"{_dataframe_types}, got: {type(dataframe)}")
-        if type(vertex_id_columns) not in [list, tuple]:
-            raise TypeError("vertex_id_columns must be a list or tuple, got: "
-                            f"{type(vertex_id_columns)}")
-        invalid_columns = set(vertex_id_columns).difference(dataframe.columns)
+        if type(vertex_col_names) not in [list, tuple]:
+            raise TypeError("vertex_col_names must be a list or tuple, got: "
+                            f"{type(vertex_col_names)}")
+        invalid_columns = set(vertex_col_names).difference(dataframe.columns)
         if invalid_columns:
-            raise ValueError("vertex_id_columns contains column(s) not found "
+            raise ValueError("vertex_col_names contains column(s) not found "
                              f"in dataframe: {list(invalid_columns)}")
         if (type_name is not None) and not(isinstance(type_name, str)):
             raise TypeError("type_name must be a string, got: "
@@ -416,16 +416,16 @@ class EXPERIMENTAL__PropertyGraph:
             # https://github.com/rapidsai/cudf/issues/9981)
             self.__update_dataframe_dtypes(
                 self.__edge_prop_dataframe,
-                {self.src_col_name: dataframe[vertex_id_columns[0]].dtype,
-                 self.dst_col_name: dataframe[vertex_id_columns[1]].dtype,
+                {self.src_col_name: dataframe[vertex_col_names[0]].dtype,
+                 self.dst_col_name: dataframe[vertex_col_names[1]].dtype,
                  self.edge_id_col_name: "Int64"})
 
         # NOTE: This copies the incoming DataFrame in order to add the new
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
         tmp_df = dataframe.copy(deep=True)
-        tmp_df[self.src_col_name] = tmp_df[vertex_id_columns[0]]
-        tmp_df[self.dst_col_name] = tmp_df[vertex_id_columns[1]]
+        tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
+        tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
         # FIXME: handle case of a type_name column already being in tmp_df
         tmp_df[self.type_col_name] = type_name
 
@@ -643,21 +643,21 @@ class EXPERIMENTAL__PropertyGraph:
             default_edge_weight=default_edge_weight,
             allow_multi_edges=allow_multi_edges)
 
-    def annotate_dataframe(self, df, G, edge_vertex_id_columns):
+    def annotate_dataframe(self, df, G, edge_vertex_col_names):
         """
         Add properties to df that represent the vertices and edges in graph G.
 
         Parameters
         ----------
         df : cudf.DataFrame or pandas.DataFrame
-            A DataFrame containing edges identified by edge_vertex_id_columns
+            A DataFrame containing edges identified by edge_vertex_col_names
             which will have properties for those edges added to it.
         G : cugraph.Graph (or subclass of) instance.
             Graph containing the edges specified in df. The Graph instance must
             have been generated from a prior call to extract_subgraph() in
             order to have the edge meta-data used to look up the correct
             properties.
-        edge_vertex_id_columns : tuple of strings
+        edge_vertex_col_names : tuple of strings
             The column names in df that represent the source and destination
             vertices, used for identifying edges.
 
@@ -672,7 +672,7 @@ class EXPERIMENTAL__PropertyGraph:
         >>>
         """
         # FIXME: check all args
-        (src_col_name, dst_col_name) = edge_vertex_id_columns
+        (src_col_name, dst_col_name) = edge_vertex_col_names
 
         df_type = type(df)
         if df_type is not self.__dataframe_type:
@@ -739,8 +739,8 @@ class EXPERIMENTAL__PropertyGraph:
                     prop_col.fillna(default_edge_weight, inplace=True)
             edge_attr = edge_weight_property
 
-        # If a default_edge_weight was specified but an edge_weight_property was
-        # not, a new edge weight column must be added.
+        # If a default_edge_weight was specified but an edge_weight_property
+        # was not, a new edge weight column must be added.
         elif default_edge_weight:
             edge_attr = self.__gen_unique_name(edge_prop_df.columns,
                                                prefix=self.weight_col_name)

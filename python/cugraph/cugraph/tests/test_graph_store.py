@@ -50,7 +50,7 @@ def test_using_pgraph(graph_file):
     pG = PropertyGraph()
     pG.add_edge_data(cu_M,
                      type_name="edge",
-                     vertex_id_columns=("0", "1"),
+                     vertex_col_names=("0", "1"),
                      property_columns=None)
 
     gstore = cugraph.gnn.CuGraphStore(graph=pG)
@@ -70,7 +70,7 @@ def test_node_data_pg(graph_file):
         pG = PropertyGraph()
         pG.add_edge_data(cu_M,
                          type_name="edge",
-                         vertex_id_columns=("0", "1"),
+                         vertex_col_names=("0", "1"),
                          property_columns=None)
 
         gstore = cugraph.gnn.CuGraphStore(graph=pG)
@@ -91,7 +91,7 @@ def test_egonet(graph_file):
     pG = PropertyGraph()
     pG.add_edge_data(cu_M,
                      type_name="edge",
-                     vertex_id_columns=("0", "1"),
+                     vertex_col_names=("0", "1"),
                      property_columns=None)
 
     gstore = cugraph.gnn.CuGraphStore(graph=pG)
@@ -117,7 +117,7 @@ def test_workflow(graph_file):
     pg = PropertyGraph()
     pg.add_edge_data(cu_M,
                      type_name="edge",
-                     vertex_id_columns=("0", "1"),
+                     vertex_col_names=("0", "1"),
                      property_columns=["2"])
 
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
