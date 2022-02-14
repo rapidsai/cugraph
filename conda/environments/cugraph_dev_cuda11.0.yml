@@ -6,6 +6,7 @@ channels:
 - conda-forge
 dependencies:
 - cudatoolkit=11.0
+- libcugraphops=22.04.*
 - cudf=22.04.*
 - libcudf=22.04.*
 - rmm=22.04.*

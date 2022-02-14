@@ -145,6 +145,7 @@ rapids_cpm_init()
 # lags behind.
 ###
 include(cmake/thirdparty/get_raft.cmake)
+include(cmake/thirdparty/get_libcugraphops.cmake)
 
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
