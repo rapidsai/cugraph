@@ -22,6 +22,8 @@
 
 #include <utilities/graph_utils.cuh>
 
+#include <cugraph/utilities/shuffle_comm.cuh>
+
 #include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
 
@@ -121,8 +123,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_source_global_
 template <typename GraphViewType, typename EdgeIndexIterator, typename gpu_t>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<gpu_t>,
-           rmm::device_uvector<typename GraphViewType::edge_type>>
+           rmm::device_uvector<gpu_t>>
 gather_local_edges(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
@@ -234,15 +235,15 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample(
     // running input growing from one level to the next:
     // plus it gets shuffled, so need copies
     //
-    detail::device_vec_t<vertex_t> d_in(num_starting_vs);
-    detail::device_vec_t<mnmg::gpu_t> d_ranks(num_starting_vs);
+    detail::device_vec_t<vertex_t> d_in(num_starting_vs, handle.get_stream());
+    detail::device_vec_t<mnmg::gpu_t> d_ranks(num_starting_vs, handle.get_stream());
 
     thrust::copy_n(handle.get_thrust_policy(), ptr_d_start, num_starting_vs, d_in.begin());
     thrust::copy_n(handle.get_thrust_policy(), ptr_d_ranks, num_starting_vs, d_ranks.begin());
 
     // Output to accumulate results into:
     //
-    detail::device_vec_t<vertex_out_tuple_t> d_out{};  // starts as empty
+    detail::device_vec_t<vertex_out_tuple_t> d_out(0, handle.get_stream());  // starts as empty
 
     decltype(num_levels) level{0};
     for (auto&& k_level : h_fan_out) {
@@ -274,7 +275,7 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample(
 
       // line 10 (gather edges):
       //
-      auto&& [d_out_src, d_out_dst, d_out_ranks, d_out_indx] =
+      auto&& [d_out_src, d_out_dst, d_out_ranks] =
         mnmg::gather_local_edges(handle,
                                  graph_view,
                                  d_new_in.begin(),
@@ -284,8 +285,8 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample(
                                  static_cast<int>(k_level),
                                  global_degree_offsets);
 
-      // resize everything:
-      // d_out_degs, d_in, d_out, d_ranks
+      // resize d_out:
+      //
       auto old_sz = d_out.size();
       auto add_sz = d_out_dst.size();
       d_out.resize(old_sz + add_sz);
@@ -295,14 +296,19 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample(
       auto in = thrust::make_zip_iterator(thrust::make_tuple(detail::raw_const_ptr(d_out_src),
                                                              detail::raw_const_ptr(d_out_dst),
                                                              detail::raw_const_ptr(d_out_ranks),
-                                                             detail::raw_const_ptr(d_out_indx)));
+                                                             detail::raw_const_ptr(d_indices)));
       thrust::copy_n(handle.get_thrust_policy(), in, add_sz, d_out.begin() + old_sz);
 
       // line 13 (shuffle step):
       // zipping is necessary to preserve rank info during shuffle!
       //
 
+      // resize d_in, d_ranks:
+      //
+
       // line 14 (project output onto input):
+      // zip d_in, d_ranks
+      //
 
       //}
       ++level;
