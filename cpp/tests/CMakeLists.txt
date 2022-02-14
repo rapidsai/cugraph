@@ -577,8 +577,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_EXTRACT_IF_E_TEST prims/mg_extract_if_e.cu)
 
         ###########################################################################################
-        # - MG PRIMS GATHER_EDGES tests -----------------------------------------------------------
-        ConfigureTestMG(MG_GATHER_EDGES_TEST prims/mg_gather_edges.cu)
+        # - MG GATHER_UTILS tests -----------------------------------------------------------------
+        ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()

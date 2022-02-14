@@ -22,10 +22,10 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/graph_functions.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/prims/gather_edges.cuh>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <cuco/detail/hash_functions.cuh>
@@ -129,7 +129,7 @@ sg_gather_edges(raft::handle_t const& handle,
                 VertexIterator vertex_input_last,
                 EdgeIndexIterator edge_index_first,
                 typename GraphViewType::vertex_type invalid_vertex_id,
-                int indices_per_source)
+                typename GraphViewType::edge_type indices_per_source)
 {
   static_assert(GraphViewType::is_adj_matrix_transposed == false);
   using vertex_t    = typename GraphViewType::vertex_type;
@@ -194,7 +194,7 @@ rmm::device_uvector<edge_t> generate_random_destination_indices(
   const rmm::device_uvector<edge_t>& out_degrees,
   vertex_t invalid_vertex_id,
   edge_t invalid_destination_index,
-  int indices_per_source)
+  edge_t indices_per_source)
 {
   auto [random_source_offsets, segmented_source_ids, segmented_sequence] =
     create_segmented_data(handle, invalid_vertex_id, out_degrees);
@@ -233,7 +233,7 @@ rmm::device_uvector<edge_t> generate_random_destination_indices(
                    [offset    = random_source_offsets.data(),
                     dst_index = dst_index.data(),
                     seg_seq   = segmented_sequence.data(),
-                    k         = static_cast<edge_t>(indices_per_source),
+                    k         = indices_per_source,
                     invalid_destination_index] __device__(auto index) {
                      auto length = thrust::minimum<edge_t>()(offset[index + 1] - offset[index], k);
                      auto source_offset = offset[index];
@@ -310,7 +310,7 @@ class Tests_MG_GatherEdges
     }
 
     auto mg_graph_view                        = mg_graph.view();
-    constexpr int indices_per_source          = 2;
+    constexpr edge_t indices_per_source       = 2;
     constexpr vertex_t repetitions_per_vertex = 5;
     constexpr vertex_t source_sample_count    = 3;
 
@@ -318,7 +318,7 @@ class Tests_MG_GatherEdges
     // Generate random vertex ids in the range of current gpu
 
     auto [global_degree_offset, global_out_degrees] =
-      cugraph::get_global_degree_information(handle, mg_graph_view);
+      cugraph::detail::get_global_degree_information(handle, mg_graph_view);
 
     // Generate random sources to gather on
     auto random_sources = random_vertex_ids(handle,
@@ -333,14 +333,14 @@ class Tests_MG_GatherEdges
                  comm_rank);
 
     auto [active_sources_in_row, active_source_gpu_ids] =
-      cugraph::gather_active_sources_in_row(handle,
-                                            mg_graph_view,
-                                            random_sources.begin(),
-                                            random_sources.end(),
-                                            random_source_gpu_ids.begin());
+      cugraph::detail::gather_active_sources_in_row(handle,
+                                                    mg_graph_view,
+                                                    random_sources.begin(),
+                                                    random_sources.end(),
+                                                    random_source_gpu_ids.begin());
 
     // get source global out degrees to generate indices
-    auto active_source_degrees = get_active_source_global_degrees(
+    auto active_source_degrees = cugraph::detail::get_active_major_global_degrees(
       handle, mg_graph_view, active_sources_in_row, global_out_degrees);
 
     auto random_destination_indices =
@@ -350,14 +350,14 @@ class Tests_MG_GatherEdges
                                           mg_graph_view.get_number_of_edges(),
                                           indices_per_source);
 
-    auto [src, dst, gpu_ids] = cugraph::gather_local_edges(handle,
-                                                           mg_graph_view,
-                                                           active_sources_in_row,
-                                                           active_source_gpu_ids,
-                                                           random_destination_indices.begin(),
-                                                           mg_graph_view.get_number_of_vertices(),
-                                                           indices_per_source,
-                                                           global_degree_offset);
+    auto [src, dst, gpu_ids] =
+      cugraph::detail::gather_local_edges(handle,
+                                          mg_graph_view,
+                                          active_sources_in_row,
+                                          active_source_gpu_ids,
+                                          random_destination_indices.begin(),
+                                          indices_per_source,
+                                          global_degree_offset);
 
     if (prims_usecase.check_correctness) {
       // Gather outputs
