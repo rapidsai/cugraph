@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1421,7 +1421,8 @@ random_walks(raft::handle_t const& handle,
  * list of vertices and sample size per vertex. The output graph consists of the given
  * vertices with each vertex having at most `sample_size` neighbors from the original graph
  *
- * @tparam graph_t Type of input graph/view (typically, graph_view_t, non-transposed and single-gpu).
+ * @tparam graph_t Type of input graph/view (typically, graph_view_t, non-transposed and
+ * single-gpu).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param rng The Rng (stateful) instance holding pseudo-random number generator state.
@@ -1451,7 +1452,8 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
  * list of vertices and sample size per vertex. The output graph consists of the given
  * vertices with each vertex having at most `sample_size` neighbors from the original graph
  *
- * @tparam graph_t Type of input graph/view (typically, graph_view_t, non-transposed and single-gpu).
+ * @tparam graph_t Type of input graph/view (typically, graph_view_t, non-transposed and
+ * single-gpu).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param rng The Rng (stateful) instance holding pseudo-random number generator state.

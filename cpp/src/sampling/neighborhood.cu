@@ -22,8 +22,7 @@
 
 namespace cugraph {
 
-template
-std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 sample_neighbors_adjacency_list(raft::handle_t const& handle,
                                 raft::random::Rng& rng,
                                 graph_view_t<int32_t, int32_t, float, false, false> const& gview,
@@ -33,13 +32,17 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
                                 ops::gnn::graph::SamplingAlgoT sampling_algo)
 {
   const auto [graph, max_degree] = detail::get_graph_and_max_degree(gview);
-  return ops::gnn::graph::uniform_sample_csr(
-    rng, graph, ptr_d_start, num_start_vertices, sampling_size, sampling_algo,
-    max_degree, handle.get_stream());
+  return ops::gnn::graph::uniform_sample_csr(rng,
+                                             graph,
+                                             ptr_d_start,
+                                             num_start_vertices,
+                                             sampling_size,
+                                             sampling_algo,
+                                             max_degree,
+                                             handle.get_stream());
 }
 
-template
-std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 sample_neighbors_edgelist(raft::handle_t const& handle,
                           raft::random::Rng& rng,
                           graph_view_t<int32_t, int32_t, float, false, false> const& gview,
@@ -49,9 +52,14 @@ sample_neighbors_edgelist(raft::handle_t const& handle,
                           ops::gnn::graph::SamplingAlgoT sampling_algo)
 {
   const auto [graph, max_degree] = detail::get_graph_and_max_degree(gview);
-  return ops::gnn::graph::uniform_sample_csr(
-    rng, graph, ptr_d_start, num_start_vertices, sampling_size, sampling_algo,
-    max_degree, handle.get_stream());
+  return ops::gnn::graph::uniform_sample_csr(rng,
+                                             graph,
+                                             ptr_d_start,
+                                             num_start_vertices,
+                                             sampling_size,
+                                             sampling_algo,
+                                             max_degree,
+                                             handle.get_stream());
 }
 
 }  // namespace cugraph

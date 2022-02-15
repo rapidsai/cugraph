@@ -30,10 +30,10 @@ ops::gnn::graph::fg_csr<IdxT> get_graph(
   graph_view_t<IdxT, IdxT, WeightT, false, false> const& gview)
 {
   ops::gnn::graph::fg_csr<IdxT> graph;
-  graph.n_nodes = gview.get_number_of_vertices();
+  graph.n_nodes   = gview.get_number_of_vertices();
   graph.n_indices = gview.get_number_of_edges();
-  graph.offsets = gview.get_matrix_partition_view().get_offsets();
-  graph.indices = gview.get_matrix_partition_view().get_indices();
+  graph.offsets   = gview.get_matrix_partition_view().get_offsets();
+  graph.indices   = gview.get_matrix_partition_view().get_indices();
   return graph;
 }
 
