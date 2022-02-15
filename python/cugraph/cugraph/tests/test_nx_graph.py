@@ -73,7 +73,7 @@ def test_add_vertex_data(df_type):
     pG = PropertyGraph()
     
     pG.add_edge_data(newedges_df, 
-    vertex_id_columns=("src", "dst"), 
+    vertex_col_names=("src", "dst"), 
                        type_name="newedges", 
                        property_columns=None)
     assert pG.num_vertices == 6
@@ -144,7 +144,6 @@ def test_adjacencies():
     assert cnG.has_edge(4,5) == False
 
     sg = cnG.neighbors(3)
-    print(sg)
     assert len(sg) == 2
 
 

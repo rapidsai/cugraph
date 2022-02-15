@@ -90,7 +90,7 @@ class Graph():
         node_df = cudf.DataFrame(data=df_data,columns=columns)
         self.__pG.add_vertex_data(node_df,
             type_name=self.node_name_column,
-            vertex_id_column=self.node_name_column,
+            vertex_col_name=self.node_name_column,
             property_columns=property_column_names
             )
 
@@ -255,7 +255,7 @@ class Graph():
         ndata = [[u,v]]
         edge_df = cudf.DataFrame(columns=None,data=ndata)
         self.__pG.add_edge_data(edge_df,
-                                vertex_id_columns=(edge_df.columns[0], edge_df.columns[1]),
+                                vertex_col_names=(edge_df.columns[0], edge_df.columns[1]),
                                 type_name="")
 
 
@@ -281,7 +281,7 @@ class Graph():
         else:
             df = edges
         self.__pG.add_edge_data(df,
-                                vertex_id_columns=(df.columns[0], df.columns[1]),
+                                vertex_col_names=(df.columns[0], df.columns[1]),
                                 type_name="")
 
 
