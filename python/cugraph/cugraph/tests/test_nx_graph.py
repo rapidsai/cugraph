@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import cudf
 import cugraph
-from cugraph.nx.Graph import Graph
+from cugraph.nx import Graph
 from cugraph.tests import utils
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
@@ -148,13 +148,13 @@ def test_adjacencies():
 
 
 
-def nx_edges():
+def test_weighted_nx_edges():
     testdata = {"edgedata": [
-        ["user_id_1", "user_id_2", "edge_type"],
-        [(1, 2, "type1"),
-         (1, 3, "type2"),
-         (3, 4, "type1"),
-         (4, 2, "type2"),
+        ["user_id_1", "user_id_2", "weight"],
+        [(1, 2, 6),
+         (1, 3, 24.8),
+         (3, 4, 1),
+         (4, 2, 108.777),
          ]]}
     edges = testdata["edgedata"]
     cnG = Graph()
@@ -162,16 +162,16 @@ def nx_edges():
     assert cnG.number_of_edges() == 4
     assert cnG.number_of_nodes() == 4
 
-def bfs():
+
+def test_bfs():
     G = Graph()
     G.add_edges_from([(1, 2), (1, 3)])
     G.add_node("spam")       # adds node "spam"
     cG = G.as_cugraph()
-    # print (cugraph.connected_components(cG))
-    # print ( sorted(d for n, d in cG.degree()))
+    # print ( cugraph.connected_components(cG))
     # print ( cugraph.clustering(cG))
     # print ( cugraph.bfs_edges(cG, 1))
-
+    print(cugraph.bfs(cG, start=0))
 
 @pytest.mark.parametrize(
     "graph_file",

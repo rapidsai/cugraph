@@ -39,6 +39,7 @@ class Graph():
     # defines the type of the nodes inserted in the property graph
     # initially will be str or int
     node_data_type = None
+    weight_property = None
 
     def __init__(self):
         self.__pG = PropertyGraph()
@@ -158,8 +159,12 @@ class Graph():
 
 
 
-    def add_weighted_edges_from(self):
-        print("Not yet implemented")
+    def add_weighted_edges_from(self, edges):
+        if len(edges[0]) >= 3:
+            self.add_edges_from(edges)
+            weight_property = edges[1][2]
+        else:
+            raise TypeError("Must have three columns at least for a weighted graph")
         return
 
 
@@ -261,33 +266,34 @@ class Graph():
 
     def add_edges_from(self, edges):
         # is not already a dataframe so make one
+        props = None
+        in_data = None
+        column_names=None
         if not isinstance(edges,cudf.DataFrame):
-            props = None
-            in_data = None
-            column_names=None
             if  not isinstance(edges[0],list):
                 in_data = edges
                 column_names=[self.src_col_name,self.dst_col_name]
-                # print(f'Column names = {column_names}')
-            if  isinstance(edges[0],list) and len(list(edges))  == 2:
+            if  isinstance(edges[0],list) and len(list(edges[0])) == 2:
                 column_names = edges[0]
                 in_data = edges[1]
-            if isinstance(edges[0],list) and len(list(edges)) > 2:
-                print(f"Handle attribute data size={len(list(edges))}")
+            if isinstance(edges[0],list) and len(list(edges[0])) > 2:
+                props = edges[0][2:]
+                print(f"Handle attribute data={props}")
                 column_names = edges[0]
                 in_data = edges[1]
-                props = [edges[2]]
             df = cudf.DataFrame(data=in_data,columns=column_names)
         else:
             df = edges
         self.__pG.add_edge_data(df,
                                 vertex_col_names=(df.columns[0], df.columns[1]),
-                                type_name="")
+                                type_name="",property_columns=props)
 
 
     def as_cugraph(self):
-        return self.__pG.extract_subgraph()
-
+        if ( self.weight_property != None):
+            return self.__pG.extract_subgraph()
+        else:
+            return self.__pG.extract_subgraph(edge_weight_property = self.weight_property)
 
     def number_of_edges(self):
         return self.__pG.num_edges
