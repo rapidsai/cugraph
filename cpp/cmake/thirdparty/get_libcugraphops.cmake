@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,14 +14,20 @@
 # limitations under the License.
 #=============================================================================
 
-function(find_and_configure_rmm)
+function(find_and_configure_cugraphops)
 
-    include(${rapids-cmake-dir}/cpm/rmm.cmake)
-    rapids_cpm_rmm(
-        BUILD_EXPORT_SET    cugraph-exports
-        INSTALL_EXPORT_SET  cugraph-exports
+    if(TARGET cugraphops::cugraphops)
+        return()
+    endif()
+
+    rapids_find_generate_module(cugraphops
+        HEADER_NAMES            graph/sampling.h
+        LIBRARY_NAMES           cugraph-ops++
+        INCLUDE_SUFFIXES        cugraph-ops
     )
+
+    rapids_find_package(cugraphops REQUIRED)
 
 endfunction()
 
-find_and_configure_rmm()
+find_and_configure_cugraphops()

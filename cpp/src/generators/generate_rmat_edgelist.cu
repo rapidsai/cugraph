@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -94,8 +94,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
               }
             }
           }
-          src += src_bit_set ? static_cast<vertex_t>(1 << bit) : 0;
-          dst += dst_bit_set ? static_cast<vertex_t>(1 << bit) : 0;
+          src += src_bit_set ? static_cast<vertex_t>(vertex_t{1} << bit) : 0;
+          dst += dst_bit_set ? static_cast<vertex_t>(vertex_t{1} << bit) : 0;
         }
         return thrust::make_tuple(src, dst);
       });

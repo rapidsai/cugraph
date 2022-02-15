@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,12 @@
 #include <stdio.h>
 #include <time.h>
 
-#define TEST_ASSERT(RETURN_VALUE, STATEMENT, MESSAGE)                    \
-  {                                                                      \
-    (RETURN_VALUE) = !(STATEMENT);                                       \
-    if ((RETURN_VALUE)) { printf("ASSERTION FAILED: %s\n", (MESSAGE)); } \
+#define TEST_ASSERT(RETURN_VALUE, STATEMENT, MESSAGE)                      \
+  {                                                                        \
+    if (!(RETURN_VALUE)) {                                                 \
+      (RETURN_VALUE) = !(STATEMENT);                                       \
+      if ((RETURN_VALUE)) { printf("ASSERTION FAILED: %s\n", (MESSAGE)); } \
+    }                                                                      \
   }
 
 /*

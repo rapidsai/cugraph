@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -57,6 +57,8 @@ cdef move_device_buffer_to_series(
 
 
 cdef coo_to_df(GraphCOOPtrType graph):
+    # FIXME: this function assumes columns named "src" and "dst" and can only
+    # be used for SG graphs due to that assumption.
     contents = move(graph.get()[0].release())
     src = move_device_buffer_to_column(move(contents.src_indices), "int32")
     dst = move_device_buffer_to_column(move(contents.dst_indices), "int32")
@@ -121,6 +123,8 @@ cdef GraphCSRViewType get_csr_graph_view(input_graph, bool weighted=True, GraphC
 
 
 cdef GraphCOOViewType get_coo_graph_view(input_graph, bool weighted=True, GraphCOOViewType* dummy=NULL):
+    # FIXME: this function assumes columns named "src" and "dst" and can only
+    # be used for SG graphs due to that assumption.
     if not input_graph.edgelist:
         input_graph.view_edge_list()
 

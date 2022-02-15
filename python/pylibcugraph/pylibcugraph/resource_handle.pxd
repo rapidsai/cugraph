@@ -1,6 +1,4 @@
-#=============================================================================
-# Copyright (c) 2021, NVIDIA CORPORATION.
-#
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,19 +10,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#=============================================================================
 
-function(find_and_configure_thrust)
-  include(${rapids-cmake-dir}/cpm/thrust.cmake)
+# Have cython use python 3 syntax
+# cython: language_level = 3
 
-  # FIXME: Temporary workaround to our current 11.0 CI problem
-  set(CPM_DOWNLOAD_ALL ON)
-  rapids_cpm_thrust(
-    NAMESPACE cugraph
-    BUILD_EXPORT_SET raft-exports
-    INSTALL_EXPORT_SET raft-exports
-  )
+from pylibcugraph._cugraph_c.cugraph_api cimport (
+    cugraph_resource_handle_t,
+)
 
-endfunction()
 
-find_and_configure_thrust()
+cdef class EXPERIMENTAL__ResourceHandle:
+    cdef cugraph_resource_handle_t* c_resource_handle_ptr

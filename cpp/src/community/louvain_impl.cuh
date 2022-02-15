@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -103,6 +103,7 @@ std::pair<size_t, typename graph_view_t::weight_type> louvain(
   using vertex_t = typename graph_view_t::vertex_type;
   using weight_t = typename graph_view_t::weight_type;
 
+  CUGRAPH_EXPECTS(graph_view.is_weighted(), "Graph must be weighted");
   detail::check_clustering(graph_view, clustering);
 
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram;

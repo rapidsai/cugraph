@@ -1,5 +1,5 @@
 ﻿#
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,8 +41,7 @@ target_include_directories(cugraphtestutil
 
 target_link_libraries(cugraphtestutil
     PUBLIC
-        cugraph
-        cuco::cuco
+        cugraph::cugraph
         NCCL::NCCL
 )
 
@@ -54,20 +53,16 @@ set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(cugraphmgtestutil
     PRIVATE
-    "${CUB_INCLUDE_DIR}"
-    "${THRUST_INCLUDE_DIR}"
-    "${CUCO_INCLUDE_DIR}"
-    "${LIBCUDACXX_INCLUDE_DIR}"
-    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-    "${RMM_INCLUDE}"
-    "${NCCL_INCLUDE_DIRS}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${RAFT_DIR}/cpp/include"
 )
 
-target_link_libraries(cugraphmgtestutil cugraph)
+target_link_libraries(cugraphmgtestutil
+    PUBLIC
+        cugraph::cugraph
+        NCCL::NCCL
+)
 
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
@@ -78,16 +73,12 @@ function(ConfigureTest CMAKE_TEST_NAME)
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
             cugraphtestutil
-            cugraph
+            cugraph::cugraph
             GTest::gmock
             GTest::gmock_main
             GTest::gtest
             GTest::gtest_main
             NCCL::NCCL
-            CUDA::cublas
-            CUDA::cusparse
-            CUDA::cusolver
-            CUDA::curand
     )
 
     if(OpenMP_CXX_FOUND)
@@ -142,6 +133,16 @@ function(ConfigureTest CMAKE_TEST_NAME)
     endif(OpenMP_CXX_FOUND)
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
+
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureTestMG CMAKE_TEST_NAME)
@@ -151,16 +152,12 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         PRIVATE
         cugraphmgtestutil
         cugraphtestutil
-        cugraph
+        cugraph::cugraph
         GTest::gmock
         GTest::gmock_main
         GTest::gtest
         GTest::gtest_main
         NCCL::NCCL
-        CUDA::cublas
-        CUDA::cusparse
-        CUDA::cusolver
-        CUDA::curand
         MPI::MPI_CXX
     )
 
@@ -224,6 +221,15 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
              ${CMAKE_TEST_NAME}
              ${MPIEXEC_POSTFLAGS})
 
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+
+        install(
+            TARGETS ${CMAKE_TEST_NAME}
+            COMPONENT testing
+            DESTINATION bin/gtests/libcugraph_mg
+            EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureCTest CMAKE_TEST_NAME)
@@ -231,11 +237,25 @@ function(ConfigureCTest CMAKE_TEST_NAME)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-            cugraph_c
+            cugraph::cugraph_c
             cugraph_c_testutil
+            GTest::gmock
+            GTest::gmock_main
+            GTest::gtest
+            GTest::gtest_main
     )
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
+
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+
+        install(
+            TARGETS ${CMAKE_TEST_NAME}
+            COMPONENT testing
+            DESTINATION bin/gtests/libcugraph_c
+            EXCLUDE_FROM_ALL)
 endfunction()
 
 ###################################################################################################
@@ -593,7 +613,9 @@ ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
+ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)
 ConfigureCTest(CAPI_EXTRACT_PATHS_TEST c_api/extract_paths_test.c)
+ConfigureCTest(CAPI_NODE2VEC_TEST c_api/node2vec_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################

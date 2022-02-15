@@ -79,7 +79,7 @@ _Italic_ algorithms are planned for future releases.
 | Link Analysis|                                        |              |                     |
 |              | Pagerank                               | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Pagerank) |
 |              | Personal Pagerank                      | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank) |
-|              | HITS                                   | Single-GPU   | leverages Gunrock   |
+|              | HITS                                   | Single-GPU   | Multi-GPU C code is ready, Python wrapper in 22.04                    |
 | Link Prediction |                                     |              |                     |
 |              | Jaccard Similarity                     | Single-GPU   |                     |
 |              | Weighted Jaccard Similarity            | Single-GPU   |                     |
@@ -88,7 +88,8 @@ _Italic_ algorithms are planned for future releases.
 |              | _Local Clustering Coefficient_         |   ---        |                     |
 | Sampling     |                                        |              |                     |
 |              | Random Walks (RW)                      | Single-GPU   | Biased and Uniform  |
-|              | _node2vec_                             |   ---        |                    |
+|              | Egonet                                 | Single-GPU   | multi-seed          |
+|              | _node2vec_                             |   ---        | C code is ready, Python wrapper coming in 22.04                    |
 | Traversal    |                                        |              |                     |
 |              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
 |              | Single Source Shortest Path (SSSP)     | Multi-GPU    | [C++ README](cpp/src/traversal/README.md#SSSP) |
@@ -98,6 +99,7 @@ _Italic_ algorithms are planned for future releases.
 | Other        |                                        |              |                     |
 |              | Renumbering                            | Multi-GPU    | multiple columns, any data type  |
 |              | Symmetrize                             | Multi-GPU    |                     |
+|              | Path Extraction                        |              | Extract paths from BFS/SSP results in parallel | 
 | Data Generator  |                                     |              |                     |
 |              | RMAT                                   | Multi-GPU    |                     |
 |              | _Barabasi-Albert_                      |  ---         |                     |
@@ -170,6 +172,9 @@ conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=
 
 # CUDA 11.4
 conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.4
+
+# CUDA 11.5
+conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.5
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.7/3.8.

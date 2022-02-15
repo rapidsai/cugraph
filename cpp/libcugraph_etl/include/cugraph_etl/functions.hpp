@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@
 #include <cudf/column/column.hpp>
 #include <cudf/table/table.hpp>
 #include <cudf/types.hpp>
+
+#include <raft/handle.hpp>
 
 namespace cugraph {
 namespace etl {
@@ -47,7 +49,8 @@ namespace etl {
  */
 std::
   tuple<std::unique_ptr<cudf::column>, std::unique_ptr<cudf::column>, std::unique_ptr<cudf::table>>
-  renumber_cudf_tables(cudf::table_view const& src_table,
+  renumber_cudf_tables(raft::handle_t const& handle,
+                       cudf::table_view const& src_table,
                        cudf::table_view const& dst_table,
                        cudf::type_id dtype);
 

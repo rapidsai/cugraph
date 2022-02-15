@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2018-2021, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 ##########################################
 # cuGraph Benchmark test script for CI   #
 ##########################################
@@ -48,7 +48,7 @@ export DATASETS_DIR=${WORKSPACE}/datasets
 export BENCHMARKS_DIR=${WORKSPACE}/benchmarks
 
 # ucx-py version
-export UCX_PY_VERSION='0.24.*'
+export UCX_PY_VERSION='0.25.*'
 
 ##########################################
 # Environment Setup                      #

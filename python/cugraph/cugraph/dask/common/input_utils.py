@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -229,7 +229,9 @@ def get_vertex_partition_offsets(input_graph):
     renumber_vertex_count = input_graph.renumber_map.implementation.ddf.\
         map_partitions(len).compute()
     renumber_vertex_cumsum = renumber_vertex_count.cumsum()
-    vertex_dtype = input_graph.edgelist.edgelist_df['src'].dtype
+    # Assume the input_graph edgelist was renumbered
+    src_col_name = input_graph.renumber_map.renumbered_src_col_name
+    vertex_dtype = input_graph.edgelist.edgelist_df[src_col_name].dtype
     vertex_partition_offsets = cudf.Series([0], dtype=vertex_dtype)
     vertex_partition_offsets = vertex_partition_offsets.append(cudf.Series(
         renumber_vertex_cumsum, dtype=vertex_dtype))

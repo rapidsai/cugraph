@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -84,13 +84,13 @@ def test_modularity_clustering_nx(graph_file, partitions):
             source="0",
             target="1",
             edge_attr="weight",
-            create_using=nx.DiGraph(),
+            create_using=nx.Graph(),
         )
-    assert nx.is_directed(nxG) is True
+    assert nx.is_directed(nxG) is False
     assert nx.is_weighted(nxG) is True
 
     cuG, isNx = ensure_cugraph_obj_for_nx(nxG)
-    assert cugraph.is_directed(cuG) is True
+    assert cugraph.is_directed(cuG) is False
     assert cugraph.is_weighted(cuG) is True
 
     # Get the modularity score for partitioning versus random assignment
@@ -146,10 +146,10 @@ def test_digraph_rejected():
     df["dst"] = cudf.Series(range(10))
     df["val"] = cudf.Series(range(10))
 
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(
         df, source="src", destination="dst", edge_attr="val", renumber=False
     )
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         cugraph_call(G, 2)
