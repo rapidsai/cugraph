@@ -124,11 +124,11 @@ class TestDoctests:
                      scipy=scipy, pd=pd)
         docstring.globs = globs
 
-        # FIXME: An 11.2 and 11.4 bug causes ktruss to crash in that
+        # FIXME: A 11.4 bug causes ktruss to crash in that
         # environment. Skip docstring test if the cuda version is either
         # 11.2 or 11.4. See ktruss_subgraph.py
         if docstring.name == 'ktruss_subgraph':
-            if cuda.runtime.get_version() == (11, 4) or (11, 2):
+            if cuda.runtime.get_version() == (11, 4):
                 return
 
         # Capture stdout and include failing outputs in the traceback.
