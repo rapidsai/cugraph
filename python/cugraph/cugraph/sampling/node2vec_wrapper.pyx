@@ -40,6 +40,36 @@ def node2vec(input_graph, start_vertices, max_depth, p, q):
     """
     Call node2vec
     """
+    # Step 1: Declare the different variables
+
+    # Pointers required for CSR Graph
+
+    # Pointers for node2vec
+
+    # Step 2: Verify that input_graph has the expected format
+
+    # Step 3: Extract CSR offsets, indices and weights
+
+    # Step 4: Setup number of vertices and number of edges
+
+    # Step 5: Check if source index is valid
+
+    # Step 6: Generation of the result cudf.DataFrame
+
+    # Step 7: Associate <uintptr_t> to cudf Series
+
+    # Step 8: Call node2vec, note this is not correct
+
+    """
+    c_node2vec.call_node2vec[](handle_[0],
+                               graph_container,
+                               <int*> c_paths_ptr,
+                               <float*> c_weights_ptr,
+                               <int*> c_offsets_ptr,
+                               <int*> sources,
+                               <float> p,
+                               <float> q)
+    """
 
     # Stubbed out code - layer 2 being the wrapper in cugraph
     return 222

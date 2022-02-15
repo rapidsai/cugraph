@@ -23,86 +23,33 @@ import numpy as np
 # _epsilon = 1.0e-6
 # _max_iterations = 500
 
-"""
-_test_data = {"karate.csv": {
-
-                  },
-              "dolphins.csv": {
-
-                  },
-              "Simple_1": {
-
-                  },
-              "Simple_2": {
-
-                  },
-              }
-
 # The result names correspond to the datasets defined in conftest.py
 _test_data = {"karate.csv": {
-                  "start_vertex": 1,
-                  "vertex": cp.asarray(range(34), dtype=np.int32),
-                  "distance": cp.asarray(
-                      [1., 0., 1., 1., 2., 2., 2., 1., 2., 2., 2., 2., 2., 1.,
-                       3., 3., 3., 1., 3., 1., 3., 1., 3., 3., 3., 3., 3., 2.,
-                       2., 3., 1., 2., 2., 2.,
-                       ],
-                      dtype=np.float32),
-                  "predecessor": cp.asarray(
-                      [1, -1, 1, 1, 0, 0, 0, 1, 0, 2, 0, 0, 0, 1, 32,
-                       32, 5, 1, 32, 1, 32, 1, 32, 32, 27, 31, 33, 2, 2, 32,
-                       1, 0, 2, 13,
-                       ],
-                      dtype=np.int32),
+                  "seeds": cp.asarray([0, 0], dtype=np.int32),
+                  "paths": cp.asarray([0, 8, 33, 29, 0, 1, 3, 0], dtype=np.int32),
+                  "weights": cp.asarray([1., 1., 1., 1., 1., 1., 0., 0.], dtype=np.float32),
+                  "offsets": cp.asarray([], dtype=np.int32)
                   },
               "dolphins.csv": {
-                  "start_vertex": 1,
-                  "vertex": cp.asarray(range(62), dtype=np.int32),
-                  "distance": cp.asarray(
-                      [3., 0., 4., 3., 4., 3., 2., 2., 2., 2., 3., 4., 4., 2.,
-                       3., 3., 3., 1., 3., 1., 2., 3., 2., 2., 4., 2., 1., 1.,
-                       1., 4., 2., 2., 3., 3., 3., 5., 1., 2., 3., 2., 2., 1.,
-                       3., 3., 3., 3., 4., 2., 3., 4., 3., 3., 3., 4., 1., 4.,
-                       3., 2., 4., 2., 4., 3.,
-                       ],
-                      dtype=np.float32),
-                  "predecessor": cp.asarray(
-                      [40, -1, 10, 59, 51, 13, 54, 54, 28, 41, 47, 51, 33, 41,
-                       37, 40, 37, 1, 20, 1, 28, 37, 17, 36, 45, 17, 1, 1,
-                       1, 10, 19, 17, 9, 37, 37, 29, 1, 36, 20, 36, 36, 1,
-                       30, 37, 20, 23, 43, 28, 57, 34, 20, 23, 40, 43, 1, 51,
-                       6, 41, 38, 36, 32, 37,
-                       ],
-                      dtype=np.int32),
-                   },
+                  "seeds": cp.asarray([0, 0], dtype=np.int32),
+                  "paths": cp.asarray([0, 14, 34, 49, 0, 42, 0, 40], dtype=np.int32),
+                  "weights": cp.asarray([1., 1., 1., 1., 1., 1., 0., 0.], dtype=np.float32),
+                  "offsets": cp.asarray([], dtype=np.int32)
+                  },
               "Simple_1": {
-                  "start_vertex": 1,
-                  "vertex": cp.asarray(range(4), dtype=np.int32),
-                  "distance": cp.asarray(
-                      [3.4028235e+38, 0.0000000e+00, 1.0000000e+00,
-                       2.0000000e+00,
-                       ],
-                      dtype=np.float32),
-                  "predecessor": cp.asarray(
-                      [-1, -1,  1,  2,
-                       ],
-                      dtype=np.int32),
-                   },
+                  "seeds": cp.asarray([0, 0], dtype=np.int32),
+                  "paths": cp.asarray([0, 1, 2, 3, 0, 1, 2, 3], dtype=np.int32),
+                  "weights": cp.asarray([1., 1., 1., 1., 1., 1., 0., 0.], dtype=np.float32),
+                  "offsets": cp.asarray([], dtype=np.int32)
+                  },
               "Simple_2": {
-                  "start_vertex": 1,
-                  "vertex": cp.asarray(range(6), dtype=np.int32),
-                  "distance": cp.asarray(
-                      [3.4028235e+38, 0.0000000e+00, 3.4028235e+38,
-                       2.0999999e+00, 1.1000000e+00, 4.3000002e+00
-                       ],
-                      dtype=np.float32),
-                  "predecessor": cp.asarray(
-                      [-1, -1, -1,  1,  1,  4,
-                       ],
-                      dtype=np.int32),
-                   },
+                  "seeds": cp.asarray([0, 0], dtype=np.int32),
+                  "paths": cp.asarray([0, 1, 3, 5, 0, 1, 3, 5], dtype=np.int32),
+                  "weights": cp.asarray([0.1, 2.1, 7.2, 0.1, 2.1, 7.2, 0., 0.], dtype=np.float32),
+                  "offsets": cp.asarray([], dtype=np.int32)
+                  },
               }
-"""
+
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
@@ -121,6 +68,8 @@ def test_node2vec(sg_graph_objs):
     expected_paths,
     expected_weights,
     expected_offsets) = _test_data[ds_name].values()
+
+    seeds = cp.asarray([0, 0], dtype=np.int32)
 
     max_depth = 4
     compress_result = False

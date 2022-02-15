@@ -62,7 +62,7 @@ def sssp(input_graph, source):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    # Step 3: Extract CSR offsets, indices and indices
+    # Step 3: Extract CSR offsets, indices and weights
     #         - offsets: int (signed, 32-bit)
     #         - indices: int (signed, 32-bit)
     #         - weights: float / double
