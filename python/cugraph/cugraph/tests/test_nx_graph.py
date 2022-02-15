@@ -100,6 +100,8 @@ def test_nx_add_node_s():
     assert cnG.number_of_nodes() == 3
     cnG.add_node("newnode3")
     assert cnG.number_of_nodes() == 3
+    assert cnG.has_node("newnode2") == True
+    assert cnG.has_node("not_there") == False
 
 
 def test_nx_add_edge():
@@ -123,6 +125,8 @@ def test_nx_add_edge_from_list():
     G.add_edges_from([(1,2), (1, 3)])
     assert G.number_of_edges() == 2
     assert G.number_of_nodes() == 3
+    assert G.has_node(3) == True
+    assert G.has_node(4) == False
 
 def test_adjacencies():
     cnG = Graph()
@@ -133,9 +137,16 @@ def test_adjacencies():
     assert cnG.number_of_nodes() == 6
     assert cnG.number_of_edges() == 5
 
-    print(cnG.edges)
     sg = cnG.get_connections([3])
+    assert len(sg.edges()) == 2
+
+    assert cnG.has_edge(2,3) == True
+    assert cnG.has_edge(4,5) == False
+
+    sg = cnG.neighbors(3)
     print(sg)
+    assert len(sg) == 2
+
 
 
 def nx_edges():
