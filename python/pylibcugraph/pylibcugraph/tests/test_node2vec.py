@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
+# import pytest
 import cupy as cp
 import numpy as np
 
@@ -26,26 +26,34 @@ import numpy as np
 # The result names correspond to the datasets defined in conftest.py
 _test_data = {"karate.csv": {
                   "seeds": cp.asarray([0, 0], dtype=np.int32),
-                  "paths": cp.asarray([0, 8, 33, 29, 0, 1, 3, 0], dtype=np.int32),
-                  "weights": cp.asarray([1., 1., 1., 1., 1., 1., 0., 0.], dtype=np.float32),
+                  "paths": cp.asarray([0, 8, 33, 29, 0, 1, 3, 0],
+                                      dtype=np.int32),
+                  "weights": cp.asarray([1., 1., 1., 1., 1., 1., 0., 0.],
+                                        dtype=np.float32),
                   "offsets": cp.asarray([], dtype=np.int32)
                   },
               "dolphins.csv": {
                   "seeds": cp.asarray([0, 0], dtype=np.int32),
-                  "paths": cp.asarray([0, 14, 34, 49, 0, 42, 0, 40], dtype=np.int32),
-                  "weights": cp.asarray([1., 1., 1., 1., 1., 1., 0., 0.], dtype=np.float32),
+                  "paths": cp.asarray([0, 14, 34, 49, 0, 42, 0, 40],
+                                      dtype=np.int32),
+                  "weights": cp.asarray([1., 1., 1., 1., 1., 1., 0., 0.],
+                                        dtype=np.float32),
                   "offsets": cp.asarray([], dtype=np.int32)
                   },
               "Simple_1": {
                   "seeds": cp.asarray([0, 0], dtype=np.int32),
-                  "paths": cp.asarray([0, 1, 2, 3, 0, 1, 2, 3], dtype=np.int32),
-                  "weights": cp.asarray([1., 1., 1., 1., 1., 1., 0., 0.], dtype=np.float32),
+                  "paths": cp.asarray([0, 1, 2, 3, 0, 1, 2, 3],
+                                      dtype=np.int32),
+                  "weights": cp.asarray([1., 1., 1., 1., 1., 1., 0., 0.],
+                                        dtype=np.float32),
                   "offsets": cp.asarray([], dtype=np.int32)
                   },
               "Simple_2": {
                   "seeds": cp.asarray([0, 0], dtype=np.int32),
-                  "paths": cp.asarray([0, 1, 3, 5, 0, 1, 3, 5], dtype=np.int32),
-                  "weights": cp.asarray([0.1, 2.1, 7.2, 0.1, 2.1, 7.2, 0., 0.], dtype=np.float32),
+                  "paths": cp.asarray([0, 1, 3, 5, 0, 1, 3, 5],
+                                      dtype=np.int32),
+                  "weights": cp.asarray([0.1, 2.1, 7.2, 0.1, 2.1, 7.2, 0., 0.],
+                                        dtype=np.float32),
                   "offsets": cp.asarray([], dtype=np.int32)
                   },
               }
@@ -64,10 +72,8 @@ def test_node2vec(sg_graph_objs):
 
     (g, resource_handle, ds_name) = sg_graph_objs
 
-    (seeds,
-    expected_paths,
-    expected_weights,
-    expected_offsets) = _test_data[ds_name].values()
+    (seeds, expected_paths, expected_weights, expected_offsets) = \
+        _test_data[ds_name].values()
 
     seeds = cp.asarray([0, 0], dtype=np.int32)
 
@@ -83,7 +89,6 @@ def test_node2vec(sg_graph_objs):
                       compress_result,
                       p,
                       q)
-
 
     (actual_paths, actual_weights, actual_offsets) = result
 
