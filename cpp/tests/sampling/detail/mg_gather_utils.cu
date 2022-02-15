@@ -335,9 +335,9 @@ class Tests_MG_GatherEdges
     auto [active_sources_in_row, active_source_gpu_ids] =
       cugraph::detail::gather_active_sources_in_row(handle,
                                                     mg_graph_view,
-                                                    random_sources.begin(),
-                                                    random_sources.end(),
-                                                    random_source_gpu_ids.begin());
+                                                    random_sources.cbegin(),
+                                                    random_sources.cend(),
+                                                    random_source_gpu_ids.cbegin());
 
     // get source global out degrees to generate indices
     auto active_source_degrees = cugraph::detail::get_active_major_global_degrees(
@@ -355,7 +355,7 @@ class Tests_MG_GatherEdges
                                           mg_graph_view,
                                           active_sources_in_row,
                                           active_source_gpu_ids,
-                                          random_destination_indices.begin(),
+                                          random_destination_indices.cbegin(),
                                           indices_per_source,
                                           global_degree_offset);
 
