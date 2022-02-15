@@ -39,7 +39,6 @@ class Graph():
     # defines the type of the nodes inserted in the property graph
     # initially will be str or int
     node_data_type = None
- 
 
     def __init__(self):
         self.__pG = PropertyGraph()
@@ -138,7 +137,8 @@ class Graph():
         return
 
 
-    def remove_nodes_from(self):
+    def delete_nodes_from(self, nodelist):
+
         print("Not yet implemented")
         return
 
@@ -148,9 +148,14 @@ class Graph():
         return
 
 
-    def has_node(self):
-        print("Not yet implemented")
-        return
+    def has_node(self,node):
+        ps = self.__pG.get_vertices()
+        if isinstance(node,str):
+            has_it =  ps.str.contains(node).any()
+        else:
+            has_it = (node in ps.values)
+        return has_it
+
 
 
     def add_weighted_edges_from(self):
@@ -158,12 +163,12 @@ class Graph():
         return
 
 
-    def remove_edge(self):
+    def delete_edge(self):
         print("Not yet implemented")
         return
 
 
-    def remove_edges_from(self):
+    def delete_edges_from(self):
         print("Not yet implemented")
         return
 
@@ -173,12 +178,19 @@ class Graph():
         return
 
 
-    def has_edge(self):
-        print("Not yet implemented")
-        return
+    def has_edge(self,u,v):
+        nodelist = [u,v]
+        edgefilter = f"{self.__pG.src_col_name}.isin({nodelist}) & {self.__pG.dst_col_name}.isin({nodelist})"
+        selected_edges = self.__pG.select_edges(edgefilter)
+        subgraph = self.__pG.extract_subgraph(create_using=cugraph.Graph(directed=True),
+                 selection=selected_edges,
+                 default_edge_weight=1.0,
+                 allow_multi_edges=True)
+        return len(subgraph.edges()) > 0
+
 
     def get_connections(self, nodelist):
-        edgefilter = f"{self.__pG.src_col_name}.isin({nodelist}) | {self.__pG.src_col_name}.isin({nodelist})"
+        edgefilter = f"{self.__pG.src_col_name}.isin({nodelist}) | {self.__pG.dst_col_name}.isin({nodelist})"
         selected_edges = self.__pG.select_edges(edgefilter)
         subgraph = self.__pG.extract_subgraph(create_using=cugraph.Graph(directed=True),
                  selection=selected_edges,
@@ -186,9 +198,11 @@ class Graph():
                  allow_multi_edges=True)
         return subgraph
 
-    def neighbors(self):
-        print("Not yet implemented")
-        return
+    def neighbors(self,node):
+        nodelist = [node]
+        subgraph = self.get_connections(nodelist)
+        neighbor_list = subgraph.nodes()
+        return neighbor_list.where(neighbor_list != node).dropna()
 
 
     def get_edge_data(self):
@@ -252,7 +266,6 @@ class Graph():
             in_data = None
             column_names=None
             if  not isinstance(edges[0],list):
-                print("Reached with no list or column titles")
                 in_data = edges
                 column_names=[self.src_col_name,self.dst_col_name]
                 # print(f'Column names = {column_names}')
