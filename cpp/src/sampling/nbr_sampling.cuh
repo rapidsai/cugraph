@@ -40,8 +40,11 @@
 
 #include "rw_traversals.hpp"
 
+// #include <cugraph-ops/graph/sampling.h>
+
 #include <algorithm>
 #include <limits>
+#include <numeric>
 #include <type_traits>
 #include <vector>
 
@@ -104,52 +107,47 @@ void get_sampling_index(IdxT* index,
 namespace detail {
 
 /**
- * @brief Projects output from one iteration onto the input for the next: extracts the
- (destination_vertex_id, rank_to_send_it_to) components from the output quadruplet
- * @tparam vertex_t vertex id type;
- * @tparam edge_t edge id (and vertex indexing) type;
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param[in] d_out device array of quadruplets from which new input is extracted; typically
- (vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index)
- * @param[out] d_in next itertion input device array of pairs for next iteration; typically
- (vertex_t source_vertex, int rank)
- */
-template <typename vertex_t, typename edge_t>
-void project(raft::handle_t const& handle,
-             thrust::tuple<vertex_t, vertex_t, int, edge_t> const* d_out,
-             thrust::tuple<vertex_t, int>* d_in,
-             size_t sz)
-{
-  thrust::transform(
-    handle.get_thrust_policy(), d_out, d_out + sz, d_in, [] __device__(auto const& quad) {
-      return thrust::make_tuple(thrust::get<1>(quad), thrust::get<2>(quad));  // (d, r)
-    });
-}
-
-/**
- * @brief Projects output from one iteration onto the input for the next: extracts the
- (destination_vertex_id, rank_to_send_it_to) components from the output quadruplet; overload acting
- on zip-iterators;
- * @tparam zip_out_it_t zip type for the output tuple;
- * @tparam zip_in_it_t zip type for the input tuple;
+ * @brief Projects zip input onto the lower dim zip output, where lower dimension components are
+ * specified by tuple indices; e.g., extracts the (destination_vertex_id, rank_to_send_it_to)
+ * components from the quadruplet (vertex_t source_vertex, vertex_t destination_vertex, int rank,
+ * edge_t index) via indices {1,2};
+ * @tparam vertex_index non-type template parameter specifying index in the input tuple where vertex
+ * IDs are stored;
+ * @tparam rank_index non-type template parameter specifying index in the input tuple where rank IDs
+ * are stored;
+ * @tparam zip_in_it_t zip Type for the input tuple;
+ * @tparam zip_out_it_t zip Type for the output tuple;
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param[in] begin zip begin iterator of quadruplets from which new input is extracted; typically
- (vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index)
+ * (vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index)
  * @param[in] end zip end iterator of quadruplets from which new input is extracted;
  * @param[out] result begin of result zip iterator of pairs for next iteration; typically
- (vertex_t source_vertex, int rank)
+ * (vertex_t source_vertex, int rank)
  */
-template <typename zip_out_it_t, typename zip_in_it_t>
-void project(raft::handle_t const& handle, zip_out_it_t begin, zip_out_it_t end, zip_in_it_t result)
+template <size_t vertex_index, size_t rank_index, typename zip_in_it_t, typename zip_out_it_t>
+void project(raft::handle_t const& handle, zip_in_it_t begin, zip_in_it_t end, zip_out_it_t result)
 {
-  thrust::transform(
-    handle.get_thrust_policy(), begin, end, result, [] __device__(auto const& quad) {
-      return thrust::make_tuple(thrust::get<1>(quad), thrust::get<2>(quad));
-    });
+  thrust::transform(handle.get_thrust_policy(), begin, end, result, [] __device__(auto const& tpl) {
+    return thrust::make_tuple(thrust::get<vertex_index>(tpl), thrust::get<rank_index>(tpl));
+  });
 }
 
+/**
+ * @brief Shuffles zipped pairs of vertex IDs and ranks IDs to the GPU's that the vertex IDs belong
+ * to. The assumption is that the return provides a per-GPU coalesced set of pairs, with
+ * corresponding counts vector. To limit the result to the self-GPU one needs additional filtering
+ * to extract the corresponding set from the coalesced set of sets and using the corresponding
+ * counts entry;
+ * @tparam graph_view_t Type of graph view.
+ * @tparam zip_iterator_t zip Type for the zipped tuple<vertex_t, gpu_t> (vertexID, rank);
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param[in] begin zip begin iterator of (vertexID, rank) pairs;
+ * @param[in] end zip end iterator of (vertexID, rank) pairs;
+ * @return tuple pair of coalesced pairs and counts
+ */
 template <typename graph_view_t, typename zip_iterator_t>
 decltype(auto) shuffle_to_gpus(raft::handle_t const& handle,
                                graph_view_t const& graph_view,
@@ -284,6 +282,7 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample_impl(
     detail::device_vec_t<vertex_out_tuple_t> d_out(0, handle.get_stream());  // starts as empty
 
     decltype(num_levels) level{0};
+    auto const self_rank = handle.get_comms().get_rank();
     for (auto&& k_level : h_fan_out) {
       // main body:
       //{
@@ -346,15 +345,25 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample_impl(
       auto&& [rx_tpl_v_r, rx_counts] =
         detail::shuffle_to_gpus(handle, graph_view, next_in_zip_begin, next_in_zip_end);
 
-      // filter rx_tpl_v_r and rx_counts vector by self-rank:
+      // filter rx_tpl_v_r and rx_counts vector by self_rank:
       //
+      decltype(rx_counts) rx_offsets(rx_counts.size());
+      std::exclusive_scan(rx_counts.begin(), rx_counts.end(), rx_offsets.begin(), 0);
 
       // resize d_in, d_ranks:
       //
+      auto new_in_sz = rx_counts.at(self_rank);
+      d_in.resize(new_in_sz);
+      d_ranks.resize(new_in_sz);
 
       // line 14 (project output onto input):
       // zip d_in, d_ranks
       //
+      auto new_in_zip = thrust::make_zip_iterator(
+        thrust::make_tuple(d_in.begin(), d_ranks.begin()));  // result start_zip
+
+      auto tpl_in_it_begin = rx_tpl_v_r.begin() + rx_offsets.at(self_rank);
+      detail::project<0, 1>(handle, tpl_in_it_begin, tpl_in_it_begin + new_in_sz, new_in_zip);
 
       //}
       ++level;
