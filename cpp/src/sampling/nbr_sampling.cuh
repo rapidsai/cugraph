@@ -150,6 +150,39 @@ void project(raft::handle_t const& handle, zip_out_it_t begin, zip_out_it_t end,
     });
 }
 
+template <typename graph_view_t, typename zip_iterator_t>
+decltype(auto) shuffle_to_gpus(raft::handle_t const& handle,
+                               graph_view_t const& graph_view,
+                               zip_iterator_t begin,
+                               zip_iterator_t end)
+{
+  using vertex_t = typename graph_view_t::vertex_type;
+  using edge_t   = typename graph_view_t::edge_type;
+  using gpu_t    = mnmg::gpu_t;
+
+  auto vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
+  rmm::device_uvector<vertex_t> d_vertex_partition_lasts(vertex_partition_lasts.size(),
+                                                         handle.get_stream());
+  raft::update_device(
+    d_vertex_partition_lasts.data(), vertex_partition_lasts.data(), vertex_partition_lasts.size());
+
+  auto&& [rx_tuple, rx_counts] = groupby_gpu_ids_and_shuffle_values(
+    handle.get_comms(),
+    begin,
+    end,
+    [vertex_partition_lasts = d_vertex_partition_lasts.data(),
+     num_vertex_partitions  = d_vertex_partition_lasts.size()] __device__(auto tpl_v_r) {
+      auto gpu_id = static_cast<gpu_t>(
+        thrust::distance(vertex_partition_lasts,
+                         thrust::lower_bound(thrust::seq,
+                                             vertex_partition_lasts,
+                                             vertex_partition_lasts + num_vertex_partitions,
+                                             thrust::get<0>(tpl_v_r))));
+    },
+    handle.get_stream());
+  return std::make_tuple(std::move(rx_tuple), rx_counts);
+}
+
 /**
  * @brief Multi-GPU Uniform Neighborhood Sampling. The outline of the algorithm:
  *
@@ -263,13 +296,13 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample_impl(
       // line 7 in specs (extract out-degs(sources)):
       //
       auto&& d_out_degs =
-        mnmg::get_active_source_global_degrees(handle, graph_view, d_in, global_degree_offsets);
+        mnmg::get_active_source_global_degrees(handle, graph_view, d_new_in, global_degree_offsets);
 
       // line 8 in specs (segemented-random-generation of indices):
       //
       decltype(d_out_degs) d_indices(d_in.size() * k_level);
       seeder_t seeder{};
-      raft::random::Rng rng(seeder() + k_level);  // TODO: check if this works for uniform
+      raft::random::Rng rng(seeder() + k_level);
       mnmg::ops::get_sampling_index(detail::raw_ptr(d_indices),
                                     rng,
                                     detail::raw_const_ptr(d_out_degs),
@@ -298,14 +331,22 @@ rmm::device_uvector<vertex_out_tuple_t> uniform_nbr_sample_impl(
 
       // line 12 (union step):
       //
-      auto in = thrust::make_zip_iterator(thrust::make_tuple(detail::raw_const_ptr(d_out_src),
-                                                             detail::raw_const_ptr(d_out_dst),
-                                                             detail::raw_const_ptr(d_out_ranks),
-                                                             detail::raw_const_ptr(d_indices)));
-      thrust::copy_n(handle.get_thrust_policy(), in, add_sz, d_out.begin() + old_sz);
+      auto out_zip_it = thrust::make_zip_iterator(thrust::make_tuple(
+        d_out_src.begin(), d_out_dst.begin(), d_out_ranks.begin(), d_indices.begin()));
+
+      thrust::copy_n(handle.get_thrust_policy(), out_zip_it, add_sz, d_out.begin() + old_sz);
 
       // line 13 (shuffle step):
       // zipping is necessary to preserve rank info during shuffle!
+      //
+      auto next_in_zip_begin =
+        thrust::make_zip_iterator(thrust::make_tuple(d_out_src.begin(), d_out_ranks.begin()));
+      auto next_in_zip_end =
+        thrust::make_zip_iterator(thrust::make_tuple(d_out_src.end(), d_out_ranks.end()));
+      auto&& [rx_tpl_v_r, rx_counts] =
+        detail::shuffle_to_gpus(handle, graph_view, next_in_zip_begin, next_in_zip_end);
+
+      // filter rx_tpl_v_r and rx_counts vector by self-rank:
       //
 
       // resize d_in, d_ranks:
