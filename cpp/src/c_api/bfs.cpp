@@ -19,11 +19,11 @@
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
 #include <c_api/paths_result.hpp>
+#include <c_api/utils.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/visitors/generic_cascaded_dispatch.hpp>
 
 #include <raft/handle.hpp>
 
@@ -40,17 +40,17 @@ struct bfs_functor : public abstract_functor {
   bool do_expensive_check_;
   cugraph_paths_result_t* result_{};
 
-  bfs_functor(raft::handle_t const& handle,
-              cugraph_graph_t* graph,
-              cugraph_type_erased_device_array_view_t* sources,
+  bfs_functor(cugraph_resource_handle_t const* handle,
+              ::cugraph_graph_t* graph,
+              ::cugraph_type_erased_device_array_view_t* sources,
               bool direction_optimizing,
               size_t depth_limit,
               bool compute_predecessors,
               bool do_expensive_check)
     : abstract_functor(),
-      handle_(handle),
-      graph_(graph),
-      sources_(sources),
+      handle_(*reinterpret_cast<raft::handle_t const*>(handle)),
+      graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
+      sources_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(sources)),
       direction_optimizing_(direction_optimizing),
       depth_limit_(depth_limit),
       compute_predecessors_(compute_predecessors),
@@ -184,43 +184,13 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
                                             cugraph_paths_result_t** result,
                                             cugraph_error_t** error)
 {
-  *result = nullptr;
-  *error  = nullptr;
+  cugraph::c_api::bfs_functor functor(handle,
+                                      graph,
+                                      sources,
+                                      direction_optimizing,
+                                      depth_limit,
+                                      compute_predecessors,
+                                      do_expensive_check);
 
-  try {
-    auto p_handle = reinterpret_cast<raft::handle_t const*>(handle);
-    auto p_graph  = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
-    auto p_sources =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(sources);
-
-    cugraph::c_api::bfs_functor functor(*p_handle,
-                                        p_graph,
-                                        p_sources,
-                                        direction_optimizing,
-                                        depth_limit,
-                                        compute_predecessors,
-                                        do_expensive_check);
-
-    // FIXME:  This seems like a recurring pattern.  Can I encapsulate
-    //    The vertex_dispatcher and error handling calls into a reusable function?
-    //    After all, we're in C++ here.
-    cugraph::dispatch::vertex_dispatcher(cugraph::c_api::dtypes_mapping[p_graph->vertex_type_],
-                                         cugraph::c_api::dtypes_mapping[p_graph->edge_type_],
-                                         cugraph::c_api::dtypes_mapping[p_graph->weight_type_],
-                                         p_graph->store_transposed_,
-                                         p_graph->multi_gpu_,
-                                         functor);
-
-    if (functor.error_code_ != CUGRAPH_SUCCESS) {
-      *error = reinterpret_cast<cugraph_error_t*>(functor.error_.release());
-      return functor.error_code_;
-    }
-
-    *result = reinterpret_cast<cugraph_paths_result_t*>(functor.result_);
-  } catch (std::exception const& ex) {
-    *error = reinterpret_cast<cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ex.what()});
-    return CUGRAPH_UNKNOWN_ERROR;
-  }
-
-  return CUGRAPH_SUCCESS;
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
