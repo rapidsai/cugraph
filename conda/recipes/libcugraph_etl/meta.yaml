@@ -37,6 +37,7 @@ requirements:
     - cmake>=3.20.1
     - doxygen>=1.8.11
     - cudatoolkit {{ cuda_version }}.*
+    - libcugraphops {{ minor_version }}.*  # needed for cmake to find transitive deps
     - libcudf {{ minor_version }}.*
     - libcugraph {{ minor_version }}.*
   run:
