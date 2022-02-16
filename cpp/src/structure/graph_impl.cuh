@@ -87,7 +87,8 @@ struct atomic_or_bitmap_t {
   uint32_t* bitmaps{nullptr};
   vertex_t minor_first{};
 
-  __device__ void operator()(vertex_t minor) const {
+  __device__ void operator()(vertex_t minor) const
+  {
     auto minor_offset = minor - minor_first;
     auto mask         = uint32_t{1} << (minor_offset % (sizeof(uint32_t) * 8));
     atomicOr(bitmaps + (minor_offset / (sizeof(uint32_t) * 8)), mask);
@@ -98,7 +99,8 @@ struct atomic_or_bitmap_t {
 // extended __device__ lambda must allow its address to be taken)
 template <typename vertex_t>
 struct popc_t {
-  __device__ vertex_t operator()(uint32_t bitmap) const {
+  __device__ vertex_t operator()(uint32_t bitmap) const
+  {
     return static_cast<vertex_t>(__popc(bitmap));
   }
 };
@@ -682,7 +684,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                         static_cast<edge_t>(adj_matrix_partition_indices_[i].size()));
   }
 
-
   // if # unique edge rows/cols << V / row_comm_size|col_comm_size, store unique edge rows/cols to
   // support storing edge row/column properties in (key, value) pairs.
 
@@ -691,7 +692,8 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     num_local_unique_edge_majors += thrust::count_if(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(vertex_t{0}),
-      thrust::make_counting_iterator(static_cast<vertex_t>(adj_matrix_partition_offsets_[i].size() - 1)),
+      thrust::make_counting_iterator(
+        static_cast<vertex_t>(adj_matrix_partition_offsets_[i].size() - 1)),
       has_nzd_t<vertex_t, edge_t>{adj_matrix_partition_offsets_[i].data(), vertex_t{0}});
   }
 
@@ -709,10 +711,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto count_first = thrust::make_transform_iterator(minor_bitmaps.begin(), popc_t<vertex_t>{});
   auto num_local_unique_edge_minors = thrust::reduce(
-    handle.get_thrust_policy(),
-    count_first,
-    count_first + minor_bitmaps.size(),
-    vertex_t{0});
+    handle.get_thrust_policy(), count_first, count_first + minor_bitmaps.size(), vertex_t{0});
 
   minor_bitmaps.resize(0, handle.get_stream());
   minor_bitmaps.shrink_to_fit(handle.get_stream());
