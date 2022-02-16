@@ -82,6 +82,29 @@ struct has_nzd_t {
 
 // can't use lambda due to nvcc limitations (The enclosing parent function ("graph_t") for an
 // extended __device__ lambda must allow its address to be taken)
+template <typename vertex_t>
+struct atomic_or_bitmap_t {
+  uint32_t* bitmaps{nullptr};
+  vertex_t minor_first{};
+
+  __device__ void operator()(vertex_t minor) const {
+    auto minor_offset = minor - minor_first;
+    auto mask         = uint32_t{1} << (minor_offset % (sizeof(uint32_t) * 8));
+    atomicOr(bitmaps + (minor_offset / (sizeof(uint32_t) * 8)), mask);
+  }
+};
+
+// can't use lambda due to nvcc limitations (The enclosing parent function ("graph_t") for an
+// extended __device__ lambda must allow its address to be taken)
+template <typename vertex_t>
+struct popc_t {
+  __device__ vertex_t operator()(uint32_t bitmap) const {
+    return static_cast<vertex_t>(__popc(bitmap));
+  }
+};
+
+// can't use lambda due to nvcc limitations (The enclosing parent function ("graph_t") for an
+// extended __device__ lambda must allow its address to be taken)
 template <typename edge_t>
 struct rebase_offset_t {
   edge_t base_offset{};
@@ -573,48 +596,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
         "Invalid input argument: meta.property.is_multigraph is false but the input edge list has "
         "parallel edges.");
     }
-
-    rmm::device_uvector<vertex_t> majors(number_of_local_edges, handle.get_stream());
-    rmm::device_uvector<vertex_t> minors(number_of_local_edges, handle.get_stream());
-    size_t cur_size{0};
-    for (size_t i = 0; i < edgelists.size(); ++i) {
-      auto p_majors = store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices;
-      auto p_minors = store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices;
-      thrust::copy(handle.get_thrust_policy(),
-                   p_majors,
-                   p_majors + edgelists[i].number_of_edges,
-                   majors.begin() + cur_size);
-      thrust::copy(handle.get_thrust_policy(),
-                   p_minors,
-                   p_minors + edgelists[i].number_of_edges,
-                   minors.begin() + cur_size);
-      cur_size += edgelists[i].number_of_edges;
-    }
-    thrust::sort(handle.get_thrust_policy(), majors.begin(), majors.end());
-    thrust::sort(handle.get_thrust_policy(), minors.begin(), minors.end());
-    auto num_local_unique_edge_majors = static_cast<vertex_t>(thrust::distance(
-      majors.begin(), thrust::unique(handle.get_thrust_policy(), majors.begin(), majors.end())));
-    auto num_local_unique_edge_minors = static_cast<vertex_t>(thrust::distance(
-      minors.begin(), thrust::unique(handle.get_thrust_policy(), minors.begin(), minors.end())));
-    // FIXME: temporarily disable this check as these are currently not used
-    // (row_col_properties_kv_pair_fill_ratio_threshold is set to 0.0, so (key, value) pairs for
-    // row/column properties will be never enabled) and we're not currently exposing this to the
-    // python layer. Should be re-enabled later once we enable the (key, value) pair feature and
-    // hopefully simplify the python graph creation pipeline as well (so no need to pass this
-    // information to the python layer).
-#if 0
-    if constexpr (store_transposed) {
-      CUGRAPH_EXPECTS(num_local_unique_edge_majors == meta.num_local_unique_edge_cols,
-                      "Invalid input argument: num_local_unique_edge_cols is erroneous.");
-      CUGRAPH_EXPECTS(num_local_unique_edge_minors == meta.num_local_unique_edge_rows,
-                      "Invalid input argument: num_local_unique_edge_rows is erroneous.");
-    } else {
-      CUGRAPH_EXPECTS(num_local_unique_edge_majors == meta.num_local_unique_edge_rows,
-                      "Invalid input argument: num_local_unique_edge_rows is erroneous.");
-      CUGRAPH_EXPECTS(num_local_unique_edge_minors == meta.num_local_unique_edge_cols,
-                      "Invalid input argument: num_local_unique_edge_cols is erroneous.");
-    }
-#endif
   }
 
   // aggregate segment_offsets
@@ -701,13 +682,40 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                         static_cast<edge_t>(adj_matrix_partition_indices_[i].size()));
   }
 
+
   // if # unique edge rows/cols << V / row_comm_size|col_comm_size, store unique edge rows/cols to
   // support storing edge row/column properties in (key, value) pairs.
 
-  auto num_local_unique_edge_majors =
-    store_transposed ? meta.num_local_unique_edge_cols : meta.num_local_unique_edge_rows;
-  auto num_local_unique_edge_minors =
-    store_transposed ? meta.num_local_unique_edge_rows : meta.num_local_unique_edge_cols;
+  vertex_t num_local_unique_edge_majors{0};
+  for (size_t i = 0; i < adj_matrix_partition_offsets_.size(); ++i) {
+    num_local_unique_edge_majors += thrust::count_if(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(vertex_t{0}),
+      thrust::make_counting_iterator(static_cast<vertex_t>(adj_matrix_partition_offsets_[i].size() - 1)),
+      has_nzd_t<vertex_t, edge_t>{adj_matrix_partition_offsets_[i].data(), vertex_t{0}});
+  }
+
+  auto [minor_first, minor_last] = partition_.get_matrix_partition_minor_range();
+  rmm::device_uvector<uint32_t> minor_bitmaps(
+    ((minor_last - minor_first) + sizeof(uint32_t) * 8 - 1) / (sizeof(uint32_t) * 8),
+    handle.get_stream());
+  thrust::fill(handle.get_thrust_policy(), minor_bitmaps.begin(), minor_bitmaps.end(), uint32_t{0});
+  for (size_t i = 0; i < adj_matrix_partition_indices_.size(); ++i) {
+    thrust::for_each(handle.get_thrust_policy(),
+                     adj_matrix_partition_indices_[i].begin(),
+                     adj_matrix_partition_indices_[i].end(),
+                     atomic_or_bitmap_t<vertex_t>{minor_bitmaps.data(), minor_first});
+  }
+
+  auto count_first = thrust::make_transform_iterator(minor_bitmaps.begin(), popc_t<vertex_t>{});
+  auto num_local_unique_edge_minors = thrust::reduce(
+    handle.get_thrust_policy(),
+    count_first,
+    count_first + minor_bitmaps.size(),
+    vertex_t{0});
+
+  minor_bitmaps.resize(0, handle.get_stream());
+  minor_bitmaps.shrink_to_fit(handle.get_stream());
 
   vertex_t aggregate_major_size{0};
   for (size_t i = 0; i < partition_.get_number_of_matrix_partitions(); ++i) {
