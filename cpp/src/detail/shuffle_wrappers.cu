@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,20 +43,21 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
   auto element_size = sizeof(vertex_t) * 2 + (d_edgelist_weights ? sizeof(weight_t) : size_t{0});
-  auto mem_frugal =
-    d_edgelist_majors.size() * element_size >=
-    total_global_mem /
-      5;  // if the data size exceeds 1/5 of the device memory (1/5 is a tuning parameter),
-          // groupby_and_count requires temporary buffer comparable to the input data size, if
-          // mem_frugal is set to true, temporary buffer size can be reduced up to 50%
+  auto constexpr mem_frugal_ratio =
+    0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+          // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
+          // group-by by default, and thrust::sort requires temporary buffer comparable to the input
+          // data size)
+  auto mem_frugal_threshold =
+    static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
-  // invoke groupby_and_count and shuffle values to pass mem_frugal instead of directly calling
-  // groupby_gpu_id_and_shuffle_values there is no benefit in reducing peak memory as we need to
-  // allocate a receive buffer anyways) but this reduces the maximum memory allocation size by half
-  // (thrust::sort used inside the groupby_and_count allocates the entire temporary buffer in a
-  // single chunk, and the pool allocator  often cannot handle a large single allocation (due to
-  // fragmentation) even when the remaining free memory in aggregate is significantly larger than
-  // the requested size).
+  // invoke groupby_and_count and shuffle values to pass mem_frugal_threshold instead of directly
+  // calling groupby_gpu_id_and_shuffle_values there is no benefit in reducing peak memory as we
+  // need to allocate a receive buffer anyways) but this reduces the maximum memory allocation size
+  // by half or more (thrust::sort used inside the groupby_and_count allocates the entire temporary
+  // buffer in a single chunk, and the pool allocator  often cannot handle a large single allocation
+  // (due to fragmentation) even when the remaining free memory in aggregate is significantly larger
+  // than the requested size).
   rmm::device_uvector<vertex_t> d_rx_edgelist_majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_rx_edgelist_minors(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_rx_edgelist_weights{std::nullopt};
@@ -73,7 +74,7 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
         return key_func(thrust::get<0>(val), thrust::get<1>(val));
       },
       comm_size,
-      mem_frugal,
+      mem_frugal_threshold,
       handle.get_stream());
 
     std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
@@ -99,7 +100,7 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
         return key_func(thrust::get<0>(val), thrust::get<1>(val));
       },
       comm_size,
-      mem_frugal,
+      mem_frugal_threshold,
       handle.get_stream());
 
     std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
@@ -109,8 +110,7 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
                       handle.get_stream());
     handle.sync_stream();
 
-    std::forward_as_tuple(
-      std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors), std::ignore) =
+    std::forward_as_tuple(std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors), std::ignore) =
       shuffle_values(comm, edge_first, h_tx_value_counts, handle.get_stream());
   }
 
@@ -196,12 +196,13 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
   auto element_size = sizeof(vertex_t) * 2 + (d_edgelist_weights ? sizeof(weight_t) : size_t{0});
-  auto mem_frugal =
-    d_edgelist_majors.size() * element_size >=
-    total_global_mem /
-      5;  // if the data size exceeds 1/5 of the device memory (1/5 is a tuning parameter),
-          // groupby_and_count requires temporary buffer comparable to the input data size, if
-          // mem_frugal is set to true, temporary buffer size can be reduced up to 50%
+  auto constexpr mem_frugal_ratio =
+    0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+          // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
+          // group-by by default, and thrust::sort requires temporary buffer comparable to the input
+          // data size)
+  auto mem_frugal_threshold =
+    static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
@@ -227,13 +228,13 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                                            d_edgelist_weights->begin(),
                                                            local_partition_id_gpu_id_pair_op,
                                                            comm_size,
-                                                           mem_frugal,
+                                                           mem_frugal_threshold,
                                                            handle.get_stream())
                               : cugraph::groupby_and_count(pair_first,
                                                            pair_first + d_edgelist_majors.size(),
                                                            local_partition_id_gpu_id_pair_op,
                                                            comm_size,
-                                                           mem_frugal,
+                                                           mem_frugal_threshold,
                                                            handle.get_stream());
   } else {
     auto local_partition_id_op =
@@ -249,13 +250,13 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                                            d_edgelist_weights->begin(),
                                                            local_partition_id_op,
                                                            col_comm_size,
-                                                           mem_frugal,
+                                                           mem_frugal_threshold,
                                                            handle.get_stream())
                               : cugraph::groupby_and_count(pair_first,
                                                            pair_first + d_edgelist_majors.size(),
                                                            local_partition_id_op,
                                                            col_comm_size,
-                                                           mem_frugal,
+                                                           mem_frugal_threshold,
                                                            handle.get_stream());
   }
 }
