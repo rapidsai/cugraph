@@ -283,12 +283,11 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
     cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
       edgelists,
-      cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{
-        meta.number_of_vertices,
-        meta.number_of_edges,
-        graph_properties,
-        meta.partition,
-        meta.segment_offsets}),
+      cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{meta.number_of_vertices,
+                                                         meta.number_of_edges,
+                                                         graph_properties,
+                                                         meta.partition,
+                                                         meta.segment_offsets}),
     std::optional<rmm::device_uvector<vertex_t>>{std::move(renumber_map_labels)});
 }
 
