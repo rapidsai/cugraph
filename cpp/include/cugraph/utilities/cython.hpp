@@ -582,17 +582,6 @@ template <typename vertex_t, typename index_t>
 std::unique_ptr<random_walk_coo_t> random_walks_to_coo(raft::handle_t const& handle,
                                                        random_walk_ret_t& rw_ret);
 
-// wrapper for node2vec.
-/*template <typename vertex_t, typename weight_t>
-void call_node2vec(raft::handle_t const& handle,
-                   graph_container_t const& graph_container,
-                   vertex_t* paths,
-                   weight_t* weights,
-                   vertex_t* offsets,
-                   vertex_t* sources,
-                   const float p,
-                   const float q);*/
-
 // wrapper for shuffling:
 //
 template <typename vertex_t, typename edge_t, typename weight_t>

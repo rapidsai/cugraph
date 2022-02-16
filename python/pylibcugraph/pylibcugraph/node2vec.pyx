@@ -117,7 +117,7 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     >>> G = pylibcugraph.experimental.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
-    >>> (paths, weights, offsets) = pylibcugraph.experimental.EXPERIMENTAL__node2vec(
+    >>> (paths, weights, offsets) = pylibcugraph.experimental.node2vec(
     ...                             resource_handle, G, srcs, 3, True, p=1.0, q=1.0)
 
     """

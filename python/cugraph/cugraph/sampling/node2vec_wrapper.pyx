@@ -30,7 +30,7 @@ def node2vec(input_graph, sources, max_depth, p, q):
     Call node2vec
     """
 
-    """
+    
     # Step 1: Declare the different variables
     cdef graph_container_t graph_container
 
@@ -133,7 +133,7 @@ def node2vec(input_graph, sources, max_depth, p, q):
 
     # Stubbed out code - layer 2 being the wrapper in cugraph
     return df
-    """
+    
 
     # FIXME: To remove when implemented
-    return 222
+    # return 222

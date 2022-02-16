@@ -1063,60 +1063,6 @@ void call_sssp(raft::handle_t const& handle,
   }
 }
 
-// wrapper for node2vec
-/*template <typename vertex_t, typename weight_t>
-void call_node2vec(raft::handle_t const& handle,
-                   graph_container_t const& graph_container,
-                   vertex_t* paths,
-                   weight_t* weights,
-                   vertex_t* offsets,
-                   vertex_t* sources,
-                   const float p,
-                   const float q)
-{
-  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
-    graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-    node2vec(
-      *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
-      reinterpret_cast<int32_t*>(paths),
-      reinterpret_cast<float*>(weights),
-      reinterpret_cast<int32_t*>(offsets),
-      static_cast<int32_t*>(sources));
-  } else if (graph_container.graph_type == graphTypeEnum::GraphCSRViewDouble) {
-    graph_container.graph_ptr_union.GraphCSRViewDoublePtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-    node2vec(
-      *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
-      reinterpret_cast<int32_t*>(paths),
-      reinterpret_cast<double*>(weights),
-      reinterpret_cast<int32_t*>(offsets),
-      static_cast<int32_t*>(sources));
-  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
-    if (graph_container.edgeType == numberTypeEnum::int32Type) {
-      auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
-      cugraph::node2vec(handle,
-                        graph->view(),
-                        reinterpret_cast<int32_t*>(paths),
-                        reinterpret_cast<weight_t*>(weights),
-                        reinterpret_cast<int32_t*>(offsets),
-                        static_cast<int32_t*>(sources));
-    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-      auto graph =
-        detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
-      cugraph::node2vec(handle,
-                        graph->view(),
-                        reinterpret_cast<vertex_t*>(paths),
-                        reinterpret_cast<weight_t*>(weights),
-                        reinterpret_cast<vertex_t*>(offsets),
-                        static_cast<vertex_t*>(sources));
-    } else {
-      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
-    }
-  }
-}*/
-
 // wrapper for weakly connected components:
 //
 template <typename vertex_t, typename weight_t>
@@ -1596,42 +1542,6 @@ template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int32_t, int64_t
 
 template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int64_t, int64_t>(
   raft::handle_t const& handle, random_walk_ret_t& rw_tri);
-
-/*template void call_node2vec(raft::handle_t const& handle,
-                            graph_container_t const& graph_container,
-                            int32_t* paths,
-                            float* weights,
-                            int32_t* offsets,
-                            int32_t* sources,
-                            const float p,
-                            const float q);
-
-template void call_node2vec(raft::handle_t const& handle,
-                            graph_container_t const& graph_container,
-                            int32_t* paths,
-                            double* weights,
-                            int32_t* offsets,
-                            int32_t* sources,
-                            const float p,
-                            const float q);
-
-template void call_node2vec(raft::handle_t const& handle,
-                            graph_container_t const& graph_container,
-                            int64_t* paths,
-                            float* weights,
-                            int64_t* offsets,
-                            int64_t* sources,
-                            const float p,
-                            const float q);
-
-template void call_node2vec(raft::handle_t const& handle,
-                            graph_container_t const& graph_container,
-                            int64_t* paths,
-                            double* weights,
-                            int64_t* offsets,
-                            int64_t* sources,
-                            const float p,
-                            const float q);*/
 
 template void call_sssp(raft::handle_t const& handle,
                         graph_container_t const& graph_container,
