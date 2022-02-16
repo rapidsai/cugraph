@@ -19,11 +19,11 @@
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
 #include <c_api/paths_result.hpp>
+#include <c_api/utils.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/visitors/generic_cascaded_dispatch.hpp>
 
 #include <raft/handle.hpp>
 
@@ -39,15 +39,15 @@ struct sssp_functor : public abstract_functor {
   bool do_expensive_check_;
   cugraph_paths_result_t* result_{};
 
-  sssp_functor(raft::handle_t const& handle,
-               cugraph_graph_t* graph,
+  sssp_functor(cugraph_resource_handle_t const* handle,
+               ::cugraph_graph_t* graph,
                size_t source,
                double cutoff,
                bool compute_predecessors,
                bool do_expensive_check)
     : abstract_functor(),
-      handle_(handle),
-      graph_(graph),
+      handle_(*reinterpret_cast<raft::handle_t const*>(handle)),
+      graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       source_(source),
       cutoff_(cutoff),
       compute_predecessors_(compute_predecessors),
@@ -151,36 +151,8 @@ extern "C" cugraph_error_code_t cugraph_sssp(const cugraph_resource_handle_t* ha
                                              cugraph_paths_result_t** result,
                                              cugraph_error_t** error)
 {
-  *result = nullptr;
-  *error  = nullptr;
+  cugraph::c_api::sssp_functor functor(
+    handle, graph, source, cutoff, compute_predecessors, do_expensive_check);
 
-  try {
-    auto p_handle = reinterpret_cast<raft::handle_t const*>(handle);
-    auto p_graph  = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
-
-    cugraph::c_api::sssp_functor functor(
-      *p_handle, p_graph, source, cutoff, compute_predecessors, do_expensive_check);
-
-    // FIXME:  This seems like a recurring pattern.  Can I encapsulate
-    //    The vertex_dispatcher and error handling calls into a reusable function?
-    //    After all, we're in C++ here.
-    cugraph::dispatch::vertex_dispatcher(cugraph::c_api::dtypes_mapping[p_graph->vertex_type_],
-                                         cugraph::c_api::dtypes_mapping[p_graph->edge_type_],
-                                         cugraph::c_api::dtypes_mapping[p_graph->weight_type_],
-                                         p_graph->store_transposed_,
-                                         p_graph->multi_gpu_,
-                                         functor);
-
-    if (functor.error_code_ != CUGRAPH_SUCCESS) {
-      *error = reinterpret_cast<cugraph_error_t*>(functor.error_.release());
-      return functor.error_code_;
-    }
-
-    *result = reinterpret_cast<cugraph_paths_result_t*>(functor.result_);
-  } catch (std::exception const& ex) {
-    *error = reinterpret_cast<cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ex.what()});
-    return CUGRAPH_UNKNOWN_ERROR;
-  }
-
-  return CUGRAPH_SUCCESS;
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
