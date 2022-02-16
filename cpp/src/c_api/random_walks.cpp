@@ -31,22 +31,22 @@ namespace cugraph {
 namespace c_api {
 
 struct cugraph_random_walk_result_t {
-  bool result_compressed_;
-  size_t max_path_length_;
-  cugraph_type_erased_device_array_t* paths_;
-  cugraph_type_erased_device_array_t* weights_;
-  cugraph_type_erased_device_array_t* sizes_;
+  bool result_compressed_{false};
+  size_t max_path_length_{0};
+  cugraph_type_erased_device_array_t* paths_{nullptr};
+  cugraph_type_erased_device_array_t* weights_{nullptr};
+  cugraph_type_erased_device_array_t* sizes_{nullptr};
 };
 
 struct node2vec_functor : public abstract_functor {
   raft::handle_t const& handle_;
-  cugraph_graph_t* graph_;
-  cugraph_type_erased_device_array_view_t const* sources_;
-  size_t max_depth_;
-  bool compress_result_;
-  double p_;
-  double q_;
-  cugraph_random_walk_result_t* result_{};
+  cugraph_graph_t* graph_{nullptr};
+  cugraph_type_erased_device_array_view_t const* sources_{nullptr};
+  size_t max_depth_{0};
+  bool compress_result_{false};
+  double p_{0};
+  double q_{0};
+  cugraph_random_walk_result_t* result_{nullptr};
 
   node2vec_functor(cugraph_resource_handle_t const* handle,
                    ::cugraph_graph_t* graph,
