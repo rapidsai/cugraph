@@ -56,6 +56,7 @@ namespace detail {
 template <typename GraphViewType>
 rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degrees(
   raft::handle_t const& handle, GraphViewType const& graph_view);
+
 /**
  * @brief Calculate global degree information for all vertices represented by current gpu
  *
