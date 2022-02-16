@@ -18,6 +18,7 @@
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/utils.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -47,17 +48,18 @@ struct node2vec_functor : public abstract_functor {
   double q_;
   cugraph_random_walk_result_t* result_{};
 
-  node2vec_functor(raft::handle_t const& handle,
-                   cugraph_graph_t* graph,
-                   cugraph_type_erased_device_array_view_t const* sources,
+  node2vec_functor(cugraph_resource_handle_t const* handle,
+                   ::cugraph_graph_t* graph,
+                   ::cugraph_type_erased_device_array_view_t const* sources,
                    size_t max_depth,
                    bool compress_result,
                    double p,
                    double q)
     : abstract_functor(),
-      handle_(handle),
-      graph_(graph),
-      sources_(sources),
+      handle_(*reinterpret_cast<raft::handle_t const*>(handle)),
+      graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
+      sources_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),
       max_depth_(max_depth),
       compress_result_(compress_result),
       p_(p),
@@ -145,40 +147,10 @@ cugraph_error_code_t cugraph_node2vec(const cugraph_resource_handle_t* handle,
                                       cugraph_random_walk_result_t** result,
                                       cugraph_error_t** error)
 {
-  *result = nullptr;
-  *error  = nullptr;
+  cugraph::c_api::node2vec_functor functor(
+    handle, graph, sources, max_depth, compress_results, p, q);
 
-  try {
-    auto p_handle = reinterpret_cast<raft::handle_t const*>(handle);
-    auto p_graph  = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
-    auto p_sources =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources);
-
-    cugraph::c_api::node2vec_functor functor(
-      *p_handle, p_graph, p_sources, max_depth, compress_results, p, q);
-
-    // FIXME:  This seems like a recurring pattern.  Can I encapsulate
-    //    The vertex_dispatcher and error handling calls into a reusable function?
-    //    After all, we're in C++ here.
-    cugraph::dispatch::vertex_dispatcher(cugraph::c_api::dtypes_mapping[p_graph->vertex_type_],
-                                         cugraph::c_api::dtypes_mapping[p_graph->edge_type_],
-                                         cugraph::c_api::dtypes_mapping[p_graph->weight_type_],
-                                         p_graph->store_transposed_,
-                                         p_graph->multi_gpu_,
-                                         functor);
-
-    if (functor.error_code_ != CUGRAPH_SUCCESS) {
-      *error = reinterpret_cast<cugraph_error_t*>(functor.error_.release());
-      return functor.error_code_;
-    }
-
-    *result = reinterpret_cast<cugraph_random_walk_result_t*>(functor.result_);
-  } catch (std::exception const& ex) {
-    *error = reinterpret_cast<cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ex.what()});
-    return CUGRAPH_UNKNOWN_ERROR;
-  }
-
-  return CUGRAPH_SUCCESS;
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
 size_t cugraph_random_walk_result_get_max_path_length(cugraph_random_walk_result_t* result)
