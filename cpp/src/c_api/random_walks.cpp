@@ -34,7 +34,7 @@ struct cugraph_random_walk_result_t {
   size_t max_path_length_;
   cugraph_type_erased_device_array_t* paths_;
   cugraph_type_erased_device_array_t* weights_;
-  cugraph_type_erased_device_array_t* offsets_;
+  cugraph_type_erased_device_array_t* sizes_;
 };
 
 struct node2vec_functor : public abstract_functor {
@@ -112,7 +112,7 @@ struct node2vec_functor : public abstract_functor {
       // FIXME:  Forcing this to edge_t for now.  What should it really be?
       // Seems like it should be the smallest size that can accommodate
       // max_depth_ * sources_->size_
-      auto [paths, weights, offsets] = cugraph::random_walks(
+      auto [paths, weights, sizes] = cugraph::random_walks(
         handle_,
         graph_view,
         sources.data(),
@@ -127,7 +127,7 @@ struct node2vec_functor : public abstract_functor {
         max_depth_,
         new cugraph_type_erased_device_array_t(paths, graph_->vertex_type_),
         new cugraph_type_erased_device_array_t(weights, graph_->weight_type_),
-        new cugraph_type_erased_device_array_t(offsets, graph_->vertex_type_)};
+        new cugraph_type_erased_device_array_t(sizes, graph_->vertex_type_)};
     }
   }
 };
@@ -203,18 +203,19 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_weights(
     internal_pointer->weights_->view());
 }
 
-cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_offsets(
+cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_path_sizes(
   cugraph_random_walk_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_random_walk_result_t*>(result);
   return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->offsets_->view());
+    internal_pointer->sizes_->view());
 }
 
 void cugraph_random_walk_result_free(cugraph_random_walk_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_random_walk_result_t*>(result);
   delete internal_pointer->paths_;
+  delete internal_pointer->sizes_;
   delete internal_pointer->weights_;
   delete internal_pointer;
 }
