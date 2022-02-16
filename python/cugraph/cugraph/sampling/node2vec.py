@@ -16,7 +16,7 @@ from cugraph.sampling import node2vec_wrapper
 # from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 
-def node2vec(G, start_vertices, max_depth, p, q):
+def node2vec(G, sources, max_depth, p, q):
     """
     TODO: Write description of node2vec, plus parameters, returns, and
     possible examples.
@@ -27,7 +27,7 @@ def node2vec(G, start_vertices, max_depth, p, q):
     ----------
     G : cuGraph.Graph or networkx.Graph
 
-    start_vertices: cudf.Series
+    sources: cudf.Series
 
     max_depth: int, optional
 
@@ -35,6 +35,13 @@ def node2vec(G, start_vertices, max_depth, p, q):
 
     q: double, optional
 
+    Examples
+    --------
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+
     """
     # FIXME: Implementation is incomplete
-    return node2vec_wrapper.node2vec(G, start_vertices, max_depth, p, q)
+    return node2vec_wrapper.node2vec(G, sources, max_depth, p, q)

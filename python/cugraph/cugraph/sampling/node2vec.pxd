@@ -20,10 +20,12 @@ from cugraph.structure.graph_utilities cimport *
 
 cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef void call_node2vec[](
+    cdef void call_node2vec[vertex_t, weight_t](
         const handle_t &handle,
         const graph_container_t &g,
         vertex_t *paths,
         weight_t *weights,
-        vertex_t *
-        )
+        vertex_t *offsets,
+        vertex_t *sources,
+        const float p,
+        const float q) except +
