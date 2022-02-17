@@ -116,24 +116,13 @@ template <typename vertex_t,
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(raft::handle_t const&
-                                                                              handle,
-                                                                            matrix_partition_device_view_t<
-                                                                              vertex_t,
-                                                                              edge_t,
-                                                                              weight_t,
-                                                                              multi_gpu> const
-                                                                              matrix_partition,
-                                                                            vertex_t const*
-                                                                              major_label_first,
-                                                                            AdjMatrixMinorLabelInputWrapper const
-                                                                              minor_label_input,
-                                                                            std::optional<
-                                                                              std::vector<
-                                                                                vertex_t>> const&
-                                                                              segment_offsets,
-                                                                            bool
-                                                                              lower_triangular_only)
+decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+  raft::handle_t const& handle,
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
+  vertex_t const* major_label_first,
+  AdjMatrixMinorLabelInputWrapper const minor_label_input,
+  std::optional<std::vector<vertex_t>> const& segment_offsets,
+  bool lower_triangular_only)
 {
   static_assert(std::is_same_v<typename AdjMatrixMinorLabelInputWrapper::value_type, vertex_t>);
 
