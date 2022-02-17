@@ -328,6 +328,8 @@ typedef struct {
  *                           needs to be transposed
  * @param [in]  sources      Array of source vertices
  * @param [in]  max_depth    Maximum length of the generated path
+ * @param [in]  compress_result If true, return the paths as a compressed sparse row matrix,
+ *                              otherwise return as a dense matrix
  * @param [in]  p            The return parameter
  * @param [in]  q            The in/out parameter
  * @param [in]  result       Output from the node2vec call
@@ -339,7 +341,7 @@ cugraph_error_code_t cugraph_node2vec(const cugraph_resource_handle_t* handle,
                                       cugraph_graph_t* graph,
                                       const cugraph_type_erased_device_array_view_t* sources,
                                       size_t max_depth,
-                                      bool_t flag_use_padding,
+                                      bool_t compress_result,
                                       double p,
                                       double q,
                                       cugraph_random_walk_result_t** result,
@@ -359,8 +361,8 @@ size_t cugraph_random_walk_result_get_max_path_length(cugraph_random_walk_result
 /**
  * @brief     Get the matrix (row major order) of vertices in the paths
  *
- * @param [in]   result   The result from extract_paths
- * @return type erased array pointing to the matrix in device memory
+ * @param [in]   result   The result from a random walk algorithm
+ * @return type erased array pointing to the path matrix in device memory
  */
 cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_paths(
   cugraph_random_walk_result_t* result);
@@ -368,10 +370,19 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_paths(
 /**
  * @brief     Get the matrix (row major order) of edge weights in the paths
  *
- * @param [in]   result   The result from extract_paths
- * @return type erased array pointing to the edge weights in device memory
+ * @param [in]   result   The result from a random walk algorithm
+ * @return type erased array pointing to the path edge weights in device memory
  */
 cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_weights(
+  cugraph_random_walk_result_t* result);
+
+/**
+ * @brief     If the random walk result is compressed, get the path sizes
+ *
+ * @param [in]   result   The result from a random walk algorithm
+ * @return type erased array pointing to the path sizes in device memory
+ */
+cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_path_sizes(
   cugraph_random_walk_result_t* result);
 
 /**
