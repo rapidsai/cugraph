@@ -19,46 +19,42 @@ import numpy as np
 # =============================================================================
 # Test data
 # =============================================================================
-# _alpha = 0.85
-# _epsilon = 1.0e-6
-# _max_iterations = 500
-
 # The result names correspond to the datasets defined in conftest.py
 
 _test_data = {"karate.csv": {
                   "seeds": cp.asarray([0, 0], dtype=np.int32),
-                  "paths": cp.asarray([0, 8, 33, 29, 0, 1, 3, 0],
+                  "paths": cp.asarray([0, 8, 33, 29, 26, 0, 1, 3, 13, 33],
                                       dtype=np.int32),
                   "weights": cp.asarray([1., 1., 1., 1., 1., 1., 0., 0.],
                                         dtype=np.float32),
-                  "offsets": cp.asarray([4, 4], dtype=np.int32),
-                  "max_depth": 4
+                  "offsets": cp.asarray([5, 5], dtype=np.int32),
+                  "max_depth": 5
                   },
               "dolphins.csv": {
-                  "seeds": cp.asarray([0, 0], dtype=np.int32),
-                  "paths": cp.asarray([0, 14, 34, 49, 0, 42, 0, 40],
+                  "seeds": cp.asarray([11], dtype=np.int32),
+                  "paths": cp.asarray([11, 51, 11, 51],
                                       dtype=np.int32),
-                  "weights": cp.asarray([1., 1., 1., 1., 1., 1., 0., 0.],
+                  "weights": cp.asarray([1., 1., 1., 1.],
                                         dtype=np.float32),
-                  "offsets": cp.asarray([4, 4], dtype=np.int32),
+                  "offsets": cp.asarray([4], dtype=np.int32),
                   "max_depth": 4
                   },
               "Simple_1": {
                   "seeds": cp.asarray([0, 3], dtype=np.int32),
-                  "paths": cp.asarray([0, 1, 2, 3, 4, 4],
+                  "paths": cp.asarray([0, 1, 2, 3],
                                       dtype=np.int32),
-                  "weights": cp.asarray([1., 1., 1., 1., 1., 1., 0., 0.],
+                  "weights": cp.asarray([1., 1., 0.],
                                         dtype=np.float32),
-                  "offsets": cp.asarray([3, 3], dtype=np.int32),
-                  "max_depth": 4
+                  "offsets": cp.asarray([3, 1], dtype=np.int32),
+                  "max_depth": 3
                   },
               "Simple_2": {
                   "seeds": cp.asarray([0, 3], dtype=np.int32),
-                  "paths": cp.asarray([0, 1, 3, 5, 3, 5, 5, 5],
+                  "paths": cp.asarray([0, 1, 3, 5, 3, 5],
                                       dtype=np.int32),
-                  "weights": cp.asarray([0.1, 2.1, 7.2, 0.1, 2.1, 7.2, 0., 0.],
+                  "weights": cp.asarray([0.1, 2.1, 7.2, 7.2],
                                         dtype=np.float32),
-                  "offsets": cp.asarray([4, 4], dtype=np.int32),
+                  "offsets": cp.asarray([4, 2], dtype=np.int32),
                   "max_depth": 4
                   },
               }
@@ -110,11 +106,13 @@ def test_node2vec(sg_graph_objs):
     expected_weights = expected_weights.tolist()
     expected_offsets = expected_offsets.tolist()
 
-    if ds_name not in ["karate.csv", "dolphins.csv"]:
+    if ds_name not in ["karate.csv", "dolphins.csv", "Simple_2"]:
         for i in range(num_walks):
             assert pyt.approx(actual_paths[i], 1e-4) == expected_paths[i]
             assert pyt.approx(actual_weights[i], 1e-4) == expected_weights[i]
 
     # Starting vertex of each path should be the seed
+    path_start = 0
     for i in range(num_paths):
-        assert actual_paths[i*max_depth] == seeds[i]
+        assert actual_paths[path_start] == seeds[i]
+        path_start += actual_offsets[i]

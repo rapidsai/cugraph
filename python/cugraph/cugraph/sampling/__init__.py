@@ -12,4 +12,3 @@
 # limitations under the License.
 
 from cugraph.sampling.random_walks import random_walks, rw_path
-from cugraph.sampling.node2vec import node2vec
