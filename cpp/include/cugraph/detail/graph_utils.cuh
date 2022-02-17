@@ -86,12 +86,13 @@ struct is_first_in_run_t {
   }
 };
 
-template <typename PairIterator>
+template <typename vertex_t>
 struct is_first_in_run_pair_t {
-  PairIterator pair_first{};
+  vertex_t const* vertices0{nullptr};
+  vertex_t const* vertices1{nullptr};
   __device__ bool operator()(size_t i) const
   {
-    return (i == 0) || (*(pair_first + (i - 1)) != *(pair_first + i));
+    return (i == 0) || ((vertices0[i - 1] != vertices0[i]) || (vertices1[i - 1] != vertices1[i]));
   }
 };
 

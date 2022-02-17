@@ -78,7 +78,7 @@ edge_t groupby_e_and_coarsen_edgelist(vertex_t* edgelist_majors /* [INOUT] */,
       thrust::count_if(rmm::exec_policy(stream_view),
                        thrust::make_counting_iterator(size_t{0}),
                        thrust::make_counting_iterator(static_cast<size_t>(number_of_edges)),
-                       detail::is_first_in_run_pair_t<decltype(pair_first)>{pair_first});
+                       detail::is_first_in_run_pair_t<vertex_t>{edgelist_majors, edgelist_minors});
 
     rmm::device_uvector<vertex_t> tmp_edgelist_majors(num_uniques, stream_view);
     rmm::device_uvector<vertex_t> tmp_edgelist_minors(tmp_edgelist_majors.size(), stream_view);
