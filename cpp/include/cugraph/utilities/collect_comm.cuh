@@ -103,7 +103,7 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
   {
     rmm::device_uvector<vertex_t> rx_unique_keys(0, stream_view);
     std::vector<size_t> rx_value_counts{};
-    std::tie(rx_unique_keys, rx_value_counts) = groupby_gpuid_and_shuffle_values(
+    std::tie(rx_unique_keys, rx_value_counts) = groupby_gpu_id_and_shuffle_values(
       comm,
       unique_keys.begin(),
       unique_keys.end(),
@@ -228,7 +228,7 @@ collect_values_for_unique_keys(raft::comms::comms_t const& comm,
   {
     rmm::device_uvector<vertex_t> rx_unique_keys(0, stream_view);
     std::vector<size_t> rx_value_counts{};
-    std::tie(rx_unique_keys, rx_value_counts) = groupby_gpuid_and_shuffle_values(
+    std::tie(rx_unique_keys, rx_value_counts) = groupby_gpu_id_and_shuffle_values(
       comm,
       unique_keys.begin(),
       unique_keys.end(),
