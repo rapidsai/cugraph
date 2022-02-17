@@ -18,6 +18,7 @@
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/utils.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -30,34 +31,35 @@ namespace cugraph {
 namespace c_api {
 
 struct cugraph_random_walk_result_t {
-  bool result_compressed_;
-  size_t max_path_length_;
-  cugraph_type_erased_device_array_t* paths_;
-  cugraph_type_erased_device_array_t* weights_;
-  cugraph_type_erased_device_array_t* offsets_;
+  bool result_compressed_{false};
+  size_t max_path_length_{0};
+  cugraph_type_erased_device_array_t* paths_{nullptr};
+  cugraph_type_erased_device_array_t* weights_{nullptr};
+  cugraph_type_erased_device_array_t* sizes_{nullptr};
 };
 
 struct node2vec_functor : public abstract_functor {
   raft::handle_t const& handle_;
-  cugraph_graph_t* graph_;
-  cugraph_type_erased_device_array_view_t const* sources_;
-  size_t max_depth_;
-  bool compress_result_;
-  double p_;
-  double q_;
-  cugraph_random_walk_result_t* result_{};
+  cugraph_graph_t* graph_{nullptr};
+  cugraph_type_erased_device_array_view_t const* sources_{nullptr};
+  size_t max_depth_{0};
+  bool compress_result_{false};
+  double p_{0};
+  double q_{0};
+  cugraph_random_walk_result_t* result_{nullptr};
 
-  node2vec_functor(raft::handle_t const& handle,
-                   cugraph_graph_t* graph,
-                   cugraph_type_erased_device_array_view_t const* sources,
+  node2vec_functor(cugraph_resource_handle_t const* handle,
+                   ::cugraph_graph_t* graph,
+                   ::cugraph_type_erased_device_array_view_t const* sources,
                    size_t max_depth,
                    bool compress_result,
                    double p,
                    double q)
     : abstract_functor(),
-      handle_(handle),
-      graph_(graph),
-      sources_(sources),
+      handle_(*reinterpret_cast<raft::handle_t const*>(handle)),
+      graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
+      sources_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),
       max_depth_(max_depth),
       compress_result_(compress_result),
       p_(p),
@@ -112,7 +114,7 @@ struct node2vec_functor : public abstract_functor {
       // FIXME:  Forcing this to edge_t for now.  What should it really be?
       // Seems like it should be the smallest size that can accommodate
       // max_depth_ * sources_->size_
-      auto [paths, weights, offsets] = cugraph::random_walks(
+      auto [paths, weights, sizes] = cugraph::random_walks(
         handle_,
         graph_view,
         sources.data(),
@@ -127,7 +129,7 @@ struct node2vec_functor : public abstract_functor {
         max_depth_,
         new cugraph_type_erased_device_array_t(paths, graph_->vertex_type_),
         new cugraph_type_erased_device_array_t(weights, graph_->weight_type_),
-        new cugraph_type_erased_device_array_t(offsets, graph_->vertex_type_)};
+        new cugraph_type_erased_device_array_t(sizes, graph_->vertex_type_)};
     }
   }
 };
@@ -145,40 +147,10 @@ cugraph_error_code_t cugraph_node2vec(const cugraph_resource_handle_t* handle,
                                       cugraph_random_walk_result_t** result,
                                       cugraph_error_t** error)
 {
-  *result = nullptr;
-  *error  = nullptr;
+  cugraph::c_api::node2vec_functor functor(
+    handle, graph, sources, max_depth, compress_results, p, q);
 
-  try {
-    auto p_handle = reinterpret_cast<raft::handle_t const*>(handle);
-    auto p_graph  = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
-    auto p_sources =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources);
-
-    cugraph::c_api::node2vec_functor functor(
-      *p_handle, p_graph, p_sources, max_depth, compress_results, p, q);
-
-    // FIXME:  This seems like a recurring pattern.  Can I encapsulate
-    //    The vertex_dispatcher and error handling calls into a reusable function?
-    //    After all, we're in C++ here.
-    cugraph::dispatch::vertex_dispatcher(cugraph::c_api::dtypes_mapping[p_graph->vertex_type_],
-                                         cugraph::c_api::dtypes_mapping[p_graph->edge_type_],
-                                         cugraph::c_api::dtypes_mapping[p_graph->weight_type_],
-                                         p_graph->store_transposed_,
-                                         p_graph->multi_gpu_,
-                                         functor);
-
-    if (functor.error_code_ != CUGRAPH_SUCCESS) {
-      *error = reinterpret_cast<cugraph_error_t*>(functor.error_.release());
-      return functor.error_code_;
-    }
-
-    *result = reinterpret_cast<cugraph_random_walk_result_t*>(functor.result_);
-  } catch (std::exception const& ex) {
-    *error = reinterpret_cast<cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ex.what()});
-    return CUGRAPH_UNKNOWN_ERROR;
-  }
-
-  return CUGRAPH_SUCCESS;
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
 size_t cugraph_random_walk_result_get_max_path_length(cugraph_random_walk_result_t* result)
@@ -203,18 +175,19 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_weights(
     internal_pointer->weights_->view());
 }
 
-cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_offsets(
+cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_path_sizes(
   cugraph_random_walk_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_random_walk_result_t*>(result);
   return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->offsets_->view());
+    internal_pointer->sizes_->view());
 }
 
 void cugraph_random_walk_result_free(cugraph_random_walk_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_random_walk_result_t*>(result);
   delete internal_pointer->paths_;
+  delete internal_pointer->sizes_;
   delete internal_pointer->weights_;
   delete internal_pointer;
 }

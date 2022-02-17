@@ -31,9 +31,11 @@ int generic_node2vec_test(vertex_t* h_src,
                           vertex_t* h_dst,
                           weight_t* h_wgt,
                           vertex_t* h_seeds,
+                          size_t num_vertices,
                           size_t num_edges,
                           size_t num_seeds,
                           size_t max_depth,
+                          bool_t compressed_result,
                           double p,
                           double q,
                           bool_t store_transposed)
@@ -67,10 +69,11 @@ int generic_node2vec_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
 
   ret_code = cugraph_node2vec(
-    p_handle, p_graph, p_source_view, max_depth, FALSE, p, q, &p_result, &ret_error);
+    p_handle, p_graph, p_source_view, max_depth, compressed_result, p, q, &p_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "node2vec failed failed.");
 
   cugraph_type_erased_device_array_view_t* paths;
+  cugraph_type_erased_device_array_view_t* path_sizes;
   cugraph_type_erased_device_array_view_t* weights;
   size_t max_path_length;
 
@@ -92,7 +95,6 @@ int generic_node2vec_test(vertex_t* h_src,
   //  We can easily validate that the results of node2vec
   //  are feasible by converting the sparse (h_src,h_dst,h_wgt)
   //  into a dense host matrix and check each path.
-  int num_vertices = 5;
   weight_t M[num_vertices][num_vertices];
 
   for (int i = 0; i < num_vertices; ++i)
@@ -102,13 +104,39 @@ int generic_node2vec_test(vertex_t* h_src,
   for (int i = 0; i < num_edges; ++i)
     M[h_src[i]][h_dst[i]] = h_wgt[i];
 
-  for (int i = 0; (i < num_seeds) && (test_ret_value == 0); ++i) {
-    for (int j = 0; (j < (max_path_length-1)) && (test_ret_value == 0); ++j) {
-      TEST_ASSERT(test_ret_value,
-                  nearlyEqual(h_weights[i * (max_path_length - 1)],
-                              M[h_paths[i * max_path_length]][h_paths[i * max_path_length + 1]],
-                              EPSILON),
-                  "node2vec weights don't match");
+  if (compressed_result) {
+    path_sizes = cugraph_random_walk_result_get_path_sizes(p_result);
+
+    edge_t h_path_sizes[num_seeds];
+    edge_t h_path_offsets[num_seeds + 1];
+
+    ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+      p_handle, (byte_t*)h_path_sizes, path_sizes, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+    h_path_offsets[0] = 0;
+    for (int i = 0; i < num_seeds; ++i)
+      h_path_offsets[i + 1] = h_path_offsets[i] + h_path_sizes[i];
+
+    for (int i = 0; (i < num_seeds) && (test_ret_value == 0); ++i) {
+      for (int j = h_path_offsets[i]; j < (h_path_offsets[i + 1] - 1); ++j) {
+        TEST_ASSERT(test_ret_value,
+                    nearlyEqual(h_weights[j - i], M[h_paths[j]][h_paths[j + 1]], EPSILON),
+                    "node2vec weights don't match");
+      }
+    }
+  } else {
+    for (int i = 0; (i < num_seeds) && (test_ret_value == 0); ++i) {
+      for (int j = 0; (j < (max_path_length - 1)) && (test_ret_value == 0); ++j) {
+        if (h_paths[i * max_path_length + j + 1] != num_vertices) {
+          TEST_ASSERT(
+            test_ret_value,
+            nearlyEqual(h_weights[i * (max_path_length - 1) + j],
+                        M[h_paths[i * max_path_length + j]][h_paths[i * max_path_length + j + 1]],
+                        EPSILON),
+            "node2vec weights don't match");
+        }
+      }
     }
   }
 
@@ -126,13 +154,48 @@ int test_node2vec()
   vertex_t seeds[] = {0, 0};
   size_t max_depth = 4;
 
-  return generic_node2vec_test(src, dst, wgt, seeds, num_edges, 2, max_depth, 0.8, 0.5, FALSE);
+  return generic_node2vec_test(
+    src, dst, wgt, seeds, num_vertices, num_edges, 2, max_depth, FALSE, 0.8, 0.5, FALSE);
+}
+
+int test_node2vec_short_dense()
+{
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+
+  vertex_t src[]   = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t dst[]   = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t wgt[]   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t seeds[] = {2, 3};
+  size_t max_depth = 4;
+
+  return generic_node2vec_test(
+    src, dst, wgt, seeds, num_vertices, num_edges, 2, max_depth, FALSE, 0.8, 0.5, FALSE);
+}
+
+int test_node2vec_short_sparse()
+{
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+
+  vertex_t src[]   = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t dst[]   = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t wgt[]   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t seeds[] = {2, 3};
+  size_t max_depth = 4;
+
+  // FIXME:  max_depth seems to be off by 1.  It's counting vertices
+  //         instead of edges.
+  return generic_node2vec_test(
+    src, dst, wgt, seeds, num_vertices, num_edges, 2, max_depth, TRUE, 0.8, 0.5, FALSE);
 }
 
 int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_node2vec);
+  result |= RUN_TEST(test_node2vec_short_dense);
+  result |= RUN_TEST(test_node2vec_short_sparse);
   return result;
 }
 
