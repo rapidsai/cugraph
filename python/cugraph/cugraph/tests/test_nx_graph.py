@@ -149,19 +149,19 @@ def test_adjacencies():
 
 
 def test_weighted_nx_edges():
-    testdata = {"edgedata": [
-        ["user_id_1", "user_id_2", "weight"],
-        [(1, 2, 6),
+    testdata = [(1, 2, 6),
          (1, 3, 24.8),
          (3, 4, 1),
          (4, 2, 108.777),
-         ]]}
-    edges = testdata["edgedata"]
+         ]
+    edges = testdata
     cnG = Graph()
-    cnG.add_edges_from(edges)
+    cnG.add_weighted_edges_from(edges)
     assert cnG.number_of_edges() == 4
     assert cnG.number_of_nodes() == 4
-
+    G = cnG.as_cugraph()
+    print(cnG.edges())
+    print(cugraph.bfs(G, start=0))
 
 def test_bfs():
     G = Graph()

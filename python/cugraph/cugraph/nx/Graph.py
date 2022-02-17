@@ -36,6 +36,8 @@ class Graph():
     # none is provided
     dst_col_name = "_DST_"
 
+    weight_col_name = "_WEIGHT_"
+
     # defines the type of the nodes inserted in the property graph
     # initially will be str or int
     node_data_type = None
@@ -158,13 +160,18 @@ class Graph():
         return has_it
 
 
-
     def add_weighted_edges_from(self, edges):
-        if len(edges[0]) >= 3:
-            self.add_edges_from(edges)
-            weight_property = edges[1][2]
+        in_data = edges
+        column_names=None
+        self.weight_property = self.weight_col_name
+        if len(edges[0]) == 3:
+            column_names=[self.src_col_name,self.dst_col_name,self.weight_col_name]
+            df = cudf.DataFrame(data=in_data,columns=column_names)
+            self.__pG.add_edge_data(df,
+                                vertex_col_names=(self.src_col_name, self.dst_col_name),
+                                type_name="",property_columns=list([self.weight_col_name]))
         else:
-            raise TypeError("Must have three columns at least for a weighted graph")
+            raise TypeError("Invalid: format for weighted edges.")
         return
 
 
@@ -277,20 +284,22 @@ class Graph():
                 column_names = edges[0]
                 in_data = edges[1]
             if isinstance(edges[0],list) and len(list(edges[0])) > 2:
-                props = edges[0][2:]
+                props = list(edges[0][2:])
                 print(f"Handle attribute data={props}")
                 column_names = edges[0]
                 in_data = edges[1]
             df = cudf.DataFrame(data=in_data,columns=column_names)
         else:
             df = edges
+        print(f"The DataFrame{df}")
+        print(f"The DataFrame columns {df.columns}")
         self.__pG.add_edge_data(df,
                                 vertex_col_names=(df.columns[0], df.columns[1]),
                                 type_name="",property_columns=props)
 
 
     def as_cugraph(self):
-        if ( self.weight_property != None):
+        if self.weight_property == None:
             return self.__pG.extract_subgraph()
         else:
             return self.__pG.extract_subgraph(edge_weight_property = self.weight_property)
@@ -304,4 +313,8 @@ class Graph():
 
 
     def edges(self):
-       return self.__pG.select_edges()
+        if self.weight_property == None:
+            return self.__pG.edges
+        else:
+            return self.__pG.extract_subgraph(
+                edge_weight_property=self.weight_property).edges()
