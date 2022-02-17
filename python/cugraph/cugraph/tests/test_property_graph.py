@@ -158,39 +158,39 @@ def dataset1_PropertyGraph(request):
     # relationships, and referrals.
 
     # property_columns=None (the default) means all columns except
-    # vertex_id_column will be used as properties for the vertices/edges.
+    # vertex_col_name will be used as properties for the vertices/edges.
 
     pG.add_vertex_data(dataframe_type(columns=merchants[0],
                                       data=merchants[1]),
                        type_name="merchants",
-                       vertex_id_column="merchant_id",
+                       vertex_col_name="merchant_id",
                        property_columns=None)
     pG.add_vertex_data(dataframe_type(columns=users[0],
                                       data=users[1]),
                        type_name="users",
-                       vertex_id_column="user_id",
+                       vertex_col_name="user_id",
                        property_columns=None)
     pG.add_vertex_data(dataframe_type(columns=taxpayers[0],
                                       data=taxpayers[1]),
                        type_name="taxpayers",
-                       vertex_id_column="payer_id",
+                       vertex_col_name="payer_id",
                        property_columns=None)
 
     pG.add_edge_data(dataframe_type(columns=transactions[0],
                                     data=transactions[1]),
                      type_name="transactions",
-                     vertex_id_columns=("user_id", "merchant_id"),
+                     vertex_col_names=("user_id", "merchant_id"),
                      property_columns=None)
     pG.add_edge_data(dataframe_type(columns=relationships[0],
                                     data=relationships[1]),
                      type_name="relationships",
-                     vertex_id_columns=("user_id_1", "user_id_2"),
+                     vertex_col_names=("user_id_1", "user_id_2"),
                      property_columns=None)
     pG.add_edge_data(dataframe_type(columns=referrals[0],
                                     data=referrals[1]),
                      type_name="referrals",
-                     vertex_id_columns=("user_id_1",
-                                        "user_id_2"),
+                     vertex_col_names=("user_id_1",
+                                       "user_id_2"),
                      property_columns=None)
 
     return pG
@@ -278,7 +278,7 @@ def test_add_vertex_data(df_type):
     pG = PropertyGraph()
     pG.add_vertex_data(merchants_df,
                        type_name="merchants",
-                       vertex_id_column="merchant_id",
+                       vertex_col_name="merchant_id",
                        property_columns=None)
 
     assert pG.num_vertices == 5
@@ -301,7 +301,7 @@ def test_num_vertices(df_type):
     pG = PropertyGraph()
     pG.add_vertex_data(merchants_df,
                        type_name="merchants",
-                       vertex_id_column="merchant_id",
+                       vertex_col_name="merchant_id",
                        property_columns=None)
 
     # Test caching - the second retrieval should always be faster
@@ -320,7 +320,7 @@ def test_num_vertices(df_type):
 
     pG.add_vertex_data(users_df,
                        type_name="users",
-                       vertex_id_column="user_id",
+                       vertex_col_name="user_id",
                        property_columns=None)
 
     assert pG.num_vertices == 9
@@ -334,7 +334,7 @@ def test_num_vertices(df_type):
 
     pG.add_vertex_data(taxpayers_df,
                        type_name="taxpayers",
-                       vertex_id_column="payer_id",
+                       vertex_col_name="payer_id",
                        property_columns=None)
 
     assert pG.num_vertices == 9
@@ -370,7 +370,7 @@ def test_add_vertex_data_prop_columns(df_type):
     pG = PropertyGraph()
     pG.add_vertex_data(merchants_df,
                        type_name="merchants",
-                       vertex_id_column="merchant_id",
+                       vertex_col_name="merchant_id",
                        property_columns=expected_props)
 
     assert pG.num_vertices == 5
@@ -393,28 +393,28 @@ def test_add_vertex_data_bad_args():
     with pytest.raises(TypeError):
         pG.add_vertex_data(42,
                            type_name="merchants",
-                           vertex_id_column="merchant_id",
+                           vertex_col_name="merchant_id",
                            property_columns=None)
     with pytest.raises(TypeError):
         pG.add_vertex_data(merchants_df,
                            type_name=42,
-                           vertex_id_column="merchant_id",
+                           vertex_col_name="merchant_id",
                            property_columns=None)
     with pytest.raises(ValueError):
         pG.add_vertex_data(merchants_df,
                            type_name="merchants",
-                           vertex_id_column="bad_column_name",
+                           vertex_col_name="bad_column_name",
                            property_columns=None)
     with pytest.raises(ValueError):
         pG.add_vertex_data(merchants_df,
                            type_name="merchants",
-                           vertex_id_column="merchant_id",
+                           vertex_col_name="merchant_id",
                            property_columns=["bad_column_name",
                                              "merchant_name"])
     with pytest.raises(TypeError):
         pG.add_vertex_data(merchants_df,
                            type_name="merchants",
-                           vertex_id_column="merchant_id",
+                           vertex_col_name="merchant_id",
                            property_columns="merchant_name")
 
 
@@ -432,7 +432,7 @@ def test_add_edge_data(df_type):
     pG = PropertyGraph()
     pG.add_edge_data(transactions_df,
                      type_name="transactions",
-                     vertex_id_columns=("user_id", "merchant_id"),
+                     vertex_col_names=("user_id", "merchant_id"),
                      property_columns=None)
 
     assert pG.num_vertices == 7
@@ -457,7 +457,7 @@ def test_add_edge_data_prop_columns(df_type):
     pG = PropertyGraph()
     pG.add_edge_data(transactions_df,
                      type_name="transactions",
-                     vertex_id_columns=("user_id", "merchant_id"),
+                     vertex_col_names=("user_id", "merchant_id"),
                      property_columns=expected_props)
 
     assert pG.num_vertices == 7
@@ -480,27 +480,27 @@ def test_add_edge_data_bad_args():
     with pytest.raises(TypeError):
         pG.add_edge_data(42,
                          type_name="transactions",
-                         vertex_id_columns=("user_id", "merchant_id"),
+                         vertex_col_names=("user_id", "merchant_id"),
                          property_columns=None)
     with pytest.raises(TypeError):
         pG.add_edge_data(transactions_df,
                          type_name=42,
-                         vertex_id_columns=("user_id", "merchant_id"),
+                         vertex_col_names=("user_id", "merchant_id"),
                          property_columns=None)
     with pytest.raises(ValueError):
         pG.add_edge_data(transactions_df,
                          type_name="transactions",
-                         vertex_id_columns=("user_id", "bad_column"),
+                         vertex_col_names=("user_id", "bad_column"),
                          property_columns=None)
     with pytest.raises(ValueError):
         pG.add_edge_data(transactions_df,
                          type_name="transactions",
-                         vertex_id_columns=("user_id", "merchant_id"),
+                         vertex_col_names=("user_id", "merchant_id"),
                          property_columns=["bad_column_name", "time"])
     with pytest.raises(TypeError):
         pG.add_edge_data(transactions_df,
                          type_name="transactions",
-                         vertex_id_columns=("user_id", "merchant_id"),
+                         vertex_col_names=("user_id", "merchant_id"),
                          property_columns="time")
 
 
@@ -707,12 +707,12 @@ def test_extract_subgraph_graph_without_vert_props():
     pG.add_edge_data(cudf.DataFrame(columns=transactions[0],
                                     data=transactions[1]),
                      type_name="transactions",
-                     vertex_id_columns=("user_id", "merchant_id"),
+                     vertex_col_names=("user_id", "merchant_id"),
                      property_columns=None)
     pG.add_edge_data(cudf.DataFrame(columns=relationships[0],
                                     data=relationships[1]),
                      type_name="relationships",
-                     vertex_id_columns=("user_id_1", "user_id_2"),
+                     vertex_col_names=("user_id_1", "user_id_2"),
                      property_columns=None)
 
     scn = PropertyGraph.src_col_name
@@ -856,6 +856,19 @@ def test_extract_subgraph_default_edge_weight(dataset1_PropertyGraph):
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
+def test_extract_subgraph_default_edge_weight_no_property(
+        dataset1_PropertyGraph):
+    """
+    Ensure default_edge_weight can be used to provide an edge value when a
+    property for the edge weight is not specified.
+    """
+    pG = dataset1_PropertyGraph
+    edge_weight = 99.2
+    G = pG.extract_subgraph(allow_multi_edges=True,
+                            default_edge_weight=edge_weight)
+    assert (G.edgelist.edgelist_df["weights"] == edge_weight).all()
+
+
 def test_graph_edge_data_added(dataset1_PropertyGraph):
     """
     Ensures the subgraph returned from extract_subgraph() has the edge_data
@@ -912,7 +925,7 @@ def test_annotate_dataframe(dataset1_PropertyGraph):
                                 inplace=True, ignore_index=True)
 
     new_algo_result = pG.annotate_dataframe(
-        algo_result, G, edge_vertex_id_columns=("from", "to"))
+        algo_result, G, edge_vertex_col_names=("from", "to"))
     expected_algo_result = df_type({"from": srcs, "to": dsts,
                                     "result": range(len(srcs)),
                                     "merchant_id": mids,
@@ -948,31 +961,31 @@ def test_different_vertex_edge_input_dataframe_types():
     from cugraph.experimental import PropertyGraph
 
     pG = PropertyGraph()
-    pG.add_vertex_data(df, type_name="foo", vertex_id_column="a")
+    pG.add_vertex_data(df, type_name="foo", vertex_col_name="a")
     with pytest.raises(TypeError):
-        pG.add_edge_data(pdf, type_name="bar", vertex_id_columns=("a", "b"))
+        pG.add_edge_data(pdf, type_name="bar", vertex_col_names=("a", "b"))
 
     pG = PropertyGraph()
-    pG.add_vertex_data(pdf, type_name="foo", vertex_id_column="a")
+    pG.add_vertex_data(pdf, type_name="foo", vertex_col_name="a")
     with pytest.raises(TypeError):
-        pG.add_edge_data(df, type_name="bar", vertex_id_columns=("a", "b"))
+        pG.add_edge_data(df, type_name="bar", vertex_col_names=("a", "b"))
 
     # Different order
     pG = PropertyGraph()
-    pG.add_edge_data(df, type_name="bar", vertex_id_columns=("a", "b"))
+    pG.add_edge_data(df, type_name="bar", vertex_col_names=("a", "b"))
     with pytest.raises(TypeError):
-        pG.add_vertex_data(pdf, type_name="foo", vertex_id_column="a")
+        pG.add_vertex_data(pdf, type_name="foo", vertex_col_name="a")
 
     # Same API call, different types
     pG = PropertyGraph()
-    pG.add_vertex_data(df, type_name="foo", vertex_id_column="a")
+    pG.add_vertex_data(df, type_name="foo", vertex_col_name="a")
     with pytest.raises(TypeError):
-        pG.add_vertex_data(pdf, type_name="foo", vertex_id_column="a")
+        pG.add_vertex_data(pdf, type_name="foo", vertex_col_name="a")
 
     pG = PropertyGraph()
-    pG.add_edge_data(df, type_name="bar", vertex_id_columns=("a", "b"))
+    pG.add_edge_data(df, type_name="bar", vertex_col_names=("a", "b"))
     with pytest.raises(TypeError):
-        pG.add_edge_data(pdf, type_name="bar", vertex_id_columns=("a", "b"))
+        pG.add_edge_data(pdf, type_name="bar", vertex_col_names=("a", "b"))
 
 
 def test_get_vertices(dataset1_PropertyGraph):
