@@ -36,7 +36,6 @@ struct sampling_params_t {
   {
   }
 
-
   // FIXME: The new C API uses the above constructor, this constructor
   //        is only used by the legacy python/cython calls.  It should be
   //        removed once it is no longer called.

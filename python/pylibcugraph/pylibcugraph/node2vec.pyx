@@ -38,7 +38,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_random_walk_result_t,
     cugraph_random_walk_result_get_paths,
     cugraph_random_walk_result_get_weights,
-    cugraph_random_walk_result_get_offsets,
+    cugraph_random_walk_result_get_path_sizes,
     cugraph_random_walk_result_free,
 )
 from pylibcugraph.resource_handle cimport (
@@ -82,8 +82,8 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
         Maximum length of generated path
 
     compress_result : bool_t
-        If true, the third return device array contains the offset positions
-        for each path, otherwise outputs empty device array.
+        If true, the third return device array contains the sizes for each path,
+        otherwise outputs empty device array.
 
     p : double
         The return factor p represents the likelihood of backtracking to a node
@@ -102,8 +102,8 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     A tuple of device arrays, where the first item in the tuple is a device
     array containing the compressed paths, the second item is a device
     array containing the corresponding weights for each edge traversed in
-    each path, and the third item is a device array containing the offset
-    positions for each of the compressed paths, if compress_result is True.
+    each path, and the third item is a device array containing the sizes
+    for each of the compressed paths, if compress_result is True.
 
     Examples
     --------
@@ -117,7 +117,7 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     >>> G = pylibcugraph.experimental.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
-    >>> (paths, weights, offsets) = pylibcugraph.experimental.node2vec(
+    >>> (paths, weights, sizes) = pylibcugraph.experimental.node2vec(
     ...                             resource_handle, G, srcs, 3, True, p=1.0, q=1.0)
 
     """
@@ -171,14 +171,14 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
         cugraph_random_walk_result_get_paths(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* weights_ptr = \
         cugraph_random_walk_result_get_weights(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* offsets_ptr = \
-        cugraph_random_walk_result_get_offsets(result_ptr)
+    cdef cugraph_type_erased_device_array_view_t* path_sizes_ptr = \
+        cugraph_random_walk_result_get_path_sizes(result_ptr)
 
     cupy_paths = copy_to_cupy_array(c_resource_handle_ptr, paths_ptr)
     cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
-    cupy_offsets = copy_to_cupy_array(c_resource_handle_ptr,
-                                           offsets_ptr)
+    cupy_path_sizes = copy_to_cupy_array(c_resource_handle_ptr,
+                                           path_sizes_ptr)
 
     cugraph_random_walk_result_free(result_ptr)
 
-    return (cupy_paths, cupy_weights, cupy_offsets)
+    return (cupy_paths, cupy_weights, cupy_path_sizes)

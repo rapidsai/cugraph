@@ -181,7 +181,7 @@ cdef extern from "cugraph_c/algorithms.h":
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_random_walk_result_get_offsets(
+        cugraph_random_walk_result_get_path_sizes(
             cugraph_random_walk_result_t* result
         )
 
