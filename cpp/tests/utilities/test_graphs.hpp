@@ -29,6 +29,53 @@ namespace test {
 
 namespace detail {
 
+template <typename T>
+std::optional<rmm::device_uvector<T>> try_allocate(raft::handle_t const& handle, size_t size)
+{
+  try {
+    return std::make_optional<rmm::device_uvector<T>>(size, handle.get_stream());
+  } catch (std::exception const& e) {
+    return std::nullopt;
+  }
+}
+
+// use host memory as temporary buffer if memroy allocation on device fails
+template <typename T>
+rmm::device_uvector<T> concatenate(raft::handle_t const& handle,
+                                   std::vector<rmm::device_uvector<T>>&& inputs)
+{
+  size_t tot_count{0};
+  for (size_t i = 0; i < inputs.size(); ++i) {
+    tot_count += inputs[i].size();
+  }
+
+  auto output = try_allocate<T>(handle, tot_count);
+  if (output) {
+    size_t offset{0};
+    for (size_t i = 0; i < inputs.size(); ++i) {
+      raft::copy(
+        (*output).data() + offset, inputs[i].data(), inputs[i].size(), handle.get_stream());
+      offset += inputs[i].size();
+    }
+    inputs.clear();
+    inputs.shrink_to_fit();
+  } else {
+    std::vector<T> h_buffer(tot_count);
+    size_t offset{0};
+    for (size_t i = 0; i < inputs.size(); ++i) {
+      raft::update_host(
+        h_buffer.data() + offset, inputs[i].data(), inputs[i].size(), handle.get_stream());
+      offset += inputs[i].size();
+    }
+    inputs.clear();
+    inputs.shrink_to_fit();
+    output = rmm::device_uvector<T>(tot_count, handle.get_stream());
+    raft::update_device((*output).data(), h_buffer.data(), h_buffer.size(), handle.get_stream());
+  }
+
+  return std::move(*output);
+}
+
 class TranslateGraph_Usecase {
  public:
   TranslateGraph_Usecase() = delete;
@@ -266,43 +313,17 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       tot_edge_counts += src_partitions[i].size();
     }
 
-    rmm::device_uvector<vertex_t> src_v(tot_edge_counts, handle.get_stream());
-    size_t src_offset{0};
-    for (size_t i = 0; i < src_partitions.size(); ++i) {
-      thrust::copy(handle.get_thrust_policy(),
-                   src_partitions[i].begin(),
-                   src_partitions[i].end(),
-                   src_v.begin() + src_offset);
-      src_offset += src_partitions[i].size();
-    }
-    src_partitions.clear();
-    src_partitions.shrink_to_fit();
+    // detail::concatenate uses a host buffer to store input vectors if initial device memory
+    // allocation for the return vector fails. This does not improve peak memory usage and is not
+    // helpful with the rmm_mode = cuda. However, if rmm_mode = pool, memory allocation can fail
+    // even when the aggregate free memory size far exceeds the requested size. This heuristic is
+    // helpful in this case.
 
-    rmm::device_uvector<vertex_t> dst_v(tot_edge_counts, handle.get_stream());
-    size_t dst_offset{0};
-    for (size_t i = 0; i < dst_partitions.size(); ++i) {
-      thrust::copy(handle.get_thrust_policy(),
-                   dst_partitions[i].begin(),
-                   dst_partitions[i].end(),
-                   dst_v.begin() + dst_offset);
-      dst_offset += dst_partitions[i].size();
-    }
-    dst_partitions.clear();
-    dst_partitions.shrink_to_fit();
-
+    auto src_v = detail::concatenate(handle, std::move(src_partitions));
+    auto dst_v = detail::concatenate(handle, std::move(dst_partitions));
     std::optional<rmm::device_uvector<weight_t>> weight_v{std::nullopt};
     if (weight_partitions) {
-      weight_v = rmm::device_uvector<weight_t>(tot_edge_counts, handle.get_stream());
-      size_t weight_offset{0};
-      for (size_t i = 0; i < (*weight_partitions).size(); ++i) {
-        thrust::copy(handle.get_thrust_policy(),
-                     (*weight_partitions)[i].begin(),
-                     (*weight_partitions)[i].end(),
-                     (*weight_v).begin() + weight_offset);
-        weight_offset += (*weight_partitions)[i].size();
-      }
-      (*weight_partitions).clear();
-      (*weight_partitions).shrink_to_fit();
+      weight_v = detail::concatenate(handle, std::move(*weight_partitions));
     }
 
     // 3. generate vertices
@@ -314,11 +335,10 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     rmm::device_uvector<vertex_t> vertex_v(tot_vertex_counts, handle.get_stream());
     size_t v_offset{0};
     for (size_t i = 0; i < partition_vertex_firsts.size(); ++i) {
-      cugraph::detail::sequence_fill(
-        handle.get_stream(),
-        vertex_v.begin() + v_offset,
-        partition_vertex_lasts[i] - partition_vertex_firsts[i],
-        partition_vertex_firsts[i]);
+      cugraph::detail::sequence_fill(handle.get_stream(),
+                                     vertex_v.begin() + v_offset,
+                                     partition_vertex_lasts[i] - partition_vertex_firsts[i],
+                                     partition_vertex_firsts[i]);
       v_offset += partition_vertex_lasts[i] - partition_vertex_firsts[i];
     }
 

@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #pragma once
 
-#include <cugraph/detail/decompress_matrix_partition.cuh>
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
@@ -77,6 +77,31 @@ struct has_nzd_t {
   {
     auto major_offset = major - major_first;
     return offsets[major_offset + 1] - offsets[major_offset] > 0;
+  }
+};
+
+// can't use lambda due to nvcc limitations (The enclosing parent function ("graph_t") for an
+// extended __device__ lambda must allow its address to be taken)
+template <typename vertex_t>
+struct atomic_or_bitmap_t {
+  uint32_t* bitmaps{nullptr};
+  vertex_t minor_first{};
+
+  __device__ void operator()(vertex_t minor) const
+  {
+    auto minor_offset = minor - minor_first;
+    auto mask         = uint32_t{1} << (minor_offset % (sizeof(uint32_t) * 8));
+    atomicOr(bitmaps + (minor_offset / (sizeof(uint32_t) * 8)), mask);
+  }
+};
+
+// can't use lambda due to nvcc limitations (The enclosing parent function ("graph_t") for an
+// extended __device__ lambda must allow its address to be taken)
+template <typename vertex_t>
+struct popc_t {
+  __device__ vertex_t operator()(uint32_t bitmap) const
+  {
+    return static_cast<vertex_t>(__popc(bitmap));
   }
 };
 
@@ -573,48 +598,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
         "Invalid input argument: meta.property.is_multigraph is false but the input edge list has "
         "parallel edges.");
     }
-
-    rmm::device_uvector<vertex_t> majors(number_of_local_edges, handle.get_stream());
-    rmm::device_uvector<vertex_t> minors(number_of_local_edges, handle.get_stream());
-    size_t cur_size{0};
-    for (size_t i = 0; i < edgelists.size(); ++i) {
-      auto p_majors = store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices;
-      auto p_minors = store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices;
-      thrust::copy(handle.get_thrust_policy(),
-                   p_majors,
-                   p_majors + edgelists[i].number_of_edges,
-                   majors.begin() + cur_size);
-      thrust::copy(handle.get_thrust_policy(),
-                   p_minors,
-                   p_minors + edgelists[i].number_of_edges,
-                   minors.begin() + cur_size);
-      cur_size += edgelists[i].number_of_edges;
-    }
-    thrust::sort(handle.get_thrust_policy(), majors.begin(), majors.end());
-    thrust::sort(handle.get_thrust_policy(), minors.begin(), minors.end());
-    auto num_local_unique_edge_majors = static_cast<vertex_t>(thrust::distance(
-      majors.begin(), thrust::unique(handle.get_thrust_policy(), majors.begin(), majors.end())));
-    auto num_local_unique_edge_minors = static_cast<vertex_t>(thrust::distance(
-      minors.begin(), thrust::unique(handle.get_thrust_policy(), minors.begin(), minors.end())));
-    // FIXME: temporarily disable this check as these are currently not used
-    // (row_col_properties_kv_pair_fill_ratio_threshold is set to 0.0, so (key, value) pairs for
-    // row/column properties will be never enabled) and we're not currently exposing this to the
-    // python layer. Should be re-enabled later once we enable the (key, value) pair feature and
-    // hopefully simplify the python graph creation pipeline as well (so no need to pass this
-    // information to the python layer).
-#if 0
-    if constexpr (store_transposed) {
-      CUGRAPH_EXPECTS(num_local_unique_edge_majors == meta.num_local_unique_edge_cols,
-                      "Invalid input argument: num_local_unique_edge_cols is erroneous.");
-      CUGRAPH_EXPECTS(num_local_unique_edge_minors == meta.num_local_unique_edge_rows,
-                      "Invalid input argument: num_local_unique_edge_rows is erroneous.");
-    } else {
-      CUGRAPH_EXPECTS(num_local_unique_edge_majors == meta.num_local_unique_edge_rows,
-                      "Invalid input argument: num_local_unique_edge_rows is erroneous.");
-      CUGRAPH_EXPECTS(num_local_unique_edge_minors == meta.num_local_unique_edge_cols,
-                      "Invalid input argument: num_local_unique_edge_cols is erroneous.");
-    }
-#endif
   }
 
   // aggregate segment_offsets
@@ -704,10 +687,34 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   // if # unique edge rows/cols << V / row_comm_size|col_comm_size, store unique edge rows/cols to
   // support storing edge row/column properties in (key, value) pairs.
 
-  auto num_local_unique_edge_majors =
-    store_transposed ? meta.num_local_unique_edge_cols : meta.num_local_unique_edge_rows;
-  auto num_local_unique_edge_minors =
-    store_transposed ? meta.num_local_unique_edge_rows : meta.num_local_unique_edge_cols;
+  vertex_t num_local_unique_edge_majors{0};
+  for (size_t i = 0; i < adj_matrix_partition_offsets_.size(); ++i) {
+    num_local_unique_edge_majors += thrust::count_if(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(vertex_t{0}),
+      thrust::make_counting_iterator(
+        static_cast<vertex_t>(adj_matrix_partition_offsets_[i].size() - 1)),
+      has_nzd_t<vertex_t, edge_t>{adj_matrix_partition_offsets_[i].data(), vertex_t{0}});
+  }
+
+  auto [minor_first, minor_last] = partition_.get_matrix_partition_minor_range();
+  rmm::device_uvector<uint32_t> minor_bitmaps(
+    ((minor_last - minor_first) + sizeof(uint32_t) * 8 - 1) / (sizeof(uint32_t) * 8),
+    handle.get_stream());
+  thrust::fill(handle.get_thrust_policy(), minor_bitmaps.begin(), minor_bitmaps.end(), uint32_t{0});
+  for (size_t i = 0; i < adj_matrix_partition_indices_.size(); ++i) {
+    thrust::for_each(handle.get_thrust_policy(),
+                     adj_matrix_partition_indices_[i].begin(),
+                     adj_matrix_partition_indices_[i].end(),
+                     atomic_or_bitmap_t<vertex_t>{minor_bitmaps.data(), minor_first});
+  }
+
+  auto count_first = thrust::make_transform_iterator(minor_bitmaps.begin(), popc_t<vertex_t>{});
+  auto num_local_unique_edge_minors = thrust::reduce(
+    handle.get_thrust_policy(), count_first, count_first + minor_bitmaps.size(), vertex_t{0});
+
+  minor_bitmaps.resize(0, handle.get_stream());
+  minor_bitmaps.shrink_to_fit(handle.get_stream());
 
   vertex_t aggregate_major_size{0};
   for (size_t i = 0; i < partition_.get_number_of_matrix_partitions(); ++i) {
@@ -1210,113 +1217,11 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                          std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
                          bool destroy)
 {
-  auto& comm           = handle.get_comms();
-  auto const comm_size = comm.get_size();
-  auto& row_comm =
-    this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_size = row_comm.get_size();
-  auto& col_comm =
-    this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_rank = col_comm.get_rank();
-
-  auto graph_view = this->view();
-
-  std::vector<size_t> edgelist_edge_counts(graph_view.get_number_of_local_adj_matrix_partitions(),
-                                           size_t{0});
-  for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    edgelist_edge_counts[i] =
-      static_cast<size_t>(graph_view.get_number_of_local_adj_matrix_partition_edges(i));
-  }
-  auto number_of_local_edges =
-    std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
-  auto vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
-
-  rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-  auto edgelist_weights = this->is_weighted() ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                                  edgelist_majors.size(), handle.get_stream())
-                                              : std::nullopt;
-
-  size_t cur_size{0};
-  for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    detail::decompress_matrix_partition_to_edgelist(
-      handle,
-      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-        graph_view.get_matrix_partition_view(i)),
-      edgelist_majors.data() + cur_size,
-      edgelist_minors.data() + cur_size,
-      edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data() + cur_size}
-                       : std::nullopt,
-      graph_view.get_local_adj_matrix_partition_segment_offsets(i));
-    cur_size += edgelist_edge_counts[i];
-  }
-
-  auto local_vertex_first = graph_view.get_local_vertex_first();
-  auto local_vertex_last  = graph_view.get_local_vertex_last();
+  auto result = this->view().decompress_to_edgelist(handle, renumber_map);
 
   if (destroy) { *this = graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(handle); }
 
-  if (renumber_map) {
-    std::vector<vertex_t> h_thresholds(row_comm_size - 1, vertex_t{0});
-    for (int i = 0; i < row_comm_size - 1; ++i) {
-      h_thresholds[i] = graph_view.get_vertex_partition_last(col_comm_rank * row_comm_size + i);
-    }
-    rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), handle.get_stream());
-    raft::update_device(
-      d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
-
-    std::vector<vertex_t*> major_ptrs(edgelist_edge_counts.size());
-    std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
-    auto edgelist_intra_partition_segment_offsets =
-      std::make_optional<std::vector<std::vector<size_t>>>(
-        major_ptrs.size(), std::vector<size_t>(row_comm_size + 1, size_t{0}));
-    size_t cur_size{0};
-    for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-      major_ptrs[i] = edgelist_majors.data() + cur_size;
-      minor_ptrs[i] = edgelist_minors.data() + cur_size;
-      if (edgelist_weights) {
-        thrust::sort_by_key(handle.get_thrust_policy(),
-                            minor_ptrs[i],
-                            minor_ptrs[i] + edgelist_edge_counts[i],
-                            thrust::make_zip_iterator(thrust::make_tuple(
-                              major_ptrs[i], (*edgelist_weights).data() + cur_size)));
-      } else {
-        thrust::sort_by_key(handle.get_thrust_policy(),
-                            minor_ptrs[i],
-                            minor_ptrs[i] + edgelist_edge_counts[i],
-                            major_ptrs[i]);
-      }
-      rmm::device_uvector<size_t> d_segment_offsets(d_thresholds.size(), handle.get_stream());
-      thrust::lower_bound(handle.get_thrust_policy(),
-                          minor_ptrs[i],
-                          minor_ptrs[i] + edgelist_edge_counts[i],
-                          d_thresholds.begin(),
-                          d_thresholds.end(),
-                          d_segment_offsets.begin(),
-                          thrust::less<vertex_t>{});
-      (*edgelist_intra_partition_segment_offsets)[i][0]     = size_t{0};
-      (*edgelist_intra_partition_segment_offsets)[i].back() = edgelist_edge_counts[i];
-      raft::update_host((*edgelist_intra_partition_segment_offsets)[i].data() + 1,
-                        d_segment_offsets.data(),
-                        d_segment_offsets.size(),
-                        handle.get_stream());
-      handle.sync_stream();
-      cur_size += edgelist_edge_counts[i];
-    }
-
-    unrenumber_local_int_edges<vertex_t, store_transposed, multi_gpu>(
-      handle,
-      store_transposed ? minor_ptrs : major_ptrs,
-      store_transposed ? major_ptrs : minor_ptrs,
-      edgelist_edge_counts,
-      (*renumber_map).data(),
-      vertex_partition_lasts,
-      edgelist_intra_partition_segment_offsets);
-  }
-
-  return std::make_tuple(store_transposed ? std::move(edgelist_minors) : std::move(edgelist_majors),
-                         store_transposed ? std::move(edgelist_majors) : std::move(edgelist_minors),
-                         std::move(edgelist_weights));
+  return result;
 }
 
 template <typename vertex_t,
@@ -1332,38 +1237,11 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                          std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
                          bool destroy)
 {
-  auto graph_view = this->view();
-
-  rmm::device_uvector<vertex_t> edgelist_majors(
-    graph_view.get_number_of_local_adj_matrix_partition_edges(), handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-  auto edgelist_weights = this->is_weighted() ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                                  edgelist_majors.size(), handle.get_stream())
-                                              : std::nullopt;
-  detail::decompress_matrix_partition_to_edgelist(
-    handle,
-    matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-      graph_view.get_matrix_partition_view()),
-    edgelist_majors.data(),
-    edgelist_minors.data(),
-    edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
-    graph_view.get_local_adj_matrix_partition_segment_offsets());
+  auto result = this->view().decompress_to_edgelist(handle, renumber_map);
 
   if (destroy) { *this = graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(handle); }
 
-  if (renumber_map) {
-    unrenumber_local_int_edges<vertex_t, store_transposed, multi_gpu>(
-      handle,
-      store_transposed ? edgelist_minors.data() : edgelist_majors.data(),
-      store_transposed ? edgelist_majors.data() : edgelist_minors.data(),
-      edgelist_majors.size(),
-      (*renumber_map).data(),
-      (*renumber_map).size());
-  }
-
-  return std::make_tuple(store_transposed ? std::move(edgelist_minors) : std::move(edgelist_majors),
-                         store_transposed ? std::move(edgelist_majors) : std::move(edgelist_minors),
-                         std::move(edgelist_weights));
+  return result;
 }
 
 }  // namespace cugraph

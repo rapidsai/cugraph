@@ -159,14 +159,16 @@ struct kv_pair_group_id_greater_equal_t {
   }
 };
 
-// use roughly half temporary buffer than thrust::partition (if first & second partition sizes are
-// comparable)
+// Use roughly half temporary buffer than thrust::partition (if first & second partition sizes are
+// comparable). This also uses multiple smaller allocations than one single allocation (thrust::sort
+// does this) of the same aggregate size if the input iterators are the zip iterators (this is more
+// favorable to the pool allocator).
 template <typename ValueIterator, typename ValueToGroupIdOp>
 ValueIterator mem_frugal_partition(
   ValueIterator value_first,
   ValueIterator value_last,
   ValueToGroupIdOp value_to_group_id_op,
-  int pivot,  // group Id less than pivot goes to the first partition
+  int pivot,  // group id less than pivot goes to the first partition
   rmm::cuda_stream_view stream_view)
 {
   auto num_elements = static_cast<size_t>(thrust::distance(value_first, value_last));
@@ -211,8 +213,10 @@ ValueIterator mem_frugal_partition(
   return value_first + first_size;
 }
 
-// use roughly half temporary buffer than thrust::partition (if first & second partition sizes are
-// comparable)
+// Use roughly half temporary buffer than thrust::partition (if first & second partition sizes are
+// comparable). This also uses multiple smaller allocations than one single allocation (thrust::sort
+// does this) of the same aggregate size if the input iterators are the zip iterators (this is more
+// favorable to the pool allocator).
 template <typename KeyIterator, typename ValueIterator, typename KeyToGroupIdOp>
 std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
   KeyIterator key_first,
@@ -276,6 +280,145 @@ std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
   return std::make_tuple(key_first + first_size, value_first + first_size);
 }
 
+template <typename ValueIterator, typename ValueToGroupIdOp>
+void mem_frugal_groupby(
+  ValueIterator value_first,
+  ValueIterator value_last,
+  ValueToGroupIdOp value_to_group_id_op,
+  int num_groups,
+  size_t mem_frugal_threshold,  // take the memory frugal approach (instead of thrust::sort) if #
+                                // elements to groupby is no smaller than this value
+  rmm::cuda_stream_view stream_view)
+{
+  std::vector<int> group_firsts{};
+  std::vector<int> group_lasts{};
+  std::vector<ValueIterator> value_firsts{};
+  std::vector<ValueIterator> value_lasts{};
+  if (num_groups > 1) {
+    group_firsts.push_back(int{0});
+    group_lasts.push_back(num_groups);
+    value_firsts.push_back(value_first);
+    value_lasts.push_back(value_last);
+  }
+
+  auto offset_first = size_t{0};
+  auto offset_last  = group_firsts.size();
+  while (offset_first < offset_last) {
+    for (size_t i = offset_first; i < offset_last; ++i) {
+      auto pivot = (group_firsts[i] + group_lasts[i]) / 2;
+      if (static_cast<size_t>(thrust::distance(value_firsts[i], value_lasts[i])) <
+          mem_frugal_threshold) {
+        if (group_lasts[i] - group_firsts[i] == 2) {
+          thrust::partition(
+            rmm::exec_policy(stream_view),
+            value_firsts[i],
+            value_lasts[i],
+            value_group_id_less_t<typename thrust::iterator_traits<ValueIterator>::value_type,
+                                  ValueToGroupIdOp>{value_to_group_id_op, pivot});
+        } else {
+          thrust::sort(rmm::exec_policy(stream_view),
+                       value_firsts[i],
+                       value_lasts[i],
+                       [value_to_group_id_op] __device__(auto lhs, auto rhs) {
+                         return value_to_group_id_op(lhs) < value_to_group_id_op(rhs);
+                       });
+        }
+      } else {
+        auto second_first = mem_frugal_partition(
+          value_firsts[i], value_lasts[i], value_to_group_id_op, pivot, stream_view);
+        if (pivot - group_firsts[i] > 1) {
+          group_firsts.push_back(group_firsts[i]);
+          group_lasts.push_back(pivot);
+          value_firsts.push_back(value_firsts[i]);
+          value_lasts.push_back(second_first);
+        }
+        if (group_lasts[i] - pivot > 1) {
+          group_firsts.push_back(pivot);
+          group_lasts.push_back(group_lasts[i]);
+          value_firsts.push_back(second_first);
+          value_lasts.push_back(value_lasts[i]);
+        }
+      }
+    }
+    offset_first = offset_last;
+    offset_last  = group_firsts.size();
+  }
+}
+
+template <typename KeyIterator, typename ValueIterator, typename KeyToGroupIdOp>
+void mem_frugal_groupby(
+  KeyIterator key_first,
+  KeyIterator key_last,
+  ValueIterator value_first,
+  KeyToGroupIdOp key_to_group_id_op,
+  int num_groups,
+  size_t mem_frugal_threshold,  // take the memory frugal approach (instead of thrust::sort) if #
+                                // elements to groupby is no smaller than this value
+  rmm::cuda_stream_view stream_view)
+{
+  std::vector<int> group_firsts{};
+  std::vector<int> group_lasts{};
+  std::vector<KeyIterator> key_firsts{};
+  std::vector<KeyIterator> key_lasts{};
+  std::vector<ValueIterator> value_firsts{};
+  if (num_groups > 1) {
+    group_firsts.push_back(int{0});
+    group_lasts.push_back(num_groups);
+    key_firsts.push_back(key_first);
+    key_lasts.push_back(key_last);
+    value_firsts.push_back(value_first);
+  }
+
+  auto offset_first = size_t{0};
+  auto offset_last  = group_firsts.size();
+  while (offset_first < offset_last) {
+    for (size_t i = offset_first; i < offset_last; ++i) {
+      auto pivot = (group_firsts[i] + group_lasts[i]) / 2;
+      if (static_cast<size_t>(thrust::distance(key_firsts[i], key_lasts[i])) <
+          mem_frugal_threshold) {
+        if (group_lasts[i] - group_firsts[i] == 2) {
+          auto kv_pair_first =
+            thrust::make_zip_iterator(thrust::make_tuple(key_firsts[i], value_firsts[i]));
+          thrust::partition(
+            rmm::exec_policy(stream_view),
+            kv_pair_first,
+            kv_pair_first + thrust::distance(key_firsts[i], key_lasts[i]),
+            kv_pair_group_id_less_t<typename thrust::iterator_traits<KeyIterator>::value_type,
+                                    typename thrust::iterator_traits<ValueIterator>::value_type,
+                                    KeyToGroupIdOp>{key_to_group_id_op, pivot});
+        } else {
+          thrust::sort_by_key(rmm::exec_policy(stream_view),
+                              key_firsts[i],
+                              key_lasts[i],
+                              value_firsts[i],
+                              [key_to_group_id_op] __device__(auto lhs, auto rhs) {
+                                return key_to_group_id_op(lhs) < key_to_group_id_op(rhs);
+                              });
+        }
+      } else {
+        auto second_first = mem_frugal_partition(
+          key_firsts[i], key_lasts[i], value_firsts[i], key_to_group_id_op, pivot, stream_view);
+        if (pivot - group_firsts[i] > 1) {
+          group_firsts.push_back(group_firsts[i]);
+          group_lasts.push_back(pivot);
+          key_firsts.push_back(key_firsts[i]);
+          key_lasts.push_back(std::get<0>(second_first));
+          value_firsts.push_back(value_firsts[i]);
+        }
+        if (group_lasts[i] - pivot > 1) {
+          group_firsts.push_back(pivot);
+          group_lasts.push_back(group_lasts[i]);
+          key_firsts.push_back(std::get<0>(second_first));
+          key_lasts.push_back(key_lasts[i]);
+          value_firsts.push_back(std::get<1>(second_first));
+        }
+      }
+    }
+    offset_first = offset_last;
+    offset_last  = group_firsts.size();
+  }
+}
+
 }  // namespace detail
 
 template <typename ValueIterator, typename ValueToGroupIdOp>
@@ -283,33 +426,15 @@ rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [I
                                               ValueIterator tx_value_last /* [INOUT */,
                                               ValueToGroupIdOp value_to_group_id_op,
                                               int num_groups,
-                                              bool mem_frugal,
+                                              size_t mem_frugal_threshold,
                                               rmm::cuda_stream_view stream_view)
 {
-  if (mem_frugal) {
-    auto pivot        = num_groups / 2;
-    auto second_first = detail::mem_frugal_partition(
-      tx_value_first, tx_value_last, value_to_group_id_op, pivot, stream_view);
-    thrust::sort(rmm::exec_policy(stream_view),
-                 tx_value_first,
-                 second_first,
-                 [value_to_group_id_op] __device__(auto lhs, auto rhs) {
-                   return value_to_group_id_op(lhs) < value_to_group_id_op(rhs);
-                 });
-    thrust::sort(rmm::exec_policy(stream_view),
-                 second_first,
-                 tx_value_last,
-                 [value_to_group_id_op] __device__(auto lhs, auto rhs) {
-                   return value_to_group_id_op(lhs) < value_to_group_id_op(rhs);
-                 });
-  } else {
-    thrust::sort(rmm::exec_policy(stream_view),
-                 tx_value_first,
-                 tx_value_last,
-                 [value_to_group_id_op] __device__(auto lhs, auto rhs) {
-                   return value_to_group_id_op(lhs) < value_to_group_id_op(rhs);
-                 });
-  }
+  detail::mem_frugal_groupby(tx_value_first,
+                             tx_value_last,
+                             value_to_group_id_op,
+                             num_groups,
+                             mem_frugal_threshold,
+                             stream_view);
 
   auto group_id_first = thrust::make_transform_iterator(
     tx_value_first,
@@ -334,36 +459,16 @@ rmm::device_uvector<size_t> groupby_and_count(VertexIterator tx_key_first /* [IN
                                               ValueIterator tx_value_first /* [INOUT */,
                                               KeyToGroupIdOp key_to_group_id_op,
                                               int num_groups,
-                                              bool mem_frugal,
+                                              size_t mem_frugal_threshold,
                                               rmm::cuda_stream_view stream_view)
 {
-  if (mem_frugal) {
-    auto pivot        = num_groups / 2;
-    auto second_first = detail::mem_frugal_partition(
-      tx_key_first, tx_key_last, tx_value_first, key_to_group_id_op, pivot, stream_view);
-    thrust::sort_by_key(rmm::exec_policy(stream_view),
-                        tx_key_first,
-                        std::get<0>(second_first),
-                        tx_value_first,
-                        [key_to_group_id_op] __device__(auto lhs, auto rhs) {
-                          return key_to_group_id_op(lhs) < key_to_group_id_op(rhs);
-                        });
-    thrust::sort_by_key(rmm::exec_policy(stream_view),
-                        std::get<0>(second_first),
-                        tx_key_last,
-                        std::get<1>(second_first),
-                        [key_to_group_id_op] __device__(auto lhs, auto rhs) {
-                          return key_to_group_id_op(lhs) < key_to_group_id_op(rhs);
-                        });
-  } else {
-    thrust::sort_by_key(rmm::exec_policy(stream_view),
-                        tx_key_first,
-                        tx_key_last,
-                        tx_value_first,
-                        [key_to_group_id_op] __device__(auto lhs, auto rhs) {
-                          return key_to_group_id_op(lhs) < key_to_group_id_op(rhs);
-                        });
-  }
+  detail::mem_frugal_groupby(tx_key_first,
+                             tx_key_last,
+                             tx_value_first,
+                             key_to_group_id_op,
+                             num_groups,
+                             mem_frugal_threshold,
+                             stream_view);
 
   auto group_id_first = thrust::make_transform_iterator(
     tx_key_first, [key_to_group_id_op] __device__(auto key) { return key_to_group_id_op(key); });
@@ -439,8 +544,12 @@ auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
 {
   auto const comm_size = comm.get_size();
 
-  auto d_tx_value_counts = groupby_and_count(
-    tx_value_first, tx_value_last, value_to_gpu_id_op, comm.get_size(), false, stream_view);
+  auto d_tx_value_counts = groupby_and_count(tx_value_first,
+                                             tx_value_last,
+                                             value_to_gpu_id_op,
+                                             comm.get_size(),
+                                             std::numeric_limits<size_t>::max(),
+                                             stream_view);
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_offsets{};
@@ -494,7 +603,7 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
                                              tx_value_first,
                                              key_to_gpu_id_op,
                                              comm.get_size(),
-                                             false,
+                                             std::numeric_limits<size_t>::max(),
                                              stream_view);
 
   std::vector<size_t> tx_counts{};

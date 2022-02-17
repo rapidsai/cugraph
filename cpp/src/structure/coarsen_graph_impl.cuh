@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -421,9 +421,7 @@ coarsen_graph(
         meta.number_of_edges,
         graph_properties_t{graph_view.is_symmetric(), false},
         meta.partition,
-        meta.segment_offsets,
-        store_transposed ? meta.num_local_unique_edge_minors : meta.num_local_unique_edge_majors,
-        store_transposed ? meta.num_local_unique_edge_majors : meta.num_local_unique_edge_minors}),
+        meta.segment_offsets}),
     std::move(renumber_map_labels));
 }
 

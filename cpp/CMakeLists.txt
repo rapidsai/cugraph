@@ -145,6 +145,7 @@ rapids_cpm_init()
 # lags behind.
 ###
 include(cmake/thirdparty/get_raft.cmake)
+include(cmake/thirdparty/get_libcugraphops.cmake)
 
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
@@ -181,6 +182,7 @@ add_library(cugraph SHARED
     src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
+    src/sampling/detail/gather_utils_impl.cu
     src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
