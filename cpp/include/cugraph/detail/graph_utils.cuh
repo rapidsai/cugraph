@@ -86,5 +86,14 @@ struct is_first_in_run_t {
   }
 };
 
+template <typename PairIterator>
+struct is_first_in_run_pair_t {
+  PairIterator pair_first{};
+  __device__ bool operator()(size_t i) const
+  {
+    return (i == 0) || (*(pair_first + (i - 1)) != *(pair_first + i));
+  }
+};
+
 }  // namespace detail
 }  // namespace cugraph
