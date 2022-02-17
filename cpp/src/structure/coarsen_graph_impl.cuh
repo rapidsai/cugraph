@@ -248,8 +248,8 @@ coarsen_graph(
   }
 
   // 1. construct coarsened edge lists from each local partition (if the input graph is symmetric,
-  // start with only the lower triangular edges in the original graph, this is to prevent edge
-  // weights in the coarsened graph becoming asymmmetric due to limited floatping point resolution)
+  // start with only the lower triangular edges after relabeling, this is to prevent edge weights in
+  // the coarsened graph becoming asymmmetric due to limited floatping point resolution)
 
   bool lower_triangular_only = graph_view.is_symmetric();
 
@@ -647,7 +647,6 @@ coarsen_graph(
 
   if (lower_triangular_only) {
     if (coarsened_edgelist_weights) {
-      std::cout << "lower_triangular weighted" << std::endl;
       auto edge_first =
         thrust::make_zip_iterator(thrust::make_tuple(coarsened_edgelist_majors.begin(),
                                                      coarsened_edgelist_minors.begin(),
