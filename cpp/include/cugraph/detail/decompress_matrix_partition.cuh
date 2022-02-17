@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -184,9 +184,9 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void decompress_matrix_partition_to_edgelist(
   raft::handle_t const& handle,
   matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
-  vertex_t* edgelist_majors /* [INOUT] */,
-  vertex_t* edgelist_minors /* [INOUT] */,
-  std::optional<weight_t*> edgelist_weights /* [INOUT] */,
+  vertex_t* edgelist_majors /* [OUT] */,
+  vertex_t* edgelist_minors /* [OUT] */,
+  std::optional<weight_t*> edgelist_weights /* [OUT] */,
   std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
   auto number_of_edges = matrix_partition.get_number_of_edges();
