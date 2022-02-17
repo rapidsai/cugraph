@@ -218,35 +218,3 @@ def test_random_walks(
 
     check_random_walks(df, offsets, seeds, df_G)
 """
-
-
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_node2vec(
-    graph_file,
-    directed,
-):
-    G = utils.generate_cugraph_graph_from_file(
-        graph_file, directed=directed, edgevals=True)
-    assert G is not None
-
-    x = cugraph.node2vec()
-
-    assert x == 0
-
-
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_node2vec_2(
-    graph_file,
-    directed,
-):
-    G = utils.generate_cugraph_graph_from_file(
-        graph_file, directed=directed, edgevals=True)
-    assert G is not None
-
-    breakpoint()
-
-    x = cugraph.node2vec()
-
-    assert x == 0
