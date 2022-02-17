@@ -377,12 +377,12 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_weights(
   cugraph_random_walk_result_t* result);
 
 /**
- * @brief     If the random walk result is compressed, get the offsets
+ * @brief     If the random walk result is compressed, get the path sizes
  *
  * @param [in]   result   The result from a random walk algorithm
- * @return type erased array pointing to the edge offsets in device memory
+ * @return type erased array pointing to the path sizes in device memory
  */
-cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_offsets(
+cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_path_sizes(
   cugraph_random_walk_result_t* result);
 
 /**
