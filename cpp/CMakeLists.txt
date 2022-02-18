@@ -355,6 +355,7 @@ add_library(cugraph_c SHARED
         src/c_api/bfs.cpp
         src/c_api/sssp.cpp
         src/c_api/extract_paths.cpp
+        src/c_api/random_walks.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 
