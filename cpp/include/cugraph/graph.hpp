@@ -98,9 +98,9 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           bool do_expensive_check = false);
 
   graph_t(raft::handle_t const& handle,
-          std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
-          std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
-          std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weights,
+          std::vector<rmm::device_uvector<vertex_t>>&& edgelist_src_partitions,
+          std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dst_partitions,
+          std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edge_weight_partitions,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
