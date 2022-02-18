@@ -97,6 +97,13 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
+  graph_t(raft::handle_t const& handle,
+          std::vector<rmm::device_uvector<vertex_t>>&& edgelist_src_partitions,
+          std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dst_partitions,
+          std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edge_weight_partitions,
+          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
+          bool do_expensive_check = false);
+
   /**
    * @brief Symmetrize this graph.
    *
@@ -261,6 +268,13 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   graph_t(raft::handle_t const& handle,
           edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
+          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
+          bool do_expensive_check = false);
+
+  graph_t(raft::handle_t const& handle,
+          rmm::device_uvector<vertex_t>&& edgelist_srcs,
+          rmm::device_uvector<vertex_t>&& edgelist_dsts,
+          std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 

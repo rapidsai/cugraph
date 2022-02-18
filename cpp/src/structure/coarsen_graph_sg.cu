@@ -19,85 +19,73 @@ namespace cugraph {
 
 // SG instantiation
 
-template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, true, false>>,
-                    rmm::device_uvector<int32_t>>
+template std::tuple<graph_t<int32_t, int32_t, float, true, false>, rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int32_t, int32_t, float, true, false> const& graph_view,
               int32_t const* labels,
               bool do_expensive_check);
 
-template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, float, false, false>>,
-                    rmm::device_uvector<int32_t>>
+template std::tuple<graph_t<int32_t, int32_t, float, false, false>, rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
               int32_t const* labels,
               bool do_expensive_check);
 
-template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, float, true, false>>,
-                    rmm::device_uvector<int32_t>>
+template std::tuple<graph_t<int32_t, int64_t, float, true, false>, rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int32_t, int64_t, float, true, false> const& graph_view,
               int32_t const* labels,
               bool do_expensive_check);
 
-template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, float, false, false>>,
-                    rmm::device_uvector<int32_t>>
+template std::tuple<graph_t<int32_t, int64_t, float, false, false>, rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
               int32_t const* labels,
               bool do_expensive_check);
 
-template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, float, true, false>>,
-                    rmm::device_uvector<int64_t>>
+template std::tuple<graph_t<int64_t, int64_t, float, true, false>, rmm::device_uvector<int64_t>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int64_t, int64_t, float, true, false> const& graph_view,
               int64_t const* labels,
               bool do_expensive_check);
 
-template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, float, false, false>>,
-                    rmm::device_uvector<int64_t>>
+template std::tuple<graph_t<int64_t, int64_t, float, false, false>, rmm::device_uvector<int64_t>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
               int64_t const* labels,
               bool do_expensive_check);
 
-template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, double, true, false>>,
-                    rmm::device_uvector<int32_t>>
+template std::tuple<graph_t<int32_t, int32_t, double, true, false>, rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int32_t, int32_t, double, true, false> const& graph_view,
               int32_t const* labels,
               bool do_expensive_check);
 
-template std::tuple<std::unique_ptr<graph_t<int32_t, int32_t, double, false, false>>,
-                    rmm::device_uvector<int32_t>>
+template std::tuple<graph_t<int32_t, int32_t, double, false, false>, rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
               int32_t const* labels,
               bool do_expensive_check);
 
-template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, double, true, false>>,
-                    rmm::device_uvector<int32_t>>
+template std::tuple<graph_t<int32_t, int64_t, double, true, false>, rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int32_t, int64_t, double, true, false> const& graph_view,
               int32_t const* labels,
               bool do_expensive_check);
 
-template std::tuple<std::unique_ptr<graph_t<int32_t, int64_t, double, false, false>>,
-                    rmm::device_uvector<int32_t>>
+template std::tuple<graph_t<int32_t, int64_t, double, false, false>, rmm::device_uvector<int32_t>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
               int32_t const* labels,
               bool do_expensive_check);
 
-template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, double, true, false>>,
-                    rmm::device_uvector<int64_t>>
+template std::tuple<graph_t<int64_t, int64_t, double, true, false>, rmm::device_uvector<int64_t>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int64_t, int64_t, double, true, false> const& graph_view,
               int64_t const* labels,
               bool do_expensive_check);
 
-template std::tuple<std::unique_ptr<graph_t<int64_t, int64_t, double, false, false>>,
-                    rmm::device_uvector<int64_t>>
+template std::tuple<graph_t<int64_t, int64_t, double, false, false>, rmm::device_uvector<int64_t>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
               int64_t const* labels,
