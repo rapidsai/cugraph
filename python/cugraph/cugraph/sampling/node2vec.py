@@ -16,33 +16,56 @@ import cupy
 # import numpy, cudf
 
 
-def node2vec(G, sources, max_depth, use_padding, p=1.0, q=1.0):
+def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     """
-    Computes node2vec.
+    Computes random walks for each node in 'start_vertices', under the
+    node2vec sampling framework described in:
+
+    A Grover, J Leskovec: node2vec: Scalable Feature Learning for Networks,
+    Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge
+    Discovery and Data Mining, https://arxiv.org/abs/1607.00653
 
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
 
-    sources: cudf.Series
+    start_vertices: int or list or cudf.Series
 
     max_depth: int, optional
+        The maximum depth of the random walks
 
     use_padding: bool, optional
 
     p: double, optional
+        Return factor, which represents the likelihood of backtracking to
+        a previous node in the walk. A higher value makes it less likely to
+        sample a previously visited node, while a lower value makes it more
+        likely to backtrack, making the walk "local"
 
     q: double, optional
+        In-out factor, which represents the likelihood of visiting nodes
+        closer or further from the outgoing node. If q > 1, the random walk
+        is likelier to visit nodes closer to the outgoing node. If q < 1, the
+        random walk is likelier to visit nodes further from the outgoing node.
 
     Returns
     -------
+    vertex_paths : cudf.Series or cudf.DataFrame
+        Series containing the vertices of edges/paths in the random walk.
+
+    edge_weight_paths: cudf.Series
+        Series containing the edge weights of edges represented by the
+        returned vertex_paths
+
+    sizes: int or cudf.Series
+        The path size or sizes in case of coalesced paths.
 
     Example
     -------
     >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> _, _, _ = cugraph.node2vec(G, sources, 3, True, 0.8, 0.5)
 
     """
