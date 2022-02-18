@@ -36,6 +36,9 @@ struct sampling_params_t {
   {
   }
 
+  // FIXME: The new C API uses the above constructor, this constructor
+  //        is only used by the legacy python/cython calls.  It should be
+  //        removed once it is no longer called.
   sampling_params_t(int sampling_type, double p = 1.0, double q = 1.0, bool use_alpha_cache = false)
     : sampling_type_(static_cast<sampling_strategy_t>(sampling_type)),
       p_(p),

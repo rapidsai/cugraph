@@ -19,11 +19,11 @@
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
 #include <c_api/paths_result.hpp>
+#include <c_api/utils.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/visitors/generic_cascaded_dispatch.hpp>
 
 #include <raft/handle.hpp>
 
@@ -43,17 +43,20 @@ struct extract_paths_functor : public abstract_functor {
   cugraph_type_erased_device_array_view_t const* destinations_;
   cugraph_extract_paths_result_t* result_{};
 
-  extract_paths_functor(raft::handle_t const& handle,
-                        cugraph_graph_t* graph,
-                        cugraph_type_erased_device_array_view_t const* sources,
-                        cugraph_paths_result_t const* paths_result,
-                        cugraph_type_erased_device_array_view_t const* destinations)
+  extract_paths_functor(cugraph_resource_handle_t const* handle,
+                        ::cugraph_graph_t* graph,
+                        ::cugraph_type_erased_device_array_view_t const* sources,
+                        ::cugraph_paths_result_t const* paths_result,
+                        ::cugraph_type_erased_device_array_view_t const* destinations)
     : abstract_functor(),
-      handle_(handle),
-      graph_(graph),
-      sources_(sources),
-      paths_result_(paths_result),
-      destinations_(destinations)
+      handle_(*reinterpret_cast<raft::handle_t const*>(handle)),
+      graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
+      sources_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),
+      paths_result_(reinterpret_cast<cugraph::c_api::cugraph_paths_result_t const*>(paths_result)),
+      destinations_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          destinations))
   {
   }
 
@@ -171,45 +174,7 @@ extern "C" cugraph_error_code_t cugraph_extract_paths(
   cugraph_extract_paths_result_t** result,
   cugraph_error_t** error)
 {
-  *result = nullptr;
-  *error  = nullptr;
+  cugraph::c_api::extract_paths_functor functor(handle, graph, sources, paths_result, destinations);
 
-  try {
-    auto p_handle = reinterpret_cast<raft::handle_t const*>(handle);
-    auto p_graph  = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
-    auto p_sources =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources);
-    auto p_paths_result =
-      reinterpret_cast<cugraph::c_api::cugraph_paths_result_t const*>(paths_result);
-    auto p_destinations =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-        destinations);
-
-    cugraph::c_api::extract_paths_functor functor(
-      *p_handle, p_graph, p_sources, p_paths_result, p_destinations);
-
-    // FIXME:  This seems like a recurring pattern.  Can
-    // I encapsulate
-    //    The vertex_dispatcher and error handling calls
-    //    into a reusable function? After all, we're in
-    //    C++ here.
-    cugraph::dispatch::vertex_dispatcher(cugraph::c_api::dtypes_mapping[p_graph->vertex_type_],
-                                         cugraph::c_api::dtypes_mapping[p_graph->edge_type_],
-                                         cugraph::c_api::dtypes_mapping[p_graph->weight_type_],
-                                         p_graph->store_transposed_,
-                                         p_graph->multi_gpu_,
-                                         functor);
-
-    if (functor.error_code_ != CUGRAPH_SUCCESS) {
-      *error = reinterpret_cast<cugraph_error_t*>(functor.error_.release());
-      return functor.error_code_;
-    }
-
-    *result = reinterpret_cast<cugraph_extract_paths_result_t*>(functor.result_);
-  } catch (std::exception const& ex) {
-    *error = reinterpret_cast<cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ex.what()});
-    return CUGRAPH_UNKNOWN_ERROR;
-  }
-
-  return CUGRAPH_SUCCESS;
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
