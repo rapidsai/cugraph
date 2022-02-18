@@ -107,7 +107,7 @@ from cugraph.layout import force_atlas2
 from cugraph.raft import raft_include_test
 from cugraph.comms import comms
 
-from cugraph.sampling import random_walks, rw_path
+from cugraph.sampling import random_walks, rw_path, node2vec
 
 from cugraph import experimental
 
