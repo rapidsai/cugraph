@@ -92,10 +92,9 @@ int generic_node2vec_test(vertex_t* h_src,
   //  We can easily validate that the results of node2vec
   //  are feasible by converting the sparse (h_src,h_dst,h_wgt)
   //  into a dense host matrix and check each path.
-<<<<<<< HEAD
-=======
+
   int num_vertices = 5;
->>>>>>> parent of 43b25b51 (Merge branch 'branch-22.04-node2vec-cugraph-layer' of https://github.com/betochimas/cugraph into branch-22.04-node2vec-cugraph-layer)
+
   weight_t M[num_vertices][num_vertices];
 
   for (int i = 0; i < num_vertices; ++i)
@@ -138,3 +137,4 @@ int main(int argc, char** argv)
   result |= RUN_TEST(test_node2vec);
   return result;
 }
+
