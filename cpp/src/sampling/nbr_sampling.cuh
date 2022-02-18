@@ -258,8 +258,8 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
       //{
       // prep step for extracting out-degs(sources):
       //
-      auto&& [d_new_in, d_new_rank] =
-        gather_active_sources_in_row(handle, graph_view, d_in.begin(), d_in.end(), d_ranks.begin());
+      auto&& [d_new_in, d_new_rank] = gather_active_sources_in_row(
+        handle, graph_view, d_in.cbegin(), d_in.cend(), d_ranks.cbegin());
 
       // extract out-degs(sources):
       //
@@ -285,7 +285,7 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
                                                                       graph_view,
                                                                       d_new_in,
                                                                       d_new_rank,
-                                                                      d_indices.begin(),
+                                                                      d_indices.cbegin(),
                                                                       static_cast<edge_t>(k_level),
                                                                       global_degree_offsets);
 
