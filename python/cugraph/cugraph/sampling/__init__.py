@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,3 +12,4 @@
 # limitations under the License.
 
 from cugraph.sampling.random_walks import random_walks, rw_path
+from cugraph.sampling.node2vec import node2vec

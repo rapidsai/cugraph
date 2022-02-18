@@ -153,7 +153,6 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
             len(src_array),
             get_c_type_from_numpy_type(src_array.dtype))
 
-
     error_code = cugraph_node2vec(c_resource_handle_ptr,
                                   c_graph_ptr,
                                   srcs_view_ptr,
