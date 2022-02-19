@@ -96,6 +96,7 @@ def sorensen(input_graph, vertex_pair=None):
 
 def sorensen_coefficient(G, ebunch=None):
     """
+    For NetworkX Compatability.  See `sorensen`
 
     Parameters
     ----------
