@@ -205,7 +205,7 @@ std::chrono::duration<double> elapsed_total = time3 - time0;
 std::chrono::duration<double> elapsed0 = time1 - time0;
 std::chrono::duration<double> elapsed1 = time2 - time1;
 std::chrono::duration<double> elapsed2 = time3 - time2;
-prev best_modularity=" << best_modularity << " std::cout << "Louvain level prev best_modularity=" << best_modularity << " new_Q=" << new_Q << " (V=" << current_graph_view_.get_number_of_vertices() << ", E=" << current_graph_view_.get_number_of_edges() << ") took " << elapsed_total.count() * 1e3 << " breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << ") ms." << std::endl;
+std::cout << "Louvain level prev best_modularity=" << best_modularity << " new_Q=" << new_Q << " (V=" << current_graph_view_.get_number_of_vertices() << ", E=" << current_graph_view_.get_number_of_edges() << ") took " << elapsed_total.count() * 1e3 << " breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << ") ms." << std::endl;
 #endif
 
       if (new_Q <= best_modularity) { break; }
