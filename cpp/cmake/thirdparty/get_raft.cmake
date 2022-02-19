@@ -58,7 +58,7 @@ find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         FORK       rapidsai
                         PINNED_TAG branch-${CUGRAPH_BRANCH_VERSION_raft}
 
-                        # When PINNED_TAG above doesn't match cuml,
+                        # When PINNED_TAG above doesn't match cugraph,
                         # force local raft clone in build directory
                         # even if it's already installed.
                         CLONE_ON_PIN     ON
