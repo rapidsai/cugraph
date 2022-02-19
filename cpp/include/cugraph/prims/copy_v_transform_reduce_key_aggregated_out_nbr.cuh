@@ -233,9 +233,14 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
   double constexpr load_factor = 0.7;
 
+  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+  auto element_size = sizeof(vertex_t) * 2 + sizeof(weight_t);
+  auto constexpr mem_frugal_ratio = 0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the total_global_mem, switch to the memory frugal approach
+  [[maybe_unused]] auto mem_frugal_threshold = static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+
   // 1. build a cuco::static_map object for the k, v pairs.
 
-#if 1
+#if 1  // FIXME: delete
 handle.sync_stream();
 auto time0 = std::chrono::steady_clock::now();
 #endif
@@ -273,7 +278,7 @@ auto time0 = std::chrono::steady_clock::now();
                       thrust::unique(handle.get_thrust_policy(), map_keys.begin(), map_keys.end())),
                     handle.get_stream());
 
-    std::tie(map_keys, std::ignore) = groupby_gpuid_and_shuffle_values(
+    std::tie(map_keys, std::ignore) = groupby_gpu_id_and_shuffle_values(
       col_comm,
       map_keys.begin(),
       map_keys.end(),
@@ -555,33 +560,98 @@ auto loop_time3 = std::chrono::steady_clock::now();
                                                      tmp_minor_keys.begin(),
                                                      tmp_key_aggregated_edge_weights.begin()));
 handle.sync_stream(); auto tmp_time0 = std::chrono::steady_clock::now();  // FIXME: delete
+      auto d_tx_value_counts = cugraph::groupby_and_count(
+        triplet_first,
+        triplet_first + tmp_major_vertices.size(),
+        detail::triplet_to_col_rank_t<vertex_t, weight_t>{
+          detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}, row_comm_size},
+        col_comm_size,
+        mem_frugal_threshold,
+        handle.get_stream());
+
+      std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+      raft::update_host(h_tx_value_counts.data(), d_tx_value_counts.data(), d_tx_value_counts.size(), handle.get_stream());
+      handle.sync_stream();
+handle.sync_stream(); auto tmp_time1 = std::chrono::steady_clock::now();  // FIXME: delete
+
       rmm::device_uvector<vertex_t> rx_major_vertices(0, handle.get_stream());
       rmm::device_uvector<vertex_t> rx_minor_keys(0, handle.get_stream());
       rmm::device_uvector<weight_t> rx_key_aggregated_edge_weights(0, handle.get_stream());
-      std::forward_as_tuple(
-        std::tie(rx_major_vertices, rx_minor_keys, rx_key_aggregated_edge_weights), std::ignore) =
-        groupby_gpu_id_and_shuffle_values(
-          col_comm,
-          triplet_first,
-          triplet_first + tmp_major_vertices.size(),
-          detail::triplet_to_col_rank_t<vertex_t, weight_t>{
-            detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}, row_comm_size},
-          handle.get_stream());
-      tmp_major_vertices.resize(0, handle.get_stream());
-      tmp_minor_keys.resize(0, handle.get_stream());
-      tmp_key_aggregated_edge_weights.resize(0, handle.get_stream());
-      tmp_major_vertices.shrink_to_fit(handle.get_stream());
-      tmp_minor_keys.shrink_to_fit(handle.get_stream());
-      tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
-handle.sync_stream(); auto tmp_time1 = std::chrono::steady_clock::now();  // FIXME: delete
+      if (tmp_major_vertices.size() > mem_frugal_threshold) {  // trade-off potential parallelism to lower peak memory
+        std::tie(rx_major_vertices, std::ignore) =
+          shuffle_values(
+            col_comm,
+            tmp_major_vertices.begin(),
+            h_tx_value_counts,
+            handle.get_stream());
+        tmp_major_vertices.resize(0, handle.get_stream());
+        tmp_major_vertices.shrink_to_fit(handle.get_stream());
+
+        std::tie(rx_minor_keys, std::ignore) =
+          shuffle_values(
+            col_comm,
+            tmp_minor_keys.begin(),
+            h_tx_value_counts,
+            handle.get_stream());
+        tmp_minor_keys.resize(0, handle.get_stream());
+        tmp_minor_keys.shrink_to_fit(handle.get_stream());
+
+        std::tie(rx_key_aggregated_edge_weights, std::ignore) =
+          shuffle_values(
+            col_comm,
+            tmp_key_aggregated_edge_weights.begin(),
+            h_tx_value_counts,
+            handle.get_stream());
+        tmp_key_aggregated_edge_weights.resize(0, handle.get_stream());
+        tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
+      }
+      else {
+        std::forward_as_tuple(
+          std::tie(rx_major_vertices, rx_minor_keys, rx_key_aggregated_edge_weights), std::ignore) =
+          shuffle_values(
+            col_comm,
+            triplet_first,
+            h_tx_value_counts,
+            handle.get_stream());
+        tmp_major_vertices.resize(0, handle.get_stream());
+        tmp_major_vertices.shrink_to_fit(handle.get_stream());
+        tmp_minor_keys.resize(0, handle.get_stream());
+        tmp_minor_keys.shrink_to_fit(handle.get_stream());
+        tmp_key_aggregated_edge_weights.resize(0, handle.get_stream());
+        tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
+      }
+handle.sync_stream(); auto tmp_time2 = std::chrono::steady_clock::now();  // FIXME: delete
 
       auto pair_first = thrust::make_zip_iterator(
         thrust::make_tuple(rx_major_vertices.begin(), rx_minor_keys.begin()));
-      thrust::sort_by_key(handle.get_thrust_policy(),
-                          pair_first,
-                          pair_first + rx_major_vertices.size(),
-                          rx_key_aggregated_edge_weights.begin());
-handle.sync_stream(); auto tmp_time2 = std::chrono::steady_clock::now();  // FIXME: delete
+      if (rx_major_vertices.size() > mem_frugal_threshold) {  // trade-off parallelism to lower peak memory
+        auto second_first = detail::mem_frugal_partition(
+          pair_first,
+          pair_first + rx_major_vertices.size(),
+          rx_key_aggregated_edge_weights.begin(),
+            []__device__(auto pair) {
+            return static_cast<int>(thrust::get<0>(pair) % 2);
+          },
+          int{1},
+          handle.get_stream());
+
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            pair_first,
+                            std::get<0>(second_first),
+                            rx_key_aggregated_edge_weights.begin());
+
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            std::get<0>(second_first),
+                            pair_first + rx_major_vertices.size(),
+                            rx_key_aggregated_edge_weights.begin() + thrust::distance(pair_first, std::get<0>(second_first)));
+      }
+      else {
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            pair_first,
+                            pair_first + rx_major_vertices.size(),
+                            rx_key_aggregated_edge_weights.begin());
+      }
+handle.sync_stream(); auto tmp_time3 = std::chrono::steady_clock::now();  // FIXME: delete
       auto num_uniques =
         thrust::count_if(handle.get_thrust_policy(),
                          thrust::make_counting_iterator(size_t{0}),
@@ -590,7 +660,7 @@ handle.sync_stream(); auto tmp_time2 = std::chrono::steady_clock::now();  // FIX
       tmp_major_vertices.resize(num_uniques, handle.get_stream());
       tmp_minor_keys.resize(tmp_major_vertices.size(), handle.get_stream());
       tmp_key_aggregated_edge_weights.resize(tmp_major_vertices.size(), handle.get_stream());
-handle.sync_stream(); auto tmp_time3 = std::chrono::steady_clock::now();  // FIXME: delete
+handle.sync_stream(); auto tmp_time4 = std::chrono::steady_clock::now();  // FIXME: delete
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             pair_first,
                             pair_first + rx_major_vertices.size(),
@@ -598,7 +668,6 @@ handle.sync_stream(); auto tmp_time3 = std::chrono::steady_clock::now();  // FIX
                             thrust::make_zip_iterator(thrust::make_tuple(
                               tmp_major_vertices.begin(), tmp_minor_keys.begin())),
                               tmp_key_aggregated_edge_weights.begin());
-handle.sync_stream(); auto tmp_time4 = std::chrono::steady_clock::now();  // FIXME: delete
 #if 1  // FIXME: delete
 handle.sync_stream(); auto tmp_time5 = std::chrono::steady_clock::now();
 std::chrono::duration<double> elapsed_total = tmp_time5 - tmp_time0;
@@ -625,6 +694,7 @@ auto loop_time4 = std::chrono::steady_clock::now();
       tmp_major_vertices.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
 #if 1
 handle.sync_stream();
+std::cout << "copy_v before transform calling KeyAggregatedEdgeOp" << std::endl;
 auto loop_time5 = std::chrono::steady_clock::now();
 #endif
     thrust::transform(handle.get_thrust_policy(),
@@ -643,6 +713,7 @@ auto loop_time5 = std::chrono::steady_clock::now();
                         kv_map_ptr->get_device_view()});
 #if 1
 handle.sync_stream();
+std::cout << "copy_v after transform calling KeyAggregatedEdgeOp" << std::endl;
 auto loop_time6 = std::chrono::steady_clock::now();
 #endif
     tmp_minor_keys.resize(0, handle.get_stream());
