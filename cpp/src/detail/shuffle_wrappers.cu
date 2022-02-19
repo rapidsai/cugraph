@@ -84,9 +84,33 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
                       handle.get_stream());
     handle.sync_stream();
 
-    std::forward_as_tuple(
-      std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors, d_rx_edgelist_weights), std::ignore) =
-      shuffle_values(comm, edge_first, h_tx_value_counts, handle.get_stream());
+    if (d_edgelist_majors.size() >
+        mem_frugal_threshold) {  // trade-off potential parallelism to lower peak memory
+      std::tie(d_rx_edgelist_majors, std::ignore) =
+        shuffle_values(comm, d_edgelist_majors.begin(), h_tx_value_counts, handle.get_stream());
+      d_edgelist_majors.resize(0, handle.get_stream());
+      d_edgelist_majors.shrink_to_fit(handle.get_stream());
+
+      std::tie(d_rx_edgelist_minors, std::ignore) =
+        shuffle_values(comm, d_edgelist_minors.begin(), h_tx_value_counts, handle.get_stream());
+      d_edgelist_minors.resize(0, handle.get_stream());
+      d_edgelist_minors.shrink_to_fit(handle.get_stream());
+
+      std::tie(d_rx_edgelist_weights, std::ignore) =
+        shuffle_values(comm, (*d_edgelist_weights).begin(), h_tx_value_counts, handle.get_stream());
+      (*d_edgelist_weights).resize(0, handle.get_stream());
+      (*d_edgelist_weights).shrink_to_fit(handle.get_stream());
+    } else {
+      std::forward_as_tuple(
+        std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors, d_rx_edgelist_weights), std::ignore) =
+        shuffle_values(comm, edge_first, h_tx_value_counts, handle.get_stream());
+      d_edgelist_majors.resize(0, handle.get_stream());
+      d_edgelist_majors.shrink_to_fit(handle.get_stream());
+      d_edgelist_minors.resize(0, handle.get_stream());
+      d_edgelist_minors.shrink_to_fit(handle.get_stream());
+      (*d_edgelist_weights).resize(0, handle.get_stream());
+      (*d_edgelist_weights).shrink_to_fit(handle.get_stream());
+    }
   } else {
     auto edge_first = thrust::make_zip_iterator(
       thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
@@ -110,8 +134,25 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
                       handle.get_stream());
     handle.sync_stream();
 
-    std::forward_as_tuple(std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors), std::ignore) =
-      shuffle_values(comm, edge_first, h_tx_value_counts, handle.get_stream());
+    if (d_edgelist_majors.size() >
+        mem_frugal_threshold) {  // trade-off potential parallelism to lower peak memory
+      std::tie(d_rx_edgelist_majors, std::ignore) =
+        shuffle_values(comm, d_edgelist_majors.begin(), h_tx_value_counts, handle.get_stream());
+      d_edgelist_majors.resize(0, handle.get_stream());
+      d_edgelist_majors.shrink_to_fit(handle.get_stream());
+
+      std::tie(d_rx_edgelist_minors, std::ignore) =
+        shuffle_values(comm, d_edgelist_minors.begin(), h_tx_value_counts, handle.get_stream());
+      d_edgelist_minors.resize(0, handle.get_stream());
+      d_edgelist_minors.shrink_to_fit(handle.get_stream());
+    } else {
+      std::forward_as_tuple(std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors), std::ignore) =
+        shuffle_values(comm, edge_first, h_tx_value_counts, handle.get_stream());
+      d_edgelist_majors.resize(0, handle.get_stream());
+      d_edgelist_majors.shrink_to_fit(handle.get_stream());
+      d_edgelist_minors.resize(0, handle.get_stream());
+      d_edgelist_minors.shrink_to_fit(handle.get_stream());
+    }
   }
 
   return std::make_tuple(std::move(d_rx_edgelist_majors),
