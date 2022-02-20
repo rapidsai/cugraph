@@ -41,6 +41,9 @@ from pylibcugraph.utilities.api_tools import experimental_warning_wrapper
 from pylibcugraph.graphs import EXPERIMENTAL__SGGraph
 SGGraph = experimental_warning_wrapper(EXPERIMENTAL__SGGraph)
 
+from pylibcugraph.graphs import EXPERIMENTAL__MGGraph
+MGGraph = experimental_warning_wrapper(EXPERIMENTAL__MGGraph)
+
 from pylibcugraph.resource_handle import EXPERIMENTAL__ResourceHandle
 ResourceHandle = experimental_warning_wrapper(EXPERIMENTAL__ResourceHandle)
 
