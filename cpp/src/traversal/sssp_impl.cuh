@@ -135,7 +135,7 @@ void sssp(raft::handle_t const& handle,
 
   auto adj_matrix_row_distances =
     GraphViewType::is_multi_gpu ? row_properties_t<GraphViewType, weight_t>(handle, push_graph_view)
-                                : row_properties_t<GraphViewType, weight_t>{};
+                                : row_properties_t<GraphViewType, weight_t>(handle);
   if (GraphViewType::is_multi_gpu) {
     adj_matrix_row_distances.fill(std::numeric_limits<weight_t>::max(), handle.get_stream());
   }

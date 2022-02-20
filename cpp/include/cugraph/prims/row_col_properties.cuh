@@ -211,7 +211,10 @@ class minor_properties_device_view_t {
 template <typename vertex_t, typename T>
 class major_properties_t {
  public:
-  major_properties_t() : buffer_(allocate_dataframe_buffer<T>(0, rmm::cuda_stream_view{})) {}
+  major_properties_t(raft::handle_t const& handle)
+    : buffer_(allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream()))
+  {
+  }
 
   major_properties_t(raft::handle_t const& handle, vertex_t buffer_size)
     : buffer_(allocate_dataframe_buffer<T>(buffer_size, handle.get_stream()))
@@ -237,6 +240,19 @@ class major_properties_t {
       matrix_partition_key_offsets_(std::move(matrix_partition_key_offsets)),
       matrix_partition_major_firsts_(std::move(matrix_partition_major_firsts))
   {
+  }
+
+  void clear(raft::handle_t const& handle)
+  {
+    key_first_ = std::nullopt;
+
+    resize_dataframe_buffer(buffer_, size_t{0}, handle.get_stream());
+    shrink_to_fit_dataframe_buffer(buffer_, handle.get_stream());
+
+    matrix_partition_key_offsets_  = std::nullopt;
+    matrix_partition_major_firsts_ = std::nullopt;
+
+    matrix_partition_major_value_start_offsets_ = std::nullopt;
   }
 
   void fill(T value, rmm::cuda_stream_view stream)
@@ -291,7 +307,7 @@ class major_properties_t {
  private:
   std::optional<vertex_t const*> key_first_{std::nullopt};
 
-  decltype(allocate_dataframe_buffer<T>(0, rmm::cuda_stream_view{})) buffer_;
+  decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{})) buffer_;
 
   std::optional<std::vector<vertex_t>> matrix_partition_key_offsets_{std::nullopt};
   std::optional<std::vector<vertex_t>> matrix_partition_major_firsts_{std::nullopt};
@@ -302,7 +318,10 @@ class major_properties_t {
 template <typename vertex_t, typename T>
 class minor_properties_t {
  public:
-  minor_properties_t() : buffer_(allocate_dataframe_buffer<T>(0, rmm::cuda_stream_view{})) {}
+  minor_properties_t(raft::handle_t const& handle)
+    : buffer_(allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream()))
+  {
+  }
 
   minor_properties_t(raft::handle_t const& handle, vertex_t buffer_size)
     : buffer_(allocate_dataframe_buffer<T>(buffer_size, handle.get_stream()))
@@ -319,6 +338,16 @@ class minor_properties_t {
       buffer_(
         allocate_dataframe_buffer<T>(thrust::distance(key_first, key_last), handle.get_stream()))
   {
+  }
+
+  void clear(raft::handle_t const& handle)
+  {
+    key_first_   = std::nullopt;
+    key_last_    = std::nullopt;
+    minor_first_ = std::nullopt;
+
+    resize_dataframe_buffer(buffer_, size_t{0}, handle.get_stream());
+    shrink_to_fit_dataframe_buffer(buffer_, handle.get_stream());
   }
 
   void fill(T value, rmm::cuda_stream_view stream)
@@ -358,7 +387,7 @@ class minor_properties_t {
   std::optional<vertex_t const*> key_last_{std::nullopt};
   std::optional<vertex_t> minor_first_{std::nullopt};
 
-  decltype(allocate_dataframe_buffer<T>(0, rmm::cuda_stream_view{})) buffer_;
+  decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{})) buffer_;
 };
 
 template <typename Iterator,
@@ -392,9 +421,10 @@ class row_properties_t {
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  row_properties_t() = default;
+  row_properties_t(raft::handle_t const& handle) : properties_(handle) {}
 
   row_properties_t(raft::handle_t const& handle, GraphViewType const& graph_view)
+    : properties_(handle)
   {
     using vertex_t = typename GraphViewType::vertex_type;
 
@@ -445,6 +475,8 @@ class row_properties_t {
     }
   }
 
+  void clear(raft::handle_t const& handle) { properties_.clear(handle); }
+
   void fill(T value, rmm::cuda_stream_view stream) { properties_.fill(value, stream); }
 
   auto key_first() { return properties_.key_first(); }
@@ -459,7 +491,7 @@ class row_properties_t {
   std::conditional_t<GraphViewType::is_adj_matrix_transposed,
                      detail::minor_properties_t<typename GraphViewType::vertex_type, T>,
                      detail::major_properties_t<typename GraphViewType::vertex_type, T>>
-    properties_{};
+    properties_;
 };
 
 template <typename GraphViewType, typename T>
@@ -469,9 +501,10 @@ class col_properties_t {
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  col_properties_t() = default;
+  col_properties_t(raft::handle_t const& handle) : properties_(handle) {}
 
   col_properties_t(raft::handle_t const& handle, GraphViewType const& graph_view)
+    : properties_(handle)
   {
     using vertex_t = typename GraphViewType::vertex_type;
 
@@ -522,6 +555,8 @@ class col_properties_t {
     }
   }
 
+  void clear(raft::handle_t const& handle) { properties_.clear(handle); }
+
   void fill(T value, rmm::cuda_stream_view stream) { properties_.fill(value, stream); }
 
   auto key_first() { return properties_.key_first(); }
@@ -536,7 +571,7 @@ class col_properties_t {
   std::conditional_t<GraphViewType::is_adj_matrix_transposed,
                      detail::major_properties_t<typename GraphViewType::vertex_type, T>,
                      detail::minor_properties_t<typename GraphViewType::vertex_type, T>>
-    properties_{};
+    properties_;
 };
 
 template <typename vertex_t>
