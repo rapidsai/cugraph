@@ -116,7 +116,7 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
     
 
-    """
+
     result_dist = benchmark(dcg.hits,
                             dg,
                             input_expected_output["max_iter"],
@@ -141,5 +141,5 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
     assert len(hubs_diffs2) == 0
     assert len(authorities_diffs1) == 0
     assert len(authorities_diffs2) == 0
-    """
+
 
