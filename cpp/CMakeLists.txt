@@ -285,6 +285,7 @@ target_include_directories(cugraph
 # - link libraries -------------------------------------------------------------
 target_link_libraries(cugraph
     PUBLIC
+        cugraphops::cugraphops
         raft::raft
     PRIVATE
         cugraph::cuHornet
