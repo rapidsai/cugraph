@@ -10,4 +10,5 @@ Hungarian
 .. autosummary::
    :toctree: api/
 
-   cugraph.linear_assignment.hungarian
+   cugraph.hungarian
+   cugraph.dense_hungarian

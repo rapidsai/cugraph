@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #pragma once
 
-#include <cugraph/detail/decompress_matrix_partition.cuh>
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
@@ -1210,113 +1210,11 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                          std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
                          bool destroy)
 {
-  auto& comm           = handle.get_comms();
-  auto const comm_size = comm.get_size();
-  auto& row_comm =
-    this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_size = row_comm.get_size();
-  auto& col_comm =
-    this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_rank = col_comm.get_rank();
-
-  auto graph_view = this->view();
-
-  std::vector<size_t> edgelist_edge_counts(graph_view.get_number_of_local_adj_matrix_partitions(),
-                                           size_t{0});
-  for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    edgelist_edge_counts[i] =
-      static_cast<size_t>(graph_view.get_number_of_local_adj_matrix_partition_edges(i));
-  }
-  auto number_of_local_edges =
-    std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
-  auto vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
-
-  rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-  auto edgelist_weights = this->is_weighted() ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                                  edgelist_majors.size(), handle.get_stream())
-                                              : std::nullopt;
-
-  size_t cur_size{0};
-  for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    detail::decompress_matrix_partition_to_edgelist(
-      handle,
-      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-        graph_view.get_matrix_partition_view(i)),
-      edgelist_majors.data() + cur_size,
-      edgelist_minors.data() + cur_size,
-      edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data() + cur_size}
-                       : std::nullopt,
-      graph_view.get_local_adj_matrix_partition_segment_offsets(i));
-    cur_size += edgelist_edge_counts[i];
-  }
-
-  auto local_vertex_first = graph_view.get_local_vertex_first();
-  auto local_vertex_last  = graph_view.get_local_vertex_last();
+  auto result = this->view().decompress_to_edgelist(handle, renumber_map);
 
   if (destroy) { *this = graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(handle); }
 
-  if (renumber_map) {
-    std::vector<vertex_t> h_thresholds(row_comm_size - 1, vertex_t{0});
-    for (int i = 0; i < row_comm_size - 1; ++i) {
-      h_thresholds[i] = graph_view.get_vertex_partition_last(col_comm_rank * row_comm_size + i);
-    }
-    rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), handle.get_stream());
-    raft::update_device(
-      d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
-
-    std::vector<vertex_t*> major_ptrs(edgelist_edge_counts.size());
-    std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
-    auto edgelist_intra_partition_segment_offsets =
-      std::make_optional<std::vector<std::vector<size_t>>>(
-        major_ptrs.size(), std::vector<size_t>(row_comm_size + 1, size_t{0}));
-    size_t cur_size{0};
-    for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-      major_ptrs[i] = edgelist_majors.data() + cur_size;
-      minor_ptrs[i] = edgelist_minors.data() + cur_size;
-      if (edgelist_weights) {
-        thrust::sort_by_key(handle.get_thrust_policy(),
-                            minor_ptrs[i],
-                            minor_ptrs[i] + edgelist_edge_counts[i],
-                            thrust::make_zip_iterator(thrust::make_tuple(
-                              major_ptrs[i], (*edgelist_weights).data() + cur_size)));
-      } else {
-        thrust::sort_by_key(handle.get_thrust_policy(),
-                            minor_ptrs[i],
-                            minor_ptrs[i] + edgelist_edge_counts[i],
-                            major_ptrs[i]);
-      }
-      rmm::device_uvector<size_t> d_segment_offsets(d_thresholds.size(), handle.get_stream());
-      thrust::lower_bound(handle.get_thrust_policy(),
-                          minor_ptrs[i],
-                          minor_ptrs[i] + edgelist_edge_counts[i],
-                          d_thresholds.begin(),
-                          d_thresholds.end(),
-                          d_segment_offsets.begin(),
-                          thrust::less<vertex_t>{});
-      (*edgelist_intra_partition_segment_offsets)[i][0]     = size_t{0};
-      (*edgelist_intra_partition_segment_offsets)[i].back() = edgelist_edge_counts[i];
-      raft::update_host((*edgelist_intra_partition_segment_offsets)[i].data() + 1,
-                        d_segment_offsets.data(),
-                        d_segment_offsets.size(),
-                        handle.get_stream());
-      handle.sync_stream();
-      cur_size += edgelist_edge_counts[i];
-    }
-
-    unrenumber_local_int_edges<vertex_t, store_transposed, multi_gpu>(
-      handle,
-      store_transposed ? minor_ptrs : major_ptrs,
-      store_transposed ? major_ptrs : minor_ptrs,
-      edgelist_edge_counts,
-      (*renumber_map).data(),
-      vertex_partition_lasts,
-      edgelist_intra_partition_segment_offsets);
-  }
-
-  return std::make_tuple(store_transposed ? std::move(edgelist_minors) : std::move(edgelist_majors),
-                         store_transposed ? std::move(edgelist_majors) : std::move(edgelist_minors),
-                         std::move(edgelist_weights));
+  return result;
 }
 
 template <typename vertex_t,
@@ -1332,38 +1230,11 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                          std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
                          bool destroy)
 {
-  auto graph_view = this->view();
-
-  rmm::device_uvector<vertex_t> edgelist_majors(
-    graph_view.get_number_of_local_adj_matrix_partition_edges(), handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-  auto edgelist_weights = this->is_weighted() ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                                  edgelist_majors.size(), handle.get_stream())
-                                              : std::nullopt;
-  detail::decompress_matrix_partition_to_edgelist(
-    handle,
-    matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-      graph_view.get_matrix_partition_view()),
-    edgelist_majors.data(),
-    edgelist_minors.data(),
-    edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
-    graph_view.get_local_adj_matrix_partition_segment_offsets());
+  auto result = this->view().decompress_to_edgelist(handle, renumber_map);
 
   if (destroy) { *this = graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(handle); }
 
-  if (renumber_map) {
-    unrenumber_local_int_edges<vertex_t, store_transposed, multi_gpu>(
-      handle,
-      store_transposed ? edgelist_minors.data() : edgelist_majors.data(),
-      store_transposed ? edgelist_majors.data() : edgelist_minors.data(),
-      edgelist_majors.size(),
-      (*renumber_map).data(),
-      (*renumber_map).size());
-  }
-
-  return std::make_tuple(store_transposed ? std::move(edgelist_minors) : std::move(edgelist_majors),
-                         store_transposed ? std::move(edgelist_majors) : std::move(edgelist_minors),
-                         std::move(edgelist_weights));
+  return result;
 }
 
 }  // namespace cugraph
