@@ -24,6 +24,8 @@
 #include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
 
+#include <cugraph-ops/graph/sampling.h>
+
 #include <raft/handle.hpp>
 
 namespace cugraph {
@@ -1440,7 +1442,7 @@ template <typename graph_t>
 std::tuple<rmm::device_uvector<typename graph_t::edge_type>,
            rmm::device_uvector<typename graph_t::vertex_type>>
 sample_neighbors_adjacency_list(raft::handle_t const& handle,
-                                raft::random::Rng& rng,
+                                ops::gnn::graph::Rng& rng,
                                 graph_t const& graph,
                                 typename graph_t::vertex_type const* ptr_d_start,
                                 size_t num_start_vertices,
@@ -1471,7 +1473,7 @@ template <typename graph_t>
 std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
            rmm::device_uvector<typename graph_t::vertex_type>>
 sample_neighbors_edgelist(raft::handle_t const& handle,
-                          raft::random::Rng& rng,
+                          ops::gnn::graph::Rng& rng,
                           graph_t const& graph,
                           typename graph_t::vertex_type const* ptr_d_start,
                           size_t num_start_vertices,

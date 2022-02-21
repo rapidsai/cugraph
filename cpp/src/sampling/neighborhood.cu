@@ -24,7 +24,7 @@ namespace cugraph {
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 sample_neighbors_adjacency_list(raft::handle_t const& handle,
-                                raft::random::Rng& rng,
+                                ops::gnn::graph::Rng& rng,
                                 graph_view_t<int32_t, int32_t, float, false, false> const& gview,
                                 int32_t const* ptr_d_start,
                                 size_t num_start_vertices,
@@ -44,7 +44,7 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 sample_neighbors_edgelist(raft::handle_t const& handle,
-                          raft::random::Rng& rng,
+                          ops::gnn::graph::Rng& rng,
                           graph_view_t<int32_t, int32_t, float, false, false> const& gview,
                           typename graph_t::vertex_type const* ptr_d_start,
                           size_t num_start_vertices,
