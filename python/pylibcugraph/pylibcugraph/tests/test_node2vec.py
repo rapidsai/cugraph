@@ -110,15 +110,15 @@ def test_node2vec(sg_graph_objs, compress_result):
     assert actual_weights.dtype == expected_weights.dtype
     actual_paths = actual_paths.tolist()
     actual_weights = actual_weights.tolist()
-    expected_paths = expected_paths.tolist()
-    expected_weights = expected_weights.tolist()
+    exp_paths = expected_paths.tolist()
+    exp_weights = expected_weights.tolist()
 
     # Verify exact walks chosen for linear graph Simple_1
     if ds_name not in ["karate.csv", "dolphins.csv", "Simple_2"]:
-        for i in range(len(expected_paths)):
-            assert pytest.approx(actual_paths[i], 1e-4) == expected_paths[i]
-        for i in range(len(expected_weights)):
-            assert pytest.approx(actual_weights[i], 1e-4) == expected_weights[i]
+        for i in range(len(exp_paths)):
+            assert pytest.approx(actual_paths[i], 1e-4) == exp_paths[i]
+        for i in range(len(exp_weights)):
+            assert pytest.approx(actual_weights[i], 1e-4) == exp_weights[i]
 
     # Verify starting vertex of each path is the corresponding seed
     if compress_result:
