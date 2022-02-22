@@ -214,6 +214,12 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
+    auto constexpr num_chunks = size_t{
+      2};  // tuning parameter, this trade-offs # binary searches (up to num_chunks times more
+           // binary searches can be necessary if num_unique_majors << edgelist_edge_counts[i]) and
+           // temporary buffer requirement (cut by num_chunks times), currently set to 2 to avoid
+           // peak memory usage happening in this part (especially when col_comm_size is small)
+
     assert(edgelist_majors.size() == col_comm_size);
 
     auto edge_partition_major_sizes =
@@ -226,24 +232,22 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
         raft::comms::op_t::SUM,
         handle.get_stream());
       // memory footprint vs parallelism trade-off
-      // peak memory requirement per loop is
-      // min(
-      //   (E / (comm_size * col_comm_size)) * sizeof(vertex_t) * 2,
-      //   (E / (comm_size * col_comm_size)) * sizeof(vertex_t) +
-      //     (V/P) * (sizeof(vertex_t) + sizeof(edge_t)),
-      //   (V/P) * (sizeof(vertex_t) + sizeof(edge_t)) * 2
-      // )
-      // and limit temporary memory requirement to (E / comm_size) * sizeof(vertex_t) * 2
+      // peak memory requirement per loop is approximately
+      //   (V/P) * (sizeof(vertex_t) + sizeof(edge_t)) +
+      //   (E / (comm_size * col_comm_size)) / num_chunks * sizeof(vertex_t) * 2 +
+      //   std::min(V/P, (E / (comm_size * col_comm_size)) / num_chunks) * (sizeof(vertex_t) +
+      //   sizeof(edge_t))
+      // and limit temporary memory requirement to (E / comm_size) * sizeof(vertex_t)
       auto avg_vertex_degree = thrust::get<0>(vertex_edge_counts) > 0
                                  ? static_cast<double>(thrust::get<1>(vertex_edge_counts)) /
                                      static_cast<double>(thrust::get<0>(vertex_edge_counts))
                                  : double{0.0};
-      auto num_streams =
-        std::min(static_cast<size_t>(avg_vertex_degree *
-                                     (static_cast<double>(sizeof(vertex_t)) /
-                                      static_cast<double>(sizeof(vertex_t) + sizeof(edge_t)))),
-                 static_cast<size_t>(
-                   std::min(static_cast<size_t>(col_comm_size), handle.get_stream_pool_size())));
+      auto num_streams       = static_cast<size_t>(
+        (avg_vertex_degree * sizeof(vertex_t)) /
+        (static_cast<double>(sizeof(vertex_t) + sizeof(edge_t)) +
+         (((avg_vertex_degree / col_comm_size) / num_chunks) * sizeof(vertex_t) * 2) +
+         (std::min(1.0, ((avg_vertex_degree / col_comm_size) / num_chunks)) *
+          (sizeof(vertex_t) + sizeof(edge_t)))));
       if (num_streams >= 2) {
         stream_pool_indices = std::vector<size_t>(num_streams);
         std::iota((*stream_pool_indices).begin(), (*stream_pool_indices).end(), size_t{0});
@@ -255,28 +259,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
       auto loop_stream = stream_pool_indices
                            ? handle.get_stream_from_stream_pool(i % (*stream_pool_indices).size())
                            : handle.get_stream();
-
-      rmm::device_uvector<vertex_t> tmp_majors(edgelist_edge_counts[i], loop_stream);
-      thrust::copy(rmm::exec_policy(loop_stream),
-                   edgelist_majors[i],
-                   edgelist_majors[i] + edgelist_edge_counts[i],
-                   tmp_majors.begin());
-      thrust::sort(rmm::exec_policy(loop_stream), tmp_majors.begin(), tmp_majors.end());
-      auto num_unique_majors = thrust::count_if(rmm::exec_policy(loop_stream),
-                                                thrust::make_counting_iterator(size_t{0}),
-                                                thrust::make_counting_iterator(tmp_majors.size()),
-                                                is_first_in_run_t<vertex_t>{tmp_majors.data()});
-      rmm::device_uvector<vertex_t> tmp_keys(num_unique_majors, loop_stream);
-      rmm::device_uvector<edge_t> tmp_values(num_unique_majors, loop_stream);
-      thrust::reduce_by_key(rmm::exec_policy(loop_stream),
-                            tmp_majors.begin(),
-                            tmp_majors.end(),
-                            thrust::make_constant_iterator(edge_t{1}),
-                            tmp_keys.begin(),
-                            tmp_values.begin());
-
-      tmp_majors.resize(0, loop_stream);
-      tmp_majors.shrink_to_fit(loop_stream);
 
       rmm::device_uvector<vertex_t> sorted_majors(edge_partition_major_sizes[i], loop_stream);
       device_bcast(col_comm,
@@ -292,15 +274,43 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                    sorted_major_degrees.end(),
                    edge_t{0});
 
-      auto kv_pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(tmp_keys.begin(), tmp_values.begin()));
-      thrust::for_each(
-        rmm::exec_policy(loop_stream),
-        kv_pair_first,
-        kv_pair_first + tmp_keys.size(),
-        search_and_set_degree_t<vertex_t, edge_t>{sorted_majors.data(),
-                                                  static_cast<vertex_t>(sorted_majors.size()),
-                                                  sorted_major_degrees.data()});
+      rmm::device_uvector<vertex_t> tmp_majors(
+        (static_cast<size_t>(edgelist_edge_counts[i]) + (num_chunks - 1)) / num_chunks,
+        handle.get_stream());
+      size_t offset{0};
+      for (size_t j = 0; j < num_chunks; ++j) {
+        size_t this_chunk_size =
+          std::min(tmp_majors.size(), static_cast<size_t>(edgelist_edge_counts[i]) - offset);
+        thrust::copy(rmm::exec_policy(loop_stream),
+                     edgelist_majors[i] + offset,
+                     edgelist_majors[i] + offset + this_chunk_size,
+                     tmp_majors.begin());
+        thrust::sort(
+          rmm::exec_policy(loop_stream), tmp_majors.begin(), tmp_majors.begin() + this_chunk_size);
+        auto num_unique_majors = thrust::count_if(rmm::exec_policy(loop_stream),
+                                                  thrust::make_counting_iterator(size_t{0}),
+                                                  thrust::make_counting_iterator(this_chunk_size),
+                                                  is_first_in_run_t<vertex_t>{tmp_majors.data()});
+        rmm::device_uvector<vertex_t> tmp_keys(num_unique_majors, loop_stream);
+        rmm::device_uvector<edge_t> tmp_values(num_unique_majors, loop_stream);
+        thrust::reduce_by_key(rmm::exec_policy(loop_stream),
+                              tmp_majors.begin(),
+                              tmp_majors.begin() + this_chunk_size,
+                              thrust::make_constant_iterator(edge_t{1}),
+                              tmp_keys.begin(),
+                              tmp_values.begin());
+
+        auto kv_pair_first =
+          thrust::make_zip_iterator(thrust::make_tuple(tmp_keys.begin(), tmp_values.begin()));
+        thrust::for_each(
+          rmm::exec_policy(loop_stream),
+          kv_pair_first,
+          kv_pair_first + tmp_keys.size(),
+          search_and_set_degree_t<vertex_t, edge_t>{sorted_majors.data(),
+                                                    static_cast<vertex_t>(sorted_majors.size()),
+                                                    sorted_major_degrees.data()});
+        offset += this_chunk_size;
+      }
 
       device_reduce(col_comm,
                     sorted_major_degrees.begin(),

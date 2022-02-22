@@ -125,6 +125,13 @@ compute_tx_rx_counts_offsets_ranks(raft::comms::comms_t const& comm,
   return std::make_tuple(tx_counts, tx_offsets, tx_dst_ranks, rx_counts, rx_offsets, rx_src_ranks);
 }
 
+template <typename key_type, typename KeyToGroupIdOp>
+struct key_group_id_less_t {
+  KeyToGroupIdOp key_to_group_id_op{};
+  int pivot{};
+  __device__ bool operator()(key_type k) const { return key_to_group_id_op(k) < pivot; }
+};
+
 template <typename value_type, typename ValueToGroupIdOp>
 struct value_group_id_less_t {
   ValueToGroupIdOp value_to_group_id_op{};
@@ -231,9 +238,8 @@ std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
     rmm::exec_policy(stream_view),
     key_first,
     key_last,
-    kv_pair_group_id_less_t<typename thrust::iterator_traits<KeyIterator>::value_type,
-                            typename thrust::iterator_traits<ValueIterator>::value_type,
-                            KeyToGroupIdOp>{key_to_group_id_op, pivot}));
+    key_group_id_less_t<typename thrust::iterator_traits<KeyIterator>::value_type, KeyToGroupIdOp>{
+      key_to_group_id_op, pivot}));
   auto second_size  = num_elements - first_size;
 
   auto tmp_key_buffer =
