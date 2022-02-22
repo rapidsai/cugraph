@@ -68,21 +68,22 @@ _test_data = {"karate.csv": {
 # =============================================================================
 # Tests
 # =============================================================================
-def test_node2vec_untransposed(sg_graph_objs):
-    return test_node2vec(sg_graph_objs)
+# def test_node2vec_untransposed(sg_graph_objs):
+#    return test_node2vec(sg_graph_objs)
 
-def test_node2vec_transposed(sg_transposed_graph_objs):
-    return test_node2vec(sg_transposed_graph_objs)
+# TODO: Create test data for transposed graphs
+# def test_node2vec_transposed(sg_transposed_graph_objs):
+#    return test_node2vec(sg_transposed_graph_objs)
 
-def test_node2vec(graph_objs):
+@pytest.mark.parametrize("compress_result", [True, False])
+def test_node2vec(sg_graph_objs, compress_result):
     from pylibcugraph.experimental import node2vec
 
-    (g, resource_handle, ds_name) = graph_objs
+    (g, resource_handle, ds_name) = sg_graph_objs
 
     (seeds, expected_paths, expected_weights, expected_path_sizes, max_depth) \
         = _test_data[ds_name].values()
 
-    compress_result = True
     p = 0.8
     q = 0.5
 
@@ -93,25 +94,24 @@ def test_node2vec(graph_objs):
     num_paths = len(seeds)
 
     # Verify that the correct number of paths were made
-    assert len(actual_path_sizes) == num_paths
+    if compress_result:
+        assert len(actual_path_sizes) == num_paths
+        assert actual_path_sizes.dtype == expected_path_sizes.dtype
+        actual_path_sizes = actual_path_sizes.tolist()
+        expected_path_sizes = expected_path_sizes.tolist()
+        expected_walks = sum(expected_path_sizes) - num_paths
+        # FIXME: When using multiple seeds, paths are connected via the weights
+        # array, there should not be a weight connecting the end of a path with
+        # the beginning of another. PR #2089 will resolve this.
+        # Verify the number of walks was equal to path sizes - num paths
+        assert len(actual_weights) == expected_walks
 
     assert actual_paths.dtype == expected_paths.dtype
     assert actual_weights.dtype == expected_weights.dtype
-    assert actual_path_sizes.dtype == expected_path_sizes.dtype
-
     actual_paths = actual_paths.tolist()
     actual_weights = actual_weights.tolist()
-    actual_path_sizes = actual_path_sizes.tolist()
     expected_paths = expected_paths.tolist()
     expected_weights = expected_weights.tolist()
-    expected_path_sizes = expected_path_sizes.tolist()
-
-    # FIXME: number of expected walks is not consistent with the
-    # actual number of walks, leading to a set of failing tests
-    """
-    expected_walks = sum(expected_path_sizes) - num_paths
-    # Verify the number of walks was equal to path sizes - num paths
-    assert len(actual_weights) == expected_walks
 
     # Verify exact walks chosen for linear graph Simple_1
     if ds_name not in ["karate.csv", "dolphins.csv", "Simple_2"]:
@@ -121,9 +121,9 @@ def test_node2vec(graph_objs):
             assert pytest.approx(actual_weights[i], 1e-4) == expected_weights[i]
 
     # Verify starting vertex of each path is the corresponding seed
-    path_start = 0
-    for i in range(num_paths):
-        assert actual_path_sizes[i] == expected_path_sizes[i]
-        assert actual_paths[path_start] == seeds[i]
-        path_start += actual_path_sizes[i]
-    """
+    if compress_result:
+        path_start = 0
+        for i in range(num_paths):
+            assert actual_path_sizes[i] == expected_path_sizes[i]
+            assert actual_paths[path_start] == seeds[i]
+            path_start += actual_path_sizes[i]

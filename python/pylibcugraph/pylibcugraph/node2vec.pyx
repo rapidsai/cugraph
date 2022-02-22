@@ -75,11 +75,10 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
         The input graph.
 
     src_array: device array type
-        Device array containing the
-        The pointer to the array of source vertices.
+        Device array containing the pointer to the array of source vertices.
 
     max_depth : size_t
-        Maximum length of generated path
+        Maximum number of vertices in generated path
 
     compress_result : bool_t
         If true, the third return device array contains the sizes for each path,
