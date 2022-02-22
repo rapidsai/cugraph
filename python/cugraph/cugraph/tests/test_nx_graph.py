@@ -26,7 +26,18 @@ dataset = {
          (3, 5),
          (6, 2),
          ]
-     ],}
+     ],
+    "nodes_with_attr": [
+        ["node_name", "node_type", "owner"],
+        [(2, "dog","jim"),
+         (4, "cat","betty"),
+         (6, "dog","cathy"),
+         (8, "cat","betty"),
+         (10, "fish","jim"),
+         (12, "parrot","sally"),
+         (14, "pony","jim"),
+         ]
+    ]}
 
 
 
@@ -89,6 +100,16 @@ def test_nx_property_edges():
 
     assert cnG.number_of_nodes() == 6
     assert cnG.number_of_edges() == 5
+    print(cnG[4,2])
+
+def test_node_properties():
+    cnG = Graph()
+    newnodes = dataset["nodes_with_attr"]
+    newnodes_df = cudf.DataFrame(columns=newnodes[0], data=newnodes[1])
+    cnG.add_nodes_from(newnodes_df)
+    print(cnG.nodelist().values)
+    cnG.add_edge(2,4)
+    G = cnG.as_cugraph()
 
 
 def test_nx_add_node_s():
@@ -145,7 +166,6 @@ def test_adjacencies():
 
     sg = cnG.neighbors(3)
     assert len(sg) == 2
-
 
 
 def test_weighted_nx_edges():

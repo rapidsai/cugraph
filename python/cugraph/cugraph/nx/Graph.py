@@ -107,13 +107,16 @@ class Graph():
         nodes : must be a list of nodes with or without properties in the 
             form of a dictionary.
         """
-        if not isinstance(nodes,list):
-            raise TypeError("type_name must be a list, got: "
-                            f"{type(nodes)}")
-        for node in nodes:
-            # print(f'Handling node {node}')
-            self.add_node(node)
-           
+        if type(nodes) in [cudf.DataFrame, pd.DataFrame]:
+            props = None
+            if len(nodes.columns) > 1:
+                props = list(nodes.columns[1:])
+            self.__pG.add_vertex_data(nodes,vertex_col_name=nodes.columns[0],
+                                        property_columns=props)
+        # must be a list if it is not a DataFrame
+        else:
+            for node in nodes:
+                self.add_node(node)
 
     def number_of_nodes(self):
         """
@@ -136,19 +139,15 @@ class Graph():
             Must be able to be represented as an str.
         """
 
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def delete_nodes_from(self, nodelist):
-
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def order(self):
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def has_node(self,node):
@@ -172,22 +171,18 @@ class Graph():
                                 type_name="",property_columns=list([self.weight_col_name]))
         else:
             raise TypeError("Invalid: format for weighted edges.")
-        return
 
 
     def delete_edge(self):
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def delete_edges_from(self):
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def update(self):
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def has_edge(self,u,v):
@@ -218,43 +213,35 @@ class Graph():
 
 
     def get_edge_data(self):
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def adjacency(self):
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def degree(self):    
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def clear(self):
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def clear_edges(self):
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def read_edgelist(self):
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def read_weighted_edgelist(self):
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def read_adjlist(self):
-        print("Not yet implemented")
-        return
+        raise NotImplementedError("Method not yet supported")
 
 
     def number_of_edges(self):
@@ -309,7 +296,11 @@ class Graph():
 
 
     def nodes(self):
-        return self.__pG.get_vertices().values
+        return self.nodelist().values
+
+
+    def nodelist(self):
+        return self.__pG.get_vertices()
 
 
     def edges(self):
@@ -318,3 +309,14 @@ class Graph():
         else:
             return self.__pG.extract_subgraph(
                 edge_weight_property=self.weight_property).edges()
+
+    def __getitem__(self,edge):
+        u,v = edge
+        nodelist = [u,v]
+        edgefilter = f"{self.__pG.src_col_name}.isin({nodelist}) & {self.__pG.dst_col_name}.isin({nodelist})"
+        selected_edges = self.__pG.select_edges(edgefilter)
+        subgraph = self.__pG.extract_subgraph(create_using=cugraph.Graph(directed=True),
+                    selection=selected_edges,
+                    default_edge_weight=1.0,
+                    allow_multi_edges=True)
+        return subgraph.edgelist
