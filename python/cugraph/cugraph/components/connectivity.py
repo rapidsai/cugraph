@@ -117,17 +117,17 @@ def weakly_connected_components(G,
         The adjacency list will be computed if not already present.  The number
         of vertices should fit into a 32b int.
 
-    directed : bool, optional
+    directed : bool, optional (default=True)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only.
             Raises TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to directed
-        cugraph.Graph and only move from point i to point j along paths
-        csgraph[i, j]. If False, then find the shortest path on an undirected
-        graph: the algorithm can progress from point i to j along csgraph[i, j]
-        or csgraph[j, i].
+        If True, then convert the input matrix to a cugraph.DiGraph
+        and only move from point i to point j along paths csgraph[i, j]. If
+        False, then find the shortest path on an undirected graph: the
+        algorithm can progress from point i to j along csgraph[i, j] or
+        csgraph[j, i].
 
     connection : str, optional (default=None)
 
@@ -135,13 +135,13 @@ def weakly_connected_components(G,
         (eg. sparse matrix) values of G only (raises TypeError if used with a
         Graph object), and can only be set to "weak" for this API.
 
-    return_labels : bool, optional
+    return_labels : bool, optional (default=True)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True (default), then return the labels for each of the connected
+        If True, then return the labels for each of the connected
         components.
 
     Returns
@@ -215,17 +215,17 @@ def strongly_connected_components(G,
         The adjacency list will be computed if not already present.  The number
         of vertices should fit into a 32b int.
 
-    directed : bool, optional
+    directed : bool, optional (default=True)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only.
             Raises TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to directed
-        cugraph.Graph and only move from point i to point j along paths
-        csgraph[i, j]. If False, then find the shortest path on an undirected
-        graph: the algorithm can progress from point i to j along csgraph[i, j]
-        or csgraph[j, i].
+        If True, then convert the input matrix to a cugraph.DiGraph
+        and only move from point i to point j along paths csgraph[i, j]. If
+        False, then find the shortest path on an undirected graph: the
+        algorithm can progress from point i to j along csgraph[i, j] or
+        csgraph[j, i].
 
     connection : str, optional (default=None)
 
@@ -233,13 +233,13 @@ def strongly_connected_components(G,
         (eg. sparse matrix) values of G only (raises TypeError if used with a
         Graph object), and can only be set to "strong" for this API.
 
-    return_labels : bool, optional
+    return_labels : bool, optional (default=True)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True (default), then return the labels for each of the connected
+        If True, then return the labels for each of the connected
         components.
 
     Returns
@@ -314,30 +314,30 @@ def connected_components(G,
         The adjacency list will be computed if not already present.  The number
         of vertices should fit into a 32b int.
 
-    directed : bool, optional
+    directed : bool, optional (default=True)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to directed
-        cugraph.Graph and only move from point i to point j along paths
-        csgraph[i, j]. If False, then find the shortest path on an undirected
-        graph: the algorithm can progress from point i to j along csgraph[i, j]
-        or csgraph[j, i].
+        If True, then convert the input matrix to a cugraph.DiGraph
+        and only move from point i to point j along paths csgraph[i, j]. If
+        False, then find the shortest path on an undirected graph: the
+        algorithm can progress from point i to j along csgraph[i, j] or
+        csgraph[j, i].
 
     connection : str, optional (default='weak')
 
         [‘weak’|’strong’]. Return either weakly or strongly connected
         components.
 
-    return_labels : bool, optional
+    return_labels : bool, optional (default=True)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True (default), then return the labels for each of the connected
+        If True, then return the labels for each of the connected
         components.
 
     Returns

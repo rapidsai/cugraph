@@ -446,3 +446,33 @@ def import_optional(mod, default_mod_class=MissingModule):
         return importlib.import_module(mod)
     except ModuleNotFoundError:
         return default_mod_class(mod_name=mod)
+
+
+def create_random_bipartite(v1, v2, size, dtype):
+    # Creates a full bipartite graph
+    import numpy as np
+    from cugraph.structure import Graph
+
+    df1 = cudf.DataFrame()
+    df1['src'] = cudf.Series(range(0, v1, 1))
+    df1['key'] = 1
+
+    df2 = cudf.DataFrame()
+    df2['dst'] = cudf.Series(range(v1, v1+v2, 1))
+    df2['key'] = 1
+
+    edges = df1.merge(df2, on='key')[['src', 'dst']]
+    edges = edges.sort_values(['src', 'dst']).reset_index()
+
+    # Generate edge weights
+    a = np.random.randint(1, high=size, size=(v1, v2)).astype(dtype)
+    edges['weight'] = a.flatten()
+
+    g = Graph()
+    g.from_cudf_edgelist(edges,
+                         source='src',
+                         destination='dst',
+                         edge_attr='weight',
+                         renumber=False)
+
+    return df1['src'], g, a
