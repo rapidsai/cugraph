@@ -29,7 +29,7 @@
 
 #include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
-#include <raft/random/rng.hpp>
+#include <raft/random/rng.cuh>
 
 #include <rmm/device_uvector.hpp>
 
