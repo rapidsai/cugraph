@@ -9,6 +9,7 @@
  *
  */
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 
@@ -90,14 +91,27 @@ class Tests_Louvain
     auto [louvain_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
+    HighResClock hr_clock{};
 
     // Can't currently check correctness if we renumber
     bool renumber = true;
     if (louvain_usecase.check_correctness_) renumber = false;
 
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_clock.start();
+    }
+
     auto [graph, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, true, renumber);
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+    }
 
     auto graph_view = graph.view();
 
@@ -108,6 +122,11 @@ class Tests_Louvain
     //
     cudaDeviceProp device_prop;
     RAFT_CUDA_TRY(cudaGetDeviceProperties(&device_prop, 0));
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_clock.start();
+    }
 
     if (device_prop.major < 7) {
       EXPECT_THROW(louvain(graph_view,
@@ -122,6 +141,13 @@ class Tests_Louvain
               louvain_usecase.check_correctness_,
               louvain_usecase.expected_level_,
               louvain_usecase.expected_modularity_);
+    }
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "Louvain took " << elapsed_time * 1e-6 << " s.\n";
     }
   }
 

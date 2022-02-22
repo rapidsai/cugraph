@@ -76,8 +76,8 @@ rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(
  * @param[in/out] d_edgelist_minors Vertex IDs for columns (if the graph adjacency matrix is stored
  * as is) or rows (if the graph adjacency matrix is stored transposed)
  * @param[in/out] d_edgelist_weights Optional edge weights
- * @param[in] groupby_and_count_local_partition If set to true, groupby and count edges based on
- * (local partition ID, GPU ID) pairs (where GPU IDs are computed by applying the
+ * @param[in] groupby_and_count_local_partition_by_minor If set to true, groupby and count edges
+ * based on (local partition ID, GPU ID) pairs (where GPU IDs are computed by applying the
  * compute_gpu_id_from_vertex_t function to the minor vertex ID). If set to false, groupby and count
  * edges by just local partition ID.
  *
@@ -91,7 +91,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   rmm::device_uvector<vertex_t>& d_edgelist_majors,
   rmm::device_uvector<vertex_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
-  bool groupby_and_count_local_partition = false);
+  bool groupby_and_count_local_partition_by_minor = false);
 
 }  // namespace detail
 }  // namespace cugraph

@@ -181,6 +181,7 @@ add_library(cugraph SHARED
     src/community/legacy/triangles_counting.cu
     src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
+    src/sampling/neighborhood.cu
     src/sampling/random_walks.cu
     src/sampling/detail/gather_utils_impl.cu
     src/sampling/nbr_sampling.cu
@@ -286,6 +287,7 @@ target_include_directories(cugraph
 # - link libraries -------------------------------------------------------------
 target_link_libraries(cugraph
     PUBLIC
+        cugraphops::cugraphops
         raft::raft
     PRIVATE
         cugraph::cuHornet
@@ -356,6 +358,7 @@ add_library(cugraph_c SHARED
         src/c_api/bfs.cpp
         src/c_api/sssp.cpp
         src/c_api/extract_paths.cpp
+        src/c_api/random_walks.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 
