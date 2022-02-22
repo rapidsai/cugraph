@@ -25,25 +25,27 @@
 namespace cugraph {
 namespace detail {
 
-template <typename IdxT, typename WeightT>
-ops::gnn::graph::fg_csr<IdxT> get_graph(
-  graph_view_t<IdxT, IdxT, WeightT, false, false> const& gview)
+template <typename NodeTypeT, typename EdgeTypeT, typename WeightT>
+ops::gnn::graph::fg_csr<EdgeTypeT> get_graph(
+  graph_view_t<NodeTypeT, EdgeTypeT, WeightT, false, false> const& gview)
 {
-  ops::gnn::graph::fg_csr<IdxT> graph;
+  ops::gnn::graph::fg_csr<EdgeTypeT> graph;
   graph.n_nodes   = gview.get_number_of_vertices();
   graph.n_indices = gview.get_number_of_edges();
-  graph.offsets   = gview.get_matrix_partition_view().get_offsets();
-  graph.indices   = gview.get_matrix_partition_view().get_indices();
+  // FIXME: this is evil and is just temporary until we have a matching type in cugraph-ops
+  // or we change the type accepted by the functions calling into cugraph-ops
+  graph.offsets = const_cast<EdgeTypeT*>(gview.get_matrix_partition_view().get_offsets());
+  graph.indices = const_cast<EdgeTypeT*>(gview.get_matrix_partition_view().get_indices());
   return graph;
 }
 
-template <typename IdxT, typename WeightT>
-std::tuple<ops::gnn::graph::fg_csr<IdxT>, IdxT> get_graph_and_max_degree(
-  graph_view_t<IdxT, IdxT, WeightT, false, false> const& gview)
+template <typename NodeTypeT, typename EdgeTypeT, typename WeightT>
+std::tuple<ops::gnn::graph::fg_csr<EdgeTypeT>, NodeTypeT> get_graph_and_max_degree(
+  graph_view_t<NodeTypeT, EdgeTypeT, WeightT, false, false> const& gview)
 {
   // FIXME this is sufficient for now, but if there is a fast (cached) way
   // of getting max degree, use that instead
-  int32_t max_degree = std::numeric_limits<int32_t>::max();
+  auto max_degree = std::numeric_limits<NodeTypeT>::max();
   return std::make_tuple(get_graph(gview), max_degree);
 }
 

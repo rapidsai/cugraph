@@ -181,6 +181,7 @@ add_library(cugraph SHARED
     src/community/legacy/triangles_counting.cu
     src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
+    src/sampling/neighborhood.cu
     src/sampling/random_walks.cu
     src/sampling/detail/gather_utils_impl.cu
     src/cores/legacy/core_number.cu
