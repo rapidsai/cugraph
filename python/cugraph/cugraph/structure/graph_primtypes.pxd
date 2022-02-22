@@ -20,7 +20,7 @@ from libcpp cimport bool
 from libcpp.memory cimport unique_ptr
 from libcpp.utility cimport pair
 from libcpp.vector cimport vector
-from cugraph.raft.common.handle cimport *
+from raft.common.handle cimport *
 from rmm._lib.device_buffer cimport device_buffer
 
 cdef extern from "cugraph/legacy/graph.hpp" namespace "cugraph::legacy":

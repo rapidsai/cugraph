@@ -16,7 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.raft.common.handle cimport *
+from raft.common.handle cimport *
 
 
 cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":

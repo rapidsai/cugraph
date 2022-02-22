@@ -89,8 +89,8 @@ def use_raft_package(raft_path, cpp_build_path,
          Path to the C++ include folder of RAFT
 
     """
-    if os.path.isdir('cugraph/raft'):
-        raft_path = os.path.realpath('cugraph/raft')
+    if os.path.isdir('raft'):
+        raft_path = os.path.realpath('raft')
         # walk up two dirs from `python/raft`
         raft_path = os.path.join(raft_path, '..', '..')
         print("-- Using existing RAFT folder")
@@ -123,13 +123,13 @@ def use_raft_package(raft_path, cpp_build_path,
     try:
         os.symlink(
             os.path.join(raft_path, 'python/raft'),
-            os.path.join('cugraph/raft')
+            os.path.join('raft')
         )
     except FileExistsError:
-        os.remove(os.path.join('cugraph/raft'))
+        os.remove(os.path.join('raft'))
         os.symlink(
             os.path.join(raft_path, 'python/raft'),
-            os.path.join('cugraph/raft')
+            os.path.join('raft')
         )
 
     return os.path.join(raft_path, 'cpp/include')
