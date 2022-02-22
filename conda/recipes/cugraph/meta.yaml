@@ -29,6 +29,8 @@ requirements:
     - python x.x
     - cython>=0.29,<0.30
     - libcugraph={{ version }}
+    - libraft-headers {{ minor_version }}
+    - pyraft {{ minor_version }}
     - cudf={{ minor_version }}
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
@@ -38,6 +40,7 @@ requirements:
     - python x.x
     - libcugraph={{ version }}
     - libraft-headers {{ minor_version }}
+    - pyraft {{ minor_version }}
     - cudf={{ minor_version }}
     - dask-cudf {{ minor_version }}
     - dask-cuda {{ minor_version }}
