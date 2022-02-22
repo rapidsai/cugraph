@@ -305,11 +305,13 @@ class simpleGraphImpl:
             vertices).
             The gdf column contains the offsets for the vertices in this graph.
             Offsets are in the range [0, E] (E: number of edges).
+
         index_col : cudf.Series
             This cudf.Series wraps a gdf_column of size E (E: number of edges).
             The gdf column contains the destination index for each edge.
             Destination indices are in the range [0, V) (V: number of
             vertices).
+
         value_col : cudf.Series or ``None``
             This pointer is ``None`` for unweighted graphs.
             For weighted graphs, this cudf.Series wraps a gdf_column of size E

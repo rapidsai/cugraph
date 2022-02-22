@@ -77,23 +77,21 @@ struct search_and_set_degree_t {
   }
 };
 
-// returns renumber map, segment_offsets, and # unique edge majors & minors
+// returns renumber map and segment_offsets
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t, vertex_t>
-compute_renumber_map(raft::handle_t const& handle,
-                     std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
-                     std::vector<vertex_t const*> const& edgelist_majors,
-                     std::vector<vertex_t const*> const& edgelist_minors,
-                     std::vector<edge_t> const& edgelist_edge_counts)
+std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumber_map(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
+  std::vector<vertex_t const*> const& edgelist_majors,
+  std::vector<vertex_t const*> const& edgelist_minors,
+  std::vector<edge_t> const& edgelist_edge_counts)
 {
   rmm::device_uvector<vertex_t> sorted_local_vertices(0, handle.get_stream());
-  vertex_t num_local_unique_edge_majors{0};
-  vertex_t num_local_unique_edge_minors{0};
 
   edge_t num_local_edges = std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
 
   // 1. if local_vertices.has_value() is false, find unique vertices from edge majors (to construct
-  // local_vertices), unique edge majors will be counted in step 4.
+  // local_vertices)
 
   rmm::device_uvector<vertex_t> sorted_unique_majors(0, handle.get_stream());
   if (!local_vertices) {
@@ -127,41 +125,39 @@ compute_renumber_map(raft::handle_t const& handle,
     sorted_unique_majors.shrink_to_fit(handle.get_stream());
   }
 
-  // 2. count unique edge minors.
-  // if local_vertices.has_value() is false, keep unique vertices from edge minors as well (to
-  // construct local_vertices)
+  // 2. if local_vertices.has_value() is false, find unique vertices from edge minors (to construct
+  // local_vertices)
 
-  rmm::device_uvector<vertex_t> sorted_unique_minors(num_local_edges, handle.get_stream());
-  size_t minor_offset{0};
-  for (size_t i = 0; i < edgelist_minors.size(); ++i) {
-    thrust::copy(handle.get_thrust_policy(),
-                 edgelist_minors[i],
-                 edgelist_minors[i] + edgelist_edge_counts[i],
-                 sorted_unique_minors.begin() + minor_offset);
-    thrust::sort(handle.get_thrust_policy(),
-                 sorted_unique_minors.begin() + minor_offset,
-                 sorted_unique_minors.begin() + minor_offset + edgelist_edge_counts[i]);
-    minor_offset += static_cast<size_t>(thrust::distance(
-      sorted_unique_minors.begin() + minor_offset,
-      thrust::unique(handle.get_thrust_policy(),
-                     sorted_unique_minors.begin() + minor_offset,
-                     sorted_unique_minors.begin() + minor_offset + edgelist_edge_counts[i])));
+  rmm::device_uvector<vertex_t> sorted_unique_minors(0, handle.get_stream());
+  if (!local_vertices) {
+    sorted_unique_minors.resize(num_local_edges, handle.get_stream());
+    size_t minor_offset{0};
+    for (size_t i = 0; i < edgelist_minors.size(); ++i) {
+      thrust::copy(handle.get_thrust_policy(),
+                   edgelist_minors[i],
+                   edgelist_minors[i] + edgelist_edge_counts[i],
+                   sorted_unique_minors.begin() + minor_offset);
+      thrust::sort(handle.get_thrust_policy(),
+                   sorted_unique_minors.begin() + minor_offset,
+                   sorted_unique_minors.begin() + minor_offset + edgelist_edge_counts[i]);
+      minor_offset += static_cast<size_t>(thrust::distance(
+        sorted_unique_minors.begin() + minor_offset,
+        thrust::unique(handle.get_thrust_policy(),
+                       sorted_unique_minors.begin() + minor_offset,
+                       sorted_unique_minors.begin() + minor_offset + edgelist_edge_counts[i])));
+    }
+    sorted_unique_minors.resize(minor_offset, handle.get_stream());
+    if (edgelist_minors.size() > 1) {
+      thrust::sort(
+        handle.get_thrust_policy(), sorted_unique_minors.begin(), sorted_unique_minors.end());
+      sorted_unique_minors.resize(thrust::distance(sorted_unique_minors.begin(),
+                                                   thrust::unique(handle.get_thrust_policy(),
+                                                                  sorted_unique_minors.begin(),
+                                                                  sorted_unique_minors.end())),
+                                  handle.get_stream());
+    }
+    sorted_unique_minors.shrink_to_fit(handle.get_stream());
   }
-  sorted_unique_minors.resize(minor_offset, handle.get_stream());
-  if (edgelist_minors.size() > 1) {
-    thrust::sort(
-      handle.get_thrust_policy(), sorted_unique_minors.begin(), sorted_unique_minors.end());
-    sorted_unique_minors.resize(thrust::distance(sorted_unique_minors.begin(),
-                                                 thrust::unique(handle.get_thrust_policy(),
-                                                                sorted_unique_minors.begin(),
-                                                                sorted_unique_minors.end())),
-                                handle.get_stream());
-  }
-
-  num_local_unique_edge_minors = static_cast<vertex_t>(sorted_unique_minors.size());
-
-  if (local_vertices) { sorted_unique_minors.resize(0, handle.get_stream()); }
-  sorted_unique_minors.shrink_to_fit(handle.get_stream());
 
   // 3. update sorted_local_vertices.
   // if local_vertices.has_value() is false, reconstruct local_vertices first
@@ -207,8 +203,7 @@ compute_renumber_map(raft::handle_t const& handle,
     }
   }
 
-  // 4. compute global degrees for the sorted local vertices, and count unique edge majors on the
-  // way
+  // 4. compute global degrees for the sorted local vertices
 
   rmm::device_uvector<edge_t> sorted_local_vertex_degrees(0, handle.get_stream());
   std::optional<std::vector<size_t>> stream_pool_indices{
@@ -280,8 +275,6 @@ compute_renumber_map(raft::handle_t const& handle,
                             tmp_keys.begin(),
                             tmp_values.begin());
 
-      num_local_unique_edge_majors += num_unique_majors;
-
       tmp_majors.resize(0, loop_stream);
       tmp_majors.shrink_to_fit(loop_stream);
 
@@ -341,8 +334,6 @@ compute_renumber_map(raft::handle_t const& handle,
                           thrust::make_constant_iterator(edge_t{1}),
                           tmp_keys.begin(),
                           tmp_values.begin());
-
-    num_local_unique_edge_majors += num_unique_majors;
 
     tmp_majors.resize(0, handle.get_stream());
     tmp_majors.shrink_to_fit(handle.get_stream());
@@ -426,10 +417,7 @@ compute_renumber_map(raft::handle_t const& handle,
                     handle.get_stream());
   handle.sync_stream();
 
-  return std::make_tuple(std::move(sorted_local_vertices),
-                         h_segment_offsets,
-                         num_local_unique_edge_majors,
-                         num_local_unique_edge_minors);
+  return std::make_tuple(std::move(sorted_local_vertices), h_segment_offsets);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -682,10 +670,7 @@ renumber_edgelist(
 
   // 1. compute renumber map
 
-  auto [renumber_map_labels,
-        vertex_partition_segment_offsets,
-        num_unique_edge_majors,
-        num_unique_edge_minors] =
+  auto [renumber_map_labels, vertex_partition_segment_offsets] =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(handle,
                                                               std::move(local_vertices),
                                                               edgelist_const_majors,
@@ -765,7 +750,8 @@ renumber_edgelist(
     }
   }
 
-  if ((partition.get_matrix_partition_minor_size() >= number_of_edges / comm_size) &&
+  if ((static_cast<double>(partition.get_matrix_partition_minor_size() / load_factor) >=
+       static_cast<double>(number_of_edges / comm_size)) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
     vertex_t max_segment_size{0};
@@ -863,12 +849,8 @@ renumber_edgelist(
 
   return std::make_tuple(
     std::move(renumber_map_labels),
-    renumber_meta_t<vertex_t, edge_t, multi_gpu>{number_of_vertices,
-                                                 number_of_edges,
-                                                 partition,
-                                                 vertex_partition_segment_offsets,
-                                                 num_unique_edge_majors,
-                                                 num_unique_edge_minors});
+    renumber_meta_t<vertex_t, edge_t, multi_gpu>{
+      number_of_vertices, number_of_edges, partition, vertex_partition_segment_offsets});
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -894,7 +876,7 @@ renumber_edgelist(raft::handle_t const& handle,
 
   rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
   std::vector<vertex_t> segment_offsets{};
-  std::tie(renumber_map_labels, segment_offsets, std::ignore, std::ignore) =
+  std::tie(renumber_map_labels, segment_offsets) =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
       handle,
       std::move(vertices),
