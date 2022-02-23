@@ -116,23 +116,13 @@ shuffle_to_gpus(raft::handle_t const& handle,
                       vertex_partition_lasts.size(),
                       handle.get_stream());
 
-  // TODO: remove
-  //{
-  std::vector<size_t> v{};
-  device_vec_t<vertex_t> d_vs(0, handle.get_stream());
-  device_vec_t<gpu_t> d_rs(0, handle.get_stream());
-  return std::make_tuple(std::make_tuple(std::move(d_vs), std::move(d_rs)), v);
-  //}
-
-  // auto&& result /*[rx_tuple, rx_counts]*/ =
-  /*
-  return groupby_gpuid_and_shuffle_values(
+  return groupby_gpu_id_and_shuffle_values(
     handle.get_comms(),
     begin,
     end,
     [vertex_partition_lasts = d_vertex_partition_lasts.data(),
      num_vertex_partitions  = d_vertex_partition_lasts.size()] __device__(auto tpl_v_r) {
-      auto gpu_id = static_cast<gpu_t>(
+      return static_cast<gpu_t>(
         thrust::distance(vertex_partition_lasts,
                          thrust::lower_bound(thrust::seq,
                                              vertex_partition_lasts,
@@ -140,8 +130,6 @@ shuffle_to_gpus(raft::handle_t const& handle,
                                              thrust::get<0>(tpl_v_r))));
     },
     handle.get_stream());
-  */
-  // return result;  // std::make_tuple(std::move(rx_tuple), rx_counts);
 }
 
 /**
@@ -402,18 +390,18 @@ uniform_nbr_sample(raft::handle_t const& handle,
   using vertex_t = typename graph_view_t::vertex_type;
   using edge_t   = typename graph_view_t::edge_type;
 
-  auto vertex_rank_pairs_it =
-    thrust::make_zip_iterator(thrust::make_tuple(ptr_d_start, ptr_d_ranks));
-
-  // TODO: figure out h_local_counts:
-  //
-  std::vector<size_t> h_local_counts(num_starting_vs);  // ???
-
   // shuffle input data to its corresponding rank;
-  // (TODO: this could be also done inside impl)
   //
-  auto [shuffled_vertex_rank_pairs, shuffled_counts] =
-    shuffle_values(handle.get_comms(), vertex_rank_pairs_it, h_local_counts, handle.get_stream());
+  vertex_t* p_d_start{nullptr};
+  gpu_t* p_d_ranks{nullptr};
+
+  auto next_in_zip_begin = thrust::make_zip_iterator(thrust::make_tuple(p_d_start, p_d_ranks));
+
+  auto next_in_zip_end = thrust::make_zip_iterator(
+    thrust::make_tuple(p_d_start + num_starting_vs, p_d_ranks + num_starting_vs));
+
+  auto&& [rx_tpl_v_r, rx_counts] =
+    detail::shuffle_to_gpus(handle, graph_view, next_in_zip_begin, next_in_zip_end, gpu_t{});
 
   auto&& [d_edge_count, global_degree_offsets] = get_global_degree_information(handle, graph_view);
 
@@ -421,8 +409,8 @@ uniform_nbr_sample(raft::handle_t const& handle,
   //
   return detail::uniform_nbr_sample_impl(handle,
                                          graph_view,
-                                         ptr_d_start,
-                                         ptr_d_ranks,
+                                         ptr_d_start,  // FIXME: use shuffled input!
+                                         ptr_d_ranks,  // FIXME: use shuffled input!
                                          num_starting_vs,
                                          h_fan_out,
                                          global_degree_offsets,
