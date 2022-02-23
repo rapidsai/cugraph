@@ -35,11 +35,14 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
         The graph can be either directed (DiGraph) or undirected (Graph).
 
     start_vertices: int or list or cudf.Series
+        A single node or a list or a cudf.Series of nodes from which to run
+        the random walks
 
     max_depth: int, optional
         The maximum depth of the random walks
 
     use_padding: bool, optional
+        If True, padded paths are returned else coalesced paths are returned
 
     p: double, optional
         Return factor, which represents the likelihood of backtracking to
@@ -72,8 +75,8 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> start_vertices = cudf.Series([0, 2])
-    >>> paths, weights, path_sizes = cugraph.node2vec(G, sources, 3, True,
-    ...                                               0.8, 0.5)
+    >>> paths, weights, path_sizes = cugraph.node2vec(G, start_vertices, 3,
+    ...                                               True, 0.8, 0.5)
 
     """
     if (type(max_depth) != int) or (max_depth < 1):
