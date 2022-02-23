@@ -84,15 +84,15 @@ void project(raft::handle_t const& handle, zip_in_it_t begin, zip_in_it_t end, z
  * to. The assumption is that the return provides a per-GPU coalesced set of pairs, with
  * corresponding counts vector. To limit the result to the self-GPU one needs additional filtering
  * to extract the corresponding set from the coalesced set of sets and using the corresponding
- * counts entry;
+ * counts entry.
  * @tparam graph_view_t Type of graph view.
  * @tparam zip_iterator_t zip Type for the zipped tuple<vertex_t, gpu_t> (vertexID, rank);
  * @tparam gpu_t Type used for storing GPU rank IDs;
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph View object to generate NBR Sampling on.
- * @param[in] begin zip begin iterator of (vertexID, rank) pairs;
- * @param[in] end zip end iterator of (vertexID, rank) pairs;
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] graph_view Graph View object to generate NBR Sampling on.
+ * @param[in] begin zip begin iterator of (vertexID, rank) pairs.
+ * @param[in] end zip end iterator of (vertexID, rank) pairs.
  * @param[in] unnamed tag used for template tag dispatching
  * @return tuple pair of coalesced pairs and counts
  */
@@ -130,6 +130,60 @@ shuffle_to_gpus(raft::handle_t const& handle,
                                              thrust::get<0>(tpl_v_r))));
     },
     handle.get_stream());
+}
+
+/**
+ * @brief Updates pair of vertex IDs and ranks IDs to the GPU's that the vertex IDs belong
+ * to.
+ * @tparam graph_view_t Type of graph view.
+ * @tparam zip_iterator_t zip Type for the zipped tuple<vertex_t, gpu_t> (vertexID, rank).
+ * @tparam gpu_t Type used for storing GPU rank IDs;
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] graph_view Graph View object to generate NBR Sampling on.
+ * @param[in] begin zip begin iterator of (vertexID, rank) pairs.
+ * @param[in] end zip end iterator of (vertexID, rank) pairs.
+ * @param[in] rank for which data is to be extracted.
+ * @param[out] d_in vertex set to be updated.
+ * @param[out] d_ranks corresponding rank set to be updated.
+ * @param[in] unnamed tag used for template tag dispatching.
+ */
+template <typename graph_view_t, typename zip_iterator_t, typename gpu_t>
+void update_input_by_rank(raft::handle_t const& handle,
+                          graph_view_t const& graph_view,
+                          zip_iterator_t begin,
+                          zip_iterator_t end,
+                          size_t rank,
+                          device_vec_t<typename graph_view_t::vertex_type>& d_in,
+                          device_vec_t<gpu_t>& d_ranks,
+                          gpu_t)
+{
+  auto&& [rx_tpl_v_r, rx_counts] = detail::shuffle_to_gpus(handle, graph_view, begin, end, gpu_t{});
+
+  // filter rx_tpl_v_r and rx_counts vector by rank:
+  //
+  decltype(rx_counts) rx_offsets(rx_counts.size());
+  std::exclusive_scan(rx_counts.begin(), rx_counts.end(), rx_offsets.begin(), 0);
+
+  // resize d_in, d_ranks:
+  //
+  auto new_in_sz = rx_counts.at(rank);
+  d_in.resize(new_in_sz, handle.get_stream());
+  d_ranks.resize(new_in_sz, handle.get_stream());
+
+  // project output onto input:
+  // zip d_in, d_ranks
+  //
+  auto new_in_zip = thrust::make_zip_iterator(
+    thrust::make_tuple(d_in.begin(), d_ranks.begin()));  // result start_zip
+
+  auto&& d_new_dests = std::get<0>(rx_tpl_v_r);
+  auto&& d_new_ranks = std::get<1>(rx_tpl_v_r);
+  auto offset        = rx_offsets.at(rank);
+
+  auto tpl_in_it_begin = thrust::make_zip_iterator(
+    thrust::make_tuple(d_new_dests.begin() + offset, d_new_ranks.begin() + offset));
+  project<0, 1>(handle, tpl_in_it_begin, tpl_in_it_begin + new_in_sz, new_in_zip);
 }
 
 /**
@@ -308,40 +362,22 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
 
       thrust::copy_n(handle.get_thrust_policy(), out_zip_it, add_sz, acc_zip_it);
 
-      // shuffle step:
+      // shuffle step: update input for slef_rank
       // zipping is necessary to preserve rank info during shuffle!
       //
       auto next_in_zip_begin =
         thrust::make_zip_iterator(thrust::make_tuple(d_out_dst.begin(), d_out_ranks.begin()));
       auto next_in_zip_end =
         thrust::make_zip_iterator(thrust::make_tuple(d_out_dst.end(), d_out_ranks.end()));
-      auto&& [rx_tpl_v_r, rx_counts] =
-        detail::shuffle_to_gpus(handle, graph_view, next_in_zip_begin, next_in_zip_end, gpu_t{});
 
-      // filter rx_tpl_v_r and rx_counts vector by self_rank:
-      //
-      decltype(rx_counts) rx_offsets(rx_counts.size());
-      std::exclusive_scan(rx_counts.begin(), rx_counts.end(), rx_offsets.begin(), 0);
-
-      // resize d_in, d_ranks:
-      //
-      auto new_in_sz = rx_counts.at(self_rank);
-      d_in.resize(new_in_sz, handle.get_stream());
-      d_ranks.resize(new_in_sz, handle.get_stream());
-
-      // project output onto input:
-      // zip d_in, d_ranks
-      //
-      auto new_in_zip = thrust::make_zip_iterator(
-        thrust::make_tuple(d_in.begin(), d_ranks.begin()));  // result start_zip
-
-      auto&& d_new_dests = std::get<0>(rx_tpl_v_r);
-      auto&& d_new_ranks = std::get<1>(rx_tpl_v_r);
-      auto offset        = rx_offsets.at(self_rank);
-
-      auto tpl_in_it_begin = thrust::make_zip_iterator(
-        thrust::make_tuple(d_new_dests.begin() + offset, d_new_ranks.begin() + offset));
-      project<0, 1>(handle, tpl_in_it_begin, tpl_in_it_begin + new_in_sz, new_in_zip);
+      update_input_by_rank(handle,
+                           graph_view,
+                           next_in_zip_begin,
+                           next_in_zip_end,
+                           static_cast<size_t>(self_rank),
+                           d_in,
+                           d_ranks,
+                           gpu_t{});
 
       //}
       ++level;
