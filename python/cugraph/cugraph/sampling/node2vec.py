@@ -76,6 +76,15 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     ...                                               0.8, 0.5)
 
     """
+    if (type(max_depth) != int) or (max_depth < 1):
+        raise ValueError("'max_depth' must be a positive integer")
+    if (type(use_padding) != bool):
+        raise ValueError("'use_padding' must be a bool")
+    if (p is None) or (p <= 0.0):
+        raise ValueError("'p' must be a positive double")
+    if (q is None) or (q <= 0.0):
+        raise ValueError("'q' must be a positive double")
+
     G, _ = ensure_cugraph_obj_for_nx(G)
 
     if start_vertices is int:
@@ -107,6 +116,7 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     store_transposed = False
     renumber = G.renumbered
     do_expensive_check = False
+
     sg = pylibcugraph.experimental.SGGraph(resource_handle, graph_props,
                                            srcs, dsts, weights,
                                            store_transposed, renumber,
@@ -129,6 +139,6 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
         edge_set_sz = (max_depth - 1) * len(start_vertices)
         return vertex_set, edge_set[:edge_set_sz], sizes
 
-    vertex_set_sz = sizes.sum()
+    vertex_set_sz = vertex_set.sum()
     edge_set_sz = vertex_set_sz - len(start_vertices)
     return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], sizes

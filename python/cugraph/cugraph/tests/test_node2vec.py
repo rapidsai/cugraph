@@ -34,8 +34,8 @@ def setup_function():
     gc.collect()
 
 
-def calc_node2vec(graph_file,
-                  directed=False,
+def calc_node2vec(G,
+                  start_vertices,
                   max_depth=None,
                   use_padding=False,
                   p=1.0,
@@ -57,12 +57,8 @@ def calc_node2vec(graph_file,
 
     q : double
     """
-    G = utils.generate_cugraph_graph_from_file(
-        graph_file, directed=directed, edgevals=True)
     assert G is not None
 
-    k = random.randint(1, 10)
-    start_vertices = random.sample(range(G.number_of_vertices()), k)
     vertex_paths, edge_weights, vertex_path_sizes = cugraph.node2vec(
         G, start_vertices, max_depth, use_padding, p, q)
 
@@ -71,35 +67,54 @@ def calc_node2vec(graph_file,
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_random_walks_coalesced(
+def test_node2vec_coalesced(
     graph_file,
     directed
 ):
+    G = utils.generate_cugraph_graph_from_file(graph_file, directed=directed,
+                                               edgevals=True)
+    k = random.randint(1, 10)
+    max_depth = 3
+    start_vertices = random.sample(range(G.number_of_vertices()), k)
     df, seeds = calc_node2vec(
-        graph_file,
-        directed=directed,
-        max_depth=3,
+        G,
+        start_vertices,
+        max_depth,
         use_padding=False,
         p=0.8,
         q=0.5
     )
     # Check that weights match up with paths
+    vertex_paths, edge_weights, vertex_path_sizes = df
+    assert vertex_paths.size == max_depth * k
+    # NOTE: This below assertion will pass once PR #2089 is merged
+    # assert edge_weights.size == (max_depth - 1) * k
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_random_walks_padded(
+def test_node2vec_padded(
     graph_file,
     directed
 ):
+    G = utils.generate_cugraph_graph_from_file(graph_file, directed=directed,
+                                               edgevals=True)
+    k = random.randint(1, 10)
+    max_depth = 3
+    start_vertices = random.sample(range(G.number_of_vertices()), k)
     df, seeds = calc_node2vec(
-        graph_file,
-        directed=directed,
-        max_depth=3,
+        G,
+        start_vertices,
+        max_depth,
         use_padding=True,
         p=0.8,
         q=0.5
     )
+    vertex_paths, edge_weights, vertex_path_sizes = df
+    assert vertex_paths.size == max_depth * k
+    # NOTE: This below assertion will pass once PR #2089 is merged
+    # assert edge_weights.size == (max_depth - 1) * k
+    assert vertex_path_sizes.sum() == vertex_paths.size
     # Check that weights match up with paths
 
     # Check that path sizes matches up correctly with paths
@@ -109,19 +124,23 @@ def test_random_walks_padded(
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("max_depth", [None, -1])
 @pytest.mark.parametrize("p", [None, -1])
-def test_random_walks_invalid(
+def test_node2vec_invalid(
     graph_file,
     directed,
     max_depth,
     p
 ):
+    G = utils.generate_cugraph_graph_from_file(graph_file, directed=directed,
+                                               edgevals=True)
+    k = random.randint(1, 10)
+    start_vertices = random.sample(range(G.number_of_vertices()), k)
     # Tests for invalid max depth, p, and q
     use_padding = True
     q = 1.0
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         df, seeds = calc_node2vec(
-            graph_file,
-            directed=directed,
+            G,
+            start_vertices,
             max_depth=max_depth,
             use_padding=use_padding,
             p=p,
@@ -129,17 +148,30 @@ def test_random_walks_invalid(
         )
 
 
+# FIXME: NetworkX Graphs not supported currently
+"""
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_random_walks_nx(
+def test_node2vec_nx(
     graph_file,
     directed
 ):
+    Gnx = utils.generate_nx_graph_from_file(graph_file, directed=directed,
+                                            edgevals=True)
+    k = random.randint(1, 10)
+    max_depth = 3
+    start_vertices = random.sample(range(Gnx.number_of_nodes()), k)
     df, seeds = calc_node2vec(
-        graph_file,
-        directed=directed,
-        max_depth=3,
+        Gnx,
+        start_vertices,
+        max_depth,
         use_padding=True,
         p=0.8,
         q=0.5
     )
+    vertex_paths, edge_weights, vertex_path_sizes = df
+    assert vertex_paths.size == max_depth * k
+    # NOTE: This below assertion will pass once PR #2089 is merged
+    # assert edge_weights.size == (max_depth - 1) * k
+    assert vertex_path_sizes.sum() == vertex_paths.size
+"""
