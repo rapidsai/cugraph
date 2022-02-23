@@ -20,7 +20,8 @@ import numpy as np
 # Test data
 # =============================================================================
 # The result names correspond to the datasets defined in conftest.py
-
+# Note: the only deterministic path(s) in the following datasets
+# are contained in Simple_1
 _test_data = {"karate.csv": {
                   "seeds": cp.asarray([0, 0], dtype=np.int32),
                   "paths": cp.asarray([0, 8, 33, 29, 26, 0, 1, 3, 13, 33],
@@ -68,12 +69,6 @@ _test_data = {"karate.csv": {
 # =============================================================================
 # Tests
 # =============================================================================
-# def test_node2vec_untransposed(sg_graph_objs):
-#    return test_node2vec(sg_graph_objs)
-
-# TODO: Create test data for transposed graphs
-# def test_node2vec_transposed(sg_transposed_graph_objs):
-#    return test_node2vec(sg_transposed_graph_objs)
 
 @pytest.mark.parametrize("compress_result", [True, False])
 def test_node2vec(sg_graph_objs, compress_result):
@@ -93,28 +88,35 @@ def test_node2vec(sg_graph_objs, compress_result):
     (actual_paths, actual_weights, actual_path_sizes) = result
     num_paths = len(seeds)
 
-    # Verify that the correct number of paths were made
     if compress_result:
-        assert len(actual_path_sizes) == num_paths
+        assert actual_paths.dtype == expected_paths.dtype
+        assert actual_weights.dtype == expected_weights.dtype
         assert actual_path_sizes.dtype == expected_path_sizes.dtype
+        actual_paths = actual_paths.tolist()
+        actual_weights = actual_weights.tolist()
         actual_path_sizes = actual_path_sizes.tolist()
-        expected_path_sizes = expected_path_sizes.tolist()
-        expected_walks = sum(expected_path_sizes) - num_paths
+        exp_paths = expected_paths.tolist()
+        exp_weights = expected_weights.tolist()
+        exp_path_sizes = expected_path_sizes.tolist()
+        # If compress_results is True, then also verify path lengths match
+        # up with weights array
+        assert len(actual_path_sizes) == num_paths
+        expected_walks = sum(exp_path_sizes) - num_paths
         # FIXME: When using multiple seeds, paths are connected via the weights
         # array, there should not be a weight connecting the end of a path with
         # the beginning of another. PR #2089 will resolve this.
         # Verify the number of walks was equal to path sizes - num paths
         assert len(actual_weights) == expected_walks
-
-    assert actual_paths.dtype == expected_paths.dtype
-    assert actual_weights.dtype == expected_weights.dtype
-    actual_paths = actual_paths.tolist()
-    actual_weights = actual_weights.tolist()
-    exp_paths = expected_paths.tolist()
-    exp_weights = expected_weights.tolist()
+    else:
+        assert actual_paths.dtype == expected_paths.dtype
+        assert actual_weights.dtype == expected_weights.dtype
+        actual_paths = actual_paths.tolist()
+        actual_weights = actual_weights.tolist()
+        exp_paths = expected_paths.tolist()
+        exp_weights = expected_weights.tolist()
 
     # Verify exact walks chosen for linear graph Simple_1
-    if ds_name not in ["karate.csv", "dolphins.csv", "Simple_2"]:
+    if ds_name == 'Simple_1':
         for i in range(len(exp_paths)):
             assert pytest.approx(actual_paths[i], 1e-4) == exp_paths[i]
         for i in range(len(exp_weights)):
@@ -124,6 +126,6 @@ def test_node2vec(sg_graph_objs, compress_result):
     if compress_result:
         path_start = 0
         for i in range(num_paths):
-            assert actual_path_sizes[i] == expected_path_sizes[i]
+            assert actual_path_sizes[i] == exp_path_sizes[i]
             assert actual_paths[path_start] == seeds[i]
             path_start += actual_path_sizes[i]
