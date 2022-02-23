@@ -163,7 +163,7 @@ find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         )
 ```
 
-If the above change is pushed to a pull request, the continuous integration servers will use the specified RAFT branch to run the cuGraph tests. For local development, the `CPM_raft_SOURCE` option can be passed to the `cmake` command to enable `libcugraph` to use the local RAFT branch instead.
+If the above change is pushed to a pull request, the continuous integration servers will use the specified RAFT branch to run the cuGraph tests. For local development, the `CPM_raft_SOURCE=<path/to/raft/source` option can be passed to the `cmake` command to enable `libcugraph` to use the local RAFT branch instead.
 
 ### Building and installing the Python package
 
