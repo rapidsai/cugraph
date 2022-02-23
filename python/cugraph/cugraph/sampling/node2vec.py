@@ -19,7 +19,10 @@ import cupy
 def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     """
     Computes random walks for each node in 'start_vertices', under the
-    node2vec sampling framework described in:
+    node2vec sampling framework.
+
+    References
+    ----------
 
     A Grover, J Leskovec: node2vec: Scalable Feature Learning for Networks,
     Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge
@@ -28,6 +31,7 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
+        The graph can be either directed (DiGraph) or undirected (Graph).
 
     start_vertices: int or list or cudf.Series
 
@@ -66,9 +70,12 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
+    >>> sources = cudf.Series([0, 2])
     >>> _, _, _ = cugraph.node2vec(G, sources, 3, True, 0.8, 0.5)
 
     """
+    if isinstance(start_vertices, list):
+        start_vertices = cudf.Series(start_vertices)
 
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
@@ -77,24 +84,23 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     srcs = cupy.asarray(srcs)
     dsts = cupy.asarray(dsts)
     weights = cupy.asarray(weights)
-    sources = cupy.asarray(sources)
+    start_vertices = cupy.asarray(start_vertices)
 
     resource_handle = pylibcugraph.experimental.ResourceHandle()
     graph_props = pylibcugraph.experimental.GraphProperties(
                     is_multigraph=G.is_multigraph())
 
-    # FIXME: remove later
     store_transposed = False
     renumber = False
     do_expensive_check = False
 
-    SGGraph = pylibcugraph.experimental.SGGraph(resource_handle, graph_props,
-                                                srcs, dsts, weights,
-                                                store_transposed, renumber,
-                                                do_expensive_check)
+    G = pylibcugraph.experimental.SGGraph(resource_handle, graph_props,
+                                          srcs, dsts, weights,
+                                          store_transposed, renumber,
+                                          do_expensive_check)
 
     vertex_set, edge_set, sizes = pylibcugraph.experimental.node2vec(
-                                    resource_handle, SGGraph, sources,
+                                    resource_handle, G, start_vertices,
                                     max_depth, use_padding, p, q)
 
     # Do prep work for start_vertices in case G is renumbered.
