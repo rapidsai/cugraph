@@ -53,7 +53,7 @@ BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR} ${LIBCUGRAPH_ETL_BUILD_DIR} ${CUGRAPH_BUILD_
 VERBOSE_FLAG=""
 CMAKE_VERBOSE_OPTION=""
 BUILD_TYPE=Release
-INSTALL_TARGET=install
+INSTALL_TARGET="--target install"
 BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
@@ -198,7 +198,7 @@ if buildAll || hasArg libcugraph; then
           -DBUILD_TESTS=${BUILD_CPP_TESTS} \
           -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
           ${CMAKE_VERBOSE_OPTION}
-    cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
+    cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} ${INSTALL_TARGET} ${VERBOSE_FLAG}
 fi
 
 # Configure, build, and install libcugraph_etl
@@ -220,7 +220,7 @@ if buildAll || hasArg libcugraph_etl; then
           -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
           ${CMAKE_VERBOSE_OPTION} \
           ${REPODIR}/cpp/libcugraph_etl
-    cmake --build "${LIBCUGRAPH_ETL_BUILD_DIR}" -j${PARALLEL_LEVEL} --target ${INSTALL_TARGET} ${VERBOSE_FLAG}
+    cmake --build "${LIBCUGRAPH_ETL_BUILD_DIR}" -j${PARALLEL_LEVEL} ${INSTALL_TARGET} ${VERBOSE_FLAG}
 fi
 
 # Build, and install pylibcugraph
