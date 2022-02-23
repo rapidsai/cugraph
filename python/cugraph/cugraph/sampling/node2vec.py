@@ -13,7 +13,8 @@
 
 import pylibcugraph
 import cupy
-# import numpy, cudf
+import cudf
+from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 
 def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
@@ -70,12 +71,26 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
-    >>> sources = cudf.Series([0, 2])
-    >>> _, _, _ = cugraph.node2vec(G, sources, 3, True, 0.8, 0.5)
+    >>> start_vertices = cudf.Series([0, 2])
+    >>> paths, weights, path_sizes = cugraph.node2vec(G, sources, 3, True,
+    ...                                               0.8, 0.5)
 
     """
+    G, _ = ensure_cugraph_obj_for_nx(G)
+
+    if start_vertices is int:
+        start_vertices = [start_vertices]
+
     if isinstance(start_vertices, list):
         start_vertices = cudf.Series(start_vertices)
+
+    if G.renumbered is True:
+        if isinstance(start_vertices, cudf.DataFrame):
+            start_vertices = G.lookup_internal_vertex_id(
+                start_vertices,
+                start_vertices.columns)
+        else:
+            start_vertices = G.lookup_internal_vertex_id(start_vertices)
 
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
@@ -89,23 +104,31 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     resource_handle = pylibcugraph.experimental.ResourceHandle()
     graph_props = pylibcugraph.experimental.GraphProperties(
                     is_multigraph=G.is_multigraph())
-
     store_transposed = False
-    renumber = False
+    renumber = G.renumbered
     do_expensive_check = False
-
-    G = pylibcugraph.experimental.SGGraph(resource_handle, graph_props,
-                                          srcs, dsts, weights,
-                                          store_transposed, renumber,
-                                          do_expensive_check)
+    sg = pylibcugraph.experimental.SGGraph(resource_handle, graph_props,
+                                           srcs, dsts, weights,
+                                           store_transposed, renumber,
+                                           do_expensive_check)
 
     vertex_set, edge_set, sizes = pylibcugraph.experimental.node2vec(
-                                    resource_handle, G, start_vertices,
+                                    resource_handle, sg, start_vertices,
                                     max_depth, use_padding, p, q)
+    vertex_set = cudf.Series(vertex_set)
+    edge_set = cudf.Series(edge_set)
+    sizes = cudf.Series(sizes)
 
-    # Do prep work for start_vertices in case G is renumbered.
+    if G.renumbered:
+        df_ = cudf.DataFrame()
+        df_['vertex_set'] = vertex_set
+        df_ = G.unrenumber(df_, 'vertex_set', preserve_order=True)
+        vertex_set = cudf.Series(df_['vertex_set'])
 
-    # Call pylibcugraph wrapper
+    if use_padding:
+        edge_set_sz = (max_depth - 1) * len(start_vertices)
+        return vertex_set, edge_set[:edge_set_sz], sizes
 
-    # Undo renumbering and deal with padding
-    return vertex_set, edge_set, sizes
+    vertex_set_sz = sizes.sum()
+    edge_set_sz = vertex_set_sz - len(start_vertices)
+    return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], sizes
