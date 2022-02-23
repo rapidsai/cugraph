@@ -270,7 +270,7 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
       //
       device_vec_t<edge_t> d_indices(d_in.size() * k_level, handle.get_stream());
       seeder_t seeder{};
-      raft::random::Rng rng(seeder() + k_level);
+      cugraph_ops::Rng rng(seeder() + k_level);
       cugraph_ops::get_sampling_index(detail::raw_ptr(d_indices),
                                       rng,
                                       detail::raw_const_ptr(d_out_degs),
