@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -283,14 +283,11 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
     cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
       edgelists,
-      cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{
-        meta.number_of_vertices,
-        meta.number_of_edges,
-        graph_properties,
-        meta.partition,
-        meta.segment_offsets,
-        store_transposed ? meta.num_local_unique_edge_minors : meta.num_local_unique_edge_majors,
-        store_transposed ? meta.num_local_unique_edge_majors : meta.num_local_unique_edge_minors}),
+      cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{meta.number_of_vertices,
+                                                         meta.number_of_edges,
+                                                         graph_properties,
+                                                         meta.partition,
+                                                         meta.segment_offsets}),
     std::optional<rmm::device_uvector<vertex_t>>{std::move(renumber_map_labels)});
 }
 

@@ -24,9 +24,15 @@ function(find_and_configure_cugraphops)
         HEADER_NAMES            graph/sampling.h
         LIBRARY_NAMES           cugraph-ops++
         INCLUDE_SUFFIXES        cugraph-ops
+        BUILD_EXPORT_SET    cugraph-exports
+        INSTALL_EXPORT_SET  cugraph-exports
     )
 
-    rapids_find_package(cugraphops REQUIRED)
+    rapids_find_package(cugraphops
+        REQUIRED
+        BUILD_EXPORT_SET    cugraph-exports
+        INSTALL_EXPORT_SET  cugraph-exports
+    )
 
 endfunction()
 

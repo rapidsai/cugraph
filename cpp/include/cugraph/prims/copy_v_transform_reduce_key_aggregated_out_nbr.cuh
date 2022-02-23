@@ -482,7 +482,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       rmm::device_uvector<weight_t> rx_key_aggregated_edge_weights(0, handle.get_stream());
       std::forward_as_tuple(
         std::tie(rx_major_vertices, rx_minor_keys, rx_key_aggregated_edge_weights), std::ignore) =
-        groupby_gpuid_and_shuffle_values(
+        groupby_gpu_id_and_shuffle_values(
           col_comm,
           triplet_first,
           triplet_first + tmp_major_vertices.size(),
