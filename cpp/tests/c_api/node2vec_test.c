@@ -92,6 +92,11 @@ int generic_node2vec_test(vertex_t* h_src,
     p_handle, (byte_t*)h_weights, weights, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
+  TEST_ASSERT(test_ret_value,
+              cugraph_type_erased_device_array_view_size(paths) ==
+                (cugraph_type_erased_device_array_view_size(weights) + num_seeds),
+              "paths and weights sizes are not consistent");
+
   //  We can easily validate that the results of node2vec
   //  are feasible by converting the sparse (h_src,h_dst,h_wgt)
   //  into a dense host matrix and check each path.
@@ -113,6 +118,14 @@ int generic_node2vec_test(vertex_t* h_src,
     ret_code = cugraph_type_erased_device_array_view_copy_to_host(
       p_handle, (byte_t*)h_path_sizes, path_sizes, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+    edge_t path_size = 0;
+    for (int i = 0; i < num_seeds; ++i)
+      path_size += h_path_sizes[i];
+
+    TEST_ASSERT(test_ret_value,
+                cugraph_type_erased_device_array_view_size(paths) == path_size,
+                "compressed paths size does not match expected size");
 
     h_path_offsets[0] = 0;
     for (int i = 0; i < num_seeds; ++i)
