@@ -350,14 +350,13 @@ class Tests_MG_GatherEdges
                                           mg_graph_view.get_number_of_edges(),
                                           indices_per_source);
 
-    auto [src, dst, gpu_ids] =
-      cugraph::detail::gather_local_edges(handle,
-                                          mg_graph_view,
-                                          active_sources_in_row,
-                                          active_source_gpu_ids,
-                                          random_destination_indices.cbegin(),
-                                          indices_per_source,
-                                          global_degree_offset);
+    auto [src, dst, gpu_ids] = cugraph::detail::gather_local_edges(handle,
+                                                                   mg_graph_view,
+                                                                   active_sources_in_row,
+                                                                   active_source_gpu_ids,
+                                                                   random_destination_indices,
+                                                                   indices_per_source,
+                                                                   global_degree_offset);
 
     if (prims_usecase.check_correctness) {
       // Gather outputs

@@ -323,7 +323,7 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
                                                                       graph_view,
                                                                       d_new_in,
                                                                       d_new_rank,
-                                                                      d_indices.cbegin(),
+                                                                      d_indices,
                                                                       static_cast<edge_t>(k_level),
                                                                       global_degree_offsets);
 
