@@ -62,8 +62,7 @@ def betweenness_centrality(
         defined as a list will be used assources for traversals inside the
         algorithm.
 
-    normalized : bool, optional
-        Default is True.
+    normalized : bool, optional (default=True)
         If true, the betweenness values are normalized by
         __2 / ((n - 1) * (n - 2))__ for undirected Graphs, and
         __1 / ((n - 1) * (n - 2))__ for directed Graphs
@@ -185,7 +184,6 @@ def edge_betweenness_centrality(
         sources for traversals inside the algorithm.
 
     normalized : bool, optional (default=True)
-        Default is True.
         If true, the betweenness values are normalized by
         2 / (n * (n - 1)) for undirected Graphs, and
         1 / (n * (n - 1)) for directed Graphs
