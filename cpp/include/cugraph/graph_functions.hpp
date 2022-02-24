@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,9 +37,6 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>>
   edge_t number_of_edges{};
   partition_t<vertex_t> partition{};
   std::vector<vertex_t> segment_offsets{};
-
-  vertex_t num_local_unique_edge_majors{};
-  vertex_t num_local_unique_edge_minors{};
 };
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>

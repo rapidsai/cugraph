@@ -776,10 +776,10 @@ random_walks_impl(raft::handle_t const& handle,
 
   // pre-allocate num_paths * max_depth;
   //
-  auto coalesced_sz = num_paths * max_depth;
-  device_vec_t<vertex_t> d_coalesced_v(coalesced_sz, stream);  // coalesced vertex set
-  device_vec_t<weight_t> d_coalesced_w(coalesced_sz, stream);  // coalesced weight set
-  device_vec_t<index_t> d_paths_sz(num_paths, stream);         // paths sizes
+  device_vec_t<vertex_t> d_coalesced_v(num_paths * max_depth, stream);  // coalesced vertex set
+  device_vec_t<weight_t> d_coalesced_w(num_paths * (max_depth - 1),
+                                       stream);         // coalesced weight set
+  device_vec_t<index_t> d_paths_sz(num_paths, stream);  // paths sizes
 
   // traversal policy:
   //
