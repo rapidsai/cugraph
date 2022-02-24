@@ -233,8 +233,10 @@ void update_input_by_rank(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph View object to generate NBR Sampling on.
- * @param ptr_d_start Device array of pairs: (starting_vertex_index, rank) for the NBR Sampling.
- * @param num_starting_vs size of starting vertex set
+ * @param d_in Device vector of starting vertex IDs for the NBR Sampling. Must be non-const for
+ * shuffling.
+ * @param d_ranks Device vector of ranks for which corresponding vertex ID data must be sent to. The
+ * pairs (vertex_ID, rank) must be shuffled together. Must be non-const for shuffling.
  * @param h_fan_out vector of branching out (fan-out) degree per source vertex for each level
  * @param global_degree_offsets local partition of global out-degree cache; pass-through
  * parameter used for obtaining local out-degree information
@@ -253,9 +255,8 @@ std::tuple<device_vec_t<typename graph_view_t::vertex_type>,
            device_vec_t<index_t>>
 uniform_nbr_sample_impl(raft::handle_t const& handle,
                         graph_view_t const& graph_view,
-                        typename graph_view_t::vertex_type const* ptr_d_start,
-                        gpu_t const* ptr_d_ranks,
-                        size_t num_starting_vs,
+                        device_vec_t<typename graph_view_t::vertex_type>& d_in,
+                        device_vec_t<gpu_t>& d_ranks,
                         std::vector<int> const& h_fan_out,
                         device_vec_t<typename graph_view_t::edge_type> const& global_degree_offsets,
                         bool flag_replacement)
@@ -269,21 +270,16 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
   namespace cugraph_ops = cugraph::ops::gnn::graph;
 
   if constexpr (graph_view_t::is_multi_gpu) {
-    CUGRAPH_EXPECTS((ptr_d_start != nullptr) && (num_starting_vs > 0),
+    size_t num_starting_vs = d_in.size();
+    CUGRAPH_EXPECTS(num_starting_vs > 0,
                     "Invalid input argument: starting vertex set cannot be null.");
+
+    CUGRAPH_EXPECTS(num_starting_vs == d_ranks.size(),
+                    "Sets of input vertices and ranks must have same sizes.");
 
     auto num_levels = h_fan_out.size();
 
     CUGRAPH_EXPECTS(num_levels > 0, "Invalid input argument: number of levels must be non-zero.");
-
-    // running input growing from one level to the next:
-    // plus it gets shuffled, so need copies
-    //
-    device_vec_t<vertex_t> d_in(num_starting_vs, handle.get_stream());
-    device_vec_t<gpu_t> d_ranks(num_starting_vs, handle.get_stream());
-
-    thrust::copy_n(handle.get_thrust_policy(), ptr_d_start, num_starting_vs, d_in.begin());
-    thrust::copy_n(handle.get_thrust_policy(), ptr_d_ranks, num_starting_vs, d_ranks.begin());
 
     // Output quad of accumulators to collect results into:
     // (all start as empty)
@@ -362,7 +358,7 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
 
       thrust::copy_n(handle.get_thrust_policy(), out_zip_it, add_sz, acc_zip_it);
 
-      // shuffle step: update input for slef_rank
+      // shuffle step: update input for self_rank
       // zipping is necessary to preserve rank info during shuffle!
       //
       auto next_in_zip_begin =
@@ -426,31 +422,36 @@ uniform_nbr_sample(raft::handle_t const& handle,
   using vertex_t = typename graph_view_t::vertex_type;
   using edge_t   = typename graph_view_t::edge_type;
 
+  size_t const self_rank = handle.get_comms().get_rank();
+
   // shuffle input data to its corresponding rank;
+  // (Note: shuffle prims require mutable iterators)
   //
-  vertex_t* p_d_start{nullptr};
-  gpu_t* p_d_ranks{nullptr};
+  detail::device_vec_t<vertex_t> d_in(num_starting_vs, handle.get_stream());
+  detail::device_vec_t<gpu_t> d_ranks(num_starting_vs, handle.get_stream());
+  // ...hence copy required:
+  //
+  thrust::copy_n(handle.get_thrust_policy(), ptr_d_start, num_starting_vs, d_in.begin());
+  thrust::copy_n(handle.get_thrust_policy(), ptr_d_ranks, num_starting_vs, d_ranks.begin());
 
-  auto next_in_zip_begin = thrust::make_zip_iterator(thrust::make_tuple(p_d_start, p_d_ranks));
+  // shuffle data to local rank:
+  //
+  auto next_in_zip_begin =
+    thrust::make_zip_iterator(thrust::make_tuple(d_in.begin(), d_ranks.begin()));
 
-  auto next_in_zip_end = thrust::make_zip_iterator(
-    thrust::make_tuple(p_d_start + num_starting_vs, p_d_ranks + num_starting_vs));
+  auto next_in_zip_end = thrust::make_zip_iterator(thrust::make_tuple(d_in.end(), d_ranks.end()));
 
-  auto&& [rx_tpl_v_r, rx_counts] =
-    detail::shuffle_to_gpus(handle, graph_view, next_in_zip_begin, next_in_zip_end, gpu_t{});
+  detail::update_input_by_rank(
+    handle, graph_view, next_in_zip_begin, next_in_zip_end, self_rank, d_in, d_ranks, gpu_t{});
 
+  // preamble step for out-degree info:
+  //
   auto&& [d_edge_count, global_degree_offsets] = get_global_degree_information(handle, graph_view);
 
-  // TODO: project shuffled input
+  // TODO: send result to corresponding ranks:
   //
-  return detail::uniform_nbr_sample_impl(handle,
-                                         graph_view,
-                                         ptr_d_start,  // FIXME: use shuffled input!
-                                         ptr_d_ranks,  // FIXME: use shuffled input!
-                                         num_starting_vs,
-                                         h_fan_out,
-                                         global_degree_offsets,
-                                         flag_replacement);
+  return detail::uniform_nbr_sample_impl(
+    handle, graph_view, d_in, d_ranks, h_fan_out, global_degree_offsets, flag_replacement);
 }
 
 }  // namespace cugraph
