@@ -67,6 +67,8 @@ gpuci_mamba_retry install -y \
       "cudf=${MINOR_VERSION}" \
       "librmm=${MINOR_VERSION}" \
       "rmm=${MINOR_VERSION}" \
+      "libraft-headers=${MINOR_VERSION}" \
+      "pyraft=${MINOR_VERSION}" \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
