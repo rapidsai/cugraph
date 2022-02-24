@@ -146,7 +146,11 @@ The default installation locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_I
 
 #### Updating the RAFT branch
 
-`libcugraph` uses the [RAFT](https://github.com/rapidsai/raft) library and there are times when it might be desirable to build against a different RAFT branch, such as when working on new features that might span both RAFT and cuGraph. To change the RAFT branch used to build `libcugraph`, modify the `cpp/cmake/thirdparty/get_raft.cmake` file as follows:
+`libcugraph` uses the [RAFT](https://github.com/rapidsai/raft) library and there are times when it might be desirable to build against a different RAFT branch, such as when working on new features that might span both RAFT and cuGraph. 
+
+For local development, the `CPM_raft_SOURCE=<path/to/raft/source>` option can be passed to the `cmake` command to enable `libcugraph` to use the local RAFT branch.
+
+To have CI test a `cugraph` pull request against a different RAFT branch, modify the bottom of the `cpp/cmake/thirdparty/get_raft.cmake` file as follows:
 
 ```cmake
 # Change pinned tag and fork here to test a commit in CI
@@ -163,7 +167,7 @@ find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         )
 ```
 
-If the above change is pushed to a pull request, the continuous integration servers will use the specified RAFT branch to run the cuGraph tests. For local development, the `CPM_raft_SOURCE=<path/to/raft/source>` option can be passed to the `cmake` command to enable `libcugraph` to use the local RAFT branch instead.
+When the above change is pushed to a pull request, the continuous integration servers will use the specified RAFT branch to run the cuGraph tests. After the changes in the RAFT branch are merged to the release branch, remember to revert the `get_raft.cmake` file back to the original cuGraph branch.
 
 ### Building and installing the Python package
 
