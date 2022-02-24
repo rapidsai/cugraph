@@ -760,7 +760,7 @@ renumber_edgelist(
     }
   }
 
-  if ((static_cast<double>(partition.get_matrix_partition_minor_size() / load_factor) >=
+  if ((static_cast<double>(partition.get_matrix_partition_minor_size() * (1.0 + 1.0 / load_factor)) >=
        static_cast<double>(number_of_edges / comm_size)) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
