@@ -82,12 +82,20 @@ class Tests_MGPageRank
       CUGRAPH_EXPECTS((comm_size % num_gpus_per_node) == 0,
                       "Invalid MPI configuration: in multi-node execution, # MPI processes should "
                       "be a multiple of the number of GPUs per node.");
+#if 1
+      auto col_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
+      while (comm_size % col_comm_size != 0) {
+        --col_comm_size;
+      }
+      row_comm_size = comm_size / col_comm_size;
+#else
       auto num_nodes = comm_size / num_gpus_per_node;
       row_comm_size  = static_cast<int>(sqrt(static_cast<double>(num_nodes)));
       while (num_nodes % row_comm_size != 0) {
         --row_comm_size;
       }
       row_comm_size *= num_gpus_per_node;
+#endif
     } else {
       row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
       while (comm_size % row_comm_size != 0) {

@@ -218,6 +218,9 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
 
   // 1. groupby edges to their target local adjacency matrix partition (and further groupby within
   // the local partition by applying the compute_gpu_id_from_vertex_t to minor vertex IDs).
+#if 1  // FIXME: delete
+handle.sync_stream(); std::cout << "create_graph 0" << std::endl;
+#endif
 
   auto edge_counts = cugraph::detail::groupby_and_count_edgelist_by_local_partition_id(
     handle,
@@ -225,6 +228,9 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
     store_transposed ? edgelist_rows : edgelist_cols,
     edgelist_weights,
     true);
+#if 1  // FIXME: delete
+handle.sync_stream(); std::cout << "create_graph 0a" << std::endl;
+#endif
 
   std::vector<size_t> h_edge_counts(edge_counts.size());
   raft::update_host(
@@ -249,6 +255,9 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
                    edgelist_displacements.begin() + 1);
 
   // 2. split the input edges to local partitions
+#if 1  // FIXME: delete
+handle.sync_stream(); std::cout << "create_graph 1" << std::endl;
+#endif
 
   std::vector<rmm::device_uvector<vertex_t>> edgelist_src_partitions{};
   edgelist_src_partitions.reserve(col_comm_size);
@@ -294,6 +303,9 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   }
 
   // 2. renumber
+#if 1  // FIXME: delete
+handle.sync_stream(); std::cout << "create_graph 2" << std::endl;
+#endif
 
   std::vector<vertex_t*> major_ptrs(col_comm_size);
   std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
@@ -310,6 +322,9 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
     minor_ptrs,
     edgelist_edge_counts,
     edgelist_intra_partition_segment_offsets);
+#if 1  // FIXME: delete
+handle.sync_stream(); std::cout << "create_graph 3" << std::endl;
+#endif
 
   // 3. create a graph
 

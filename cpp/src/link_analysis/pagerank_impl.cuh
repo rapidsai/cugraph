@@ -55,6 +55,12 @@ void pagerank(
   bool has_initial_guess,
   bool do_expensive_check)
 {
+#if 1  // FIXME: delete
+size_t free_size{};
+size_t total_size{};
+CUDA_TRY(cudaMemGetInfo(&free_size, &total_size));
+std::cout << "PageRank start free_size=" << static_cast<double>(free_size) / (1024.0 * 1024.0 * 1024.0) << " GB total_size=" << static_cast<double>(total_size) / (1024.0 * 1024.0 * 1024.0) << " GB." << std::endl;
+#endif
   using vertex_t = typename GraphViewType::vertex_type;
   using weight_t = typename GraphViewType::weight_type;
 
@@ -78,6 +84,9 @@ void pagerank(
                              : vertex_t{0};
 
   // 1. check input arguments
+#if 1  // FIXME: delete
+handle.sync_stream(); std::cout << "PageRank check inputs" << std::endl;
+#endif
 
   CUGRAPH_EXPECTS((personalization_vertices.has_value() == false) ||
                     (personalization_values.has_value() && personalization_vector_size.has_value()),
@@ -142,6 +151,9 @@ void pagerank(
   }
 
   // 2. compute the sums of the out-going edge weights (if not provided)
+#if 1  // FIXME: delete
+handle.sync_stream(); std::cout << "PageRank compute out_weight_sums" << std::endl;
+#endif
 
   auto tmp_vertex_out_weight_sums = precomputed_vertex_out_weight_sums
                                       ? std::nullopt
@@ -152,6 +164,9 @@ void pagerank(
                                       : (*tmp_vertex_out_weight_sums).data();
 
   // 3. initialize pagerank values
+#if 1  // FIXME: delete
+handle.sync_stream(); std::cout << "PageRank initialize PageRank values" << std::endl;
+#endif
 
   if (has_initial_guess) {
     auto sum = reduce_v(handle, pull_graph_view, pageranks, result_t{0.0});
@@ -171,6 +186,9 @@ void pagerank(
   }
 
   // 4. sum the personalization values
+#if 1  // FIXME: delete
+handle.sync_stream(); std::cout << "PageRank sum personalization values" << std::endl;
+#endif
 
   result_t personalization_sum{0.0};
   if (aggregate_personalization_vector_size > 0) {
@@ -185,6 +203,9 @@ void pagerank(
   }
 
   // 5. pagerank iteration
+#if 1  // FIXME: delete
+handle.sync_stream(); std::cout << "PageRank iteration" << std::endl;
+#endif
 
   // old PageRank values
   rmm::device_uvector<result_t> old_pageranks(pull_graph_view.get_number_of_local_vertices(),
@@ -197,6 +218,7 @@ void pagerank(
     if constexpr (GraphViewType::is_multi_gpu) {
       handle.get_comms().barrier();
     }
+    std::cout << "PageRank iteration " << iter << " start" << std::endl;
     auto time0 = std::chrono::steady_clock::now();
 #endif
     thrust::copy(handle.get_thrust_policy(),
@@ -282,6 +304,11 @@ void pagerank(
 #if 1 // FIXME: delete
     handle.sync_stream();
     auto time4 = std::chrono::steady_clock::now();
+    if constexpr (GraphViewType::is_multi_gpu) {
+      handle.get_comms().barrier();
+    }
+    handle.sync_stream();
+    auto time5 = std::chrono::steady_clock::now();
 #endif
     auto diff_sum = transform_reduce_v(
       handle,
@@ -292,13 +319,14 @@ void pagerank(
 
 #if 1 // FIXME: delete
     handle.sync_stream();
-    auto time5 = std::chrono::steady_clock::now();
-    std::chrono::duration<double> elapsed_total = time5 - time0;
+    auto time6 = std::chrono::steady_clock::now();
+    std::chrono::duration<double> elapsed_total = time6 - time0;
     std::chrono::duration<double> elapsed0 = time1 - time0;
     std::chrono::duration<double> elapsed1 = time2 - time1;
     std::chrono::duration<double> elapsed2 = time3 - time2;
     std::chrono::duration<double> elapsed3 = time4 - time3;
     std::chrono::duration<double> elapsed4 = time5 - time4;
+    std::chrono::duration<double> elapsed5 = time6 - time5;
     std::cout << "PageRank iter " << iter << " took " << elapsed_total.count() * 1e3 << " ms, breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << "," << elapsed3.count() * 1e3 << "," << elapsed4.count() * 1e3 << ") ms." << std::endl;
 #endif
     iter++;
