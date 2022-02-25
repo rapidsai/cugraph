@@ -187,6 +187,64 @@ void update_input_by_rank(raft::handle_t const& handle,
 }
 
 /**
+ * @brief Shuffles zipped tuples of (vertex_t source_vertex, vertex_t destination_vertex, int rank,
+ * index_t index) to specified target GPU's.
+ * @tparam vertex_t Type of vertex IDs.
+ * @tparam gpu_t Type used for storing GPU rank IDs.
+ * @tparam index_t Type used for indexing; typically edge_t.
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] d_src source vertex IDs; shuffle prims require it be mutable.
+ * @param[in] d_dst destination vertex IDs; must be mutable.
+ * @param[in] d_gpu_id_keys target GPU IDs (ranks); must be mutable.
+ * @param[in] d_indices indices of destination vertices; must be mutable.
+ * @return tuple of tuple of device vectors and counts:
+ * ((vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index), rx_counts)
+ */
+template <typename vertex_t, typename gpu_t, typename index_t>
+std::tuple<std::tuple<device_vec_t<vertex_t>,
+                      device_vec_t<vertex_t>,
+                      device_vec_t<gpu_t>,
+                      device_vec_t<index_t>>,
+           std::vector<size_t>>
+shuffle_to_target_gpu_ids(raft::handle_t const& handle,
+                          device_vec_t<vertex_t>& d_src,
+                          device_vec_t<vertex_t>& d_dst,
+                          device_vec_t<gpu_t>& d_gpu_id_keys,
+                          device_vec_t<index_t>& d_indices)
+{
+  auto zip_it_begin =
+    thrust::make_zip_iterator(thrust::make_tuple(d_src.begin(), d_dst.begin(), d_indices.begin()));
+
+  thrust::sort_by_key(
+    handle.get_thrust_policy(), d_gpu_id_keys.begin(), d_gpu_id_keys.end(), zip_it_begin);
+
+  rmm::device_uvector<size_t> tx_counts(handle.get_comms().get_size(), handle.get_stream());
+
+  thrust::tabulate(
+    handle.get_thrust_policy(),
+    tx_counts.begin(),
+    tx_counts.end(),
+    [gpu_id_first = d_gpu_id_keys.begin(), gpu_id_last = d_gpu_id_keys.end()] __device__(size_t i) {
+      return static_cast<size_t>(thrust::distance(
+        gpu_id_first,
+        thrust::upper_bound(thrust::seq, gpu_id_first, gpu_id_last, static_cast<gpu_t>(i))));
+    });
+
+  std::vector<size_t> h_tx_counts(tx_counts.size());
+  raft::update_host(h_tx_counts.data(), tx_counts.data(), tx_counts.size(), handle.get_stream());
+
+  handle.sync_stream();
+
+  return  // [rx_tuple, rx_counts]
+    shuffle_values(handle.get_comms(),
+                   thrust::make_zip_iterator(thrust::make_tuple(
+                     d_src.begin(), d_dst.begin(), d_gpu_id_keys.begin(), d_indices.begin())),
+                   h_tx_counts,
+                   handle.get_stream());
+}
+
+/**
  * @brief Multi-GPU Uniform Neighborhood Sampling. The outline of the algorithm:
  *
  * uniform_nbr_sample(J[p][], L, K[], flag_unique) {
@@ -228,8 +286,8 @@ void update_input_by_rank(raft::handle_t const& handle,
  *
  * @tparam graph_view_t Type of graph view.
  * @tparam gpu_t Type used for storing GPU rank IDs;
- * @tparam index_t Type used for indexing; typically edge_t
- * @tparam seeder_t Type for generating random engine seeds;
+ * @tparam index_t Type used for indexing; typically edge_t.
+ * @tparam seeder_t Type for generating random engine seeds.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph View object to generate NBR Sampling on.
@@ -318,6 +376,8 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
                                       handle.get_stream());
 
       // gather edges step:
+      // invalid entries (not found, etc.) filtered out in result;
+      // d_indices[] filtered out in-place (to avoid copies+moves);
       //
       auto&& [d_out_src, d_out_dst, d_out_ranks] = gather_local_edges(handle,
                                                                       graph_view,
@@ -326,9 +386,6 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
                                                                       d_indices,
                                                                       static_cast<edge_t>(k_level),
                                                                       global_degree_offsets);
-
-      // TODO: filter out invalid entries:
-      //
 
       // resize accumulators:
       //
@@ -401,16 +458,17 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
  * parameter used for obtaining local out-degree information
  * @param flag_replacement boolean flag specifying if random sampling is done without replacement
  * (true); or, with replacement (false); default = true;
- * @return tuple of device vectors:
- * (vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index)
+ * @return tuple of tuple of device vectors and counts:
+ * ((vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index), rx_counts)
  */
 template <typename graph_view_t,
           typename gpu_t,
           typename index_t = typename graph_view_t::edge_type>
-std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
-           rmm::device_uvector<typename graph_view_t::vertex_type>,
-           rmm::device_uvector<gpu_t>,
-           rmm::device_uvector<index_t>>
+std::tuple<std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
+                      rmm::device_uvector<typename graph_view_t::vertex_type>,
+                      rmm::device_uvector<gpu_t>,
+                      rmm::device_uvector<index_t>>,
+           std::vector<size_t>>
 uniform_nbr_sample(raft::handle_t const& handle,
                    graph_view_t const& graph_view,
                    typename graph_view_t::vertex_type const* ptr_d_start,
@@ -427,31 +485,42 @@ uniform_nbr_sample(raft::handle_t const& handle,
   // shuffle input data to its corresponding rank;
   // (Note: shuffle prims require mutable iterators)
   //
-  detail::device_vec_t<vertex_t> d_in(num_starting_vs, handle.get_stream());
+  detail::device_vec_t<vertex_t> d_start_vs(num_starting_vs, handle.get_stream());
   detail::device_vec_t<gpu_t> d_ranks(num_starting_vs, handle.get_stream());
   // ...hence copy required:
   //
-  thrust::copy_n(handle.get_thrust_policy(), ptr_d_start, num_starting_vs, d_in.begin());
+  thrust::copy_n(handle.get_thrust_policy(), ptr_d_start, num_starting_vs, d_start_vs.begin());
   thrust::copy_n(handle.get_thrust_policy(), ptr_d_ranks, num_starting_vs, d_ranks.begin());
 
   // shuffle data to local rank:
   //
   auto next_in_zip_begin =
-    thrust::make_zip_iterator(thrust::make_tuple(d_in.begin(), d_ranks.begin()));
+    thrust::make_zip_iterator(thrust::make_tuple(d_start_vs.begin(), d_ranks.begin()));
 
-  auto next_in_zip_end = thrust::make_zip_iterator(thrust::make_tuple(d_in.end(), d_ranks.end()));
+  auto next_in_zip_end =
+    thrust::make_zip_iterator(thrust::make_tuple(d_start_vs.end(), d_ranks.end()));
 
-  detail::update_input_by_rank(
-    handle, graph_view, next_in_zip_begin, next_in_zip_end, self_rank, d_in, d_ranks, gpu_t{});
+  detail::update_input_by_rank(handle,
+                               graph_view,
+                               next_in_zip_begin,
+                               next_in_zip_end,
+                               self_rank,
+                               d_start_vs,
+                               d_ranks,
+                               gpu_t{});
 
   // preamble step for out-degree info:
   //
   auto&& [d_edge_count, global_degree_offsets] = get_global_degree_information(handle, graph_view);
 
-  // TODO: send result to corresponding ranks:
+  // extract output quad SOA:
   //
-  return detail::uniform_nbr_sample_impl(
-    handle, graph_view, d_in, d_ranks, h_fan_out, global_degree_offsets, flag_replacement);
+  auto&& [d_src, d_dst, d_gpus, d_indices] = detail::uniform_nbr_sample_impl(
+    handle, graph_view, d_start_vs, d_ranks, h_fan_out, global_degree_offsets, flag_replacement);
+
+  // shuffle quad SOA by d_gpus:
+  //
+  return detail::shuffle_to_target_gpu_ids(handle, d_src, d_dst, d_gpus, d_indices);
 }
 
 }  // namespace cugraph

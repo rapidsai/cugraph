@@ -21,10 +21,11 @@ namespace cugraph {
 // template explicit instantiation directives (EIDir's):
 //
 // SG FP32{
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>>
+template std::tuple<std::tuple<rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int32_t>>,
+                    std::vector<size_t>>
 uniform_nbr_sample(raft::handle_t const& handle,
                    graph_view_t<int32_t, int32_t, float, false, true> const& gview,
                    int32_t const* ptr_d_start,
@@ -33,10 +34,11 @@ uniform_nbr_sample(raft::handle_t const& handle,
                    std::vector<int> const& h_fan_out,
                    bool flag_replacement);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int64_t>>
+template std::tuple<std::tuple<rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int64_t>>,
+                    std::vector<size_t>>
 uniform_nbr_sample(raft::handle_t const& handle,
                    graph_view_t<int32_t, int64_t, float, false, true> const& gview,
                    int32_t const* ptr_d_start,
@@ -45,10 +47,11 @@ uniform_nbr_sample(raft::handle_t const& handle,
                    std::vector<int> const& h_fan_out,
                    bool flag_replacement);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int64_t>>
+template std::tuple<std::tuple<rmm::device_uvector<int64_t>,
+                               rmm::device_uvector<int64_t>,
+                               rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int64_t>>,
+                    std::vector<size_t>>
 uniform_nbr_sample(raft::handle_t const& handle,
                    graph_view_t<int64_t, int64_t, float, false, true> const& gview,
                    int64_t const* ptr_d_start,
@@ -59,10 +62,11 @@ uniform_nbr_sample(raft::handle_t const& handle,
 //}
 //
 // SG FP64{
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>>
+template std::tuple<std::tuple<rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int32_t>>,
+                    std::vector<size_t>>
 uniform_nbr_sample(raft::handle_t const& handle,
                    graph_view_t<int32_t, int32_t, double, false, true> const& gview,
                    int32_t const* ptr_d_start,
@@ -71,10 +75,11 @@ uniform_nbr_sample(raft::handle_t const& handle,
                    std::vector<int> const& h_fan_out,
                    bool flag_replacement);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int64_t>>
+template std::tuple<std::tuple<rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int64_t>>,
+                    std::vector<size_t>>
 uniform_nbr_sample(raft::handle_t const& handle,
                    graph_view_t<int32_t, int64_t, double, false, true> const& gview,
                    int32_t const* ptr_d_start,
@@ -83,10 +88,11 @@ uniform_nbr_sample(raft::handle_t const& handle,
                    std::vector<int> const& h_fan_out,
                    bool flag_replacement);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int64_t>>
+template std::tuple<std::tuple<rmm::device_uvector<int64_t>,
+                               rmm::device_uvector<int64_t>,
+                               rmm::device_uvector<int32_t>,
+                               rmm::device_uvector<int64_t>>,
+                    std::vector<size_t>>
 uniform_nbr_sample(raft::handle_t const& handle,
                    graph_view_t<int64_t, int64_t, double, false, true> const& gview,
                    int64_t const* ptr_d_start,
