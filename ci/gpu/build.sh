@@ -76,6 +76,7 @@ gpuci_mamba_retry install -y \
       "ucx-proc=*=gpu" \
       "rapids-build-env=$MINOR_VERSION.*" \
       "rapids-notebook-env=$MINOR_VERSION.*" \
+      "openmpi" \
       rapids-pytest-benchmark
 
 # https://docs.rapids.ai/maintainers/depmgmt/

@@ -8,7 +8,7 @@ set -e
 # Set path and build parallel level
 # openmpi dir is required on CentOS for finding MPI libs from cmake
 if [[ -e /etc/os-release ]] && (grep -qi centos /etc/os-release); then
-    export PATH=/opt/conda/bin:/usr/local/cuda/bin:/usr/lib64/openmpi/bin:$PATH
+    export PATH=/opt/conda/bin:/usr/local/cuda/bin:$PATH
 else
     export PATH=/opt/conda/bin:/usr/local/cuda/bin:$PATH
 fi

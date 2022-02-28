@@ -46,6 +46,7 @@ requirements:
     - ucx-proc=*=gpu
     - gtest
     - gmock
+    - openmpi
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
     - libraft-headers {{ minor_version }}
