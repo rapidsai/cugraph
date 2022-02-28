@@ -104,7 +104,7 @@ from cugraph.proto.structure import find_bicliques
 
 from cugraph.linear_assignment import hungarian, dense_hungarian
 from cugraph.layout import force_atlas2
-from cugraph.raft import raft_include_test
+from raft import raft_include_test
 from cugraph.comms import comms
 
 from cugraph.sampling import random_walks, rw_path
