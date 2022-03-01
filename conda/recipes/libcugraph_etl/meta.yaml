@@ -37,15 +37,14 @@ requirements:
     - cmake>=3.20.1
     - doxygen>=1.8.11
     - cudatoolkit {{ cuda_version }}.*
-    - libcugraphops {{ minor_version }}.*  # needed for cmake to find transitive deps
     - libcudf {{ minor_version }}.*
     - libcugraph {{ minor_version }}.*
+    - libraft-headers {{ minor_version }}
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
     - libcudf {{ minor_version }}.*
     - libcugraph {{ minor_version }}.*
-    - faiss-proc=*=cuda
-    - libfaiss 1.7.0 *_cuda
+    - libraft-headers {{ minor_version }}
 
 about:
   home: http://rapids.ai/
