@@ -40,7 +40,7 @@
 
 #include "rw_traversals.hpp"
 
-#include <cugraph-ops/graph/sampling.h>
+#include <cugraph-ops/graph/sampling.hpp>
 
 #include <algorithm>
 #include <limits>
