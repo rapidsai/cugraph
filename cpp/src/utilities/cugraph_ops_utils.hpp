@@ -18,7 +18,7 @@
 
 #include <cugraph/graph_view.hpp>
 
-#include <cugraph-ops/graph/format.h>
+#include <cugraph-ops/graph/format.hpp>
 
 #include <tuple>
 
