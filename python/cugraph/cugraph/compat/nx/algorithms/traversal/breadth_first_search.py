@@ -13,10 +13,10 @@
 import cugraph
 import cugraph.traversal.bfs as bfg
 def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
-    print("reached the right method")
     result = cugraph.bfs_edges(G,source,depth_limit,sort_neighbors)
+    #convert to a list of tuples which the network algorithm returns
     formatted_result = result.query('distance > 0')[['distance','vertex']].to_records(index=False)
-    list_of_tuples = np_array = map(tuple,formatted_result)
+    np_array = map(tuple,formatted_result)
     list_of_tuples = tuple(np_array)
     return list_of_tuples
 
