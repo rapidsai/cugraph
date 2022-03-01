@@ -25,7 +25,7 @@ from libcpp.vector cimport vector
 import cudf
 from rmm._lib.device_buffer cimport device_buffer
 
-from cugraph.raft.common.handle cimport handle_t
+from raft.common.handle cimport handle_t
 from cugraph.structure.graph_utilities cimport (shuffled_vertices_t,
                                                 major_minor_weights_t,
                                                 renum_tuple_t,
