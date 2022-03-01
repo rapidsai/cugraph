@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import pylibcugraph
-import cupy
 import cudf
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 
@@ -79,9 +78,9 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     ...                                               True, 0.8, 0.5)
 
     """
-    if (type(max_depth) != int) or (max_depth < 1):
+    if (not isinstance(max_depth, int)) or (max_depth < 1):
         raise ValueError("'max_depth' must be a positive integer")
-    if (type(use_padding) != bool):
+    if (not isinstance(use_padding, bool)):
         raise ValueError("'use_padding' must be a bool")
     if (p is None) or (p <= 0.0):
         raise ValueError("'p' must be a positive double")
@@ -90,7 +89,7 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
 
     G, _ = ensure_cugraph_obj_for_nx(G)
 
-    if start_vertices is int:
+    if isinstance(start_vertices, int):
         start_vertices = [start_vertices]
 
     if isinstance(start_vertices, list):
@@ -99,19 +98,13 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
             start_vertices = G.lookup_internal_vertex_id(
-                start_vertices,
-                start_vertices.columns)
+                start_vertices, start_vertices.columns)
         else:
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
 
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
     weights = G.edgelist.edgelist_df['weights']
-
-    srcs = cupy.asarray(srcs)
-    dsts = cupy.asarray(dsts)
-    weights = cupy.asarray(weights)
-    start_vertices = cupy.asarray(start_vertices)
 
     resource_handle = pylibcugraph.experimental.ResourceHandle()
     graph_props = pylibcugraph.experimental.GraphProperties(
