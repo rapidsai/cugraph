@@ -20,8 +20,6 @@
 import pytest
 from cugraph.tests import utils
 import cugraph.compat.nx as nx
-import cugraph
-import numpy as np
 
 
 def test_nx_gbuilder():
@@ -47,17 +45,16 @@ def test_nx_gbuilder():
     assert G.number_of_nodes() == 3
 
 
-def test_nx_node_attributes(): 
+def test_nx_node_attributes():
     G = nx.Graph()
     # Add nodes with a property from a list
     G.add_nodes_from([(4, {"color": "red"}), (5, {"color": "green"}), ])
     assert G.number_of_nodes() == 2
- #   assert G.nodes[4]["color"] == "red"
+    assert G.nodes[4]["color"] == "red"
     print(G.nodes())
 
 
 def nx_node_string_types():
-
     G = nx.Graph()
     # adds node "spam"
     G.add_node("spam")
@@ -112,7 +109,7 @@ def test_nx_analysis():
 @pytest.mark.parametrize(
     "graph_file",
     [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"dolphins.csv"])
-def with_dolphins(graph_file):
+def test_with_dolphins(graph_file):
 
     df = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
     G = nx.from_pandas_edgelist(df, create_using=nx.Graph(),

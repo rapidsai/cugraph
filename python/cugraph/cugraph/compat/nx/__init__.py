@@ -28,14 +28,16 @@ from networkx import *
 # compat equivalents. This means if an equivalent compat obj is not available,
 # the standard NetworkX obj will be used.
 #
-# Each cugraph obj should have the same module path as the NetworkX obj it is
-# overriding, and the submodules along the hierarchy should each import the same
-# sub objects/modules as NetworkX does. For example, in NetworkX, "pagerank" is
-# a function in "networkx/algorithms/link_analysis/pagerank_alg.py", and is
+# Each cugraph obj should have the same module path as the
+# NetworkX obj it isoverriding, and the submodules along the hierarchy should
+# each import the same sub objects/modules as NetworkX does. For example,
+# in NetworkX, "pagerank" is a function in
+# "networkx/algorithms/link_analysis/pagerank_alg.py", and is
 # directly imported in the namespaces "networkx.algorithms.link_analysis",
-# "networkx.algorithms", and "networkx". Therefore, the cugraph compat pagerank
-# should be defined in a module of the same name and also be present in the same
-# namespaces. Refer to the networkx __init__.py files when adding new overriding
+# "networkx.algorithms", and "networkx". Therefore, the cugraph
+# compat pagerank should be defined in a module of the same name and
+# also be present in the same namespaces.
+# Refer to the networkx __init__.py files when adding new overriding
 # modules to ensure the same paths and used and namespaces are populated.
 from cugraph.compat.nx.algorithms import traversal
 from cugraph.compat.nx.algorithms.traversal import *
@@ -54,6 +56,8 @@ from cugraph.compat.nx.algorithms import *
 # but only for module paths that have not been added yet (otherwise this would
 # overwrite the overides above).
 _visited = set()
+
+
 def _import_submodules_recursively(obj, mod_path):
     # Since modules can freely import any other modules, immediately mark this
     # obj as visited so submodules that import it are not re-examined
@@ -71,17 +75,23 @@ def _import_submodules_recursively(obj, mod_path):
             if sub_obj not in _visited:
                 _import_submodules_recursively(sub_obj, sub_mod_path)
 
-_import_submodules_recursively(importlib.import_module("networkx"), __name__)
+
+_import_submodules_recursively(
+
+
+    importlib.import_module("networkx"), __name__)
 
 del _visited
 del _import_submodules_recursively
 
-# At this point, individual types that cugraph.nx are overriding could be used
-# to override the corresponding types *inside* the networkx modules imported
-# above. For example, the networkx graph generators will still return
-# networkx.Graph objects instead of cugraph.nx.Graph objects (unless the user
-# knows to pass a "create_using" arg, if available). For specific overrides,
-# assignments could be made in the imported networkx modules so cugraph.nx types
-# are used by default. NOTE: this has the side-effect of causing all networkx
+# At this point, individual types that cugraph.nx are overriding
+# could be used to override the corresponding types *inside* the
+# networkx modules imported above. For example, the networkx graph generators
+# will still return networkx.Graph objects instead of cugraph.nx.Graph
+# objects (unless the userknows to pass a "create_using" arg, if available).
+# For specific overrides, assignments could be made in the imported
+# a networkx modules so cugraph.nx types are used by default.
+# NOTE: this has the side-effect of causing all networkx
 # imports in this python process/interpreter to use the override (ie. the user
-# won't be able to use the original networkx types, even from a networkx import)
+# won't be able to use the original networkx types,
+# even from a networkx import)
