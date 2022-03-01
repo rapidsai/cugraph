@@ -37,31 +37,31 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename ValueIterator>
-class major_properties_device_view_t {
+class edge_partition_major_property_device_view_t {
  public:
   using value_type = typename thrust::iterator_traits<ValueIterator>::value_type;
 
-  major_properties_device_view_t() = default;
+  edge_partition_major_property_device_view_t() = default;
 
-  major_properties_device_view_t(
+  edge_partition_major_property_device_view_t(
     ValueIterator value_first)  // for single-GPU only and for advanced users
     : value_first_(value_first)
   {
     set_local_adj_matrix_partition_idx(size_t{0});
   }
 
-  major_properties_device_view_t(ValueIterator value_first,
-                                 vertex_t const* matrix_partition_major_value_start_offsets)
+  edge_partition_major_property_device_view_t(
+    ValueIterator value_first, vertex_t const* matrix_partition_major_value_start_offsets)
     : value_first_(value_first),
       matrix_partition_major_value_start_offsets_(matrix_partition_major_value_start_offsets)
   {
     set_local_adj_matrix_partition_idx(size_t{0});
   }
 
-  major_properties_device_view_t(vertex_t const* key_first,
-                                 ValueIterator value_first,
-                                 vertex_t const* matrix_partition_key_offsets,
-                                 vertex_t const* matrix_partition_major_firsts)
+  edge_partition_major_property_device_view_t(vertex_t const* key_first,
+                                              ValueIterator value_first,
+                                              vertex_t const* matrix_partition_key_offsets,
+                                              vertex_t const* matrix_partition_major_firsts)
     : key_first_(key_first),
       value_first_(value_first),
       matrix_partition_key_offsets_(matrix_partition_key_offsets),
@@ -154,18 +154,20 @@ class major_properties_device_view_t {
 };
 
 template <typename vertex_t, typename ValueIterator>
-class minor_properties_device_view_t {
+class edge_partition_minor_property_device_view_t {
  public:
   using value_type = typename thrust::iterator_traits<ValueIterator>::value_type;
 
-  minor_properties_device_view_t() = default;
+  edge_partition_minor_property_device_view_t() = default;
 
-  minor_properties_device_view_t(ValueIterator value_first) : value_first_(value_first) {}
+  edge_partition_minor_property_device_view_t(ValueIterator value_first) : value_first_(value_first)
+  {
+  }
 
-  minor_properties_device_view_t(vertex_t const* key_first,
-                                 vertex_t const* key_last,
-                                 vertex_t minor_first,
-                                 ValueIterator value_first)
+  edge_partition_minor_property_device_view_t(vertex_t const* key_first,
+                                              vertex_t const* key_last,
+                                              vertex_t minor_first,
+                                              ValueIterator value_first)
     : key_first_(key_first),
       key_last_(key_last),
       minor_first_(minor_first),
@@ -197,28 +199,32 @@ class minor_properties_device_view_t {
 };
 
 template <typename vertex_t, typename T>
-class major_properties_t {
+class edge_partition_major_property_t {
  public:
-  major_properties_t() : buffer_(allocate_dataframe_buffer<T>(0, rmm::cuda_stream_view{})) {}
+  edge_partition_major_property_t()
+    : buffer_(allocate_dataframe_buffer<T>(0, rmm::cuda_stream_view{}))
+  {
+  }
 
-  major_properties_t(raft::handle_t const& handle, vertex_t buffer_size)
+  edge_partition_major_property_t(raft::handle_t const& handle, vertex_t buffer_size)
     : buffer_(allocate_dataframe_buffer<T>(buffer_size, handle.get_stream()))
   {
   }
 
-  major_properties_t(raft::handle_t const& handle,
-                     vertex_t buffer_size,
-                     std::vector<vertex_t>&& matrix_partition_major_value_start_offsets)
+  edge_partition_major_property_t(
+    raft::handle_t const& handle,
+    vertex_t buffer_size,
+    std::vector<vertex_t>&& matrix_partition_major_value_start_offsets)
     : buffer_(allocate_dataframe_buffer<T>(buffer_size, handle.get_stream())),
       matrix_partition_major_value_start_offsets_(
         std::move(matrix_partition_major_value_start_offsets))
   {
   }
 
-  major_properties_t(raft::handle_t const& handle,
-                     vertex_t const* key_first,
-                     std::vector<vertex_t>&& matrix_partition_key_offsets,
-                     std::vector<vertex_t>&& matrix_partition_major_firsts)
+  edge_partition_major_property_t(raft::handle_t const& handle,
+                                  vertex_t const* key_first,
+                                  std::vector<vertex_t>&& matrix_partition_key_offsets,
+                                  std::vector<vertex_t>&& matrix_partition_major_firsts)
     : key_first_(key_first),
       buffer_(
         allocate_dataframe_buffer<T>(matrix_partition_key_offsets.back(), handle.get_stream())),
@@ -246,16 +252,17 @@ class major_properties_t {
   {
     auto value_first = get_dataframe_buffer_cbegin(buffer_);
     if (key_first_) {
-      return major_properties_device_view_t<vertex_t, decltype(value_first)>(
+      return edge_partition_major_property_device_view_t<vertex_t, decltype(value_first)>(
         *key_first_,
         value_first,
         (*matrix_partition_key_offsets_).data(),
         (*matrix_partition_major_firsts_).data());
     } else if (matrix_partition_major_value_start_offsets_) {
-      return major_properties_device_view_t<vertex_t, decltype(value_first)>(
+      return edge_partition_major_property_device_view_t<vertex_t, decltype(value_first)>(
         value_first, (*matrix_partition_major_value_start_offsets_).data());
     } else {
-      return major_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
+      return edge_partition_major_property_device_view_t<vertex_t, decltype(value_first)>(
+        value_first);
     }
   }
 
@@ -263,16 +270,17 @@ class major_properties_t {
   {
     auto value_first = get_dataframe_buffer_begin(buffer_);
     if (key_first_) {
-      return major_properties_device_view_t<vertex_t, decltype(value_first)>(
+      return edge_partition_major_property_device_view_t<vertex_t, decltype(value_first)>(
         *key_first_,
         value_first,
         (*matrix_partition_key_offsets_).data(),
         (*matrix_partition_major_firsts_).data());
     } else if (matrix_partition_major_value_start_offsets_) {
-      return major_properties_device_view_t<vertex_t, decltype(value_first)>(
+      return edge_partition_major_property_device_view_t<vertex_t, decltype(value_first)>(
         value_first, (*matrix_partition_major_value_start_offsets_).data());
     } else {
-      return major_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
+      return edge_partition_major_property_device_view_t<vertex_t, decltype(value_first)>(
+        value_first);
     }
   }
 
@@ -288,19 +296,22 @@ class major_properties_t {
 };
 
 template <typename vertex_t, typename T>
-class minor_properties_t {
+class edge_partition_minor_property_t {
  public:
-  minor_properties_t() : buffer_(allocate_dataframe_buffer<T>(0, rmm::cuda_stream_view{})) {}
+  edge_partition_minor_property_t()
+    : buffer_(allocate_dataframe_buffer<T>(0, rmm::cuda_stream_view{}))
+  {
+  }
 
-  minor_properties_t(raft::handle_t const& handle, vertex_t buffer_size)
+  edge_partition_minor_property_t(raft::handle_t const& handle, vertex_t buffer_size)
     : buffer_(allocate_dataframe_buffer<T>(buffer_size, handle.get_stream()))
   {
   }
 
-  minor_properties_t(raft::handle_t const& handle,
-                     vertex_t const* key_first,
-                     vertex_t const* key_last,
-                     vertex_t minor_first)
+  edge_partition_minor_property_t(raft::handle_t const& handle,
+                                  vertex_t const* key_first,
+                                  vertex_t const* key_last,
+                                  vertex_t minor_first)
     : key_first_(key_first),
       key_last_(key_last),
       minor_first_(minor_first),
@@ -323,10 +334,11 @@ class minor_properties_t {
   {
     auto value_first = get_dataframe_buffer_cbegin(buffer_);
     if (key_first_) {
-      return minor_properties_device_view_t<vertex_t, decltype(value_first)>(
+      return edge_partition_minor_property_device_view_t<vertex_t, decltype(value_first)>(
         *key_first_, *key_last_, *minor_first_, value_first);
     } else {
-      return minor_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
+      return edge_partition_minor_property_device_view_t<vertex_t, decltype(value_first)>(
+        value_first);
     }
   }
 
@@ -334,10 +346,11 @@ class minor_properties_t {
   {
     auto value_first = get_dataframe_buffer_begin(buffer_);
     if (key_first_) {
-      return minor_properties_device_view_t<vertex_t, decltype(value_first)>(
+      return edge_partition_minor_property_device_view_t<vertex_t, decltype(value_first)>(
         *key_first_, *key_last_, *minor_first_, value_first);
     } else {
-      return minor_properties_device_view_t<vertex_t, decltype(value_first)>(value_first);
+      return edge_partition_minor_property_device_view_t<vertex_t, decltype(value_first)>(
+        value_first);
     }
   }
 
@@ -374,15 +387,15 @@ decltype(auto) get_first_of_pack(T&& t, Ts&&...)
 }  // namespace detail
 
 template <typename GraphViewType, typename T>
-class row_properties_t {
+class edge_partition_src_property_t {
  public:
   using value_type = T;
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  row_properties_t() = default;
+  edge_partition_src_property_t() = default;
 
-  row_properties_t(raft::handle_t const& handle, GraphViewType const& graph_view)
+  edge_partition_src_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
   {
     using vertex_t = typename GraphViewType::vertex_type;
 
@@ -391,7 +404,7 @@ class row_properties_t {
       if constexpr (GraphViewType::is_multi_gpu) {
         if constexpr (GraphViewType::is_adj_matrix_transposed) {
           auto key_last = graph_view.get_local_sorted_unique_edge_row_end();
-          properties_   = detail::minor_properties_t<vertex_t, T>(
+          property_     = detail::edge_partition_minor_property_t<vertex_t, T>(
             handle, *key_first, *key_last, graph_view.get_local_adj_matrix_partition_row_first());
         } else {
           std::vector<vertex_t> matrix_partition_major_firsts(
@@ -400,7 +413,7 @@ class row_properties_t {
             matrix_partition_major_firsts[i] =
               graph_view.get_local_adj_matrix_partition_row_first(i);
           }
-          properties_ = detail::major_properties_t<vertex_t, T>(
+          property_ = detail::edge_partition_major_property_t<vertex_t, T>(
             handle,
             *key_first,
             *(graph_view.get_local_sorted_unique_edge_row_offsets()),
@@ -411,7 +424,7 @@ class row_properties_t {
       }
     } else {
       if constexpr (GraphViewType::is_adj_matrix_transposed) {
-        properties_ = detail::minor_properties_t<vertex_t, T>(
+        property_ = detail::edge_partition_minor_property_t<vertex_t, T>(
           handle, graph_view.get_number_of_local_adj_matrix_partition_rows());
       } else {
         if constexpr (GraphViewType::is_multi_gpu) {
@@ -421,45 +434,46 @@ class row_properties_t {
             matrix_partition_major_value_start_offsets[i] =
               graph_view.get_local_adj_matrix_partition_row_value_start_offset(i);
           }
-          properties_ = detail::major_properties_t<vertex_t, T>(
+          property_ = detail::edge_partition_major_property_t<vertex_t, T>(
             handle,
             graph_view.get_number_of_local_adj_matrix_partition_rows(),
             std::move(matrix_partition_major_value_start_offsets));
         } else {
-          properties_ = detail::major_properties_t<vertex_t, T>(
+          property_ = detail::edge_partition_major_property_t<vertex_t, T>(
             handle, graph_view.get_number_of_local_adj_matrix_partition_rows());
         }
       }
     }
   }
 
-  void fill(T value, rmm::cuda_stream_view stream) { properties_.fill(value, stream); }
+  void fill(T value, rmm::cuda_stream_view stream) { property_.fill(value, stream); }
 
-  auto key_first() { return properties_.key_first(); }
-  auto key_last() { return properties_.key_last(); }
+  auto key_first() { return property_.key_first(); }
+  auto key_last() { return property_.key_last(); }
 
-  auto value_data() { return properties_.value_data(); }
+  auto value_data() { return property_.value_data(); }
 
-  auto device_view() const { return properties_.device_view(); }
-  auto mutable_device_view() { return properties_.mutable_device_view(); }
+  auto device_view() const { return property_.device_view(); }
+  auto mutable_device_view() { return property_.mutable_device_view(); }
 
  private:
-  std::conditional_t<GraphViewType::is_adj_matrix_transposed,
-                     detail::minor_properties_t<typename GraphViewType::vertex_type, T>,
-                     detail::major_properties_t<typename GraphViewType::vertex_type, T>>
-    properties_{};
+  std::conditional_t<
+    GraphViewType::is_adj_matrix_transposed,
+    detail::edge_partition_minor_property_t<typename GraphViewType::vertex_type, T>,
+    detail::edge_partition_major_property_t<typename GraphViewType::vertex_type, T>>
+    property_{};
 };
 
 template <typename GraphViewType, typename T>
-class col_properties_t {
+class edge_partition_dst_property_t {
  public:
   using value_type = T;
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  col_properties_t() = default;
+  edge_partition_dst_property_t() = default;
 
-  col_properties_t(raft::handle_t const& handle, GraphViewType const& graph_view)
+  edge_partition_dst_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
   {
     using vertex_t = typename GraphViewType::vertex_type;
 
@@ -473,14 +487,14 @@ class col_properties_t {
             matrix_partition_major_firsts[i] =
               graph_view.get_local_adj_matrix_partition_col_first(i);
           }
-          properties_ = detail::major_properties_t<vertex_t, T>(
+          property_ = detail::edge_partition_major_property_t<vertex_t, T>(
             handle,
             *key_first,
             *(graph_view.get_local_sorted_unique_edge_col_offsets()),
             std::move(matrix_partition_major_firsts));
         } else {
           auto key_last = graph_view.get_local_sorted_unique_edge_col_end();
-          properties_   = detail::minor_properties_t<vertex_t, T>(
+          property_     = detail::edge_partition_minor_property_t<vertex_t, T>(
             handle, *key_first, *key_last, graph_view.get_local_adj_matrix_partition_col_first());
         }
       } else {
@@ -495,40 +509,41 @@ class col_properties_t {
             matrix_partition_major_value_start_offsets[i] =
               graph_view.get_local_adj_matrix_partition_col_value_start_offset(i);
           }
-          properties_ = detail::major_properties_t<vertex_t, T>(
+          property_ = detail::edge_partition_major_property_t<vertex_t, T>(
             handle,
             graph_view.get_number_of_local_adj_matrix_partition_cols(),
             std::move(matrix_partition_major_value_start_offsets));
         } else {
-          properties_ = detail::major_properties_t<vertex_t, T>(
+          property_ = detail::edge_partition_major_property_t<vertex_t, T>(
             handle, graph_view.get_number_of_local_adj_matrix_partition_cols());
         }
       } else {
-        properties_ = detail::minor_properties_t<vertex_t, T>(
+        property_ = detail::edge_partition_minor_property_t<vertex_t, T>(
           handle, graph_view.get_number_of_local_adj_matrix_partition_cols());
       }
     }
   }
 
-  void fill(T value, rmm::cuda_stream_view stream) { properties_.fill(value, stream); }
+  void fill(T value, rmm::cuda_stream_view stream) { property_.fill(value, stream); }
 
-  auto key_first() { return properties_.key_first(); }
-  auto key_last() { return properties_.key_last(); }
+  auto key_first() { return property_.key_first(); }
+  auto key_last() { return property_.key_last(); }
 
-  auto value_data() { return properties_.value_data(); }
+  auto value_data() { return property_.value_data(); }
 
-  auto device_view() const { return properties_.device_view(); }
-  auto mutable_device_view() { return properties_.mutable_device_view(); }
+  auto device_view() const { return property_.device_view(); }
+  auto mutable_device_view() { return property_.mutable_device_view(); }
 
  private:
-  std::conditional_t<GraphViewType::is_adj_matrix_transposed,
-                     detail::major_properties_t<typename GraphViewType::vertex_type, T>,
-                     detail::minor_properties_t<typename GraphViewType::vertex_type, T>>
-    properties_{};
+  std::conditional_t<
+    GraphViewType::is_adj_matrix_transposed,
+    detail::edge_partition_major_property_t<typename GraphViewType::vertex_type, T>,
+    detail::edge_partition_minor_property_t<typename GraphViewType::vertex_type, T>>
+    property_{};
 };
 
 template <typename vertex_t>
-class dummy_properties_device_view_t {
+class dummy_property_device_view_t {
  public:
   using value_type = thrust::nullopt_t;
 
@@ -538,30 +553,32 @@ class dummy_properties_device_view_t {
 };
 
 template <typename vertex_t>
-class dummy_properties_t {
+class dummy_property_t {
  public:
   using value_type = thrust::nullopt_t;
 
-  auto device_view() const { return dummy_properties_device_view_t<vertex_t>{}; }
+  auto device_view() const { return dummy_property_device_view_t<vertex_t>{}; }
 };
 
 template <typename vertex_t, typename... Ts>
-auto device_view_concat(detail::major_properties_device_view_t<vertex_t, Ts> const&... device_views)
+auto device_view_concat(
+  detail::edge_partition_major_property_device_view_t<vertex_t, Ts> const&... device_views)
 {
   auto concat_first = thrust::make_zip_iterator(
     thrust_tuple_cat(detail::to_thrust_tuple(device_views.value_data())...));
   auto first = detail::get_first_of_pack(device_views...);
   if (first.key_data()) {
-    return detail::major_properties_device_view_t<vertex_t, decltype(concat_first)>(
+    return detail::edge_partition_major_property_device_view_t<vertex_t, decltype(concat_first)>(
       *(first.key_data()),
       concat_first,
       *(first.matrix_partition_key_offsets()),
       *(first.matrix_partition_major_firsts()));
   } else if (first.matrix_partition_major_value_start_offsets()) {
-    return detail::major_properties_device_view_t<vertex_t, decltype(concat_first)>(
+    return detail::edge_partition_major_property_device_view_t<vertex_t, decltype(concat_first)>(
       concat_first, *(first.matrix_partition_major_value_start_offsets()));
   } else {
-    return detail::major_properties_device_view_t<vertex_t, decltype(concat_first)>(concat_first);
+    return detail::edge_partition_major_property_device_view_t<vertex_t, decltype(concat_first)>(
+      concat_first);
   }
 }
 
