@@ -16,17 +16,14 @@ source:
 
 build:
   script_env:
-    - CC
-    - CXX
-    - CUDAHOSTCXX
     - PARALLEL_LEVEL
     - VERSION_SUFFIX
     - CMAKE_GENERATOR
     - CMAKE_C_COMPILER_LAUNCHER
     - CMAKE_CXX_COMPILER_LAUNCHER
     - CMAKE_CUDA_COMPILER_LAUNCHER
-    - SCCACHE_S3_KEY_PREFIX=libcugraph-aarch64 # [aarch64]
-    - SCCACHE_S3_KEY_PREFIX=libcugraph-linux64 # [linux64]
+    - SCCACHE_S3_KEY_PREFIX=libcugraph-aarch64-conda-comp # [aarch64]
+    - SCCACHE_S3_KEY_PREFIX=libcugraph-linux64-conda-comp # [linux64]
     - SCCACHE_BUCKET=rapids-sccache
     - SCCACHE_REGION=us-west-2
     - SCCACHE_IDLE_TIMEOUT=32768
@@ -34,6 +31,11 @@ build:
 requirements:
   build:
     - cmake {{ cmake_version }}
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - {{ compiler('cuda') }} {{ cuda_version }}
+    - sysroot_linux-64 {{ sysroot_version }}  # [linux64]
+    - sysroot_linux-aarch64 {{ sysroot_version }}  # [aarch64]
   host:
     - doxygen {{ doxygen_version }}
     - cudatoolkit {{ cuda_version }}.*
@@ -54,6 +56,9 @@ outputs:
     build:
       number: {{ GIT_DESCRIBE_NUMBER }}
       string: cuda{{ cuda_major }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      ignore_run_exports_from:
+        - nvcc_linux-64 # [linux64]
+        - nvcc_linux-aarch64 # [aarch64]
     requirements:
       build:
         - cmake {{ cmake_version }}
@@ -76,6 +81,9 @@ outputs:
     build:
       number: {{ GIT_DESCRIBE_NUMBER }}
       string: cuda{{ cuda_major }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      ignore_run_exports_from:
+        - nvcc_linux-64 # [linux64]
+        - nvcc_linux-aarch64 # [aarch64]
     requirements:
       build:
         - cmake {{ cmake_version }}
@@ -96,6 +104,9 @@ outputs:
     build:
       number: {{ GIT_DESCRIBE_NUMBER }}
       string: cuda{{ cuda_major }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      ignore_run_exports_from:
+        - nvcc_linux-64 # [linux64]
+        - nvcc_linux-aarch64 # [aarch64]
     requirements:
       build:
         - cmake {{ cmake_version }}
