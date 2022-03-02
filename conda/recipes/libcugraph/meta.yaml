@@ -49,6 +49,7 @@ requirements:
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
     - libraft-headers {{ minor_version }}
+    - librmm {{ minor_version }}
     - nccl>=2.9.9
     - ucx-proc=*=gpu
     - libcugraphops {{ minor_version }}.*
