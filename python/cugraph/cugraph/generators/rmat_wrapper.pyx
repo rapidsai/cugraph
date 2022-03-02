@@ -22,7 +22,7 @@ import numpy as np
 from rmm._lib.device_buffer cimport device_buffer
 import cudf
 
-from cugraph.raft.common.handle cimport handle_t
+from raft.common.handle cimport handle_t
 from cugraph.structure.graph_utilities cimport graph_generator_t
 from cugraph.generators.rmat cimport (call_generate_rmat_edgelist,
                                       call_generate_rmat_edgelists,
