@@ -57,7 +57,7 @@ from pylibcugraph.utils cimport (
 
 def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
                            _GPUGraph graph,
-                           src_array,
+                           seed_array,
                            size_t max_depth,
                            bool_t compress_result,
                            double p,
@@ -74,8 +74,8 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     graph : SGGraph
         The input graph.
 
-    src_array: device array type
-        Device array containing the pointer to the array of source vertices.
+    seed_array: device array type
+        Device array containing the pointer to the array of seed vertices.
 
     max_depth : size_t
         Maximum number of vertices in generated path
@@ -135,7 +135,7 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     except ModuleNotFoundError:
         raise RuntimeError("node2vec requires the numpy package, which could not "
                            "be imported")
-    assert_CAI_type(src_array, "src_array")
+    assert_CAI_type(seed_array, "seed_array")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
@@ -145,18 +145,17 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef uintptr_t cai_srcs_ptr = \
-        src_array.__cuda_array_interface__["data"][0]
-    cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr = \
+    cdef uintptr_t cai_seed_ptr = \
+        seed_array.__cuda_array_interface__["data"][0]
+    cdef cugraph_type_erased_device_array_view_t* seed_view_ptr = \
         cugraph_type_erased_device_array_view_create(
-            <void*>cai_srcs_ptr,
-            len(src_array),
-            get_c_type_from_numpy_type(src_array.dtype))
-
+            <void*>cai_seed_ptr,
+            len(seed_array),
+            get_c_type_from_numpy_type(seed_array.dtype))
 
     error_code = cugraph_node2vec(c_resource_handle_ptr,
                                   c_graph_ptr,
-                                  srcs_view_ptr,
+                                  seed_view_ptr,
                                   max_depth,
                                   compress_result,
                                   p,
