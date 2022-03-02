@@ -461,9 +461,7 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
  * @return tuple of tuple of device vectors and counts:
  * ((vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index), rx_counts)
  */
-template <typename graph_view_t,
-          typename gpu_t,
-          typename index_t = typename graph_view_t::edge_type>
+template <typename graph_view_t, typename gpu_t, typename index_t>
 std::tuple<std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
                       rmm::device_uvector<typename graph_view_t::vertex_type>,
                       rmm::device_uvector<gpu_t>,

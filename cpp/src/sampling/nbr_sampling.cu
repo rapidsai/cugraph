@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#include "nbr_sampling.cuh"
 #include <cugraph/algorithms.hpp>
+
+#include "nbr_sampling.cuh"
 
 namespace cugraph {
 // template explicit instantiation directives (EIDir's):

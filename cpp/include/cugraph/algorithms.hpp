@@ -1538,4 +1538,36 @@ void core_number(raft::handle_t const& handle,
                  size_t k_last           = std::numeric_limits<size_t>::max(),
                  bool do_expensive_check = false);
 
+/**
+ * @brief Multi-GPU Uniform Neighborhood Sampling.
+ * @tparam graph_view_t Type of graph view.
+ * @tparam index_t Type used for indexing; typically edge_t
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param ptr_d_start Device array of pairs: (starting_vertex_index, rank) for the NBR Sampling.
+ * @param num_starting_vs size of starting vertex set
+ * @param h_fan_out vector of branching out (fan-out) degree per source vertex for each level
+ * parameter used for obtaining local out-degree information
+ * @param flag_replacement boolean flag specifying if random sampling is done without replacement
+ * (true); or, with replacement (false); default = true;
+ * @return tuple of tuple of device vectors and counts:
+ * ((vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index), rx_counts)
+ */
+template <typename graph_view_t,
+          typename gpu_t,
+          typename index_t = typename graph_view_t::edge_type>
+std::tuple<std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
+                      rmm::device_uvector<typename graph_view_t::vertex_type>,
+                      rmm::device_uvector<gpu_t>,
+                      rmm::device_uvector<index_t>>,
+           std::vector<size_t>>
+uniform_nbr_sample(raft::handle_t const& handle,
+                   graph_view_t const& graph_view,
+                   typename graph_view_t::vertex_type const* ptr_d_start,
+                   gpu_t const* ptr_d_ranks,
+                   size_t num_starting_vs,
+                   std::vector<int> const& h_fan_out,
+                   bool flag_replacement = true);
+
 }  // namespace cugraph
