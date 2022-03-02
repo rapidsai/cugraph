@@ -45,12 +45,13 @@ namespace cugraph {
 namespace detail {
 
 template <typename GraphViewType,
-          typename VertexValueInputIterator,
-          typename MatrixMajorValueOutputWrapper>
-void copy_to_matrix_major(raft::handle_t const& handle,
-                          GraphViewType const& graph_view,
-                          VertexValueInputIterator vertex_value_input_first,
-                          MatrixMajorValueOutputWrapper& matrix_major_value_output)
+          typename VertexPropertyInputIterator,
+          typename EdgePartitionMajorPropertyOutputWrapper>
+void update_edge_partition_major_property(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexPropertyInputIterator vertex_property_input_first,
+  EdgePartitionMajorPropertyOutputWrapper& edge_partition_major_property_output)
 {
   if constexpr (GraphViewType::is_multi_gpu) {
     using vertex_t = typename GraphViewType::vertex_type;
@@ -64,7 +65,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
-    if (matrix_major_value_output.key_first()) {
+    if (edge_partition_major_property_output.key_first()) {
       auto key_offsets = GraphViewType::is_adj_matrix_transposed
                            ? *(graph_view.get_local_sorted_unique_edge_col_offsets())
                            : *(graph_view.get_local_sorted_unique_edge_row_offsets());
@@ -75,26 +76,26 @@ void copy_to_matrix_major(raft::handle_t const& handle,
           max_rx_size, graph_view.get_vertex_partition_size(i * row_comm_size + row_comm_rank));
       }
       auto rx_value_buffer = allocate_dataframe_buffer<
-        typename std::iterator_traits<VertexValueInputIterator>::value_type>(max_rx_size,
-                                                                             handle.get_stream());
+        typename std::iterator_traits<VertexPropertyInputIterator>::value_type>(
+        max_rx_size, handle.get_stream());
       auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffer);
       for (int i = 0; i < col_comm_size; ++i) {
         device_bcast(col_comm,
-                     vertex_value_input_first,
+                     vertex_property_input_first,
                      rx_value_first,
                      graph_view.get_vertex_partition_size(i * row_comm_size + row_comm_rank),
                      i,
                      handle.get_stream());
 
         auto v_offset_first = thrust::make_transform_iterator(
-          *(matrix_major_value_output.key_first()) + key_offsets[i],
+          *(edge_partition_major_property_output.key_first()) + key_offsets[i],
           [v_first = graph_view.get_vertex_partition_first(
              i * row_comm_size + row_comm_rank)] __device__(auto v) { return v - v_first; });
         thrust::gather(handle.get_thrust_policy(),
                        v_offset_first,
                        v_offset_first + (key_offsets[i + 1] - key_offsets[i]),
                        rx_value_first,
-                       matrix_major_value_output.value_data() + key_offsets[i]);
+                       edge_partition_major_property_output.value_data() + key_offsets[i]);
       }
     } else {
       std::vector<size_t> rx_counts(col_comm_size, size_t{0});
@@ -104,34 +105,35 @@ void copy_to_matrix_major(raft::handle_t const& handle,
         displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
       }
       device_allgatherv(col_comm,
-                        vertex_value_input_first,
-                        matrix_major_value_output.value_data(),
+                        vertex_property_input_first,
+                        edge_partition_major_property_output.value_data(),
                         rx_counts,
                         displacements,
                         handle.get_stream());
     }
   } else {
-    assert(!(matrix_major_value_output.key_first()));
+    assert(!(edge_partition_major_property_output.key_first()));
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_cols()
              : graph_view.get_number_of_local_adj_matrix_partition_rows());
     thrust::copy(handle.get_thrust_policy(),
-                 vertex_value_input_first,
-                 vertex_value_input_first + graph_view.get_number_of_local_vertices(),
-                 matrix_major_value_output.value_data());
+                 vertex_property_input_first,
+                 vertex_property_input_first + graph_view.get_number_of_local_vertices(),
+                 edge_partition_major_property_output.value_data());
   }
 }
 
 template <typename GraphViewType,
           typename VertexIterator,
-          typename VertexValueInputIterator,
-          typename MatrixMajorValueOutputWrapper>
-void copy_to_matrix_major(raft::handle_t const& handle,
-                          GraphViewType const& graph_view,
-                          VertexIterator vertex_first,
-                          VertexIterator vertex_last,
-                          VertexValueInputIterator vertex_value_input_first,
-                          MatrixMajorValueOutputWrapper& matrix_major_value_output)
+          typename VertexPropertyInputIterator,
+          typename EdgePartitionMajorPropertyOutputWrapper>
+void update_edge_partition_major_property(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexIterator vertex_first,
+  VertexIterator vertex_last,
+  VertexPropertyInputIterator vertex_property_input_first,
+  EdgePartitionMajorPropertyOutputWrapper& edge_partition_major_property_output)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -157,8 +159,8 @@ void copy_to_matrix_major(raft::handle_t const& handle,
       });
     rmm::device_uvector<vertex_t> rx_vertices(max_rx_size, handle.get_stream());
     auto rx_tmp_buffer = allocate_dataframe_buffer<
-      typename std::iterator_traits<VertexValueInputIterator>::value_type>(max_rx_size,
-                                                                           handle.get_stream());
+      typename std::iterator_traits<VertexPropertyInputIterator>::value_type>(max_rx_size,
+                                                                              handle.get_stream());
     auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
     auto key_offsets = GraphViewType::is_adj_matrix_transposed
@@ -183,7 +185,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
         thrust::gather(handle.get_thrust_policy(),
                        map_first,
                        map_first + thrust::distance(vertex_first, vertex_last),
-                       vertex_value_input_first,
+                       vertex_property_input_first,
                        rx_value_first);
       }
 
@@ -193,7 +195,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
         col_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
       device_bcast(col_comm, rx_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
 
-      if (matrix_major_value_output.key_first()) {
+      if (edge_partition_major_property_output.key_first()) {
         thrust::for_each(
           handle.get_thrust_policy(),
           thrust::make_counting_iterator(vertex_t{0}),
@@ -201,9 +203,10 @@ void copy_to_matrix_major(raft::handle_t const& handle,
           [rx_vertex_first = rx_vertices.begin(),
            rx_vertex_last  = rx_vertices.end(),
            rx_value_first,
-           output_key_first = *(matrix_major_value_output.key_first()) + (*key_offsets)[i],
-           output_value_first =
-             matrix_major_value_output.value_data() + (*key_offsets)[i]] __device__(auto i) {
+           output_key_first =
+             *(edge_partition_major_property_output.key_first()) + (*key_offsets)[i],
+           output_value_first = edge_partition_major_property_output.value_data() +
+                                (*key_offsets)[i]] __device__(auto i) {
             auto major = *(output_key_first + i);
             auto it    = thrust::lower_bound(thrust::seq, rx_vertex_first, rx_vertex_last, major);
             if ((it != rx_vertex_last) && (*it == major)) {
@@ -218,35 +221,36 @@ void copy_to_matrix_major(raft::handle_t const& handle,
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
-        thrust::scatter(
-          handle.get_thrust_policy(),
-          rx_value_first,
-          rx_value_first + rx_counts[i],
-          map_first,
-          matrix_major_value_output.value_data() + matrix_partition.get_major_value_start_offset());
+        thrust::scatter(handle.get_thrust_policy(),
+                        rx_value_first,
+                        rx_value_first + rx_counts[i],
+                        map_first,
+                        edge_partition_major_property_output.value_data() +
+                          matrix_partition.get_major_value_start_offset());
       }
     }
   } else {
-    assert(!(matrix_major_value_output.key_first()));
+    assert(!(edge_partition_major_property_output.key_first()));
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_cols()
              : graph_view.get_number_of_local_adj_matrix_partition_rows());
-    auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
+    auto val_first = thrust::make_permutation_iterator(vertex_property_input_first, vertex_first);
     thrust::scatter(handle.get_thrust_policy(),
                     val_first,
                     val_first + thrust::distance(vertex_first, vertex_last),
                     vertex_first,
-                    matrix_major_value_output.value_data());
+                    edge_partition_major_property_output.value_data());
   }
 }
 
 template <typename GraphViewType,
-          typename VertexValueInputIterator,
-          typename MatrixMinorValueOutputWrapper>
-void copy_to_matrix_minor(raft::handle_t const& handle,
-                          GraphViewType const& graph_view,
-                          VertexValueInputIterator vertex_value_input_first,
-                          MatrixMinorValueOutputWrapper& matrix_minor_value_output)
+          typename VertexPropertyInputIterator,
+          typename EdgePartitionMinorPropertyOutputWrapper>
+void update_edge_partition_minor_property(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexPropertyInputIterator vertex_property_input_first,
+  EdgePartitionMinorPropertyOutputWrapper& edge_partition_minor_property_output)
 {
   if constexpr (GraphViewType::is_multi_gpu) {
     using vertex_t = typename GraphViewType::vertex_type;
@@ -260,7 +264,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
-    if (matrix_minor_value_output.key_first()) {
+    if (edge_partition_minor_property_output.key_first()) {
       auto key_offsets = GraphViewType::is_adj_matrix_transposed
                            ? *(graph_view.get_local_sorted_unique_edge_row_offsets())
                            : *(graph_view.get_local_sorted_unique_edge_col_offsets());
@@ -271,26 +275,26 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
           max_rx_size, graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i));
       }
       auto rx_value_buffer = allocate_dataframe_buffer<
-        typename std::iterator_traits<VertexValueInputIterator>::value_type>(max_rx_size,
-                                                                             handle.get_stream());
+        typename std::iterator_traits<VertexPropertyInputIterator>::value_type>(
+        max_rx_size, handle.get_stream());
       auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffer);
       for (int i = 0; i < row_comm_size; ++i) {
         device_bcast(row_comm,
-                     vertex_value_input_first,
+                     vertex_property_input_first,
                      rx_value_first,
                      graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i),
                      i,
                      handle.get_stream());
 
         auto v_offset_first = thrust::make_transform_iterator(
-          *(matrix_minor_value_output.key_first()) + key_offsets[i],
+          *(edge_partition_minor_property_output.key_first()) + key_offsets[i],
           [v_first = graph_view.get_vertex_partition_first(
              col_comm_rank * row_comm_size + i)] __device__(auto v) { return v - v_first; });
         thrust::gather(handle.get_thrust_policy(),
                        v_offset_first,
                        v_offset_first + (key_offsets[i + 1] - key_offsets[i]),
                        rx_value_first,
-                       matrix_minor_value_output.value_data() + key_offsets[i]);
+                       edge_partition_minor_property_output.value_data() + key_offsets[i]);
       }
     } else {
       std::vector<size_t> rx_counts(row_comm_size, size_t{0});
@@ -300,34 +304,35 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
         displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
       }
       device_allgatherv(row_comm,
-                        vertex_value_input_first,
-                        matrix_minor_value_output.value_data(),
+                        vertex_property_input_first,
+                        edge_partition_minor_property_output.value_data(),
                         rx_counts,
                         displacements,
                         handle.get_stream());
     }
   } else {
-    assert(!(matrix_minor_value_output.key_first()));
+    assert(!(edge_partition_minor_property_output.key_first()));
     assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
              ? graph_view.get_number_of_local_adj_matrix_partition_rows()
              : graph_view.get_number_of_local_adj_matrix_partition_cols());
     thrust::copy(handle.get_thrust_policy(),
-                 vertex_value_input_first,
-                 vertex_value_input_first + graph_view.get_number_of_local_vertices(),
-                 matrix_minor_value_output.value_data());
+                 vertex_property_input_first,
+                 vertex_property_input_first + graph_view.get_number_of_local_vertices(),
+                 edge_partition_minor_property_output.value_data());
   }
 }
 
 template <typename GraphViewType,
           typename VertexIterator,
-          typename VertexValueInputIterator,
-          typename MatrixMinorValueOutputWrapper>
-void copy_to_matrix_minor(raft::handle_t const& handle,
-                          GraphViewType const& graph_view,
-                          VertexIterator vertex_first,
-                          VertexIterator vertex_last,
-                          VertexValueInputIterator vertex_value_input_first,
-                          MatrixMinorValueOutputWrapper& matrix_minor_value_output)
+          typename VertexPropertyInputIterator,
+          typename EdgePartitionMinorPropertyOutputWrapper>
+void update_edge_partition_minor_property(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexIterator vertex_first,
+  VertexIterator vertex_last,
+  VertexPropertyInputIterator vertex_property_input_first,
+  EdgePartitionMinorPropertyOutputWrapper& edge_partition_minor_property_output)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -353,8 +358,8 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       });
     rmm::device_uvector<vertex_t> rx_vertices(max_rx_size, handle.get_stream());
     auto rx_tmp_buffer = allocate_dataframe_buffer<
-      typename std::iterator_traits<VertexValueInputIterator>::value_type>(max_rx_size,
-                                                                           handle.get_stream());
+      typename std::iterator_traits<VertexPropertyInputIterator>::value_type>(max_rx_size,
+                                                                              handle.get_stream());
     auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
     auto key_offsets = GraphViewType::is_adj_matrix_transposed
@@ -378,7 +383,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
         thrust::gather(handle.get_thrust_policy(),
                        map_first,
                        map_first + thrust::distance(vertex_first, vertex_last),
-                       vertex_value_input_first,
+                       vertex_property_input_first,
                        rx_value_first);
       }
 
@@ -388,7 +393,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
         row_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
       device_bcast(row_comm, rx_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
 
-      if (matrix_minor_value_output.key_first()) {
+      if (edge_partition_minor_property_output.key_first()) {
         thrust::for_each(
           handle.get_thrust_policy(),
           thrust::make_counting_iterator(vertex_t{0}),
@@ -396,9 +401,10 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
           [rx_vertex_first = rx_vertices.begin(),
            rx_vertex_last  = rx_vertices.end(),
            rx_value_first,
-           output_key_first = *(matrix_minor_value_output.key_first()) + (*key_offsets)[i],
-           output_value_first =
-             matrix_minor_value_output.value_data() + (*key_offsets)[i]] __device__(auto i) {
+           output_key_first =
+             *(edge_partition_minor_property_output.key_first()) + (*key_offsets)[i],
+           output_value_first = edge_partition_minor_property_output.value_data() +
+                                (*key_offsets)[i]] __device__(auto i) {
             auto minor = *(output_key_first + i);
             auto it    = thrust::lower_bound(thrust::seq, rx_vertex_first, rx_vertex_last, minor);
             if ((it != rx_vertex_last) && (*it == minor)) {
@@ -417,191 +423,200 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
                         rx_value_first,
                         rx_value_first + rx_counts[i],
                         map_first,
-                        matrix_minor_value_output.value_data());
+                        edge_partition_minor_property_output.value_data());
       }
     }
   } else {
-    assert(!(matrix_minor_value_output.key_first()));
+    assert(!(edge_partition_minor_property_output.key_first()));
     assert(graph_view.get_number_of_local_vertices() ==
            graph_view.get_number_of_local_adj_matrix_partition_rows());
-    auto val_first = thrust::make_permutation_iterator(vertex_value_input_first, vertex_first);
+    auto val_first = thrust::make_permutation_iterator(vertex_property_input_first, vertex_first);
     thrust::scatter(handle.get_thrust_policy(),
                     val_first,
                     val_first + thrust::distance(vertex_first, vertex_last),
                     vertex_first,
-                    matrix_minor_value_output.value_data());
+                    edge_partition_minor_property_output.value_data());
   }
 }
 
 }  // namespace detail
 
 /**
- * @brief Copy vertex property values to the corresponding graph adjacency matrix row property
- * variables.
+ * @brief Update graph edge partition source property values from the input vertex property values.
  *
- * This version fills the entire set of graph adjacency matrix row property values.
+ * This version updates graph edge partition property values for the entire edge partition source
+ * ranges (assigned to this process in multi-GPU).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
+ * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param adj_matrix_row_value_output Wrapper used to access data storage to copy row properties
- * (for the rows assigned to this process in multi-GPU).
+ * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
+ * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
+ * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
+ * graph_view.get_number_of_local_vertices().
+ * @param edge_partition_source_property_output Wrapper used to store edge partition source property
+ * values (for the edge partitions assigned to this process in multi-GPU).
  */
-template <typename GraphViewType, typename VertexValueInputIterator>
-void copy_to_adj_matrix_row(
+template <typename GraphViewType, typename VertexPropertyInputIterator>
+void update_edge_partition_src_property(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  VertexValueInputIterator vertex_value_input_first,
-  row_properties_t<GraphViewType,
-                   typename std::iterator_traits<VertexValueInputIterator>::value_type>&
-    adj_matrix_row_value_output)
+  VertexPropertyInputIterator vertex_property_input_first,
+  edge_partition_src_property_t<
+    GraphViewType,
+    typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
+    edge_partition_src_property_output)
 {
   if constexpr (GraphViewType::is_adj_matrix_transposed) {
-    copy_to_matrix_minor(handle, graph_view, vertex_value_input_first, adj_matrix_row_value_output);
+    update_edge_partition_minor_property(
+      handle, graph_view, vertex_property_input_first, edge_partition_src_property_output);
   } else {
-    copy_to_matrix_major(handle, graph_view, vertex_value_input_first, adj_matrix_row_value_output);
+    update_edge_partition_major_property(
+      handle, graph_view, vertex_property_input_first, edge_partition_src_property_output);
   }
 }
 
 /**
- * @brief Copy vertex property values to the corresponding graph adjacency matrix row property
- * variables.
+ * @brief Update graph edge partition source property values from the input vertex property values.
  *
- * This version fills only a subset of graph adjacency matrix row property values. [@p vertex_first,
- * @p vertex_last) specifies the vertices with new values to be copied to graph adjacency matrix row
- * property variables.
+ * This version updates only a subset of graph edge partition source property values. [@p
+ * vertex_first, @p vertex_last) specifies the vertices with new property values to be updated.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator  Type of the iterator for vertex identifiers.
- * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
+ * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_first Iterator pointing to the first (inclusive) vertex with new values to be
- * copied. v in [vertex_first, vertex_last) should be distinct (and should belong to this process in
- * multi-GPU), otherwise undefined behavior
- * @param vertex_last Iterator pointing to the last (exclusive) vertex with new values to be copied.
- * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param adj_matrix_row_value_output Wrapper used to access data storage to copy row properties
- * (for the rows assigned to this process in multi-GPU).
+ * @param vertex_first Iterator pointing to the first (inclusive) vertex with a new value to be
+ * updated. v in [vertex_first, vertex_last) should be distinct (and should belong to the vertex
+ * partition assigned to this process in multi-GPU), otherwise undefined behavior.
+ * @param vertex_last Iterator pointing to the last (exclusive) vertex with a new value.
+ * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
+ * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
+ * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
+ * graph_view.get_number_of_local_vertices().
+ * @param edge_partition_source_property_output Wrapper used to store edge partition source property
+ * values (for the edge partitions assigned to this process in multi-GPU).
  */
-template <typename GraphViewType, typename VertexIterator, typename VertexValueInputIterator>
-void copy_to_adj_matrix_row(
+template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
+void update_edge_partition_src_property(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   VertexIterator vertex_first,
   VertexIterator vertex_last,
-  VertexValueInputIterator vertex_value_input_first,
-  row_properties_t<GraphViewType,
-                   typename std::iterator_traits<VertexValueInputIterator>::value_type>&
-    adj_matrix_row_value_output)
+  VertexPropertyInputIterator vertex_property_input_first,
+  edge_partition_src_property_t<
+    GraphViewType,
+    typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
+    edge_partition_src_property_output)
 {
   if constexpr (GraphViewType::is_adj_matrix_transposed) {
-    copy_to_matrix_minor(handle,
-                         graph_view,
-                         vertex_first,
-                         vertex_last,
-                         vertex_value_input_first,
-                         adj_matrix_row_value_output);
+    detail::update_edge_partition_minor_property(handle,
+                                                 graph_view,
+                                                 vertex_first,
+                                                 vertex_last,
+                                                 vertex_property_input_first,
+                                                 edge_partition_src_property_output);
   } else {
-    copy_to_matrix_major(handle,
-                         graph_view,
-                         vertex_first,
-                         vertex_last,
-                         vertex_value_input_first,
-                         adj_matrix_row_value_output);
+    detail::update_edge_partition_major_property(handle,
+                                                 graph_view,
+                                                 vertex_first,
+                                                 vertex_last,
+                                                 vertex_property_input_first,
+                                                 edge_partition_src_property_output);
   }
 }
 
 /**
- * @brief Copy vertex property values to the corresponding graph adjacency matrix column property
- * variables.
+ * @brief Update graph edge partition destination property values from the input vertex property
+ * values.
  *
- * This version fills the entire set of graph adjacency matrix column property values.
+ * This version updates graph edge partition property values for the entire edge partition
+ * destination ranges (assigned to this process in multi-GPU).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
+ * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param adj_matrix_col_value_output Wrapper used to access data storage to copy column properties
- * (for the columns assigned to this process in multi-GPU).
+ * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
+ * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
+ * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
+ * graph_view.get_number_of_local_vertices().
+ * @param edge_partition_dst_property_output Wrapper used to store edge partition source property
+ * values (for the edge partitions assigned to this process in multi-GPU).
  */
-template <typename GraphViewType, typename VertexValueInputIterator>
-void copy_to_adj_matrix_col(
+template <typename GraphViewType, typename VertexPropertyInputIterator>
+void update_edge_partition_dst_property(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  VertexValueInputIterator vertex_value_input_first,
+  VertexPropertyInputIterator vertex_property_input_first,
   col_properties_t<GraphViewType,
-                   typename std::iterator_traits<VertexValueInputIterator>::value_type>&
-    adj_matrix_col_value_output)
+                   typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
+    edge_partition_dst_property_output)
 {
   if constexpr (GraphViewType::is_adj_matrix_transposed) {
-    copy_to_matrix_major(handle, graph_view, vertex_value_input_first, adj_matrix_col_value_output);
+    detail::update_edge_partition_major_property(
+      handle, graph_view, vertex_property_input_first, edge_partition_dst_property_output);
   } else {
-    copy_to_matrix_minor(handle, graph_view, vertex_value_input_first, adj_matrix_col_value_output);
+    detail::update_edge_partition_minor_property(
+      handle, graph_view, vertex_property_input_first, edge_partition_dst_property_output);
   }
 }
 
 /**
- * @brief Copy vertex property values to the corresponding graph adjacency matrix column property
- * variables.
+ * @brief Update graph edge partition destination property values from the input vertex property
+ * values.
  *
- * This version fills only a subset of graph adjacency matrix column property values. [@p
- * vertex_first, @p vertex_last) specifies the vertices with new values to be copied to graph
- * adjacency matrix column property variables.
+ * This version updates only a subset of graph edge partition destination property values. [@p
+ * vertex_first, @p vertex_last) specifies the vertices with new property values to be updated.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator  Type of the iterator for vertex identifiers.
- * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
+ * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_first Iterator pointing to the first (inclusive) vertex with new values to be
- * copied. v in [vertex_first, vertex_last) should be distinct (and should belong to this process in
- * multi-GPU), otherwise undefined behavior
- * @param vertex_last Iterator pointing to the last (exclusive) vertex with new values to be copied.
- * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param adj_matrix_col_value_output Wrapper used to access data storage to copy column properties
- * (for the columns assigned to this process in multi-GPU).
+ * @param vertex_first Iterator pointing to the first (inclusive) vertex with a new value to be
+ * updated. v in [vertex_first, vertex_last) should be distinct (and should belong to the vertex
+ * partition assigned to this process in multi-GPU), otherwise undefined behavior.
+ * @param vertex_last Iterator pointing to the last (exclusive) vertex with a new value.
+ * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
+ * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
+ * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
+ * graph_view.get_number_of_local_vertices().
+ * @param edge_partition_dst_property_output Wrapper used to store edge partition source property
+ * values (for the edge partitions assigned to this process in multi-GPU). (for the columns assigned
+ * to this process in multi-GPU).
  */
-template <typename GraphViewType, typename VertexIterator, typename VertexValueInputIterator>
-void copy_to_adj_matrix_col(
+template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
+void update_edge_partition_dst(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   VertexIterator vertex_first,
   VertexIterator vertex_last,
-  VertexValueInputIterator vertex_value_input_first,
+  VertexPropertyInputIterator vertex_property_input_first,
   col_properties_t<GraphViewType,
-                   typename std::iterator_traits<VertexValueInputIterator>::value_type>&
-    adj_matrix_col_value_output)
+                   typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
+    edge_partition_dst_property_output)
 {
   if constexpr (GraphViewType::is_adj_matrix_transposed) {
-    copy_to_matrix_major(handle,
-                         graph_view,
-                         vertex_first,
-                         vertex_last,
-                         vertex_value_input_first,
-                         adj_matrix_col_value_output);
+    detail::update_edge_partition_major_property(handle,
+                                                 graph_view,
+                                                 vertex_first,
+                                                 vertex_last,
+                                                 vertex_property_input_first,
+                                                 edge_partition_dst_property_output);
   } else {
-    copy_to_matrix_minor(handle,
-                         graph_view,
-                         vertex_first,
-                         vertex_last,
-                         vertex_value_input_first,
-                         adj_matrix_col_value_output);
+    detail::update_edge_partition_minor_property(handle,
+                                                 graph_view,
+                                                 vertex_first,
+                                                 vertex_last,
+                                                 vertex_property_input_first,
+                                                 edge_partition_dst_property_output);
   }
 }
 
