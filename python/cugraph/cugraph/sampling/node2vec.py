@@ -16,7 +16,12 @@ import cudf
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 
-def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
+def node2vec(G,
+             start_vertices,
+             max_depth=None,
+             use_padding=False,
+             p=1.0,
+             q=1.0):
     """
     Computes random walks for each node in 'start_vertices', under the
     node2vec sampling framework.
@@ -32,28 +37,31 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     ----------
     G : cuGraph.Graph or networkx.Graph
         The graph can be either directed (DiGraph) or undirected (Graph).
+        Weights in the graph are ignored.
 
-    start_vertices: int or list or cudf.Series
+    start_vertices: int or list or cudf.Series or cudf.DataFrame
         A single node or a list or a cudf.Series of nodes from which to run
-        the random walks
+        the random walks. In case of multi-column vertices it should be
+        a cudf.DataFrame
 
-    max_depth: int, optional
+    max_depth: int
         The maximum depth of the random walks
 
-    use_padding: bool, optional
+    use_padding: bool, optional (default=False)
         If True, padded paths are returned else coalesced paths are returned
 
-    p: double, optional
+    p: double, optional (default=1.0, [0 < p])
         Return factor, which represents the likelihood of backtracking to
         a previous node in the walk. A higher value makes it less likely to
         sample a previously visited node, while a lower value makes it more
-        likely to backtrack, making the walk "local"
+        likely to backtrack, making the walk "local". A positive double.
 
-    q: double, optional
+    q: double, optional (default=1.0, [0 < q])
         In-out factor, which represents the likelihood of visiting nodes
         closer or further from the outgoing node. If q > 1, the random walk
         is likelier to visit nodes closer to the outgoing node. If q < 1, the
         random walk is likelier to visit nodes further from the outgoing node.
+        A positive double.
 
     Returns
     -------
@@ -78,6 +86,8 @@ def node2vec(G, start_vertices, max_depth, use_padding, p=1.0, q=1.0):
     ...                                               True, 0.8, 0.5)
 
     """
+    if max_depth is None:
+        raise TypeError("must specify a 'max_depth'")
     if (not isinstance(max_depth, int)) or (max_depth < 1):
         raise ValueError("'max_depth' must be a positive integer")
     if (not isinstance(use_padding, bool)):
