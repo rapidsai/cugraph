@@ -1,0 +1,24 @@
+{
+  "packages" : {
+    "GTest" : {
+      "version" : "1.10",
+      "git_url" : "https://github.com/google/googletest.git",
+      "git_tag" : "release-${version}.0"
+    },
+    "rmm" : {
+      "version" : "${rapids-cmake-version}",
+      "git_url" : "https://github.com/rapidsai/rmm.git",
+      "git_tag" : "branch-${version}"
+    },
+    "Thrust" : {
+      "version" : "1.15.0",
+      "git_url" : "https://github.com/NVIDIA/thrust.git",
+      "git_tag" : "${version}"
+    },
+    "libcudacxx" : {
+      "version" : "1.7.0",
+      "git_url" : "https://github.com/NVIDIA/libcudacxx.git",
+      "git_tag" : "${version}"
+    }
+  }
+}

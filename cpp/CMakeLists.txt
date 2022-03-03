@@ -128,7 +128,7 @@ endif()
 ###################################################################################################
 # - find CPM based dependencies  ------------------------------------------------------------------
 
-rapids_cpm_init()
+rapids_cpm_init(OVERRIDE versions.json)
 
 ###
 # Linking to the `raft::raft` target implicitly links cugraph targets to the
