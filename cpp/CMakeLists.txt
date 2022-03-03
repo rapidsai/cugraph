@@ -79,6 +79,7 @@ rapids_cmake_build_type(Release)
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
+option(OVERRIDE_RAFT_VERSIONS "Uses local find_package calls for cuco, thrust, libcucxx, and ucx" OFF)
 
 ################################################################################
 # - compiler options -----------------------------------------------------------
@@ -144,11 +145,13 @@ rapids_cpm_init()
 # error-prone if something about those targets change and our implementation
 # lags behind.
 ###
-include(cmake/thirdparty/get_ucx.cmake)
-include(cmake/thirdparty/get_thrust.cmake)
-include(cmake/thirdparty/get_rmm.cmake)
-include(cmake/thirdparty/get_libcudacxx.cmake)
-include(cmake/thirdparty/get_cuco.cmake)
+if(OVERRIDE_RAFT_VERSIONS)
+    include(cmake/thirdparty/get_ucx.cmake)
+    include(cmake/thirdparty/get_thrust.cmake)
+    include(cmake/thirdparty/get_rmm.cmake)
+    include(cmake/thirdparty/get_libcudacxx.cmake)
+    include(cmake/thirdparty/get_cuco.cmake)
+endif()
 include(cmake/thirdparty/get_raft.cmake)
 include(cmake/thirdparty/get_libcugraphops.cmake)
 
