@@ -25,7 +25,7 @@ function(find_and_configure_raft)
     set(oneValueArgs VERSION FORK PINNED_TAG CLONE_ON_PIN)
     cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN} )
 
-    if(PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "branch-${CUGRAPH_BRANCH_VERSION_raft}")
+    if(PKG_CLONE_ON_PIN)
         message("Pinned tag found: ${PKG_PINNED_TAG}. Cloning raft locally.")
         set(CPM_DOWNLOAD_raft ON)
     endif()

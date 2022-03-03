@@ -1,4 +1,4 @@
 *.cpp
 __pycache__
 _external_repositories
-raft/
+cugraph/raft
