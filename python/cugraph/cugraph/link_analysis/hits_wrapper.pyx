@@ -27,7 +27,7 @@ from cugraph.structure.graph_utilities cimport (graph_container_t,
                                                 numberTypeEnum,
                                                 populate_graph_container,
                                                )
-from raft.common.handle cimport handle_t
+from cugraph.raft.common.handle cimport handle_t
 from cugraph.link_analysis cimport hits as c_hits
 
 

@@ -17,6 +17,9 @@
 set(CUGRAPH_MIN_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
 set(CUGRAPH_BRANCH_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
 
+set(CUGAPH_RAFT_FORK "rapidsai")
+set(CUGRAPH_RAFT_PINNED_TAG "branch-${CUGRAPH_BRANCH_VERSION_raft}")
+
 function(find_and_configure_raft)
 
     set(oneValueArgs VERSION FORK PINNED_TAG CLONE_ON_PIN)
@@ -52,11 +55,13 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # RPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
-                        FORK       rapidsai
-                        PINNED_TAG branch-${CUGRAPH_BRANCH_VERSION_raft}
+                        FORK       ${CUGRAPH_RAFT_FORK}
+                        PINNED_TAG ${CUGRAPH_RAFT_PINNED_TAG}
 
                         # When PINNED_TAG above doesn't match cugraph,
                         # force local raft clone in build directory
                         # even if it's already installed.
                         CLONE_ON_PIN     ON
                         )
+
+

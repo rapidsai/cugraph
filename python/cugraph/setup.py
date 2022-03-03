@@ -133,6 +133,7 @@ class CleanCommand(Command):
         os.system('rm -rf *.egg-info')
         os.system('find . -name "*.cpp" -type f -delete')
         os.system('find . -name "*.cpython*.so" -type f -delete')
+        os.remove(setupFileDir + '/cugraph/raft')
 
 
 class build_ext_no_debug(_build_ext):

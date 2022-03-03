@@ -18,7 +18,7 @@ from libcpp.utility cimport pair
 
 from rmm._lib.device_buffer cimport device_buffer
 
-from raft.common.handle cimport handle_t
+from cugraph.raft.common.handle cimport handle_t
 from cugraph.structure.graph_utilities cimport graph_generator_t
 
 

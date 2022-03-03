@@ -25,11 +25,11 @@ from cugraph.structure.graph_utilities cimport (populate_graph_container,
                                                 move as graph_utils_move,
                                                 )
 from cugraph.structure.graph_primtypes cimport move_device_buffer_to_column
-from raft.common.handle cimport handle_t
+from cugraph.raft.common.handle cimport handle_t
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.community.egonet cimport call_egonet
-from raft.common.handle cimport handle_t
-from raft.common.handle import Handle
+from cugraph.raft.common.handle cimport handle_t
+from cugraph.raft.common.handle import Handle
 
 
 def egonet(input_graph, vertices, radius=1):

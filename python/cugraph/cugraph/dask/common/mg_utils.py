@@ -18,7 +18,7 @@ import numba.cuda
 from dask_cuda import LocalCUDACluster
 from dask.distributed import Client
 
-from raft.dask.common.utils import default_client
+from cugraph.raft.dask.common.utils import default_client
 # FIXME: cugraph/__init__.py also imports the comms module, but
 # depending on the import environment, cugraph/comms/__init__.py
 # may be imported instead. The following imports the comms.py

@@ -14,7 +14,7 @@
 from libcpp cimport bool
 
 from cugraph.structure.graph_utilities cimport graph_container_t
-from raft.common.handle cimport handle_t
+from cugraph.raft.common.handle cimport handle_t
 
 
 cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
