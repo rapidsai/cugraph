@@ -33,7 +33,7 @@ import setuptools.command.build_ext
 from setuptools import find_packages, setup, Command
 from setuptools.extension import Extension
 
-from setuputils import get_environment_option
+from setuputils import use_raft_package, get_environment_option
 
 import versioneer
 
@@ -79,6 +79,9 @@ cuda_lib_dir = os.path.join(CUDA_HOME, "lib64")
 
 # Optional location of C++ build folder that can be configured by the user
 libcugraph_path = get_environment_option('CUGRAPH_BUILD_PATH')
+raft_path = get_environment_option('RAFT_PATH')
+
+raft_include_dir = use_raft_package(raft_path, libcugraph_path)
 
 if not libcugraph_path:
     libcugraph_path = conda_lib_dir
@@ -91,6 +94,7 @@ extensions = [
                   ucx_include_dir,
                   '../cpp/include',
                   "../thirdparty/cub",
+                  raft_include_dir,
                   os.path.join(conda_include_dir, "libcudacxx"),
                   cuda_include_dir,
                   os.path.dirname(sysconfig.get_path("include"))

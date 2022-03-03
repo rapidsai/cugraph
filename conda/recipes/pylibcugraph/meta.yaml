@@ -36,7 +36,6 @@ requirements:
     - libraft-headers {{ minor_version }}
   run:
     - python x.x
-    - libraft-headers {{ minor_version }}
     - libcugraph={{ version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
 
