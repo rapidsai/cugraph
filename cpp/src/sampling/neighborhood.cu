@@ -18,7 +18,7 @@
 
 #include <utilities/cugraph_ops_utils.hpp>
 
-#include <cugraph-ops/graph/sampling.h>
+#include <cugraph-ops/graph/sampling.hpp>
 
 namespace cugraph {
 
