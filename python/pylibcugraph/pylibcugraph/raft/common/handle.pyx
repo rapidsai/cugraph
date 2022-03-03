@@ -39,7 +39,7 @@ cdef class Handle:
 
     .. code-block:: python
 
-        from raft.common import Stream, Handle
+        from cugraph.raft.common import Stream, Handle
         stream = Stream()
         handle = Handle(stream)
 
