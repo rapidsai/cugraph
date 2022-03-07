@@ -357,80 +357,84 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
       auto&& [d_new_in, d_new_rank] = gather_active_sources_in_row(
         handle, graph_view, d_in.cbegin(), d_in.cend(), d_ranks.cbegin());
 
-      // extract out-degs(sources):
-      //
-      auto&& d_out_degs =
-        get_active_major_global_degrees(handle, graph_view, d_new_in, global_degree_offsets);
+      auto in_sz = d_new_in.size();
+      if (in_sz > 0) {
+        // extract out-degs(sources):
+        //
+        auto&& d_out_degs =
+          get_active_major_global_degrees(handle, graph_view, d_new_in, global_degree_offsets);
 
-      // segemented-random-generation of indices:
-      //
-      device_vec_t<edge_t> d_indices(d_in.size() * k_level, handle.get_stream());
-      seeder_t seeder{};
-      cugraph_ops::Rng rng(seeder() + k_level);
-      cugraph_ops::get_sampling_index(detail::raw_ptr(d_indices),
-                                      rng,
-                                      detail::raw_const_ptr(d_out_degs),
-                                      static_cast<edge_t>(d_out_degs.size()),
-                                      static_cast<int32_t>(k_level),
-                                      flag_replacement,
-                                      handle.get_stream());
+        // segemented-random-generation of indices:
+        //
+        device_vec_t<edge_t> d_indices(in_sz * k_level, handle.get_stream());
+        seeder_t seeder{};
+        cugraph_ops::Rng rng(seeder() + k_level);
+        cugraph_ops::get_sampling_index(detail::raw_ptr(d_indices),
+                                        rng,
+                                        detail::raw_const_ptr(d_out_degs),
+                                        static_cast<edge_t>(d_out_degs.size()),
+                                        static_cast<int32_t>(k_level),
+                                        flag_replacement,
+                                        handle.get_stream());
 
-      // gather edges step:
-      // invalid entries (not found, etc.) filtered out in result;
-      // d_indices[] filtered out in-place (to avoid copies+moves);
-      //
-      auto&& [d_out_src, d_out_dst, d_out_ranks] = gather_local_edges(handle,
-                                                                      graph_view,
-                                                                      d_new_in,
-                                                                      d_new_rank,
-                                                                      d_indices,
-                                                                      static_cast<edge_t>(k_level),
-                                                                      global_degree_offsets);
+        // gather edges step:
+        // invalid entries (not found, etc.) filtered out in result;
+        // d_indices[] filtered out in-place (to avoid copies+moves);
+        //
+        auto&& [d_out_src, d_out_dst, d_out_ranks] =
+          gather_local_edges(handle,
+                             graph_view,
+                             d_new_in,
+                             d_new_rank,
+                             d_indices,
+                             static_cast<edge_t>(k_level),
+                             global_degree_offsets);
 
-      // resize accumulators:
-      //
-      auto old_sz = d_acc_dst.size();
-      auto add_sz = d_out_dst.size();
-      auto new_sz = old_sz + add_sz;
+        // resize accumulators:
+        //
+        auto old_sz = d_acc_dst.size();
+        auto add_sz = d_out_dst.size();
+        auto new_sz = old_sz + add_sz;
 
-      d_acc_src.resize(new_sz, handle.get_stream());
-      d_acc_dst.resize(new_sz, handle.get_stream());
-      d_acc_ranks.resize(new_sz, handle.get_stream());
-      d_acc_indices.resize(new_sz, handle.get_stream());
+        d_acc_src.resize(new_sz, handle.get_stream());
+        d_acc_dst.resize(new_sz, handle.get_stream());
+        d_acc_ranks.resize(new_sz, handle.get_stream());
+        d_acc_indices.resize(new_sz, handle.get_stream());
 
-      // zip quad; must be done after resizing,
-      // because they grow from one iteration to another,
-      // so iterators could be invalidated:
-      //
-      auto acc_zip_it =
-        thrust::make_zip_iterator(thrust::make_tuple(d_acc_src.begin() + old_sz,
-                                                     d_acc_dst.begin() + old_sz,
-                                                     d_acc_ranks.begin() + old_sz,
-                                                     d_acc_indices.begin() + old_sz));
+        // zip quad; must be done after resizing,
+        // because they grow from one iteration to another,
+        // so iterators could be invalidated:
+        //
+        auto acc_zip_it =
+          thrust::make_zip_iterator(thrust::make_tuple(d_acc_src.begin() + old_sz,
+                                                       d_acc_dst.begin() + old_sz,
+                                                       d_acc_ranks.begin() + old_sz,
+                                                       d_acc_indices.begin() + old_sz));
 
-      // union step:
-      //
-      auto out_zip_it = thrust::make_zip_iterator(thrust::make_tuple(
-        d_out_src.begin(), d_out_dst.begin(), d_out_ranks.begin(), d_indices.begin()));
+        // union step:
+        //
+        auto out_zip_it = thrust::make_zip_iterator(thrust::make_tuple(
+          d_out_src.begin(), d_out_dst.begin(), d_out_ranks.begin(), d_indices.begin()));
 
-      thrust::copy_n(handle.get_thrust_policy(), out_zip_it, add_sz, acc_zip_it);
+        thrust::copy_n(handle.get_thrust_policy(), out_zip_it, add_sz, acc_zip_it);
 
-      // shuffle step: update input for self_rank
-      // zipping is necessary to preserve rank info during shuffle!
-      //
-      auto next_in_zip_begin =
-        thrust::make_zip_iterator(thrust::make_tuple(d_out_dst.begin(), d_out_ranks.begin()));
-      auto next_in_zip_end =
-        thrust::make_zip_iterator(thrust::make_tuple(d_out_dst.end(), d_out_ranks.end()));
+        // shuffle step: update input for self_rank
+        // zipping is necessary to preserve rank info during shuffle!
+        //
+        auto next_in_zip_begin =
+          thrust::make_zip_iterator(thrust::make_tuple(d_out_dst.begin(), d_out_ranks.begin()));
+        auto next_in_zip_end =
+          thrust::make_zip_iterator(thrust::make_tuple(d_out_dst.end(), d_out_ranks.end()));
 
-      update_input_by_rank(handle,
-                           graph_view,
-                           next_in_zip_begin,
-                           next_in_zip_end,
-                           static_cast<size_t>(self_rank),
-                           d_in,
-                           d_ranks,
-                           gpu_t{});
+        update_input_by_rank(handle,
+                             graph_view,
+                             next_in_zip_begin,
+                             next_in_zip_end,
+                             static_cast<size_t>(self_rank),
+                             d_in,
+                             d_ranks,
+                             gpu_t{});
+      }
 
       //}
       ++level;
