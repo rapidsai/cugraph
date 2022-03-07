@@ -30,8 +30,8 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/spectral/modularity_maximization.hpp>
-#include <raft/spectral/partition.hpp>
+#include <raft/spectral/modularity_maximization.cuh>
+#include <raft/spectral/partition.cuh>
 
 namespace cugraph {
 
