@@ -108,10 +108,9 @@ class Tests_MG_Nbr_Sampling
                                                                h_fan_out,
                                                                true);
 
-    auto&& src                 = std::get<0>(tuple_quad);
-    auto&& dst                 = std::get<1>(tuple_quad);
-    auto&& gpu_ids             = std::get<2>(tuple_quad);
-    auto&& destination_indices = std::get<3>(tuple_quad);
+    auto&& d_src_out = std::get<0>(tuple_quad);
+    auto&& d_dst_out = std::get<1>(tuple_quad);
+    auto&& d_gpu_ids = std::get<2>(tuple_quad);
 
     if (prims_usecase.check_correctness) {
       auto self_rank = handle.get_comms().get_rank();
@@ -130,7 +129,71 @@ class Tests_MG_Nbr_Sampling
         auto&& [tuple_vertex_ranks, counts] = cugraph::detail::shuffle_to_gpus(
           handle, mg_graph_view, begin_in_pairs, end_in_pairs, gpu_t{});
 
-        bool passed = true;
+        auto num_ranks = v_sizes.size();
+        ASSERT_TRUE(counts.size() == num_ranks);  // == #ranks
+
+        // CAVEAT: in size << out_size;
+        //
+        auto total_in_sizes  = std::accumulate(counts.begin(), counts.end(), 0);
+        auto total_out_sizes = std::accumulate(v_sizes.begin(), v_sizes.end(), 0);
+
+        // merge inputs / outputs to be checked on host:
+        //
+        std::vector<vertex_t> h_start_in{};
+        h_start_in.reserve(total_in_sizes);
+
+        std::vector<gpu_t> h_ranks_in{};
+        h_ranks_in.reserve(total_in_sizes);
+
+        std::vector<vertex_t> h_src_out{};
+        h_src_out.reserve(total_out_sizes);
+
+        std::vector<vertex_t> h_dst_out{};
+        h_dst_out.reserve(total_out_sizes);
+
+        std::vector<gpu_t> h_ranks_out{};
+        h_ranks_out.reserve(total_out_sizes);
+
+        auto filler = [&handle](auto const& coalesced_in,
+                                auto& accumulator,
+                                auto& v_per_rank,
+                                auto count,
+                                auto offset) {
+          auto start_offset_in = coalesced_in.cbegin() + offset;
+
+          raft::update_host(
+            v_per_rank.data(), start_offset_in, static_cast<size_t>(count), handle.get_stream());
+
+          accumulator.insert(accumulator.begin() + offset, v_per_rank.begin(), v_per_rank.end());
+        };
+
+        size_t in_offset  = 0;
+        size_t out_offset = 0;
+        for (size_t index_rank = 0; index_rank < num_ranks; ++index_rank) {
+          auto in_sz = counts[index_rank];
+          std::vector<vertex_t> per_rank_start_in(in_sz);
+          std::vector<gpu_t> per_rank_in(in_sz);
+
+          filler(std::get<0>(tuple_vertex_ranks), h_start_in, per_rank_start_in, in_sz, in_offset);
+
+          filler(std::get<1>(tuple_vertex_ranks), h_ranks_in, per_rank_in, in_sz, in_offset);
+
+          auto out_sz = v_sizes[index_rank];
+          std::vector<vertex_t> per_rank_src_out(out_sz);
+          std::vector<vertex_t> per_rank_dst_out(out_sz);
+          std::vector<gpu_t> per_rank_out(out_sz);
+
+          filler(d_src_out, h_src_out, per_rank_src_out, out_sz, out_offset);
+          filler(d_dst_out, h_dst_out, per_rank_dst_out, out_sz, out_offset);
+          filler(d_gpu_ids, h_ranks_out, per_rank_out, out_sz, out_offset);
+
+          in_offset += in_sz;
+          out_offset += out_sz;
+        }
+
+        bool passed = cugraph::test::check_forest_trees_by_rank(
+          h_start_in, h_ranks_in, h_src_out, h_dst_out, h_ranks_out);
+
         ASSERT_TRUE(passed);
       }
     }
