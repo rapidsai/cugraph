@@ -45,6 +45,7 @@ requirements:
     - libcudf {{ minor_version }}.*
     - libcugraph {{ minor_version }}.*
     - libraft-headers {{ minor_version }}
+    - librmm {{ minor_version }}
 
 about:
   home: http://rapids.ai/
