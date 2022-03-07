@@ -15,6 +15,8 @@
  */
 
 #include "nbr_sampling_utils.cuh"
+#include <sampling/nbr_sampling.cuh>
+
 #include <gtest/gtest.h>
 
 struct Prims_Usecase {
@@ -36,6 +38,7 @@ class Tests_MG_Nbr_Sampling
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     using namespace cugraph::test;
+    using gpu_t = int;
 
     // 1. initialize handle
 
@@ -89,7 +92,7 @@ class Tests_MG_Nbr_Sampling
                                             mg_graph_view.get_local_vertex_last(),
                                             source_sample_count,
                                             repetitions_per_vertex);
-    rmm::device_uvector<int> random_source_gpu_ids(random_sources.size(), handle.get_stream());
+    rmm::device_uvector<gpu_t> random_source_gpu_ids(random_sources.size(), handle.get_stream());
     thrust::fill(handle.get_thrust_policy(),
                  random_source_gpu_ids.begin(),
                  random_source_gpu_ids.end(),
@@ -111,64 +114,23 @@ class Tests_MG_Nbr_Sampling
     auto&& destination_indices = std::get<3>(tuple_quad);
 
     if (prims_usecase.check_correctness) {
-      // Gather outputs
-      auto mg_out_srcs = cugraph::test::device_gatherv(handle, src.data(), src.size());
-      auto mg_out_dsts = cugraph::test::device_gatherv(handle, dst.data(), dst.size());
+      auto self_rank = handle.get_comms().get_rank();
 
-      // Gather inputs
-      auto& col_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_rank = col_comm.get_rank();
-      auto sg_random_srcs = cugraph::test::device_gatherv(
-        handle, src.data(), col_rank == 0 ? src.size() : 0);  // TODO: confirm if correct
+      // bring inputs and outputs on one rank
+      // and check if test passed:
+      //
+      if (self_rank == gpu_t{0}) {
+        auto begin_in_pairs = thrust::make_zip_iterator(
+          thrust::make_tuple(random_sources.begin(), random_source_gpu_ids.begin()));
+        auto end_in_pairs = thrust::make_zip_iterator(
+          thrust::make_tuple(random_sources.end(), random_source_gpu_ids.end()));
 
-      auto sg_random_dst_indices = cugraph::test::device_gatherv(
-        handle, destination_indices.data(), col_rank == 0 ? destination_indices.size() : 0);
+        // gather input:
+        //
+        auto&& [tuple_vertex_ranks, counts] = cugraph::detail::shuffle_to_gpus(
+          handle, mg_graph_view, begin_in_pairs, end_in_pairs, gpu_t{});
 
-      // Gather input graph edgelist
-      rmm::device_uvector<vertex_t> sg_src(0, handle.get_stream());
-      rmm::device_uvector<vertex_t> sg_dst(0, handle.get_stream());
-      std::tie(sg_src, sg_dst, std::ignore) =
-        mg_graph_view.decompress_to_edgelist(handle, std::nullopt);
-
-      auto aggregated_sg_src = cugraph::test::device_gatherv(handle, sg_src.begin(), sg_src.size());
-      auto aggregated_sg_dst = cugraph::test::device_gatherv(handle, sg_dst.begin(), sg_dst.size());
-
-      sort_coo(handle, mg_out_srcs, mg_out_dsts);
-
-      if (handle.get_comms().get_rank() == int{0}) {
-        cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
-        auto aggregated_edge_iter = thrust::make_zip_iterator(
-          thrust::make_tuple(aggregated_sg_src.begin(), aggregated_sg_dst.begin()));
-        thrust::sort(handle.get_thrust_policy(),
-                     aggregated_edge_iter,
-                     aggregated_edge_iter + aggregated_sg_src.size());
-        auto sg_graph_properties =
-          cugraph::graph_properties_t{mg_graph_view.is_symmetric(), mg_graph_view.is_multigraph()};
-
-        std::tie(sg_graph, std::ignore) =
-          cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
-            handle,
-            std::nullopt,
-            std::move(aggregated_sg_src),
-            std::move(aggregated_sg_dst),
-            std::nullopt,
-            sg_graph_properties,
-            false);
-        auto sg_graph_view = sg_graph.view();
-        // Call single gpu gather
-        auto [sg_out_srcs, sg_out_dsts] = sg_gather_edges(handle,
-                                                          sg_graph_view,
-                                                          sg_random_srcs.begin(),
-                                                          sg_random_srcs.end(),
-                                                          sg_random_dst_indices.begin(),
-                                                          sg_graph_view.get_number_of_vertices(),
-                                                          indices_per_source);
-        sort_coo(handle, sg_out_srcs, sg_out_dsts);
-
-        auto passed = thrust::equal(
-          handle.get_thrust_policy(), sg_out_srcs.begin(), sg_out_srcs.end(), mg_out_srcs.begin());
-        passed &= thrust::equal(
-          handle.get_thrust_policy(), sg_out_dsts.begin(), sg_out_dsts.end(), mg_out_dsts.begin());
+        bool passed = true;
         ASSERT_TRUE(passed);
       }
     }
