@@ -61,7 +61,6 @@ def calc_node2vec(G,
 
     vertex_paths, edge_weights, vertex_path_sizes = cugraph.node2vec(
         G, start_vertices, max_depth, use_padding, p, q)
-
     return (vertex_paths, edge_weights, vertex_path_sizes), start_vertices
 
 
@@ -84,11 +83,26 @@ def test_node2vec_coalesced(
         p=0.8,
         q=0.5
     )
-    # Check that weights match up with paths
     vertex_paths, edge_weights, vertex_path_sizes = df
+    # Check that output sizes are as expected
     assert vertex_paths.size == max_depth * k
-    # NOTE: This below assertion will pass once PR #2089 is merged
-    # assert edge_weights.size == (max_depth - 1) * k
+    assert edge_weights.size == (max_depth - 1) * k
+    # Check that weights match up with paths
+    err = 0
+    for i in range(k):
+        for j in range(max_depth - 1):
+            # weight = edge_weights[i * (max_depth - 1) + j]
+            u = vertex_paths[i * max_depth + j]
+            v = vertex_paths[i * max_depth + j + 1]
+            # Walk not found in edgelist
+            if (not G.has_edge(u, v)):
+                err += 1
+            # FIXME: Checking weights is buggy
+            # Corresponding weight to edge is not correct
+            # expr = "(src == {} and dst == {})".format(u, v)
+            # if not (G.edgelist.edgelist_df.query(expr)["weights"] == weight):
+            #    err += 1
+    assert err == 0
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
@@ -111,32 +125,51 @@ def test_node2vec_padded(
         q=0.5
     )
     vertex_paths, edge_weights, vertex_path_sizes = df
+    # Check that output sizes are as expected
     assert vertex_paths.size == max_depth * k
-    # NOTE: This below assertion will pass once PR #2089 is merged
-    # assert edge_weights.size == (max_depth - 1) * k
+    assert edge_weights.size == (max_depth - 1) * k
     assert vertex_path_sizes.sum() == vertex_paths.size
     # Check that weights match up with paths
-
-    # Check that path sizes matches up correctly with paths
+    err = 0
+    path_start = 0
+    for i in range(k):
+        for j in range(max_depth - 1):
+            # weight = edge_weights[i * (max_depth - 1) + j]
+            u = vertex_paths[i * max_depth + j]
+            v = vertex_paths[i * max_depth + j + 1]
+            # Walk not found in edgelist
+            if (not G.has_edge(u, v)):
+                err += 1
+            # FIXME: Checking weights is buggy
+            # Corresponding weight to edge is not correct
+            # expr = "(src == {} and dst == {})".format(u, v)
+            # if not (G.edgelist.edgelist_df.query(expr)["weights"] == weight):
+            #    err += 1
+        # Check that path sizes matches up correctly with paths
+        if vertex_paths[i * max_depth] != seeds[i]:
+            err += 1
+        path_start += vertex_path_sizes[i]
+    assert err == 0
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("max_depth", [None, -1])
 @pytest.mark.parametrize("p", [None, -1])
+@pytest.mark.parametrize("q", [None, -1])
 def test_node2vec_invalid(
     graph_file,
     directed,
     max_depth,
-    p
+    p,
+    q
 ):
     G = utils.generate_cugraph_graph_from_file(graph_file, directed=directed,
                                                edgevals=True)
     k = random.randint(1, 10)
     start_vertices = random.sample(range(G.number_of_vertices()), k)
-    # Tests for invalid max depth, p, and q
+    # Tests for invalid p and q
     use_padding = True
-    q = 1.0
     with pytest.raises(ValueError):
         df, seeds = calc_node2vec(
             G,
@@ -146,32 +179,3 @@ def test_node2vec_invalid(
             p=p,
             q=q
         )
-
-
-# FIXME: NetworkX Graphs not supported currently
-"""
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_node2vec_nx(
-    graph_file,
-    directed
-):
-    Gnx = utils.generate_nx_graph_from_file(graph_file, directed=directed,
-                                            edgevals=True)
-    k = random.randint(1, 10)
-    max_depth = 3
-    start_vertices = random.sample(range(Gnx.number_of_nodes()), k)
-    df, seeds = calc_node2vec(
-        Gnx,
-        start_vertices,
-        max_depth,
-        use_padding=True,
-        p=0.8,
-        q=0.5
-    )
-    vertex_paths, edge_weights, vertex_path_sizes = df
-    assert vertex_paths.size == max_depth * k
-    # NOTE: This below assertion will pass once PR #2089 is merged
-    # assert edge_weights.size == (max_depth - 1) * k
-    assert vertex_path_sizes.sum() == vertex_paths.size
-"""

@@ -86,9 +86,7 @@ def node2vec(G,
     ...                                               True, 0.8, 0.5)
 
     """
-    if max_depth is None:
-        raise TypeError("must specify a 'max_depth'")
-    if (not isinstance(max_depth, int)) or (max_depth < 1):
+    if (max_depth is None) or (max_depth < 1):
         raise ValueError("'max_depth' must be a positive integer")
     if (not isinstance(use_padding, bool)):
         raise ValueError("'use_padding' must be a bool")
@@ -120,9 +118,12 @@ def node2vec(G,
     graph_props = pylibcugraph.experimental.GraphProperties(
                     is_multigraph=G.is_multigraph())
     store_transposed = False
-    renumber = G.renumbered
+    renumber = False
     do_expensive_check = False
 
+    # FIXME: If input graph is not renumbered, then SGGraph creation
+    # causes incorrect vertices to be returned when computing pylib
+    # version of node2vec
     sg = pylibcugraph.experimental.SGGraph(resource_handle, graph_props,
                                            srcs, dsts, weights,
                                            store_transposed, renumber,
