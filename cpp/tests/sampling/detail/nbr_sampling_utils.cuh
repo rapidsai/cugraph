@@ -197,7 +197,10 @@ void color_map(vertex_t start_key, rank_t color, mmap_v_to_pair_t<vertex_t, rank
 {
   std::queue<vertex_t> q_candidates{{start_key}};
 
-  while (!q_candidates.empty()) {
+  auto max_sz    = sub_forest.size();
+  size_t counter = 0;
+
+  while (!q_candidates.empty() && counter < max_sz) {
     auto src_v = q_candidates.front();
     q_candidates.pop();
 
@@ -209,6 +212,8 @@ void color_map(vertex_t start_key, rank_t color, mmap_v_to_pair_t<vertex_t, rank
         it->second.second = color;
       }
     }
+
+    ++counter;
   }
 }
 

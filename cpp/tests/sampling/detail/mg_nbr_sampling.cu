@@ -100,6 +100,7 @@ class Tests_MG_Nbr_Sampling
 
     std::vector<int> h_fan_out{indices_per_source};  // depth = 1
 
+    std::cerr << "##### Enter uniform_nbr_sampling():\n";
     auto&& [tuple_quad, v_sizes] = cugraph::uniform_nbr_sample(handle,
                                                                mg_graph_view,
                                                                random_sources.begin(),
@@ -107,10 +108,31 @@ class Tests_MG_Nbr_Sampling
                                                                random_sources.size(),
                                                                h_fan_out,
                                                                true);
+    std::cerr << "##### Exited uniform_nbr_sampling();";
 
     auto&& d_src_out = std::get<0>(tuple_quad);
     auto&& d_dst_out = std::get<1>(tuple_quad);
     auto&& d_gpu_ids = std::get<2>(tuple_quad);
+
+    auto begin_in_pairs = thrust::make_zip_iterator(
+      thrust::make_tuple(random_sources.begin(), random_source_gpu_ids.begin()));
+    auto end_in_pairs = thrust::make_zip_iterator(
+      thrust::make_tuple(random_sources.end(), random_source_gpu_ids.end()));
+
+    // gather input:
+    //
+    auto&& [tuple_vertex_ranks, counts] = cugraph::detail::shuffle_to_gpus(
+      handle, mg_graph_view, begin_in_pairs, end_in_pairs, gpu_t{});
+
+    auto num_ranks = v_sizes.size();
+    ASSERT_TRUE(counts.size() == num_ranks);  // == #ranks
+
+    // CAVEAT: in size << out_size;
+    //
+    auto total_in_sizes  = std::accumulate(counts.begin(), counts.end(), 0);
+    auto total_out_sizes = std::accumulate(v_sizes.begin(), v_sizes.end(), 0);
+
+    std::cerr << "##### accumulated size: " << total_out_sizes << '\n';
 
     if (prims_usecase.check_correctness) {
       auto self_rank = handle.get_comms().get_rank();
@@ -119,23 +141,7 @@ class Tests_MG_Nbr_Sampling
       // and check if test passed:
       //
       if (self_rank == gpu_t{0}) {
-        auto begin_in_pairs = thrust::make_zip_iterator(
-          thrust::make_tuple(random_sources.begin(), random_source_gpu_ids.begin()));
-        auto end_in_pairs = thrust::make_zip_iterator(
-          thrust::make_tuple(random_sources.end(), random_source_gpu_ids.end()));
-
-        // gather input:
-        //
-        auto&& [tuple_vertex_ranks, counts] = cugraph::detail::shuffle_to_gpus(
-          handle, mg_graph_view, begin_in_pairs, end_in_pairs, gpu_t{});
-
-        auto num_ranks = v_sizes.size();
-        ASSERT_TRUE(counts.size() == num_ranks);  // == #ranks
-
-        // CAVEAT: in size << out_size;
-        //
-        auto total_in_sizes  = std::accumulate(counts.begin(), counts.end(), 0);
-        auto total_out_sizes = std::accumulate(v_sizes.begin(), v_sizes.end(), 0);
+        std::cerr << "##### check:\n";
 
         // merge inputs / outputs to be checked on host:
         //
@@ -191,8 +197,12 @@ class Tests_MG_Nbr_Sampling
           out_offset += out_sz;
         }
 
+        std::cerr << "##### enter color check:\n";
+
         bool passed = cugraph::test::check_forest_trees_by_rank(
           h_start_in, h_ranks_in, h_src_out, h_dst_out, h_ranks_out);
+
+        std::cerr << "##### exit color check:\n";
 
         ASSERT_TRUE(passed);
       }
@@ -210,62 +220,63 @@ TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt32Int32Float)
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt32Int64Float)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
-}
+// TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt32Int64Float)
+// {
+//   auto param = GetParam();
+//   run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+// }
 
-TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt64Int64Float)
-{
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
-}
+// TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt64Int64Float)
+// {
+//   auto param = GetParam();
+//   run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+// }
 
-TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int32Float)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
-}
+// TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int32Float)
+// {
+//   auto param = GetParam();
+//   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+// }
 
-TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int64Float)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
-}
+// TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int64Float)
+// {
+//   auto param = GetParam();
+//   run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+// }
 
-TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt64Int64Float)
-{
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
-}
+// TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt64Int64Float)
+// {
+//   auto param = GetParam();
+//   run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+// }
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MG_Nbr_Sampling_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")
+                      //, cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                      // cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+                      // cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx")
+                      )));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MG_Nbr_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+// INSTANTIATE_TEST_SUITE_P(
+//   rmat_small_test,
+//   Tests_MG_Nbr_Sampling_Rmat,
+//   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
+//                      ::testing::Values(cugraph::test::Rmat_Usecase(
+//                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
-                          --gtest_filter to select only the rmat_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one Rmat_Usecase that differ only in scale or edge
-                          factor (to avoid running same benchmarks more than once) */
-  Tests_MG_Nbr_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+// INSTANTIATE_TEST_SUITE_P(
+//   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+//                           --gtest_filter to select only the rmat_benchmark_test with a specific
+//                           vertex & edge type combination) by command line arguments and do not
+//                           include more than one Rmat_Usecase that differ only in scale or edge
+//                           factor (to avoid running same benchmarks more than once) */
+//   Tests_MG_Nbr_Sampling_Rmat,
+//   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
+//                      ::testing::Values(cugraph::test::Rmat_Usecase(
+//                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
