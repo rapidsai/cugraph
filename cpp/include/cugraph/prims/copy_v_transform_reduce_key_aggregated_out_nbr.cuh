@@ -238,10 +238,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
   // 1. build a cuco::static_map object for the k, v pairs.
 
-#if 1  // FIXME: delete
-  handle.sync_stream();
-  auto time0 = std::chrono::steady_clock::now();
-#endif
   auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
   auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
   auto kv_map =
@@ -267,17 +263,9 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
   // 2. aggregate each vertex out-going edges based on keys and transform-reduce.
 
-#if 1  // FIXME: delete
-  handle.sync_stream();
-  auto time1 = std::chrono::steady_clock::now();
-#endif
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   auto e_op_result_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-#if 1  // FIXME: delete
-    handle.sync_stream();
-    auto loop_time0 = std::chrono::steady_clock::now();
-#endif
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.get_matrix_partition_view(i));
@@ -288,10 +276,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     rmm::device_uvector<weight_t> tmp_key_aggregated_edge_weights(tmp_majors.size(),
                                                                   handle.get_stream());
 
-#if 1  // FIXME: delete
-    handle.sync_stream();
-    auto loop_time1 = std::chrono::steady_clock::now();
-#endif
     if (matrix_partition.get_number_of_edges() > 0) {
       auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
 
@@ -424,18 +408,10 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       tmp_minor_keys.resize(tmp_majors.size(), handle.get_stream());
       tmp_key_aggregated_edge_weights.resize(tmp_majors.size(), handle.get_stream());
     }
-#if 1  // FIXME: delete
-    handle.sync_stream();
-    auto loop_time2 = std::chrono::steady_clock::now();
-#endif
     tmp_minor_keys.shrink_to_fit(handle.get_stream());
     tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
     tmp_majors.shrink_to_fit(handle.get_stream());
 
-#if 1  // FIXME: delete
-    handle.sync_stream();
-    auto loop_time3 = std::chrono::steady_clock::now();
-#endif
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_size = comm.get_size();
@@ -542,10 +518,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
         thrust::make_zip_iterator(thrust::make_tuple(tmp_majors.begin(), tmp_minor_keys.begin())),
         tmp_key_aggregated_edge_weights.begin());
     }
-#if 1  // FIXME: delete
-    handle.sync_stream();
-    auto loop_time4 = std::chrono::steady_clock::now();
-#endif
 
     auto multi_gpu_kv_map_ptr = std::make_unique<
       cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
@@ -601,10 +573,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                                    thrust::equal_to<vertex_t>{},
                                    handle.get_stream());
     }
-#if 1  // FIXME: delete
-    handle.sync_stream();
-    auto loop_time5 = std::chrono::steady_clock::now();
-#endif
 
     auto tmp_e_op_result_buffer =
       allocate_dataframe_buffer<T>(tmp_majors.size(), handle.get_stream());
@@ -614,10 +582,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
     auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
       tmp_majors.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
-#if 1
-    handle.sync_stream();
-    auto loop_time6 = std::chrono::steady_clock::now();
-#endif
     thrust::transform(handle.get_thrust_policy(),
                       triplet_first,
                       triplet_first + tmp_majors.size(),
@@ -635,10 +599,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                                                     : kv_map.get_device_view()});
 
     if constexpr (GraphViewType::is_multi_gpu) { multi_gpu_kv_map_ptr.reset(); }
-#if 1
-    handle.sync_stream();
-    auto loop_time7 = std::chrono::steady_clock::now();
-#endif
     tmp_minor_keys.resize(0, handle.get_stream());
     tmp_minor_keys.shrink_to_fit(handle.get_stream());
     tmp_key_aggregated_edge_weights.resize(0, handle.get_stream());
@@ -663,10 +623,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       tmp_majors             = std::move(unique_majors);
       tmp_e_op_result_buffer = std::move(reduced_e_op_result_buffer);
     }
-#if 1
-    handle.sync_stream();
-    auto loop_time8 = std::chrono::steady_clock::now();
-#endif
 
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
@@ -712,32 +668,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       majors             = std::move(tmp_majors);
       e_op_result_buffer = std::move(tmp_e_op_result_buffer);
     }
-#if 1
-    handle.sync_stream();
-    auto loop_time9                             = std::chrono::steady_clock::now();
-    std::chrono::duration<double> elapsed_total = loop_time9 - loop_time0;
-    std::chrono::duration<double> elapsed0      = loop_time1 - loop_time0;
-    std::chrono::duration<double> elapsed1      = loop_time2 - loop_time1;
-    std::chrono::duration<double> elapsed2      = loop_time3 - loop_time2;
-    std::chrono::duration<double> elapsed3      = loop_time4 - loop_time3;
-    std::chrono::duration<double> elapsed4      = loop_time5 - loop_time4;
-    std::chrono::duration<double> elapsed5      = loop_time6 - loop_time5;
-    std::chrono::duration<double> elapsed6      = loop_time7 - loop_time6;
-    std::chrono::duration<double> elapsed7      = loop_time8 - loop_time7;
-    std::chrono::duration<double> elapsed8      = loop_time9 - loop_time8;
-    std::cout << "\tloop i=" << i << " took " << elapsed_total.count() * 1e3 << " breakdown=("
-              << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << ","
-              << elapsed2.count() * 1e3 << "," << elapsed3.count() * 1e3 << ","
-              << elapsed4.count() * 1e3 << "," << elapsed5.count() * 1e3 << ","
-              << elapsed6.count() * 1e3 << "," << elapsed7.count() * 1e3 << ","
-              << elapsed8.count() * 1e3 << ") ms." << std::endl;
-#endif
   }
 
-#if 1
-  handle.sync_stream();
-  auto time2 = std::chrono::steady_clock::now();
-#endif
   if constexpr (GraphViewType::is_multi_gpu) {
     thrust::sort_by_key(handle.get_thrust_policy(),
                         majors.begin(),
@@ -781,17 +713,6 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                     vertex_value_output_first + graph_view.get_number_of_local_vertices(),
                     vertex_value_output_first,
                     detail::reduce_with_init_t<ReduceOp, T>{reduce_op, init});
-#if 1
-  handle.sync_stream();
-  auto time3                                  = std::chrono::steady_clock::now();
-  std::chrono::duration<double> elapsed_total = time3 - time0;
-  std::chrono::duration<double> elapsed0      = time1 - time0;
-  std::chrono::duration<double> elapsed1      = time2 - time1;
-  std::chrono::duration<double> elapsed2      = time3 - time2;
-  std::cout << "copy_v_transform_reduce_key_aggregated_out_nbr took " << elapsed_total.count() * 1e3
-            << " breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << ","
-            << elapsed2.count() * 1e3 << ") ms." << std::endl;
-#endif
 }
 
 }  // namespace cugraph

@@ -159,10 +159,6 @@ class Louvain {
   {
     weight_t best_modularity = weight_t{-1};
 
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto pre_start = std::chrono::steady_clock::now();
-#endif
     weight_t total_edge_weight = transform_reduce_e(
       handle_,
       current_graph_view_,
@@ -170,59 +166,22 @@ auto pre_start = std::chrono::steady_clock::now();
       dummy_properties_t<vertex_t>{}.device_view(),
       [] __device__(auto, auto, weight_t wt, auto, auto) { return wt; },
       weight_t{0});
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto pre_end = std::chrono::steady_clock::now();
-std::chrono::duration<double> pre_elapsed = pre_end - pre_start;
-std::cout << "computing total_edge_weight took " << pre_elapsed.count() * 1e3 << " ms." << std::endl;
-#endif
 
     while (dendrogram_->num_levels() < max_level) {
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time0 = std::chrono::steady_clock::now();
-#endif
       //
       //  Initialize every cluster to reference each vertex to itself
       //
       initialize_dendrogram_level();
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time1 = std::chrono::steady_clock::now();
-#endif
 
       compute_vertex_and_cluster_weights();
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time2 = std::chrono::steady_clock::now();
-#endif
 
       weight_t new_Q = update_clustering(total_edge_weight, resolution);
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time3 = std::chrono::steady_clock::now();
-std::chrono::duration<double> elapsed_total = time3 - time0;
-std::chrono::duration<double> elapsed0 = time1 - time0;
-std::chrono::duration<double> elapsed1 = time2 - time1;
-std::chrono::duration<double> elapsed2 = time3 - time2;
-std::cout << "Louvain level prev best_modularity=" << best_modularity << " new_Q=" << new_Q << " (V=" << current_graph_view_.get_number_of_vertices() << ", E=" << current_graph_view_.get_number_of_edges() << ") took " << elapsed_total.count() * 1e3 << " breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << ") ms." << std::endl;
-#endif
 
       if (new_Q <= best_modularity) { break; }
 
       best_modularity = new_Q;
 
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time4 = std::chrono::steady_clock::now();
-#endif
       shrink_graph();
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time5 = std::chrono::steady_clock::now();
-std::chrono::duration<double> elapsed4 = time5 - time4;
-std::cout << "Louvain shrink took " << elapsed4.count() * 1e3 << " ms." << std::endl;
-#endif
     }
 
     timer_display(std::cout);
@@ -379,10 +338,6 @@ std::cout << "Louvain shrink took " << elapsed4.count() * 1e3 << " ms." << std::
   {
     timer_start("update_clustering");
 
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time0 = std::chrono::steady_clock::now();
-#endif
     next_clusters_v_ =
       rmm::device_uvector<vertex_t>(dendrogram_->current_level_size(), handle_.get_stream());
 
@@ -391,11 +346,6 @@ auto time0 = std::chrono::steady_clock::now();
                dendrogram_->current_level_size(),
                handle_.get_stream());
 
-#if 1  // FIXME: delete
-handle_.sync_stream();
-if (graph_view_type::is_multi_gpu) { handle_.get_comms().barrier(); }
-auto time1 = std::chrono::steady_clock::now();
-#endif
     if constexpr (graph_view_t::is_multi_gpu) {
       src_clusters_cache_ = row_properties_t<graph_view_t, vertex_t>(handle_, current_graph_view_);
       copy_to_adj_matrix_row(
@@ -404,10 +354,6 @@ auto time1 = std::chrono::steady_clock::now();
       copy_to_adj_matrix_col(
         handle_, current_graph_view_, next_clusters_v_.begin(), dst_clusters_cache_);
     }
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time2 = std::chrono::steady_clock::now();
-#endif
 
     weight_t new_Q = modularity(total_edge_weight, resolution);
     weight_t cur_Q = new_Q - 1;
@@ -417,9 +363,6 @@ auto time2 = std::chrono::steady_clock::now();
     // during each iteration of the loop
     bool up_down = true;
 
-#if 1  // FIXME: delete
-    size_t iter{0};
-#endif
     while (new_Q > (cur_Q + 0.0001)) {
       cur_Q = new_Q;
 
@@ -435,19 +378,7 @@ auto time2 = std::chrono::steady_clock::now();
                    next_clusters_v_.size(),
                    handle_.get_stream());
       }
-#if 1  // FIXME: delete
-      ++iter;
-#endif
     }
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time3 = std::chrono::steady_clock::now();
-std::chrono::duration<double> elapsed_total = time3 - time0;
-std::chrono::duration<double> elapsed0 = time1 - time0;
-std::chrono::duration<double> elapsed1 = time2 - time1;
-std::chrono::duration<double> elapsed2 = time3 - time2;
-std::cout << "update_clustering (# iterations: " << iter << ") took " << elapsed_total.count() * 1e3 << " breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << ") ms." << std::endl;
-#endif
 
     timer_stop(handle_.get_stream());
     return cur_Q;
@@ -495,11 +426,6 @@ std::cout << "update_clustering (# iterations: " << iter << ") took " << elapsed
                                   rmm::device_uvector<vertex_t>& next_clusters_v_,
                                   bool up_down)
   {
-#if 1  // FIXME: delete
-handle_.sync_stream();
-if (graph_view_type::is_multi_gpu) { handle_.get_comms().barrier(); }
-auto time0 = std::chrono::steady_clock::now();
-#endif
     rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle_.get_stream());
     row_properties_t<graph_view_t, weight_t> src_cluster_weights(handle_);
     if constexpr (graph_view_t::is_multi_gpu) {
@@ -540,16 +466,8 @@ auto time0 = std::chrono::steady_clock::now();
                         });
     }
 
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time1 = std::chrono::steady_clock::now();
-#endif
     auto [old_cluster_sum_v, cluster_subtract_v] = compute_cluster_sum_and_subtract();
 
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time2 = std::chrono::steady_clock::now();
-#endif
     row_properties_t<graph_view_t, thrust::tuple<weight_t, weight_t>>
       src_old_cluster_sum_subtract_pairs(handle_);
     if constexpr (graph_view_t::is_multi_gpu) {
@@ -567,10 +485,6 @@ auto time2 = std::chrono::steady_clock::now();
       cluster_subtract_v.shrink_to_fit(handle_.get_stream());
     }
 
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time3 = std::chrono::steady_clock::now();
-#endif
     auto output_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
       current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
 
@@ -593,10 +507,6 @@ auto time3 = std::chrono::steady_clock::now();
                                                    decltype(cluster_old_sum_subtract_pair_first)>(
               cluster_old_sum_subtract_pair_first));
 
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time4 = std::chrono::steady_clock::now();
-#endif
     copy_v_transform_reduce_key_aggregated_out_nbr(
       handle_,
       current_graph_view_,
@@ -613,10 +523,6 @@ auto time4 = std::chrono::steady_clock::now();
       thrust::make_tuple(vertex_t{-1}, weight_t{0}),
       cugraph::get_dataframe_buffer_begin(output_buffer));
 
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time5 = std::chrono::steady_clock::now();
-#endif
     thrust::transform(handle_.get_thrust_policy(),
                       next_clusters_v_.begin(),
                       next_clusters_v_.end(),
@@ -624,10 +530,6 @@ auto time5 = std::chrono::steady_clock::now();
                       next_clusters_v_.begin(),
                       detail::cluster_update_op_t<vertex_t, weight_t>{up_down});
 
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time6 = std::chrono::steady_clock::now();
-#endif
     if constexpr (graph_view_t::is_multi_gpu) {
       copy_to_adj_matrix_row(
         handle_, current_graph_view_, next_clusters_v_.begin(), src_clusters_cache_);
@@ -635,10 +537,6 @@ auto time6 = std::chrono::steady_clock::now();
         handle_, current_graph_view_, next_clusters_v_.begin(), dst_clusters_cache_);
     }
 
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time7 = std::chrono::steady_clock::now();
-#endif
     std::tie(cluster_keys_v_, cluster_weights_v_) =
       cugraph::transform_reduce_by_adj_matrix_row_key_e(
         handle_,
@@ -651,20 +549,6 @@ auto time7 = std::chrono::steady_clock::now();
               next_clusters_v_.data()),
         detail::return_edge_weight_t<vertex_t, weight_t>{},
         weight_t{0});
-#if 1  // FIXME: delete
-handle_.sync_stream();
-auto time8 = std::chrono::steady_clock::now();
-std::chrono::duration<double> elapsed_total = time8 - time0;
-std::chrono::duration<double> elapsed0 = time1 - time0;
-std::chrono::duration<double> elapsed1 = time2 - time1;
-std::chrono::duration<double> elapsed2 = time3 - time2;
-std::chrono::duration<double> elapsed3 = time4 - time3;
-std::chrono::duration<double> elapsed4 = time5 - time4;
-std::chrono::duration<double> elapsed5 = time6 - time5;
-std::chrono::duration<double> elapsed6 = time7 - time6;
-std::chrono::duration<double> elapsed7 = time8 - time7;
-std::cout << "update_by_delta_modularity took " << elapsed_total.count() * 1e3 << " breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << "," << elapsed3.count() * 1e3 << "," << elapsed4.count() * 1e3 << "," << elapsed5.count() * 1e3 << "," << elapsed6.count() * 1e3 << "," << elapsed7.count() * 1e3 << ") ms." << std::endl;
-#endif
   }
 
   void shrink_graph()
