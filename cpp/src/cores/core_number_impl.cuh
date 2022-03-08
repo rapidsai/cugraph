@@ -17,9 +17,9 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/reduce_v.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -145,9 +145,9 @@ void core_number(raft::handle_t const& handle,
   VertexFrontier<vertex_t, void, multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle);
 
-  col_properties_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, edge_t>
+  edge_partition_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, edge_t>
     dst_core_numbers(handle, graph_view);
-  copy_to_adj_matrix_col(handle, graph_view, core_numbers, dst_core_numbers);
+  update_edge_partition_dst_property(handle, graph_view, core_numbers, dst_core_numbers);
 
   auto k = std::max(k_first, size_t{2});  // degree 0|1 vertices belong to 0|1-core
   if (graph_view.is_symmetric() && (degree_type == k_core_degree_type_t::INOUT) &&
@@ -199,7 +199,7 @@ void core_number(raft::handle_t const& handle,
             vertex_frontier,
             static_cast<size_t>(Bucket::cur),
             std::vector<size_t>{static_cast<size_t>(Bucket::next)},
-            dummy_properties_t<vertex_t>{}.device_view(),
+            dummy_property_t<vertex_t>{}.device_view(),
             dst_core_numbers.device_view(),
             [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {
               return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
@@ -224,7 +224,7 @@ void core_number(raft::handle_t const& handle,
           CUGRAPH_FAIL("unimplemented.");
         }
 
-        copy_to_adj_matrix_col(
+        update_edge_partition_dst_property(
           handle,
           graph_view,
           vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).begin(),

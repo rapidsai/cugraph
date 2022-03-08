@@ -18,7 +18,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/prims/row_col_properties.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -554,8 +554,9 @@ void update_edge_partition_dst_property(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   VertexPropertyInputIterator vertex_property_input_first,
-  col_properties_t<GraphViewType,
-                   typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
+  edge_partition_dst_property_t<
+    GraphViewType,
+    typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
     edge_partition_dst_property_output)
 {
   if constexpr (GraphViewType::is_adj_matrix_transposed) {
@@ -593,14 +594,15 @@ void update_edge_partition_dst_property(
  * to this process in multi-GPU).
  */
 template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
-void update_edge_partition_dst(
+void update_edge_partition_dst_property(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   VertexIterator vertex_first,
   VertexIterator vertex_last,
   VertexPropertyInputIterator vertex_property_input_first,
-  col_properties_t<GraphViewType,
-                   typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
+  edge_partition_dst_property_t<
+    GraphViewType,
+    typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
     edge_partition_dst_property_output)
 {
   if constexpr (GraphViewType::is_adj_matrix_transposed) {

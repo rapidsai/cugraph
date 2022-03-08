@@ -17,12 +17,12 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/count_if_v.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/reduce_v.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 
 #include <thrust/fill.h>
 #include <thrust/transform.h>
@@ -90,8 +90,8 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   }
 
   // Property wrappers
-  row_properties_t<GraphViewType, result_t> prev_src_hubs(handle, graph_view);
-  col_properties_t<GraphViewType, result_t> curr_dst_auth(handle, graph_view);
+  edge_partition_src_property_t<GraphViewType, result_t> prev_src_hubs(handle, graph_view);
+  edge_partition_dst_property_t<GraphViewType, result_t> curr_dst_auth(handle, graph_view);
   rmm::device_uvector<result_t> temp_hubs(graph_view.get_number_of_local_vertices(),
                                           handle.get_stream());
 
