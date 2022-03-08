@@ -16,7 +16,7 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/lap/lap.hpp>
+#include <raft/lap/lap.cuh>
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>

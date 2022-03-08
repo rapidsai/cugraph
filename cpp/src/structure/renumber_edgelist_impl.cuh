@@ -62,18 +62,18 @@ struct check_edge_src_and_dst_t {
 };
 
 template <typename vertex_t, typename edge_t>
-struct search_and_set_degree_t {
+struct search_and_increment_degree_t {
   vertex_t const* sorted_vertices{nullptr};
   vertex_t num_vertices{0};
   edge_t* degrees{nullptr};
 
   __device__ void operator()(thrust::tuple<vertex_t, edge_t> vertex_degree_pair) const
   {
-    auto it                                            = thrust::lower_bound(thrust::seq,
+    auto it = thrust::lower_bound(thrust::seq,
                                   sorted_vertices,
                                   sorted_vertices + num_vertices,
                                   thrust::get<0>(vertex_degree_pair));
-    *(degrees + thrust::distance(sorted_vertices, it)) = thrust::get<1>(vertex_degree_pair);
+    *(degrees + thrust::distance(sorted_vertices, it)) += thrust::get<1>(vertex_degree_pair);
   }
 };
 
@@ -302,13 +302,13 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
 
         auto kv_pair_first =
           thrust::make_zip_iterator(thrust::make_tuple(tmp_keys.begin(), tmp_values.begin()));
-        thrust::for_each(
-          rmm::exec_policy(loop_stream),
-          kv_pair_first,
-          kv_pair_first + tmp_keys.size(),
-          search_and_set_degree_t<vertex_t, edge_t>{sorted_majors.data(),
-                                                    static_cast<vertex_t>(sorted_majors.size()),
-                                                    sorted_major_degrees.data()});
+        thrust::for_each(rmm::exec_policy(loop_stream),
+                         kv_pair_first,
+                         kv_pair_first + tmp_keys.size(),
+                         search_and_increment_degree_t<vertex_t, edge_t>{
+                           sorted_majors.data(),
+                           static_cast<vertex_t>(sorted_majors.size()),
+                           sorted_major_degrees.data()});
         offset += this_chunk_size;
       }
 
@@ -356,13 +356,13 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
 
     auto kv_pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(tmp_keys.begin(), tmp_values.begin()));
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      kv_pair_first,
-      kv_pair_first + tmp_keys.size(),
-      search_and_set_degree_t<vertex_t, edge_t>{sorted_local_vertices.data(),
-                                                static_cast<vertex_t>(sorted_local_vertices.size()),
-                                                sorted_local_vertex_degrees.data()});
+    thrust::for_each(handle.get_thrust_policy(),
+                     kv_pair_first,
+                     kv_pair_first + tmp_keys.size(),
+                     search_and_increment_degree_t<vertex_t, edge_t>{
+                       sorted_local_vertices.data(),
+                       static_cast<vertex_t>(sorted_local_vertices.size()),
+                       sorted_local_vertex_degrees.data()});
   }
 
   // 4. sort local vertices by degree (descending)
@@ -760,7 +760,8 @@ renumber_edgelist(
     }
   }
 
-  if ((static_cast<double>(partition.get_matrix_partition_minor_size() * (1.0 + 1.0 / load_factor)) >=
+  if ((static_cast<double>(partition.get_matrix_partition_minor_size() *
+                           (1.0 + 1.0 / load_factor)) >=
        static_cast<double>(number_of_edges / comm_size)) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part

@@ -157,7 +157,10 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
                       property_transform_t<vertex_t, property_t>{hash_bin_count});
     rmm::device_uvector<vertex_t> sources(mg_graph_view.get_number_of_vertices(),
                                           handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), sources.begin(), sources.end());
+    thrust::sequence(handle.get_thrust_policy(),
+                     sources.begin(),
+                     sources.end(),
+                     mg_graph_view.get_local_vertex_first());
 
     cugraph::row_properties_t<decltype(mg_graph_view), property_t> mg_src_properties(handle,
                                                                                      mg_graph_view);
@@ -212,7 +215,7 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG copy v transform reduce out took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG update_frontier_v_push_if_out_nbr took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     //// 4. compare SG & MG results
@@ -221,10 +224,11 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
       auto mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
         handle, (*mg_renumber_map_labels).data(), (*mg_renumber_map_labels).size());
 
+      auto& next_bucket = mg_vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next));
+      auto mg_aggregate_frontier_dsts =
+        cugraph::test::device_gatherv(handle, next_bucket.begin(), next_bucket.size());
+
       if (handle.get_comms().get_rank() == int{0}) {
-        auto& next_bucket = mg_vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next));
-        auto mg_aggregate_frontier_dsts =
-          cugraph::test::device_gatherv(handle, next_bucket.begin(), next_bucket.size());
         cugraph::unrenumber_int_vertices<vertex_t, !is_multi_gpu>(
           handle,
           mg_aggregate_frontier_dsts.begin(),
