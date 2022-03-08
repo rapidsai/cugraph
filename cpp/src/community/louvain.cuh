@@ -137,6 +137,7 @@ class Louvain {
 #endif
       handle_(handle),
       dendrogram_(std::make_unique<Dendrogram<vertex_t>>()),
+      current_graph_(handle),
       current_graph_view_(graph_view),
       cluster_keys_v_(0, handle.get_stream()),
       cluster_weights_v_(0, handle.get_stream()),
@@ -559,7 +560,7 @@ class Louvain {
     std::tie(current_graph_, numbering_map) =
       coarsen_graph(handle_, current_graph_view_, dendrogram_->current_level_begin());
 
-    current_graph_view_ = current_graph_->view();
+    current_graph_view_ = current_graph_.view();
 
     rmm::device_uvector<vertex_t> numbering_indices(numbering_map.size(), handle_.get_stream());
     thrust::sequence(handle_.get_thrust_policy(),
@@ -589,7 +590,7 @@ class Louvain {
   //  but as we shrink the graph we'll keep the
   //  current graph here
   //
-  std::unique_ptr<graph_t> current_graph_{};
+  graph_t current_graph_;
   graph_view_t current_graph_view_;
 
   rmm::device_uvector<vertex_t> cluster_keys_v_;
