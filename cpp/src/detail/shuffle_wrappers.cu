@@ -16,6 +16,7 @@
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/exec_policy.hpp>
@@ -51,6 +52,12 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
   auto mem_frugal_threshold =
     static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
+  auto mem_frugal_flag =
+    host_scalar_allreduce(comm,
+                          d_edgelist_majors.size() > mem_frugal_threshold ? int{1} : int{0},
+                          raft::comms::op_t::MAX,
+                          handle.get_stream());
+
   // invoke groupby_and_count and shuffle values to pass mem_frugal_threshold instead of directly
   // calling groupby_gpu_id_and_shuffle_values there is no benefit in reducing peak memory as we
   // need to allocate a receive buffer anyways) but this reduces the maximum memory allocation size
@@ -84,9 +91,32 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
                       handle.get_stream());
     handle.sync_stream();
 
-    std::forward_as_tuple(
-      std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors, d_rx_edgelist_weights), std::ignore) =
-      shuffle_values(comm, edge_first, h_tx_value_counts, handle.get_stream());
+    if (mem_frugal_flag) {  // trade-off potential parallelism to lower peak memory
+      std::tie(d_rx_edgelist_majors, std::ignore) =
+        shuffle_values(comm, d_edgelist_majors.begin(), h_tx_value_counts, handle.get_stream());
+      d_edgelist_majors.resize(0, handle.get_stream());
+      d_edgelist_majors.shrink_to_fit(handle.get_stream());
+
+      std::tie(d_rx_edgelist_minors, std::ignore) =
+        shuffle_values(comm, d_edgelist_minors.begin(), h_tx_value_counts, handle.get_stream());
+      d_edgelist_minors.resize(0, handle.get_stream());
+      d_edgelist_minors.shrink_to_fit(handle.get_stream());
+
+      std::tie(d_rx_edgelist_weights, std::ignore) =
+        shuffle_values(comm, (*d_edgelist_weights).begin(), h_tx_value_counts, handle.get_stream());
+      (*d_edgelist_weights).resize(0, handle.get_stream());
+      (*d_edgelist_weights).shrink_to_fit(handle.get_stream());
+    } else {
+      std::forward_as_tuple(
+        std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors, d_rx_edgelist_weights), std::ignore) =
+        shuffle_values(comm, edge_first, h_tx_value_counts, handle.get_stream());
+      d_edgelist_majors.resize(0, handle.get_stream());
+      d_edgelist_majors.shrink_to_fit(handle.get_stream());
+      d_edgelist_minors.resize(0, handle.get_stream());
+      d_edgelist_minors.shrink_to_fit(handle.get_stream());
+      (*d_edgelist_weights).resize(0, handle.get_stream());
+      (*d_edgelist_weights).shrink_to_fit(handle.get_stream());
+    }
   } else {
     auto edge_first = thrust::make_zip_iterator(
       thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
@@ -110,8 +140,24 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
                       handle.get_stream());
     handle.sync_stream();
 
-    std::forward_as_tuple(std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors), std::ignore) =
-      shuffle_values(comm, edge_first, h_tx_value_counts, handle.get_stream());
+    if (mem_frugal_flag) {  // trade-off potential parallelism to lower peak memory
+      std::tie(d_rx_edgelist_majors, std::ignore) =
+        shuffle_values(comm, d_edgelist_majors.begin(), h_tx_value_counts, handle.get_stream());
+      d_edgelist_majors.resize(0, handle.get_stream());
+      d_edgelist_majors.shrink_to_fit(handle.get_stream());
+
+      std::tie(d_rx_edgelist_minors, std::ignore) =
+        shuffle_values(comm, d_edgelist_minors.begin(), h_tx_value_counts, handle.get_stream());
+      d_edgelist_minors.resize(0, handle.get_stream());
+      d_edgelist_minors.shrink_to_fit(handle.get_stream());
+    } else {
+      std::forward_as_tuple(std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors), std::ignore) =
+        shuffle_values(comm, edge_first, h_tx_value_counts, handle.get_stream());
+      d_edgelist_majors.resize(0, handle.get_stream());
+      d_edgelist_majors.shrink_to_fit(handle.get_stream());
+      d_edgelist_minors.resize(0, handle.get_stream());
+      d_edgelist_minors.shrink_to_fit(handle.get_stream());
+    }
   }
 
   return std::make_tuple(std::move(d_rx_edgelist_majors),
