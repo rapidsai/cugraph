@@ -164,26 +164,9 @@ class Tests_MG_Louvain
     auto const comm_size = comm.get_size();
     auto const comm_rank = comm.get_rank();
 
-    int row_comm_size{};
-    int num_gpus_per_node{};
-    RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-    if (comm_size > num_gpus_per_node) {  // multi-node, inter-node communication bandwidth
-                                          // (Infinniband) is more likely to be a bottleneck than
-                                          // intra-node (NVLink) communication bandwidth
-      CUGRAPH_EXPECTS((comm_size % num_gpus_per_node) == 0,
-                      "Invalid MPI configuration: in multi-node execution, # MPI processes should "
-                      "be a multiple of the number of GPUs per node.");
-      auto num_nodes = comm_size / num_gpus_per_node;
-      row_comm_size  = static_cast<int>(sqrt(static_cast<double>(num_nodes)));
-      while (num_nodes % row_comm_size != 0) {
-        --row_comm_size;
-      }
-      row_comm_size *= num_gpus_per_node;
-    } else {
-      row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-      while (comm_size % row_comm_size != 0) {
-        --row_comm_size;
-      }
+    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
+    while (comm_size % row_comm_size != 0) {
+      --row_comm_size;
     }
 
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>

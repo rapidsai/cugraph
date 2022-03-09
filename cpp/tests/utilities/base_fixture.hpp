@@ -67,20 +67,7 @@ inline auto make_managed() { return std::make_shared<rmm::mr::managed_memory_res
 
 inline auto make_pool()
 {
-#if 1  // FIXME: delete
-  size_t free_size{};
-  size_t total_size{};
-  CUDA_TRY(cudaMemGetInfo(&free_size, &total_size));
-  size_t pool_size = free_size * 0.05 > static_cast<double>(size_t{2} * 1024 * 1024 * 1024)
-                       ? static_cast<size_t>(free_size * 0.95)
-                       : free_size - size_t{2} * 1024 * 1024 * 1024;
-  pool_size = rmm::detail::align_up(pool_size, rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
-  std::cout << "pool_size=" << pool_size / (1024.0 * 1024.0 * 1024.0) << " GB." << std::endl;
-  return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(
-    make_cuda(), pool_size, pool_size);
-#else
   return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(make_cuda());
-#endif
 }
 
 inline auto make_binning()
