@@ -461,7 +461,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     auto adj_matrix_col_components =
       GraphViewType::is_multi_gpu
         ? col_properties_t<GraphViewType, vertex_t>(handle, level_graph_view)
-        : col_properties_t<GraphViewType, vertex_t>();
+        : col_properties_t<GraphViewType, vertex_t>(handle);
     if constexpr (GraphViewType::is_multi_gpu) {
       adj_matrix_col_components.fill(invalid_component_id<vertex_t>::value, handle.get_stream());
     }

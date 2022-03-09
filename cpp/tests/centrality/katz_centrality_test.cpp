@@ -174,7 +174,6 @@ class Tests_KatzCentrality
     if (katz_usecase.check_correctness) {
       cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(handle);
       if (renumber) {
-        std::cout << "renumber = true" << std::endl;
         std::tie(unrenumbered_graph, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
             handle, input_usecase, katz_usecase.test_weighted, false);
