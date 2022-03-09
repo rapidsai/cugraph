@@ -142,10 +142,10 @@ class Louvain {
       cluster_keys_v_(0, handle.get_stream()),
       cluster_weights_v_(0, handle.get_stream()),
       vertex_weights_v_(0, handle.get_stream()),
-      src_vertex_weights_cache_(),
+      src_vertex_weights_cache_(handle),
       next_clusters_v_(0, handle.get_stream()),
-      src_clusters_cache_(),
-      dst_clusters_cache_()
+      src_clusters_cache_(handle),
+      dst_clusters_cache_(handle)
   {
   }
 
@@ -427,7 +427,7 @@ class Louvain {
                                   bool up_down)
   {
     rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle_.get_stream());
-    row_properties_t<graph_view_t, weight_t> src_cluster_weights{};
+    row_properties_t<graph_view_t, weight_t> src_cluster_weights(handle_);
     if constexpr (graph_view_t::is_multi_gpu) {
       cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t> vertex_to_gpu_id_op{
         handle_.get_comms().get_size()};
@@ -469,7 +469,7 @@ class Louvain {
     auto [old_cluster_sum_v, cluster_subtract_v] = compute_cluster_sum_and_subtract();
 
     row_properties_t<graph_view_t, thrust::tuple<weight_t, weight_t>>
-      src_old_cluster_sum_subtract_pairs{};
+      src_old_cluster_sum_subtract_pairs(handle_);
     if constexpr (graph_view_t::is_multi_gpu) {
       src_old_cluster_sum_subtract_pairs =
         row_properties_t<graph_view_t, thrust::tuple<weight_t, weight_t>>(handle_,
@@ -554,6 +554,18 @@ class Louvain {
   void shrink_graph()
   {
     timer_start("shrinking graph");
+
+    cluster_keys_v_.resize(0, handle_.get_stream());
+    cluster_weights_v_.resize(0, handle_.get_stream());
+    vertex_weights_v_.resize(0, handle_.get_stream());
+    next_clusters_v_.resize(0, handle_.get_stream());
+    cluster_keys_v_.shrink_to_fit(handle_.get_stream());
+    cluster_weights_v_.shrink_to_fit(handle_.get_stream());
+    vertex_weights_v_.shrink_to_fit(handle_.get_stream());
+    next_clusters_v_.shrink_to_fit(handle_.get_stream());
+    src_vertex_weights_cache_.clear(handle_);
+    src_clusters_cache_.clear(handle_);
+    dst_clusters_cache_.clear(handle_);
 
     rmm::device_uvector<vertex_t> numbering_map(0, handle_.get_stream());
 

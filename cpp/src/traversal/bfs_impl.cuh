@@ -185,7 +185,7 @@ void bfs(raft::handle_t const& handle,
     GraphViewType::is_multi_gpu
       ? col_properties_t<GraphViewType, uint8_t>(handle, push_graph_view)
       : col_properties_t<GraphViewType,
-                         uint8_t>();  // relevant only if GraphViewType::is_multi_gpu is true
+                         uint8_t>(handle);  // relevant only if GraphViewType::is_multi_gpu is true
   if constexpr (GraphViewType::is_multi_gpu) {
     dst_visited_flags.fill(uint8_t{0}, handle.get_stream());
   }
