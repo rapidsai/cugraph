@@ -35,8 +35,6 @@
 #include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
 
-#include <nccl.h>  // FIXME: delete
-
 #include <numeric>
 #include <type_traits>
 #include <utility>
@@ -492,19 +490,11 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                                       col_properties_t<GraphViewType, T>>
     minor_tmp_buffer{};  // relevant only when (GraphViewType::is_multi_gpu && !update_major
   if constexpr (GraphViewType::is_multi_gpu && !update_major) {
-#if 1  // FIXME: delete
-    handle.sync_stream();
-    std::cout << "copy_v allocate minor_tmp_buffer" << std::endl;
-#endif
     if constexpr (GraphViewType::is_adj_matrix_transposed) {
       minor_tmp_buffer = row_properties_t<GraphViewType, T>(handle, graph_view);
     } else {
       minor_tmp_buffer = col_properties_t<GraphViewType, T>(handle, graph_view);
     }
-#if 1  // FIXME: delete
-    handle.sync_stream();
-    std::cout << "copy_v allocate minor_tmp_buffer: SUCCESS" << std::endl;
-#endif
   }
 
   if constexpr (!update_major) {
@@ -527,9 +517,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
   }
 
   std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
-#if 1  // FIXME: for temporary testing
-  std::vector<cudaStream_t> pool_streams{};
-#endif
   if constexpr (GraphViewType::is_multi_gpu) {
     if ((graph_view.get_local_adj_matrix_partition_segment_offsets(0)) &&
         (handle.get_stream_pool_size() >= max_segments)) {
@@ -569,25 +556,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       }
 
       if (num_streams >= max_segments) {
-#if 1  // FIXME: for temporary testing
-        pool_streams.resize(num_streams);
-        for (size_t i = 0; i < pool_streams.size() / max_segments; ++i) {
-          static_assert(max_segments == 4);
-          CUDA_TRY(cudaStreamCreateWithPriority(
-            &pool_streams[i * max_segments], cudaStreamNonBlocking, -2));
-          CUDA_TRY(cudaStreamCreateWithPriority(
-            &pool_streams[i * max_segments + 1], cudaStreamNonBlocking, -2));
-          CUDA_TRY(cudaStreamCreateWithPriority(
-            &pool_streams[i * max_segments + 2], cudaStreamNonBlocking, -1));
-          CUDA_TRY(cudaStreamCreateWithPriority(
-            &pool_streams[i * max_segments + 3], cudaStreamNonBlocking, 0));
-        }
-#endif
-
         stream_pool_indices = std::vector<size_t>(num_streams);
         std::iota((*stream_pool_indices).begin(), (*stream_pool_indices).end(), size_t{0});
         handle.sync_stream();
-        std::cout << "copy_v num_streams=" << num_streams << std::endl;  // FIXME: delete
       }
     }
   }
@@ -626,328 +597,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
 
   if (stream_pool_indices) { handle.sync_stream(); }
 
-#if 1  // FIXME: delete, just experimenting (to better separate compute time vs reduction time
-  if (stream_pool_indices) {
-    auto num_concurrent_loops = (*stream_pool_indices).size() / max_segments;
-    auto num_rounds =
-      (graph_view.get_number_of_local_adj_matrix_partitions() + (num_concurrent_loops - 1)) /
-      num_concurrent_loops;
-    for (size_t round = 0; round < num_rounds; ++round) {
-      /* computing */
-
-#if 1  // FIXME: delete
-      if constexpr (GraphViewType::is_multi_gpu) { handle.get_comms().barrier(); }
-      auto core_time0 = std::chrono::steady_clock::now();
-#endif
-      for (size_t i = num_concurrent_loops * round;
-           i < std::min(static_cast<size_t>(graph_view.get_number_of_local_adj_matrix_partitions()),
-                        num_concurrent_loops * (round + 1));
-           ++i) {
-        auto matrix_partition =
-          matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-            graph_view.get_matrix_partition_view(i));
-
-        auto major_init = T{};
-        if constexpr (update_major) {
-          if constexpr (GraphViewType::is_multi_gpu) {
-            auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-            auto const col_comm_rank = col_comm.get_rank();
-            major_init               = (static_cast<int>(i) == col_comm_rank) ? init : T{};
-          } else {
-            major_init = init;
-          }
-        }
-
-        auto matrix_partition_row_value_input = adj_matrix_row_value_input;
-        auto matrix_partition_col_value_input = adj_matrix_col_value_input;
-        if constexpr (GraphViewType::is_adj_matrix_transposed) {
-          matrix_partition_col_value_input.set_local_adj_matrix_partition_idx(i);
-        } else {
-          matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
-        }
-
-        auto major_buffer_first =
-          get_dataframe_buffer_begin(major_tmp_buffers[i % major_tmp_buffers.size()]);
-
-        std::conditional_t<GraphViewType::is_multi_gpu,
-                           std::conditional_t<update_major,
-                                              decltype(major_buffer_first),
-                                              decltype(minor_tmp_buffer.mutable_device_view())>,
-                           VertexValueOutputIterator>
-          output_buffer{};
-        if constexpr (GraphViewType::is_multi_gpu) {
-          if constexpr (update_major) {
-            output_buffer = major_buffer_first;
-          } else {
-            output_buffer = minor_tmp_buffer.mutable_device_view();
-          }
-        } else {
-          output_buffer = vertex_value_output_first;
-        }
-
-        auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
-        if (segment_offsets) {
-          static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
-
-          // FIXME: we may further improve performance by 1) individually tuning block sizes for
-          // different segments; and 2) adding one more segment for very high degree vertices and
-          // running segmented reduction
-          if (matrix_partition.get_dcs_nzd_vertex_count()) {
-            auto exec_stream =
-              stream_pool_indices
-                ? rmm::cuda_stream_view{pool_streams[(i * max_segments) %
-                                                     (*stream_pool_indices).size()]}
-                /* FIXME for temporary testing,
-                   handle.get_stream_from_stream_pool((i * max_segments) %
-                   (*stream_pool_indices).size()) */
-                : handle.get_stream();
-            if constexpr (update_major) {  // this is necessary as we don't visit every vertex in
-                                           // the hypersparse segment in
-                                           // for_all_major_for_all_nbr_hypersparse
-              thrust::fill(rmm::exec_policy(exec_stream),
-                           output_buffer + (*segment_offsets)[3],
-                           output_buffer + (*segment_offsets)[4],
-                           major_init);
-            }
-            if (*(matrix_partition.get_dcs_nzd_vertex_count()) > 0) {
-              raft::grid_1d_thread_t update_grid(
-                *(matrix_partition.get_dcs_nzd_vertex_count()),
-                detail::copy_v_transform_reduce_nbr_for_all_block_size,
-                handle.get_device_properties().maxGridSize[0]);
-              auto segment_output_buffer = output_buffer;
-              if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[3]; }
-              detail::for_all_major_for_all_nbr_hypersparse<update_major, GraphViewType>
-                <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
-                  matrix_partition,
-                  matrix_partition.get_major_first() + (*segment_offsets)[3],
-                  matrix_partition_row_value_input,
-                  matrix_partition_col_value_input,
-                  segment_output_buffer,
-                  e_op,
-                  major_init);
-            }
-          }
-          if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
-            auto exec_stream =
-              stream_pool_indices
-                ? rmm::cuda_stream_view{pool_streams[(i * max_segments + 1) %
-                                                     (*stream_pool_indices).size()]}
-                /* FIXME for temporary testing, handle.get_stream_from_stream_pool((i *
-                   max_segments + 1) % (*stream_pool_indices).size()) */
-                : handle.get_stream();
-            raft::grid_1d_thread_t update_grid(
-              (*segment_offsets)[3] - (*segment_offsets)[2],
-              detail::copy_v_transform_reduce_nbr_for_all_block_size,
-              handle.get_device_properties().maxGridSize[0]);
-            auto segment_output_buffer = output_buffer;
-            if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[2]; }
-            detail::for_all_major_for_all_nbr_low_degree<update_major, GraphViewType>
-              <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
-                matrix_partition,
-                matrix_partition.get_major_first() + (*segment_offsets)[2],
-                matrix_partition.get_major_first() + (*segment_offsets)[3],
-                matrix_partition_row_value_input,
-                matrix_partition_col_value_input,
-                segment_output_buffer,
-                e_op,
-                major_init);
-          }
-          if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
-            auto exec_stream =
-              stream_pool_indices
-                ? rmm::cuda_stream_view{pool_streams[(i * max_segments + 2) %
-                                                     (*stream_pool_indices).size()]}
-                /* FIXME for temporary testing, handle.get_stream_from_stream_pool((i *
-                   max_segments + 2) % (*stream_pool_indices).size()) */
-                : handle.get_stream();
-            raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
-                                             detail::copy_v_transform_reduce_nbr_for_all_block_size,
-                                             handle.get_device_properties().maxGridSize[0]);
-            auto segment_output_buffer = output_buffer;
-            if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[1]; }
-            detail::for_all_major_for_all_nbr_mid_degree<update_major, GraphViewType>
-              <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
-                matrix_partition,
-                matrix_partition.get_major_first() + (*segment_offsets)[1],
-                matrix_partition.get_major_first() + (*segment_offsets)[2],
-                matrix_partition_row_value_input,
-                matrix_partition_col_value_input,
-                segment_output_buffer,
-                e_op,
-                major_init);
-          }
-          if ((*segment_offsets)[1] > 0) {
-            auto exec_stream =
-              stream_pool_indices
-                ? rmm::cuda_stream_view{pool_streams[(i * max_segments + 3) %
-                                                     (*stream_pool_indices).size()]}
-                /* FIXME for temporary testing, handle.get_stream_from_stream_pool((i *
-                   max_segments + 3) % (*stream_pool_indices).size()) */
-                : handle.get_stream();
-            raft::grid_1d_block_t update_grid(
-              (*segment_offsets)[1],
-              detail::copy_v_transform_reduce_nbr_for_all_block_size,
-              handle.get_device_properties().maxGridSize[0]);
-            detail::for_all_major_for_all_nbr_high_degree<update_major, GraphViewType>
-              <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
-                matrix_partition,
-                matrix_partition.get_major_first(),
-                matrix_partition.get_major_first() + (*segment_offsets)[1],
-                matrix_partition_row_value_input,
-                matrix_partition_col_value_input,
-                output_buffer,
-                e_op,
-                major_init);
-          }
-        } else {
-          if (matrix_partition.get_major_size() > 0) {
-            raft::grid_1d_thread_t update_grid(
-              matrix_partition.get_major_size(),
-              detail::copy_v_transform_reduce_nbr_for_all_block_size,
-              handle.get_device_properties().maxGridSize[0]);
-            detail::for_all_major_for_all_nbr_low_degree<update_major, GraphViewType>
-              <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-                matrix_partition,
-                matrix_partition.get_major_first(),
-                matrix_partition.get_major_last(),
-                matrix_partition_row_value_input,
-                matrix_partition_col_value_input,
-                output_buffer,
-                e_op,
-                major_init);
-          }
-        }
-      }
-
-#if 1  // FIXME: for temporary testing
-      for (size_t i = 0; i < pool_streams.size(); ++i) {
-        CUDA_TRY(cudaStreamSynchronize(pool_streams[i]));
-      }
-#else
-      handle.sync_stream_pool(*stream_pool_indices);
-#endif
-
-      /* communication */
-
-#if 1  // FIXME: delete
-      auto core_time1 = std::chrono::steady_clock::now();
-      if constexpr (GraphViewType::is_multi_gpu) { handle.get_comms().barrier(); }
-      auto core_time2 = std::chrono::steady_clock::now();
-#endif
-      if constexpr (GraphViewType::is_multi_gpu && update_major) {
-        ncclGroupStart();  // SIMPLE
-        for (size_t i = num_concurrent_loops * round;
-             i <
-             std::min(static_cast<size_t>(graph_view.get_number_of_local_adj_matrix_partitions()),
-                      num_concurrent_loops * (round + 1));
-             ++i) {
-#if 1  // SIMPLE
-          auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-#else
-          auto& comm     = handle.get_comms();
-          auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-          auto const row_comm_rank = row_comm.get_rank();
-          auto const row_comm_size = row_comm.get_size();
-          auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-          auto const col_comm_rank = col_comm.get_rank();
-          auto const col_comm_size = col_comm.get_size();
-#endif
-
-          auto matrix_partition =
-            matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-              graph_view.get_matrix_partition_view(i));
-
-          auto major_buffer_first =
-            get_dataframe_buffer_begin(major_tmp_buffers[i % major_tmp_buffers.size()]);
-
-#if 1  // SIMPLE
-          device_reduce(col_comm,
-                        major_buffer_first,
-                        vertex_value_output_first,
-                        matrix_partition.get_major_size(),
-                        raft::comms::op_t::SUM,
-                        i,
-                        handle.get_stream());
-#else
-          auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
-          if (segment_offsets && stream_pool_indices) {
-            if ((*segment_offsets).back() - (*segment_offsets)[3] > 0) {
-              device_reduce(col_comm,
-                        major_buffer_first + (*segment_offsets)[3],
-                        vertex_value_output_first + (*segment_offsets)[3],
-                        (*segment_offsets).back() - (*segment_offsets)[3],
-                        raft::comms::op_t::SUM,
-                        i,
-                        pool_streams[(i * max_segments) % (*stream_pool_indices).size()]/* FIXME for temporary testing, handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size()) */);
-            }
-            if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
-              device_reduce(col_comm,
-                            major_buffer_first + (*segment_offsets)[2],
-                            vertex_value_output_first + (*segment_offsets)[2],
-                            (*segment_offsets)[3] - (*segment_offsets)[2],
-                            raft::comms::op_t::SUM,
-                            i,
-                            pool_streams[(i * max_segments + 1) % (*stream_pool_indices).size()] /* FIXME for temporary testing, handle.get_stream_from_stream_pool((i * max_segments + 1) % (*stream_pool_indices).size()) */);
-            }
-            if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
-              device_reduce(col_comm,
-                            major_buffer_first + (*segment_offsets)[1],
-                            vertex_value_output_first + (*segment_offsets)[1],
-                            (*segment_offsets)[2] - (*segment_offsets)[1],
-                            raft::comms::op_t::SUM,
-                            i,
-                            pool_streams[(i * max_segments + 2) % (*stream_pool_indices).size()] /* FIXME for temporary testing, handle.get_stream_from_stream_pool((i * max_segments + 2) % (*stream_pool_indices).size()) */);
-            }
-            if ((*segment_offsets)[1] > 0) {
-              device_reduce(col_comm,
-                            major_buffer_first,
-                            vertex_value_output_first,
-                            (*segment_offsets)[1],
-                            raft::comms::op_t::SUM,
-                            i,
-                            pool_streams[(i * max_segments + 3) % (*stream_pool_indices).size()] /* FIXME for temporary testing, handle.get_stream_from_stream_pool((i * max_segments + 3) % (*stream_pool_indices).size()) */);
-            }
-          } else {
-            device_reduce(col_comm,
-                          major_buffer_first,
-                          vertex_value_output_first,
-                          matrix_partition.get_major_size(),
-                          raft::comms::op_t::SUM,
-                          i,
-                          handle.get_stream());
-          }
-#endif
-        }
-        ncclGroupEnd();  // SIMPLE
-      }
-
-#if 1  // SIMPLE
-      handle.sync_stream();  // SIMPLE
-#else
-#if 1  // FIXME: for temporary testing
-      for (size_t i = 0; i < pool_streams.size(); ++i) {
-        CUDA_TRY(cudaStreamSynchronize(pool_streams[i]));
-      }
-#else
-      handle.sync_stream_pool(*stream_pool_indices);
-#endif
-#endif
-#if 1  // FIXME: delete
-      auto core_time3 = std::chrono::steady_clock::now();
-      if constexpr (GraphViewType::is_multi_gpu) { handle.get_comms().barrier(); }
-      auto core_time4 = std::chrono::steady_clock::now();
-      std::chrono::duration<double> elapsed_total = core_time4 - core_time0;
-      std::chrono::duration<double> elapsed0 = core_time1 - core_time0;
-      std::chrono::duration<double> elapsed1 = core_time2 - core_time1;
-      std::chrono::duration<double> elapsed2 = core_time3 - core_time2;
-      std::chrono::duration<double> elapsed3 = core_time4 - core_time3;
-      std::cout << "copy_v core took " << elapsed_total.count() * 1e3 << " ms, breakdown=(" << elapsed0.count() * 1e3 << "," << elapsed1.count() * 1e3 << "," << elapsed2.count() * 1e3 << "," << elapsed3.count() * 1e3 << ") ms." << std::endl;
-#endif
-    }
-  } else {
-    CUGRAPH_FAIL("should not be reached.");
-  }
-#else
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
@@ -964,7 +613,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       }
     }
 
-    // FIXME: need to double check whether this leads to actual copy
     auto matrix_partition_row_value_input = adj_matrix_row_value_input;
     auto matrix_partition_col_value_input = adj_matrix_col_value_input;
     if constexpr (GraphViewType::is_adj_matrix_transposed) {
@@ -1000,13 +648,10 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       // different segments; and 2) adding one more segment for very high degree vertices and
       // running segmented reduction
       if (matrix_partition.get_dcs_nzd_vertex_count()) {
-        auto exec_stream = stream_pool_indices
-                             ? rmm::cuda_stream_view{pool_streams[(i * max_segments) %
-                                                                  (*stream_pool_indices).size()]}
-                             /* FIXME for temporary testing,
-                                handle.get_stream_from_stream_pool((i * max_segments) %
-                                (*stream_pool_indices).size()) */
-                             : handle.get_stream();
+        auto exec_stream =
+          stream_pool_indices
+            ? handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size())
+            : handle.get_stream();
         if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the
                                        // hypersparse segment in
                                        // for_all_major_for_all_nbr_hypersparse
@@ -1034,10 +679,8 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       }
       if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
         auto exec_stream = stream_pool_indices
-                             ? rmm::cuda_stream_view{pool_streams[(i * max_segments + 1) %
-                                                                  (*stream_pool_indices).size()]}
-                             /* FIXME for temporary testing, handle.get_stream_from_stream_pool((i *
-                                max_segments + 1) % (*stream_pool_indices).size()) */
+                             ? handle.get_stream_from_stream_pool((i * max_segments + 1) %
+                                                                  (*stream_pool_indices).size())
                              : handle.get_stream();
         raft::grid_1d_thread_t update_grid((*segment_offsets)[3] - (*segment_offsets)[2],
                                            detail::copy_v_transform_reduce_nbr_for_all_block_size,
@@ -1057,10 +700,8 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       }
       if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
         auto exec_stream = stream_pool_indices
-                             ? rmm::cuda_stream_view{pool_streams[(i * max_segments + 2) %
-                                                                  (*stream_pool_indices).size()]}
-                             /* FIXME for temporary testing, handle.get_stream_from_stream_pool((i *
-                                max_segments + 2) % (*stream_pool_indices).size()) */
+                             ? handle.get_stream_from_stream_pool((i * max_segments + 2) %
+                                                                  (*stream_pool_indices).size())
                              : handle.get_stream();
         raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
                                          detail::copy_v_transform_reduce_nbr_for_all_block_size,
@@ -1080,10 +721,8 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       }
       if ((*segment_offsets)[1] > 0) {
         auto exec_stream = stream_pool_indices
-                             ? rmm::cuda_stream_view{pool_streams[(i * max_segments + 3) %
-                                                                  (*stream_pool_indices).size()]}
-                             /* FIXME for temporary testing, handle.get_stream_from_stream_pool((i *
-                                max_segments + 3) % (*stream_pool_indices).size()) */
+                             ? handle.get_stream_from_stream_pool((i * max_segments + 3) %
+                                                                  (*stream_pool_indices).size())
                              : handle.get_stream();
         raft::grid_1d_block_t update_grid((*segment_offsets)[1],
                                           detail::copy_v_transform_reduce_nbr_for_all_block_size,
@@ -1128,25 +767,44 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
 
       if (segment_offsets && stream_pool_indices) {
         if ((*segment_offsets).back() - (*segment_offsets)[3] > 0) {
-          device_reduce(col_comm,
-                        major_buffer_first + (*segment_offsets)[3],
-                        vertex_value_output_first + (*segment_offsets)[3],
-                        (*segment_offsets).back() - (*segment_offsets)[3],
-                        raft::comms::op_t::SUM,
-                        i,
-                        pool_streams[(i * max_segments) % (*stream_pool_indices).size()]/* FIXME for temporary testing, handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size()) */);
+          device_reduce(
+            col_comm,
+            major_buffer_first + (*segment_offsets)[3],
+            vertex_value_output_first + (*segment_offsets)[3],
+            (*segment_offsets).back() - (*segment_offsets)[3],
+            raft::comms::op_t::SUM,
+            i,
+            handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size()));
         }
         if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
-          device_reduce(
-            col_comm, major_buffer_first + (*segment_offsets)[2], vertex_value_output_first + (*segment_offsets)[2], (*segment_offsets)[3] - (*segment_offsets)[2], raft::comms::op_t::SUM, i, pool_streams[(i * max_segments + 1) % (*stream_pool_indices).size()] /* FIXME for temporary testing, handle.get_stream_from_stream_pool((i * max_segments + 1) % (*stream_pool_indices).size()) */);
+          device_reduce(col_comm,
+                        major_buffer_first + (*segment_offsets)[2],
+                        vertex_value_output_first + (*segment_offsets)[2],
+                        (*segment_offsets)[3] - (*segment_offsets)[2],
+                        raft::comms::op_t::SUM,
+                        i,
+                        handle.get_stream_from_stream_pool((i * max_segments + 1) %
+                                                           (*stream_pool_indices).size()));
         }
         if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
-          device_reduce(
-            col_comm, major_buffer_first + (*segment_offsets)[1], vertex_value_output_first + (*segment_offsets)[1], (*segment_offsets)[2] - (*segment_offsets)[1], raft::comms::op_t::SUM, i, pool_streams[(i * max_segments + 2) % (*stream_pool_indices).size()] /* FIXME for temporary testing, handle.get_stream_from_stream_pool((i * max_segments + 2) % (*stream_pool_indices).size()) */);
+          device_reduce(col_comm,
+                        major_buffer_first + (*segment_offsets)[1],
+                        vertex_value_output_first + (*segment_offsets)[1],
+                        (*segment_offsets)[2] - (*segment_offsets)[1],
+                        raft::comms::op_t::SUM,
+                        i,
+                        handle.get_stream_from_stream_pool((i * max_segments + 2) %
+                                                           (*stream_pool_indices).size()));
         }
         if ((*segment_offsets)[1] > 0) {
-          device_reduce(
-            col_comm, major_buffer_first, vertex_value_output_first, (*segment_offsets)[1], raft::comms::op_t::SUM, i, pool_streams[(i * max_segments + 3) % (*stream_pool_indices).size()] /* FIXME for temporary testing, handle.get_stream_from_stream_pool((i * max_segments + 3) % (*stream_pool_indices).size()) */);
+          device_reduce(col_comm,
+                        major_buffer_first,
+                        vertex_value_output_first,
+                        (*segment_offsets)[1],
+                        raft::comms::op_t::SUM,
+                        i,
+                        handle.get_stream_from_stream_pool((i * max_segments + 3) %
+                                                           (*stream_pool_indices).size()));
         }
       } else {
         device_reduce(col_comm,
@@ -1159,23 +817,10 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       }
     }
   }
-#endif
 
-  if (stream_pool_indices) {
-#if 1  // FIXME: for temporary testing
-    for (size_t i = 0; i < pool_streams.size(); ++i) {
-      CUDA_TRY(cudaStreamSynchronize(pool_streams[i]));
-    }
-#else
-    handle.sync_stream_pool(*stream_pool_indices);
-#endif
-  }
+  if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 
   if constexpr (GraphViewType::is_multi_gpu && !update_major) {
-#if 1  // FIXME: delete
-    handle.sync_stream();
-    std::cout << "minor reduction" << std::endl;
-#endif
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -1237,14 +882,6 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       }
     }
   }
-// FIXME: for temporary testing
-#if 1
-  if (stream_pool_indices) {
-    for (size_t i = 0; i < pool_streams.size(); ++i) {
-      CUDA_TRY(cudaStreamDestroy(pool_streams[i]));
-    }
-  }
-#endif
 }
 
 }  // namespace detail
