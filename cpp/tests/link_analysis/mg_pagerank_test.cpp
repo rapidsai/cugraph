@@ -64,76 +64,19 @@ class Tests_MGPageRank
     auto constexpr pool_size = 64;  // FIXME: tuning parameter
     raft::handle_t handle(rmm::cuda_stream_per_thread, std::make_shared<rmm::cuda_stream_pool>(pool_size));
     HighResClock hr_clock{};
-#if 1  // FIXME: delete
-    auto time0 = std::chrono::steady_clock::now();
-#endif
 
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
     auto const comm_rank = comm.get_rank();
 
-    int row_comm_size{};
-    int num_gpus_per_node{};
-    RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-    if (comm_size > num_gpus_per_node) {  // multi-node, inter-node communication bandwidth
-                                          // (Infinniband) is more likely to be a bottleneck than
-                                          // intra-node (NVLink) communication bandwidth
-      CUGRAPH_EXPECTS((comm_size % num_gpus_per_node) == 0,
-                      "Invalid MPI configuration: in multi-node execution, # MPI processes should "
-                      "be a multiple of the number of GPUs per node.");
-#if 1
-      auto col_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-      while (comm_size % col_comm_size != 0) {
-        --col_comm_size;
-      }
-      row_comm_size = comm_size / col_comm_size;
-#else
-      auto num_nodes = comm_size / num_gpus_per_node;
-      row_comm_size  = static_cast<int>(sqrt(static_cast<double>(num_nodes)));
-      while (num_nodes % row_comm_size != 0) {
-        --row_comm_size;
-      }
-      row_comm_size *= num_gpus_per_node;
-#endif
-    } else {
-      row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-      while (comm_size % row_comm_size != 0) {
-        --row_comm_size;
-      }
+    auto  row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
+    while (comm_size % row_comm_size != 0) {
+      --row_comm_size;
     }
 
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
       subcomm_factory(handle, row_comm_size);
-#if 1  // FIXME: delete
-    {
-      rmm::device_uvector<int32_t> tx_ints(comm_size, handle.get_stream());
-      rmm::device_uvector<int32_t> rx_ints(comm_size, handle.get_stream());
-      std::vector<size_t> tx_sizes(comm_size, size_t{1});
-      std::vector<size_t> tx_offsets(comm_size);
-      std::iota(tx_offsets.begin(), tx_offsets.end(), size_t{0});
-      std::vector<int32_t> tx_ranks(comm_size);
-      std::iota(tx_ranks.begin(), tx_ranks.end(), int32_t{0});
-      auto rx_sizes   = tx_sizes;
-      auto rx_offsets = tx_offsets;
-      auto rx_ranks   = tx_ranks;
-      handle.get_comms().device_multicast_sendrecv(tx_ints.data(),
-                                                   tx_sizes,
-                                                   tx_offsets,
-                                                   tx_ranks,
-                                                   rx_ints.data(),
-                                                   rx_sizes,
-                                                   rx_offsets,
-                                                   rx_ranks,
-                                                   handle.get_stream());
-      handle.sync_stream();
-    }
-    auto time1                            = std::chrono::steady_clock::now();
-    std::chrono::duration<double> elapsed = time1 - time0;
-    std::cout << "Handle initialization and 1st all-to-all (comm_size=" << comm_size
-              << ", row_comm_size=" << row_comm_size << ") took " << elapsed.count() * 1e3 << " ms."
-              << std::endl;
-#endif
 
     // 2. create MG graph
 
