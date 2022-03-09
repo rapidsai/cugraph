@@ -70,7 +70,7 @@ class Tests_MGPageRank
     auto const comm_size = comm.get_size();
     auto const comm_rank = comm.get_rank();
 
-    auto  row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
+    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
     while (comm_size % row_comm_size != 0) {
       --row_comm_size;
     }
