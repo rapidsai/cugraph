@@ -24,7 +24,7 @@
 #include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
 
-#include <cugraph-ops/graph/sampling.h>
+#include <cugraph-ops/graph/sampling.hpp>
 
 #include <raft/handle.hpp>
 

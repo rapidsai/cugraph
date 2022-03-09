@@ -508,28 +508,6 @@ update_local_sorted_unique_edge_majors_minors(
                      atomic_or_bitmap_t<vertex_t>{minor_bitmaps.data(), minor_first});
   }
 
-  vertex_t num_local_unique_edge_majors{0};
-  for (size_t i = 0; i < adj_matrix_partition_offsets_.size(); ++i) {
-    num_local_unique_edge_majors += thrust::count_if(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(vertex_t{0}),
-      thrust::make_counting_iterator(
-        static_cast<vertex_t>(adj_matrix_partition_offsets_[i].size() - 1)),
-      has_nzd_t<vertex_t, edge_t>{adj_matrix_partition_offsets_[i].data(), vertex_t{0}});
-  }
-
-  auto [minor_first, minor_last] = partition_.get_matrix_partition_minor_range();
-  rmm::device_uvector<uint32_t> minor_bitmaps(
-    ((minor_last - minor_first) + sizeof(uint32_t) * 8 - 1) / (sizeof(uint32_t) * 8),
-    handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), minor_bitmaps.begin(), minor_bitmaps.end(), uint32_t{0});
-  for (size_t i = 0; i < adj_matrix_partition_indices_.size(); ++i) {
-    thrust::for_each(handle.get_thrust_policy(),
-                     adj_matrix_partition_indices_[i].begin(),
-                     adj_matrix_partition_indices_[i].end(),
-                     atomic_or_bitmap_t<vertex_t>{minor_bitmaps.data(), minor_first});
-  }
-
   auto count_first = thrust::make_transform_iterator(minor_bitmaps.begin(), popc_t<vertex_t>{});
   auto num_local_unique_edge_minors = thrust::reduce(
     handle.get_thrust_policy(), count_first, count_first + minor_bitmaps.size(), vertex_t{0});

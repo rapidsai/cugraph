@@ -37,6 +37,7 @@ requirements:
     - cmake>=3.20.1
     - doxygen>=1.8.11
     - cudatoolkit {{ cuda_version }}.*
+    - libraft-headers {{ minor_version }}
     - libcugraphops {{ minor_version }}.*
     - librmm {{ minor_version }}.*
     - cudf {{ minor_version }}.*
@@ -47,6 +48,8 @@ requirements:
     - gmock
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
+    - libraft-headers {{ minor_version }}
+    - librmm {{ minor_version }}
     - nccl>=2.9.9
     - ucx-proc=*=gpu
     - libcugraphops {{ minor_version }}.*
