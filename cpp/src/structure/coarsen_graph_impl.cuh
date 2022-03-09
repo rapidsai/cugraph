@@ -249,10 +249,6 @@ coarsen_graph(
   // 1. construct coarsened edge lists from each local partition (if the input graph is symmetric,
   // start with only the lower triangular edges after relabeling, this is to prevent edge weights in
   // the coarsened graph becoming asymmmetric due to limited floatping point resolution)
-#if 1  // FIXME: delete
-  handle.sync_stream();
-  std::cout << "coarsen_graph 1" << std::endl;
-#endif
 
   bool lower_triangular_only = graph_view.is_symmetric();
 
@@ -281,10 +277,6 @@ coarsen_graph(
   }
   for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
     // 1-1. locally construct coarsened edge list
-#if 1  // FIXME: delete
-    handle.sync_stream();
-    std::cout << "coarsen_graph i=" << i << " 1-1" << std::endl;
-#endif
 
     rmm::device_uvector<vertex_t> major_labels(
       store_transposed ? graph_view.get_number_of_local_adj_matrix_partition_cols(i)
@@ -308,10 +300,6 @@ coarsen_graph(
         lower_triangular_only);
 
     // 1-2. globally shuffle
-#if 1  // FIXME: delete
-    handle.sync_stream();
-    std::cout << "coarsen_graph i=" << i << " 1-2" << std::endl;
-#endif
 
     std::tie(edgelist_majors, edgelist_minors, edgelist_weights) =
       cugraph::detail::shuffle_edgelist_by_gpu_id(handle,
@@ -320,10 +308,6 @@ coarsen_graph(
                                                   std::move(edgelist_weights));
 
     // 1-3. groupby and coarsen again
-#if 1  // FIXME: delete
-    handle.sync_stream();
-    std::cout << "coarsen_graph i=" << i << " 1-3" << std::endl;
-#endif
 
     std::tie(edgelist_majors, edgelist_minors, edgelist_weights) =
       groupby_e_and_coarsen_edgelist(std::move(edgelist_majors),
@@ -339,10 +323,6 @@ coarsen_graph(
 
   // 2. concatenate and groupby and coarsen again (and if the input graph is symmetric, 1) create a
   // copy excluding self loops, 2) globally shuffle, and 3) concatenate again)
-#if 1  // FIXME: delete
-  handle.sync_stream();
-  std::cout << "coarsen_graph 2" << std::endl;
-#endif
 
   edge_t tot_count{0};
   for (size_t i = 0; i < coarsened_edgelist_majors.size(); ++i) {
@@ -388,20 +368,12 @@ coarsen_graph(
     }
   }
 
-#if 1  // FIXME: delete
-  handle.sync_stream();
-  std::cout << "coarsen_graph 2-1" << std::endl;
-#endif
   std::tie(
     concatenated_edgelist_majors, concatenated_edgelist_minors, concatenated_edgelist_weights) =
     groupby_e_and_coarsen_edgelist(std::move(concatenated_edgelist_majors),
                                    std::move(concatenated_edgelist_minors),
                                    std::move(concatenated_edgelist_weights),
                                    handle.get_stream());
-#if 1  // FIXME: delete
-  handle.sync_stream();
-  std::cout << "coarsen_graph 2-2" << std::endl;
-#endif
 
   if (lower_triangular_only) {
     rmm::device_uvector<vertex_t> reversed_edgelist_majors(0, handle.get_stream());
@@ -413,10 +385,6 @@ coarsen_graph(
         thrust::make_zip_iterator(thrust::make_tuple(concatenated_edgelist_majors.begin(),
                                                      concatenated_edgelist_minors.begin(),
                                                      (*concatenated_edgelist_weights).begin()));
-#if 1  // FIXME: delete
-      handle.sync_stream();
-      std::cout << "coarsen_graph 2-2a" << std::endl;
-#endif
       auto last =
         thrust::partition(handle.get_thrust_policy(),
                           edge_first,
