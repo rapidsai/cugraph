@@ -87,7 +87,8 @@ def node2vec(G,
 
     """
     if (not isinstance(max_depth, int)) or (max_depth < 1):
-        raise ValueError(f"'max_depth' must be a positive integer, got: {max_depth}")
+        raise ValueError(f"'max_depth' must be a positive integer, \
+                        got: {max_depth}")
     if (not isinstance(use_padding, bool)):
         raise ValueError(f"'use_padding' must be a bool, got: {use_padding}")
     if (not isinstance(p, float)) or (p <= 0.0):

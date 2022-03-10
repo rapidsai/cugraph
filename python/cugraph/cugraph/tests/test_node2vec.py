@@ -27,6 +27,7 @@ DIRECTED_GRAPH_OPTIONS = [False, True]
 DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
 KARATE = DATASETS_SMALL[0][0][0]
 
+
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
