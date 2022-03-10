@@ -19,6 +19,21 @@
 
 #include <gtest/gtest.h>
 
+// for sleep()
+#include <cstdio>
+#include <iterator>
+namespace {
+void spinner(void)
+{
+  int i = 1;
+  while (i == 1) {
+    sleep(1);
+
+    std::cout << "." << std::flush;
+  }
+}
+}  // namespace
+
 struct Prims_Usecase {
   bool check_correctness{true};
 };
@@ -84,6 +99,8 @@ class Tests_MG_Nbr_Sampling
     constexpr vertex_t repetitions_per_vertex = 5;
     constexpr vertex_t source_sample_count    = 3;
 
+    spinner();
+
     // Generate random vertex ids in the range of current gpu
 
     // Generate random sources to gather on
@@ -100,6 +117,16 @@ class Tests_MG_Nbr_Sampling
 
     std::vector<int> h_fan_out{indices_per_source};  // depth = 1
 
+    auto begin_in_pairs = thrust::make_zip_iterator(
+      thrust::make_tuple(random_sources.begin(), random_source_gpu_ids.begin()));
+    auto end_in_pairs = thrust::make_zip_iterator(
+      thrust::make_tuple(random_sources.end(), random_source_gpu_ids.end()));
+
+    // gather input:
+    //
+    auto&& [tuple_vertex_ranks, counts] = cugraph::detail::shuffle_to_gpus(
+      handle, mg_graph_view, begin_in_pairs, end_in_pairs, gpu_t{});
+
     std::cerr << "##### Enter uniform_nbr_sampling():\n";
     auto&& [tuple_quad, v_sizes] = cugraph::uniform_nbr_sample(handle,
                                                                mg_graph_view,
@@ -114,26 +141,6 @@ class Tests_MG_Nbr_Sampling
     auto&& d_dst_out = std::get<1>(tuple_quad);
     auto&& d_gpu_ids = std::get<2>(tuple_quad);
 
-    auto begin_in_pairs = thrust::make_zip_iterator(
-      thrust::make_tuple(random_sources.begin(), random_source_gpu_ids.begin()));
-    auto end_in_pairs = thrust::make_zip_iterator(
-      thrust::make_tuple(random_sources.end(), random_source_gpu_ids.end()));
-
-    // gather input:
-    //
-    auto&& [tuple_vertex_ranks, counts] = cugraph::detail::shuffle_to_gpus(
-      handle, mg_graph_view, begin_in_pairs, end_in_pairs, gpu_t{});
-
-    auto num_ranks = v_sizes.size();
-    ASSERT_TRUE(counts.size() == num_ranks);  // == #ranks
-
-    // CAVEAT: in size << out_size;
-    //
-    auto total_in_sizes  = std::accumulate(counts.begin(), counts.end(), 0);
-    auto total_out_sizes = std::accumulate(v_sizes.begin(), v_sizes.end(), 0);
-
-    std::cerr << "##### accumulated size: " << total_out_sizes << '\n';
-
     if (prims_usecase.check_correctness) {
       auto self_rank = handle.get_comms().get_rank();
 
@@ -142,6 +149,16 @@ class Tests_MG_Nbr_Sampling
       //
       if (self_rank == gpu_t{0}) {
         std::cerr << "##### check:\n";
+
+        auto num_ranks = v_sizes.size();
+        ASSERT_TRUE(counts.size() == num_ranks);  // == #ranks
+
+        // CAVEAT: in size << out_size;
+        //
+        auto total_in_sizes  = std::accumulate(counts.begin(), counts.end(), 0);
+        auto total_out_sizes = std::accumulate(v_sizes.begin(), v_sizes.end(), 0);
+
+        std::cerr << "##### accumulated size: " << total_out_sizes << '\n';
 
         // merge inputs / outputs to be checked on host:
         //

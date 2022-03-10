@@ -48,6 +48,35 @@
 #include <type_traits>
 #include <vector>
 
+#define DEBUG_NBR
+
+#ifdef DEBUG_NBR
+namespace {
+template <typename T>
+void print_h(std::vector<T> const& h_range, std::ostream& os)
+{
+  std::copy(h_range.begin(), h_range.end(), std::ostream_iterator<T>(os, ", "));
+  os << '\n' << std::flush;
+}
+
+template <typename T>
+std::vector<T> print_d(raft::handle_t const& handle,
+                       cugraph::detail::device_vec_t<T> const& d_vec,
+                       std::ostream& os)
+{
+  size_t sz = thrust::distance(d_vec.begin(), d_vec.end());
+  std::vector<T> h_range(sz);
+
+  raft::update_host(h_range.data(), d_vec.begin(), sz, handle.get_stream());
+
+  print_h(h_range, os);
+
+  return h_range;
+}
+
+}  // namespace
+#endif
+
 namespace cugraph {
 
 namespace detail {
@@ -347,7 +376,14 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
     device_vec_t<gpu_t> d_acc_ranks(0, handle.get_stream());
     device_vec_t<index_t> d_acc_indices(0, handle.get_stream());
 
-    decltype(num_levels) level{0};
+#ifdef DEBUG_NBR
+    std::cerr << "d_in:\n";
+    auto&& h_in = print_d(handle, d_in, std::cerr);
+
+    std::cerr << "d_ranks:\n";
+    auto&& h_ranks = print_d(handle, d_ranks, std::cerr);
+#endif
+
     auto const self_rank = handle.get_comms().get_rank();
     for (auto&& k_level : h_fan_out) {
       // main body:
@@ -357,16 +393,29 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
       auto&& [d_new_in, d_new_rank] = gather_active_sources_in_row(
         handle, graph_view, d_in.cbegin(), d_in.cend(), d_ranks.cbegin());
 
-      auto in_sz = d_new_in.size();
+#ifdef DEBUG_NBR
+      std::cerr << "d_new_in:\n";
+      auto&& h_new_in = print_d(handle, d_new_in, std::cerr);
+
+      std::cerr << "d_new_rank:\n";
+      auto&& h_new_rank = print_d(handle, d_new_rank, std::cerr);
+#endif
+
+      auto in_sz = d_in.size();
       if (in_sz > 0) {
         // extract out-degs(sources):
         //
         auto&& d_out_degs =
           get_active_major_global_degrees(handle, graph_view, d_new_in, global_degree_offsets);
 
+#ifdef DEBUG_NBR
+        std::cerr << "d_out_degs:\n";
+        auto&& h_degs = print_d(handle, d_out_degs, std::cerr);
+#endif
+
         // segemented-random-generation of indices:
         //
-        device_vec_t<edge_t> d_indices(in_sz * k_level, handle.get_stream());
+        device_vec_t<edge_t> d_indices(d_new_in.size() * k_level, handle.get_stream());
         seeder_t seeder{};
         cugraph_ops::Rng rng(seeder() + k_level);
         cugraph_ops::get_sampling_index(detail::raw_ptr(d_indices),
@@ -376,6 +425,11 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
                                         static_cast<int32_t>(k_level),
                                         flag_replacement,
                                         handle.get_stream());
+
+#ifdef DEBUG_NBR
+        std::cerr << "d_indices:\n";
+        auto&& h_indices = print_d(handle, d_indices, std::cerr);
+#endif
 
         // gather edges step:
         // invalid entries (not found, etc.) filtered out in result;
@@ -437,7 +491,6 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
       }
 
       //}
-      ++level;
     }
 
     return std::make_tuple(
@@ -511,9 +564,25 @@ uniform_nbr_sample(raft::handle_t const& handle,
                                d_ranks,
                                gpu_t{});
 
+#ifdef DEBUG_NBR
+  std::cerr << "d_start_vs:\n";
+  auto&& h_starts = print_d(handle, d_start_vs, std::cerr);
+
+  std::cerr << "d_ranks:\n";
+  auto&& h_ranks = print_d(handle, d_ranks, std::cerr);
+#endif
+
   // preamble step for out-degree info:
   //
   auto&& [d_edge_count, global_degree_offsets] = get_global_degree_information(handle, graph_view);
+
+#ifdef DEBUG_NBR
+  std::cerr << "d_edge_count:\n";
+  auto&& h_edges = print_d(handle, d_edge_count, std::cerr);
+
+  std::cerr << "global_degree_offsets:\n";
+  auto&& h_global = print_d(handle, global_degree_offsets, std::cerr);
+#endif
 
   // extract output quad SOA:
   //
