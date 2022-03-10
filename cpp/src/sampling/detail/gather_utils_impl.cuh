@@ -37,6 +37,37 @@
 #include <numeric>
 #include <vector>
 
+#define DEBUG_NBR
+
+#include <sstream>
+
+#ifdef DEBUG_NBR
+namespace {
+template <typename T>
+void print_h(std::vector<T> const& h_range, std::ostream& os)
+{
+  std::copy(h_range.begin(), h_range.end(), std::ostream_iterator<T>(os, ", "));
+  os << '\n' << std::flush;
+}
+
+template <typename T>
+std::vector<T> print_d(raft::handle_t const& handle,
+                       rmm::device_uvector<T> const& d_vec,
+                       std::ostream& os)
+{
+  size_t sz = thrust::distance(d_vec.begin(), d_vec.end());
+  std::vector<T> h_range(sz);
+
+  raft::update_host(h_range.data(), d_vec.begin(), sz, handle.get_stream());
+
+  print_h(h_range, os);
+
+  return h_range;
+}
+
+}  // namespace
+#endif
+
 namespace cugraph {
 
 namespace detail {
@@ -398,6 +429,25 @@ gather_local_edges(
   rmm::device_uvector<gpu_t> minor_gpu_ids(edge_count, handle.get_stream());
   vertex_t invalid_vertex_id = graph_view.get_number_of_vertices();
 
+#ifdef DEBUG_NBR
+  {
+    auto const self_rank = handle.get_comms().get_rank();
+
+    std::stringstream ss;
+    ss << "rank: " << self_rank << "{\n active_majors:\n";
+    auto&& h_majors = print_d(handle, active_majors_in_row, ss);
+
+    ss << "active_gpu_ids:\n";
+    auto&& h_gpu_ids = print_d(handle, active_major_gpu_ids, ss);
+
+    ss << "indices:\n";
+    auto&& h_minor_indices = print_d(handle, minor_indices, ss);
+    ss << "}\n";
+
+    std::cerr << ss.str() << std::flush;
+  }
+#endif
+
   auto [partitions, id_begin, id_end, hypersparse_begin, vertex_count_offsets] =
     partition_information(handle, graph_view);
 
@@ -445,6 +495,7 @@ gather_local_edges(
           location_in_segment = *(row_hypersparse_idx)-id_begin[partition_id];
         } else {
           minors[index] = invalid_vertex_id;
+          printf("1 %ld %ld invalidated!\n", index, major);
           return;
         }
       }
@@ -460,15 +511,46 @@ gather_local_edges(
       auto location        = location_in_segment + vertex_count_offsets[partition_id];
       auto g_degree_offset = global_degree_offsets[location];
       auto g_dst_index     = edge_index_first[index];
+
+      printf("2 degree info: %ld %ld %ld %ld %ld\n",
+             location,
+             location_in_segment,
+             g_dst_index,
+             g_degree_offset,
+             local_out_degree);
+
       if ((g_dst_index >= g_degree_offset) && (g_dst_index < g_degree_offset + local_out_degree)) {
         minors[index] = adjacency_list[g_dst_index - g_degree_offset];
       } else {
         minors[index] = invalid_vertex_id;
+        printf("2 %ld %ld invalidated!\n", index, major);
       }
     });
 
   auto input_iter = thrust::make_zip_iterator(thrust::make_tuple(
     majors.begin(), minors.begin(), minor_gpu_ids.begin(), minor_indices.begin()));
+
+#ifdef DEBUG_NBR
+  {
+    auto const self_rank = handle.get_comms().get_rank();
+
+    std::stringstream ss;
+    ss << "rank: " << self_rank << "{\n majors:\n";
+    auto&& h_majors = print_d(handle, majors, ss);
+
+    ss << "minors:\n";
+    auto&& h_minors = print_d(handle, minors, ss);
+
+    ss << "minor_gpu_ids:\n";
+    auto&& h_minor_gpu_ids = print_d(handle, minor_gpu_ids, ss);
+
+    ss << "minor_indices:\n";
+    auto&& h_minor_indices = print_d(handle, minor_indices, ss);
+    ss << "}\n";
+
+    std::cerr << ss.str() << std::flush;
+  }
+#endif
 
   auto compacted_length = thrust::distance(
     input_iter,
