@@ -50,18 +50,18 @@ def node2vec(G,
     use_padding: bool, optional (default=False)
         If True, padded paths are returned else coalesced paths are returned
 
-    p: double, optional (default=1.0, [0 < p])
+    p: float, optional (default=1.0, [0 < p])
         Return factor, which represents the likelihood of backtracking to
         a previous node in the walk. A higher value makes it less likely to
         sample a previously visited node, while a lower value makes it more
-        likely to backtrack, making the walk "local". A positive double.
+        likely to backtrack, making the walk "local". A positive float.
 
-    q: double, optional (default=1.0, [0 < q])
+    q: float, optional (default=1.0, [0 < q])
         In-out factor, which represents the likelihood of visiting nodes
         closer or further from the outgoing node. If q > 1, the random walk
         is likelier to visit nodes closer to the outgoing node. If q < 1, the
         random walk is likelier to visit nodes further from the outgoing node.
-        A positive double.
+        A positive float.
 
     Returns
     -------
@@ -86,14 +86,14 @@ def node2vec(G,
     ...                                               True, 0.8, 0.5)
 
     """
-    if (max_depth is None) or (max_depth < 1):
-        raise ValueError("'max_depth' must be a positive integer")
+    if (not isinstance(max_depth, int)) or (max_depth < 1):
+        raise ValueError(f"'max_depth' must be a positive integer, got: {max_depth}")
     if (not isinstance(use_padding, bool)):
-        raise ValueError("'use_padding' must be a bool")
-    if (p is None) or (p <= 0.0):
-        raise ValueError("'p' must be a positive double")
-    if (q is None) or (q <= 0.0):
-        raise ValueError("'q' must be a positive double")
+        raise ValueError(f"'use_padding' must be a bool, got: {use_padding}")
+    if (not isinstance(p, float)) or (p <= 0.0):
+        raise ValueError(f"'p' must be a positive float, got: {p}")
+    if (not isinstance(q, float)) or (q <= 0.0):
+        raise ValueError(f"'q' must be a positive float, got: {q}")
 
     G, _ = ensure_cugraph_obj_for_nx(G)
 

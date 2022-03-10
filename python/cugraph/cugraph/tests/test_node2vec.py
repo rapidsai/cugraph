@@ -25,7 +25,7 @@ import cugraph
 # =============================================================================
 DIRECTED_GRAPH_OPTIONS = [False, True]
 DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
-
+KARATE = DATASETS_SMALL[0][0][0]
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -152,30 +152,33 @@ def test_node2vec_padded(
     assert err == 0
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize("max_depth", [None, -1])
-@pytest.mark.parametrize("p", [None, -1])
-@pytest.mark.parametrize("q", [None, -1])
+@pytest.mark.parametrize("graph_file", [KARATE])
 def test_node2vec_invalid(
-    graph_file,
-    directed,
-    max_depth,
-    p,
-    q
+    graph_file
 ):
-    G = utils.generate_cugraph_graph_from_file(graph_file, directed=directed,
+    G = utils.generate_cugraph_graph_from_file(graph_file, directed=True,
                                                edgevals=True)
     k = random.randint(1, 10)
     start_vertices = random.sample(range(G.number_of_vertices()), k)
-    # Tests for invalid p and q
     use_padding = True
-    with pytest.raises(ValueError):
-        df, seeds = calc_node2vec(
-            G,
-            start_vertices,
-            max_depth=max_depth,
-            use_padding=use_padding,
-            p=p,
-            q=q
-        )
+    max_depth = 1
+    p = 1
+    q = 1
+    invalid_max_depths = [None, -1, "1", 4.5]
+    invalid_pqs = [None, -1, "1"]
+
+    # Tests for invalid max_depth
+    for bad_depth in invalid_max_depths:
+        with pytest.raises(ValueError):
+            df, seeds = calc_node2vec(G, start_vertices, max_depth=bad_depth,
+                                      use_padding=use_padding, p=p, q=q)
+    # Tests for invalid p
+    for bad_p in invalid_pqs:
+        with pytest.raises(ValueError):
+            df, seeds = calc_node2vec(G, start_vertices, max_depth=max_depth,
+                                      use_padding=use_padding, p=bad_p, q=q)
+    # Tests for invalid q
+    for bad_q in invalid_pqs:
+        with pytest.raises(ValueError):
+            df, seeds = calc_node2vec(G, start_vertices, max_depth=max_depth,
+                                      use_padding=use_padding, p=p, q=bad_q)
