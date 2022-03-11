@@ -231,17 +231,17 @@ TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt32Int32Float)
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
-// TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt32Int64Float)
-// {
-//   auto param = GetParam();
-//   run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
-// }
+TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt32Int64Float)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+}
 
-// TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt64Int64Float)
-// {
-//   auto param = GetParam();
-//   run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
-// }
+TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt64Int64Float)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+}
 
 TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int32Float)
 {
@@ -249,17 +249,17 @@ TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int32Float)
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
-// TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int64Float)
-// {
-//   auto param = GetParam();
-//   run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
-// }
+TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int64Float)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+}
 
-// TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt64Int64Float)
-// {
-//   auto param = GetParam();
-//   run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
-// }
+TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt64Int64Float)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+}
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
