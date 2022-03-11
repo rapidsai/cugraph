@@ -314,7 +314,7 @@ cugraph_type_erased_device_array_view_t* cugraph_extract_paths_result_get_paths(
 void cugraph_extract_paths_result_free(cugraph_extract_paths_result_t* result);
 
 /**
- * @brief     Opaque extract_paths result type
+ * @brief     Opaque random walk result type
  */
 typedef struct {
   int32_t align_;
@@ -391,6 +391,93 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_path_siz
  * @param [in]   result   The result from random walks
  */
 void cugraph_random_walk_result_free(cugraph_random_walk_result_t* result);
+
+/**
+ * @brief     Opaque neighborhood sampling result type
+ */
+typedef struct {
+  int32_t align_;
+} cugraph_sample_result_t;
+
+/**
+ * @brief     Uniform Neighborhood Sampling
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  start        Device array of start vertices for the sampling
+ * @param [in]  start_label  Device array of start labels.  These labels will propagate to the
+ * results so that the result can be properly organized when the input needs to be sent back to
+ * different callers (different processes or different gpus).
+ * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm
+ * @param [in]  without_replacement
+ *                           Boolean value.  If true selection of edges is done without
+ *                           replacement.  If false selection is done with replacement.
+ * @param [in]  result       Output from the uniform_nbr_sample call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t uniform_nbr_sample(const cugraph_resource_handle_t* handle,
+                                        cugraph_graph_t* graph,
+                                        const cugraph_type_erased_device_array_view_t* start,
+                                        const cugraph_type_erased_device_array_view_t* start_label,
+                                        const cugraph_type_erased_host_array_view_t* fan_out,
+                                        bool_t without_replacement,
+                                        cugraph_sample_result_t** result,
+                                        cugraph_error_t** error);
+
+/**
+ * @brief     Get the source vertices from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the source vertices in device memory
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_sources(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the destination vertices from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the destination vertices in device memory
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_destinations(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the start labels from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the start labels
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_start_labels(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the index from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the index
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the transaction counts from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased host array pointing to the counts
+ */
+cugraph_type_erased_host_array_view_t* cugraph_sample_result_get_counts(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Free a sampling result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ */
+void cugraph_sample_result_free(cugraph_sample_result_t* result);
 
 #ifdef __cplusplus
 }
