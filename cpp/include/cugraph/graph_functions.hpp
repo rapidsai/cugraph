@@ -351,16 +351,16 @@ symmetrize_edgelist(raft::handle_t const& handle,
  * @param graph_view Graph view object of the input graph to be coarsened.
  * @param labels Vertex labels (assigned to this process in multi-GPU) to be used in coarsening.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed,
- * multi_gpu>>, rmm::device_uvector<vertex_t>> Tuple of the coarsened graph and labels mapped to the
- * vertices (assigned to this process in multi-GPU) in the coarsened graph.
+ * @return std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+ * rmm::device_uvector<vertex_t>> Tuple of the coarsened graph and labels mapped to the vertices
+ * (assigned to this process in multi-GPU) in the coarsened graph.
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
+std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            rmm::device_uvector<vertex_t>>
 coarsen_graph(
   raft::handle_t const& handle,
