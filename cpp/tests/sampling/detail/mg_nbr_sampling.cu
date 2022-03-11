@@ -243,11 +243,11 @@ TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt32Int32Float)
 //   run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
 // }
 
-// TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int32Float)
-// {
-//   auto param = GetParam();
-//   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
-// }
+TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int32Float)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+}
 
 // TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int64Float)
 // {
