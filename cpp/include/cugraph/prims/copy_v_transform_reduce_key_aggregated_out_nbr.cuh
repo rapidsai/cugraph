@@ -167,12 +167,13 @@ struct reduce_with_init_t {
  * @param graph_view Non-owning graph object.
  * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
  * (for the rows assigned to this process in multi-GPU). Use either
- * cugraph::row_properties_t::device_view() (if @p e_op needs to access row properties) or
- * cugraph::dummy_properties_t::device_view() (if @p e_op does not access row properties). Use
- * copy_to_adj_matrix_row to fill the wrapper.
+ * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access row properties)
+ * or cugraph::dummy_:property_t:device_view() (if @p e_op does not access row properties). Use
+ * update_edge_partition_src_property to fill the wrapper.
  * @param adj_matrix_col_key_input Device-copyable wrapper used to access column keys (for the
  * columns assigned to this process in multi-GPU). Use either
- * cugraph::col_properties_t::device_view(). Use copy_to_adj_matrix_col to fill the wrapper.
+ * cugraph::edge_partition_dst_property_t::device_view(). Use update_edge_partition_dst_property to
+ * fill the wrapper.
  * @param map_unique_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
  * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_vertex_t` is used
  * to map keys to processes). (Key, value) pairs may be provided by

@@ -20,13 +20,13 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/transform_reduce_by_adj_matrix_row_col_key_e.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 
 #include <raft/handle.hpp>
@@ -162,8 +162,8 @@ class Louvain {
     weight_t total_edge_weight = transform_reduce_e(
       handle_,
       current_graph_view_,
-      dummy_properties_t<vertex_t>{}.device_view(),
-      dummy_properties_t<vertex_t>{}.device_view(),
+      dummy_property_t<vertex_t>{}.device_view(),
+      dummy_property_t<vertex_t>{}.device_view(),
       [] __device__(auto, auto, weight_t wt, auto, auto) { return wt; },
       weight_t{0});
 
@@ -261,11 +261,11 @@ class Louvain {
       current_graph_view_,
       graph_view_t::is_multi_gpu
         ? src_clusters_cache_.device_view()
-        : detail::major_properties_device_view_t<vertex_t, vertex_t const*>(
+        : detail::edge_partition_major_property_device_view_t<vertex_t, vertex_t const*>(
             next_clusters_v_.begin()),
       graph_view_t::is_multi_gpu
         ? dst_clusters_cache_.device_view()
-        : detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(
+        : detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(
             next_clusters_v_.begin()),
       [] __device__(auto, auto, weight_t wt, auto src_cluster, auto nbr_cluster) {
         if (src_cluster == nbr_cluster) {
@@ -324,8 +324,8 @@ class Louvain {
 
     if constexpr (graph_view_t::is_multi_gpu) {
       src_vertex_weights_cache_ =
-        row_properties_t<graph_view_t, weight_t>(handle_, current_graph_view_);
-      copy_to_adj_matrix_row(
+        edge_partition_src_property_t<graph_view_t, weight_t>(handle_, current_graph_view_);
+      update_edge_partition_src_property(
         handle_, current_graph_view_, vertex_weights_v_.begin(), src_vertex_weights_cache_);
       vertex_weights_v_.resize(0, handle_.get_stream());
       vertex_weights_v_.shrink_to_fit(handle_.get_stream());
@@ -347,11 +347,13 @@ class Louvain {
                handle_.get_stream());
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      src_clusters_cache_ = row_properties_t<graph_view_t, vertex_t>(handle_, current_graph_view_);
-      copy_to_adj_matrix_row(
+      src_clusters_cache_ =
+        edge_partition_src_property_t<graph_view_t, vertex_t>(handle_, current_graph_view_);
+      update_edge_partition_src_property(
         handle_, current_graph_view_, next_clusters_v_.begin(), src_clusters_cache_);
-      dst_clusters_cache_ = col_properties_t<graph_view_t, vertex_t>(handle_, current_graph_view_);
-      copy_to_adj_matrix_col(
+      dst_clusters_cache_ =
+        edge_partition_dst_property_t<graph_view_t, vertex_t>(handle_, current_graph_view_);
+      update_edge_partition_dst_property(
         handle_, current_graph_view_, next_clusters_v_.begin(), dst_clusters_cache_);
     }
 
@@ -397,11 +399,11 @@ class Louvain {
       current_graph_view_,
       graph_view_t::is_multi_gpu
         ? src_clusters_cache_.device_view()
-        : detail::major_properties_device_view_t<vertex_t, vertex_t const*>(
+        : detail::edge_partition_major_property_device_view_t<vertex_t, vertex_t const*>(
             next_clusters_v_.data()),
       graph_view_t::is_multi_gpu
         ? dst_clusters_cache_.device_view()
-        : detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(
+        : detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(
             next_clusters_v_.data()),
       [] __device__(auto src, auto dst, auto wt, auto src_cluster, auto nbr_cluster) {
         weight_t sum{0};
@@ -427,7 +429,7 @@ class Louvain {
                                   bool up_down)
   {
     rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle_.get_stream());
-    row_properties_t<graph_view_t, weight_t> src_cluster_weights(handle_);
+    edge_partition_src_property_t<graph_view_t, weight_t> src_cluster_weights(handle_);
     if constexpr (graph_view_t::is_multi_gpu) {
       cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t> vertex_to_gpu_id_op{
         handle_.get_comms().get_size()};
@@ -441,8 +443,9 @@ class Louvain {
                                                                   vertex_to_gpu_id_op,
                                                                   handle_.get_stream());
 
-      src_cluster_weights = row_properties_t<graph_view_t, weight_t>(handle_, current_graph_view_);
-      copy_to_adj_matrix_row(
+      src_cluster_weights =
+        edge_partition_src_property_t<graph_view_t, weight_t>(handle_, current_graph_view_);
+      update_edge_partition_src_property(
         handle_, current_graph_view_, vertex_cluster_weights_v.begin(), src_cluster_weights);
       vertex_cluster_weights_v.resize(0, handle_.get_stream());
       vertex_cluster_weights_v.shrink_to_fit(handle_.get_stream());
@@ -468,17 +471,17 @@ class Louvain {
 
     auto [old_cluster_sum_v, cluster_subtract_v] = compute_cluster_sum_and_subtract();
 
-    row_properties_t<graph_view_t, thrust::tuple<weight_t, weight_t>>
+    edge_partition_src_property_t<graph_view_t, thrust::tuple<weight_t, weight_t>>
       src_old_cluster_sum_subtract_pairs(handle_);
     if constexpr (graph_view_t::is_multi_gpu) {
       src_old_cluster_sum_subtract_pairs =
-        row_properties_t<graph_view_t, thrust::tuple<weight_t, weight_t>>(handle_,
-                                                                          current_graph_view_);
-      copy_to_adj_matrix_row(handle_,
-                             current_graph_view_,
-                             thrust::make_zip_iterator(thrust::make_tuple(
-                               old_cluster_sum_v.begin(), cluster_subtract_v.begin())),
-                             src_old_cluster_sum_subtract_pairs);
+        edge_partition_src_property_t<graph_view_t, thrust::tuple<weight_t, weight_t>>(
+          handle_, current_graph_view_);
+      update_edge_partition_src_property(handle_,
+                                         current_graph_view_,
+                                         thrust::make_zip_iterator(thrust::make_tuple(
+                                           old_cluster_sum_v.begin(), cluster_subtract_v.begin())),
+                                         src_old_cluster_sum_subtract_pairs);
       old_cluster_sum_v.resize(0, handle_.get_stream());
       old_cluster_sum_v.shrink_to_fit(handle_.get_stream());
       cluster_subtract_v.resize(0, handle_.get_stream());
@@ -497,15 +500,15 @@ class Louvain {
                              src_cluster_weights.device_view(),
                              src_old_cluster_sum_subtract_pairs.device_view())
         : device_view_concat(
-            detail::major_properties_device_view_t<vertex_t, weight_t const*>(
+            detail::edge_partition_major_property_device_view_t<vertex_t, weight_t const*>(
               vertex_weights_v_.data()),
-            detail::major_properties_device_view_t<vertex_t, vertex_t const*>(
+            detail::edge_partition_major_property_device_view_t<vertex_t, vertex_t const*>(
               next_clusters_v_.data()),
-            detail::major_properties_device_view_t<vertex_t, weight_t const*>(
+            detail::edge_partition_major_property_device_view_t<vertex_t, weight_t const*>(
               vertex_cluster_weights_v.data()),
-            detail::major_properties_device_view_t<vertex_t,
-                                                   decltype(cluster_old_sum_subtract_pair_first)>(
-              cluster_old_sum_subtract_pair_first));
+            detail::edge_partition_major_property_device_view_t<
+              vertex_t,
+              decltype(cluster_old_sum_subtract_pair_first)>(cluster_old_sum_subtract_pair_first));
 
     copy_v_transform_reduce_key_aggregated_out_nbr(
       handle_,
@@ -513,7 +516,7 @@ class Louvain {
       zipped_src_device_view,
       graph_view_t::is_multi_gpu
         ? dst_clusters_cache_.device_view()
-        : detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(
+        : detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(
             next_clusters_v_.data()),
       cluster_keys_v_.begin(),
       cluster_keys_v_.end(),
@@ -531,9 +534,9 @@ class Louvain {
                       detail::cluster_update_op_t<vertex_t, weight_t>{up_down});
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      copy_to_adj_matrix_row(
+      update_edge_partition_src_property(
         handle_, current_graph_view_, next_clusters_v_.begin(), src_clusters_cache_);
-      copy_to_adj_matrix_col(
+      update_edge_partition_dst_property(
         handle_, current_graph_view_, next_clusters_v_.begin(), dst_clusters_cache_);
     }
 
@@ -541,11 +544,11 @@ class Louvain {
       cugraph::transform_reduce_by_adj_matrix_row_key_e(
         handle_,
         current_graph_view_,
-        dummy_properties_t<vertex_t>{}.device_view(),
-        dummy_properties_t<vertex_t>{}.device_view(),
+        dummy_property_t<vertex_t>{}.device_view(),
+        dummy_property_t<vertex_t>{}.device_view(),
         graph_view_t::is_multi_gpu
           ? src_clusters_cache_.device_view()
-          : detail::major_properties_device_view_t<vertex_t, vertex_t const*>(
+          : detail::edge_partition_major_property_device_view_t<vertex_t, vertex_t const*>(
               next_clusters_v_.data()),
         detail::return_edge_weight_t<vertex_t, weight_t>{},
         weight_t{0});
@@ -609,12 +612,14 @@ class Louvain {
   rmm::device_uvector<weight_t> cluster_weights_v_;
 
   rmm::device_uvector<weight_t> vertex_weights_v_;
-  row_properties_t<graph_view_t, weight_t>
+  edge_partition_src_property_t<graph_view_t, weight_t>
     src_vertex_weights_cache_;  // src cache for vertex_weights_v_
 
   rmm::device_uvector<vertex_t> next_clusters_v_;
-  row_properties_t<graph_view_t, vertex_t> src_clusters_cache_;  // src cache for next_clusters_v_
-  col_properties_t<graph_view_t, vertex_t> dst_clusters_cache_;  // dst cache for next_clusters_v_
+  edge_partition_src_property_t<graph_view_t, vertex_t>
+    src_clusters_cache_;  // src cache for next_clusters_v_
+  edge_partition_dst_property_t<graph_view_t, vertex_t>
+    dst_clusters_cache_;  // dst cache for next_clusters_v_
 
 #ifdef TIMING
   HighResTimer hr_timer_;

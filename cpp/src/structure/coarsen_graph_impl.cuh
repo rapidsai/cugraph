@@ -21,8 +21,8 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -252,17 +252,18 @@ coarsen_graph(
 
   bool lower_triangular_only = graph_view.is_symmetric();
 
-  std::conditional_t<
-    store_transposed,
-    row_properties_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                     vertex_t>,
-    col_properties_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                     vertex_t>>
+  std::conditional_t<store_transposed,
+                     edge_partition_src_property_t<
+                       graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+                       vertex_t>,
+                     edge_partition_dst_property_t<
+                       graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+                       vertex_t>>
     adj_matrix_minor_labels(handle, graph_view);
   if constexpr (store_transposed) {
-    copy_to_adj_matrix_row(handle, graph_view, labels, adj_matrix_minor_labels);
+    update_edge_partition_src_property(handle, graph_view, labels, adj_matrix_minor_labels);
   } else {
-    copy_to_adj_matrix_col(handle, graph_view, labels, adj_matrix_minor_labels);
+    update_edge_partition_dst_property(handle, graph_view, labels, adj_matrix_minor_labels);
   }
 
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_majors{};
@@ -521,7 +522,7 @@ coarsen_graph(
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
         graph_view.get_matrix_partition_view()),
       labels,
-      detail::minor_properties_device_view_t<vertex_t, vertex_t const*>(labels),
+      detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(labels),
       graph_view.get_local_adj_matrix_partition_segment_offsets(0),
       lower_triangular_only);
 

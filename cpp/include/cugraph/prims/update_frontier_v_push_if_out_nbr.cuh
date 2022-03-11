@@ -961,14 +961,14 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * vertices for the next iteration.
  * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
  * (for the rows assigned to this process in multi-GPU). Use either
- * cugraph::row_properties_t::device_view() (if @p e_op needs to access row properties) or
- * cugraph::dummy_properties_t::device_view() (if @p e_op does not access row properties). Use
- * copy_to_adj_matrix_row to fill the wrapper.
+ * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access row properties)
+ * or cugraph::dummy_property_t::device_view() (if @p e_op does not access row properties). Use
+ * update_edge_partition_src_property to fill the wrapper.
  * @param adj_matrix_col_value_input Device-copyable wrapper used to access column input properties
  * (for the columns assigned to this process in multi-GPU). Use either
- * cugraph::col_properties_t::device_view() (if @p e_op needs to access column properties) or
- * cugraph::dummy_properties_t::device_view() (if @p e_op does not access column properties). Use
- * copy_to_adj_matrix_col to fill the wrapper.
+ * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access column
+ * properties) or cugraph::dummy_property_t::device_view() (if @p e_op does not access column
+ * properties). Use update_edge_partition_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), properties for the row (i.e. source), and properties for the column  (i.e. destination)
  * and returns a value to be reduced the @p reduce_op.

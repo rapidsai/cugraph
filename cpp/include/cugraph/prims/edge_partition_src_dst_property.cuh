@@ -213,13 +213,8 @@ class edge_partition_minor_property_device_view_t {
 template <typename vertex_t, typename T>
 class edge_partition_major_property_t {
  public:
-<<<<<<< HEAD:cpp/include/cugraph/prims/edge_partition_src_dst_property.cuh
-  edge_partition_major_property_t()
-    : buffer_(allocate_dataframe_buffer<T>(0, rmm::cuda_stream_view{}))
-=======
-  major_properties_t(raft::handle_t const& handle)
+  edge_partition_major_property_t(raft::handle_t const& handle)
     : buffer_(allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream()))
->>>>>>> ab72ed53d4de1fed46bdb81c3c1b6e54b41770e7:cpp/include/cugraph/prims/row_col_properties.cuh
   {
   }
 
@@ -328,7 +323,7 @@ class edge_partition_major_property_t {
 template <typename vertex_t, typename T>
 class edge_partition_minor_property_t {
  public:
-  minor_properties_t(raft::handle_t const& handle)
+  edge_partition_minor_property_t(raft::handle_t const& handle)
     : buffer_(allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream()))
   {
   }
@@ -433,10 +428,10 @@ class edge_partition_src_property_t {
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  edge_partition_src_properties_t(raft::handle_t const& handle) : properties_(handle) {}
+  edge_partition_src_property_t(raft::handle_t const& handle) : property_(handle) {}
 
-  edge_partition_src_properties_t(raft::handle_t const& handle, GraphViewType const& graph_view)
-    : properties_(handle)
+  edge_partition_src_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
+    : property_(handle)
   {
     using vertex_t = typename GraphViewType::vertex_type;
 
@@ -487,9 +482,9 @@ class edge_partition_src_property_t {
     }
   }
 
-  void clear(raft::handle_t const& handle) { properties_.clear(handle); }
+  void clear(raft::handle_t const& handle) { property_.clear(handle); }
 
-  void fill(T value, rmm::cuda_stream_view stream) { properties_.fill(value, stream); }
+  void fill(T value, rmm::cuda_stream_view stream) { property_.fill(value, stream); }
 
   auto key_first() { return property_.key_first(); }
   auto key_last() { return property_.key_last(); }
@@ -500,10 +495,11 @@ class edge_partition_src_property_t {
   auto mutable_device_view() { return property_.mutable_device_view(); }
 
  private:
-  std::conditional_t<GraphViewType::is_adj_matrix_transposed,
-                     detail::minor_properties_t<typename GraphViewType::vertex_type, T>,
-                     detail::major_properties_t<typename GraphViewType::vertex_type, T>>
-    properties_;
+  std::conditional_t<
+    GraphViewType::is_adj_matrix_transposed,
+    detail::edge_partition_minor_property_t<typename GraphViewType::vertex_type, T>,
+    detail::edge_partition_major_property_t<typename GraphViewType::vertex_type, T>>
+    property_;
 };
 
 template <typename GraphViewType, typename T>
@@ -513,10 +509,10 @@ class edge_partition_dst_property_t {
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  edge_partition_dst_properties_t(raft::handle_t const& handle) : properties_(handle) {}
+  edge_partition_dst_property_t(raft::handle_t const& handle) : property_(handle) {}
 
-  edge_partition_dst_properties_t(raft::handle_t const& handle, GraphViewType const& graph_view)
-    : properties_(handle)
+  edge_partition_dst_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
+    : property_(handle)
   {
     using vertex_t = typename GraphViewType::vertex_type;
 
@@ -567,9 +563,9 @@ class edge_partition_dst_property_t {
     }
   }
 
-  void clear(raft::handle_t const& handle) { properties_.clear(handle); }
+  void clear(raft::handle_t const& handle) { property_.clear(handle); }
 
-  void fill(T value, rmm::cuda_stream_view stream) { properties_.fill(value, stream); }
+  void fill(T value, rmm::cuda_stream_view stream) { property_.fill(value, stream); }
 
   auto key_first() { return property_.key_first(); }
   auto key_last() { return property_.key_last(); }
@@ -580,10 +576,11 @@ class edge_partition_dst_property_t {
   auto mutable_device_view() { return property_.mutable_device_view(); }
 
  private:
-  std::conditional_t<GraphViewType::is_adj_matrix_transposed,
-                     detail::major_properties_t<typename GraphViewType::vertex_type, T>,
-                     detail::minor_properties_t<typename GraphViewType::vertex_type, T>>
-    properties_;
+  std::conditional_t<
+    GraphViewType::is_adj_matrix_transposed,
+    detail::edge_partition_major_property_t<typename GraphViewType::vertex_type, T>,
+    detail::edge_partition_minor_property_t<typename GraphViewType::vertex_type, T>>
+    property_;
 };
 
 template <typename vertex_t>

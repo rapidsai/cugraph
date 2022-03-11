@@ -17,11 +17,11 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/count_if_e.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/reduce_op.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -79,8 +79,8 @@ void sssp(raft::handle_t const& handle,
     auto num_negative_edge_weights =
       count_if_e(handle,
                  push_graph_view,
-                 dummy_properties_t<vertex_t>{}.device_view(),
-                 dummy_properties_t<vertex_t>{}.device_view(),
+                 dummy_property_t<vertex_t>{}.device_view(),
+                 dummy_property_t<vertex_t>{}.device_view(),
                  [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w < 0.0; });
     CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
                     "Invalid input argument: input graph should have non-negative edge weights.");
@@ -111,8 +111,8 @@ void sssp(raft::handle_t const& handle,
   thrust::tie(average_vertex_degree, average_edge_weight) = transform_reduce_e(
     handle,
     push_graph_view,
-    dummy_properties_t<vertex_t>{}.device_view(),
-    dummy_properties_t<vertex_t>{}.device_view(),
+    dummy_property_t<vertex_t>{}.device_view(),
+    dummy_property_t<vertex_t>{}.device_view(),
     [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) {
       return thrust::make_tuple(weight_t{1.0}, w);
     },
@@ -134,8 +134,9 @@ void sssp(raft::handle_t const& handle,
   // 5. SSSP iteration
 
   auto adj_matrix_row_distances =
-    GraphViewType::is_multi_gpu ? row_properties_t<GraphViewType, weight_t>(handle, push_graph_view)
-                                : row_properties_t<GraphViewType, weight_t>(handle);
+    GraphViewType::is_multi_gpu
+      ? edge_partition_src_property_t<GraphViewType, weight_t>(handle, push_graph_view)
+      : edge_partition_src_property_t<GraphViewType, weight_t>(handle);
   if (GraphViewType::is_multi_gpu) {
     adj_matrix_row_distances.fill(std::numeric_limits<weight_t>::max(), handle.get_stream());
   }
@@ -147,7 +148,7 @@ void sssp(raft::handle_t const& handle,
   auto near_far_threshold = delta;
   while (true) {
     if (GraphViewType::is_multi_gpu) {
-      copy_to_adj_matrix_row(
+      update_edge_partition_src_property(
         handle,
         push_graph_view,
         vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
@@ -167,8 +168,8 @@ void sssp(raft::handle_t const& handle,
       std::vector<size_t>{static_cast<size_t>(Bucket::next_near), static_cast<size_t>(Bucket::far)},
       GraphViewType::is_multi_gpu
         ? adj_matrix_row_distances.device_view()
-        : detail::major_properties_device_view_t<vertex_t, weight_t const*>(distances),
-      dummy_properties_t<vertex_t>{}.device_view(),
+        : detail::edge_partition_major_property_device_view_t<vertex_t, weight_t const*>(distances),
+      dummy_property_t<vertex_t>{}.device_view(),
       [vertex_partition, distances, cutoff] __device__(
         vertex_t src, vertex_t dst, weight_t w, auto src_val, auto) {
         auto push         = true;

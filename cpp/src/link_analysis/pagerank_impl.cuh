@@ -17,13 +17,13 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/count_if_e.cuh>
 #include <cugraph/prims/count_if_v.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/reduce_v.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -103,8 +103,8 @@ void pagerank(
       auto num_nonpositive_edge_weights =
         count_if_e(handle,
                    pull_graph_view,
-                   dummy_properties_t<vertex_t>{}.device_view(),
-                   dummy_properties_t<vertex_t>{}.device_view(),
+                   dummy_property_t<vertex_t>{}.device_view(),
+                   dummy_property_t<vertex_t>{}.device_view(),
                    [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w <= 0.0; });
       CUGRAPH_EXPECTS(num_nonpositive_edge_weights == 0,
                       "Invalid input argument: input graph should have postive edge weights.");
@@ -189,7 +189,8 @@ void pagerank(
   // old PageRank values
   rmm::device_uvector<result_t> old_pageranks(pull_graph_view.get_number_of_local_vertices(),
                                               handle.get_stream());
-  row_properties_t<GraphViewType, result_t> adj_matrix_row_pageranks(handle, pull_graph_view);
+  edge_partition_src_property_t<GraphViewType, result_t> adj_matrix_row_pageranks(handle,
+                                                                                  pull_graph_view);
   size_t iter{0};
   while (true) {
     thrust::copy(handle.get_thrust_policy(),
@@ -223,7 +224,8 @@ void pagerank(
                         return pagerank / divisor;
                       });
 
-    copy_to_adj_matrix_row(handle, pull_graph_view, pageranks, adj_matrix_row_pageranks);
+    update_edge_partition_src_property(
+      handle, pull_graph_view, pageranks, adj_matrix_row_pageranks);
 
     auto unvarying_part = aggregate_personalization_vector_size == 0
                             ? (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) /
@@ -234,7 +236,7 @@ void pagerank(
       handle,
       pull_graph_view,
       adj_matrix_row_pageranks.device_view(),
-      dummy_properties_t<vertex_t>{}.device_view(),
+      dummy_property_t<vertex_t>{}.device_view(),
       [alpha] __device__(vertex_t, vertex_t, weight_t w, auto src_val, auto) {
         return src_val * w * alpha;
       },

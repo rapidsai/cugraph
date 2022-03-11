@@ -17,10 +17,10 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/count_if_v.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/reduce_op.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -47,9 +47,10 @@ namespace {
 
 template <typename vertex_t, bool multi_gpu>
 struct e_op_t {
-  std::
-    conditional_t<multi_gpu, detail::minor_properties_device_view_t<vertex_t, uint8_t*>, uint32_t*>
-      visited_flags{nullptr};
+  std::conditional_t<multi_gpu,
+                     detail::edge_partition_minor_property_device_view_t<vertex_t, uint8_t*>,
+                     uint32_t*>
+    visited_flags{nullptr};
   uint32_t const* prev_visited_flags{
     nullptr};  // relevant only if multi_gpu is false (this affects only local-computing with 0
                // impact in communication volume, so this may improve performance in small-scale but
@@ -183,9 +184,10 @@ void bfs(raft::handle_t const& handle,
     handle.get_stream());  // relevant only if GraphViewType::is_multi_gpu is false
   auto dst_visited_flags =
     GraphViewType::is_multi_gpu
-      ? col_properties_t<GraphViewType, uint8_t>(handle, push_graph_view)
-      : col_properties_t<GraphViewType,
-                         uint8_t>(handle);  // relevant only if GraphViewType::is_multi_gpu is true
+      ? edge_partition_dst_property_t<GraphViewType, uint8_t>(handle, push_graph_view)
+      : edge_partition_dst_property_t<GraphViewType,
+                                      uint8_t>(
+          handle);  // relevant only if GraphViewType::is_multi_gpu is true
   if constexpr (GraphViewType::is_multi_gpu) {
     dst_visited_flags.fill(uint8_t{0}, handle.get_stream());
   }
@@ -197,12 +199,13 @@ void bfs(raft::handle_t const& handle,
       CUGRAPH_FAIL("unimplemented.");
     } else {
       if (GraphViewType::is_multi_gpu) {
-        copy_to_adj_matrix_col(handle,
-                               push_graph_view,
-                               vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin(),
-                               vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end(),
-                               thrust::make_constant_iterator(uint8_t{1}),
-                               dst_visited_flags);
+        update_edge_partition_dst_property(
+          handle,
+          push_graph_view,
+          vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).begin(),
+          vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end(),
+          thrust::make_constant_iterator(uint8_t{1}),
+          dst_visited_flags);
       } else {
         thrust::copy(handle.get_thrust_policy(),
                      visited_flags.begin(),
@@ -225,8 +228,8 @@ void bfs(raft::handle_t const& handle,
         vertex_frontier,
         static_cast<size_t>(Bucket::cur),
         std::vector<size_t>{static_cast<size_t>(Bucket::next)},
-        dummy_properties_t<vertex_t>{}.device_view(),
-        dummy_properties_t<vertex_t>{}.device_view(),
+        dummy_property_t<vertex_t>{}.device_view(),
+        dummy_property_t<vertex_t>{}.device_view(),
 #if 1
         e_op,
 #else
