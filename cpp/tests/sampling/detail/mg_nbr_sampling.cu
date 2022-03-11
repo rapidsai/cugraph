@@ -19,6 +19,7 @@
 
 #include <gtest/gtest.h>
 
+#ifdef DEBUG_NBR
 // for sleep()
 #include <cstdio>
 #include <iterator>
@@ -33,6 +34,7 @@ void spinner(void)
   }
 }
 }  // namespace
+#endif
 
 struct Prims_Usecase {
   bool check_correctness{true};
@@ -99,7 +101,9 @@ class Tests_MG_Nbr_Sampling
     constexpr vertex_t repetitions_per_vertex = 5;
     constexpr vertex_t source_sample_count    = 3;
 
-    //spinner();
+#ifdef DEBUG_NBR
+    spinner();
+#endif
 
     // Generate random vertex ids in the range of current gpu
 
@@ -127,7 +131,6 @@ class Tests_MG_Nbr_Sampling
     auto&& [tuple_vertex_ranks, counts] = cugraph::detail::shuffle_to_gpus(
       handle, mg_graph_view, begin_in_pairs, end_in_pairs, gpu_t{});
 
-    std::cerr << "##### Enter uniform_nbr_sampling():\n";
     auto&& [tuple_quad, v_sizes] = cugraph::uniform_nbr_sample(handle,
                                                                mg_graph_view,
                                                                random_sources.begin(),
@@ -135,7 +138,6 @@ class Tests_MG_Nbr_Sampling
                                                                random_sources.size(),
                                                                h_fan_out,
                                                                true);
-    std::cerr << "##### Exited uniform_nbr_sampling();";
 
     auto&& d_src_out = std::get<0>(tuple_quad);
     auto&& d_dst_out = std::get<1>(tuple_quad);
@@ -148,8 +150,6 @@ class Tests_MG_Nbr_Sampling
       // and check if test passed:
       //
       if (self_rank == gpu_t{0}) {
-        std::cerr << "##### check:\n";
-
         auto num_ranks = v_sizes.size();
         ASSERT_TRUE(counts.size() == num_ranks);  // == #ranks
 
@@ -157,8 +157,6 @@ class Tests_MG_Nbr_Sampling
         //
         auto total_in_sizes  = std::accumulate(counts.begin(), counts.end(), 0);
         auto total_out_sizes = std::accumulate(v_sizes.begin(), v_sizes.end(), 0);
-
-        std::cerr << "##### accumulated size: " << total_out_sizes << '\n';
 
         // merge inputs / outputs to be checked on host:
         //
@@ -214,12 +212,8 @@ class Tests_MG_Nbr_Sampling
           out_offset += out_sz;
         }
 
-        std::cerr << "##### enter color check:\n";
-
         bool passed = cugraph::test::check_forest_trees_by_rank(
           h_start_in, h_ranks_in, h_src_out, h_dst_out, h_ranks_out);
-
-        std::cerr << "##### exit color check:\n";
 
         ASSERT_TRUE(passed);
       }

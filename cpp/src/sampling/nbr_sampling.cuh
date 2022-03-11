@@ -48,11 +48,12 @@
 #include <type_traits>
 #include <vector>
 
-#define DEBUG_NBR
+//#define DEBUG_NBR
+
+#ifdef DEBUG_NBR
 
 #include <sstream>
 
-#ifdef DEBUG_NBR
 namespace {
 template <typename T>
 void print_h(std::vector<T> const& h_range, std::ostream& os)
@@ -616,7 +617,8 @@ uniform_nbr_sample(raft::handle_t const& handle,
 
   // preamble step for out-degree info:
   //
-  auto&& [global_degree_offsets, global_out_degrees] = get_global_degree_information(handle, graph_view);
+  auto&& [global_degree_offsets, global_out_degrees] =
+    get_global_degree_information(handle, graph_view);
 
 #ifdef DEBUG_NBR
   {
@@ -634,8 +636,14 @@ uniform_nbr_sample(raft::handle_t const& handle,
 
   // extract output quad SOA:
   //
-  auto&& [d_src, d_dst, d_gpus, d_indices] = detail::uniform_nbr_sample_impl(
-    handle, graph_view, d_start_vs, d_ranks, h_fan_out, global_out_degrees, global_degree_offsets, flag_replacement);
+  auto&& [d_src, d_dst, d_gpus, d_indices] = detail::uniform_nbr_sample_impl(handle,
+                                                                             graph_view,
+                                                                             d_start_vs,
+                                                                             d_ranks,
+                                                                             h_fan_out,
+                                                                             global_out_degrees,
+                                                                             global_degree_offsets,
+                                                                             flag_replacement);
 
   // shuffle quad SOA by d_gpus:
   //
