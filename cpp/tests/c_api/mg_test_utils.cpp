@@ -66,14 +66,14 @@ extern "C" void* create_raft_handle(int prows)
   return handle;
 }
 
-extern "C" void free_raft_handle(void * raft_handle)
+extern "C" void free_raft_handle(void* raft_handle)
 {
-  raft::handle_t *handle = reinterpret_cast<raft::handle_t *>(raft_handle);
+  raft::handle_t* handle = reinterpret_cast<raft::handle_t*>(raft_handle);
   delete handle;
 }
 
 /*
- * Simple function to create an MG test graph from COO arrays.  COO is 
+ * Simple function to create an MG test graph from COO arrays.  COO is
  * assumed to be defined entirely on rank 0 and will be shuffled to
  * the proper location.
  */
@@ -122,17 +122,14 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
       cugraph_type_erased_device_array_create(handle, num_edges, weight_tid, &wgt, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
   } else {
-    ret_code =
-      cugraph_type_erased_device_array_create(handle, 0, vertex_tid, &src, ret_error);
+    ret_code = cugraph_type_erased_device_array_create(handle, 0, vertex_tid, &src, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(*ret_error));
 
-    ret_code =
-      cugraph_type_erased_device_array_create(handle, 0, vertex_tid, &dst, ret_error);
+    ret_code = cugraph_type_erased_device_array_create(handle, 0, vertex_tid, &dst, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
 
-    ret_code =
-      cugraph_type_erased_device_array_create(handle, 0, weight_tid, &wgt, ret_error);
+    ret_code = cugraph_type_erased_device_array_create(handle, 0, weight_tid, &wgt, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
   }
 
@@ -173,4 +170,3 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
 
   return test_ret_value;
 }
-

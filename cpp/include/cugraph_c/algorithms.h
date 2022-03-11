@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include <cugraph_c/resource_handle.h>
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
+#include <cugraph_c/resource_handle.h>
 
 #ifdef __cplusplus
 extern "C" {

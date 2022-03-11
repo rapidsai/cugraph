@@ -94,17 +94,16 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_mg_graph_create(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_view_t* src,
-  const cugraph_type_erased_device_array_view_t* dst,
-  const cugraph_type_erased_device_array_view_t* weights,
-  bool_t store_transposed,
-  size_t num_edges,
-  bool_t check,
-  cugraph_graph_t** graph,
-  cugraph_error_t** error);
+cugraph_error_code_t cugraph_mg_graph_create(const cugraph_resource_handle_t* handle,
+                                             const cugraph_graph_properties_t* properties,
+                                             const cugraph_type_erased_device_array_view_t* src,
+                                             const cugraph_type_erased_device_array_view_t* dst,
+                                             const cugraph_type_erased_device_array_view_t* weights,
+                                             bool_t store_transposed,
+                                             size_t num_edges,
+                                             bool_t check,
+                                             cugraph_graph_t** graph,
+                                             cugraph_error_t** error);
 
 /**
  * @brief     Destroy an MG graph

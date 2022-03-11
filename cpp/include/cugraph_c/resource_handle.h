@@ -34,7 +34,6 @@ typedef enum data_type_id_ { INT32 = 0, INT64, FLOAT32, FLOAT64, NTYPES } data_t
 /* sizes in Bytes for data_type_id_t*/
 extern int data_type_sz[];
 
-
 typedef struct cugraph_resource_handle_ {
   int align_;
 } cugraph_resource_handle_t;
@@ -48,7 +47,7 @@ typedef struct cugraph_resource_handle_ {
  *
  * @return A graph resource handle
  */
-cugraph_resource_handle_t* cugraph_create_resource_handle(void *raft_handle);
+cugraph_resource_handle_t* cugraph_create_resource_handle(void* raft_handle);
 
 /**
  * @brief get rank from resource handle

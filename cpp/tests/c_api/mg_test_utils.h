@@ -63,4 +63,3 @@ int create_mg_test_graph(const cugraph_resource_handle_t* p_handle,
                          bool_t store_transposed,
                          cugraph_graph_t** p_graph,
                          cugraph_error_t** ret_error);
-

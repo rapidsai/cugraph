@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/resource_handle.h>
 #include <cugraph_c/graph.h>
+#include <cugraph_c/resource_handle.h>
 
 #include <stdio.h>
 #include <time.h>
@@ -40,7 +40,7 @@ extern "C" {
  */
 int run_sg_test(int (*test)(), const char* test_name);
 
-#define RUN_TEST(test_name)            run_sg_test(test_name, #test_name)
+#define RUN_TEST(test_name) run_sg_test(test_name, #test_name)
 
 int nearlyEqual(float a, float b, float epsilon);
 int create_test_graph(const cugraph_resource_handle_t* p_handle,

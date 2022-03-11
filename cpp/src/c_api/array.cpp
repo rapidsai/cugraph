@@ -232,7 +232,6 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy_from_
   *error = nullptr;
 
   try {
-
     if (!handle) {
       *error = reinterpret_cast<cugraph_error_t*>(
         new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
