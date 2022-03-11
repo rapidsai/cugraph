@@ -23,7 +23,7 @@
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/transform_reduce_by_adj_matrix_row_col_key_e.cuh>
+#include <cugraph/prims/transform_reduce_by_src_dst_key_e.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
@@ -540,18 +540,17 @@ class Louvain {
         handle_, current_graph_view_, next_clusters_v_.begin(), dst_clusters_cache_);
     }
 
-    std::tie(cluster_keys_v_, cluster_weights_v_) =
-      cugraph::transform_reduce_by_adj_matrix_row_key_e(
-        handle_,
-        current_graph_view_,
-        dummy_property_t<vertex_t>{}.device_view(),
-        dummy_property_t<vertex_t>{}.device_view(),
-        graph_view_t::is_multi_gpu
-          ? src_clusters_cache_.device_view()
-          : detail::edge_partition_major_property_device_view_t<vertex_t, vertex_t const*>(
-              next_clusters_v_.data()),
-        detail::return_edge_weight_t<vertex_t, weight_t>{},
-        weight_t{0});
+    std::tie(cluster_keys_v_, cluster_weights_v_) = cugraph::transform_reduce_by_src_key_e(
+      handle_,
+      current_graph_view_,
+      dummy_property_t<vertex_t>{}.device_view(),
+      dummy_property_t<vertex_t>{}.device_view(),
+      graph_view_t::is_multi_gpu
+        ? src_clusters_cache_.device_view()
+        : detail::edge_partition_major_property_device_view_t<vertex_t, vertex_t const*>(
+            next_clusters_v_.data()),
+      detail::return_edge_weight_t<vertex_t, weight_t>{},
+      weight_t{0});
   }
 
   void shrink_graph()
