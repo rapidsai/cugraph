@@ -99,7 +99,7 @@ class Tests_MG_Nbr_Sampling
     constexpr vertex_t repetitions_per_vertex = 5;
     constexpr vertex_t source_sample_count    = 3;
 
-    spinner();
+    //spinner();
 
     // Generate random vertex ids in the range of current gpu
 

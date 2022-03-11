@@ -347,6 +347,7 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
                         device_vec_t<typename graph_view_t::vertex_type>& d_in,
                         device_vec_t<gpu_t>& d_ranks,
                         std::vector<int> const& h_fan_out,
+                        device_vec_t<typename graph_view_t::edge_type> const& global_out_degrees,
                         device_vec_t<typename graph_view_t::edge_type> const& global_degree_offsets,
                         bool flag_replacement)
 {
@@ -427,7 +428,7 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
         // extract out-degs(sources):
         //
         auto&& d_out_degs =
-          get_active_major_global_degrees(handle, graph_view, d_new_in, global_degree_offsets);
+          get_active_major_global_degrees(handle, graph_view, d_new_in, global_out_degrees);
 
 #ifdef DEBUG_NBR
         {
@@ -615,13 +616,13 @@ uniform_nbr_sample(raft::handle_t const& handle,
 
   // preamble step for out-degree info:
   //
-  auto&& [d_edge_count, global_degree_offsets] = get_global_degree_information(handle, graph_view);
+  auto&& [global_degree_offsets, global_out_degrees] = get_global_degree_information(handle, graph_view);
 
 #ifdef DEBUG_NBR
   {
     std::stringstream ss;
-    ss << "rank: " << self_rank << "{\n d_edge_count:\n";
-    auto&& h_edges = print_d(handle, d_edge_count, ss);
+    ss << "rank: " << self_rank << "{\n global_out_degrees:\n";
+    auto&& h_edges = print_d(handle, global_out_degrees, ss);
 
     ss << "global_degree_offsets:\n";
     auto&& h_global = print_d(handle, global_degree_offsets, ss);
@@ -634,7 +635,7 @@ uniform_nbr_sample(raft::handle_t const& handle,
   // extract output quad SOA:
   //
   auto&& [d_src, d_dst, d_gpus, d_indices] = detail::uniform_nbr_sample_impl(
-    handle, graph_view, d_start_vs, d_ranks, h_fan_out, global_degree_offsets, flag_replacement);
+    handle, graph_view, d_start_vs, d_ranks, h_fan_out, global_out_degrees, global_degree_offsets, flag_replacement);
 
   // shuffle quad SOA by d_gpus:
   //
