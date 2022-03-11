@@ -271,22 +271,22 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-// INSTANTIATE_TEST_SUITE_P(
-//   rmat_small_test,
-//   Tests_MG_Nbr_Sampling_Rmat,
-//   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
-//                      ::testing::Values(cugraph::test::Rmat_Usecase(
-//                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MG_Nbr_Sampling_Rmat,
+  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
-// INSTANTIATE_TEST_SUITE_P(
-//   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
-//                           --gtest_filter to select only the rmat_benchmark_test with a specific
-//                           vertex & edge type combination) by command line arguments and do not
-//                           include more than one Rmat_Usecase that differ only in scale or edge
-//                           factor (to avoid running same benchmarks more than once) */
-//   Tests_MG_Nbr_Sampling_Rmat,
-//   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
-//                      ::testing::Values(cugraph::test::Rmat_Usecase(
-//                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
+  Tests_MG_Nbr_Sampling_Rmat,
+  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
