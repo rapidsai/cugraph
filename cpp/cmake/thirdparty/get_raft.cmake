@@ -38,7 +38,7 @@ function(find_and_configure_raft)
             OPTIONS
                 "RAFT_COMPILE_LIBRARIES OFF"
                 "BUILD_TESTS OFF"
-		"BUILD_BENCH OFF"
+                "BUILD_BENCH OFF"
     )
 
     if(raft_ADDED)
