@@ -47,8 +47,8 @@ int32_t constexpr copy_v_transform_reduce_nbr_for_all_block_size = 512;
 
 template <bool update_major,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename ResultValueOutputIteratorOrWrapper /* wrapper if update_major &&
                                                          GraphViewType::is_multi_gpu, iterator
                                                          otherwise */
@@ -61,8 +61,8 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
                                  typename GraphViewType::weight_type,
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_hypersparse_first,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevent only if update_major == true */)
@@ -91,8 +91,8 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
     thrust::tie(indices, weights, local_degree) =
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_idx));
     auto transform_op = [&matrix_partition,
-                         &adj_matrix_row_value_input,
-                         &adj_matrix_col_value_input,
+                         &edge_partition_src_value_input,
+                         &edge_partition_dst_value_input,
                          &e_op,
                          major,
                          indices,
@@ -111,14 +111,14 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
                             : minor_offset;
       return evaluate_edge_op<GraphViewType,
                               vertex_t,
-                              AdjMatrixRowValueInputWrapper,
-                              AdjMatrixColValueInputWrapper,
+                              EdgePartitionSrcValueInputWrapper,
+                              EdgePartitionDstValueInputWrapper,
                               EdgeOp>()
         .compute(row,
                  col,
                  weight,
-                 adj_matrix_row_value_input.get(row_offset),
-                 adj_matrix_col_value_input.get(col_offset),
+                 edge_partition_src_value_input.get(row_offset),
+                 edge_partition_dst_value_input.get(col_offset),
                  e_op);
     };
 
@@ -162,8 +162,8 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
 
 template <bool update_major,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename ResultValueOutputIteratorOrWrapper /* wrapper if update_major &&
                                                          GraphViewType::is_multi_gpu, iterator
                                                          otherwise */
@@ -177,8 +177,8 @@ __global__ void for_all_major_for_all_nbr_low_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevent only if update_major == true */)
@@ -201,8 +201,8 @@ __global__ void for_all_major_for_all_nbr_low_degree(
     thrust::tie(indices, weights, local_degree) =
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
     auto transform_op = [&matrix_partition,
-                         &adj_matrix_row_value_input,
-                         &adj_matrix_col_value_input,
+                         &edge_partition_src_value_input,
+                         &edge_partition_dst_value_input,
                          &e_op,
                          major_offset,
                          indices,
@@ -224,14 +224,14 @@ __global__ void for_all_major_for_all_nbr_low_degree(
                             : minor_offset;
       return evaluate_edge_op<GraphViewType,
                               vertex_t,
-                              AdjMatrixRowValueInputWrapper,
-                              AdjMatrixColValueInputWrapper,
+                              EdgePartitionSrcValueInputWrapper,
+                              EdgePartitionDstValueInputWrapper,
                               EdgeOp>()
         .compute(row,
                  col,
                  weight,
-                 adj_matrix_row_value_input.get(row_offset),
-                 adj_matrix_col_value_input.get(col_offset),
+                 edge_partition_src_value_input.get(row_offset),
+                 edge_partition_dst_value_input.get(col_offset),
                  e_op);
     };
 
@@ -275,8 +275,8 @@ __global__ void for_all_major_for_all_nbr_low_degree(
 
 template <bool update_major,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename ResultValueOutputIteratorOrWrapper /* wrapper if update_major &&
                                                          GraphViewType::is_multi_gpu, iterator
                                                          otherwise */
@@ -290,8 +290,8 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevent only if update_major == true */)
@@ -340,14 +340,14 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
                             : minor_offset;
       auto e_op_result  = evaluate_edge_op<GraphViewType,
                                           vertex_t,
-                                          AdjMatrixRowValueInputWrapper,
-                                          AdjMatrixColValueInputWrapper,
+                                          EdgePartitionSrcValueInputWrapper,
+                                          EdgePartitionDstValueInputWrapper,
                                           EdgeOp>()
                            .compute(row,
                                     col,
                                     weight,
-                                    adj_matrix_row_value_input.get(row_offset),
-                                    adj_matrix_col_value_input.get(col_offset),
+                                    edge_partition_src_value_input.get(row_offset),
+                                    edge_partition_dst_value_input.get(col_offset),
                                     e_op);
       if constexpr (update_major) {
         e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
@@ -371,8 +371,8 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 
 template <bool update_major,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename ResultValueOutputIteratorOrWrapper /* wrapper if update_major &&
                                                          GraphViewType::is_multi_gpu, iterator
                                                          otherwise */
@@ -386,8 +386,8 @@ __global__ void for_all_major_for_all_nbr_high_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevent only if update_major == true */)
@@ -433,14 +433,14 @@ __global__ void for_all_major_for_all_nbr_high_degree(
                             : minor_offset;
       auto e_op_result  = evaluate_edge_op<GraphViewType,
                                           vertex_t,
-                                          AdjMatrixRowValueInputWrapper,
-                                          AdjMatrixColValueInputWrapper,
+                                          EdgePartitionSrcValueInputWrapper,
+                                          EdgePartitionDstValueInputWrapper,
                                           EdgeOp>()
                            .compute(row,
                                     col,
                                     weight,
-                                    adj_matrix_row_value_input.get(row_offset),
-                                    adj_matrix_col_value_input.get(col_offset),
+                                    edge_partition_src_value_input.get(row_offset),
+                                    edge_partition_dst_value_input.get(col_offset),
                                     e_op);
       if constexpr (update_major) {
         e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
@@ -463,15 +463,15 @@ __global__ void for_all_major_for_all_nbr_high_degree(
 
 template <bool in,  // iterate over incoming edges (in == true) or outgoing edges (in == false)
           typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename EdgeOp,
           typename T,
           typename VertexValueOutputIterator>
 void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                                  GraphViewType const& graph_view,
-                                 AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-                                 AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+                                 EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+                                 EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
                                  EdgeOp e_op,
                                  T init,
                                  VertexValueOutputIterator vertex_value_output_first)
@@ -536,8 +536,8 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       }
     }
 
-    auto matrix_partition_row_value_input = adj_matrix_row_value_input;
-    auto matrix_partition_col_value_input = adj_matrix_col_value_input;
+    auto matrix_partition_row_value_input = edge_partition_src_value_input;
+    auto matrix_partition_col_value_input = edge_partition_dst_value_input;
     if constexpr (GraphViewType::is_adj_matrix_transposed) {
       matrix_partition_col_value_input.set_local_adj_matrix_partition_idx(i);
     } else {
@@ -750,29 +750,29 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
  * and thrust::copy() (update vertex properties part, take transform_reduce output as copy input).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
- * properties.
- * @tparam AdjMatrixColValueInputWrapper Type of the wrapper for graph adjacency matrix column input
- * properties.
+ * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
+ * values.
+ * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
+ * property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the initial value for reduction over the incoming edges.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
- * (for the rows assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access row properties)
- * or cugraph::dummy_property_t::device_view() (if @p e_op does not access row properties). Use
- * update_edge_partition_src_property to fill the wrapper.
- * @param adj_matrix_col_value_input Device-copyable wrapper used to access column input properties
- * (for the columns assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access column
- * properties) or cugraph::dummy_property_t::device_view() (if @p e_op does not access column
- * properties). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
+ * property values (for the edge sources assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
+ * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
+ * values). Use update_edge_partition_src_property to fill the wrapper.
+ * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
+ * property values (for the edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
+ * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
+ * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), properties for the row (i.e. source), and properties for the column  (i.e. destination)
- * and returns a value to be reduced.
+ * weight), property values for the source, and property values for the destination and returns a
+ * value to be reduced.
  * @param init Initial value to be added to the reduced @p e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
@@ -780,23 +780,24 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
  * graph_view.get_number_of_local_vertices().
  */
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename EdgeOp,
           typename T,
           typename VertexValueOutputIterator>
-void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
-                                    GraphViewType const& graph_view,
-                                    AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-                                    AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
-                                    EdgeOp e_op,
-                                    T init,
-                                    VertexValueOutputIterator vertex_value_output_first)
+void copy_v_transform_reduce_in_nbr(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgeOp e_op,
+  T init,
+  VertexValueOutputIterator vertex_value_output_first)
 {
   detail::copy_v_transform_reduce_nbr<true>(handle,
                                             graph_view,
-                                            adj_matrix_row_value_input,
-                                            adj_matrix_col_value_input,
+                                            edge_partition_src_value_input,
+                                            edge_partition_dst_value_input,
                                             e_op,
                                             init,
                                             vertex_value_output_first);
@@ -810,29 +811,29 @@ void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
  * input).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
- * properties.
- * @tparam AdjMatrixColValueInputWrapper Type of the wrapper for graph adjacency matrix column input
- * properties.
+ * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
+ * values.
+ * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
+ * property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the initial value for reduction over the outgoing edges.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
- * (for the rows assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access row properties)
- * or cugraph::dummy_property_t::device_view() (if @p e_op does not access row properties). Use
- * update_edge_partition_src_property to fill the wrapper.
- * @param adj_matrix_col_value_input Device-copyable wrapper used to access column input properties
- * (for the columns assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access column
- * properties) or cugraph::dummy_property_t::device_view() (if @p e_op does not access column
- * properties). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
+ * property values (for the edge sources assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
+ * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
+ * values). Use update_edge_partition_src_property to fill the wrapper.
+ * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
+ * property values (for the edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
+ * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
+ * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), properties for the row (i.e. source), and properties for the column  (i.e. destination)
- * and returns a value to be reduced.
+ * weight), property values for the source, and property values for the destination and returns a
+ * value to be reduced.
  * @param init Initial value to be added to the reduced @p e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
  * first (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
@@ -840,23 +841,24 @@ void copy_v_transform_reduce_in_nbr(raft::handle_t const& handle,
  * graph_view.get_number_of_local_vertices().
  */
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename EdgeOp,
           typename T,
           typename VertexValueOutputIterator>
-void copy_v_transform_reduce_out_nbr(raft::handle_t const& handle,
-                                     GraphViewType const& graph_view,
-                                     AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-                                     AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
-                                     EdgeOp e_op,
-                                     T init,
-                                     VertexValueOutputIterator vertex_value_output_first)
+void copy_v_transform_reduce_out_nbr(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgeOp e_op,
+  T init,
+  VertexValueOutputIterator vertex_value_output_first)
 {
   detail::copy_v_transform_reduce_nbr<false>(handle,
                                              graph_view,
-                                             adj_matrix_row_value_input,
-                                             adj_matrix_col_value_input,
+                                             edge_partition_src_value_input,
+                                             edge_partition_dst_value_input,
                                              e_op,
                                              init,
                                              vertex_value_output_first);

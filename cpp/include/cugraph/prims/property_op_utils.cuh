@@ -96,14 +96,14 @@ struct edge_op_result_type<
 
 template <typename GraphViewType,
           typename key_t,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename EdgeOp>
 struct evaluate_edge_op {
   using vertex_type    = typename GraphViewType::vertex_type;
   using weight_type    = typename GraphViewType::weight_type;
-  using row_value_type = typename AdjMatrixRowValueInputWrapper::value_type;
-  using col_value_type = typename AdjMatrixColValueInputWrapper::value_type;
+  using row_value_type = typename EdgePartitionSrcValueInputWrapper::value_type;
+  using col_value_type = typename EdgePartitionDstValueInputWrapper::value_type;
   using result_type    = typename detail::
     edge_op_result_type<key_t, vertex_type, weight_type, row_value_type, col_value_type, EdgeOp>::
       type;
@@ -139,16 +139,16 @@ struct evaluate_edge_op {
 
 template <typename GraphViewType,
           typename key_t,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename EdgeOp,
           typename T>
 struct cast_edge_op_bool_to_integer {
   static_assert(std::is_integral<T>::value);
   using vertex_type    = typename GraphViewType::vertex_type;
   using weight_type    = typename GraphViewType::weight_type;
-  using row_value_type = typename AdjMatrixRowValueInputWrapper::value_type;
-  using col_value_type = typename AdjMatrixColValueInputWrapper::value_type;
+  using row_value_type = typename EdgePartitionSrcValueInputWrapper::value_type;
+  using col_value_type = typename EdgePartitionDstValueInputWrapper::value_type;
 
   EdgeOp e_op{};
 

@@ -31,38 +31,38 @@ namespace cugraph {
  * This function is inspired by thrust::count_if().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
- * properties.
- * @tparam AdjMatrixColValueInputWrapper Type of the wrapper for graph adjacency matrix column input
- * properties.
+ * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
+ * values.
+ * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
+ * property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
- * (for the rows assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access row properties)
- * or cugraph::dummy_property_t::device_view() (if @p e_op does not access row properties). Use
- * update_edge_partition_src_property to fill the wrapper.
- * @param adj_matrix_col_value_input Device-copyable wrapper used to access column input properties
- * (for the columns assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access column
- * properties) or cugraph::dummy_property_t::device_view() (if @p e_op does not access column
- * properties). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
+ * property values (for the edge sources assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
+ * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
+ * values). Use update_edge_partition_src_property to fill the wrapper.
+ * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
+ * property values (for the edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
+ * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
+ * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), properties for the row (i.e. source), and properties for the column  (i.e. destination)
- * and returns true if this edge should be included in the returned count.
+ * weight), property values for the source, and property values for the destination and returns if
+ * this edge should be included in the returned count.
  * @return GraphViewType::edge_type Number of times @p e_op returned true.
  */
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename EdgeOp>
 typename GraphViewType::edge_type count_if_e(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgeOp e_op)
 {
   using vertex_t = typename GraphViewType::vertex_type;
@@ -70,12 +70,12 @@ typename GraphViewType::edge_type count_if_e(
 
   return transform_reduce_e(handle,
                             graph_view,
-                            adj_matrix_row_value_input,
-                            adj_matrix_col_value_input,
+                            edge_partition_src_value_input,
+                            edge_partition_dst_value_input,
                             cast_edge_op_bool_to_integer<GraphViewType,
                                                          vertex_t,
-                                                         AdjMatrixRowValueInputWrapper,
-                                                         AdjMatrixColValueInputWrapper,
+                                                         EdgePartitionSrcValueInputWrapper,
+                                                         EdgePartitionDstValueInputWrapper,
                                                          EdgeOp,
                                                          edge_t>{e_op},
                             edge_t{0});

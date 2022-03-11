@@ -32,13 +32,13 @@ namespace cugraph {
 namespace detail {
 
 // FIXME: block size requires tuning
-int32_t constexpr transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size = 128;
+int32_t constexpr transform_reduce_by_src_dst_key_e_for_all_block_size = 128;
 
-template <bool adj_matrix_row_key,
+template <bool edge_partition_src_key,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
-          typename AdjMatrixRowColKeyInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionSrcDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
 __device__ void update_buffer_element(
@@ -49,9 +49,9 @@ __device__ void update_buffer_element(
   typename GraphViewType::vertex_type major,
   typename GraphViewType::vertex_type minor,
   typename GraphViewType::weight_type weight,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
-  AdjMatrixRowColKeyInputWrapper adj_matrix_row_col_key_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* key,
   T* value)
@@ -65,26 +65,27 @@ __device__ void update_buffer_element(
   auto row_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
   auto col_offset   = GraphViewType::is_adj_matrix_transposed ? major_offset : minor_offset;
 
-  *key   = adj_matrix_row_col_key_input.get((
-    (GraphViewType::is_adj_matrix_transposed != adj_matrix_row_key) ? major_offset : minor_offset));
+  *key = edge_partition_src_dst_key_input.get(
+    ((GraphViewType::is_adj_matrix_transposed != edge_partition_src_key) ? major_offset
+                                                                         : minor_offset));
   *value = evaluate_edge_op<GraphViewType,
                             vertex_t,
-                            AdjMatrixRowValueInputWrapper,
-                            AdjMatrixColValueInputWrapper,
+                            EdgePartitionSrcValueInputWrapper,
+                            EdgePartitionDstValueInputWrapper,
                             EdgeOp>()
              .compute(row,
                       col,
                       weight,
-                      adj_matrix_row_value_input.get(row_offset),
-                      adj_matrix_col_value_input.get(col_offset),
+                      edge_partition_src_value_input.get(row_offset),
+                      edge_partition_dst_value_input.get(col_offset),
                       e_op);
 }
 
-template <bool adj_matrix_row_key,
+template <bool edge_partition_src_key,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
-          typename AdjMatrixRowColKeyInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionSrcDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_hypersparse(
@@ -93,9 +94,9 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
                                  typename GraphViewType::weight_type,
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_hypersparse_first,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
-  AdjMatrixRowColKeyInputWrapper adj_matrix_row_col_key_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* keys,
   T* values)
@@ -123,14 +124,14 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_idx));
     auto local_offset = matrix_partition.get_local_offset(major_idx);
     for (edge_t i = 0; i < local_degree; ++i) {
-      update_buffer_element<adj_matrix_row_key, GraphViewType>(
+      update_buffer_element<edge_partition_src_key, GraphViewType>(
         matrix_partition,
         major,
         indices[i],
         weights ? (*weights)[i] : weight_t{1.0},
-        adj_matrix_row_value_input,
-        adj_matrix_col_value_input,
-        adj_matrix_row_col_key_input,
+        edge_partition_src_value_input,
+        edge_partition_dst_value_input,
+        edge_partition_src_dst_key_input,
         e_op,
         keys + local_offset + i,
         values + local_offset + i);
@@ -140,11 +141,11 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
   }
 }
 
-template <bool adj_matrix_row_key,
+template <bool edge_partition_src_key,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
-          typename AdjMatrixRowColKeyInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionSrcDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_low_degree(
@@ -154,9 +155,9 @@ __global__ void for_all_major_for_all_nbr_low_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
-  AdjMatrixRowColKeyInputWrapper adj_matrix_row_col_key_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* keys,
   T* values)
@@ -180,14 +181,14 @@ __global__ void for_all_major_for_all_nbr_low_degree(
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
     auto local_offset = matrix_partition.get_local_offset(major_offset);
     for (edge_t i = 0; i < local_degree; ++i) {
-      update_buffer_element<adj_matrix_row_key, GraphViewType>(
+      update_buffer_element<edge_partition_src_key, GraphViewType>(
         matrix_partition,
         major,
         indices[i],
         weights ? (*weights)[i] : weight_t{1.0},
-        adj_matrix_row_value_input,
-        adj_matrix_col_value_input,
-        adj_matrix_row_col_key_input,
+        edge_partition_src_value_input,
+        edge_partition_dst_value_input,
+        edge_partition_src_dst_key_input,
         e_op,
         keys + local_offset + i,
         values + local_offset + i);
@@ -197,11 +198,11 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   }
 }
 
-template <bool adj_matrix_row_key,
+template <bool edge_partition_src_key,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
-          typename AdjMatrixRowColKeyInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionSrcDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_mid_degree(
@@ -211,9 +212,9 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
-  AdjMatrixRowColKeyInputWrapper adj_matrix_row_col_key_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* keys,
   T* values)
@@ -223,8 +224,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   using weight_t = typename GraphViewType::weight_type;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  static_assert(
-    transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size % raft::warp_size() == 0);
+  static_assert(transform_reduce_by_src_dst_key_e_for_all_block_size % raft::warp_size() == 0);
   auto const lane_id      = tid % raft::warp_size();
   auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
   size_t idx              = static_cast<size_t>(tid / raft::warp_size());
@@ -240,14 +240,14 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
     auto local_offset = matrix_partition.get_local_offset(major_offset);
     for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
-      update_buffer_element<adj_matrix_row_key, GraphViewType>(
+      update_buffer_element<edge_partition_src_key, GraphViewType>(
         matrix_partition,
         major,
         indices[i],
         weights ? (*weights)[i] : weight_t{1.0},
-        adj_matrix_row_value_input,
-        adj_matrix_col_value_input,
-        adj_matrix_row_col_key_input,
+        edge_partition_src_value_input,
+        edge_partition_dst_value_input,
+        edge_partition_src_dst_key_input,
         e_op,
         keys + local_offset + i,
         values + local_offset + i);
@@ -257,11 +257,11 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   }
 }
 
-template <bool adj_matrix_row_key,
+template <bool edge_partition_src_key,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
-          typename AdjMatrixRowColKeyInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionSrcDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_high_degree(
@@ -271,9 +271,9 @@ __global__ void for_all_major_for_all_nbr_high_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
-  AdjMatrixRowColKeyInputWrapper adj_matrix_row_col_key_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* keys,
   T* values)
@@ -296,14 +296,14 @@ __global__ void for_all_major_for_all_nbr_high_degree(
       matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
     auto local_offset = matrix_partition.get_local_offset(major_offset);
     for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
-      update_buffer_element<adj_matrix_row_key, GraphViewType>(
+      update_buffer_element<edge_partition_src_key, GraphViewType>(
         matrix_partition,
         major,
         indices[i],
         weights ? (*weights)[i] : weight_t{1.0},
-        adj_matrix_row_value_input,
-        adj_matrix_col_value_input,
-        adj_matrix_row_col_key_input,
+        edge_partition_src_value_input,
+        edge_partition_dst_value_input,
+        edge_partition_src_dst_key_input,
         e_op,
         keys + local_offset + i,
         values + local_offset + i);
@@ -340,26 +340,26 @@ std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
   return std::make_tuple(std::move(unique_keys), std::move(value_for_unique_key_buffer));
 }
 
-template <bool adj_matrix_row_key,
+template <bool edge_partition_src_key,
           typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
-          typename AdjMatrixRowColKeyInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionSrcDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            decltype(allocate_dataframe_buffer<T>(0, cudaStream_t{nullptr}))>
-transform_reduce_by_adj_matrix_row_col_key_e(
+transform_reduce_by_src_dst_key_e(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
-  AdjMatrixRowColKeyInputWrapper adj_matrix_row_col_key_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
   EdgeOp e_op,
   T init)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(std::is_same<typename AdjMatrixRowColKeyInputWrapper::value_type,
+  static_assert(std::is_same<typename EdgePartitionSrcDstKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
 
   using vertex_t = typename GraphViewType::vertex_type;
@@ -389,16 +389,16 @@ transform_reduce_by_adj_matrix_row_col_key_e(
     auto tmp_value_buffer = allocate_dataframe_buffer<T>(tmp_keys.size(), handle.get_stream());
 
     if (graph_view.get_vertex_partition_size(comm_root_rank) > 0) {
-      auto matrix_partition_row_value_input = adj_matrix_row_value_input;
-      auto matrix_partition_col_value_input = adj_matrix_col_value_input;
+      auto matrix_partition_row_value_input = edge_partition_src_value_input;
+      auto matrix_partition_col_value_input = edge_partition_dst_value_input;
       if constexpr (GraphViewType::is_adj_matrix_transposed) {
         matrix_partition_col_value_input.set_local_adj_matrix_partition_idx(i);
       } else {
         matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
       }
-      auto matrix_partition_row_col_key_input = adj_matrix_row_col_key_input;
-      if constexpr ((adj_matrix_row_key && !GraphViewType::is_adj_matrix_transposed) ||
-                    (!adj_matrix_row_key && GraphViewType::is_adj_matrix_transposed)) {
+      auto matrix_partition_row_col_key_input = edge_partition_src_dst_key_input;
+      if constexpr ((edge_partition_src_key && !GraphViewType::is_adj_matrix_transposed) ||
+                    (!edge_partition_src_key && GraphViewType::is_adj_matrix_transposed)) {
         matrix_partition_row_col_key_input.set_local_adj_matrix_partition_idx(i);
       }
 
@@ -411,9 +411,9 @@ transform_reduce_by_adj_matrix_row_col_key_e(
         if ((*segment_offsets)[1] > 0) {
           raft::grid_1d_block_t update_grid(
             (*segment_offsets)[1],
-            detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
+            detail::transform_reduce_by_src_dst_key_e_for_all_block_size,
             handle.get_device_properties().maxGridSize[0]);
-          detail::for_all_major_for_all_nbr_high_degree<adj_matrix_row_key, GraphViewType>
+          detail::for_all_major_for_all_nbr_high_degree<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first(),
@@ -428,9 +428,9 @@ transform_reduce_by_adj_matrix_row_col_key_e(
         if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
           raft::grid_1d_warp_t update_grid(
             (*segment_offsets)[2] - (*segment_offsets)[1],
-            detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
+            detail::transform_reduce_by_src_dst_key_e_for_all_block_size,
             handle.get_device_properties().maxGridSize[0]);
-          detail::for_all_major_for_all_nbr_mid_degree<adj_matrix_row_key, GraphViewType>
+          detail::for_all_major_for_all_nbr_mid_degree<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first() + (*segment_offsets)[1],
@@ -445,9 +445,9 @@ transform_reduce_by_adj_matrix_row_col_key_e(
         if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
           raft::grid_1d_thread_t update_grid(
             (*segment_offsets)[3] - (*segment_offsets)[2],
-            detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
+            detail::transform_reduce_by_src_dst_key_e_for_all_block_size,
             handle.get_device_properties().maxGridSize[0]);
-          detail::for_all_major_for_all_nbr_low_degree<adj_matrix_row_key, GraphViewType>
+          detail::for_all_major_for_all_nbr_low_degree<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first() + (*segment_offsets)[2],
@@ -463,9 +463,9 @@ transform_reduce_by_adj_matrix_row_col_key_e(
             (*(matrix_partition.get_dcs_nzd_vertex_count()) > 0)) {
           raft::grid_1d_thread_t update_grid(
             *(matrix_partition.get_dcs_nzd_vertex_count()),
-            detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
+            detail::transform_reduce_by_src_dst_key_e_for_all_block_size,
             handle.get_device_properties().maxGridSize[0]);
-          detail::for_all_major_for_all_nbr_hypersparse<adj_matrix_row_key, GraphViewType>
+          detail::for_all_major_for_all_nbr_hypersparse<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first() + (*segment_offsets)[3],
@@ -479,10 +479,10 @@ transform_reduce_by_adj_matrix_row_col_key_e(
       } else {
         raft::grid_1d_thread_t update_grid(
           matrix_partition.get_major_size(),
-          detail::transform_reduce_by_adj_matrix_row_col_key_e_for_all_block_size,
+          detail::transform_reduce_by_src_dst_key_e_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
-        detail::for_all_major_for_all_nbr_low_degree<adj_matrix_row_key, GraphViewType>
+        detail::for_all_major_for_all_nbr_low_degree<edge_partition_src_key, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
             matrix_partition.get_major_first(),
@@ -556,68 +556,68 @@ transform_reduce_by_adj_matrix_row_col_key_e(
  * @brief Iterate over the entire set of edges and reduce @p edge_op outputs to (key, value) pairs.
  *
  * This function is inspired by thrust::transform_reduce() and thrust::reduce_by_key(). Keys for
- * edges are determined by the graph adjacency matrix rows.
+ * edges are determined by the edge sources.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
- * properties.
- * @tparam AdjMatrixColValueInputWrapper Type of the wrapper for graph adjacency matrix column input
- * properties.
- * @tparam AdjMatrixRowKeyInputWrapper Type of the wrapper for graph adjacency matrix row keys.
+ * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
+ * values.
+ * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
+ * property values.
+ * @tparam EdgePartitionSrcKeyInputWrapper Type of the wrapper for edge partition source key values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
- * (for the rows assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access row properties)
- * or cugraph::dummy_property_t::device_view() (if @p e_op does not access row properties). Use
- * update_edge_partition_src_property to fill the wrapper.
- * @param adj_matrix_col_value_input Device-copyable wrapper used to access column input properties
- * (for the columns assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access column
- * properties) or cugraph::dummy_property_t::device_view() (if @p e_op does not access column
- * properties). Use update_edge_partition_dst_property to fill the wrapper.
- * @param adj_matrix_row_key_input Device-copyable wrapper used to access row keys(for the rows
- * assigned to this process in multi-GPU). Use either
+ * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
+ * property values (for the edge sources assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
+ * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
+ * values). Use update_edge_partition_src_property to fill the wrapper.
+ * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
+ * property values (for the edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
+ * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
+ * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param edge_partition_src_key_input Device-copyable wrapper used to access source input key
+ * values (for the edge sources assigned to this process in multi-GPU). Use
  * cugraph::edge_partition_src_property_t::device_view(). Use update_edge_partition_src_property to
  * fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), properties for the row (i.e. source), and properties for the column  (i.e. destination)
- * and returns a transformed value to be reduced.
- * @param init Initial value to be added to the value in each transform-reduced (key, value) pair.
+ * weight), property values for the source, and property values for the destination and returns a
+ * transformed value to be reduced to (source key, value) pairs.
+ * @param init Initial value to be added to the value in each transform-reduced (source key, value)
+ * pair.
  * @return std::tuple Tuple of rmm::device_uvector<typename GraphView::vertex_type> and
  * rmm::device_uvector<T> (if T is arithmetic scalar) or a tuple of rmm::device_uvector objects (if
  * T is a thrust::tuple type of arithmetic scalar types, one rmm::device_uvector object per scalar
  * type).
  */
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
-          typename AdjMatrixRowKeyInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionSrcKeyInputWrapper,
           typename EdgeOp,
           typename T>
-auto transform_reduce_by_adj_matrix_row_key_e(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
-  AdjMatrixRowKeyInputWrapper adj_matrix_row_key_input,
-  EdgeOp e_op,
-  T init)
+auto transform_reduce_by_src_key_e(raft::handle_t const& handle,
+                                   GraphViewType const& graph_view,
+                                   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+                                   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+                                   EdgePartitionSrcKeyInputWrapper edge_partition_src_key_input,
+                                   EdgeOp e_op,
+                                   T init)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(std::is_same<typename AdjMatrixRowKeyInputWrapper::value_type,
+  static_assert(std::is_same<typename EdgePartitionSrcKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
 
-  return detail::transform_reduce_by_adj_matrix_row_col_key_e<true>(handle,
-                                                                    graph_view,
-                                                                    adj_matrix_row_value_input,
-                                                                    adj_matrix_col_value_input,
-                                                                    adj_matrix_row_key_input,
-                                                                    e_op,
-                                                                    init);
+  return detail::transform_reduce_by_src_dst_key_e<true>(handle,
+                                                         graph_view,
+                                                         edge_partition_src_value_input,
+                                                         edge_partition_dst_value_input,
+                                                         edge_partition_src_key_input,
+                                                         e_op,
+                                                         init);
 }
 
 // FIXME: EdgeOp & VertexOp in update_frontier_v_push_if_out_nbr concatenates push inidicator or
@@ -626,68 +626,69 @@ auto transform_reduce_by_adj_matrix_row_key_e(
  * @brief Iterate over the entire set of edges and reduce @p edge_op outputs to (key, value) pairs.
  *
  * This function is inspired by thrust::transform_reduce() and thrust::reduce_by_key(). Keys for
- * edges are determined by the graph adjacency matrix columns.
+ * edges are determined by the edge destinations.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
- * properties.
- * @tparam AdjMatrixColValueInputWrapper Type of the wrapper for graph adjacency matrix column input
- * properties.
- * @tparam AdjMatrixColKeyInputWrapper Type of the wrapper for graph adjacency matrix column keys.
+ * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
+ * values.
+ * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
+ * property values.
+ * @tparam EdgePartitionDstKeyInputWrapper Type of the wrapper for edge partition destination key
+ * values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
- * (for the rows assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access row properties)
- * or cugraph::dummy_property_t::device_view() (if @p e_op does not access row properties). Use
- * update_edge_partition_src_property to fill the wrapper.
- * @param adj_matrix_col_value_input Device-copyable wrapper used to access column input properties
- * (for the columns assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access column
- * properties) or cugraph::dummy_property_t::device_view() (if @p e_op does not access column
- * properties). Use update_edge_partition_dst_property to fill the wrapper.
- * @param adj_matrix_col_key_input Device-copyable wrapper used to access column keys(for the
- * columns assigned to this process in multi-GPU). Use either
+ * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
+ * property values (for the edge sources assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
+ * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
+ * values). Use update_edge_partition_src_property to fill the wrapper.
+ * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
+ * property values (for the edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
+ * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
+ * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param edge_partition_dst_key_input Device-copyable wrapper used to access destination input key
+ * values (for the edge destinations assigned to this process in multi-GPU). Use
  * cugraph::edge_partition_dst_property_t::device_view(). Use update_edge_partition_dst_property to
  * fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), properties for the row (i.e. source), and properties for the column  (i.e. destination)
- * and returns a transformed value to be reduced.
- * @param init Initial value to be added to the value in each transform-reduced (key, value) pair.
+ * weight), property values for the source, and property values for the destination and returns a
+ * transformed value to be reduced to (destination key, value) pairs.
+ * @param init Initial value to be added to the value in each transform-reduced (destination key,
+ * value) pair.
  * @return std::tuple Tuple of rmm::device_uvector<typename GraphView::vertex_type> and
  * rmm::device_uvector<T> (if T is arithmetic scalar) or a tuple of rmm::device_uvector objects (if
  * T is a thrust::tuple type of arithmetic scalar types, one rmm::device_uvector object per scalar
  * type).
  */
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
-          typename AdjMatrixColKeyInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
-auto transform_reduce_by_adj_matrix_col_key_e(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
-  AdjMatrixColKeyInputWrapper adj_matrix_col_key_input,
-  EdgeOp e_op,
-  T init)
+auto transform_reduce_by_dst_key_e(raft::handle_t const& handle,
+                                   GraphViewType const& graph_view,
+                                   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+                                   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+                                   EdgePartitionDstKeyInputWrapper edge_partition_dst_key_input,
+                                   EdgeOp e_op,
+                                   T init)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(std::is_same<typename AdjMatrixColKeyInputWrapper::value_type,
+  static_assert(std::is_same<typename EdgePartitionDstKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
 
-  return detail::transform_reduce_by_adj_matrix_row_col_key_e<false>(handle,
-                                                                     graph_view,
-                                                                     adj_matrix_row_value_input,
-                                                                     adj_matrix_col_value_input,
-                                                                     adj_matrix_col_key_input,
-                                                                     e_op,
-                                                                     init);
+  return detail::transform_reduce_by_src_dst_key_e<false>(handle,
+                                                          graph_view,
+                                                          edge_partition_src_value_input,
+                                                          edge_partition_dst_value_input,
+                                                          edge_partition_dst_key_input,
+                                                          e_op,
+                                                          init);
 }
 
 }  // namespace cugraph

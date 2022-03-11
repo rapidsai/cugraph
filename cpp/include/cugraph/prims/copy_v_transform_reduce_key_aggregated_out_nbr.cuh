@@ -39,14 +39,14 @@ namespace cugraph {
 namespace detail {
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
-template <typename AdjMatrixColKeyInputWrapper>
+template <typename EdgePartitionDstKeyInputWrapper>
 struct minor_to_key_t {
-  using vertex_t = typename AdjMatrixColKeyInputWrapper::value_type;
-  AdjMatrixColKeyInputWrapper adj_matrix_col_key_input{};
+  using vertex_t = typename EdgePartitionDstKeyInputWrapper::value_type;
+  EdgePartitionDstKeyInputWrapper edge_partition_dst_key_input{};
   vertex_t minor_first{};
   __device__ vertex_t operator()(vertex_t minor) const
   {
-    return adj_matrix_col_key_input.get(minor - minor_first);
+    return edge_partition_dst_key_input.get(minor - minor_first);
   }
 };
 
@@ -81,12 +81,12 @@ struct pair_to_binary_partition_id_t {
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t,
           typename weight_t,
-          typename AdjMatrixRowValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
           typename KeyAggregatedEdgeOp,
           typename MatrixPartitionDeviceView,
           typename StaticMapDeviceView>
 struct call_key_aggregated_e_op_t {
-  AdjMatrixRowValueInputWrapper matrix_partition_row_value_input{};
+  EdgePartitionSrcValueInputWrapper matrix_partition_row_value_input{};
   KeyAggregatedEdgeOp key_aggregated_e_op{};
   MatrixPartitionDeviceView matrix_partition{};
   StaticMapDeviceView kv_map{};
@@ -152,11 +152,12 @@ struct reduce_with_init_t {
  * support two level reduction for every vertex.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
- * properties.
- * @tparam AdjMatrixColKeyInputWrapper Type of the wrapper for graph adjacency matrix column keys.
- * @tparam VertexIterator Type of the iterator for graph adjacency matrix column key values for
- * aggregation (key type should coincide with vertex type).
+ * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
+ * values.
+ * @tparam EdgePartitionDstKeyInputWrapper Type of the wrapper for edge partition destination key
+ * values.
+ * @tparam VertexIterator Type of the iterator for keys in (key, value) pairs (key type should
+ * coincide with vertex type).
  * @tparam ValueIterator Type of the iterator for values in (key, value) pairs.
  * @tparam KeyAggregatedEdgeOp Type of the quinary key-aggregated edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
@@ -165,26 +166,26 @@ struct reduce_with_init_t {
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
- * (for the rows assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access row properties)
- * or cugraph::dummy_:property_t:device_view() (if @p e_op does not access row properties). Use
- * update_edge_partition_src_property to fill the wrapper.
- * @param adj_matrix_col_key_input Device-copyable wrapper used to access column keys (for the
- * columns assigned to this process in multi-GPU). Use either
+ * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
+ * property values (for the edge sources assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
+ * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
+ * values). Use update_edge_partition_src_property to fill the wrapper.
+ * @param edge_partition_dst_key_input Device-copyable wrapper used to access destination input key
+ * values (for the edge destinations assigned to this process in multi-GPU). Use
  * cugraph::edge_partition_dst_property_t::device_view(). Use update_edge_partition_dst_property to
  * fill the wrapper.
  * @param map_unique_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
  * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_vertex_t` is used
  * to map keys to processes). (Key, value) pairs may be provided by
- * transform_reduce_by_adj_matrix_row_key_e() or transform_reduce_by_adj_matrix_col_key_e().
+ * transform_reduce_by_src_key_e() or transform_reduce_by_dst_key_e().
  * @param map_unique_key_last Iterator pointing to the last (exclusive) key in (key, value) pairs
  * (assigned to this process in multi-GPU).
  * @param map_value_first Iterator pointing to the first (inclusive) value in (key, value) pairs
  * (assigned to this process in multi-GPU). `map_value_last` (exclusive) is deduced as @p
  * map_value_first + thrust::distance(@p map_unique_key_first, @p map_unique_key_last).
  * @param key_aggregated_e_op Quinary operator takes edge source, key, aggregated edge weight, *(@p
- * adj_matrix_row_value_input_first + i), and value for the key stored in the input (key, value)
+ * edge_partition_src_value_input_first + i), and value for the key stored in the input (key, value)
  * pairs provided by @p map_unique_key_first, @p map_unique_key_last, and @p map_value_first
  * (aggregated over the entire set of processes in multi-GPU).
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
@@ -195,8 +196,8 @@ struct reduce_with_init_t {
  * graph_view.get_number_of_local_vertices().
  */
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColKeyInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstKeyInputWrapper,
           typename VertexIterator,
           typename ValueIterator,
           typename KeyAggregatedEdgeOp,
@@ -206,8 +207,8 @@ template <typename GraphViewType,
 void copy_v_transform_reduce_key_aggregated_out_nbr(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColKeyInputWrapper adj_matrix_col_key_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstKeyInputWrapper edge_partition_dst_key_input,
   VertexIterator map_unique_key_first,
   VertexIterator map_unique_key_last,
   ValueIterator map_value_first,
@@ -285,8 +286,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
       auto minor_key_first = thrust::make_transform_iterator(
         matrix_partition.get_indices(),
-        detail::minor_to_key_t<AdjMatrixColKeyInputWrapper>{adj_matrix_col_key_input,
-                                                            matrix_partition.get_minor_first()});
+        detail::minor_to_key_t<EdgePartitionDstKeyInputWrapper>{
+          edge_partition_dst_key_input, matrix_partition.get_minor_first()});
 
       // to limit memory footprint ((1 << 20) is a tuning parameter)
       auto approx_edges_to_sort_per_iteration =
@@ -578,7 +579,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     auto tmp_e_op_result_buffer =
       allocate_dataframe_buffer<T>(tmp_majors.size(), handle.get_stream());
 
-    auto matrix_partition_row_value_input = adj_matrix_row_value_input;
+    auto matrix_partition_row_value_input = edge_partition_src_value_input;
     matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
 
     auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
@@ -589,7 +590,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                       get_dataframe_buffer_begin(tmp_e_op_result_buffer),
                       detail::call_key_aggregated_e_op_t<vertex_t,
                                                          weight_t,
-                                                         AdjMatrixRowValueInputWrapper,
+                                                         EdgePartitionSrcValueInputWrapper,
                                                          KeyAggregatedEdgeOp,
                                                          decltype(matrix_partition),
                                                          decltype(kv_map.get_device_view())>{

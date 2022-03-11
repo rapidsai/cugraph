@@ -456,8 +456,9 @@ void update_edge_partition_minor_property(
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
  * graph_view.get_number_of_local_vertices().
- * @param edge_partition_source_property_output Wrapper used to store edge partition source property
- * values (for the edge partitions assigned to this process in multi-GPU).
+ * @param edge_partition_src_property_output Device-copyable wrapper used to store source property
+ * values (for the edge sources assigned to this process in multi-GPU). Use
+ * cugraph::edge_partition_src_property_t::device_view().
  */
 template <typename GraphViewType, typename VertexPropertyInputIterator>
 void update_edge_partition_src_property(
@@ -498,8 +499,9 @@ void update_edge_partition_src_property(
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
  * graph_view.get_number_of_local_vertices().
- * @param edge_partition_source_property_output Wrapper used to store edge partition source property
- * values (for the edge partitions assigned to this process in multi-GPU).
+ * @param edge_partition_src_property_output Device-copyable wrapper used to store source property
+ * values (for the edge sources assigned to this process in multi-GPU). Use
+ * cugraph::edge_partition_src_property_t::device_view().
  */
 template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
 void update_edge_partition_src_property(
@@ -546,8 +548,9 @@ void update_edge_partition_src_property(
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
  * graph_view.get_number_of_local_vertices().
- * @param edge_partition_dst_property_output Wrapper used to store edge partition source property
- * values (for the edge partitions assigned to this process in multi-GPU).
+ * @param edge_partition_dst_property_output Device-copyable wrapper used to store destination
+ * property values (for the edge destinations assigned to this process in multi-GPU). Use
+ * cugraph::edge_partition_dst_property_t::device_view().
  */
 template <typename GraphViewType, typename VertexPropertyInputIterator>
 void update_edge_partition_dst_property(
@@ -589,9 +592,9 @@ void update_edge_partition_dst_property(
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
  * graph_view.get_number_of_local_vertices().
- * @param edge_partition_dst_property_output Wrapper used to store edge partition source property
- * values (for the edge partitions assigned to this process in multi-GPU). (for the columns assigned
- * to this process in multi-GPU).
+ * @param edge_partition_dst_property_output Device-copyable wrapper used to store destination
+ * property values (for the edge destinations assigned to this process in multi-GPU). Use
+ * cugraph::edge_partition_dst_property_t::device_view().
  */
 template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
 void update_edge_partition_dst_property(

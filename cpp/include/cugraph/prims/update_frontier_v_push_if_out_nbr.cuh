@@ -211,8 +211,8 @@ __device__ void push_buffer_element(vertex_t col,
 
 template <typename GraphViewType,
           typename KeyIterator,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
@@ -224,8 +224,8 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
   typename GraphViewType::vertex_type major_hypersparse_first,
   KeyIterator key_first,
   KeyIterator key_last,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   BufferKeyOutputIterator buffer_key_output_first,
   BufferPayloadOutputIterator buffer_payload_output_first,
   size_t* buffer_idx_ptr,
@@ -241,8 +241,8 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
                                                   key_t,
-                                                  AdjMatrixRowValueInputWrapper,
-                                                  AdjMatrixColValueInputWrapper,
+                                                  EdgePartitionSrcValueInputWrapper,
+                                                  EdgePartitionDstValueInputWrapper,
                                                   EdgeOp>::result_type;
 
   static_assert(!GraphViewType::is_adj_matrix_transposed,
@@ -343,14 +343,14 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
         auto col_offset = matrix_partition.get_minor_offset_from_minor_nocheck(col);
         e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
-                                       AdjMatrixRowValueInputWrapper,
-                                       AdjMatrixColValueInputWrapper,
+                                       EdgePartitionSrcValueInputWrapper,
+                                       EdgePartitionDstValueInputWrapper,
                                        EdgeOp>()
                         .compute(key,
                                  col,
                                  weights ? (*weights)[local_edge_offset] : weight_t{1.0},
-                                 adj_matrix_row_value_input.get(row_offset),
-                                 adj_matrix_col_value_input.get(col_offset),
+                                 edge_partition_src_value_input.get(row_offset),
+                                 edge_partition_dst_value_input.get(col_offset),
                                  e_op);
       }
       auto ballot_e_op =
@@ -381,8 +381,8 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
 
 template <typename GraphViewType,
           typename KeyIterator,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
@@ -393,8 +393,8 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   KeyIterator key_first,
   KeyIterator key_last,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   BufferKeyOutputIterator buffer_key_output_first,
   BufferPayloadOutputIterator buffer_payload_output_first,
   size_t* buffer_idx_ptr,
@@ -410,8 +410,8 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
                                                   key_t,
-                                                  AdjMatrixRowValueInputWrapper,
-                                                  AdjMatrixColValueInputWrapper,
+                                                  EdgePartitionSrcValueInputWrapper,
+                                                  EdgePartitionDstValueInputWrapper,
                                                   EdgeOp>::result_type;
 
   static_assert(!GraphViewType::is_adj_matrix_transposed,
@@ -503,14 +503,14 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
         auto col_offset = matrix_partition.get_minor_offset_from_minor_nocheck(col);
         e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
-                                       AdjMatrixRowValueInputWrapper,
-                                       AdjMatrixColValueInputWrapper,
+                                       EdgePartitionSrcValueInputWrapper,
+                                       EdgePartitionDstValueInputWrapper,
                                        EdgeOp>()
                         .compute(key,
                                  col,
                                  weights ? (*weights)[local_edge_offset] : weight_t{1.0},
-                                 adj_matrix_row_value_input.get(row_offset),
-                                 adj_matrix_col_value_input.get(col_offset),
+                                 edge_partition_src_value_input.get(row_offset),
+                                 edge_partition_dst_value_input.get(col_offset),
                                  e_op);
       }
       auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
@@ -541,8 +541,8 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
 
 template <typename GraphViewType,
           typename KeyIterator,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
@@ -553,8 +553,8 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   KeyIterator key_first,
   KeyIterator key_last,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   BufferKeyOutputIterator buffer_key_output_first,
   BufferPayloadOutputIterator buffer_payload_output_first,
   size_t* buffer_idx_ptr,
@@ -570,8 +570,8 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
                                                   key_t,
-                                                  AdjMatrixRowValueInputWrapper,
-                                                  AdjMatrixColValueInputWrapper,
+                                                  EdgePartitionSrcValueInputWrapper,
+                                                  EdgePartitionDstValueInputWrapper,
                                                   EdgeOp>::result_type;
 
   static_assert(!GraphViewType::is_adj_matrix_transposed,
@@ -610,14 +610,14 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
         auto col_offset = matrix_partition.get_minor_offset_from_minor_nocheck(col);
         e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
-                                       AdjMatrixRowValueInputWrapper,
-                                       AdjMatrixColValueInputWrapper,
+                                       EdgePartitionSrcValueInputWrapper,
+                                       EdgePartitionDstValueInputWrapper,
                                        EdgeOp>()
                         .compute(key,
                                  col,
                                  weights ? (*weights)[i] : weight_t{1.0},
-                                 adj_matrix_row_value_input.get(row_offset),
-                                 adj_matrix_col_value_input.get(col_offset),
+                                 edge_partition_src_value_input.get(row_offset),
+                                 edge_partition_dst_value_input.get(col_offset),
                                  e_op);
       }
       auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
@@ -648,8 +648,8 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
 
 template <typename GraphViewType,
           typename KeyIterator,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
@@ -660,8 +660,8 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
                                  GraphViewType::is_multi_gpu> matrix_partition,
   KeyIterator key_first,
   KeyIterator key_last,
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   BufferKeyOutputIterator buffer_key_output_first,
   BufferPayloadOutputIterator buffer_payload_output_first,
   size_t* buffer_idx_ptr,
@@ -677,8 +677,8 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
                                                   key_t,
-                                                  AdjMatrixRowValueInputWrapper,
-                                                  AdjMatrixColValueInputWrapper,
+                                                  EdgePartitionSrcValueInputWrapper,
+                                                  EdgePartitionDstValueInputWrapper,
                                                   EdgeOp>::result_type;
 
   static_assert(!GraphViewType::is_adj_matrix_transposed,
@@ -718,14 +718,14 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
         auto col_offset = matrix_partition.get_minor_offset_from_minor_nocheck(col);
         e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
-                                       AdjMatrixRowValueInputWrapper,
-                                       AdjMatrixColValueInputWrapper,
+                                       EdgePartitionSrcValueInputWrapper,
+                                       EdgePartitionDstValueInputWrapper,
                                        EdgeOp>()
                         .compute(key,
                                  col,
                                  weights ? (*weights)[i] : weight_t{1.0},
-                                 adj_matrix_row_value_input.get(row_offset),
-                                 adj_matrix_col_value_input.get(col_offset),
+                                 edge_partition_src_value_input.get(row_offset),
+                                 edge_partition_dst_value_input.get(col_offset),
                                  e_op);
       }
       BlockScan(temp_storage)
@@ -941,10 +941,10 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexFrontierType Type of the vertex frontier class which abstracts vertex frontier
  * managements.
- * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
- * properties.
- * @tparam AdjMatrixColValueInputWrapper Type of the wrapper for graph adjacency matrix column input
- * properties.
+ * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
+ * values.
+ * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
+ * property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
@@ -959,19 +959,19 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * current iteration.
  * @param next_frontier_bucket_indices Indices of the VertexFrontier buckets to store new frontier
  * vertices for the next iteration.
- * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
- * (for the rows assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access row properties)
- * or cugraph::dummy_property_t::device_view() (if @p e_op does not access row properties). Use
- * update_edge_partition_src_property to fill the wrapper.
- * @param adj_matrix_col_value_input Device-copyable wrapper used to access column input properties
- * (for the columns assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access column
- * properties) or cugraph::dummy_property_t::device_view() (if @p e_op does not access column
- * properties). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
+ * property values (for the edge sources assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
+ * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
+ * values). Use update_edge_partition_src_property to fill the wrapper.
+ * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
+ * property values (for the edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
+ * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
+ * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), properties for the row (i.e. source), and properties for the column  (i.e. destination)
- * and returns a value to be reduced the @p reduce_op.
+ * weight), property values for the source, and property values for the destination and returns a
+ * value to be reduced the @p reduce_op.
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
@@ -988,8 +988,8 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  */
 template <typename GraphViewType,
           typename VertexFrontierType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename EdgeOp,
           typename ReduceOp,
           typename VertexValueInputIterator,
@@ -1004,8 +1004,8 @@ void update_frontier_v_push_if_out_nbr(
   // FIXME: if vertices in the frontier are tagged, we should have an option to access with (vertex,
   // tag) pair (currently we can access only with vertex, we may use cuco::static_map for this
   // purpose)
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgeOp e_op,
   ReduceOp reduce_op,
   // FIXME: if vertices in the frontier are tagged, we should have an option to access with (vertex,
@@ -1146,8 +1146,8 @@ void update_frontier_v_push_if_out_nbr(
       resize_dataframe_buffer(payload_buffer, new_buffer_size, handle.get_stream());
     }
 
-    auto matrix_partition_row_value_input = adj_matrix_row_value_input;
-    auto matrix_partition_col_value_input = adj_matrix_col_value_input;
+    auto matrix_partition_row_value_input = edge_partition_src_value_input;
+    auto matrix_partition_col_value_input = edge_partition_dst_value_input;
     matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
 
     if (segment_offsets) {
