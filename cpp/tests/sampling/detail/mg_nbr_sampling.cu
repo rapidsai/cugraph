@@ -38,6 +38,7 @@ void spinner(void)
 
 struct Prims_Usecase {
   bool check_correctness{true};
+  bool flag_replacement{true};
 };
 
 template <typename input_usecase_t>
@@ -137,7 +138,7 @@ class Tests_MG_Nbr_Sampling
                                                                random_source_gpu_ids.begin(),
                                                                random_sources.size(),
                                                                h_fan_out,
-                                                               true);
+                                                               prims_usecase.flag_replacement);
 
     auto&& d_src_out = std::get<0>(tuple_quad);
     auto&& d_dst_out = std::get<1>(tuple_quad);
@@ -265,7 +266,7 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MG_Nbr_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{true}),
+    ::testing::Values(Prims_Usecase{true, true}, Prims_Usecase{true, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -274,7 +275,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MG_Nbr_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
+  ::testing::Combine(::testing::Values(Prims_Usecase{false, true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
@@ -285,7 +286,7 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MG_Nbr_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
+  ::testing::Combine(::testing::Values(Prims_Usecase{false, true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
