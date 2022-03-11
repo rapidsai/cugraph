@@ -130,11 +130,6 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     except ModuleNotFoundError:
         raise RuntimeError("node2vec requires the cupy package, which could not "
                            "be imported")
-    try:
-        import numpy
-    except ModuleNotFoundError:
-        raise RuntimeError("node2vec requires the numpy package, which could not "
-                           "be imported")
     assert_CAI_type(seed_array, "seed_array")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
