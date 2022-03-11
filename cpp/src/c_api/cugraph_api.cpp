@@ -349,18 +349,3 @@ extern "C" cugraph_error_code_t cugraph_update_host_buffer(const cugraph_resourc
   }
   return status;
 }
-
-extern "C" cugraph_resource_handle_t* cugraph_create_resource_handle(void)
-{
-  try {
-    return reinterpret_cast<cugraph_resource_handle_t*>(new raft::handle_t{});
-  } catch (...) {
-    return nullptr;
-  }
-}
-
-extern "C" void cugraph_free_resource_handle(cugraph_resource_handle_t* p_handle)
-{
-  raft::handle_t* p_raft_handle = reinterpret_cast<raft::handle_t*>(p_handle);
-  delete p_raft_handle;
-}

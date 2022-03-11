@@ -19,12 +19,11 @@
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
 #include <c_api/utils.hpp>
+#include <c_api/resource_handle.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-
-#include <raft/handle.hpp>
 
 #include <optional>
 
@@ -50,7 +49,7 @@ struct pagerank_functor : public abstract_functor {
   cugraph_pagerank_result_t* result_{};
 
   pagerank_functor(
-    cugraph_resource_handle_t const* handle,
+    ::cugraph_resource_handle_t const* handle,
     ::cugraph_graph_t* graph,
     ::cugraph_type_erased_device_array_view_t const* precomputed_vertex_out_weight_sums,
     ::cugraph_type_erased_device_array_view_t* personalization_vertices,
@@ -61,7 +60,7 @@ struct pagerank_functor : public abstract_functor {
     bool has_initial_guess,
     bool do_expensive_check)
     : abstract_functor(),
-      handle_(*reinterpret_cast<raft::handle_t const*>(handle)),
+      handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       precomputed_vertex_out_weight_sums_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
@@ -106,9 +105,9 @@ struct pagerank_functor : public abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph->get_number_of_vertices(),
+      rmm::device_uvector<vertex_t> vertex_ids(graph_view.get_number_of_local_vertices(),
                                                handle_.get_stream());
-      rmm::device_uvector<weight_t> pageranks(graph->get_number_of_vertices(),
+      rmm::device_uvector<weight_t> pageranks(graph_view.get_number_of_local_vertices(),
                                               handle_.get_stream());
 
       if (personalization_vertices_ != nullptr) {

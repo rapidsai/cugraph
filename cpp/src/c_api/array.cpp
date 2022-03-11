@@ -16,8 +16,7 @@
 
 #include <c_api/array.hpp>
 #include <c_api/error.hpp>
-
-#include <raft/handle.hpp>
+#include <c_api/resource_handle.hpp>
 
 namespace cugraph {
 namespace c_api {
@@ -41,18 +40,18 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_create(
   *error = nullptr;
 
   try {
-    raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
-
-    if (!raft_handle) {
+    if (!handle) {
       *error = reinterpret_cast<cugraph_error_t*>(
         new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
       return CUGRAPH_INVALID_HANDLE;
     }
 
+    auto p_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
+
     size_t n_bytes = n_elems * (::data_type_sz[dtype]);
 
     auto ret_value = new cugraph::c_api::cugraph_type_erased_device_array_t(
-      n_elems, n_bytes, dtype, raft_handle->get_stream());
+      n_elems, n_bytes, dtype, p_handle->handle_->get_stream());
 
     *array = reinterpret_cast<cugraph_type_erased_device_array_t*>(ret_value);
     return CUGRAPH_SUCCESS;
@@ -140,13 +139,13 @@ extern "C" cugraph_error_code_t cugraph_type_erased_host_array_create(
   *error = nullptr;
 
   try {
-    raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
-
-    if (!raft_handle) {
+    if (!handle) {
       *error = reinterpret_cast<cugraph_error_t*>(
         new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
       return CUGRAPH_INVALID_HANDLE;
     }
+
+    auto p_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
 
     size_t n_bytes = n_elems * (::data_type_sz[dtype]);
 
@@ -233,20 +232,21 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy_from_
   *error = nullptr;
 
   try {
-    raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
-    auto internal_pointer =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(dst);
 
-    if (!raft_handle) {
+    if (!handle) {
       *error = reinterpret_cast<cugraph_error_t*>(
         new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
       return CUGRAPH_INVALID_HANDLE;
     }
 
+    auto p_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
+    auto internal_pointer =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(dst);
+
     raft::update_device(reinterpret_cast<byte_t*>(internal_pointer->data_),
                         h_src,
                         internal_pointer->num_bytes(),
-                        raft_handle->get_stream());
+                        p_handle->handle_->get_stream());
 
     return CUGRAPH_SUCCESS;
   } catch (std::exception const& ex) {
@@ -265,20 +265,20 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy_to_ho
   *error = nullptr;
 
   try {
-    raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
-    auto internal_pointer =
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(src);
-
-    if (!raft_handle) {
+    if (!handle) {
       *error = reinterpret_cast<cugraph_error_t*>(
         new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
       return CUGRAPH_INVALID_HANDLE;
     }
 
+    auto p_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
+    auto internal_pointer =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(src);
+
     raft::update_host(h_dst,
                       reinterpret_cast<byte_t const*>(internal_pointer->data_),
                       internal_pointer->num_bytes(),
-                      raft_handle->get_stream());
+                      p_handle->handle_->get_stream());
 
     return CUGRAPH_SUCCESS;
   } catch (std::exception const& ex) {
@@ -297,13 +297,13 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy(
   *error = nullptr;
 
   try {
-    raft::handle_t const* raft_handle = reinterpret_cast<raft::handle_t const*>(handle);
+    auto p_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
     auto internal_pointer_dst =
       reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(dst);
     auto internal_pointer_src =
       reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(src);
 
-    if (!raft_handle) {
+    if (!handle) {
       *error = reinterpret_cast<cugraph_error_t*>(
         new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
       return CUGRAPH_INVALID_HANDLE;
@@ -318,7 +318,7 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy(
     raft::copy(reinterpret_cast<byte_t*>(internal_pointer_dst->data_),
                reinterpret_cast<byte_t const*>(internal_pointer_src->data_),
                internal_pointer_src->num_bytes(),
-               raft_handle->get_stream());
+               p_handle->handle_->get_stream());
 
     return CUGRAPH_SUCCESS;
   } catch (std::exception const& ex) {

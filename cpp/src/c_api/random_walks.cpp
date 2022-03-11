@@ -19,13 +19,12 @@
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
 #include <c_api/utils.hpp>
+#include <c_api/resource_handle.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/visitors/generic_cascaded_dispatch.hpp>
-
-#include <raft/handle.hpp>
 
 namespace cugraph {
 namespace c_api {
@@ -48,7 +47,7 @@ struct node2vec_functor : public abstract_functor {
   double q_{0};
   cugraph_random_walk_result_t* result_{nullptr};
 
-  node2vec_functor(cugraph_resource_handle_t const* handle,
+  node2vec_functor(::cugraph_resource_handle_t const* handle,
                    ::cugraph_graph_t* graph,
                    ::cugraph_type_erased_device_array_view_t const* sources,
                    size_t max_depth,
@@ -56,7 +55,7 @@ struct node2vec_functor : public abstract_functor {
                    double p,
                    double q)
     : abstract_functor(),
-      handle_(*reinterpret_cast<raft::handle_t const*>(handle)),
+      handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       sources_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),

@@ -20,12 +20,11 @@
 #include <c_api/graph.hpp>
 #include <c_api/paths_result.hpp>
 #include <c_api/utils.hpp>
+#include <c_api/resource_handle.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-
-#include <raft/handle.hpp>
 
 namespace cugraph {
 namespace c_api {
@@ -43,13 +42,13 @@ struct extract_paths_functor : public abstract_functor {
   cugraph_type_erased_device_array_view_t const* destinations_;
   cugraph_extract_paths_result_t* result_{};
 
-  extract_paths_functor(cugraph_resource_handle_t const* handle,
+  extract_paths_functor(::cugraph_resource_handle_t const* handle,
                         ::cugraph_graph_t* graph,
                         ::cugraph_type_erased_device_array_view_t const* sources,
                         ::cugraph_paths_result_t const* paths_result,
                         ::cugraph_type_erased_device_array_view_t const* destinations)
     : abstract_functor(),
-      handle_(*reinterpret_cast<raft::handle_t const*>(handle)),
+      handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       sources_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),
