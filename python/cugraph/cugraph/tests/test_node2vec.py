@@ -54,9 +54,9 @@ def calc_node2vec(G,
 
     use_padding : bool
 
-    p : double
+    p : float
 
-    q : double
+    q : float
     """
     assert G is not None
 
