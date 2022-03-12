@@ -184,7 +184,7 @@ template <typename vertex_t,
           typename e_op_result_t,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator>
-__device__ void push_buffer_element(vertex_t col,
+__device__ void push_buffer_element(vertex_t dst,
                                     e_op_result_t e_op_result,
                                     BufferKeyOutputIterator buffer_key_output_first,
                                     BufferPayloadOutputIterator buffer_payload_output_first,
@@ -197,14 +197,14 @@ __device__ void push_buffer_element(vertex_t col,
   assert(e_op_result.has_value());
 
   if constexpr (std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
-    *(buffer_key_output_first + buffer_idx) = col;
+    *(buffer_key_output_first + buffer_idx) = dst;
   } else if constexpr (std::is_same_v<key_t, vertex_t> && !std::is_same_v<payload_t, void>) {
-    *(buffer_key_output_first + buffer_idx)     = col;
+    *(buffer_key_output_first + buffer_idx)     = dst;
     *(buffer_payload_output_first + buffer_idx) = *e_op_result;
   } else if constexpr (!std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
-    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(col, *e_op_result);
+    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(dst, *e_op_result);
   } else {
-    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(col, thrust::get<0>(*e_op_result));
+    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(dst, thrust::get<0>(*e_op_result));
     *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(*e_op_result);
   }
 }
@@ -216,7 +216,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void for_all_frontier_row_for_all_nbr_hypersparse(
+__global__ void for_all_frontier_src_for_all_nbr_hypersparse(
   matrix_partition_device_view_t<typename GraphViewType::vertex_type,
                                  typename GraphViewType::edge_type,
                                  typename GraphViewType::weight_type,
@@ -251,7 +251,7 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
   auto const tid     = threadIdx.x + blockIdx.x * blockDim.x;
   auto const warp_id = threadIdx.x / raft::warp_size();
   auto const lane_id = tid % raft::warp_size();
-  auto row_start_offset =
+  auto src_start_offset =
     static_cast<size_t>(major_hypersparse_first - matrix_partition.get_major_first());
   auto idx = static_cast<size_t>(tid);
 
@@ -284,17 +284,17 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
     edge_t local_degree{0};
     if (lane_id < static_cast<int32_t>(max_key_idx - min_key_idx)) {
       auto key = *(key_first + idx);
-      vertex_t row{};
+      vertex_t src{};
       if constexpr (std::is_same_v<key_t, vertex_t>) {
-        row = key;
+        src = key;
       } else {
-        row = thrust::get<0>(key);
+        src = thrust::get<0>(key);
       }
-      auto row_hypersparse_idx = matrix_partition.get_major_hypersparse_idx_from_major_nocheck(row);
-      if (row_hypersparse_idx) {
-        auto row_idx                             = row_start_offset + *row_hypersparse_idx;
-        local_degree                             = matrix_partition.get_local_degree(row_idx);
-        warp_key_local_edge_offsets[threadIdx.x] = matrix_partition.get_local_offset(row_idx);
+      auto src_hypersparse_idx = matrix_partition.get_major_hypersparse_idx_from_major_nocheck(src);
+      if (src_hypersparse_idx) {
+        auto src_idx                             = src_start_offset + *src_hypersparse_idx;
+        local_degree                             = matrix_partition.get_local_degree(src_idx);
+        warp_key_local_edge_offsets[threadIdx.x] = matrix_partition.get_local_offset(src_idx);
       } else {
         local_degree                             = edge_t{0};
         warp_key_local_edge_offsets[threadIdx.x] = edge_t{0};  // dummy
@@ -314,7 +314,7 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
 
     for (size_t i = lane_id; i < rounded_up_num_edges_this_warp; i += raft::warp_size()) {
       e_op_result_t e_op_result{};
-      vertex_t col{};
+      vertex_t dst{};
 
       if (i < static_cast<size_t>(num_edges_this_warp)) {
         auto key_idx_this_warp = static_cast<vertex_t>(thrust::distance(
@@ -332,25 +332,25 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
                                  : warp_local_degree_inclusive_sums[warp_id * raft::warp_size() +
                                                                     key_idx_this_warp - 1]));
         auto key = *(key_first + (min_key_idx + key_idx_this_warp));
-        vertex_t row{};
+        vertex_t src{};
         if constexpr (std::is_same_v<key_t, vertex_t>) {
-          row = key;
+          src = key;
         } else {
-          row = thrust::get<0>(key);
+          src = thrust::get<0>(key);
         }
-        col             = indices[local_edge_offset];
-        auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-        auto col_offset = matrix_partition.get_minor_offset_from_minor_nocheck(col);
+        dst             = indices[local_edge_offset];
+        auto src_offset = matrix_partition.get_major_offset_from_major_nocheck(src);
+        auto dst_offset = matrix_partition.get_minor_offset_from_minor_nocheck(dst);
         e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
                                        EdgePartitionSrcValueInputWrapper,
                                        EdgePartitionDstValueInputWrapper,
                                        EdgeOp>()
                         .compute(key,
-                                 col,
+                                 dst,
                                  weights ? (*weights)[local_edge_offset] : weight_t{1.0},
-                                 edge_partition_src_value_input.get(row_offset),
-                                 edge_partition_dst_value_input.get(col_offset),
+                                 edge_partition_src_value_input.get(src_offset),
+                                 edge_partition_dst_value_input.get(dst_offset),
                                  e_op);
       }
       auto ballot_e_op =
@@ -367,7 +367,7 @@ __global__ void for_all_frontier_row_for_all_nbr_hypersparse(
         if (e_op_result) {
           auto buffer_warp_offset =
             static_cast<edge_t>(__popc(ballot_e_op & ~(uint32_t{0xffffffff} << lane_id)));
-          push_buffer_element(col,
+          push_buffer_element(dst,
                               e_op_result,
                               buffer_key_output_first,
                               buffer_payload_output_first,
@@ -386,7 +386,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void for_all_frontier_row_for_all_nbr_low_degree(
+__global__ void for_all_frontier_src_for_all_nbr_low_degree(
   matrix_partition_device_view_t<typename GraphViewType::vertex_type,
                                  typename GraphViewType::edge_type,
                                  typename GraphViewType::weight_type,
@@ -451,15 +451,15 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
     edge_t local_degree{0};
     if (lane_id < static_cast<int32_t>(max_key_idx - min_key_idx)) {
       auto key = *(key_first + idx);
-      vertex_t row{};
+      vertex_t src{};
       if constexpr (std::is_same_v<key_t, vertex_t>) {
-        row = key;
+        src = key;
       } else {
-        row = thrust::get<0>(key);
+        src = thrust::get<0>(key);
       }
-      auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-      local_degree    = matrix_partition.get_local_degree(row_offset);
-      warp_key_local_edge_offsets[threadIdx.x] = matrix_partition.get_local_offset(row_offset);
+      auto src_offset = matrix_partition.get_major_offset_from_major_nocheck(src);
+      local_degree    = matrix_partition.get_local_degree(src_offset);
+      warp_key_local_edge_offsets[threadIdx.x] = matrix_partition.get_local_offset(src_offset);
     }
     WarpScan(temp_storage)
       .InclusiveSum(local_degree, warp_local_degree_inclusive_sums[threadIdx.x]);
@@ -474,7 +474,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
       raft::warp_size();
     for (size_t i = lane_id; i < rounded_up_num_edges_this_warp; i += raft::warp_size()) {
       e_op_result_t e_op_result{};
-      vertex_t col{};
+      vertex_t dst{};
 
       if (i < static_cast<size_t>(num_edges_this_warp)) {
         auto key_idx_this_warp = static_cast<vertex_t>(thrust::distance(
@@ -492,25 +492,25 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
                                  : warp_local_degree_inclusive_sums[warp_id * raft::warp_size() +
                                                                     key_idx_this_warp - 1]));
         auto key = *(key_first + (min_key_idx + key_idx_this_warp));
-        vertex_t row{};
+        vertex_t src{};
         if constexpr (std::is_same_v<key_t, vertex_t>) {
-          row = key;
+          src = key;
         } else {
-          row = thrust::get<0>(key);
+          src = thrust::get<0>(key);
         }
-        col             = indices[local_edge_offset];
-        auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-        auto col_offset = matrix_partition.get_minor_offset_from_minor_nocheck(col);
+        dst             = indices[local_edge_offset];
+        auto src_offset = matrix_partition.get_major_offset_from_major_nocheck(src);
+        auto dst_offset = matrix_partition.get_minor_offset_from_minor_nocheck(dst);
         e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
                                        EdgePartitionSrcValueInputWrapper,
                                        EdgePartitionDstValueInputWrapper,
                                        EdgeOp>()
                         .compute(key,
-                                 col,
+                                 dst,
                                  weights ? (*weights)[local_edge_offset] : weight_t{1.0},
-                                 edge_partition_src_value_input.get(row_offset),
-                                 edge_partition_dst_value_input.get(col_offset),
+                                 edge_partition_src_value_input.get(src_offset),
+                                 edge_partition_dst_value_input.get(dst_offset),
                                  e_op);
       }
       auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
@@ -526,7 +526,7 @@ __global__ void for_all_frontier_row_for_all_nbr_low_degree(
         if (e_op_result) {
           auto buffer_warp_offset =
             static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
-          push_buffer_element(col,
+          push_buffer_element(dst,
                               e_op_result,
                               buffer_key_output_first,
                               buffer_payload_output_first,
@@ -546,7 +546,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void for_all_frontier_row_for_all_nbr_mid_degree(
+__global__ void for_all_frontier_src_for_all_nbr_mid_degree(
   matrix_partition_device_view_t<typename GraphViewType::vertex_type,
                                  typename GraphViewType::edge_type,
                                  typename GraphViewType::weight_type,
@@ -587,37 +587,37 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
                                               raft::warp_size()];
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
     auto key = *(key_first + idx);
-    vertex_t row{};
+    vertex_t src{};
     if constexpr (std::is_same_v<key_t, vertex_t>) {
-      row = key;
+      src = key;
     } else {
-      row = thrust::get<0>(key);
+      src = thrust::get<0>(key);
     }
-    auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+    auto src_offset = matrix_partition.get_major_offset_from_major_nocheck(src);
     vertex_t const* indices{nullptr};
     thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_out_degree{};
-    thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
+    thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(src_offset);
     auto rounded_up_local_out_degree =
       ((static_cast<size_t>(local_out_degree) + (raft::warp_size() - 1)) / raft::warp_size()) *
       raft::warp_size();
     for (size_t i = lane_id; i < rounded_up_local_out_degree; i += raft::warp_size()) {
       e_op_result_t e_op_result{};
-      vertex_t col{};
+      vertex_t dst{};
 
       if (i < static_cast<size_t>(local_out_degree)) {
-        col             = indices[i];
-        auto col_offset = matrix_partition.get_minor_offset_from_minor_nocheck(col);
+        dst             = indices[i];
+        auto dst_offset = matrix_partition.get_minor_offset_from_minor_nocheck(dst);
         e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
                                        EdgePartitionSrcValueInputWrapper,
                                        EdgePartitionDstValueInputWrapper,
                                        EdgeOp>()
                         .compute(key,
-                                 col,
+                                 dst,
                                  weights ? (*weights)[i] : weight_t{1.0},
-                                 edge_partition_src_value_input.get(row_offset),
-                                 edge_partition_dst_value_input.get(col_offset),
+                                 edge_partition_src_value_input.get(src_offset),
+                                 edge_partition_dst_value_input.get(dst_offset),
                                  e_op);
       }
       auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
@@ -633,7 +633,7 @@ __global__ void for_all_frontier_row_for_all_nbr_mid_degree(
         if (e_op_result) {
           auto buffer_warp_offset =
             static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
-          push_buffer_element(col,
+          push_buffer_element(dst,
                               e_op_result,
                               buffer_key_output_first,
                               buffer_payload_output_first,
@@ -653,7 +653,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void for_all_frontier_row_for_all_nbr_high_degree(
+__global__ void for_all_frontier_src_for_all_nbr_high_degree(
   matrix_partition_device_view_t<typename GraphViewType::vertex_type,
                                  typename GraphViewType::edge_type,
                                  typename GraphViewType::weight_type,
@@ -692,17 +692,17 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
 
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
     auto key = *(key_first + idx);
-    vertex_t row{};
+    vertex_t src{};
     if constexpr (std::is_same_v<key_t, vertex_t>) {
-      row = key;
+      src = key;
     } else {
-      row = thrust::get<0>(key);
+      src = thrust::get<0>(key);
     }
-    auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
+    auto src_offset = matrix_partition.get_major_offset_from_major_nocheck(src);
     vertex_t const* indices{nullptr};
     thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_out_degree{};
-    thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(row_offset);
+    thrust::tie(indices, weights, local_out_degree) = matrix_partition.get_local_edges(src_offset);
     auto rounded_up_local_out_degree =
       ((static_cast<size_t>(local_out_degree) +
         (update_frontier_v_push_if_out_nbr_for_all_block_size - 1)) /
@@ -710,22 +710,22 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
       update_frontier_v_push_if_out_nbr_for_all_block_size;
     for (size_t i = threadIdx.x; i < rounded_up_local_out_degree; i += blockDim.x) {
       e_op_result_t e_op_result{};
-      vertex_t col{};
+      vertex_t dst{};
       edge_t buffer_block_offset{0};
 
       if (i < static_cast<size_t>(local_out_degree)) {
-        col             = indices[i];
-        auto col_offset = matrix_partition.get_minor_offset_from_minor_nocheck(col);
+        dst             = indices[i];
+        auto dst_offset = matrix_partition.get_minor_offset_from_minor_nocheck(dst);
         e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
                                        EdgePartitionSrcValueInputWrapper,
                                        EdgePartitionDstValueInputWrapper,
                                        EdgeOp>()
                         .compute(key,
-                                 col,
+                                 dst,
                                  weights ? (*weights)[i] : weight_t{1.0},
-                                 edge_partition_src_value_input.get(row_offset),
-                                 edge_partition_dst_value_input.get(col_offset),
+                                 edge_partition_src_value_input.get(src_offset),
+                                 edge_partition_dst_value_input.get(dst_offset),
                                  e_op);
       }
       BlockScan(temp_storage)
@@ -741,7 +741,7 @@ __global__ void for_all_frontier_row_for_all_nbr_high_degree(
       }
       __syncthreads();
       if (e_op_result) {
-        push_buffer_element(col,
+        push_buffer_element(dst,
                             e_op_result,
                             buffer_key_output_first,
                             buffer_payload_output_first,
@@ -1082,17 +1082,17 @@ void update_frontier_v_push_if_out_nbr(
                    get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer));
     }
 
-    vertex_t const* matrix_partition_frontier_row_first{nullptr};
-    vertex_t const* matrix_partition_frontier_row_last{nullptr};
+    vertex_t const* matrix_partition_frontier_src_first{nullptr};
+    vertex_t const* matrix_partition_frontier_src_last{nullptr};
     if constexpr (std::is_same_v<key_t, vertex_t>) {
-      matrix_partition_frontier_row_first =
+      matrix_partition_frontier_src_first =
         get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer);
-      matrix_partition_frontier_row_last =
+      matrix_partition_frontier_src_last =
         get_dataframe_buffer_end(matrix_partition_frontier_key_buffer);
     } else {
-      matrix_partition_frontier_row_first = thrust::get<0>(
+      matrix_partition_frontier_src_first = thrust::get<0>(
         get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer).get_iterator_tuple());
-      matrix_partition_frontier_row_last = thrust::get<0>(
+      matrix_partition_frontier_src_last = thrust::get<0>(
         get_dataframe_buffer_end(matrix_partition_frontier_key_buffer).get_iterator_tuple());
     }
 
@@ -1106,24 +1106,24 @@ void update_frontier_v_push_if_out_nbr(
     auto max_pushes =
       use_dcs ? thrust::transform_reduce(
                   execution_policy,
-                  matrix_partition_frontier_row_first,
-                  matrix_partition_frontier_row_last,
+                  matrix_partition_frontier_src_first,
+                  matrix_partition_frontier_src_last,
                   [matrix_partition,
                    major_hypersparse_first =
                      matrix_partition.get_major_first() +
                      (*segment_offsets)
-                       [detail::num_sparse_segments_per_vertex_partition]] __device__(auto row) {
-                    if (row < major_hypersparse_first) {
-                      auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-                      return matrix_partition.get_local_degree(row_offset);
+                       [detail::num_sparse_segments_per_vertex_partition]] __device__(auto src) {
+                    if (src < major_hypersparse_first) {
+                      auto src_offset = matrix_partition.get_major_offset_from_major_nocheck(src);
+                      return matrix_partition.get_local_degree(src_offset);
                     } else {
-                      auto row_hypersparse_idx =
-                        matrix_partition.get_major_hypersparse_idx_from_major_nocheck(row);
-                      return row_hypersparse_idx
+                      auto src_hypersparse_idx =
+                        matrix_partition.get_major_hypersparse_idx_from_major_nocheck(src);
+                      return src_hypersparse_idx
                                ? matrix_partition.get_local_degree(
                                    matrix_partition.get_major_offset_from_major_nocheck(
                                      major_hypersparse_first) +
-                                   *row_hypersparse_idx)
+                                   *src_hypersparse_idx)
                                : edge_t{0};
                     }
                   },
@@ -1131,11 +1131,11 @@ void update_frontier_v_push_if_out_nbr(
                   thrust::plus<edge_t>())
               : thrust::transform_reduce(
                   execution_policy,
-                  matrix_partition_frontier_row_first,
-                  matrix_partition_frontier_row_last,
-                  [matrix_partition] __device__(auto row) {
-                    auto row_offset = matrix_partition.get_major_offset_from_major_nocheck(row);
-                    return matrix_partition.get_local_degree(row_offset);
+                  matrix_partition_frontier_src_first,
+                  matrix_partition_frontier_src_last,
+                  [matrix_partition] __device__(auto src) {
+                    auto src_offset = matrix_partition.get_major_offset_from_major_nocheck(src);
+                    return matrix_partition.get_local_degree(src_offset);
                   },
                   edge_t{0},
                   thrust::plus<edge_t>());
@@ -1146,9 +1146,9 @@ void update_frontier_v_push_if_out_nbr(
       resize_dataframe_buffer(payload_buffer, new_buffer_size, handle.get_stream());
     }
 
-    auto matrix_partition_row_value_input = edge_partition_src_value_input;
-    auto matrix_partition_col_value_input = edge_partition_dst_value_input;
-    matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
+    auto matrix_partition_src_value_input = edge_partition_src_value_input;
+    auto matrix_partition_dst_value_input = edge_partition_dst_value_input;
+    matrix_partition_src_value_input.set_local_adj_matrix_partition_idx(i);
 
     if (segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
@@ -1162,8 +1162,8 @@ void update_frontier_v_push_if_out_nbr(
         d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
       rmm::device_uvector<vertex_t> d_offsets(d_thresholds.size(), handle.get_stream());
       thrust::lower_bound(handle.get_thrust_policy(),
-                          matrix_partition_frontier_row_first,
-                          matrix_partition_frontier_row_last,
+                          matrix_partition_frontier_src_first,
+                          matrix_partition_frontier_src_last,
                           d_thresholds.begin(),
                           d_thresholds.end(),
                           d_offsets.begin());
@@ -1179,13 +1179,13 @@ void update_frontier_v_push_if_out_nbr(
           h_offsets[0],
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
-        detail::for_all_frontier_row_for_all_nbr_high_degree<GraphViewType>
+        detail::for_all_frontier_src_for_all_nbr_high_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer),
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[0],
-            matrix_partition_row_value_input,
-            matrix_partition_col_value_input,
+            matrix_partition_src_value_input,
+            matrix_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1196,13 +1196,13 @@ void update_frontier_v_push_if_out_nbr(
           h_offsets[1] - h_offsets[0],
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
-        detail::for_all_frontier_row_for_all_nbr_mid_degree<GraphViewType>
+        detail::for_all_frontier_src_for_all_nbr_mid_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[0],
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[1],
-            matrix_partition_row_value_input,
-            matrix_partition_col_value_input,
+            matrix_partition_src_value_input,
+            matrix_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1213,13 +1213,13 @@ void update_frontier_v_push_if_out_nbr(
           h_offsets[2] - h_offsets[1],
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
-        detail::for_all_frontier_row_for_all_nbr_low_degree<GraphViewType>
+        detail::for_all_frontier_src_for_all_nbr_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[1],
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[2],
-            matrix_partition_row_value_input,
-            matrix_partition_col_value_input,
+            matrix_partition_src_value_input,
+            matrix_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1230,14 +1230,14 @@ void update_frontier_v_push_if_out_nbr(
           h_offsets[3] - h_offsets[2],
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
-        detail::for_all_frontier_row_for_all_nbr_hypersparse<GraphViewType>
+        detail::for_all_frontier_src_for_all_nbr_hypersparse<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
             matrix_partition.get_major_first() + (*segment_offsets)[3],
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[2],
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer) + h_offsets[3],
-            matrix_partition_row_value_input,
-            matrix_partition_col_value_input,
+            matrix_partition_src_value_input,
+            matrix_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1250,13 +1250,13 @@ void update_frontier_v_push_if_out_nbr(
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
-        detail::for_all_frontier_row_for_all_nbr_low_degree<GraphViewType>
+        detail::for_all_frontier_src_for_all_nbr_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
             get_dataframe_buffer_begin(matrix_partition_frontier_key_buffer),
             get_dataframe_buffer_end(matrix_partition_frontier_key_buffer),
-            matrix_partition_row_value_input,
-            matrix_partition_col_value_input,
+            matrix_partition_src_value_input,
+            matrix_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1291,15 +1291,15 @@ void update_frontier_v_push_if_out_nbr(
       d_vertex_lasts.data(), h_vertex_lasts.data(), h_vertex_lasts.size(), handle.get_stream());
     rmm::device_uvector<edge_t> d_tx_buffer_last_boundaries(d_vertex_lasts.size(),
                                                             handle.get_stream());
-    vertex_t const* row_first{nullptr};
+    vertex_t const* src_first{nullptr};
     if constexpr (std::is_same_v<key_t, vertex_t>) {
-      row_first = get_dataframe_buffer_begin(key_buffer);
+      src_first = get_dataframe_buffer_begin(key_buffer);
     } else {
-      row_first = thrust::get<0>(get_dataframe_buffer_begin(key_buffer).get_iterator_tuple());
+      src_first = thrust::get<0>(get_dataframe_buffer_begin(key_buffer).get_iterator_tuple());
     }
     thrust::lower_bound(handle.get_thrust_policy(),
-                        row_first,
-                        row_first + num_buffer_elements,
+                        src_first,
+                        src_first + num_buffer_elements,
                         d_vertex_lasts.begin(),
                         d_vertex_lasts.end(),
                         d_tx_buffer_last_boundaries.begin());

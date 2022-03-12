@@ -60,10 +60,10 @@ __device__ void update_buffer_element(
 
   auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
   auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
-  auto row          = GraphViewType::is_adj_matrix_transposed ? minor : major;
-  auto col          = GraphViewType::is_adj_matrix_transposed ? major : minor;
-  auto row_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
-  auto col_offset   = GraphViewType::is_adj_matrix_transposed ? major_offset : minor_offset;
+  auto src          = GraphViewType::is_adj_matrix_transposed ? minor : major;
+  auto dst          = GraphViewType::is_adj_matrix_transposed ? major : minor;
+  auto src_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
+  auto dst_offset   = GraphViewType::is_adj_matrix_transposed ? major_offset : minor_offset;
 
   *key = edge_partition_src_dst_key_input.get(
     ((GraphViewType::is_adj_matrix_transposed != edge_partition_src_key) ? major_offset
@@ -73,11 +73,11 @@ __device__ void update_buffer_element(
                             EdgePartitionSrcValueInputWrapper,
                             EdgePartitionDstValueInputWrapper,
                             EdgeOp>()
-             .compute(row,
-                      col,
+             .compute(src,
+                      dst,
                       weight,
-                      edge_partition_src_value_input.get(row_offset),
-                      edge_partition_dst_value_input.get(col_offset),
+                      edge_partition_src_value_input.get(src_offset),
+                      edge_partition_dst_value_input.get(dst_offset),
                       e_op);
 }
 
@@ -389,17 +389,17 @@ transform_reduce_by_src_dst_key_e(
     auto tmp_value_buffer = allocate_dataframe_buffer<T>(tmp_keys.size(), handle.get_stream());
 
     if (graph_view.get_vertex_partition_size(comm_root_rank) > 0) {
-      auto matrix_partition_row_value_input = edge_partition_src_value_input;
-      auto matrix_partition_col_value_input = edge_partition_dst_value_input;
+      auto matrix_partition_src_value_input = edge_partition_src_value_input;
+      auto matrix_partition_dst_value_input = edge_partition_dst_value_input;
       if constexpr (GraphViewType::is_adj_matrix_transposed) {
-        matrix_partition_col_value_input.set_local_adj_matrix_partition_idx(i);
+        matrix_partition_dst_value_input.set_local_adj_matrix_partition_idx(i);
       } else {
-        matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
+        matrix_partition_src_value_input.set_local_adj_matrix_partition_idx(i);
       }
-      auto matrix_partition_row_col_key_input = edge_partition_src_dst_key_input;
+      auto matrix_partition_src_dst_key_input = edge_partition_src_dst_key_input;
       if constexpr ((edge_partition_src_key && !GraphViewType::is_adj_matrix_transposed) ||
                     (!edge_partition_src_key && GraphViewType::is_adj_matrix_transposed)) {
-        matrix_partition_row_col_key_input.set_local_adj_matrix_partition_idx(i);
+        matrix_partition_src_dst_key_input.set_local_adj_matrix_partition_idx(i);
       }
 
       auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
@@ -418,9 +418,9 @@ transform_reduce_by_src_dst_key_e(
               matrix_partition,
               matrix_partition.get_major_first(),
               matrix_partition.get_major_first() + (*segment_offsets)[1],
-              matrix_partition_row_value_input,
-              matrix_partition_col_value_input,
-              matrix_partition_row_col_key_input,
+              matrix_partition_src_value_input,
+              matrix_partition_dst_value_input,
+              matrix_partition_src_dst_key_input,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin(tmp_value_buffer));
@@ -435,9 +435,9 @@ transform_reduce_by_src_dst_key_e(
               matrix_partition,
               matrix_partition.get_major_first() + (*segment_offsets)[1],
               matrix_partition.get_major_first() + (*segment_offsets)[2],
-              matrix_partition_row_value_input,
-              matrix_partition_col_value_input,
-              matrix_partition_row_col_key_input,
+              matrix_partition_src_value_input,
+              matrix_partition_dst_value_input,
+              matrix_partition_src_dst_key_input,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin(tmp_value_buffer));
@@ -452,9 +452,9 @@ transform_reduce_by_src_dst_key_e(
               matrix_partition,
               matrix_partition.get_major_first() + (*segment_offsets)[2],
               matrix_partition.get_major_first() + (*segment_offsets)[3],
-              matrix_partition_row_value_input,
-              matrix_partition_col_value_input,
-              matrix_partition_row_col_key_input,
+              matrix_partition_src_value_input,
+              matrix_partition_dst_value_input,
+              matrix_partition_src_dst_key_input,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin(tmp_value_buffer));
@@ -469,9 +469,9 @@ transform_reduce_by_src_dst_key_e(
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               matrix_partition,
               matrix_partition.get_major_first() + (*segment_offsets)[3],
-              matrix_partition_row_value_input,
-              matrix_partition_col_value_input,
-              matrix_partition_row_col_key_input,
+              matrix_partition_src_value_input,
+              matrix_partition_dst_value_input,
+              matrix_partition_src_dst_key_input,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin(tmp_value_buffer));
@@ -487,9 +487,9 @@ transform_reduce_by_src_dst_key_e(
             matrix_partition,
             matrix_partition.get_major_first(),
             matrix_partition.get_major_last(),
-            matrix_partition_row_value_input,
-            matrix_partition_col_value_input,
-            matrix_partition_row_col_key_input,
+            matrix_partition_src_value_input,
+            matrix_partition_dst_value_input,
+            matrix_partition_src_dst_key_input,
             e_op,
             tmp_keys.data(),
             get_dataframe_buffer_begin(tmp_value_buffer));

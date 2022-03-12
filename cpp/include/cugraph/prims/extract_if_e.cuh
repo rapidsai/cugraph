@@ -64,20 +64,20 @@ struct call_e_op_t {
     if constexpr (thrust::tuple_size<Edge>::value == 3) { weight = thrust::get<2>(e); }
     auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
     auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
-    auto row          = GraphViewType::is_adj_matrix_transposed ? minor : major;
-    auto col          = GraphViewType::is_adj_matrix_transposed ? major : minor;
-    auto row_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
-    auto col_offset   = GraphViewType::is_adj_matrix_transposed ? major_offset : minor_offset;
+    auto src          = GraphViewType::is_adj_matrix_transposed ? minor : major;
+    auto dst          = GraphViewType::is_adj_matrix_transposed ? major : minor;
+    auto src_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
+    auto dst_offset   = GraphViewType::is_adj_matrix_transposed ? major_offset : minor_offset;
     return !evaluate_edge_op<GraphViewType,
                              vertex_t,
                              EdgePartitionSrcValueInputWrapper,
                              EdgePartitionDstValueInputWrapper,
                              EdgeOp>()
-              .compute(row,
-                       col,
+              .compute(src,
+                       dst,
                        weight,
-                       edge_partition_src_value_input.get(row_offset),
-                       edge_partition_dst_value_input.get(col_offset),
+                       edge_partition_src_value_input.get(src_offset),
+                       edge_partition_dst_value_input.get(dst_offset),
                        e_op);
   }
 };
@@ -157,12 +157,12 @@ extract_if_e(raft::handle_t const& handle,
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.get_matrix_partition_view(i));
 
-    auto matrix_partition_row_value_input = edge_partition_src_value_input;
-    auto matrix_partition_col_value_input = edge_partition_dst_value_input;
+    auto matrix_partition_src_value_input = edge_partition_src_value_input;
+    auto matrix_partition_dst_value_input = edge_partition_dst_value_input;
     if constexpr (GraphViewType::is_adj_matrix_transposed) {
-      matrix_partition_col_value_input.set_local_adj_matrix_partition_idx(i);
+      matrix_partition_dst_value_input.set_local_adj_matrix_partition_idx(i);
     } else {
-      matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
+      matrix_partition_src_value_input.set_local_adj_matrix_partition_idx(i);
     }
 
     detail::decompress_matrix_partition_to_edgelist(
@@ -185,8 +185,8 @@ extract_if_e(raft::handle_t const& handle,
                                               EdgePartitionSrcValueInputWrapper,
                                               EdgePartitionDstValueInputWrapper,
                                               EdgeOp>{matrix_partition,
-                                                      matrix_partition_row_value_input,
-                                                      matrix_partition_col_value_input,
+                                                      matrix_partition_src_value_input,
+                                                      matrix_partition_dst_value_input,
                                                       e_op})));
     } else {
       auto edge_first = thrust::make_zip_iterator(

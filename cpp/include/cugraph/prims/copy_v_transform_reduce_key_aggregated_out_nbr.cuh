@@ -86,7 +86,7 @@ template <typename vertex_t,
           typename MatrixPartitionDeviceView,
           typename StaticMapDeviceView>
 struct call_key_aggregated_e_op_t {
-  EdgePartitionSrcValueInputWrapper matrix_partition_row_value_input{};
+  EdgePartitionSrcValueInputWrapper matrix_partition_src_value_input{};
   KeyAggregatedEdgeOp key_aggregated_e_op{};
   MatrixPartitionDeviceView matrix_partition{};
   StaticMapDeviceView kv_map{};
@@ -99,7 +99,7 @@ struct call_key_aggregated_e_op_t {
     return key_aggregated_e_op(major,
                                key,
                                w,
-                               matrix_partition_row_value_input.get(
+                               matrix_partition_src_value_input.get(
                                  matrix_partition.get_major_offset_from_major_nocheck(major)),
                                kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
   }
@@ -579,8 +579,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     auto tmp_e_op_result_buffer =
       allocate_dataframe_buffer<T>(tmp_majors.size(), handle.get_stream());
 
-    auto matrix_partition_row_value_input = edge_partition_src_value_input;
-    matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
+    auto matrix_partition_src_value_input = edge_partition_src_value_input;
+    matrix_partition_src_value_input.set_local_adj_matrix_partition_idx(i);
 
     auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
       tmp_majors.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
@@ -594,7 +594,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                                                          KeyAggregatedEdgeOp,
                                                          decltype(matrix_partition),
                                                          decltype(kv_map.get_device_view())>{
-                        matrix_partition_row_value_input,
+                        matrix_partition_src_value_input,
                         key_aggregated_e_op,
                         matrix_partition,
                         GraphViewType::is_multi_gpu ? multi_gpu_kv_map_ptr->get_device_view()

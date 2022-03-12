@@ -96,12 +96,12 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
         auto minor        = indices[i];
         auto weight       = weights ? (*weights)[i] : weight_t{1.0};
         auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
-        auto row          = GraphViewType::is_adj_matrix_transposed ? minor : major;
-        auto col          = GraphViewType::is_adj_matrix_transposed ? major : minor;
-        auto row_offset   = GraphViewType::is_adj_matrix_transposed
+        auto src          = GraphViewType::is_adj_matrix_transposed ? minor : major;
+        auto dst          = GraphViewType::is_adj_matrix_transposed ? major : minor;
+        auto src_offset   = GraphViewType::is_adj_matrix_transposed
                                                                  ? minor_offset
                                                                  : static_cast<vertex_t>(major_offset);
-        auto col_offset   = GraphViewType::is_adj_matrix_transposed
+        auto dst_offset   = GraphViewType::is_adj_matrix_transposed
                                                                  ? static_cast<vertex_t>(major_offset)
                                                                  : minor_offset;
         return evaluate_edge_op<GraphViewType,
@@ -109,11 +109,11 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
                                 EdgePartitionSrcValueInputWrapper,
                                 EdgePartitionDstValueInputWrapper,
                                 EdgeOp>()
-          .compute(row,
-                   col,
+          .compute(src,
+                   dst,
                    weight,
-                   edge_partition_src_value_input.get(row_offset),
-                   edge_partition_dst_value_input.get(col_offset),
+                   edge_partition_src_value_input.get(src_offset),
+                   edge_partition_dst_value_input.get(dst_offset),
                    e_op);
       },
       e_op_result_t{},
@@ -178,16 +178,16 @@ __global__ void for_all_major_for_all_nbr_low_degree(
         auto minor        = indices[i];
         auto weight       = weights ? (*weights)[i] : weight_t{1.0};
         auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
-        auto row          = GraphViewType::is_adj_matrix_transposed
+        auto src          = GraphViewType::is_adj_matrix_transposed
                                                                  ? minor
                                                                  : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
-        auto col          = GraphViewType::is_adj_matrix_transposed
+        auto dst          = GraphViewType::is_adj_matrix_transposed
                                                                  ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
                                                                  : minor;
-        auto row_offset   = GraphViewType::is_adj_matrix_transposed
+        auto src_offset   = GraphViewType::is_adj_matrix_transposed
                                                                  ? minor_offset
                                                                  : static_cast<vertex_t>(major_offset);
-        auto col_offset   = GraphViewType::is_adj_matrix_transposed
+        auto dst_offset   = GraphViewType::is_adj_matrix_transposed
                                                                  ? static_cast<vertex_t>(major_offset)
                                                                  : minor_offset;
         return evaluate_edge_op<GraphViewType,
@@ -195,11 +195,11 @@ __global__ void for_all_major_for_all_nbr_low_degree(
                                 EdgePartitionSrcValueInputWrapper,
                                 EdgePartitionDstValueInputWrapper,
                                 EdgeOp>()
-          .compute(row,
-                   col,
+          .compute(src,
+                   dst,
                    weight,
-                   edge_partition_src_value_input.get(row_offset),
-                   edge_partition_dst_value_input.get(col_offset),
+                   edge_partition_src_value_input.get(src_offset),
+                   edge_partition_dst_value_input.get(dst_offset),
                    e_op);
       },
       e_op_result_t{},
@@ -255,16 +255,16 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
       auto minor        = indices[i];
       auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
-      auto row          = GraphViewType::is_adj_matrix_transposed
+      auto src          = GraphViewType::is_adj_matrix_transposed
                             ? minor
                             : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
-      auto col          = GraphViewType::is_adj_matrix_transposed
+      auto dst          = GraphViewType::is_adj_matrix_transposed
                             ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
                             : minor;
-      auto row_offset   = GraphViewType::is_adj_matrix_transposed
+      auto src_offset   = GraphViewType::is_adj_matrix_transposed
                             ? minor_offset
                             : static_cast<vertex_t>(major_offset);
-      auto col_offset   = GraphViewType::is_adj_matrix_transposed
+      auto dst_offset   = GraphViewType::is_adj_matrix_transposed
                             ? static_cast<vertex_t>(major_offset)
                             : minor_offset;
       auto e_op_result  = evaluate_edge_op<GraphViewType,
@@ -272,11 +272,11 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
                                           EdgePartitionSrcValueInputWrapper,
                                           EdgePartitionDstValueInputWrapper,
                                           EdgeOp>()
-                           .compute(row,
-                                    col,
+                           .compute(src,
+                                    dst,
                                     weight,
-                                    edge_partition_src_value_input.get(row_offset),
-                                    edge_partition_dst_value_input.get(col_offset),
+                                    edge_partition_src_value_input.get(src_offset),
+                                    edge_partition_dst_value_input.get(dst_offset),
                                     e_op);
       e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
     }
@@ -326,16 +326,16 @@ __global__ void for_all_major_for_all_nbr_high_degree(
       auto minor        = indices[i];
       auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
-      auto row          = GraphViewType::is_adj_matrix_transposed
+      auto src          = GraphViewType::is_adj_matrix_transposed
                             ? minor
                             : matrix_partition.get_major_from_major_offset_nocheck(major_offset);
-      auto col          = GraphViewType::is_adj_matrix_transposed
+      auto dst          = GraphViewType::is_adj_matrix_transposed
                             ? matrix_partition.get_major_from_major_offset_nocheck(major_offset)
                             : minor;
-      auto row_offset   = GraphViewType::is_adj_matrix_transposed
+      auto src_offset   = GraphViewType::is_adj_matrix_transposed
                             ? minor_offset
                             : static_cast<vertex_t>(major_offset);
-      auto col_offset   = GraphViewType::is_adj_matrix_transposed
+      auto dst_offset   = GraphViewType::is_adj_matrix_transposed
                             ? static_cast<vertex_t>(major_offset)
                             : minor_offset;
       auto e_op_result  = evaluate_edge_op<GraphViewType,
@@ -343,11 +343,11 @@ __global__ void for_all_major_for_all_nbr_high_degree(
                                           EdgePartitionSrcValueInputWrapper,
                                           EdgePartitionDstValueInputWrapper,
                                           EdgeOp>()
-                           .compute(row,
-                                    col,
+                           .compute(src,
+                                    dst,
                                     weight,
-                                    edge_partition_src_value_input.get(row_offset),
-                                    edge_partition_dst_value_input.get(col_offset),
+                                    edge_partition_src_value_input.get(src_offset),
+                                    edge_partition_dst_value_input.get(dst_offset),
                                     e_op);
       e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
     }
@@ -422,12 +422,12 @@ T transform_reduce_e(raft::handle_t const& handle,
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.get_matrix_partition_view(i));
 
-    auto matrix_partition_row_value_input = edge_partition_src_value_input;
-    auto matrix_partition_col_value_input = edge_partition_dst_value_input;
+    auto matrix_partition_src_value_input = edge_partition_src_value_input;
+    auto matrix_partition_dst_value_input = edge_partition_dst_value_input;
     if constexpr (GraphViewType::is_adj_matrix_transposed) {
-      matrix_partition_col_value_input.set_local_adj_matrix_partition_idx(i);
+      matrix_partition_dst_value_input.set_local_adj_matrix_partition_idx(i);
     } else {
-      matrix_partition_row_value_input.set_local_adj_matrix_partition_idx(i);
+      matrix_partition_src_value_input.set_local_adj_matrix_partition_idx(i);
     }
 
     auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
@@ -445,8 +445,8 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition,
             matrix_partition.get_major_first(),
             matrix_partition.get_major_first() + (*segment_offsets)[1],
-            matrix_partition_row_value_input,
-            matrix_partition_col_value_input,
+            matrix_partition_src_value_input,
+            matrix_partition_dst_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -459,8 +459,8 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition,
             matrix_partition.get_major_first() + (*segment_offsets)[1],
             matrix_partition.get_major_first() + (*segment_offsets)[2],
-            matrix_partition_row_value_input,
-            matrix_partition_col_value_input,
+            matrix_partition_src_value_input,
+            matrix_partition_dst_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -473,8 +473,8 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition,
             matrix_partition.get_major_first() + (*segment_offsets)[2],
             matrix_partition.get_major_first() + (*segment_offsets)[3],
-            matrix_partition_row_value_input,
-            matrix_partition_col_value_input,
+            matrix_partition_src_value_input,
+            matrix_partition_dst_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -487,8 +487,8 @@ T transform_reduce_e(raft::handle_t const& handle,
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             matrix_partition,
             matrix_partition.get_major_first() + (*segment_offsets)[3],
-            matrix_partition_row_value_input,
-            matrix_partition_col_value_input,
+            matrix_partition_src_value_input,
+            matrix_partition_dst_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -503,8 +503,8 @@ T transform_reduce_e(raft::handle_t const& handle,
             matrix_partition,
             matrix_partition.get_major_first(),
             matrix_partition.get_major_last(),
-            matrix_partition_row_value_input,
-            matrix_partition_col_value_input,
+            matrix_partition_src_value_input,
+            matrix_partition_dst_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }

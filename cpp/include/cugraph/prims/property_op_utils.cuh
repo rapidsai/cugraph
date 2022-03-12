@@ -48,8 +48,8 @@ struct is_valid_edge_op<
 template <typename key_t,
           typename vertex_t,
           typename weight_t,
-          typename row_value_t,
-          typename col_value_t,
+          typename src_value_t,
+          typename dst_value_t,
           typename EdgeOp,
           typename Enable = void>
 struct edge_op_result_type;
@@ -57,39 +57,39 @@ struct edge_op_result_type;
 template <typename key_t,
           typename vertex_t,
           typename weight_t,
-          typename row_value_t,
-          typename col_value_t,
+          typename src_value_t,
+          typename dst_value_t,
           typename EdgeOp>
 struct edge_op_result_type<
   key_t,
   vertex_t,
   weight_t,
-  row_value_t,
-  col_value_t,
+  src_value_t,
+  dst_value_t,
   EdgeOp,
   std::enable_if_t<is_valid_edge_op<
-    typename std::invoke_result<EdgeOp, key_t, vertex_t, weight_t, row_value_t, col_value_t>>::
+    typename std::invoke_result<EdgeOp, key_t, vertex_t, weight_t, src_value_t, dst_value_t>>::
                      valid>> {
   using type =
-    typename std::invoke_result<EdgeOp, key_t, vertex_t, weight_t, row_value_t, col_value_t>::type;
+    typename std::invoke_result<EdgeOp, key_t, vertex_t, weight_t, src_value_t, dst_value_t>::type;
 };
 
 template <typename key_t,
           typename vertex_t,
           typename weight_t,
-          typename row_value_t,
-          typename col_value_t,
+          typename src_value_t,
+          typename dst_value_t,
           typename EdgeOp>
 struct edge_op_result_type<
   key_t,
   vertex_t,
   weight_t,
-  row_value_t,
-  col_value_t,
+  src_value_t,
+  dst_value_t,
   EdgeOp,
   std::enable_if_t<is_valid_edge_op<
-    typename std::invoke_result<EdgeOp, key_t, vertex_t, row_value_t, col_value_t>>::valid>> {
-  using type = typename std::invoke_result<EdgeOp, key_t, vertex_t, row_value_t, col_value_t>::type;
+    typename std::invoke_result<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t>>::valid>> {
+  using type = typename std::invoke_result<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t>::type;
 };
 
 }  // namespace detail
@@ -102,38 +102,38 @@ template <typename GraphViewType,
 struct evaluate_edge_op {
   using vertex_type    = typename GraphViewType::vertex_type;
   using weight_type    = typename GraphViewType::weight_type;
-  using row_value_type = typename EdgePartitionSrcValueInputWrapper::value_type;
-  using col_value_type = typename EdgePartitionDstValueInputWrapper::value_type;
+  using src_value_type = typename EdgePartitionSrcValueInputWrapper::value_type;
+  using dst_value_type = typename EdgePartitionDstValueInputWrapper::value_type;
   using result_type    = typename detail::
-    edge_op_result_type<key_t, vertex_type, weight_type, row_value_type, col_value_type, EdgeOp>::
+    edge_op_result_type<key_t, vertex_type, weight_type, src_value_type, dst_value_type, EdgeOp>::
       type;
 
-  template <typename K = key_t,
-            typename V = vertex_type,
-            typename W = weight_type,
-            typename R = row_value_type,
-            typename C = col_value_type,
-            typename E = EdgeOp>
-  __device__
-    std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, R, C>>::valid,
-                     typename std::invoke_result<E, K, V, W, R, C>::type>
-    compute(K r, V c, W w, R rv, C cv, E e)
+  template <typename K  = key_t,
+            typename V  = vertex_type,
+            typename W  = weight_type,
+            typename SV = src_value_type,
+            typename DV = dst_value_type,
+            typename E  = EdgeOp>
+  __device__ std::enable_if_t<
+    detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, SV, DV>>::valid,
+    typename std::invoke_result<E, K, V, W, SV, DV>::type>
+  compute(K s, V d, W w, SV sv, DV dv, E e)
   {
-    return e(r, c, w, rv, cv);
+    return e(s, d, w, sv, dv);
   }
 
-  template <typename K = key_t,
-            typename V = vertex_type,
-            typename W = weight_type,
-            typename R = row_value_type,
-            typename C = col_value_type,
-            typename E = EdgeOp>
+  template <typename K  = key_t,
+            typename V  = vertex_type,
+            typename W  = weight_type,
+            typename SV = src_value_type,
+            typename DV = dst_value_type,
+            typename E  = EdgeOp>
   __device__
-    std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, R, C>>::valid,
-                     typename std::invoke_result<E, K, V, R, C>::type>
-    compute(K r, V c, W w, R rv, C cv, E e)
+    std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, SV, DV>>::valid,
+                     typename std::invoke_result<E, K, V, SV, DV>::type>
+    compute(K s, V d, W w, SV sv, DV dv, E e)
   {
-    return e(r, c, rv, cv);
+    return e(s, d, sv, dv);
   }
 };
 
@@ -147,35 +147,35 @@ struct cast_edge_op_bool_to_integer {
   static_assert(std::is_integral<T>::value);
   using vertex_type    = typename GraphViewType::vertex_type;
   using weight_type    = typename GraphViewType::weight_type;
-  using row_value_type = typename EdgePartitionSrcValueInputWrapper::value_type;
-  using col_value_type = typename EdgePartitionDstValueInputWrapper::value_type;
+  using src_value_type = typename EdgePartitionSrcValueInputWrapper::value_type;
+  using dst_value_type = typename EdgePartitionDstValueInputWrapper::value_type;
 
   EdgeOp e_op{};
 
-  template <typename K = key_t,
-            typename V = vertex_type,
-            typename W = weight_type,
-            typename R = row_value_type,
-            typename C = col_value_type,
-            typename E = EdgeOp>
-  __device__
-    std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, R, C>>::valid,
-                     T>
-    operator()(K r, V c, W w, R rv, C cv)
+  template <typename K  = key_t,
+            typename V  = vertex_type,
+            typename W  = weight_type,
+            typename SV = src_value_type,
+            typename DV = dst_value_type,
+            typename E  = EdgeOp>
+  __device__ std::
+    enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, SV, DV>>::valid, T>
+    operator()(K s, V d, W w, SV sv, DV dv)
   {
-    return e_op(r, c, w, rv, cv) ? T{1} : T{0};
+    return e_op(s, d, w, sv, dv) ? T{1} : T{0};
   }
 
-  template <typename K = key_t,
-            typename V = vertex_type,
-            typename R = row_value_type,
-            typename C = col_value_type,
-            typename E = EdgeOp>
+  template <typename K  = key_t,
+            typename V  = vertex_type,
+            typename SV = src_value_type,
+            typename DV = dst_value_type,
+            typename E  = EdgeOp>
   __device__
-    std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, R, C>>::valid, T>
-    operator()(K r, V c, R rv, C cv)
+    std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, SV, DV>>::valid,
+                     T>
+    operator()(K s, V d, SV sv, DV dv)
   {
-    return e_op(r, c, rv, cv) ? T{1} : T{0};
+    return e_op(s, d, sv, dv) ? T{1} : T{0};
   }
 };
 
