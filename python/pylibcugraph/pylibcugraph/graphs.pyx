@@ -45,6 +45,7 @@ from pylibcugraph.graph_properties cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
+    get_c_type_from_numpy_type,
 )
 
 
@@ -122,32 +123,29 @@ cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
 
-        # FIXME: set dtype properly
         cdef uintptr_t cai_srcs_ptr = \
             src_array.__cuda_array_interface__["data"][0]
         cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr = \
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_srcs_ptr,
                 len(src_array),
-                data_type_id_t.INT32)
+                get_c_type_from_numpy_type(src_array.dtype))
 
-        # FIXME: set dtype properly
         cdef uintptr_t cai_dsts_ptr = \
             dst_array.__cuda_array_interface__["data"][0]
         cdef cugraph_type_erased_device_array_view_t* dsts_view_ptr = \
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_dsts_ptr,
                 len(dst_array),
-                data_type_id_t.INT32)
+                get_c_type_from_numpy_type(dst_array.dtype))
 
-        # FIXME: set dtype properly
         cdef uintptr_t cai_weights_ptr = \
             weight_array.__cuda_array_interface__["data"][0]
         cdef cugraph_type_erased_device_array_view_t* weights_view_ptr = \
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_weights_ptr,
                 len(weight_array),
-                data_type_id_t.FLOAT32)
+                get_c_type_from_numpy_type(weight_array.dtype))
 
         error_code = cugraph_sg_graph_create(
             resource_handle.c_resource_handle_ptr,
