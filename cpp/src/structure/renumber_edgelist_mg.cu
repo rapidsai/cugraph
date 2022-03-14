@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,30 +23,33 @@ template std::tuple<rmm::device_uvector<int32_t>, renumber_meta_t<int32_t, int32
 renumber_edgelist<int32_t, int32_t, true>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& local_vertices,
-  std::vector<int32_t*> const& edgelist_majors /* [INOUT] */,
-  std::vector<int32_t*> const& edgelist_minors /* [INOUT] */,
+  std::vector<int32_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<int32_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<int32_t> const& edgelist_edge_counts,
   std::optional<std::vector<std::vector<int32_t>>> const& edgelist_intra_partition_segment_offsets,
+  bool store_transposed,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>, renumber_meta_t<int32_t, int64_t, true>>
 renumber_edgelist<int32_t, int64_t, true>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& local_vertices,
-  std::vector<int32_t*> const& edgelist_majors /* [INOUT] */,
-  std::vector<int32_t*> const& edgelist_minors /* [INOUT] */,
+  std::vector<int32_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<int32_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<int64_t> const& edgelist_edge_counts,
   std::optional<std::vector<std::vector<int64_t>>> const& edgelist_intra_partition_segment_offsets,
+  bool store_transposed,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>, renumber_meta_t<int64_t, int64_t, true>>
 renumber_edgelist<int64_t, int64_t, true>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int64_t>>&& local_vertices,
-  std::vector<int64_t*> const& edgelist_majors /* [INOUT] */,
-  std::vector<int64_t*> const& edgelist_minors /* [INOUT] */,
+  std::vector<int64_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<int64_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<int64_t> const& edgelist_edge_counts,
   std::optional<std::vector<std::vector<int64_t>>> const& edgelist_intra_partition_segment_offsets,
+  bool store_transposed,
   bool do_expensive_check);
 
 }  // namespace cugraph

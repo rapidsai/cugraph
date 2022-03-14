@@ -1276,9 +1276,10 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
 template <typename vertex_t, typename edge_t>
 std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
   raft::handle_t const& handle,
-  vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
-  vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  vertex_t* shuffled_edgelist_src_vertices /* [INOUT] */,
+  vertex_t* shuffled_edgelist_dst_vertices /* [INOUT] */,
   std::vector<edge_t> const& edge_counts,
+  bool store_transposed,
   bool do_expensive_check,
   bool multi_gpu)  // bc. cython cannot take non-type template params
 {
@@ -1290,16 +1291,23 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
   if (multi_gpu) {
     std::vector<edge_t> displacements(edge_counts.size(), edge_t{0});
     std::partial_sum(edge_counts.begin(), edge_counts.end() - 1, displacements.begin() + 1);
-    std::vector<vertex_t*> major_ptrs(edge_counts.size());
-    std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
+    std::vector<vertex_t*> src_ptrs(edge_counts.size());
+    std::vector<vertex_t*> dst_ptrs(src_ptrs.size());
     for (size_t i = 0; i < edge_counts.size(); ++i) {
-      major_ptrs[i] = shuffled_edgelist_major_vertices + displacements[i];
-      minor_ptrs[i] = shuffled_edgelist_minor_vertices + displacements[i];
+      src_ptrs[i] = shuffled_edgelist_src_vertices + displacements[i];
+      dst_ptrs[i] = shuffled_edgelist_dst_vertices + displacements[i];
     }
 
     cugraph::renumber_meta_t<vertex_t, edge_t, true> meta{};
-    std::tie(p_ret->get_dv(), meta) = cugraph::renumber_edgelist<vertex_t, edge_t, true>(
-      handle, std::nullopt, major_ptrs, minor_ptrs, edge_counts, std::nullopt, do_expensive_check);
+    std::tie(p_ret->get_dv(), meta) =
+      cugraph::renumber_edgelist<vertex_t, edge_t, true>(handle,
+                                                         std::nullopt,
+                                                         src_ptrs,
+                                                         dst_ptrs,
+                                                         edge_counts,
+                                                         std::nullopt,
+                                                         store_transposed,
+                                                         do_expensive_check);
     p_ret->get_num_vertices()    = meta.number_of_vertices;
     p_ret->get_num_edges()       = meta.number_of_edges;
     p_ret->get_partition()       = meta.partition;
@@ -1309,9 +1317,10 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
     std::tie(p_ret->get_dv(), meta) =
       cugraph::renumber_edgelist<vertex_t, edge_t, false>(handle,
                                                           std::nullopt,
-                                                          shuffled_edgelist_major_vertices,
-                                                          shuffled_edgelist_minor_vertices,
+                                                          shuffled_edgelist_src_vertices,
+                                                          shuffled_edgelist_dst_vertices,
                                                           edge_counts[0],
+                                                          store_transposed,
                                                           do_expensive_check);
 
     p_ret->get_num_vertices()    = static_cast<vertex_t>(p_ret->get_dv().size());
@@ -1671,25 +1680,28 @@ template std::unique_ptr<major_minor_weights_t<int64_t, int64_t, double>> call_s
 //
 template std::unique_ptr<renum_tuple_t<int32_t, int32_t>> call_renumber(
   raft::handle_t const& handle,
-  int32_t* shuffled_edgelist_major_vertices /* [INOUT] */,
-  int32_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  int32_t* shuffled_edgelist_src_vertices /* [INOUT] */,
+  int32_t* shuffled_edgelist_dst_vertices /* [INOUT] */,
   std::vector<int32_t> const& edge_counts,
+  bool store_transposed,
   bool do_expensive_check,
   bool multi_gpu);
 
 template std::unique_ptr<renum_tuple_t<int32_t, int64_t>> call_renumber(
   raft::handle_t const& handle,
-  int32_t* shuffled_edgelist_major_vertices /* [INOUT] */,
-  int32_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  int32_t* shuffled_edgelist_src_vertices /* [INOUT] */,
+  int32_t* shuffled_edgelist_dst_vertices /* [INOUT] */,
   std::vector<int64_t> const& edge_counts,
+  bool store_transposed,
   bool do_expensive_check,
   bool multi_gpu);
 
 template std::unique_ptr<renum_tuple_t<int64_t, int64_t>> call_renumber(
   raft::handle_t const& handle,
-  int64_t* shuffled_edgelist_major_vertices /* [INOUT] */,
-  int64_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  int64_t* shuffled_edgelist_src_vertices /* [INOUT] */,
+  int64_t* shuffled_edgelist_dst_vertices /* [INOUT] */,
   std::vector<int64_t> const& edge_counts,
+  bool store_transposed,
   bool do_expensive_check,
   bool multi_gpu);
 

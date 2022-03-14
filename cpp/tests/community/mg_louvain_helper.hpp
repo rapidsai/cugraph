@@ -37,8 +37,8 @@ bool compare_renumbered_vectors(raft::handle_t const& handle,
 template <typename T>
 void single_gpu_renumber_edgelist_given_number_map(
   raft::handle_t const& handle,
-  rmm::device_uvector<T>& d_edgelist_rows,
-  rmm::device_uvector<T>& d_edgelist_cols,
+  rmm::device_uvector<T>& d_edgelist_srcs,
+  rmm::device_uvector<T>& d_edgelist_dsts,
   rmm::device_uvector<T>& d_renumber_map_gathered_v);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>

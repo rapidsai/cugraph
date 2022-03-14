@@ -598,9 +598,10 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
 template <typename vertex_t, typename edge_t>
 std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
   raft::handle_t const& handle,
-  vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
-  vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  vertex_t* shuffled_edgelist_src_vertices /* [INOUT] */,
+  vertex_t* shuffled_edgelist_dst_vertices /* [INOUT] */,
   std::vector<edge_t> const& edge_counts,
+  bool store_transposed,
   bool do_expensive_check,
   bool multi_gpu);
 

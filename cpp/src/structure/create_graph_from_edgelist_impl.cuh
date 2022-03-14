@@ -295,21 +295,20 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
 
   // 2. renumber
 
-  std::vector<vertex_t*> major_ptrs(col_comm_size);
-  std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
+  std::vector<vertex_t*> src_ptrs(col_comm_size);
+  std::vector<vertex_t*> dst_ptrs(src_ptrs.size());
   for (int i = 0; i < col_comm_size; ++i) {
-    major_ptrs[i] =
-      store_transposed ? edgelist_dst_partitions[i].begin() : edgelist_src_partitions[i].begin();
-    minor_ptrs[i] =
-      store_transposed ? edgelist_src_partitions[i].begin() : edgelist_dst_partitions[i].begin();
+    src_ptrs[i] = edgelist_src_partitions[i].begin();
+    dst_ptrs[i] = edgelist_dst_partitions[i].begin();
   }
   auto [renumber_map_labels, meta] = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
     handle,
     std::move(local_vertices),
-    major_ptrs,
-    minor_ptrs,
+    src_ptrs,
+    dst_ptrs,
     edgelist_edge_counts,
-    edgelist_intra_partition_segment_offsets);
+    edgelist_intra_partition_segment_offsets,
+    store_transposed);
 
   // 3. create a graph
 
@@ -367,9 +366,10 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
     std::tie(*renumber_map_labels, meta) = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
       std::move(vertices),
-      store_transposed ? edgelist_cols.data() : edgelist_rows.data(),
-      store_transposed ? edgelist_rows.data() : edgelist_cols.data(),
-      static_cast<edge_t>(edgelist_rows.size()));
+      edgelist_rows.data(),
+      edgelist_cols.data(),
+      static_cast<edge_t>(edgelist_rows.size()),
+      store_transposed);
   }
 
   vertex_t num_vertices{};

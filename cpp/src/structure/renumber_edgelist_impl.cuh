@@ -617,12 +617,16 @@ std::enable_if_t<
 renumber_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
-  std::vector<vertex_t*> const& edgelist_majors /* [INOUT] */,
-  std::vector<vertex_t*> const& edgelist_minors /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<edge_t> const& edgelist_edge_counts,
   std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
+  bool store_transposed,
   bool do_expensive_check)
 {
+  auto edgelist_majors = store_transposed ? edgelist_dsts : edgelist_srcs;
+  auto edgelist_minors = store_transposed ? edgelist_srcs : edgelist_dsts;
+
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
   auto const comm_rank     = comm.get_rank();
@@ -870,11 +874,15 @@ std::enable_if_t<
   std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
 renumber_edgelist(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-                  vertex_t* edgelist_majors /* [INOUT] */,
-                  vertex_t* edgelist_minors /* [INOUT] */,
+                  vertex_t* edgelist_srcs /* [INOUT] */,
+                  vertex_t* edgelist_dsts /* [INOUT] */,
                   edge_t num_edgelist_edges,
+                  bool store_transposed,
                   bool do_expensive_check)
 {
+  auto edgelist_majors = store_transposed ? edgelist_dsts : edgelist_srcs;
+  auto edgelist_minors = store_transposed ? edgelist_srcs : edgelist_dsts;
+
   if (do_expensive_check) {
     detail::expensive_check_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
@@ -885,9 +893,7 @@ renumber_edgelist(raft::handle_t const& handle,
       std::nullopt);
   }
 
-  rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
-  std::vector<vertex_t> segment_offsets{};
-  std::tie(renumber_map_labels, segment_offsets) =
+  auto [renumber_map_labels, segment_offsets] =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
       handle,
       std::move(vertices),
