@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -485,7 +485,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
   [[maybe_unused]] std::conditional_t<GraphViewType::is_adj_matrix_transposed,
                                       row_properties_t<GraphViewType, T>,
                                       col_properties_t<GraphViewType, T>>
-    minor_tmp_buffer{};  // relevant only when (GraphViewType::is_multi_gpu && !update_major
+    minor_tmp_buffer(handle);  // relevant only when (GraphViewType::is_multi_gpu && !update_major
   if constexpr (GraphViewType::is_multi_gpu && !update_major) {
     if constexpr (GraphViewType::is_adj_matrix_transposed) {
       minor_tmp_buffer = row_properties_t<GraphViewType, T>(handle, graph_view);

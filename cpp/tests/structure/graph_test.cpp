@@ -48,13 +48,13 @@ graph_reference(vertex_t const* p_src_vertices,
                    ? std::make_optional<std::vector<weight_t>>(number_of_edges, weight_t{0.0})
                    : std::nullopt;
 
-  for (size_t i = 0; i < number_of_edges; ++i) {
+  for (edge_t i = 0; i < number_of_edges; ++i) {
     auto major = store_transposed ? p_dst_vertices[i] : p_src_vertices[i];
     offsets[1 + major]++;
   }
   std::partial_sum(offsets.begin() + 1, offsets.end(), offsets.begin() + 1);
 
-  for (size_t i = 0; i < number_of_edges; ++i) {
+  for (edge_t i = 0; i < number_of_edges; ++i) {
     auto major           = store_transposed ? p_dst_vertices[i] : p_src_vertices[i];
     auto minor           = store_transposed ? p_src_vertices[i] : p_dst_vertices[i];
     auto start           = offsets[major];
