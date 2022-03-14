@@ -78,7 +78,7 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  * graph adjacency matrix partition; a local partition can be further segmented by applying the
  * compute_gpu_id_from_vertex_t function to edge minor vertex IDs. This optinoal information is used
  * for further memory footprint optimization if provided.
- * @param store_transposed Should be true if renumbered edges will be used to create a graph if
+ * @param store_transposed Should be true if renumbered edges will be used to create a graph with
  * store_transposed = true. Should be false if the edges will be used to create a graph with
  * store_transposed = false.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -115,11 +115,12 @@ renumber_edgelist(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param vertices If valid, vertices in the graph to be renumbered. This parameter can be used to
  * include isolated vertices.
- * @param edgelist_srcs Edge source vertex IDs. Source IDs are updated in-place ([INOUT] parameter).
- * @param edgelist_dsts Edge destination vertex IDs. Destination IDs are updated in-place ([INOUT]
- * parameter).
+ * @param edgelist_srcs A pointer to edge source vertex IDs. Source IDs are updated in-place
+ * ([INOUT] parameter).
+ * @param edgelist_dsts A pointer to edge destination vertex IDs. Destination IDs are updated
+ * in-place ([INOUT] parameter).
  * @param num_edgelist_edges Number of edges in the edgelist.
- * @param store_transposed Should be true if renumbered edges will be used to create a graph if
+ * @param store_transposed Should be true if renumbered edges will be used to create a graph with
  * store_transposed = true. Should be false if the edges will be used to create a graph with
  * store_transposed = false.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
