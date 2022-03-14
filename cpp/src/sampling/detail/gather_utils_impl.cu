@@ -263,6 +263,48 @@ template std::
                      int64_t indices_per_major,
                      const rmm::device_uvector<int64_t>& global_degree_offsets);
 
+template std::
+  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+  gather_one_hop_edgelist(raft::handle_t const& handle,
+                          graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+                          const rmm::device_uvector<int32_t>& active_majors_in_row,
+                          const rmm::device_uvector<int32_t>& active_major_gpu_ids);
+
+template std::
+  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+  gather_one_hop_edgelist(raft::handle_t const& handle,
+                          graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+                          const rmm::device_uvector<int32_t>& active_majors_in_row,
+                          const rmm::device_uvector<int32_t>& active_major_gpu_ids);
+
+template std::
+  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+  gather_one_hop_edgelist(raft::handle_t const& handle,
+                          graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+                          const rmm::device_uvector<int32_t>& active_majors_in_row,
+                          const rmm::device_uvector<int32_t>& active_major_gpu_ids);
+
+template std::
+  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+  gather_one_hop_edgelist(raft::handle_t const& handle,
+                          graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+                          const rmm::device_uvector<int32_t>& active_majors_in_row,
+                          const rmm::device_uvector<int32_t>& active_major_gpu_ids);
+
+template std::
+  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>>
+  gather_one_hop_edgelist(raft::handle_t const& handle,
+                          graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+                          const rmm::device_uvector<int64_t>& active_majors_in_row,
+                          const rmm::device_uvector<int32_t>& active_major_gpu_ids);
+
+template std::
+  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>>
+  gather_one_hop_edgelist(raft::handle_t const& handle,
+                          graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+                          const rmm::device_uvector<int64_t>& active_majors_in_row,
+                          const rmm::device_uvector<int32_t>& active_major_gpu_ids);
+
 }  // namespace detail
 
 }  // namespace cugraph

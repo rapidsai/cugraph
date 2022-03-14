@@ -579,6 +579,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG GATHER_UTILS tests -----------------------------------------------------------------
         ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
+
+        ###########################################################################################
+        # - MG GATHER_UTILS tests -----------------------------------------------------------------
+        ConfigureTestMG(MG_GATHER_ONE_HOP_TEST sampling/detail/mg_gather_one_hop.cu)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()

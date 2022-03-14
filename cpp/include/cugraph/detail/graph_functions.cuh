@@ -187,6 +187,32 @@ gather_local_edges(
   typename GraphViewType::edge_type indices_per_major,
   const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets);
 
+/**
+ * @brief Gather edge list for specified vertices
+ *
+ * Collect all the edges that are present in the adjacency lists on the current gpu
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam prop_t  Type of the property associated with the majors.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param active_majors_in_row Device vector containing all the vertex id that are processed by
+ * gpus in the column communicator
+ * @param active_major_property Device vector containing the property values associated by every
+ * vertex present in active_majors_in_row
+ * @return A tuple of device vector containing the majors, minors and properties gathered locally
+ */
+template <typename GraphViewType, typename prop_t>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<prop_t>>
+gather_one_hop_edgelist(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
+  const rmm::device_uvector<prop_t>& active_major_property);
+
 }  // namespace detail
 
 }  // namespace cugraph

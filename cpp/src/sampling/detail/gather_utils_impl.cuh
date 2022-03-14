@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cugraph/detail/decompress_matrix_partition.cuh>
 #include <cugraph/detail/graph_functions.cuh>
 #include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
@@ -481,6 +482,203 @@ gather_local_edges(
   minors.resize(compacted_length, handle.get_stream());
   minor_gpu_ids.resize(compacted_length, handle.get_stream());
   return std::make_tuple(std::move(majors), std::move(minors), std::move(minor_gpu_ids));
+}
+
+template <typename GraphViewType, typename VertexIterator>
+typename GraphViewType::edge_type edgelist_count(raft::handle_t const& handle,
+                                                 GraphViewType const& graph_view,
+                                                 VertexIterator vertex_input_first,
+                                                 VertexIterator vertex_input_last)
+{
+  using edge_t = typename GraphViewType::edge_type;
+  // Expect that vertex input list is sorted
+  auto [partitions, id_begin, id_end, hypersparse_begin, vertex_count_offsets] =
+    partition_information(handle, graph_view);
+  return thrust::transform_reduce(
+    handle.get_thrust_policy(),
+    vertex_input_first,
+    vertex_input_last,
+    [partitions           = partitions.data(),
+     id_begin             = id_begin.data(),
+     id_end               = id_end.data(),
+     id_seg_count         = id_begin.size(),
+     hypersparse_begin    = hypersparse_begin.data(),
+     vertex_count_offsets = vertex_count_offsets.data()] __device__(auto major) {
+      // Find which partition id did the vertex belong to
+      auto partition_id = thrust::distance(
+        id_end, thrust::upper_bound(thrust::seq, id_end, id_end + id_seg_count, major));
+      auto matrix_partition        = partitions[partition_id];
+      auto major_hypersparse_first = hypersparse_begin[partition_id];
+      if (major < major_hypersparse_first) {
+        auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
+        return matrix_partition.get_local_degree(major_offset);
+      } else {
+        auto major_hypersparse_idx =
+          matrix_partition.get_major_hypersparse_idx_from_major_nocheck(major);
+        return major_hypersparse_idx
+                 ? matrix_partition.get_local_degree(
+                     matrix_partition.get_major_offset_from_major_nocheck(major_hypersparse_first) +
+                     *major_hypersparse_idx)
+                 : edge_t{0};
+      }
+    },
+    edge_t{0},
+    thrust::plus<edge_t>());
+}
+
+template <typename vertex_t>
+std::vector<vertex_t> get_active_major_segments(
+  raft::handle_t const& handle,
+  vertex_t major_first,
+  vertex_t major_last,
+  std::vector<vertex_t> const& partition_segments,
+  const rmm::device_uvector<vertex_t>& active_majors_in_row)
+{
+  std::vector<vertex_t> segments(partition_segments.size());
+  std::transform(
+    partition_segments.begin(), partition_segments.end(), segments.begin(), [major_first](auto s) {
+      return s + major_first;
+    });
+  segments.push_back(major_last);
+
+  rmm::device_uvector<vertex_t> p_segments(segments.size(), handle.get_stream());
+  raft::update_device(p_segments.data(), segments.data(), segments.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> majors_segments(segments.size(), handle.get_stream());
+  thrust::lower_bound(handle.get_thrust_policy(),
+                      active_majors_in_row.cbegin(),
+                      active_majors_in_row.cend(),
+                      p_segments.begin(),
+                      p_segments.end(),
+                      majors_segments.begin());
+  std::vector<vertex_t> active_majors_segments(majors_segments.size());
+  raft::update_host(active_majors_segments.data(),
+                    majors_segments.data(),
+                    majors_segments.size(),
+                    handle.get_stream());
+  return active_majors_segments;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void get_local_major_degree(
+  raft::handle_t const& handle,
+  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> partition,
+  rmm::device_uvector<vertex_t> const& active_majors_in_row,
+  std::vector<vertex_t> const& majors_segments,
+  std::vector<vertex_t> const& partition_segments,
+  edge_t* out_degrees)
+{
+  auto active_major_count = majors_segments.back() - majors_segments.front();
+  if (majors_segments[3] - majors_segments[0] > 0) {
+    thrust::transform(handle.get_thrust_policy(),
+                      active_majors_in_row.cbegin() + majors_segments[0],
+                      active_majors_in_row.cbegin() + majors_segments[3],
+                      out_degrees,
+                      [partition] __device__(auto major) {
+                        auto major_offset = partition.get_major_offset_from_major_nocheck(major);
+                        return partition.get_local_degree(major_offset);
+                      });
+  }
+  if (majors_segments[4] - majors_segments[3] > 0) {
+    auto major_hypersparse_first =
+      partition.get_major_first() +
+      partition_segments[detail::num_sparse_segments_per_vertex_partition];
+    auto major_offset = static_cast<size_t>(major_hypersparse_first - partition.get_major_first());
+    thrust::transform(handle.get_thrust_policy(),
+                      active_majors_in_row.cbegin() + majors_segments[3],
+                      active_majors_in_row.cbegin() + majors_segments[4],
+                      out_degrees + majors_segments[3] - majors_segments[0],
+                      [partition, major_offset] __device__(auto major) {
+                        auto major_idx =
+                          partition.get_major_hypersparse_idx_from_major_nocheck(major);
+                        if (major_idx) {
+                          return partition.get_local_degree(major_offset + *major_idx);
+                        } else {
+                          return edge_t{0};
+                        }
+                      });
+  }
+}
+
+template <typename GraphViewType, typename prop_t>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<prop_t>>
+gather_one_hop_edgelist(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
+  const rmm::device_uvector<prop_t>& active_major_property)
+{
+  // Assumes active_majors_in_row is sorted
+
+  static_assert(GraphViewType::is_multi_gpu == true);
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = typename GraphViewType::weight_type;
+
+  std::vector<std::vector<vertex_t>> active_majors_segments;
+  vertex_t max_active_major_count{0};
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    auto partition =
+      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+        graph_view.get_matrix_partition_view(i));
+    // Identify segments of active_majors_in_row
+    active_majors_segments.emplace_back(
+      get_active_major_segments(handle,
+                                partition.get_major_first(),
+                                partition.get_major_last(),
+                                *(graph_view.get_local_adj_matrix_partition_segment_offsets(i)),
+                                active_majors_in_row));
+    auto& majors_segments = active_majors_segments.back();
+    // Count of active majors belonging to this partition
+    max_active_major_count =
+      std::max(max_active_major_count, majors_segments.back() - majors_segments.front());
+  }
+
+  auto& comm           = handle.get_comms();
+  auto const comm_rank = comm.get_rank();
+  rmm::device_uvector<edge_t> active_majors_out_offsets(1 + max_active_major_count,
+                                                        handle.get_stream());
+  auto edge_count =
+    edgelist_count(handle, graph_view, active_majors_in_row.begin(), active_majors_in_row.end());
+  rmm::device_uvector<vertex_t> majors(edge_count, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(edge_count, handle.get_stream());
+  rmm::device_uvector<prop_t> minor_prop_ids(edge_count, handle.get_stream());
+
+  edge_t output_offset = 0;
+  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+    auto partition =
+      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+        graph_view.get_matrix_partition_view(i));
+    auto& majors_segments = active_majors_segments[i];
+    // Calculate local degree offsets
+    auto active_major_count = majors_segments.back() - majors_segments.front();
+    active_majors_out_offsets.set_element_to_zero_async(0, handle.get_stream());
+    get_local_major_degree(handle,
+                           partition,
+                           active_majors_in_row,
+                           majors_segments,
+                           *(graph_view.get_local_adj_matrix_partition_segment_offsets(i)),
+                           1 + active_majors_out_offsets.data());
+    thrust::inclusive_scan(handle.get_thrust_policy(),
+                           active_majors_out_offsets.begin() + 1,
+                           active_majors_out_offsets.begin() + 1 + active_major_count,
+                           active_majors_out_offsets.begin() + 1);
+    active_majors_out_offsets.resize(1 + active_major_count, handle.get_stream());
+    decompress_matrix_partition_to_fill_edgelist(
+      handle,
+      partition,
+      active_majors_in_row.cbegin(),
+      active_majors_out_offsets.cbegin(),
+      majors_segments,
+      output_offset + majors.data(),
+      output_offset + minors.data(),
+      thrust::make_optional(
+        thrust::make_tuple(active_major_property.cbegin(), output_offset + minor_prop_ids.data())));
+    output_offset += active_majors_out_offsets.back_element(handle.get_stream());
+  }
+
+  return std::make_tuple(std::move(majors), std::move(minors), std::move(minor_prop_ids));
 }
 
 }  // namespace detail
