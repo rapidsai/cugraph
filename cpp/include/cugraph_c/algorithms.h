@@ -140,6 +140,105 @@ cugraph_error_code_t cugraph_personalized_pagerank(
   cugraph_error_t** error);
 
 /**
+ * @brief     Opaque hits result type
+ */
+typedef struct {
+  int32_t align_;
+} cugraph_hits_result_t;
+
+/**
+ * @brief     Get the vertex ids from the hits result
+ *
+ * @param [in]   result   The result from hits
+ * @return type erased array of vertex ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_vertices(
+  cugraph_hits_result_t* result);
+
+/**
+ * @brief     Get the hubs values from the hits result
+ *
+ * @param [in]   result   The result from hits
+ * @return type erased array of hubs values
+ */
+cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_hubs(
+  cugraph_pagerank_result_t* result);
+
+/**
+ * @brief     Get the authorities values from the hits result
+ *
+ * @param [in]   result   The result from hits
+ * @return type erased array of authorities values
+ */
+cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_authorities(
+  cugraph_pagerank_result_t* result);
+
+/**
+ * @brief   Get the score differences between the last two iterations
+ *
+ * @param [in]   result   The result from hits
+ * @return score differences
+ */
+double cugraph_hits_result_get_hub_score_differences(cugraph_hits_result_t* result);
+
+/**
+ * @brief   Get the actual number of iterations
+ *
+ * @param [in]   result   The result from hits
+ * @return actual number of iterations
+ */
+size_t cugraph_hits_result_get_number_of_iterations(cugraph_hits_result_t* result);
+
+/**
+ * @brief     Free hits result
+ *
+ * @param [in]   result   The result from hits
+ */
+void cugraph_hits_result_free(cugraph_hits_result_t* result);
+
+/**
+ * @brief     Compute hits
+ *
+ * @param [in]  handle      Handle for accessing resources
+ * @param [in]  graph       Pointer to graph
+ * @param [in]  epsilon     Error tolerance to check convergence. Convergence is assumed
+ *                          if the sum of the differences in Hits values between two
+ *                          consecutive iterations is less than the number of vertices
+ *                          in the graph multiplied by @p epsilon.
+ * @param [in]  max_iterations
+ *                          Maximum number of Hits iterations.
+ * @param [in]  initial_hubs_guess_vertices
+ *                          Pointer to optional type erased device array containing
+ *                          the vertex ids for an initial hubs guess.  If set to NULL
+ *                          there is no initial guess.
+ * @param [in]  initial_hubs_guess_values
+ *                          Pointer to optional type erased device array containing
+ *                          the values for an initial hubs guess.  If set to NULL
+ *                          there is no initial guess.  Note that both
+ *                          @p initial_hubs_guess_vertices and @p initial_hubs_guess_values
+ *                          have to be specified (or they both have to be NULL).  Otherwise
+ *                          this will be treated as an error.
+ * @param [in]  normalize   A flag to normalize the results (if set to `true`)
+ * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
+ * @param [out] result      Opaque pointer to hits results
+ * @param [out] error       Pointer to an error object storing details of any error.  Will
+ *                          be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_hits(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  double epsilon,
+  size_t max_iterations,
+  const cugraph_type_erased_device_array_view_t* initial_hubs_guess_vertices,
+  const cugraph_type_erased_device_array_view_t* initial_hubs_guess_values,
+  bool_t normalize,
+  bool_t do_expensive_check,
+  cugraph_pagerank_result_t** result,
+  cugraph_error_t** error);
+
+/**
  * @brief     Opaque paths result type
  *
  * Store the output of BFS or SSSP, computing predecessors and distances
