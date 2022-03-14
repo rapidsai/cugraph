@@ -158,7 +158,6 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
  * Collect all the edges that are present in the adjacency lists on the current gpu
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam EdgeIndexIterator Type of the iterator for edge indices.
  * @tparam GPUIdIterator  Type of the iterator for gpu id identifiers.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -167,14 +166,14 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
  * gpus in the column communicator
  * @param active_major_gpu_ids Device vector containing the gpu id associated by every vertex
  * present in active_majors_in_row
- * @param edge_index_first Iterator pointing to the first destination index
+ * @param minor_indices Device vector containing indices for the edges to be gathered on
  * @param indices_per_source Number of indices supplied for every source in the range
  * [vertex_input_first, vertex_input_last)
  * @param global_degree_offset Global degree offset to local adjacency list for every source
  * represented by current gpu
  * @return A tuple of device vector containing the majors, minors and gpu_ids gathered locally
  */
-template <typename GraphViewType, typename EdgeIndexIterator, typename gpu_t>
+template <typename GraphViewType, typename gpu_t>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<gpu_t>>
@@ -183,7 +182,7 @@ gather_local_edges(
   GraphViewType const& graph_view,
   const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
   const rmm::device_uvector<gpu_t>& active_major_gpu_ids,
-  EdgeIndexIterator edge_index_first,
+  rmm::device_uvector<typename GraphViewType::edge_type>& minor_indices,
   typename GraphViewType::edge_type indices_per_major,
   const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets);
 
