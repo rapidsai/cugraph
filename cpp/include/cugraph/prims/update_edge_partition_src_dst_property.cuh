@@ -172,7 +172,7 @@ void update_edge_partition_major_property(
         matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
           graph_view.get_matrix_partition_view(i));
 
-      if (col_comm_rank == i) {
+      if (i == col_comm_rank) {
         auto vertex_partition =
           vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
             graph_view.get_vertex_partition_view());
@@ -370,7 +370,7 @@ void update_edge_partition_minor_property(
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.get_matrix_partition_view(size_t{0}));
     for (int i = 0; i < row_comm_size; ++i) {
-      if (row_comm_rank == i) {
+      if (i == row_comm_rank) {
         auto vertex_partition =
           vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
             graph_view.get_vertex_partition_view());

@@ -61,7 +61,9 @@ class Tests_MGPageRank
   {
     // 1. initialize handle
 
-    raft::handle_t handle{};
+    auto constexpr pool_size = 64;  // FIXME: tuning parameter
+    raft::handle_t handle(rmm::cuda_stream_per_thread,
+                          std::make_shared<rmm::cuda_stream_pool>(pool_size));
     HighResClock hr_clock{};
 
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
@@ -73,6 +75,7 @@ class Tests_MGPageRank
     while (comm_size % row_comm_size != 0) {
       --row_comm_size;
     }
+
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
       subcomm_factory(handle, row_comm_size);
 
