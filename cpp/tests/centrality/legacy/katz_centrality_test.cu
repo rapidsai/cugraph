@@ -26,9 +26,6 @@
 #include <cugraph/legacy/graph.hpp>
 #include <rmm/device_vector.hpp>
 
-#include <gmock/gmock-generated-matchers.h>
-#include <gmock/gmock.h>
-
 #include <thrust/device_ptr.h>
 
 #include <fstream>
@@ -152,10 +149,20 @@ class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
 
     cugraph::katz_centrality(G, d_katz, alpha, 100, 1e-6, false, true);
 
+    auto threshold_ratio     = 1e-3;
+    auto threshold_magnitude = (1.0 / static_cast<double>(m)) * threshold_ratio;
+
     std::vector<int> top10CUGraph = getTopKIds(d_katz, m);
     std::vector<int> top10Golden  = getGoldenTopKIds(fs_result);
 
-    EXPECT_THAT(top10CUGraph, ::testing::ContainerEq(top10Golden));
+    auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
+      return std::abs(lhs - rhs) <
+             std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+    };
+
+    ASSERT_TRUE(
+      std::equal(top10CUGraph.begin(), top10CUGraph.end(), top10Golden.begin(), nearly_equal))
+      << "Katz centrality values do not match with the reference values.";
   }
 };
 
