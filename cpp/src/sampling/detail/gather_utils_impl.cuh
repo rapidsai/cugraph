@@ -37,37 +37,6 @@
 #include <numeric>
 #include <vector>
 
-//#define DEBUG_NBR
-
-#include <sstream>
-
-#ifdef DEBUG_NBR
-namespace {
-template <typename T>
-void print_h(std::vector<T> const& h_range, std::ostream& os)
-{
-  std::copy(h_range.begin(), h_range.end(), std::ostream_iterator<T>(os, ", "));
-  os << '\n' << std::flush;
-}
-
-template <typename T>
-std::vector<T> print_d(raft::handle_t const& handle,
-                       rmm::device_uvector<T> const& d_vec,
-                       std::ostream& os)
-{
-  size_t sz = thrust::distance(d_vec.begin(), d_vec.end());
-  std::vector<T> h_range(sz);
-
-  raft::update_host(h_range.data(), d_vec.begin(), sz, handle.get_stream());
-
-  print_h(h_range, os);
-
-  return h_range;
-}
-
-}  // namespace
-#endif
-
 namespace cugraph {
 
 namespace detail {
@@ -432,23 +401,6 @@ gather_local_edges(
   auto [partitions, id_begin, id_end, hypersparse_begin, vertex_count_offsets] =
     partition_information(handle, graph_view);
 
-#ifdef DEBUG_NBR
-  {
-    auto const self_rank = handle.get_comms().get_rank();
-
-    std::stringstream ss;
-    ss << "rank: " << self_rank << "{\n id_begin:\n";
-    auto&& h_majors = print_d(handle, id_begin, ss);
-
-    ss << "id_end:\n";
-    auto&& h_gpu_ids = print_d(handle, id_end, ss);
-
-    ss << "}\n";
-
-    std::cerr << ss.str() << std::flush;
-  }
-#endif
-
   thrust::for_each(
     handle.get_thrust_policy(),
     thrust::make_counting_iterator<size_t>(0),
@@ -477,16 +429,12 @@ gather_local_edges(
       // Find which partition id did the major belong to
       auto partition_id = thrust::distance(
         id_end, thrust::upper_bound(thrust::seq, id_end, id_end + id_seg_count, major));
-    // starting position of the segment within global_degree_offset
-    // where the information for partition (partition_id) starts
-    //  vertex_count_offsets[partition_id]
-    // The relative location of offset information for vertex id v within
-    // the segment
-    //  v - seg[partition_id]
-#ifdef DEBUG_NBR
-      printf(
-        "major %d, partition_id %d\n", static_cast<int>(major), static_cast<int>(partition_id));
-#endif
+      // starting position of the segment within global_degree_offset
+      // where the information for partition (partition_id) starts
+      //  vertex_count_offsets[partition_id]
+      // The relative location of offset information for vertex id v within
+      // the segment
+      //  v - seg[partition_id]
       vertex_t location_in_segment;
       if (major < hypersparse_begin[partition_id]) {
         location_in_segment = major - id_begin[partition_id];
@@ -497,9 +445,6 @@ gather_local_edges(
           location_in_segment = *(row_hypersparse_idx)-id_begin[partition_id];
         } else {
           minors[index] = invalid_vertex_id;
-#ifdef DEBUG_NBR
-          printf("1 %d %d invalidated!\n", index, major);
-#endif
           return;
         }
       }
@@ -516,50 +461,15 @@ gather_local_edges(
       auto g_degree_offset = global_degree_offsets[location];
       auto g_dst_index     = edge_index_first[index];
 
-#ifdef DEBUG_NBR
-      printf("2 degree info: %d %d\t%d %d %d\n",
-             static_cast<int>(location),
-             static_cast<int>(location_in_segment),
-             static_cast<int>(g_degree_offset),
-             static_cast<int>(g_dst_index),
-             static_cast<int>(local_out_degree));
-#endif
-
       if ((g_dst_index >= g_degree_offset) && (g_dst_index < g_degree_offset + local_out_degree)) {
         minors[index] = adjacency_list[g_dst_index - g_degree_offset];
       } else {
         minors[index] = invalid_vertex_id;
-
-#ifdef DEBUG_NBR
-        printf("2 %d %d invalidated!\n", static_cast<int>(index), static_cast<int>(major));
-#endif
       }
     });
 
   auto input_iter = thrust::make_zip_iterator(thrust::make_tuple(
     majors.begin(), minors.begin(), minor_gpu_ids.begin(), minor_indices.begin()));
-
-  //#ifdef DEBUG_NBR
-  //  {
-  //    auto const self_rank = handle.get_comms().get_rank();
-  //
-  //    std::stringstream ss;
-  //    ss << "rank: " << self_rank << "{\n majors:\n";
-  //    auto&& h_majors = print_d(handle, majors, ss);
-  //
-  //    ss << "minors:\n";
-  //    auto&& h_minors = print_d(handle, minors, ss);
-  //
-  //    ss << "minor_gpu_ids:\n";
-  //    auto&& h_minor_gpu_ids = print_d(handle, minor_gpu_ids, ss);
-  //
-  //    ss << "minor_indices:\n";
-  //    auto&& h_minor_indices = print_d(handle, minor_indices, ss);
-  //    ss << "}\n";
-  //
-  //    std::cerr << ss.str() << std::flush;
-  //  }
-  //#endif
 
   auto compacted_length = thrust::distance(
     input_iter,

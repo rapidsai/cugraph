@@ -19,23 +19,6 @@
 
 #include <gtest/gtest.h>
 
-#ifdef DEBUG_NBR
-// for sleep()
-#include <cstdio>
-#include <iterator>
-namespace {
-void spinner(void)
-{
-  int i = 1;
-  while (i == 1) {
-    sleep(1);
-
-    std::cout << "." << std::flush;
-  }
-}
-}  // namespace
-#endif
-
 struct Prims_Usecase {
   bool check_correctness{true};
   bool flag_replacement{true};
@@ -101,10 +84,6 @@ class Tests_MG_Nbr_Sampling
     constexpr edge_t indices_per_source       = 2;
     constexpr vertex_t repetitions_per_vertex = 5;
     constexpr vertex_t source_sample_count    = 3;
-
-#ifdef DEBUG_NBR
-    spinner();
-#endif
 
     // Generate random vertex ids in the range of current gpu
 

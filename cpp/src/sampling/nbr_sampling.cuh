@@ -48,38 +48,6 @@
 #include <type_traits>
 #include <vector>
 
-//#define DEBUG_NBR
-
-#ifdef DEBUG_NBR
-
-#include <sstream>
-
-namespace {
-template <typename T>
-void print_h(std::vector<T> const& h_range, std::ostream& os)
-{
-  std::copy(h_range.begin(), h_range.end(), std::ostream_iterator<T>(os, ", "));
-  os << '\n' << std::flush;
-}
-
-template <typename T>
-std::vector<T> print_d(raft::handle_t const& handle,
-                       cugraph::detail::device_vec_t<T> const& d_vec,
-                       std::ostream& os)
-{
-  size_t sz = thrust::distance(d_vec.begin(), d_vec.end());
-  std::vector<T> h_range(sz);
-
-  raft::update_host(h_range.data(), d_vec.begin(), sz, handle.get_stream());
-
-  print_h(h_range, os);
-
-  return h_range;
-}
-
-}  // namespace
-#endif
-
 namespace cugraph {
 
 namespace detail {
@@ -387,19 +355,6 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
     auto&& col_rank = col_comm.get_rank();
 
     auto const self_rank = handle.get_comms().get_rank();
-#ifdef DEBUG_NBR
-    {
-      std::stringstream ss;
-      ss << "rank: " << self_rank << "{\n d_in:\n";
-      auto&& h_in = print_d(handle, d_in, ss);
-
-      ss << "d_ranks:\n";
-      auto&& h_ranks = print_d(handle, d_ranks, ss);
-      ss << "}\n";
-
-      std::cerr << ss.str() << std::flush;
-    }
-#endif
 
     size_t level{0l};
     for (auto&& k_level : h_fan_out) {
@@ -410,37 +365,12 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
       auto&& [d_new_in, d_new_rank] = gather_active_sources_in_row(
         handle, graph_view, d_in.cbegin(), d_in.cend(), d_ranks.cbegin());
 
-#ifdef DEBUG_NBR
-      {
-        std::stringstream ss;
-        ss << "rank: " << self_rank << "{\n d_new_in:\n";
-        auto&& h_new_in = print_d(handle, d_new_in, ss);
-
-        ss << "d_new_rank:\n";
-        auto&& h_new_rank = print_d(handle, d_new_rank, ss);
-        ss << "}\n";
-
-        std::cerr << ss.str() << std::flush;
-      }
-#endif
-
       auto in_sz = d_in.size();
       if (in_sz > 0) {
         // extract out-degs(sources):
         //
         auto&& d_out_degs =
           get_active_major_global_degrees(handle, graph_view, d_new_in, global_out_degrees);
-
-#ifdef DEBUG_NBR
-        {
-          std::stringstream ss;
-          ss << "rank: " << self_rank << "{\n d_out_degs:\n";
-          auto&& h_degs = print_d(handle, d_out_degs, ss);
-          ss << "}\n";
-
-          std::cerr << ss.str() << std::flush;
-        }
-#endif
 
         // segemented-random-generation of indices:
         //
@@ -454,17 +384,6 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
                                         static_cast<int32_t>(k_level),
                                         flag_replacement,
                                         handle.get_stream());
-
-#ifdef DEBUG_NBR
-        {
-          std::stringstream ss;
-          ss << "rank: " << self_rank << "{\n d_indices:\n";
-          auto&& h_indices = print_d(handle, d_indices, ss);
-          ss << "}\n";
-
-          std::cerr << ss.str() << std::flush;
-        }
-#endif
 
         // gather edges step:
         // invalid entries (not found, etc.) filtered out in result;
@@ -600,39 +519,10 @@ uniform_nbr_sample(raft::handle_t const& handle,
                                d_ranks,
                                gpu_t{});
 
-#ifdef DEBUG_NBR
-  {
-    std::stringstream ss;
-    ss << "rank: " << self_rank << "{\n d_start_vs:\n";
-    auto&& h_starts = print_d(handle, d_start_vs, ss);
-
-    ss << "d_ranks:\n";
-    auto&& h_ranks = print_d(handle, d_ranks, ss);
-
-    ss << "}\n";
-
-    std::cerr << ss.str() << std::flush;
-  }
-#endif
-
   // preamble step for out-degree info:
   //
   auto&& [global_degree_offsets, global_out_degrees] =
     get_global_degree_information(handle, graph_view);
-
-#ifdef DEBUG_NBR
-  {
-    std::stringstream ss;
-    ss << "rank: " << self_rank << "{\n global_out_degrees:\n";
-    auto&& h_edges = print_d(handle, global_out_degrees, ss);
-
-    ss << "global_degree_offsets:\n";
-    auto&& h_global = print_d(handle, global_degree_offsets, ss);
-    ss << "}\n";
-
-    std::cerr << ss.str() << std::flush;
-  }
-#endif
 
   // extract output quad SOA:
   //
