@@ -457,22 +457,6 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
 
 }  // namespace detail
 
-/**
- * @brief Multi-GPU Uniform Neighborhood Sampling.
- * @tparam graph_view_t Type of graph view.
- * @tparam index_t Type used for indexing; typically edge_t
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph View object to generate NBR Sampling on.
- * @param ptr_d_start Device array of pairs: (starting_vertex_index, rank) for the NBR Sampling.
- * @param num_starting_vs size of starting vertex set
- * @param h_fan_out vector of branching out (fan-out) degree per source vertex for each level
- * parameter used for obtaining local out-degree information
- * @param flag_replacement boolean flag specifying if random sampling is done without replacement
- * (true); or, with replacement (false); default = true;
- * @return tuple of tuple of device vectors and counts:
- * ((vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index), rx_counts)
- */
 template <typename graph_view_t, typename gpu_t, typename index_t>
 std::tuple<std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
                       rmm::device_uvector<typename graph_view_t::vertex_type>,
