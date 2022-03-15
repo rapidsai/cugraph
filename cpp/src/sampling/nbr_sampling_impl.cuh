@@ -374,10 +374,10 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
 
         // segemented-random-generation of indices:
         //
-        device_vec_t<edge_t> d_indices(d_new_in.size() * k_level, handle.get_stream());
+        device_vec_t<edge_t> d_rnd_indices(d_new_in.size() * k_level, handle.get_stream());
 
         cugraph_ops::Rng rng(row_rank + level);
-        cugraph_ops::get_sampling_index(detail::raw_ptr(d_indices),
+        cugraph_ops::get_sampling_index(detail::raw_ptr(d_rnd_indices),
                                         rng,
                                         detail::raw_const_ptr(d_out_degs),
                                         static_cast<edge_t>(d_out_degs.size()),
@@ -389,12 +389,12 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
         // invalid entries (not found, etc.) filtered out in result;
         // d_indices[] filtered out in-place (to avoid copies+moves);
         //
-        auto&& [d_out_src, d_out_dst, d_out_ranks] =
+        auto&& [d_out_src, d_out_dst, d_out_ranks, d_indices] =
           gather_local_edges(handle,
                              graph_view,
                              d_new_in,
                              d_new_rank,
-                             d_indices,
+                             std::move(d_rnd_indices),
                              static_cast<edge_t>(k_level),
                              global_degree_offsets);
 
