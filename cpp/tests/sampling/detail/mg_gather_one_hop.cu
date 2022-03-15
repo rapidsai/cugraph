@@ -106,7 +106,9 @@ create_segmented_data(raft::handle_t const& handle,
                      } else {
                        seq[location] = offset[index - 1] - offset[index] + 1;
                      }
-                     if (index < source_count) { src[location] = index; }
+                     if ((index < source_count) && (offset[index] != offset[index + 1])) {
+                       src[location] = index;
+                     }
                    });
   thrust::inclusive_scan(handle.get_thrust_policy(),
                          segmented_sequence.begin(),
@@ -248,8 +250,7 @@ class Tests_MG_GatherEdges
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    auto mg_graph_view = mg_graph.view();
-    // constexpr edge_t indices_per_source       = 2;
+    auto mg_graph_view                        = mg_graph.view();
     constexpr vertex_t repetitions_per_vertex = 5;
     constexpr vertex_t source_sample_count    = 3;
 

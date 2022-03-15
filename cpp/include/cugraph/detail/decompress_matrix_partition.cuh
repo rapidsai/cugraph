@@ -332,11 +332,6 @@ void decompress_matrix_partition_to_fill_edgelist(
         auto major_offset = input_major_start_offsets[idx];
         auto major_partition_offset =
           static_cast<size_t>(major - matrix_partition.get_major_first());
-        // printf("idx %d\tmajor %d\tmjr_offset %d\tmjr_p_offset %d\n",
-        //       static_cast<int>(idx),
-        //       static_cast<int>(major),
-        //       static_cast<int>(major_offset),
-        //       static_cast<int>(major_partition_offset));
         vertex_t const* indices{nullptr};
         thrust::optional<weight_t const*> weights{thrust::nullopt};
         edge_t local_degree{};
