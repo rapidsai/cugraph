@@ -32,12 +32,15 @@ typedef int8_t byte_t;
 typedef enum data_type_id_ { INT32 = 0, INT64, FLOAT32, FLOAT64, NTYPES } data_type_id_t;
 
 /* sizes in Bytes for data_type_id_t*/
-extern int data_type_sz[];
+extern size_t data_type_sz[];
 
 typedef struct cugraph_resource_handle_ {
-  int align_;
+  int32_t align_;
 } cugraph_resource_handle_t;
 
+// FIXME: Don't really want a raft handle here.  We really want to be able to
+//        configure the resource handle ourselves.  But that requires a bunch
+//        of logic that's currently only available in python.
 /**
  * @brief     Construct a resource handle
  *

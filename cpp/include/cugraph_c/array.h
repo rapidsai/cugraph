@@ -23,19 +23,19 @@ extern "C" {
 #endif
 
 typedef struct {
-  int align_;
+  int32_t align_;
 } cugraph_type_erased_device_array_t;
 
 typedef struct {
-  int align_;
+  int32_t align_;
 } cugraph_type_erased_device_array_view_t;
 
 typedef struct {
-  int align_;
+  int32_t align_;
 } cugraph_type_erased_host_array_t;
 
 typedef struct {
-  int align_;
+  int32_t align_;
 } cugraph_type_erased_host_array_view_t;
 
 /**

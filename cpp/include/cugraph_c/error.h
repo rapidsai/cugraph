@@ -31,7 +31,7 @@ typedef enum cugraph_error_code_ {
 } cugraph_error_code_t;
 
 typedef struct cugraph_error_ {
-  int align_;
+  int32_t align_;
 } cugraph_error_t;
 
 /**
