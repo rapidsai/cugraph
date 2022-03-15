@@ -184,7 +184,7 @@ add_library(cugraph SHARED
     src/sampling/neighborhood.cu
     src/sampling/random_walks.cu
     src/sampling/detail/gather_utils_impl.cu
-    src/sampling/nbr_sampling.cu
+    src/sampling/nbr_sampling_mg.cu
     src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
