@@ -16,7 +16,7 @@
 
 #include <cugraph/algorithms.hpp>
 
-#include "nbr_sampling.cuh"
+#include "nbr_sampling_impl.cuh"
 
 namespace cugraph {
 // template explicit instantiation directives (EIDir's):

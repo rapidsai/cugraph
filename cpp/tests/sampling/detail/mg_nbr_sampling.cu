@@ -15,7 +15,7 @@
  */
 
 #include "nbr_sampling_utils.cuh"
-#include <sampling/nbr_sampling.cuh>
+#include <sampling/nbr_sampling_impl.cuh>
 
 #include <gtest/gtest.h>
 
