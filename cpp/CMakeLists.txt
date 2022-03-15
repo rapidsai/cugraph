@@ -230,7 +230,6 @@ add_library(cugraph SHARED
     src/structure/create_graph_from_edgelist_mg.cu
     src/structure/symmetrize_edgelist_sg.cu
     src/structure/symmetrize_edgelist_mg.cu
-    src/utilities/host_barrier.cpp
     src/visitors/graph_envelope.cpp
     src/visitors/visitors_factory.cpp
     src/visitors/bfs_visitor.cpp
