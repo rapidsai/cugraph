@@ -44,8 +44,7 @@ requirements:
     - boost-cpp>=1.66
     - nccl>=2.9.9
     - ucx-proc=*=gpu
-    - gtest
-    - gmock
+    - gtest=1.10.0
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
     - libraft-headers {{ minor_version }}
