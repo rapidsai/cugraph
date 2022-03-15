@@ -259,8 +259,6 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
         PRIVATE
             cugraph::cugraph_c
             cugraph_c_testutil
-            GTest::gmock
-            GTest::gmock_main
             GTest::gtest
             GTest::gtest_main
             NCCL::NCCL
