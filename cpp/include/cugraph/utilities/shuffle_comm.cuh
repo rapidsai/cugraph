@@ -166,6 +166,135 @@ struct kv_pair_group_id_greater_equal_t {
   }
 };
 
+template <typename ValueIterator>
+void swap_partitions(ValueIterator value_first,
+                     ValueIterator value_last,
+                     size_t first_partition_size,
+                     rmm::cuda_stream_view stream_view)
+{
+  auto num_elements          = static_cast<size_t>(thrust::distance(value_first, value_last));
+  auto second_partition_size = num_elements - first_partition_size;
+  if (first_partition_size >= second_partition_size) {
+    auto tmp_value_buffer =
+      allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
+        first_partition_size, stream_view);
+
+    thrust::copy(rmm::exec_policy(stream_view),
+                 value_first,
+                 value_first + first_partition_size,
+                 get_dataframe_buffer_begin(tmp_value_buffer));
+
+    thrust::copy(rmm::exec_policy(stream_view),
+                 value_first + first_partition_size,
+                 value_first + num_elements,
+                 value_first);
+
+    thrust::copy(rmm::exec_policy(stream_view),
+                 get_dataframe_buffer_begin(tmp_value_buffer),
+                 get_dataframe_buffer_end(tmp_value_buffer),
+                 value_first + second_partition_size);
+  } else {
+    auto tmp_value_buffer =
+      allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
+        second_partition_size, stream_view);
+
+    thrust::copy(rmm::exec_policy(stream_view),
+                 value_first + first_partition_size,
+                 value_first + num_elements,
+                 get_dataframe_buffer_begin(tmp_value_buffer));
+
+    thrust::copy(rmm::exec_policy(stream_view),
+                 value_first,
+                 value_first + first_partition_size,
+                 value_first + (num_elements - first_partition_size));
+
+    thrust::copy(rmm::exec_policy(stream_view),
+                 get_dataframe_buffer_begin(tmp_value_buffer),
+                 get_dataframe_buffer_end(tmp_value_buffer),
+                 value_first);
+  }
+}
+
+template <typename KeyIterator, typename ValueIterator>
+void swap_partitions(KeyIterator key_first,
+                     KeyIterator key_last,
+                     ValueIterator value_first,
+                     size_t first_partition_size,
+                     rmm::cuda_stream_view stream_view)
+{
+  auto num_elements          = static_cast<size_t>(thrust::distance(key_first, key_last));
+  auto second_partition_size = num_elements - first_partition_size;
+  if (first_partition_size >= second_partition_size) {
+    auto tmp_key_buffer =
+      allocate_dataframe_buffer<typename thrust::iterator_traits<KeyIterator>::value_type>(
+        first_partition_size, stream_view);
+    auto tmp_value_buffer =
+      allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
+        first_partition_size, stream_view);
+
+    thrust::copy(rmm::exec_policy(stream_view),
+                 key_first,
+                 key_first + first_partition_size,
+                 get_dataframe_buffer_begin(tmp_key_buffer));
+    thrust::copy(rmm::exec_policy(stream_view),
+                 value_first,
+                 value_first + first_partition_size,
+                 get_dataframe_buffer_begin(tmp_value_buffer));
+
+    thrust::copy(rmm::exec_policy(stream_view),
+                 key_first + first_partition_size,
+                 key_first + num_elements,
+                 key_first);
+    thrust::copy(rmm::exec_policy(stream_view),
+                 value_first + first_partition_size,
+                 value_first + num_elements,
+                 value_first);
+
+    thrust::copy(rmm::exec_policy(stream_view),
+                 get_dataframe_buffer_begin(tmp_key_buffer),
+                 get_dataframe_buffer_end(tmp_key_buffer),
+                 key_first + second_partition_size);
+    thrust::copy(rmm::exec_policy(stream_view),
+                 get_dataframe_buffer_begin(tmp_value_buffer),
+                 get_dataframe_buffer_end(tmp_value_buffer),
+                 value_first + second_partition_size);
+  } else {
+    auto tmp_key_buffer =
+      allocate_dataframe_buffer<typename thrust::iterator_traits<KeyIterator>::value_type>(
+        second_partition_size, stream_view);
+    auto tmp_value_buffer =
+      allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
+        second_partition_size, stream_view);
+
+    thrust::copy(rmm::exec_policy(stream_view),
+                 key_first + first_partition_size,
+                 key_first + num_elements,
+                 get_dataframe_buffer_begin(tmp_key_buffer));
+    thrust::copy(rmm::exec_policy(stream_view),
+                 value_first + first_partition_size,
+                 value_first + num_elements,
+                 get_dataframe_buffer_begin(tmp_value_buffer));
+
+    thrust::copy(rmm::exec_policy(stream_view),
+                 key_first,
+                 key_first + first_partition_size,
+                 key_first + (num_elements - first_partition_size));
+    thrust::copy(rmm::exec_policy(stream_view),
+                 value_first,
+                 value_first + first_partition_size,
+                 value_first + (num_elements - first_partition_size));
+
+    thrust::copy(rmm::exec_policy(stream_view),
+                 get_dataframe_buffer_begin(tmp_key_buffer),
+                 get_dataframe_buffer_end(tmp_key_buffer),
+                 key_first);
+    thrust::copy(rmm::exec_policy(stream_view),
+                 get_dataframe_buffer_begin(tmp_value_buffer),
+                 get_dataframe_buffer_end(tmp_value_buffer),
+                 value_first);
+  }
+}
+
 // Use roughly half temporary buffer than thrust::partition (if first & second partition sizes are
 // comparable). This also uses multiple smaller allocations than one single allocation (thrust::sort
 // does this) of the same aggregate size if the input iterators are the zip iterators (this is more
@@ -330,8 +459,28 @@ void mem_frugal_groupby(
                        });
         }
       } else {
-        auto second_first = mem_frugal_partition(
-          value_firsts[i], value_lasts[i], value_to_group_id_op, pivot, stream_view);
+        ValueIterator second_first{};
+        auto num_elements = static_cast<size_t>(thrust::distance(value_firsts[i], value_lasts[i]));
+        auto first_chunk_partition_first  = mem_frugal_partition(value_firsts[i],
+                                                                value_firsts[i] + num_elements / 2,
+                                                                value_to_group_id_op,
+                                                                pivot,
+                                                                stream_view);
+        auto second_chunk_partition_first = mem_frugal_partition(value_firsts[i] + num_elements / 2,
+                                                                 value_lasts[i],
+                                                                 value_to_group_id_op,
+                                                                 pivot,
+                                                                 stream_view);
+        auto no_less_size                 = static_cast<size_t>(
+          thrust::distance(first_chunk_partition_first, value_firsts[i] + num_elements / 2));
+        auto less_size = static_cast<size_t>(
+          thrust::distance(value_firsts[i] + num_elements / 2, second_chunk_partition_first));
+        swap_partitions(value_firsts[i] + (num_elements / 2 - no_less_size),
+                        value_firsts[i] + (num_elements / 2 + less_size),
+                        no_less_size,
+                        stream_view);
+
+        second_first = value_firsts[i] + ((num_elements / 2 - no_less_size) + less_size);
         if (pivot - group_firsts[i] > 1) {
           group_firsts.push_back(group_firsts[i]);
           group_lasts.push_back(pivot);
@@ -402,8 +551,33 @@ void mem_frugal_groupby(
                               });
         }
       } else {
-        auto second_first = mem_frugal_partition(
-          key_firsts[i], key_lasts[i], value_firsts[i], key_to_group_id_op, pivot, stream_view);
+        std::tuple<KeyIterator, ValueIterator> second_first{};
+        auto num_elements = static_cast<size_t>(thrust::distance(key_firsts[i], key_lasts[i]));
+        auto first_chunk_partition_first  = mem_frugal_partition(key_firsts[i],
+                                                                key_firsts[i] + num_elements / 2,
+                                                                value_firsts[i],
+                                                                key_to_group_id_op,
+                                                                pivot,
+                                                                stream_view);
+        auto second_chunk_partition_first = mem_frugal_partition(key_firsts[i] + num_elements / 2,
+                                                                 key_lasts[i],
+                                                                 value_firsts[i] + num_elements / 2,
+                                                                 key_to_group_id_op,
+                                                                 pivot,
+                                                                 stream_view);
+        auto no_less_size                 = static_cast<size_t>(thrust::distance(
+          std::get<0>(first_chunk_partition_first), key_firsts[i] + num_elements / 2));
+        auto less_size                    = static_cast<size_t>(thrust::distance(
+          key_firsts[i] + num_elements / 2, std::get<0>(second_chunk_partition_first)));
+        swap_partitions(key_firsts[i] + (num_elements / 2 - no_less_size),
+                        key_firsts[i] + (num_elements / 2 + less_size),
+                        value_firsts[i] + (num_elements / 2 - no_less_size),
+                        no_less_size,
+                        stream_view);
+
+        second_first =
+          std::make_tuple(key_firsts[i] + ((num_elements / 2 - no_less_size) + less_size),
+                          value_firsts[i] + ((num_elements / 2 - no_less_size) + less_size));
         if (pivot - group_firsts[i] > 1) {
           group_firsts.push_back(group_firsts[i]);
           group_lasts.push_back(pivot);
