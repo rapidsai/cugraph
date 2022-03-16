@@ -18,7 +18,7 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
 )
-from pylibcugraph._cugraph_c.cugraph_api cimport (
+from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
     data_type_id_t,
     byte_t,

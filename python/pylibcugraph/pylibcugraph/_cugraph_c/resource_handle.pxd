@@ -17,7 +17,7 @@
 from libc.stdint cimport int8_t
 
 
-cdef extern from "cugraph_c/cugraph_api.h":
+cdef extern from "cugraph_c/resource_handle.h":
 
     ctypedef enum bool_t:
         FALSE
@@ -34,8 +34,16 @@ cdef extern from "cugraph_c/cugraph_api.h":
     ctypedef struct cugraph_resource_handle_t:
         pass
 
+    # FIXME: the void* raft_handle arg will change in a future release
     cdef cugraph_resource_handle_t* \
-        cugraph_create_resource_handle()
+        cugraph_create_resource_handle(
+	    void* raft_handle
+	)
+
+    cdef int \
+        cugraph_resource_handle_get_rank(
+	    const cugraph_resource_handle_t* handle
+	)
 
     cdef void \
         cugraph_free_resource_handle(
