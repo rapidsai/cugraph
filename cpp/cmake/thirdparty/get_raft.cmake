@@ -36,8 +36,9 @@ function(find_and_configure_raft)
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
             OPTIONS
-                "BUILD_TESTS OFF"
                 "RAFT_COMPILE_LIBRARIES OFF"
+                "BUILD_TESTS OFF"
+                "BUILD_BENCH OFF"
     )
 
     if(raft_ADDED)
