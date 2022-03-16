@@ -39,12 +39,12 @@ requirements:
     - cudatoolkit {{ cuda_version }}.*
     - libcudf {{ minor_version }}.*
     - libcugraph {{ minor_version }}.*
-    - libraft-headers {{ minor_version }}
+    - libraft-core {{ minor_version }}
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
     - libcudf {{ minor_version }}.*
     - libcugraph {{ minor_version }}.*
-    - libraft-headers {{ minor_version }}
+    - libraft-core {{ minor_version }}
     - librmm {{ minor_version }}
 
 about:
