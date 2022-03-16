@@ -62,10 +62,16 @@ conda activate rapids
 export PATH=$(conda info --base)/envs/rapids/bin:$PATH
 
 gpuci_logger "Install dependencies"
-gpuci_mamba_retry install -y \
-      "libcudf=${MINOR_VERSION}" \
+# Assume libcudf and librmm will be installed via cudf and rmm respectively.
+# This is done to prevent the following install scenario:
+# libcudf = 22.04.00a220315, cudf = 22.04.00a220308
+# where cudf 220308 was chosen possibly because it has fewer/different
+# dependencies and the corresponding recipes have specified these combinations
+# should work when sometimes they do not.
+# FIXME: remove testing label when gpuCI has the ability to move the pyraft
+# label from testing to main.
+gpuci_mamba_retry install -c rapidsai-nightly/label/testing -y \
       "cudf=${MINOR_VERSION}" \
-      "librmm=${MINOR_VERSION}" \
       "rmm=${MINOR_VERSION}" \
       "libraft-headers=${MINOR_VERSION}" \
       "pyraft=${MINOR_VERSION}" \

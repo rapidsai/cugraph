@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cugraph_c/error.h>
+#include <cugraph_c/resource_handle.h>
 
 #include <cuda_runtime_api.h>
 #include <stddef.h>
@@ -26,20 +27,7 @@
 extern "C" {
 #endif
 
-typedef enum bool_ { FALSE = 0, TRUE = 1 } bool_t;
-
-typedef int8_t byte_t;
-
-typedef enum data_type_id_ { INT32 = 0, INT64, FLOAT32, FLOAT64, NTYPES } data_type_id_t;
-
-/* sizes in Bytes for data_type_id_t*/
-extern int data_type_sz[];
-
 /* C stub declarations */
-
-typedef struct cugraph_resource_handle_ {
-  int align_;
-} cugraph_resource_handle_t;
 
 typedef struct cugraph_graph_envelope_ {
   int align_;
@@ -159,12 +147,6 @@ cugraph_error_code_t cugraph_update_host_buffer(const cugraph_resource_handle_t*
                                                 data_type_id_t dtype,
                                                 byte_t* ptr_h_dst,
                                                 const cugraph_device_buffer_t* ptr_src);
-
-/* raft::handle_t allocator (for now; possibly a more encompassing handle in the future)*/
-cugraph_resource_handle_t* cugraph_create_resource_handle(void);
-
-/* raft::handle_t deallocator*/
-void cugraph_free_resource_handle(cugraph_resource_handle_t* p_handle);
 
 #ifdef __cplusplus
 }
