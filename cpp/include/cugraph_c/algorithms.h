@@ -162,7 +162,7 @@ cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_vertices(
  * @return type erased array of hubs values
  */
 cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_hubs(
-  cugraph_pagerank_result_t* result);
+  cugraph_hits_result_t* result);
 
 /**
  * @brief     Get the authorities values from the hits result
@@ -171,7 +171,7 @@ cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_hubs(
  * @return type erased array of authorities values
  */
 cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_authorities(
-  cugraph_pagerank_result_t* result);
+  cugraph_hits_result_t* result);
 
 /**
  * @brief   Get the score differences between the last two iterations
@@ -235,7 +235,7 @@ cugraph_error_code_t cugraph_hits(
   const cugraph_type_erased_device_array_view_t* initial_hubs_guess_values,
   bool_t normalize,
   bool_t do_expensive_check,
-  cugraph_pagerank_result_t** result,
+  cugraph_hits_result_t** result,
   cugraph_error_t** error);
 
 /**
