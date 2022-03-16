@@ -25,7 +25,9 @@ import cugraph
 # =============================================================================
 DIRECTED_GRAPH_OPTIONS = [False, True]
 DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
-KARATE = DATASETS_SMALL[0][0][0]
+# KARATE = DATASETS_SMALL[0][0][0]
+KARATE = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv"
+ARROW = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"small_arrow.csv"
 
 
 # =============================================================================
@@ -92,7 +94,7 @@ def test_node2vec_coalesced(
     err = 0
     for i in range(k):
         for j in range(max_depth - 1):
-            # weight = edge_weights[i * (max_depth - 1) + j]
+            weight = edge_weights[i * (max_depth - 1) + j]
             u = vertex_paths[i * max_depth + j]
             v = vertex_paths[i * max_depth + j + 1]
             # Walk not found in edgelist
@@ -100,9 +102,13 @@ def test_node2vec_coalesced(
                 err += 1
             # FIXME: Checking weights is buggy
             # Corresponding weight to edge is not correct
-            # expr = "(src == {} and dst == {})".format(u, v)
-            # if not (G.edgelist.edgelist_df.query(expr)["weights"] == weight):
-            #    err += 1
+            expr = "(src == {} and dst == {})".format(u, v)
+            edge_query = G.edgelist.edgelist_df.query(expr)
+            if not edge_query:
+                err += 1
+            else:
+                if edge_query["weights"] != weight:
+                    err += 1
     assert err == 0
 
 
@@ -135,7 +141,7 @@ def test_node2vec_padded(
     path_start = 0
     for i in range(k):
         for j in range(max_depth - 1):
-            # weight = edge_weights[i * (max_depth - 1) + j]
+            weight = edge_weights[i * (max_depth - 1) + j]
             u = vertex_paths[i * max_depth + j]
             v = vertex_paths[i * max_depth + j + 1]
             # Walk not found in edgelist
@@ -143,9 +149,13 @@ def test_node2vec_padded(
                 err += 1
             # FIXME: Checking weights is buggy
             # Corresponding weight to edge is not correct
-            # expr = "(src == {} and dst == {})".format(u, v)
-            # if not (G.edgelist.edgelist_df.query(expr)["weights"] == weight):
-            #    err += 1
+            expr = "(src == {} and dst == {})".format(u, v)
+            edge_query = G.edgelist.edgelist_df.query(expr)
+            if not edge_query:
+                err += 1
+            else:
+                if edge_query["weights"] != weight:
+                    err += 1
         # Check that path sizes matches up correctly with paths
         if vertex_paths[i * max_depth] != seeds[i]:
             err += 1
@@ -183,3 +193,89 @@ def test_node2vec_invalid(
         with pytest.raises(ValueError):
             df, seeds = calc_node2vec(G, start_vertices, max_depth=max_depth,
                                       use_padding=use_padding, p=p, q=bad_q)
+
+
+"""
+@pytest.mark.parametrize("store_transposed", [True, False])
+@pytest.mark.parametrize("renumbered", [True, False])
+@pytest.mark.parametrize("do_expensive_check", [True, False])
+def test_node2vec_renumbered(store_transposed, renumbered, do_expensive_check):
+    # from cudf import DataFrame
+    import cudf, numpy
+    ex_graph = cudf.DataFrame(data=[(0, 1, 1), (1, 2, 1), (2, 3, 1),
+                                    (3, 4, 1), (4, 5, 1), (5, 6, 1),
+                                    (6, 7, 1), (7, 8, 1), (8, 9, 1)],
+                                    columns=["0", "1", "2"],
+                                    dtype=numpy.int32)
+    #ex_graph = cudf.DataFrame({"0": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    #         "1": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    #         "2": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]})
+
+    g = cugraph.Graph()
+    g.from_cudf_edgelist(ex_graph, source="0", destination="1", edge_attr="2",
+                          renumber=renumbered)
+    max_depth = 3
+    start_vertices = cudf.Series([0, 3, 6], dtype=numpy.int32)
+
+    cugraph.node2vec(g, start_vertices, max_depth,
+                     use_padding=False, p=0.8, q=0.5)
+"""
+
+
+@pytest.mark.parametrize("graph_file", [ARROW])
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
+def test_node2vec_arrow(graph_file, directed):
+    G = utils.generate_cugraph_graph_from_file(graph_file, directed=directed,
+                                               edgevals=True)
+    max_depth = 3
+    start_vertices = [0, 3, 6]
+    df, seeds = calc_node2vec(
+        G,
+        start_vertices,
+        max_depth,
+        use_padding=True,
+        p=0.8,
+        q=0.5
+    )
+
+
+@pytest.mark.parametrize("graph_file", [ARROW])
+@pytest.mark.parametrize("renumbered", [True, False])
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
+def test_node2vec_arrow_renumbered(graph_file, renumbered, directed):
+    from cudf import read_csv
+    M = read_csv(graph_file, delimiter=' ',
+                 dtype=['int32', 'int32', 'float32'], header=None)
+    G = cugraph.Graph(directed=directed)
+    G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2',
+                         renumber=renumbered)
+    max_depth = 3
+    start_vertices = [0, 3, 6]
+    k = len(start_vertices)
+    df, seeds = calc_node2vec(
+        G,
+        start_vertices,
+        max_depth,
+        use_padding=True,
+        p=0.8,
+        q=0.5
+    )
+    vertex_paths, edge_weights, vertex_path_sizes = df
+    # Check that output sizes are as expected
+    assert vertex_paths.size == max_depth * k
+    assert edge_weights.size == (max_depth - 1) * k
+    assert vertex_path_sizes.sum() == vertex_paths.size
+    # The sampling when graph is directed should be deterministic
+    err = 0
+    if directed:
+        index = 0
+        for vertex in vertex_paths.values:
+            if vertex != index:
+                err += 1
+            index += 1
+    # To ensure renumbering works as intended, verify the starting vertex
+    # is the same as the seed vertices
+    for i in range(k):
+        if start_vertices[i] != vertex_paths[i * max_depth]:
+            err += 1
+    assert err == 0

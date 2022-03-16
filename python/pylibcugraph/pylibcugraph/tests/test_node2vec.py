@@ -102,9 +102,6 @@ def test_node2vec(sg_graph_objs, compress_result):
         # up with weights array
         assert len(actual_path_sizes) == num_paths
         expected_walks = sum(exp_path_sizes) - num_paths
-        # FIXME: When using multiple seeds, paths are connected via the weights
-        # array, there should not be a weight connecting the end of a path with
-        # the beginning of another. PR #2089 will resolve this.
         # Verify the number of walks was equal to path sizes - num paths
         assert len(actual_weights) == expected_walks
     else:
