@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,22 @@
 #include <raft/handle.hpp>
 
 namespace cugraph {
+namespace c_api {
 
-// FIXME: a temporary hack till UCC is integrated into RAFT (so we can use UCC barrier for DASK and
-// MPI barrier for MPI)
-void host_barrier(raft::comms::comms_t const& comm, rmm::cuda_stream_view stream_view);
+struct cugraph_resource_handle_t {
+  raft::handle_t* handle_{nullptr};
+  bool allocated_{false};
 
+  cugraph_resource_handle_t(void* raft_handle)
+  {
+    if (raft_handle == nullptr) {
+      handle_    = new raft::handle_t{};
+      allocated_ = true;
+    } else {
+      handle_ = reinterpret_cast<raft::handle_t*>(raft_handle);
+    }
+  }
+};
+
+}  // namespace c_api
 }  // namespace cugraph

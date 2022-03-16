@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -170,7 +170,7 @@ void copy_to_matrix_major(raft::handle_t const& handle,
         matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
           graph_view.get_matrix_partition_view(i));
 
-      if (col_comm_rank == i) {
+      if (i == col_comm_rank) {
         auto vertex_partition =
           vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
             graph_view.get_vertex_partition_view());
@@ -365,7 +365,7 @@ void copy_to_matrix_minor(raft::handle_t const& handle,
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.get_matrix_partition_view(size_t{0}));
     for (int i = 0; i < row_comm_size; ++i) {
-      if (row_comm_rank == i) {
+      if (i == row_comm_rank) {
         auto vertex_partition =
           vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
             graph_view.get_vertex_partition_view());
