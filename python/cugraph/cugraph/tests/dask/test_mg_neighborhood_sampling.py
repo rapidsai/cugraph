@@ -20,6 +20,7 @@ import cudf
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
+
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
@@ -51,7 +52,7 @@ def test_mg_neighborhood_sampling(dask_client):
 
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
-    
+
     # TODO: Incomplete, add more when lower-level
     # APIs are accounted for
     start_info_list = 0
