@@ -645,9 +645,12 @@ target_link_libraries(cugraph_c_testutil
 )
 
 
+# FIXME: Disabling these tests, they test an older version of the API which
+#        will be deleted in this release.  Leaving them here to help me remember :-)
 #ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE_TEST c_api/create_sg_graph_envelope_test.c)
-ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 #ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
+
+ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
 ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)

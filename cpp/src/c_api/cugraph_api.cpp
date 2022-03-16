@@ -78,7 +78,7 @@ cugraph_error_code_t extract_rw_result(cugraph_rw_ret_t* p_rw_ret, cugraph_devic
 }  // namespace helpers
 
 extern "C" {
-int data_type_sz[] = {4, 8, 4, 8};
+size_t data_type_sz[] = {4, 8, 4, 8};
 }
 
 bool_t runtime_assert(bool_t statement_truth_value, const char* error_msg)
