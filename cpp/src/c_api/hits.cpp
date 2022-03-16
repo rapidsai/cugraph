@@ -54,7 +54,7 @@ struct hits_functor : public abstract_functor {
   bool do_expensive_check_;
   cugraph_hits_result_t* result_{};
 
-  hits_functor(cugraph_resource_handle_t const* handle,
+  hits_functor(::cugraph_resource_handle_t const* handle,
                ::cugraph_graph_t* graph,
                ::cugraph_type_erased_device_array_view_t const* personalization_values,
                double epsilon,
@@ -62,7 +62,7 @@ struct hits_functor : public abstract_functor {
                ::cugraph_type_erased_device_array_view_t const* initial_hubs_guess,
                bool do_expensive_check)
     : abstract_functor(),
-      handle_(*reinterpret_cast<raft::handle_t const*>(handle)),
+      handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       epsilon_(epsilon),
       max_iterations_(max_iterations),
@@ -105,8 +105,12 @@ struct hits_functor : public abstract_functor {
                                          handle_.get_stream());
       rmm::device_uvector<weight_t> authorities(graph->get_number_of_local_vertices(),
                                                 handle_.get_stream());
+      weight_t hub_score_differences{0};
+      size_t number_of_iterations{0};
 
 #if 0
+      // FIXME:  Implementation will look something like this.
+      
       if (initial_hubs_guess_ != nullptr) {
         //
         // Need to renumber initial_hubs_guess_vertices
@@ -123,16 +127,16 @@ struct hits_functor : public abstract_functor {
       }
 
       // TODO:  Add these to the result
-      auto [hub_score_differences, number_of_iterations] =
-        cugraph::hits<vertex_t, edge_t, weight_t, weight_t, multi_gpu>(handle_,
-                                                                       graph_view,
-                                                                       hubs.data(),
-                                                                       authorities.data(),
-                                                                       epsilon_,
-                                                                       max_iterations_,
-                                                                       has_initial_hubs_guess,
-                                                                       normalize_,
-                                                                       do_expensive_check_);
+      std::tie(hub_score_differences, number_of_iterations) =
+        cugraph::hits<vertex_t, edge_t, weight_t, multi_gpu>(handle_,
+                                                             graph_view,
+                                                             hubs.data(),
+                                                             authorities.data(),
+                                                             epsilon_,
+                                                             max_iterations_,
+                                                             has_initial_hubs_guess,
+                                                             normalize_,
+                                                             do_expensive_check_);
 
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 #else
@@ -142,7 +146,9 @@ struct hits_functor : public abstract_functor {
       result_ = new cugraph_hits_result_t{
         new cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
         new cugraph_type_erased_device_array_t(hubs, graph_->weight_type_),
-        new cugraph_type_erased_device_array_t(authorities, graph_->weight_type_)};
+        new cugraph_type_erased_device_array_t(authorities, graph_->weight_type_),
+        hub_score_differences,
+        number_of_iterations};
     }
   }
 };
