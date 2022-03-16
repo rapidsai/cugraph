@@ -55,15 +55,14 @@ namespace {
   bool with_replacement_{false};
   cugraph_sample_result_t* result_{nullptr};
 
-  // FIXME: after PR 2110 merges this must be updated
-  uniform_neighbor_sampling_functor(cugraph_resource_handle_t const* handle,
+  uniform_neighbor_sampling_functor(::cugraph_resource_handle_t const* handle,
                                     ::cugraph_graph_t* graph,
                                     ::cugraph_type_erased_device_array_view_t const* start,
                                     ::cugraph_type_erased_device_array_view_t const* start_label,
                                     ::cugraph_type_erased_host_array_view_t const* fan_out,
                                     bool without_replacement)
     : abstract_functor(),
-      handle_(*reinterpret_cast<raft::handle_t const*>(handle)),
+      handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       start_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(start)),
