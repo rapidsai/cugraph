@@ -19,7 +19,7 @@ from cugraph.utilities import ensure_cugraph_obj_for_nx
 def node2vec(G,
              start_vertices,
              max_depth=None,
-             use_padding=False,
+             compress_result=True,
              p=1.0,
              q=1.0):
     """
@@ -47,8 +47,9 @@ def node2vec(G,
     max_depth: int
         The maximum depth of the random walks
 
-    use_padding: bool, optional (default=False)
-        If True, padded paths are returned else coalesced paths are returned
+    compress_result: bool, optional (default=True)
+        If True, coalesced paths are returned with a sizes array with offsets.
+        Otherwise padded paths are returned with an empty sizes array.
 
     p: float, optional (default=1.0, [0 < p])
         Return factor, which represents the likelihood of backtracking to
@@ -89,8 +90,9 @@ def node2vec(G,
     if (not isinstance(max_depth, int)) or (max_depth < 1):
         raise ValueError(f"'max_depth' must be a positive integer, \
                         got: {max_depth}")
-    if (not isinstance(use_padding, bool)):
-        raise ValueError(f"'use_padding' must be a bool, got: {use_padding}")
+    if (not isinstance(compress_result, bool)):
+        raise ValueError(f"'compress_result' must be a bool, \
+                        got: {compress_result}")
     if (not isinstance(p, float)) or (p <= 0.0):
         raise ValueError(f"'p' must be a positive float, got: {p}")
     if (not isinstance(q, float)) or (q <= 0.0):
@@ -132,7 +134,7 @@ def node2vec(G,
 
     vertex_set, edge_set, sizes = pylibcugraph.experimental.node2vec(
                                     resource_handle, sg, start_vertices,
-                                    max_depth, use_padding, p, q)
+                                    max_depth, compress_result, p, q)
     vertex_set = cudf.Series(vertex_set)
     edge_set = cudf.Series(edge_set)
     sizes = cudf.Series(sizes)
@@ -142,11 +144,12 @@ def node2vec(G,
         df_['vertex_set'] = vertex_set
         df_ = G.unrenumber(df_, 'vertex_set', preserve_order=True)
         vertex_set = cudf.Series(df_['vertex_set'])
+    return vertex_set, edge_set, sizes
 
-    if use_padding:
-        edge_set_sz = (max_depth - 1) * len(start_vertices)
-        return vertex_set, edge_set[:edge_set_sz], sizes
+    # if compress_result:
+    #    edge_set_sz = (max_depth - 1) * len(start_vertices)
+    #    return vertex_set, edge_set[:edge_set_sz], sizes
 
-    vertex_set_sz = vertex_set.sum()
-    edge_set_sz = vertex_set_sz - len(start_vertices)
-    return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], sizes
+    # vertex_set_sz = vertex_set.sum()
+    # edge_set_sz = vertex_set_sz - len(start_vertices)
+    # return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], sizes

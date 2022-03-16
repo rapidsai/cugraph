@@ -81,8 +81,9 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
         Maximum number of vertices in generated path
 
     compress_result : bool_t
-        If true, the third return device array contains the sizes for each path,
-        otherwise outputs empty device array.
+        If true, the paths are unpadded and a third return device array contains
+        the sizes for each path, otherwise the paths are padded and the third
+        return device array is empty.
 
     p : double
         The return factor p represents the likelihood of backtracking to a node
