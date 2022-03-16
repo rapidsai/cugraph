@@ -571,6 +571,7 @@ void get_local_major_degree(
   edge_t* out_degrees)
 {
   auto active_major_count = majors_segments.back() - majors_segments.front();
+  // CSR region
   if (majors_segments[3] - majors_segments[0] > 0) {
     thrust::transform(handle.get_thrust_policy(),
                       active_majors_in_row.cbegin() + majors_segments[0],
@@ -581,6 +582,7 @@ void get_local_major_degree(
                         return partition.get_local_degree(major_offset);
                       });
   }
+  // Hypersparse region
   if (majors_segments[4] - majors_segments[3] > 0) {
     auto major_hypersparse_first =
       partition.get_major_first() +
