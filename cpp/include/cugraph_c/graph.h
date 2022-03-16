@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 typedef struct {
-  int align_;
+  int32_t align_;
 } cugraph_graph_t;
 
 typedef struct {
@@ -32,6 +32,7 @@ typedef struct {
   bool_t is_multigraph;
 } cugraph_graph_properties_t;
 
+// FIXME: Add support for specifying isloated vertices
 /**
  * @brief     Construct an SG graph
  *
@@ -73,6 +74,7 @@ cugraph_error_code_t cugraph_sg_graph_create(const cugraph_resource_handle_t* ha
 //         but didn't want to confuse with original cugraph_free_graph
 void cugraph_sg_graph_free(cugraph_graph_t* graph);
 
+// FIXME: Add support for specifying isloated vertices
 /**
  * @brief     Construct an MG graph
  *
@@ -94,20 +96,16 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_mg_graph_create(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_view_t* src,
-  const cugraph_type_erased_device_array_view_t* dst,
-  const cugraph_type_erased_device_array_view_t* weights,
-  const cugraph_type_erased_host_array_view_t* vertex_partition_offsets,
-  const cugraph_type_erased_host_array_view_t* segment_offsets,
-  bool_t store_transposed,
-  size_t num_vertices,
-  size_t num_edges,
-  bool_t check,
-  cugraph_graph_t** graph,
-  cugraph_error_t** error);
+cugraph_error_code_t cugraph_mg_graph_create(const cugraph_resource_handle_t* handle,
+                                             const cugraph_graph_properties_t* properties,
+                                             const cugraph_type_erased_device_array_view_t* src,
+                                             const cugraph_type_erased_device_array_view_t* dst,
+                                             const cugraph_type_erased_device_array_view_t* weights,
+                                             bool_t store_transposed,
+                                             size_t num_edges,
+                                             bool_t check,
+                                             cugraph_graph_t** graph,
+                                             cugraph_error_t** error);
 
 /**
  * @brief     Destroy an MG graph

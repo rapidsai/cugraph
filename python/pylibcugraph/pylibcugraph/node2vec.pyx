@@ -16,7 +16,7 @@
 
 from libc.stdint cimport uintptr_t
 
-from pylibcugraph._cugraph_c.cugraph_api cimport (
+from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
     data_type_id_t,
     cugraph_resource_handle_t,
@@ -129,11 +129,6 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
         import cupy
     except ModuleNotFoundError:
         raise RuntimeError("node2vec requires the cupy package, which could not "
-                           "be imported")
-    try:
-        import numpy
-    except ModuleNotFoundError:
-        raise RuntimeError("node2vec requires the numpy package, which could not "
                            "be imported")
     assert_CAI_type(seed_array, "seed_array")
 
