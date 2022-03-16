@@ -14,3 +14,6 @@ from networkx.algorithms import *
 
 from cugraph.compat.nx.algorithms.traversal import *
 from cugraph.compat.nx.algorithms import traversal
+
+from cugraph.compat.nx.algorithms.link_analysis import *
+from cugraph.compat.nx.algorithms import link_analysis

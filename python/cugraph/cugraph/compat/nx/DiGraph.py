@@ -14,10 +14,10 @@
 import networkx as nx
 
 
-class Graph(nx.Graph):
+class DiGraph(nx.DiGraph):
     """
-    Class which extends NetworkX Graph class. It provides original
+    Class which extends NetworkX DiGraph class. It provides original
     NetworkX functionality and will be overridden as this compatibility
-    layer moves functionality to gpus in future releases.
+    layer moves functionality to gpus.
     """
     pass

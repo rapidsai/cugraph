@@ -39,11 +39,14 @@ from networkx import *
 # also be present in the same namespaces.
 # Refer to the networkx __init__.py files when adding new overriding
 # modules to ensure the same paths and used and namespaces are populated.
+from cugraph.compat.nx import algorithms
+from cugraph.compat.nx.algorithms import *
+
 from cugraph.compat.nx.algorithms import traversal
 from cugraph.compat.nx.algorithms.traversal import *
 
-from cugraph.compat.nx import algorithms
-from cugraph.compat.nx.algorithms import *
+from cugraph.compat.nx.algorithms import link_analysis
+from cugraph.compat.nx.algorithms.link_analysis import *
 
 # Recursively import all of the NetworkX modules into equivalent submodules
 # under this package. The above "from networkx import *" handles names in this

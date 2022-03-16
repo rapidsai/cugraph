@@ -9,15 +9,9 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.
+# limitations under the License.from networkx.algorithms.traversal import *
+import cugraph
 
-import networkx as nx
-
-
-class Graph(nx.Graph):
-    """
-    Class which extends NetworkX Graph class. It provides original
-    NetworkX functionality and will be overridden as this compatibility
-    layer moves functionality to gpus in future releases.
-    """
-    pass
+def connected_components(G):
+        print("reached the cugraph function")
+        connected_components(G)

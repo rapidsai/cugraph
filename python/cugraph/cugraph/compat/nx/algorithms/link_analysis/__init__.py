@@ -10,14 +10,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import networkx as nx
-
-
-class Graph(nx.Graph):
-    """
-    Class which extends NetworkX Graph class. It provides original
-    NetworkX functionality and will be overridden as this compatibility
-    layer moves functionality to gpus in future releases.
-    """
-    pass
+from networkx.algorithms.link_analysis import *
+from cugraph.compat.nx.algorithms.link_analysis.pagerank_alg import *
