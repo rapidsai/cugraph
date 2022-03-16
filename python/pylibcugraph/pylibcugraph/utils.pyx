@@ -77,6 +77,20 @@ cdef get_numpy_type_from_c_type(data_type_id_t c_type):
                            f"from C: {c_type}")
 
 
+cdef get_c_type_from_numpy_type(numpy_type):
+    if numpy_type == numpy.int32:
+        return data_type_id_t.INT32
+    elif numpy_type == numpy.int64:
+        return data_type_id_t.INT64
+    elif numpy_type == numpy.float32:
+        return data_type_id_t.FLOAT32
+    elif numpy_type == numpy.float64:
+        return data_type_id_t.FLOAT64
+    else:
+        raise RuntimeError("Internal error: got invalid data type enum value "
+                          f"from Numpy: {numpy_type}")
+
+
 cdef copy_to_cupy_array(
    cugraph_resource_handle_t* c_resource_handle_ptr,
    cugraph_type_erased_device_array_view_t* device_array_view_ptr):

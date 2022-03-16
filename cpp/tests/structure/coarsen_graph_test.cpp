@@ -324,7 +324,7 @@ class Tests_CoarsenGraph
                           handle.get_stream());
       }
 
-      auto coarse_graph_view = coarse_graph->view();
+      auto coarse_graph_view = coarse_graph.view();
 
       std::vector<edge_t> h_coarse_offsets(coarse_graph_view.get_number_of_vertices() + 1);
       std::vector<vertex_t> h_coarse_indices(coarse_graph_view.get_number_of_edges());
@@ -433,7 +433,8 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(CoarsenGraph_Usecase{0.2, false}, CoarsenGraph_Usecase{0.2, true}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false),
+                      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
@@ -457,6 +458,7 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks for large graphs
     ::testing::Values(CoarsenGraph_Usecase{0.2, false, false},
                       CoarsenGraph_Usecase{0.2, true, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false),
+                      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

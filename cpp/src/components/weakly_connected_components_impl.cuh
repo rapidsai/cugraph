@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -371,17 +371,17 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         // with fewer than one root per GPU
         if (std::reduce(first_candidate_degrees.begin(), first_candidate_degrees.end()) >
             degree_sum_threshold * comm_size) {
-          std::vector<std::tuple<edge_t, int>> degree_gpuid_pairs(comm_size);
+          std::vector<std::tuple<edge_t, int>> degree_gpu_id_pairs(comm_size);
           for (int i = 0; i < comm_size; ++i) {
-            degree_gpuid_pairs[i] = std::make_tuple(first_candidate_degrees[i], i);
+            degree_gpu_id_pairs[i] = std::make_tuple(first_candidate_degrees[i], i);
           }
-          std::sort(degree_gpuid_pairs.begin(), degree_gpuid_pairs.end(), [](auto lhs, auto rhs) {
+          std::sort(degree_gpu_id_pairs.begin(), degree_gpu_id_pairs.end(), [](auto lhs, auto rhs) {
             return std::get<0>(lhs) > std::get<0>(rhs);
           });
           edge_t sum{0};
-          for (size_t i = 0; i < degree_gpuid_pairs.size(); ++i) {
-            sum += std::get<0>(degree_gpuid_pairs[i]);
-            init_max_new_root_counts[std::get<1>(degree_gpuid_pairs[i])] = 1;
+          for (size_t i = 0; i < degree_gpu_id_pairs.size(); ++i) {
+            sum += std::get<0>(degree_gpu_id_pairs[i]);
+            init_max_new_root_counts[std::get<1>(degree_gpu_id_pairs[i])] = 1;
             if (sum > degree_sum_threshold * comm_size) { break; }
           }
         }
@@ -390,18 +390,18 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         else if (level_graph_view.get_number_of_vertices() <=
                  static_cast<vertex_t>(handle.get_comms().get_size() *
                                        ceil(1.0 / max_new_roots_ratio))) {
-          std::vector<int> gpuids{};
-          gpuids.reserve(
+          std::vector<int> gpu_ids{};
+          gpu_ids.reserve(
             std::reduce(new_root_candidate_counts.begin(), new_root_candidate_counts.end()));
           for (size_t i = 0; i < new_root_candidate_counts.size(); ++i) {
-            gpuids.insert(gpuids.end(), new_root_candidate_counts[i], static_cast<int>(i));
+            gpu_ids.insert(gpu_ids.end(), new_root_candidate_counts[i], static_cast<int>(i));
           }
           std::random_device rd{};
-          std::shuffle(gpuids.begin(), gpuids.end(), std::mt19937(rd()));
-          gpuids.resize(
-            std::max(static_cast<vertex_t>(gpuids.size() * max_new_roots_ratio), vertex_t{1}));
-          for (size_t i = 0; i < gpuids.size(); ++i) {
-            ++init_max_new_root_counts[gpuids[i]];
+          std::shuffle(gpu_ids.begin(), gpu_ids.end(), std::mt19937(rd()));
+          gpu_ids.resize(
+            std::max(static_cast<vertex_t>(gpu_ids.size() * max_new_roots_ratio), vertex_t{1}));
+          for (size_t i = 0; i < gpu_ids.size(); ++i) {
+            ++init_max_new_root_counts[gpu_ids[i]];
           }
         } else {
           std::fill(init_max_new_root_counts.begin(),
@@ -461,7 +461,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     auto adj_matrix_col_components =
       GraphViewType::is_multi_gpu
         ? col_properties_t<GraphViewType, vertex_t>(handle, level_graph_view)
-        : col_properties_t<GraphViewType, vertex_t>();
+        : col_properties_t<GraphViewType, vertex_t>(handle);
     if constexpr (GraphViewType::is_multi_gpu) {
       adj_matrix_col_components.fill(invalid_component_id<vertex_t>::value, handle.get_stream());
     }
@@ -678,7 +678,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
         auto const col_comm_size = col_comm.get_size();
 
-        std::tie(edge_buffer, std::ignore) = cugraph::groupby_gpuid_and_shuffle_values(
+        std::tie(edge_buffer, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(
           comm,
           get_dataframe_buffer_begin(edge_buffer),
           get_dataframe_buffer_end(edge_buffer),

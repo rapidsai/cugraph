@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -248,15 +248,60 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
                    edgelist_edge_counts.end() - 1,
                    edgelist_displacements.begin() + 1);
 
+  // 2. split the input edges to local partitions
+
+  std::vector<rmm::device_uvector<vertex_t>> edgelist_src_partitions{};
+  edgelist_src_partitions.reserve(col_comm_size);
+  for (int i = 0; i < col_comm_size; ++i) {
+    rmm::device_uvector<vertex_t> tmp_srcs(edgelist_edge_counts[i], handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelist_rows.begin() + edgelist_displacements[i],
+                 edgelist_rows.begin() + edgelist_displacements[i] + edgelist_edge_counts[i],
+                 tmp_srcs.begin());
+    edgelist_src_partitions.push_back(std::move(tmp_srcs));
+  }
+  edgelist_rows.resize(0, handle.get_stream());
+  edgelist_rows.shrink_to_fit(handle.get_stream());
+
+  std::vector<rmm::device_uvector<vertex_t>> edgelist_dst_partitions{};
+  edgelist_dst_partitions.reserve(col_comm_size);
+  for (int i = 0; i < col_comm_size; ++i) {
+    rmm::device_uvector<vertex_t> tmp_dsts(edgelist_edge_counts[i], handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 edgelist_cols.begin() + edgelist_displacements[i],
+                 edgelist_cols.begin() + edgelist_displacements[i] + edgelist_edge_counts[i],
+                 tmp_dsts.begin());
+    edgelist_dst_partitions.push_back(std::move(tmp_dsts));
+  }
+  edgelist_cols.resize(0, handle.get_stream());
+  edgelist_cols.shrink_to_fit(handle.get_stream());
+
+  std::optional<std::vector<rmm::device_uvector<weight_t>>> edgelist_weight_partitions{};
+  if (edgelist_weights) {
+    edgelist_weight_partitions = std::vector<rmm::device_uvector<weight_t>>{};
+    (*edgelist_weight_partitions).reserve(col_comm_size);
+    for (int i = 0; i < col_comm_size; ++i) {
+      rmm::device_uvector<weight_t> tmp_weights(edgelist_edge_counts[i], handle.get_stream());
+      thrust::copy(
+        handle.get_thrust_policy(),
+        (*edgelist_weights).begin() + edgelist_displacements[i],
+        (*edgelist_weights).begin() + edgelist_displacements[i] + edgelist_edge_counts[i],
+        tmp_weights.begin());
+      (*edgelist_weight_partitions).push_back(std::move(tmp_weights));
+    }
+    (*edgelist_weights).resize(0, handle.get_stream());
+    (*edgelist_weights).shrink_to_fit(handle.get_stream());
+  }
+
   // 2. renumber
 
   std::vector<vertex_t*> major_ptrs(col_comm_size);
   std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
   for (int i = 0; i < col_comm_size; ++i) {
-    major_ptrs[i] = (store_transposed ? edgelist_cols.begin() : edgelist_rows.begin()) +
-                    edgelist_displacements[i];
-    minor_ptrs[i] = (store_transposed ? edgelist_rows.begin() : edgelist_cols.begin()) +
-                    edgelist_displacements[i];
+    major_ptrs[i] =
+      store_transposed ? edgelist_dst_partitions[i].begin() : edgelist_src_partitions[i].begin();
+    minor_ptrs[i] =
+      store_transposed ? edgelist_src_partitions[i].begin() : edgelist_dst_partitions[i].begin();
   }
   auto [renumber_map_labels, meta] = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
     handle,
@@ -268,29 +313,17 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
 
   // 3. create a graph
 
-  std::vector<cugraph::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(col_comm_size);
-  for (int i = 0; i < col_comm_size; ++i) {
-    edgelists[i] = cugraph::edgelist_t<vertex_t, edge_t, weight_t>{
-      edgelist_rows.data() + edgelist_displacements[i],
-      edgelist_cols.data() + edgelist_displacements[i],
-      edgelist_weights
-        ? std::optional<weight_t const*>{(*edgelist_weights).data() + edgelist_displacements[i]}
-        : std::nullopt,
-      static_cast<edge_t>(edgelist_edge_counts[i])};
-  }
-
   return std::make_tuple(
     cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
-      edgelists,
-      cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{
-        meta.number_of_vertices,
-        meta.number_of_edges,
-        graph_properties,
-        meta.partition,
-        meta.segment_offsets,
-        store_transposed ? meta.num_local_unique_edge_minors : meta.num_local_unique_edge_majors,
-        store_transposed ? meta.num_local_unique_edge_majors : meta.num_local_unique_edge_minors}),
+      std::move(edgelist_src_partitions),
+      std::move(edgelist_dst_partitions),
+      std::move(edgelist_weight_partitions),
+      cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{meta.number_of_vertices,
+                                                         meta.number_of_edges,
+                                                         graph_properties,
+                                                         meta.partition,
+                                                         meta.segment_offsets}),
     std::optional<rmm::device_uvector<vertex_t>>{std::move(renumber_map_labels)});
 }
 
@@ -354,12 +387,9 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   return std::make_tuple(
     cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
-      cugraph::edgelist_t<vertex_t, edge_t, weight_t>{
-        edgelist_rows.data(),
-        edgelist_cols.data(),
-        edgelist_weights ? std::optional<weight_t const*>{(*edgelist_weights).data()}
-                         : std::nullopt,
-        static_cast<edge_t>(edgelist_rows.size())},
+      std::move(edgelist_rows),
+      std::move(edgelist_cols),
+      std::move(edgelist_weights),
       cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{
         num_vertices,
         graph_properties,

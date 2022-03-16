@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -94,6 +94,13 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   graph_t(raft::handle_t const& handle,
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
+          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
+          bool do_expensive_check = false);
+
+  graph_t(raft::handle_t const& handle,
+          std::vector<rmm::device_uvector<vertex_t>>&& edgelist_src_partitions,
+          std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dst_partitions,
+          std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edge_weight_partitions,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
@@ -261,6 +268,13 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   graph_t(raft::handle_t const& handle,
           edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
+          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
+          bool do_expensive_check = false);
+
+  graph_t(raft::handle_t const& handle,
+          rmm::device_uvector<vertex_t>&& edgelist_srcs,
+          rmm::device_uvector<vertex_t>&& edgelist_dsts,
+          std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,9 +37,6 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>>
   edge_t number_of_edges{};
   partition_t<vertex_t> partition{};
   std::vector<vertex_t> segment_offsets{};
-
-  vertex_t num_local_unique_edge_majors{};
-  vertex_t num_local_unique_edge_minors{};
 };
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -354,16 +351,16 @@ symmetrize_edgelist(raft::handle_t const& handle,
  * @param graph_view Graph view object of the input graph to be coarsened.
  * @param labels Vertex labels (assigned to this process in multi-GPU) to be used in coarsening.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed,
- * multi_gpu>>, rmm::device_uvector<vertex_t>> Tuple of the coarsened graph and labels mapped to the
- * vertices (assigned to this process in multi-GPU) in the coarsened graph.
+ * @return std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+ * rmm::device_uvector<vertex_t>> Tuple of the coarsened graph and labels mapped to the vertices
+ * (assigned to this process in multi-GPU) in the coarsened graph.
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>,
+std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            rmm::device_uvector<vertex_t>>
 coarsen_graph(
   raft::handle_t const& handle,

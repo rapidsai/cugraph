@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -588,7 +588,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
   raft::handle_t const& handle,
   vertex_t*
-    edgelist_major_vertices,  // [IN / OUT]: groupby_gpuid_and_shuffle_values() sorts in-place
+    edgelist_major_vertices,  // [IN / OUT]: groupby_gpu_id_and_shuffle_values() sorts in-place
   vertex_t* edgelist_minor_vertices,  // [IN / OUT]
   weight_t* edgelist_weights,         // [IN / OUT]
   edge_t num_edgelist_edges);
