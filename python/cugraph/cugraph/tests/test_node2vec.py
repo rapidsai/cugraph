@@ -157,7 +157,8 @@ def test_node2vec_padded(
                     raise ValueError("edge_query weight incorrect")
         # Check that path sizes matches up correctly with paths
         if vertex_paths[i * max_depth] != seeds[i]:
-            raise ValueError("vertex_path start did not match seed vertex")
+            raise ValueError("vertex_path start did not match seed vertex: {}".
+                             format(vertex_paths.values))
         path_start += vertex_path_sizes[i]
 
 
@@ -255,12 +256,14 @@ def test_node2vec_arrow_renumbered(graph_file, renumbered, directed):
         index = 0
         for vertex in vertex_paths.values:
             if vertex != index:
-                raise ValueError("Directed path should be monotonic inc.")
+                raise ValueError("Directed path should be monotonic inc: {}".
+                                 format(vertex_paths.values))
     # To ensure renumbering works as intended, verify the starting vertex
     # is the same as the seed vertices
     for i in range(k):
         if start_vertices[i] != vertex_paths[i * max_depth]:
-            raise ValueError("Starting vertex not the same as seed vertex")
+            raise ValueError("Starting vertex not the same as seed vertex: {}".
+                             format(vertex_paths.values))
 
 
 # This was an attempt at creating a custom dataset from cudf, without resorting
