@@ -44,8 +44,8 @@ requirements:
     - boost-cpp>=1.66
     - nccl>=2.9.9
     - ucx-proc=*=gpu
-    - gtest=1.10.0  # FIXME: pinned to version in https://github.com/rapidsai/integration/blob/branch-22.04/conda/recipes/versions.yaml
-    - gmock=1.10.0  # FIXME: pinned to version in https://github.com/rapidsai/integration/blob/branch-22.04/conda/recipes/versions.yaml
+    - gtest
+    - gmock
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
     - libraft-headers {{ minor_version }}
