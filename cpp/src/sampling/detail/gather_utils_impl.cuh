@@ -380,13 +380,14 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
 template <typename GraphViewType, typename gpu_t>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<gpu_t>>
+           rmm::device_uvector<gpu_t>,
+           rmm::device_uvector<typename GraphViewType::edge_type>>
 gather_local_edges(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
   const rmm::device_uvector<gpu_t>& active_major_gpu_ids,
-  rmm::device_uvector<typename GraphViewType::edge_type>& minor_indices,
+  rmm::device_uvector<typename GraphViewType::edge_type>&& minor_map,
   typename GraphViewType::edge_type indices_per_major,
   const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets)
 {
@@ -406,7 +407,7 @@ gather_local_edges(
     handle.get_thrust_policy(),
     thrust::make_counting_iterator<size_t>(0),
     thrust::make_counting_iterator<size_t>(edge_count),
-    [edge_index_first      = minor_indices.cbegin(),
+    [edge_index_first      = minor_map.cbegin(),
      active_majors         = active_majors_in_row.data(),
      active_major_gpu_ids  = active_major_gpu_ids.data(),
      id_begin              = id_begin.data(),
@@ -467,8 +468,8 @@ gather_local_edges(
         minors[index] = invalid_vertex_id;
       }
     });
-  auto input_iter = thrust::make_zip_iterator(thrust::make_tuple(
-    majors.begin(), minors.begin(), minor_gpu_ids.begin(), minor_indices.begin()));
+  auto input_iter = thrust::make_zip_iterator(
+    thrust::make_tuple(majors.begin(), minors.begin(), minor_gpu_ids.begin(), minor_map.begin()));
 
   auto compacted_length = thrust::distance(
     input_iter,
@@ -481,8 +482,9 @@ gather_local_edges(
   majors.resize(compacted_length, handle.get_stream());
   minors.resize(compacted_length, handle.get_stream());
   minor_gpu_ids.resize(compacted_length, handle.get_stream());
-  minor_indices.resize(compacted_length, handle.get_stream());
-  return std::make_tuple(std::move(majors), std::move(minors), std::move(minor_gpu_ids));
+  minor_map.resize(compacted_length, handle.get_stream());
+  return std::make_tuple(
+    std::move(majors), std::move(minors), std::move(minor_gpu_ids), std::move(minor_map));
 }
 
 template <typename GraphViewType, typename VertexIterator>

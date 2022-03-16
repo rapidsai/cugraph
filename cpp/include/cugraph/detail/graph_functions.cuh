@@ -159,30 +159,33 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam GPUIdIterator  Type of the iterator for gpu id identifiers.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Non-owning graph object.
- * @param active_majors_in_row Device vector containing all the vertex id that are processed by
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] graph_view Non-owning graph object.
+ * @param[in] active_majors_in_row Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
- * @param active_major_gpu_ids Device vector containing the gpu id associated by every vertex
+ * @param[in] active_major_gpu_ids Device vector containing the gpu id associated by every vertex
  * present in active_majors_in_row
- * @param minor_indices Device vector containing indices for the edges to be gathered on
- * @param indices_per_source Number of indices supplied for every source in the range
+ * @param[in] minor_map Device vector of destination indices (modifiable in-place) corresponding to
+ * vertex IDs being returned
+ * @param[in] indices_per_source Number of indices supplied for every source in the range
  * [vertex_input_first, vertex_input_last)
- * @param global_degree_offset Global degree offset to local adjacency list for every source
+ * @param[in] global_degree_offset Global degree offset to local adjacency list for every source
  * represented by current gpu
- * @return A tuple of device vector containing the majors, minors and gpu_ids gathered locally
+ * @return A tuple of device vector containing the majors, minors, gpu_ids and indices gathered
+ * locally
  */
 template <typename GraphViewType, typename gpu_t>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<gpu_t>>
+           rmm::device_uvector<gpu_t>,
+           rmm::device_uvector<typename GraphViewType::edge_type>>
 gather_local_edges(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
   const rmm::device_uvector<gpu_t>& active_major_gpu_ids,
-  rmm::device_uvector<typename GraphViewType::edge_type>& minor_indices,
+  rmm::device_uvector<typename GraphViewType::edge_type>&& minor_map,
   typename GraphViewType::edge_type indices_per_major,
   const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets);
 

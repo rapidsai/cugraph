@@ -416,31 +416,5 @@ void decompress_matrix_partition_to_edgelist(
   }
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void decompress_matrix_partition_to_edgelist(
-  raft::handle_t const& handle,
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
-  vertex_t const* majors,
-  vertex_t* edgelist_majors /* [OUT] */,
-  vertex_t* edgelist_minors /* [OUT] */,
-  std::optional<weight_t*> edgelist_weights /* [OUT] */,
-  std::optional<std::vector<vertex_t>> const& segment_offsets)
-{
-  auto number_of_edges = matrix_partition.get_number_of_edges();
-
-  decompress_matrix_partition_to_fill_edgelist_majors(
-    handle, matrix_partition, edgelist_majors, segment_offsets);
-  thrust::copy(handle.get_thrust_policy(),
-               matrix_partition.get_indices(),
-               matrix_partition.get_indices() + number_of_edges,
-               edgelist_minors);
-  if (edgelist_weights) {
-    thrust::copy(handle.get_thrust_policy(),
-                 *(matrix_partition.get_weights()),
-                 *(matrix_partition.get_weights()) + number_of_edges,
-                 (*edgelist_weights));
-  }
-}
-
 }  // namespace detail
 }  // namespace cugraph
