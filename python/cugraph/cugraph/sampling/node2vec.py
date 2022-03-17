@@ -145,11 +145,3 @@ def node2vec(G,
         df_ = G.unrenumber(df_, 'vertex_set', preserve_order=True)
         vertex_set = cudf.Series(df_['vertex_set'])
     return vertex_set, edge_set, sizes
-
-    # if compress_result:
-    #    edge_set_sz = (max_depth - 1) * len(start_vertices)
-    #    return vertex_set, edge_set[:edge_set_sz], sizes
-
-    # vertex_set_sz = vertex_set.sum()
-    # edge_set_sz = vertex_set_sz - len(start_vertices)
-    # return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], sizes

@@ -25,9 +25,11 @@ import cugraph
 # =============================================================================
 DIRECTED_GRAPH_OPTIONS = [False, True]
 DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
+# Uncomment when bug is resolved
 # KARATE = DATASETS_SMALL[0][0][0]
+# Temporary for bug squashing
 KARATE = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv"
-LINE = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"small_arrow.csv"
+LINE = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"small_line.csv"
 
 
 # =============================================================================
@@ -117,7 +119,7 @@ def test_node2vec_line(graph_file, directed):
 
 
 # NOTE: For this test, a custom dataset csv was created, called
-# small_arrow.csv. It consists of 9 edges, src vertices 0-8 with
+# small_line.csv. It consists of 9 edges, src vertices 0-8 with
 # corresponding dst vertices 1-9. All edge weights are 1.0.
 # This was an attempt at creating a custom dataset from cudf, without resorting
 # to creating a new csv file, unfortunately this wasn't possible as of yet.
@@ -159,12 +161,13 @@ def test_node2vec_new(
 ):
     G = utils.generate_cugraph_graph_from_file(graph_file, directed=directed,
                                                edgevals=True)
+    num_verts = G.number_of_vertices()
     if graph_file == KARATE:
         k = random.randint(1, 7)
-        start_vertices = random.sample(range(G.number_of_vertices()), k)
+        start_vertices = random.sample(range(num_verts), k)
     else:
         k = 3
-        start_vertices = [0, 3, 6]
+        start_vertices = [3, 6, 9]
     max_depth = 5
     df, seeds = calc_node2vec(
         G,
@@ -197,8 +200,8 @@ def test_node2vec_new(
                     expr = "(src == {} and dst == {})".format(u, v)
                     edge_query = G.edgelist.edgelist_df.query(expr)
                     if edge_query.empty:
-                        raise ValueError("edge_query found no edge: ({},{})".
-                                         format(u, v))
+                        raise ValueError("edge_query didn't find:({},{}),{}".
+                                         format(u, v, num_verts))
                     else:
                         if edge_query["weights"].values[0] != weight:
                             raise ValueError("edge_query weight incorrect")
@@ -223,8 +226,8 @@ def test_node2vec_new(
                     expr = "(src == {} and dst == {})".format(u, v)
                     edge_query = G.edgelist.edgelist_df.query(expr)
                     if edge_query.empty:
-                        raise ValueError("edge_query found no edge: ({},{})".
-                                         format(u, v))
+                        raise ValueError("edge_query didn't find:({},{}),{}".
+                                         format(u, v, num_verts))
                     else:
                         if edge_query["weights"].values[0] != weight:
                             raise ValueError("edge_query weight incorrect")
@@ -234,14 +237,24 @@ def test_node2vec_new(
         assert vertex_paths.size == max_depth * k
         assert edge_weights.size == (max_depth - 1) * k
         assert vertex_path_sizes.size == 0
+        if directed:
+            blanks = vertex_paths.isna()
         # This part is for checking to make sure each of the edges
         # in all of the paths are valid and are accurate
-        path_start = 0
         for i in range(k):
-            for j in range(max_depth - 1):
-                weight = edge_weights[i * (max_depth - 1) + j]
-                u = vertex_paths[i * max_depth + j]
-                v = vertex_paths[i * max_depth + j + 1]
+            path_at_end, j = False, 0
+            weight_idx = 0
+            while not path_at_end:
+                src_idx = i * max_depth + j
+                dst_idx = i * max_depth + j + 1
+                if directed:
+                    invalid_src = blanks[src_idx] or (src_idx >= num_verts)
+                    invalid_dst = blanks[dst_idx] or (dst_idx >= num_verts)
+                    if invalid_src or invalid_dst:
+                        break
+                weight = edge_weights[weight_idx]
+                u = vertex_paths[src_idx]
+                v = vertex_paths[dst_idx]
                 # Walk not found in edgelist
                 edge_found = G.has_edge(u, v)
                 if not edge_found:
@@ -250,13 +263,18 @@ def test_node2vec_new(
                 expr = "(src == {} and dst == {})".format(u, v)
                 edge_query = G.edgelist.edgelist_df.query(expr)
                 if edge_query.empty:
-                    raise ValueError("edge_query found no edge: ({},{})".
-                                     format(u, v))
+                    raise ValueError("edge_query didn't find:({},{}),{}".
+                                     format(u, v, num_verts))
                 else:
                     if edge_query["weights"].values[0] != weight:
                         raise ValueError("edge_query weight incorrect")
+
+                # Only increment if the current indices are valid
+                j += 1
+                weight_idx += 1
+                if j >= max_depth - 1:
+                    path_at_end = True
             # Check that path sizes matches up correctly with paths
             if vertex_paths[i * max_depth] != seeds[i]:
                 raise ValueError("vertex_path start did not match seed \
                                  vertex:{}".format(vertex_paths.values))
-            path_start += vertex_path_sizes[i]
