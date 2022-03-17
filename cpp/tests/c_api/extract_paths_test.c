@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ int generic_bfs_test_with_extract_paths(vertex_t* h_src,
   cugraph_type_erased_device_array_view_t* p_sources_view      = NULL;
   cugraph_type_erased_device_array_view_t* p_destinations_view = NULL;
 
-  p_handle = cugraph_create_resource_handle();
+  p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
