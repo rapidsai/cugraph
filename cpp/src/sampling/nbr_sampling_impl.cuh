@@ -52,6 +52,49 @@ namespace cugraph {
 
 namespace detail {
 
+// FIXME: to be integrated from PR# 2117:
+//
+template <typename GraphViewType, typename prop_t>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<prop_t>>
+gather_one_hop_edgelist(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
+  const rmm::device_uvector<prop_t>& active_major_property)
+{
+  static_assert(GraphViewType::is_multi_gpu == true);
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = typename GraphViewType::weight_type;
+
+  // Empty, for now; FIXME: to be removed and integrated from PR# 2117:
+  //
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+  rmm::device_uvector<prop_t> minor_prop_ids(0, handle.get_stream());
+
+  return std::make_tuple(std::move(majors), std::move(minors), std::move(minor_prop_ids));
+}
+
+// FIXME: to be replaced by actual call from PR #2117, or implemented here:
+//
+template <typename GraphViewType, typename index_t = typename GraphViewType::edge_type>
+rmm::device_uvector<index_t> extract_edge_indexing(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& d_src,
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& d_dst)
+{
+  using vertex_t = typename GraphViewType::vertex_type;
+
+  // Empty, for now; FIXME: to be implemented or integrated from PR# 2117:
+  //
+  rmm::device_uvector<index_t> d_indices(0, handle.get_stream());
+  return d_indices;
+}
+
 /**
  * @brief Projects zip input onto the lower dim zip output, where lower dimension components are
  * specified by tuple indices; e.g., extracts the (destination_vertex_id, rank_to_send_it_to)
@@ -252,13 +295,15 @@ shuffle_to_target_gpu_ids(raft::handle_t const& handle,
  * (empty)
  *
  *  loop level in {0,…, L-1} {                                   // 1 tree level / iteration
- *       n_per_level = |J| * L^ (level+1);                       // size of output per level
+ *      n_per_level = |J| * L^ (level+1);                       // size of output per level
  *
- *       J[] = union(J[], {J[partition_row],
+ *      J[] = union(J[], {J[partition_row],
  *                        for partition_row same as `p`};
  *
- *      for each pair (s, _) in J[] {                            // cache out-degrees of src_v
- * set; d_out_deg[s] = mnmg_get_out_deg(graph, s);
+ *      if (K[level] < 0 ) return full_nbr_for_all(J[]);         // "infinite sampling"
+ *
+ *      for each pair (s, _) in J[] {                            // cache out-degrees of src_v set;
+ *         d_out_deg[s] = mnmg_get_out_deg(graph, s);
  *      }
  *
  *      d_indices[] = segmented_random_generator(d_out_degs[],   // sizes[] to define range to
@@ -272,13 +317,11 @@ shuffle_to_target_gpu_ids(raft::handle_t const& handle,
  *                                                               // gathers the NBR for current
  *                                                               // level of each src_v;
  *                                                               // output is set of triplets
- *                                                               // (src_v, dst_v,
- * rank_to_send_to) Out[p][] = union(Out[p][], d_out[]);                      // append local
- * output to result d_out[] = shuffle(d_out[]);                               // reshuffle output
- * to
+ *                                                               // (src_v, dst_v,rank_to_send_to)
+ *     Out[p][] = union(Out[p][], d_out[]);                      // append local output to result
+ *     d_out[] = shuffle(d_out[]);                               // reshuffle output to
  *                                                               // corresponding rank
- *     J[] = project(d_out[], []((s,d,r)){ return (d,r);});      // extract the (d, r) from (s,d,
- * r)
+ *     J[] = project(d_out[], []((s,d,r)){ return (d,r);});      // extract the (d, r) from (s,d,r)
  *                                                               // for next iter
  *    }
  *    return Out[p][];
@@ -295,7 +338,9 @@ shuffle_to_target_gpu_ids(raft::handle_t const& handle,
  * shuffling.
  * @param d_ranks Device vector of ranks for which corresponding vertex ID data must be sent to. The
  * pairs (vertex_ID, rank) must be shuffled together. Must be non-const for shuffling.
- * @param h_fan_out vector of branching out (fan-out) degree per source vertex for each level
+ * @param h_fan_out vector of branching out (fan-out) degree per source vertex for each level;
+ * negative elements would retrieve the whole neighborhood ("infinite sampling") for a depth given
+ * by h_fan_out.size() (only depth == 1 supported for now);
  * @param global_degree_offsets local partition of global out-degree cache; pass-through
  * parameter used for obtaining local out-degree information
  * @param flag_replacement boolean flag specifying if random sampling is done without replacement
@@ -348,6 +393,11 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
     device_vec_t<gpu_t> d_acc_ranks(0, handle.get_stream());
     device_vec_t<index_t> d_acc_indices(0, handle.get_stream());
 
+    device_vec_t<vertex_t> d_out_src(0, handle.get_stream());
+    device_vec_t<vertex_t> d_out_dst(0, handle.get_stream());
+    device_vec_t<gpu_t> d_out_ranks(0, handle.get_stream());
+    device_vec_t<index_t> d_indices(0, handle.get_stream());
+
     auto&& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
     auto&& row_rank = row_comm.get_rank();
 
@@ -360,43 +410,54 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
     for (auto&& k_level : h_fan_out) {
       // main body:
       //{
-      // prep step for extracting out-degs(sources):
-      //
-      auto&& [d_new_in, d_new_rank] = gather_active_sources_in_row(
-        handle, graph_view, d_in.cbegin(), d_in.cend(), d_ranks.cbegin());
-
       auto in_sz = d_in.size();
       if (in_sz > 0) {
-        // extract out-degs(sources):
+        // prep step for extracting out-degs(sources):
         //
-        auto&& d_out_degs =
-          get_active_major_global_degrees(handle, graph_view, d_new_in, global_out_degrees);
+        if (k_level < 0) {  // FIXME: infinite sampling, supported only for depth == 1, for now
+          CUGRAPH_EXPECTS(h_fan_out.size() == 1,
+                          "Depth larger than 1 not yet supported for infinite sampling.");
 
-        // segemented-random-generation of indices:
-        //
-        device_vec_t<edge_t> d_rnd_indices(d_new_in.size() * k_level, handle.get_stream());
+          std::tie(d_out_src, d_out_dst, d_out_ranks) =
+            gather_one_hop_edgelist(handle, graph_view, d_in, d_ranks);
 
-        cugraph_ops::Rng rng(row_rank + level);
-        cugraph_ops::get_sampling_index(detail::raw_ptr(d_rnd_indices),
-                                        rng,
-                                        detail::raw_const_ptr(d_out_degs),
-                                        static_cast<edge_t>(d_out_degs.size()),
-                                        static_cast<int32_t>(k_level),
-                                        flag_replacement,
-                                        handle.get_stream());
+          d_indices = extract_edge_indexing(handle, graph_view, d_out_src, d_out_dst);
 
-        // gather edges step:
-        // invalid entries (not found, etc.) filtered out in result;
-        // d_indices[] filtered out in-place (to avoid copies+moves);
-        //
-        auto&& [d_out_src, d_out_dst, d_out_ranks, d_indices] =
-          gather_local_edges(handle,
-                             graph_view,
-                             d_new_in,
-                             d_new_rank,
-                             std::move(d_rnd_indices),
-                             static_cast<edge_t>(k_level),
-                             global_degree_offsets);
+        } else {  // finite sampling based on fan-out == k_level
+          auto&& [d_new_in, d_new_rank] = gather_active_sources_in_row(
+            handle, graph_view, d_in.cbegin(), d_in.cend(), d_ranks.cbegin());
+
+          // extract out-degs(sources):
+          //
+          auto&& d_out_degs =
+            get_active_major_global_degrees(handle, graph_view, d_new_in, global_out_degrees);
+
+          // segemented-random-generation of indices:
+          //
+          device_vec_t<edge_t> d_rnd_indices(d_new_in.size() * k_level, handle.get_stream());
+
+          cugraph_ops::Rng rng(row_rank + level);
+          cugraph_ops::get_sampling_index(detail::raw_ptr(d_rnd_indices),
+                                          rng,
+                                          detail::raw_const_ptr(d_out_degs),
+                                          static_cast<edge_t>(d_out_degs.size()),
+                                          static_cast<int32_t>(k_level),
+                                          flag_replacement,
+                                          handle.get_stream());
+
+          // gather edges step:
+          // invalid entries (not found, etc.) filtered out in result;
+          // d_indices[] filtered out in-place (to avoid copies+moves);
+          //
+          std::tie(d_out_src, d_out_dst, d_out_ranks, d_indices) =
+            gather_local_edges(handle,
+                               graph_view,
+                               d_new_in,
+                               d_new_rank,
+                               std::move(d_rnd_indices),
+                               static_cast<edge_t>(k_level),
+                               global_degree_offsets);
+        }
 
         // resize accumulators:
         //
@@ -443,7 +504,6 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
                              d_ranks,
                              gpu_t{});
       }
-
       //}
       ++level;
     }
