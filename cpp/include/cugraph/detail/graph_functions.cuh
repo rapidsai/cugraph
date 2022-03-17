@@ -76,6 +76,13 @@ std::tuple<rmm::device_uvector<typename GraphViewType::edge_type>,
            rmm::device_uvector<typename GraphViewType::edge_type>>
 get_global_degree_information(raft::handle_t const& handle, GraphViewType const& graph_view);
 
+template <typename GraphViewType>
+rmm::device_uvector<typename GraphViewType::edge_type> get_global_adjacency_offset(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets,
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_out_degrees);
+
 /**
  * @brief Gather active sources and associated client gpu ids across gpus in a
  * column communicator
@@ -187,7 +194,8 @@ gather_local_edges(
   const rmm::device_uvector<gpu_t>& active_major_gpu_ids,
   rmm::device_uvector<typename GraphViewType::edge_type>&& minor_map,
   typename GraphViewType::edge_type indices_per_major,
-  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets);
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets,
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_adjacency_list_offsets);
 
 /**
  * @brief Gather edge list for specified vertices
@@ -208,12 +216,14 @@ gather_local_edges(
 template <typename GraphViewType, typename prop_t>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<prop_t>>
+           rmm::device_uvector<prop_t>,
+           rmm::device_uvector<typename GraphViewType::edge_type>>
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
-  const rmm::device_uvector<prop_t>& active_major_property);
+  const rmm::device_uvector<prop_t>& active_major_property,
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_adjacency_list_offsets);
 
 }  // namespace detail
 
