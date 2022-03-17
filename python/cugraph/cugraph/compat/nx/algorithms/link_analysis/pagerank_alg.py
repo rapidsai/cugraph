@@ -11,21 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from networkx.algorithms.traversal import *
 import cugraph
-from cugraph.utilities import df_score_to_dictionary
-import cudf
+
 
 def pagerank(
-    G,
-    alpha=0.85,
-    personalization=None,
-    max_iter=100,
-    tol=1.0e-6,
-    nstart=None,
-    weight="weight",
-    dangling=None):
-    
+        G,
+        alpha=0.85,
+        personalization=None,
+        max_iter=100,
+        tol=1.0e-6,
+        nstart=None,
+        weight="weight",
+        dangling=None):
+
     """
     Calls the cugraph pagerank algorithm taking in a networkX object.
     In future releases it will maintain compatibility but will migrate more
@@ -82,11 +80,11 @@ def pagerank(
     Returns
     -------
         PageRank : dictionary
-               A dictionary of nodes with the PageRank as value 
+               A dictionary of nodes with the PageRank as value
 
     """
     print("Called compat.nx pagerank")
-    df_dict = cugraph.pagerank(
+    return cugraph.pagerank(
             G,
             alpha,
             personalization,
@@ -95,5 +93,3 @@ def pagerank(
             nstart,
             weight,
             dangling)
-    return df_dict
-

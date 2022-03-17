@@ -10,8 +10,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.from networkx.algorithms.traversal import *
+
 import cugraph
 
+
 def connected_components(G):
-        print("reached the cugraph function")
-        connected_components(G)
+    return cugraph.connected_components(G)
