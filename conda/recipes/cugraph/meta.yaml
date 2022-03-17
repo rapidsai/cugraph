@@ -38,6 +38,7 @@ requirements:
     - libraft-headers {{ minor_version }}
   run:
     - python x.x
+    - pylibcugraph={{ version }}
     - libcugraph={{ version }}
     - libraft-headers {{ minor_version }}
     - pyraft {{ minor_version }}
