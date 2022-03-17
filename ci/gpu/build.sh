@@ -62,13 +62,8 @@ conda activate rapids
 export PATH=$(conda info --base)/envs/rapids/bin:$PATH
 
 gpuci_logger "Install dependencies"
-# Assume libcudf will be installed via cudf. This is done to prevent the
-# following:
-# libcudf = 22.04.00a220315, cudf = 22.04.00a220308
-# where cudf 220308 was chosen possibly because it has fewer/different
-# dependencies and the corresponding recipes think they're compatible when they
-# may not be.
 gpuci_mamba_retry install -y \
+      "libcudf=${MINOR_VERSION}" \
       "cudf=${MINOR_VERSION}" \
       "librmm=${MINOR_VERSION}" \
       "rmm=${MINOR_VERSION}" \

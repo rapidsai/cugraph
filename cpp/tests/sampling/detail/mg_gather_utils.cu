@@ -100,7 +100,7 @@ class Tests_MG_GatherEdges
                  random_source_gpu_ids.end(),
                  comm_rank);
 
-    auto [active_sources_in_row, active_source_gpu_ids] =
+    auto [active_sources, active_source_gpu_ids] =
       cugraph::detail::gather_active_sources_in_row(handle,
                                                     mg_graph_view,
                                                     random_sources.cbegin(),
@@ -109,7 +109,7 @@ class Tests_MG_GatherEdges
 
     // get source global out degrees to generate indices
     auto active_source_degrees = cugraph::detail::get_active_major_global_degrees(
-      handle, mg_graph_view, active_sources_in_row, global_out_degrees);
+      handle, mg_graph_view, active_sources, global_out_degrees);
 
     auto random_destination_indices =
       generate_random_destination_indices(handle,
@@ -127,7 +127,7 @@ class Tests_MG_GatherEdges
     auto [src, dst, gpu_ids, dst_map] =
       cugraph::detail::gather_local_edges(handle,
                                           mg_graph_view,
-                                          active_sources_in_row,
+                                          active_sources,
                                           active_source_gpu_ids,
                                           std::move(input_destination_indices),
                                           indices_per_source,
@@ -143,7 +143,7 @@ class Tests_MG_GatherEdges
       auto& col_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_rank = col_comm.get_rank();
       auto sg_random_srcs = cugraph::test::device_gatherv(
-        handle, active_sources_in_row.data(), col_rank == 0 ? active_sources_in_row.size() : 0);
+        handle, active_sources.data(), col_rank == 0 ? active_sources.size() : 0);
       auto sg_random_dst_indices =
         cugraph::test::device_gatherv(handle,
                                       random_destination_indices.data(),

@@ -445,7 +445,7 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
 gather_local_edges(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
   const rmm::device_uvector<gpu_t>& active_major_gpu_ids,
   rmm::device_uvector<typename GraphViewType::edge_type>&& minor_map,
   typename GraphViewType::edge_type indices_per_major,
@@ -455,7 +455,7 @@ gather_local_edges(
   static_assert(GraphViewType::is_multi_gpu == true);
   using vertex_t  = typename GraphViewType::vertex_type;
   using edge_t    = typename GraphViewType::edge_type;
-  auto edge_count = active_majors_in_row.size() * indices_per_major;
+  auto edge_count = active_majors.size() * indices_per_major;
   rmm::device_uvector<vertex_t> majors(edge_count, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(edge_count, handle.get_stream());
   rmm::device_uvector<gpu_t> minor_gpu_ids(edge_count, handle.get_stream());
@@ -469,7 +469,7 @@ gather_local_edges(
     thrust::make_counting_iterator<size_t>(0),
     thrust::make_counting_iterator<size_t>(edge_count),
     [edge_index_first      = minor_map.begin(),
-     active_majors         = active_majors_in_row.data(),
+     active_majors         = active_majors.data(),
      active_major_gpu_ids  = active_major_gpu_ids.data(),
      id_begin              = id_begin.data(),
      id_end                = id_end.data(),
@@ -558,7 +558,7 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
 gather_local_edges(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
   const rmm::device_uvector<gpu_t>& active_major_gpu_ids,
   rmm::device_uvector<typename GraphViewType::edge_type>&& minor_map,
   typename GraphViewType::edge_type indices_per_major,
@@ -567,7 +567,7 @@ gather_local_edges(
   static_assert(GraphViewType::is_multi_gpu == true);
   using vertex_t  = typename GraphViewType::vertex_type;
   using edge_t    = typename GraphViewType::edge_type;
-  auto edge_count = active_majors_in_row.size() * indices_per_major;
+  auto edge_count = active_majors.size() * indices_per_major;
   rmm::device_uvector<vertex_t> majors(edge_count, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(edge_count, handle.get_stream());
   rmm::device_uvector<gpu_t> minor_gpu_ids(edge_count, handle.get_stream());
@@ -581,7 +581,7 @@ gather_local_edges(
     thrust::make_counting_iterator<size_t>(0),
     thrust::make_counting_iterator<size_t>(edge_count),
     [edge_index_first      = minor_map.cbegin(),
-     active_majors         = active_majors_in_row.data(),
+     active_majors         = active_majors.data(),
      active_major_gpu_ids  = active_major_gpu_ids.data(),
      id_begin              = id_begin.data(),
      id_end                = id_end.data(),
@@ -703,12 +703,11 @@ typename GraphViewType::edge_type edgelist_count(raft::handle_t const& handle,
 }
 
 template <typename vertex_t>
-std::vector<vertex_t> get_active_major_segments(
-  raft::handle_t const& handle,
-  vertex_t major_first,
-  vertex_t major_last,
-  std::vector<vertex_t> const& partition_segments,
-  const rmm::device_uvector<vertex_t>& active_majors_in_row)
+std::vector<vertex_t> get_active_major_segments(raft::handle_t const& handle,
+                                                vertex_t major_first,
+                                                vertex_t major_last,
+                                                std::vector<vertex_t> const& partition_segments,
+                                                const rmm::device_uvector<vertex_t>& active_majors)
 {
   std::vector<vertex_t> segments(partition_segments.size());
   std::transform(
@@ -721,8 +720,8 @@ std::vector<vertex_t> get_active_major_segments(
   raft::update_device(p_segments.data(), segments.data(), segments.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> majors_segments(segments.size(), handle.get_stream());
   thrust::lower_bound(handle.get_thrust_policy(),
-                      active_majors_in_row.cbegin(),
-                      active_majors_in_row.cend(),
+                      active_majors.cbegin(),
+                      active_majors.cend(),
                       p_segments.begin(),
                       p_segments.end(),
                       majors_segments.begin());
@@ -738,17 +737,17 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void get_local_major_degree(
   raft::handle_t const& handle,
   matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> partition,
-  rmm::device_uvector<vertex_t> const& active_majors_in_row,
+  rmm::device_uvector<vertex_t> const& active_majors,
   std::vector<vertex_t> const& majors_segments,
   std::vector<vertex_t> const& partition_segments,
   edge_t* out_degrees)
 {
   auto active_major_count = majors_segments.back() - majors_segments.front();
-  // CSR region
+  // Sparse region
   if (majors_segments[3] - majors_segments[0] > 0) {
     thrust::transform(handle.get_thrust_policy(),
-                      active_majors_in_row.cbegin() + majors_segments[0],
-                      active_majors_in_row.cbegin() + majors_segments[3],
+                      active_majors.cbegin() + majors_segments[0],
+                      active_majors.cbegin() + majors_segments[3],
                       out_degrees,
                       [partition] __device__(auto major) {
                         auto major_offset = partition.get_major_offset_from_major_nocheck(major);
@@ -762,8 +761,8 @@ void get_local_major_degree(
       partition_segments[detail::num_sparse_segments_per_vertex_partition];
     auto major_offset = static_cast<size_t>(major_hypersparse_first - partition.get_major_first());
     thrust::transform(handle.get_thrust_policy(),
-                      active_majors_in_row.cbegin() + majors_segments[3],
-                      active_majors_in_row.cbegin() + majors_segments[4],
+                      active_majors.cbegin() + majors_segments[3],
+                      active_majors.cbegin() + majors_segments[4],
                       out_degrees + majors_segments[3] - majors_segments[0],
                       [partition, major_offset] __device__(auto major) {
                         auto major_idx =
@@ -785,11 +784,11 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
   const rmm::device_uvector<prop_t>& active_major_property,
   const rmm::device_uvector<typename GraphViewType::edge_type>& global_adjacency_list_offsets)
 {
-  // Assumes active_majors_in_row is sorted
+  // Assumes active_majors is sorted
 
   static_assert(GraphViewType::is_multi_gpu == true);
   using vertex_t = typename GraphViewType::vertex_type;
@@ -802,13 +801,13 @@ gather_one_hop_edgelist(
     auto partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.get_matrix_partition_view(i));
-    // Identify segments of active_majors_in_row
+    // Identify segments of active_majors
     active_majors_segments.emplace_back(
       get_active_major_segments(handle,
                                 partition.get_major_first(),
                                 partition.get_major_last(),
                                 *(graph_view.get_local_adj_matrix_partition_segment_offsets(i)),
-                                active_majors_in_row));
+                                active_majors));
     auto& majors_segments = active_majors_segments.back();
     // Count of active majors belonging to this partition
     max_active_major_count =
@@ -819,8 +818,7 @@ gather_one_hop_edgelist(
   auto const comm_rank = comm.get_rank();
   rmm::device_uvector<edge_t> active_majors_out_offsets(1 + max_active_major_count,
                                                         handle.get_stream());
-  auto edge_count =
-    edgelist_count(handle, graph_view, active_majors_in_row.begin(), active_majors_in_row.end());
+  auto edge_count = edgelist_count(handle, graph_view, active_majors.begin(), active_majors.end());
   rmm::device_uvector<vertex_t> majors(edge_count, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(edge_count, handle.get_stream());
   rmm::device_uvector<prop_t> minor_prop_ids(edge_count, handle.get_stream());
@@ -838,7 +836,7 @@ gather_one_hop_edgelist(
     active_majors_out_offsets.set_element_to_zero_async(0, handle.get_stream());
     get_local_major_degree(handle,
                            partition,
-                           active_majors_in_row,
+                           active_majors,
                            majors_segments,
                            *(graph_view.get_local_adj_matrix_partition_segment_offsets(i)),
                            1 + active_majors_out_offsets.data());
@@ -850,7 +848,7 @@ gather_one_hop_edgelist(
     decompress_matrix_partition_to_fill_edgelist(
       handle,
       partition,
-      active_majors_in_row.cbegin(),
+      active_majors.cbegin(),
       active_majors_out_offsets.cbegin(),
       majors_segments,
       output_offset + majors.data(),

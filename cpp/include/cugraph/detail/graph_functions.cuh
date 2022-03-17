@@ -165,7 +165,7 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
  * Collect all the edges that are present in the adjacency lists on the current gpu
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam GPUIdIterator  Type of the iterator for gpu id identifiers.
+ * @tparam gpu_t  Type of gpu id identifiers.
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
  * @param[in] graph_view Non-owning graph object.
@@ -173,11 +173,11 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
  * gpus in the column communicator
  * @param[in] active_major_gpu_ids Device vector containing the gpu id associated by every vertex
  * present in active_majors_in_row
- * @param[in] minor_map Device vector of destination indices (modifiable in-place) corresponding to
+ * @param[in] minor_map Device vector of minor indices (modifiable in-place) corresponding to
  * vertex IDs being returned
- * @param[in] indices_per_source Number of indices supplied for every source in the range
+ * @param[in] indices_per_major Number of indices supplied for every major in the range
  * [vertex_input_first, vertex_input_last)
- * @param[in] global_degree_offset Global degree offset to local adjacency list for every source
+ * @param[in] global_degree_offsets Global degree offset to local adjacency list for every major
  * represented by current gpu
  * @return A tuple of device vector containing the majors, minors, gpu_ids and indices gathered
  * locally

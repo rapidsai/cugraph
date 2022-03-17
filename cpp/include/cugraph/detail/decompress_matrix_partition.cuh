@@ -38,7 +38,7 @@ namespace detail {
 int32_t constexpr decompress_matrix_partition_block_size = 1024;
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-__global__ void for_all_major_for_all_nbr_mid_degree(
+__global__ void decompress_to_edgelist_mid_degree(
   matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,
   vertex_t major_first,
   vertex_t major_last,
@@ -67,7 +67,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-__global__ void for_all_major_for_all_nbr_high_degree(
+__global__ void decompress_to_edgelist_high_degree(
   matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,
   vertex_t major_first,
   vertex_t major_last,
@@ -111,10 +111,10 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
                                         detail::decompress_matrix_partition_block_size,
                                         handle.get_device_properties().maxGridSize[0]);
 
-      detail::for_all_major_for_all_nbr_high_degree<<<update_grid.num_blocks,
-                                                      update_grid.block_size,
-                                                      0,
-                                                      handle.get_stream()>>>(
+      detail::decompress_to_edgelist_high_degree<<<update_grid.num_blocks,
+                                                   update_grid.block_size,
+                                                   0,
+                                                   handle.get_stream()>>>(
         matrix_partition,
         matrix_partition.get_major_first(),
         matrix_partition.get_major_first() + (*segment_offsets)[1],
@@ -125,10 +125,10 @@ void decompress_matrix_partition_to_fill_edgelist_majors(
                                        detail::decompress_matrix_partition_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
 
-      detail::for_all_major_for_all_nbr_mid_degree<<<update_grid.num_blocks,
-                                                     update_grid.block_size,
-                                                     0,
-                                                     handle.get_stream()>>>(
+      detail::decompress_to_edgelist_mid_degree<<<update_grid.num_blocks,
+                                                  update_grid.block_size,
+                                                  0,
+                                                  handle.get_stream()>>>(
         matrix_partition,
         matrix_partition.get_major_first() + (*segment_offsets)[1],
         matrix_partition.get_major_first() + (*segment_offsets)[2],

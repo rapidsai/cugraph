@@ -99,19 +99,15 @@ class Tests_MG_GatherEdges
                  random_source_gpu_ids.end(),
                  comm_rank);
 
-    auto [active_sources_in_row, active_source_gpu_ids] =
+    auto [active_sources, active_source_gpu_ids] =
       cugraph::detail::gather_active_sources_in_row(handle,
                                                     mg_graph_view,
                                                     random_sources.cbegin(),
                                                     random_sources.cend(),
                                                     random_source_gpu_ids.cbegin());
 
-    auto [src, dst, gpu_ids, edge_ids] =
-      cugraph::detail::gather_one_hop_edgelist(handle,
-                                               mg_graph_view,
-                                               active_sources_in_row,
-                                               active_source_gpu_ids,
-                                               global_adjacency_list_offsets);
+    auto [src, dst, gpu_ids, edge_ids] = cugraph::detail::gather_one_hop_edgelist(
+      handle, mg_graph_view, active_sources, active_source_gpu_ids, global_adjacency_list_offsets);
 
     if (prims_usecase.check_correctness) {
       // Gather outputs
@@ -126,7 +122,7 @@ class Tests_MG_GatherEdges
       auto& col_comm         = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_rank    = col_comm.get_rank();
       auto sg_active_sources = cugraph::test::device_gatherv(
-        handle, active_sources_in_row.data(), col_rank == 0 ? active_sources_in_row.size() : 0);
+        handle, active_sources.data(), col_rank == 0 ? active_sources.size() : 0);
       auto sg_active_sources_gpu_ids = cugraph::test::device_gatherv(
         handle, active_source_gpu_ids.data(), col_rank == 0 ? active_source_gpu_ids.size() : 0);
 
