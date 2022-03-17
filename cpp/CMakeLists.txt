@@ -184,6 +184,7 @@ add_library(cugraph SHARED
     src/sampling/neighborhood.cu
     src/sampling/random_walks.cu
     src/sampling/detail/gather_utils_impl.cu
+    src/sampling/nbr_sampling_mg.cu
     src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
@@ -348,6 +349,7 @@ endif()
 
 add_library(cugraph_c SHARED
         src/c_api/cugraph_api.cpp
+        src/c_api/resource_handle.cpp
         src/c_api/array.cpp
         src/c_api/error.cpp
         src/c_api/graph_sg.cpp
