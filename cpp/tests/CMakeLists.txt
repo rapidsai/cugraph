@@ -652,6 +652,7 @@ target_link_libraries(cugraph_c_testutil
 
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
+ConfigureCTest(CAPI_HITS_TEST c_api/hits_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
 ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)
 ConfigureCTest(CAPI_EXTRACT_PATHS_TEST c_api/extract_paths_test.c)

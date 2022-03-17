@@ -18,13 +18,12 @@
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-
-#include <raft/handle.hpp>
 
 #include <optional>
 
@@ -44,31 +43,37 @@ struct cugraph_hits_result_t {
 
 namespace {
 
-struct hits_functor : public abstract_functor {
+struct hits_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
-  cugraph_graph_t* graph_;
+  cugraph::c_api::cugraph_graph_t* graph_;
   double epsilon_;
   size_t max_iterations_;
-  cugraph_type_erased_device_array_view_t const* initial_hubs_guess_vertices_;
-  cugraph_type_erased_device_array_view_t const* initial_hubs_guess_values_;
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* initial_hubs_guess_vertices_;
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* initial_hubs_guess_values_;
+  bool normalize_;
   bool do_expensive_check_;
-  cugraph_hits_result_t* result_{};
+  cugraph::c_api::cugraph_hits_result_t* result_{};
 
   hits_functor(::cugraph_resource_handle_t const* handle,
                ::cugraph_graph_t* graph,
-               ::cugraph_type_erased_device_array_view_t const* personalization_values,
                double epsilon,
                size_t max_iterations,
-               ::cugraph_type_erased_device_array_view_t const* initial_hubs_guess,
+               ::cugraph_type_erased_device_array_view_t const* initial_hubs_guess_vertices,
+               ::cugraph_type_erased_device_array_view_t const* initial_hubs_guess_values,
+               bool normalize,
                bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       epsilon_(epsilon),
       max_iterations_(max_iterations),
-      inital_hubs_guess_(
+      initial_hubs_guess_vertices_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-          inital_hubs_guess)),
+          initial_hubs_guess_vertices)),
+      initial_hubs_guess_values_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          initial_hubs_guess_values)),
+      normalize_(normalize),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -99,11 +104,11 @@ struct hits_functor : public abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph->get_number_of_local_vertices(),
+      rmm::device_uvector<vertex_t> vertex_ids(graph_view.get_number_of_local_vertices(),
                                                handle_.get_stream());
-      rmm::device_uvector<weight_t> hubs(graph->get_number_of_local_vertices(),
+      rmm::device_uvector<weight_t> hubs(graph_view.get_number_of_local_vertices(),
                                          handle_.get_stream());
-      rmm::device_uvector<weight_t> authorities(graph->get_number_of_local_vertices(),
+      rmm::device_uvector<weight_t> authorities(graph_view.get_number_of_local_vertices(),
                                                 handle_.get_stream());
       weight_t hub_score_differences{0};
       size_t number_of_iterations{0};
@@ -143,10 +148,10 @@ struct hits_functor : public abstract_functor {
       unsupported();
 #endif
 
-      result_ = new cugraph_hits_result_t{
-        new cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
-        new cugraph_type_erased_device_array_t(hubs, graph_->weight_type_),
-        new cugraph_type_erased_device_array_t(authorities, graph_->weight_type_),
+      result_ = new cugraph::c_api::cugraph_hits_result_t{
+        new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(hubs, graph_->weight_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(authorities, graph_->weight_type_),
         hub_score_differences,
         number_of_iterations};
     }
@@ -207,6 +212,7 @@ extern "C" cugraph_error_code_t cugraph_hits(
   size_t max_iterations,
   const cugraph_type_erased_device_array_view_t* initial_hubs_guess_vertices,
   const cugraph_type_erased_device_array_view_t* initial_hubs_guess_values,
+  bool_t normalize,
   bool_t do_expensive_check,
   cugraph_hits_result_t** result,
   cugraph_error_t** error)
@@ -217,6 +223,7 @@ extern "C" cugraph_error_code_t cugraph_hits(
                        max_iterations,
                        initial_hubs_guess_vertices,
                        initial_hubs_guess_values,
+                       normalize,
                        do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
