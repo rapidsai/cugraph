@@ -48,7 +48,7 @@ export DATASETS_DIR=${WORKSPACE}/datasets
 export BENCHMARKS_DIR=${WORKSPACE}/benchmarks
 
 # ucx-py version
-export UCX_PY_VERSION='0.25.*'
+export UCX_PY_VERSION='0.26.*'
 
 ##########################################
 # Environment Setup                      #
