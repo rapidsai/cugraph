@@ -117,11 +117,11 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_global_adjacency_offs
 template <typename GraphViewType, typename VertexIterator, typename GPUIdIterator>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename std::iterator_traits<GPUIdIterator>::value_type>>
-gather_active_majors_in_row(raft::handle_t const& handle,
-                            GraphViewType const& graph_view,
-                            VertexIterator vertex_input_first,
-                            VertexIterator vertex_input_last,
-                            GPUIdIterator gpu_id_first);
+gather_active_majors(raft::handle_t const& handle,
+                     GraphViewType const& graph_view,
+                     VertexIterator vertex_input_first,
+                     VertexIterator vertex_input_last,
+                     GPUIdIterator gpu_id_first);
 
 /**
  * @brief Return global out degrees of active majors
@@ -182,10 +182,10 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
  * @param[in] graph_view Non-owning graph object.
- * @param[in] active_majors_in_row Device vector containing all the vertex id that are processed by
+ * @param[in] active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
  * @param[in] active_major_gpu_ids Device vector containing the gpu id associated by every vertex
- * present in active_majors_in_row
+ * present in active_majors
  * @param[in] minor_map Device vector of minor indices (modifiable in-place) corresponding to
  * vertex IDs being returned
  * @param[in] indices_per_major Number of indices supplied for every major in the range
@@ -203,7 +203,7 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
 gather_local_edges(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
   const rmm::device_uvector<gpu_t>& active_major_gpu_ids,
   rmm::device_uvector<typename GraphViewType::edge_type>&& minor_map,
   typename GraphViewType::edge_type indices_per_major,
@@ -220,10 +220,10 @@ gather_local_edges(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param active_majors_in_row Device vector containing all the vertex id that are processed by
+ * @param active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
  * @param active_major_property Device vector containing the property values associated by every
- * vertex present in active_majors_in_row
+ * vertex present in active_majors
  * @return A tuple of device vector containing the majors, minors and properties gathered locally
  */
 template <typename GraphViewType, typename prop_t>
@@ -234,7 +234,7 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
   const rmm::device_uvector<prop_t>& active_major_property,
   const rmm::device_uvector<typename GraphViewType::edge_type>& global_adjacency_list_offsets);
 

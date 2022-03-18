@@ -364,8 +364,8 @@ uniform_nbr_sample_impl(
       //{
       // prep step for extracting out-degs(sources):
       //
-      auto&& [d_new_in, d_new_rank] = gather_active_majors_in_row(
-        handle, graph_view, d_in.cbegin(), d_in.cend(), d_ranks.cbegin());
+      auto&& [d_new_in, d_new_rank] =
+        gather_active_majors(handle, graph_view, d_in.cbegin(), d_in.cend(), d_ranks.cbegin());
 
       auto in_sz = d_in.size();
       if (in_sz > 0) {

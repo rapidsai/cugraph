@@ -100,11 +100,11 @@ class Tests_MG_GatherEdges
                  comm_rank);
 
     auto [active_sources, active_source_gpu_ids] =
-      cugraph::detail::gather_active_majors_in_row(handle,
-                                                   mg_graph_view,
-                                                   random_sources.cbegin(),
-                                                   random_sources.cend(),
-                                                   random_source_gpu_ids.cbegin());
+      cugraph::detail::gather_active_majors(handle,
+                                            mg_graph_view,
+                                            random_sources.cbegin(),
+                                            random_sources.cend(),
+                                            random_source_gpu_ids.cbegin());
 
     auto [src, dst, gpu_ids, edge_ids] = cugraph::detail::gather_one_hop_edgelist(
       handle, mg_graph_view, active_sources, active_source_gpu_ids, global_adjacency_list_offsets);

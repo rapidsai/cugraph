@@ -242,11 +242,11 @@ get_global_degree_information(raft::handle_t const& handle, GraphViewType const&
 template <typename GraphViewType, typename VertexIterator, typename GPUIdIterator>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename std::iterator_traits<GPUIdIterator>::value_type>>
-gather_active_majors_in_row(raft::handle_t const& handle,
-                            GraphViewType const& graph_view,
-                            VertexIterator vertex_input_first,
-                            VertexIterator vertex_input_last,
-                            GPUIdIterator gpu_id_first)
+gather_active_majors(raft::handle_t const& handle,
+                     GraphViewType const& graph_view,
+                     VertexIterator vertex_input_first,
+                     VertexIterator vertex_input_last,
+                     GPUIdIterator gpu_id_first)
 {
   static_assert(GraphViewType::is_multi_gpu == true);
   static_assert(GraphViewType::is_adj_matrix_transposed == false);
