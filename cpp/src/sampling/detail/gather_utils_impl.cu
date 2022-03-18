@@ -108,46 +108,46 @@ template rmm::device_uvector<int64_t> get_global_adjacency_offset(
   rmm::device_uvector<int64_t> const& global_out_degrees);
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-gather_active_sources_in_row(raft::handle_t const& handle,
-                             graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
-                             int32_t const* vertex_input_first,
-                             int32_t const* vertex_input_last,
-                             int32_t const* gpu_id_first);
+gather_active_majors_in_row(raft::handle_t const& handle,
+                            graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+                            int32_t const* vertex_input_first,
+                            int32_t const* vertex_input_last,
+                            int32_t const* gpu_id_first);
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-gather_active_sources_in_row(raft::handle_t const& handle,
-                             graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
-                             int32_t const* vertex_input_first,
-                             int32_t const* vertex_input_last,
-                             int32_t const* gpu_id_first);
+gather_active_majors_in_row(raft::handle_t const& handle,
+                            graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+                            int32_t const* vertex_input_first,
+                            int32_t const* vertex_input_last,
+                            int32_t const* gpu_id_first);
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-gather_active_sources_in_row(raft::handle_t const& handle,
-                             graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
-                             int32_t const* vertex_input_first,
-                             int32_t const* vertex_input_last,
-                             int32_t const* gpu_id_first);
+gather_active_majors_in_row(raft::handle_t const& handle,
+                            graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+                            int32_t const* vertex_input_first,
+                            int32_t const* vertex_input_last,
+                            int32_t const* gpu_id_first);
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-gather_active_sources_in_row(raft::handle_t const& handle,
-                             graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
-                             int32_t const* vertex_input_first,
-                             int32_t const* vertex_input_last,
-                             int32_t const* gpu_id_first);
+gather_active_majors_in_row(raft::handle_t const& handle,
+                            graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+                            int32_t const* vertex_input_first,
+                            int32_t const* vertex_input_last,
+                            int32_t const* gpu_id_first);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>>
-gather_active_sources_in_row(raft::handle_t const& handle,
-                             graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
-                             int64_t const* vertex_input_first,
-                             int64_t const* vertex_input_last,
-                             int32_t const* gpu_id_first);
+gather_active_majors_in_row(raft::handle_t const& handle,
+                            graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+                            int64_t const* vertex_input_first,
+                            int64_t const* vertex_input_last,
+                            int32_t const* gpu_id_first);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>>
-gather_active_sources_in_row(raft::handle_t const& handle,
-                             graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
-                             int64_t const* vertex_input_first,
-                             int64_t const* vertex_input_last,
-                             int32_t const* gpu_id_first);
+gather_active_majors_in_row(raft::handle_t const& handle,
+                            graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+                            int64_t const* vertex_input_first,
+                            int64_t const* vertex_input_last,
+                            int32_t const* gpu_id_first);
 
 template rmm::device_uvector<int32_t> get_active_major_global_degrees(
   raft::handle_t const& handle,

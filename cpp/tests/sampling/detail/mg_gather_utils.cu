@@ -101,11 +101,11 @@ class Tests_MG_GatherEdges
                  comm_rank);
 
     auto [active_sources, active_source_gpu_ids] =
-      cugraph::detail::gather_active_sources_in_row(handle,
-                                                    mg_graph_view,
-                                                    random_sources.cbegin(),
-                                                    random_sources.cend(),
-                                                    random_source_gpu_ids.cbegin());
+      cugraph::detail::gather_active_majors_in_row(handle,
+                                                   mg_graph_view,
+                                                   random_sources.cbegin(),
+                                                   random_sources.cend(),
+                                                   random_source_gpu_ids.cbegin());
 
     // get source global out degrees to generate indices
     auto active_source_degrees = cugraph::detail::get_active_major_global_degrees(
@@ -243,16 +243,12 @@ TEST_P(Tests_MG_GatherEdges_Rmat, CheckInt64Int64Float)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MG_GatherEdges_File,
-  ::testing::Combine(::testing::Values(Prims_Usecase{true}),
-#if 1
-                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
-#else
-                     ::testing::Values(
-                       cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
-#endif
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
