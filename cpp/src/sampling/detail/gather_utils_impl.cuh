@@ -635,12 +635,14 @@ gather_local_edges(
       auto location        = location_in_segment + vertex_count_offsets[partition_id];
       auto g_degree_offset = global_degree_offsets[location];
       auto g_dst_index     = edge_index_first[index];
+
       if ((g_dst_index >= g_degree_offset) && (g_dst_index < g_degree_offset + local_out_degree)) {
         minors[index] = adjacency_list[g_dst_index - g_degree_offset];
       } else {
         minors[index] = invalid_vertex_id;
       }
     });
+
   auto input_iter = thrust::make_zip_iterator(
     thrust::make_tuple(majors.begin(), minors.begin(), minor_gpu_ids.begin(), minor_map.begin()));
 

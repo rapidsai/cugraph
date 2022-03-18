@@ -252,6 +252,40 @@ function(ConfigureCTest CMAKE_TEST_NAME)
             EXCLUDE_FROM_ALL)
 endfunction()
 
+function(ConfigureCTestMG CMAKE_TEST_NAME)
+    add_executable(${CMAKE_TEST_NAME} ${ARGN})
+
+    target_link_libraries(${CMAKE_TEST_NAME}
+        PRIVATE
+            cugraph::cugraph_c
+            cugraph_c_testutil
+            GTest::gtest
+            GTest::gtest_main
+            NCCL::NCCL
+            MPI::MPI_CXX
+    )
+
+    add_test(NAME ${CMAKE_TEST_NAME}
+             COMMAND ${MPIEXEC_EXECUTABLE}
+             "--noprefix"
+             ${MPIEXEC_NUMPROC_FLAG}
+             ${GPU_COUNT}
+             ${MPIEXEC_PREFLAGS}
+             ${CMAKE_TEST_NAME}
+             ${MPIEXEC_POSTFLAGS})
+
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+
+        install(
+            TARGETS ${CMAKE_TEST_NAME}
+            COMPONENT testing
+            DESTINATION bin/gtests/libcugraph_c
+            EXCLUDE_FROM_ALL)
+endfunction()
+
+
 ###################################################################################################
 # - set rapids dataset path ----------------------------------------------------------------------
 
@@ -589,7 +623,7 @@ endif()
 # - common C API test utils -----------------------------------------------------------------------------
 
 add_library(cugraph_c_testutil STATIC
-            c_api/test_utils.c)
+            c_api/test_utils.cpp)
 
 target_compile_options(cugraph_c_testutil
             PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
@@ -610,9 +644,12 @@ target_link_libraries(cugraph_c_testutil
 )
 
 
-ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE_TEST c_api/create_sg_graph_envelope_test.c)
+# FIXME: Disabling these tests, they test an older version of the API which
+#        will be deleted in this release.  Leaving them here to help me remember :-)
+#ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE_TEST c_api/create_sg_graph_envelope_test.c)
+#ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
+
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
-ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
 ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)

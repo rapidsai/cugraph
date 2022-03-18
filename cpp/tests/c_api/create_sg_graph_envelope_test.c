@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ int test_create_sg_graph_simple()
   data_type_id_t edge_tid   = INT32;
   data_type_id_t weight_tid = FLOAT32;
 
-  p_handle = cugraph_create_resource_handle();
+  p_handle = cugraph_create_resource_handle(NULL);
   runtime_assert(p_handle != NULL, "resource handle creation failed.");
 
   ret_code = cugraph_make_device_buffer(p_handle, vertex_tid, num_edges, &dbuf_src);
