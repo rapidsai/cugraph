@@ -171,7 +171,7 @@ def test_node2vec_new(
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2", renumber=False)
     num_verts = G.number_of_vertices()
     if graph_file == KARATE:
-        k = 5
+        k = 6
         # start_vertices = random.sample(range(num_verts), k)
         start_vertices = [12, 28, 20, 23, 15, 26]
     else:
