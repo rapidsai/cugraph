@@ -410,9 +410,11 @@ typedef struct {
  * results so that the result can be properly organized when the input needs to be sent back to
  * different callers (different processes or different gpus).
  * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm
- * @param [in]  without_replacement
- *                           Boolean value.  If true selection of edges is done without
- *                           replacement.  If false selection is done with replacement.
+ * @param [in]  with_replacement
+ *                           Boolean value.  If true selection of edges is done with
+ *                           replacement.  If false selection is done without replacement.
+ * @param [in]  do_expensive_check
+ *                           A flag to run expensive checks for input arguments (if set to true)
  * @param [in]  result       Output from the uniform_nbr_sample call
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
@@ -424,6 +426,7 @@ cugraph_error_code_t uniform_nbr_sample(const cugraph_resource_handle_t* handle,
                                         const cugraph_type_erased_device_array_view_t* start_label,
                                         const cugraph_type_erased_host_array_view_t* fan_out,
                                         bool_t without_replacement,
+                                        bool_t do_expensive_check,
                                         cugraph_sample_result_t** result,
                                         cugraph_error_t** error);
 

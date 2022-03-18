@@ -53,6 +53,7 @@ namespace {
   cugraph_type_erased_device_array_view_t const* start_label_{nullptr};
   cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
   bool with_replacement_{false};
+  bool do_expensive_check_{false};
   cugraph_sample_result_t* result_{nullptr};
 
   uniform_neighbor_sampling_functor(::cugraph_resource_handle_t const* handle,
@@ -60,7 +61,8 @@ namespace {
                                     ::cugraph_type_erased_device_array_view_t const* start,
                                     ::cugraph_type_erased_device_array_view_t const* start_label,
                                     ::cugraph_type_erased_host_array_view_t const* fan_out,
-                                    bool without_replacement)
+                                    bool with_replacement,
+                                    bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
@@ -70,7 +72,8 @@ namespace {
         start_label)),
       fan_out_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(
                                                                                               fan_out)),
-      without_replacement_(without_replacement)
+      with_replacement_(with_replacement),
+      do_expensive_check_(do_expensive_check)
   {
   }
 
@@ -161,7 +164,8 @@ extern "C" cugraph_error_code_t uniform_nbr_sample(
   const cugraph_type_erased_device_array_view_t* start,
   const cugraph_type_erased_device_array_view_t* start_labels,
   const cugraph_type_erased_host_array_view_t* fan_out,
-  bool_t without_replacement,
+  bool_t with_replacement,
+  bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
 {
