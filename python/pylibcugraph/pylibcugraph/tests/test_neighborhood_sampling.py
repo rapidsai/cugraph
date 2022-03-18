@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
+# import pytest
 import cupy as cp
 import numpy as np
 
@@ -43,9 +43,23 @@ def test_neighborhood_sampling(sg_graph_objs):
 
     (data) = _test_data[ds_name].values()
     # (path_tuples) = _test_data[ds_name].values()
-    # (edge, rx_counts) = path_tuples 
-    result = uniform_neighborhood_sampling(0,0,0,0)
-    # result = uniform_neighborhood_sampling(G, start_info_list, fanout_vals, with_replacement=True)
+    # (edge, rx_counts) = path_tuples
+    result = uniform_neighborhood_sampling(0, 0, 0, 0)
+    # result = uniform_neighborhood_sampling(G, start_info_list, fanout_vals,
+    #                                        with_replacement=True)
     expected = data
 
-    assert expected == data
+    assert expected == result
+
+
+def test_mg_nbr_sampling():
+    """
+    This test attempts to be as faithful as possible to
+    tests/sampling/detail/mg_nbr_sampling.cu in libcugraph.
+    """
+    # 1. Initialize handle
+    # 2. Create MG graph
+    # 3. Generate random vertex ids in the range of current gpu, and generate
+    #    generate random sources to gather on
+    # 4. Gather input
+    assert True
