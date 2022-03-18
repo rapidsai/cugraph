@@ -29,7 +29,7 @@ DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
 # KARATE = DATASETS_SMALL[0][0][0]
 # Temporary for bug squashing
 KARATE = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv"
-LINE = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"small_line.csv"
+LINE = "cugraph/cugraph/tests/small_line.csv"
 
 
 # =============================================================================
