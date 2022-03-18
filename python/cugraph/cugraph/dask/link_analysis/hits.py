@@ -14,6 +14,7 @@
 #
 
 from dask.distributed import wait, default_client
+from cugraph.dask.common.input_utils import get_distributed_data
 
 import cugraph.comms.comms as Comms
 import dask_cudf
@@ -22,18 +23,47 @@ from dask_cudf.core import DataFrame as dcDataFrame
 from pylibcugraph.experimental import (ResourceHandle,
                                        GraphProperties,
                                        MGGraph,
-                                       hits,
                                        )
 
 
-def call_MGGraph():
-    srcs = part.columns[0]
-    dsts = part.columns[1]
-    weights = part.columns[2]
-    # FIXME Only float 32 supported. is it still true ?
-    weights = weights.astype("float32")
+def call_MGGraph(resource_handle,
+                 graph_properties,
+                 data,
+                 store_transposed,
+                 num_edges,
+                 do_expensive_check,
+                 ):
 
-def hits(data, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
+    srcs = data[0]["renumbered_src"]
+    dsts = data[0]["renumbered_dst"]
+    
+    # FIXME: Check for the existence of a weight column
+    weights = data[0]["value"]
+
+    return MGGraph(resource_handle,
+                   graph_properties,
+                   srcs,
+                   dsts,
+                   weights,
+                   store_transposed,
+                   num_edges,
+                   do_expensive_check)
+
+def call_hits(resource_handle,
+              g,
+              tolerance,
+              max_iter,
+              n_start,
+              normalized)
+    return pylibcugraph.experimental.hits(resource_handle,
+                                          g,
+                                          tolerance,
+                                          max_iter,
+                                          n_start,
+                                          normalized)
+
+
+def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     """
     Compute HITS hubs and authorities values for each vertex
 
@@ -50,80 +80,112 @@ def hits(data, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
 
     Parameters
     ----------
-    # FIXME: Should one of the input be a dask_cudf or a cugraph.Graph
-    data : cugraph.Graph or dask_cudf
+
+    input_graph : cugraph.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm).
         The adjacency list will be computed if not already present.
 
-    max_iter : int, optional (default=100)
-        The maximum number of iterations before an answer is returned.
-        The gunrock implementation does not currently support tolerance,
-        so this will in fact be the number of iterations the HITS algorithm
-        executes.
-
     tol : float, optional (default=1.0e-5)
         Set the tolerance the approximation, this parameter should be a small
-        magnitude value.  This parameter is not currently supported.
+        magnitude value.
+
+    max_iter : int, optional (default=100)
+        The maximum number of iterations before an answer is returned.
 
     nstart : cudf.Dataframe, optional (default=None)
-        Not currently supported
+        The intial hubs guess vertices along with their intial hubs guess
+        value
+
+        nstart['vertex'] : cudf.Series
+            Intial hubs guess vertices
+        nstart['values'] : cudf.Series
+            intial hubs guess value
 
     normalized : bool, optional (default=True)
-        Not currently supported, always used as True
+        A flag to normalize the results
 
     Returns
     -------
-    # FIXME Maybe a dask_cudf to be compatible with the tests?
+    HubsAndAuthorities : dask_cudf.DataFrame
+        GPU data frame containing three cudf.Series of size V: the vertex
+        identifiers and the corresponding hubs values and the corresponding
+        authorities values.
 
-    A tuple of device arrays, where the third item in the tuple is a device
-    array containing the vertex identifiers, the first and second items are device
-    arrays containing respectively the hubs and authorities values for the corresponding
-    vertices
+        df['vertex'] : dask_cudf.Series
+            Contains the vertex identifiers
+        df['hubs'] : dask_cudf.Series
+            Contains the hubs score
+        df['authorities'] : dask_cudf.Series
+            Contains the authorities score
+
+    Examples
+    --------
+    >>> # import cugraph.dask as dcg
+    >>> # ... Init a DASK Cluster
+    >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
+    >>> # chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
+    >>> # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize)
+    >>> # dg = cugraph.Graph(directed=True)
+    >>> # dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
+    >>> #                            edge_attr='value')
+    >>> # hits = dcg.hits(dg, max_iter = 50)
+
     """
+
+    client = default_client()
+
+    #FIXME Still compute renumbering at this layer in case str vertex ID are passed
+    input_graph.compute_renumber_edge_list(transposed=False)
+    ddf = input_graph.edgelist.edgelist_df
+
     resource_handle = ResourceHandle()
-    graph_properties = GraphProperties(is_symmetric=False, is_multigraph=False)
-    input_type = type(data)
+    graph_properties = GraphProperties(is_multigraph=False)
 
-    # FIXME The 'data' can be represented as a cugraph.Graph or dask_cudf
-    # Should cudf or other input type(cupy, ...) be also supported? if yes probably do that outside the algo call?
-    if isinstance(data, Graph):
-        # If the user alreday renumbered the data with Graph.compute_renumber_edge_list(), still take the unrenumbered
-        # df and which will be renumbered when creating the pylibcugraph mg_graph 
-        edgelist_df = data.input_df
+    store_transposed = False
+    do_expensive_check = False
+    num_edges = len(ddf)
+
+    data = get_distributed_data(ddf)
+
+    mg = [client.submit(call_MGGraph, 
+                        resource_handle, part) for part in parts]
+
+    # FIXME: This will return a list of futures. What to do next because the results
+    # are still in distributed memory?
+    mg_result = [client.submit(call_MGGraph,
+                               resource_handle,
+                               graph_properties,
+                               wf[1],
+                               store_transposed,
+                               num_edges,
+                               do_expensive_check,
+                               workers=[wf[0]])
+                 for idx, wf in enumerate(data.worker_to_parts.items())]
+
+    wait(mg_result)
+    # Bring the results back? Will the results be different (each piece of the graph)
+    # or will all futures point to the same graph as a whole?
+    mg = client.gather(mg_result)
+
+    # FIXME: assumption that each future is pointing to a part of the graph
+    result = [client.submit(call_hits,
+                          g,
+                          tolerance,
+                          max_iter,
+                          n_start,
+                          normalized
+                          workers=[client.who_has(g)])
+              for g in mg]
+    wait(result)
+    ddf = dask_cudf.from_delayed(result)
+    if input_graph.renumbered:
+        return input_graph.unrenumber(ddf, 'vertex')
     
-    # FIXME This assume only 3 columns in the following order source, destination and edge attribute
-    elif isinstance(data, dcDataFrame):
-        edgelist_df = data
-    
-    # FIXME Only cugraph.Graph and dask_cudf are supported now
-    else:
-        raise TypeError("input must be either a cuGraph or dask_cudf graph "
-                        f"type, got {input_type}")
-
-    # Extract srcs, dsts and weights
-    # srcs = edgelist_df["src"]
-    # dsts = edgelist_df["dst"]
-    # weights = edgelist_df["weight"]
-    # weights = weights.astype("float32")
+    return ddf
 
     
-
-    # FIXME: Make sure this is freed by the gc.collect
-    data = []
-
-    worker_list = Comms.get_workers()
-
-    persisted = [client.persist(
-                edgelist_df.get_partition(p), workers=w) for p, w in enumerate(
-                    worker_list)]
-    parts = futures_of(persisted)
-    wait(parts)
-
-    G = [client.submit(call_MGGraph, part) for part in parts]
-
-
-    #G = call_MGGraph()
 
 
 
