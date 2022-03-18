@@ -29,6 +29,7 @@ DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
 # KARATE = DATASETS_SMALL[0][0][0]
 # Temporary for bug squashing
 KARATE = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv"
+DOLPHIN = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"dolphins.csv"
 LINE = "cugraph/cugraph/tests/small_line.csv"
 
 
@@ -66,6 +67,7 @@ def calc_node2vec(G,
 
     vertex_paths, edge_weights, vertex_path_sizes = cugraph.node2vec(
         G, start_vertices, max_depth, compress_result, p, q)
+    #breakpoint()
     return (vertex_paths, edge_weights, vertex_path_sizes), start_vertices
 
 
@@ -151,7 +153,8 @@ def test_node2vec_renumbered(store_transposed, renumbered, do_expensive_check):
 """
 
 
-@pytest.mark.parametrize("graph_file", [KARATE, LINE])
+
+@pytest.mark.parametrize("graph_file", [KARATE, DOLPHIN, LINE])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("compress", [True, False])
 def test_node2vec_new(
@@ -159,12 +162,18 @@ def test_node2vec_new(
     directed,
     compress
 ):
-    G = utils.generate_cugraph_graph_from_file(graph_file, directed=directed,
-                                               edgevals=True)
+    #G = utils.generate_cugraph_graph_from_file(graph_file, directed=directed,
+    #                                           edgevals=True)
+    cu_M = utils.read_csv_file(graph_file)
+
+    G = cugraph.Graph(directed=directed)
+
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2", renumber=False)
     num_verts = G.number_of_vertices()
     if graph_file == KARATE:
-        k = random.randint(1, 7)
-        start_vertices = random.sample(range(num_verts), k)
+        k = 5
+        # start_vertices = random.sample(range(num_verts), k)
+        start_vertices = [12, 28, 20, 23, 15, 26]
     else:
         k = 3
         start_vertices = [3, 6, 9]
@@ -178,6 +187,7 @@ def test_node2vec_new(
         q=0.5
     )
     vertex_paths, edge_weights, vertex_path_sizes = df
+
     if compress:
         # Paths are coalesced, meaning vertex_path_sizes is nonempty. It's
         # necessary to use in order to track starts of paths

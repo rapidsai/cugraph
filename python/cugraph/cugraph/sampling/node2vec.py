@@ -121,7 +121,7 @@ def node2vec(G,
     graph_props = pylibcugraph.experimental.GraphProperties(
                     is_multigraph=G.is_multigraph())
     store_transposed = False
-    renumber = False
+    renumber = G.renumbered
     do_expensive_check = False
 
     # FIXME: If input graph is not renumbered, then SGGraph creation
@@ -135,6 +135,7 @@ def node2vec(G,
     vertex_set, edge_set, sizes = pylibcugraph.experimental.node2vec(
                                     resource_handle, sg, start_vertices,
                                     max_depth, compress_result, p, q)
+    #breakpoint()
     vertex_set = cudf.Series(vertex_set)
     edge_set = cudf.Series(edge_set)
     sizes = cudf.Series(sizes)

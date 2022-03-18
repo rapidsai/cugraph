@@ -168,12 +168,12 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
         cugraph_random_walk_result_get_weights(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* path_sizes_ptr = \
         cugraph_random_walk_result_get_path_sizes(result_ptr)
-
+    #breakpoint()
     cupy_paths = copy_to_cupy_array(c_resource_handle_ptr, paths_ptr)
     cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
     cupy_path_sizes = copy_to_cupy_array(c_resource_handle_ptr,
                                            path_sizes_ptr)
-
+    #breakpoint()
     cugraph_random_walk_result_free(result_ptr)
 
     return (cupy_paths, cupy_weights, cupy_path_sizes)
