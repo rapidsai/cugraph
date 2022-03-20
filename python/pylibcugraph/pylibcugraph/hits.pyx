@@ -14,7 +14,9 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from pylibcugraph._cugraph_c.cugraph_api cimport (
+from libc.stdint cimport uintptr_t
+
+from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
     data_type_id_t,
     cugraph_resource_handle_t,
@@ -25,14 +27,16 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
+    cugraph_type_erased_device_array_view_create,
+    cugraph_type_erased_device_array_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 # FIXME: update this with corresponding HITS
 from pylibcugraph._cugraph_c.algorithms cimport (
-    cugraph_hits_result_t,
     cugraph_hits,
+    cugraph_hits_result_t,
     cugraph_hits_result_get_vertices,
     cugraph_hits_result_get_hubs,
     cugraph_hits_result_get_authorities,
@@ -51,7 +55,8 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
-    copy_to_cupy_array,
+    copy_to_cudf_series,
+    get_c_type_from_numpy_type
 )
 
 # FIXME: nstart is not supported in sg_hits, check if it is the case
@@ -61,7 +66,7 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
                        double tol,
                        size_t max_iter,
                        initial_hubs_guess_vertices,
-                       initial_hubs_guess_value,
+                       initial_hubs_guess_values,
                        bool_t normalized,
                        bool_t do_expensive_check):
     """
@@ -119,9 +124,9 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
 
     # FIXME: Get rid of the unused imports
     try:
-        import cupy
+        import cudf
     except ModuleNotFoundError:
-        raise RuntimeError("hits requires the cupy package, which could "
+        raise RuntimeError("hits requires the cudf package, which could "
                            "not be imported")
     try:
         import numpy
@@ -183,10 +188,10 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* authorities_ptr = \
         cugraph_hits_result_get_authorities(result_ptr)
 
-    cudf_series_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
-    cudf_series_hubs = copy_to_cupy_array(c_resource_handle_ptr, hubs_ptr)
-    cudf_series_authorities = copy_to_cupy_array(c_resource_handle_ptr,
-                                           authorities_sizes_ptr)
+    cudf_series_vertices = copy_to_cudf_series(c_resource_handle_ptr, vertices_ptr)
+    cudf_series_hubs = copy_to_cudf_series(c_resource_handle_ptr, hubs_ptr)
+    cudf_series_authorities = copy_to_cudf_series(c_resource_handle_ptr,
+                                           authorities_ptr)
     
     df = cudf.DataFrame()
     df["vertex"] = cudf_series_vertices

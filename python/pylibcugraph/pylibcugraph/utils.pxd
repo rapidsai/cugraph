@@ -40,3 +40,7 @@ cdef get_c_type_from_numpy_type(numpy_type)
 cdef copy_to_cupy_array(
    cugraph_resource_handle_t* c_resource_handle_ptr,
    cugraph_type_erased_device_array_view_t* device_array_view_ptr)
+
+cdef copy_to_cudf_series(
+   cugraph_resource_handle_t* c_resource_handle_ptr,
+   cugraph_type_erased_device_array_view_t* device_array_view_ptr)

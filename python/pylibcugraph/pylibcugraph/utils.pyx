@@ -142,7 +142,7 @@ cdef copy_to_cudf_series(
         device_array_view_ptr)
 
     cudf_series = cudf.Series(
-        np.zeros(array_size, dtype=get_numpy_type_from_c_type(c_type)))
+        numpy.zeros(array_size, dtype=get_numpy_type_from_c_type(c_type)))
 
     cdef uintptr_t cudf_series_ptr = \
         cudf_series.__cuda_array_interface__["data"][0]

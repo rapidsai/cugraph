@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from .link_analysis.pagerank import pagerank
+from .link_analysis.hits import hits
 from .traversal.bfs import bfs
 from .traversal.sssp import sssp
 from .common.read_utils import get_chunksize
