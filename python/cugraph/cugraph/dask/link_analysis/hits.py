@@ -20,47 +20,54 @@ import cugraph.comms.comms as Comms
 import dask_cudf
 from dask_cudf.core import DataFrame as dcDataFrame
 
+import pylibcugraph
 from pylibcugraph.experimental import (ResourceHandle,
                                        GraphProperties,
-                                       MGGraph,
-                                       )
+                                       MGGraph)
 
 
-def call_MGGraph(resource_handle,
-                 graph_properties,
-                 data,
-                 store_transposed,
-                 num_edges,
-                 do_expensive_check,
-                 ):
-
-    srcs = data[0]["renumbered_src"]
-    dsts = data[0]["renumbered_dst"]
-    
-    # FIXME: Check for the existence of a weight column
-    weights = data[0]["value"]
-
-    return MGGraph(resource_handle,
-                   graph_properties,
-                   srcs,
-                   dsts,
-                   weights,
-                   store_transposed,
-                   num_edges,
-                   do_expensive_check)
-
-def call_hits(resource_handle,
-              g,
+def call_hits(sID,
+              data,
+              src_col_name,
+              dst_col_name,
+              graph_properties,
+              store_transposed,
+              num_edges,
+              do_expensive_check,
               tolerance,
               max_iter,
-              n_start,
-              normalized)
-    return pylibcugraph.experimental.hits(resource_handle,
-                                          g,
-                                          tolerance,
-                                          max_iter,
-                                          n_start,
-                                          normalized)
+              initial_hubs_guess_vertices,
+              initial_hubs_guess_value,
+              normalized):
+    
+    handle = Comms.get_handle(sID)
+    h = pylibcugraph.handle_create(handle)
+    srcs = data[0][src_col_name]
+    dsts = data[0][dst_col_name]
+    weights = None
+    if "value" in data.columns:
+        weights = data[0]['value']
+
+    mg = MGGraph(h,
+                 graph_properties,
+                 srcs,
+                 dsts,
+                 weigths,
+                 store_transposed,
+                 num_edges,
+                 do_expensive_check)
+
+    result = pylibcugraph.experimental.hits(h,
+                                            mg,
+                                            tolerance,
+                                            max_iter,
+                                            initial_hubs_guess_vertices,
+                                            initial_hubs_guess_value,
+                                            normalized,
+                                            do_expensive_check)
+    
+    pylibcugraph.free_handle(handle)
+    return result
 
 
 def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
@@ -94,13 +101,13 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
         The maximum number of iterations before an answer is returned.
 
     nstart : cudf.Dataframe, optional (default=None)
-        The intial hubs guess vertices along with their intial hubs guess
+        The initial hubs guess vertices along with their initial hubs guess
         value
 
         nstart['vertex'] : cudf.Series
             Intial hubs guess vertices
         nstart['values'] : cudf.Series
-            intial hubs guess value
+            Intial hubs guess values
 
     normalized : bool, optional (default=True)
         A flag to normalize the results
@@ -140,7 +147,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     input_graph.compute_renumber_edge_list(transposed=False)
     ddf = input_graph.edgelist.edgelist_df
 
-    resource_handle = ResourceHandle()
+    #resource_handle = ResourceHandle()
     graph_properties = GraphProperties(is_multigraph=False)
 
     store_transposed = False
@@ -148,37 +155,31 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     num_edges = len(ddf)
 
     data = get_distributed_data(ddf)
+    src_col_name = input_graph.renumber_map.renumbered_src_col_name
+    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
-    mg = [client.submit(call_MGGraph, 
-                        resource_handle, part) for part in parts]
+    initial_hubs_guess_vertices = n_start['vertex']
+    initial_hubs_guess_values = n_start['values']
 
-    # FIXME: This will return a list of futures. What to do next because the results
-    # are still in distributed memory?
-    mg_result = [client.submit(call_MGGraph,
-                               resource_handle,
-                               graph_properties,
-                               wf[1],
-                               store_transposed,
-                               num_edges,
-                               do_expensive_check,
-                               workers=[wf[0]])
+    result = [client.submit(call_hits,
+                            Comms.get_session_id(),
+                            wf[1],
+                            src_col_name,
+                            dst_col_name,
+                            graph_properties,
+                            store_transposed,
+                            num_edges,
+                            do_expensive_check,
+                            tol,
+                            max_iter,
+                            initial_hubs_guess_vertices,
+                            initial_hubs_guess_value,
+                            normalized,
+                            workers=[wf[0]])
                  for idx, wf in enumerate(data.worker_to_parts.items())]
 
-    wait(mg_result)
-    # Bring the results back? Will the results be different (each piece of the graph)
-    # or will all futures point to the same graph as a whole?
-    mg = client.gather(mg_result)
-
-    # FIXME: assumption that each future is pointing to a part of the graph
-    result = [client.submit(call_hits,
-                          g,
-                          tolerance,
-                          max_iter,
-                          n_start,
-                          normalized
-                          workers=[client.who_has(g)])
-              for g in mg]
     wait(result)
+
     ddf = dask_cudf.from_delayed(result)
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, 'vertex')
