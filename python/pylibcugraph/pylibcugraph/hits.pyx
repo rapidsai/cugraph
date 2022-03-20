@@ -183,9 +183,16 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* authorities_ptr = \
         cugraph_hits_result_get_authorities(result_ptr)
 
-    # FIXME: return a cudf
+    cudf_series_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
+    cudf_series_hubs = copy_to_cupy_array(c_resource_handle_ptr, hubs_ptr)
+    cudf_series_authorities = copy_to_cupy_array(c_resource_handle_ptr,
+                                           authorities_sizes_ptr)
     
+    df = cudf.DataFrame()
+    df["vertex"] = cudf_series_vertices
+    df["hubs"] = cudf_series_hubs
+    df["authorities"] = cudf_series_authorities
 
     cugraph_hits_result_free(result_ptr)
 
-    return 
+    return df
