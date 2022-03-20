@@ -28,8 +28,8 @@
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 
@@ -162,19 +162,19 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
                      sources.end(),
                      mg_graph_view.get_local_vertex_first());
 
-    cugraph::row_properties_t<decltype(mg_graph_view), property_t> mg_src_properties(handle,
-                                                                                     mg_graph_view);
-    cugraph::col_properties_t<decltype(mg_graph_view), property_t> mg_dst_properties(handle,
-                                                                                     mg_graph_view);
+    cugraph::edge_partition_src_property_t<decltype(mg_graph_view), property_t> mg_src_properties(
+      handle, mg_graph_view);
+    cugraph::edge_partition_dst_property_t<decltype(mg_graph_view), property_t> mg_dst_properties(
+      handle, mg_graph_view);
 
-    copy_to_adj_matrix_row(handle,
-                           mg_graph_view,
-                           cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                           mg_src_properties);
-    copy_to_adj_matrix_col(handle,
-                           mg_graph_view,
-                           cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                           mg_dst_properties);
+    update_edge_partition_src_property(handle,
+                                       mg_graph_view,
+                                       cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
+                                       mg_src_properties);
+    update_edge_partition_dst_property(handle,
+                                       mg_graph_view,
+                                       cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
+                                       mg_dst_properties);
 
     enum class Bucket { cur, next, num_buckets };
     cugraph::VertexFrontier<vertex_t, void, is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
@@ -255,18 +255,18 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
                           cugraph::get_dataframe_buffer_begin(sg_property_buffer),
                           property_transform_t<vertex_t, property_t>{hash_bin_count});
 
-        cugraph::row_properties_t<decltype(sg_graph_view), property_t> sg_src_properties(
-          handle, sg_graph_view);
-        cugraph::col_properties_t<decltype(sg_graph_view), property_t> sg_dst_properties(
-          handle, sg_graph_view);
-        copy_to_adj_matrix_row(handle,
-                               sg_graph_view,
-                               cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                               sg_src_properties);
-        copy_to_adj_matrix_col(handle,
-                               sg_graph_view,
-                               cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                               sg_dst_properties);
+        cugraph::edge_partition_src_property_t<decltype(sg_graph_view), property_t>
+          sg_src_properties(handle, sg_graph_view);
+        cugraph::edge_partition_dst_property_t<decltype(sg_graph_view), property_t>
+          sg_dst_properties(handle, sg_graph_view);
+        update_edge_partition_src_property(handle,
+                                           sg_graph_view,
+                                           cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
+                                           sg_src_properties);
+        update_edge_partition_dst_property(handle,
+                                           sg_graph_view,
+                                           cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
+                                           sg_dst_properties);
         cugraph::
           VertexFrontier<vertex_t, void, !is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
             sg_vertex_frontier(handle);
