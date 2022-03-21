@@ -609,6 +609,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
 
         ###########################################################################################
+        # - MG GATHER_ONE_HOP tests ---------------------------------------------------------------
+        ConfigureTestMG(MG_GATHER_ONE_HOP_TEST sampling/detail/mg_gather_one_hop.cu)
+
+        ###########################################################################################
         # - MG NBR SAMPLING tests -----------------------------------------------------------------
         ConfigureTestMG(MG_NBR_SAMPLING_TEST sampling/detail/mg_nbr_sampling.cu)
         
