@@ -275,7 +275,7 @@ cdef class EXPERIMENTAL__MGGraph(_GPUGraph):
                 len(weight_array),
                 get_c_type_from_numpy_type(weight_array.dtype))
 
-        error_code = cugraph_sg_graph_create(
+        error_code = cugraph_mg_graph_create(
             resource_handle.c_resource_handle_ptr,
             &(graph_properties.c_graph_properties),
             srcs_view_ptr,
