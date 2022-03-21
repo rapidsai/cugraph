@@ -12,6 +12,9 @@
 # limitations under the License.
 
 import cugraph
+import cugraph.utilities
+import pandas as pd
+import cudf
 
 
 def pagerank(
@@ -84,10 +87,15 @@ def pagerank(
 
     """
     print("Called compat.nx pagerank")
+    local_pers = None
+    if (personalization != None):
+        dataframe = pd.from_dict(personalization)
+        local_pers = cudf.from_pandas(dataframe)
+
     return cugraph.pagerank(
             G,
             alpha,
-            personalization,
+            local_pers,
             max_iter,
             tol,
             nstart,
