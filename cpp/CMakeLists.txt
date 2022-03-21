@@ -134,9 +134,7 @@ rapids_cpm_init()
 # following public header-only  raft dependencies:
 # * RMM
 # * Thrust
-# * libcu++
 # * GTest/GMock
-# * cuCollections
 #
 # The CMakeLists.txt for each of these projects are properly configured
 # to generate a build and install export-set, so reimplementing finding or
@@ -144,6 +142,11 @@ rapids_cpm_init()
 # error-prone if something about those targets change and our implementation
 # lags behind.
 ###
+
+# Putting this before raft to override RAFT from pulling them in.
+include(cmake/thirdparty/get_libcudacxx.cmake)
+include(cmake/thirdparty/get_cuco.cmake)
+
 include(cmake/thirdparty/get_raft.cmake)
 include(cmake/thirdparty/get_libcugraphops.cmake)
 
@@ -289,6 +292,7 @@ target_link_libraries(cugraph
         cugraphops::cugraphops
         raft::raft
     PRIVATE
+        cuco::cuco
         cugraph::cuHornet
         NCCL::NCCL
 )
@@ -398,6 +402,7 @@ target_link_libraries(cugraph_c
                 CUDA::cusolver
                 CUDA::cusparse
         PRIVATE
+                cuco::cuco
                 cugraph::cugraph
 )
 

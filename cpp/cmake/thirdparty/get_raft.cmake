@@ -39,6 +39,7 @@ function(find_and_configure_raft)
                 "RAFT_COMPILE_LIBRARIES OFF"
                 "BUILD_TESTS OFF"
                 "BUILD_BENCH OFF"
+                "RAFT_ENABLE_cuco_DEPENDENCY OFF"
     )
 
     if(raft_ADDED)
