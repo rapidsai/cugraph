@@ -88,7 +88,7 @@ def renumber(input_df,           # maybe use cpdef ?
     # FIXME: call_shuffle currently works on major/minor while call_renumber is updated to work on
     # source/destination. We'd better update call_shuffle to work on source/destination as well to
     # avoid switching between major/minor & source/destination. Deferring this work at this moment
-    # expect this legacy code path will be replaced with the new pylibcugrpah & C API based path.
+    # expecting this legacy code path will be replaced with the new pylibcugrpah & C API based path.
 
     if not transposed:
         major_vertices = input_df[renumbered_src_col_name]
