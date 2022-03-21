@@ -161,8 +161,8 @@ def test_generic_node2vec(src_arr,
                 do_expensive_check=False)
     (paths, weights, sizes) = node2vec(resource_handle, G, seeds, max_depth,
                                        compressed_result, p, q)
-    if max_depth == 5:
-        breakpoint()
+    #if max_depth == 5:
+    #    breakpoint()
     
     # Validating results of node2vec by checking each path
     M = np.zeros((num_vertices, num_vertices), dtype=np.float64)
@@ -182,8 +182,8 @@ def test_generic_node2vec(src_arr,
                 expected_wgt = M[paths.get()[j]][paths.get()[j + 1]]
                 if pytest.approx(expected_wgt, 1e-4) != actual_wgt:
                     raise ValueError("Edge ({},{}) has wgt {}, should \
-                                     have been {}".format(j, 
-                                                          j+1,
+                                     have been {}".format(paths.get()[j],
+                                                          paths.get()[j+1],
                                                           actual_wgt,
                                                           expected_wgt))
     else:
@@ -195,10 +195,10 @@ def test_generic_node2vec(src_arr,
                     expected_wgt = M[paths.get()[curr_idx]][paths.get()[curr_idx + 1]]
                     if pytest.approx(expected_wgt, 1e-4) != actual_wgt:
                         raise ValueError("Edge ({},{}) has wgt {}, should \
-                                        have been {}".format(j, 
-                                                            j+1,
-                                                            actual_wgt,
-                                                            expected_wgt))
+                                        have been {}".format(paths.get()[j],
+                                                             paths.get()[j+1],
+                                                             actual_wgt,
+                                                             expected_wgt))
 
 
 def test_node2vec_short():
