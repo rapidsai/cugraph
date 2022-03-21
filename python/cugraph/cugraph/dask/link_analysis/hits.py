@@ -147,7 +147,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     ddf = input_graph.edgelist.edgelist_df
 
     #resource_handle = ResourceHandle()
-    graph_properties = pylibcugraph.experimental.GraphProperties(is_multigraph=True)
+    graph_properties = pylibcugraph.experimental.GraphProperties(is_multigraph=False)
     #graph_properties = None
 
     store_transposed = False
