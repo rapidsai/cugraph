@@ -57,8 +57,6 @@ def test_with_max_iter(graph_file, max_iter):
 
     import cugraph.compat.nx as nx
 
-    personalization_dict = {1: 0.75, 2: 1.1, 3: 44.3}
-
     M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight",
@@ -80,12 +78,14 @@ def test_perc_spec(graph_file, max_iter ):
     
     import cugraph.compat.nx as nx
 
+    personalization_dict = {1: 0.75, 2: 1.1, 3: 44.3}
+
     M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight",
         create_using=nx.DiGraph()
     )
-    pr = nx.pagerank(Gnx,max_iter=max_iter, )
+    pr = nx.pagerank(Gnx,max_iter=max_iter, personalization=personalization_dict )
     print(type(Gnx))
     assert type(pr) == dict
 
