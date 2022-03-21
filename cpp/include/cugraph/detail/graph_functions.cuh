@@ -41,7 +41,7 @@ namespace cugraph {
 namespace detail {
 
 /**
- * @brief Compute local out degrees of the sources belonging to the adjacency matrices
+ * @brief Compute local out degrees of the majors belonging to the adjacency matrices
  * stored on each gpu
  *
  * Iterate through partitions and store their local degrees
@@ -50,7 +50,7 @@ namespace detail {
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @return A single vector containing the local out degrees of the sources belong to the adjacency
+ * @return A single vector containing the local out degrees of the majors belong to the adjacency
  * matrices
  */
 template <typename GraphViewType>
@@ -77,7 +77,27 @@ std::tuple<rmm::device_uvector<typename GraphViewType::edge_type>,
 get_global_degree_information(raft::handle_t const& handle, GraphViewType const& graph_view);
 
 /**
- * @brief Gather active sources and associated client gpu ids across gpus in a
+ * @brief Calculate global adjacency offset for all majors represented by current gpu
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param[in] global_degree_offsets Global degree offset to local adjacency list for every major
+ * represented by current gpu
+ * @param global_out_degrees Global out degrees for every source represented by current gpu
+ * @return Device vector containing the number of edges that are prior to the adjacency list of
+ * every major that can be represented by the current gpu
+ */
+template <typename GraphViewType>
+rmm::device_uvector<typename GraphViewType::edge_type> get_global_adjacency_offset(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets,
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_out_degrees);
+
+/**
+ * @brief Gather active majors and associated client gpu ids across gpus in a
  * column communicator
  *
  * Collect all the vertex ids and client gpu ids to be processed by every gpu in
@@ -97,17 +117,17 @@ get_global_degree_information(raft::handle_t const& handle, GraphViewType const&
 template <typename GraphViewType, typename VertexIterator, typename GPUIdIterator>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename std::iterator_traits<GPUIdIterator>::value_type>>
-gather_active_sources_in_row(raft::handle_t const& handle,
-                             GraphViewType const& graph_view,
-                             VertexIterator vertex_input_first,
-                             VertexIterator vertex_input_last,
-                             GPUIdIterator gpu_id_first);
+gather_active_majors(raft::handle_t const& handle,
+                     GraphViewType const& graph_view,
+                     VertexIterator vertex_input_first,
+                     VertexIterator vertex_input_last,
+                     GPUIdIterator gpu_id_first);
 
 /**
- * @brief Return global out degrees of active sources
+ * @brief Return global out degrees of active majors
  *
  * Get partition information of all graph partitions on the gpu and select
- * global degrees of all active sources
+ * global degrees of all active majors
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -116,7 +136,7 @@ gather_active_sources_in_row(raft::handle_t const& handle,
  * @param active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
  * @param global_out_degrees Global out degrees for every source represented by current gpu
- * @return Global out degrees of all sources in active_majors
+ * @return Global out degrees of all majors in active_majors
  */
 template <typename GraphViewType>
 rmm::device_uvector<typename GraphViewType::edge_type> get_active_major_global_degrees(
@@ -158,19 +178,19 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
  * Collect all the edges that are present in the adjacency lists on the current gpu
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam GPUIdIterator  Type of the iterator for gpu id identifiers.
+ * @tparam gpu_t  Type of gpu id identifiers.
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
  * @param[in] graph_view Non-owning graph object.
- * @param[in] active_majors_in_row Device vector containing all the vertex id that are processed by
+ * @param[in] active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
  * @param[in] active_major_gpu_ids Device vector containing the gpu id associated by every vertex
- * present in active_majors_in_row
- * @param[in] minor_map Device vector of destination indices (modifiable in-place) corresponding to
+ * present in active_majors
+ * @param[in] minor_map Device vector of minor indices (modifiable in-place) corresponding to
  * vertex IDs being returned
- * @param[in] indices_per_source Number of indices supplied for every source in the range
+ * @param[in] indices_per_major Number of indices supplied for every major in the range
  * [vertex_input_first, vertex_input_last)
- * @param[in] global_degree_offset Global degree offset to local adjacency list for every source
+ * @param[in] global_degree_offsets Global degree offset to local adjacency list for every major
  * represented by current gpu
  * @return A tuple of device vector containing the majors, minors, gpu_ids and indices gathered
  * locally
@@ -183,11 +203,40 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
 gather_local_edges(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors_in_row,
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
   const rmm::device_uvector<gpu_t>& active_major_gpu_ids,
   rmm::device_uvector<typename GraphViewType::edge_type>&& minor_map,
   typename GraphViewType::edge_type indices_per_major,
-  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets);
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets,
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_adjacency_list_offsets);
+
+/**
+ * @brief Gather edge list for specified vertices
+ *
+ * Collect all the edges that are present in the adjacency lists on the current gpu
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam prop_t  Type of the property associated with the majors.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param active_majors Device vector containing all the vertex id that are processed by
+ * gpus in the column communicator
+ * @param active_major_property Device vector containing the property values associated by every
+ * vertex present in active_majors
+ * @return A tuple of device vector containing the majors, minors and properties gathered locally
+ */
+template <typename GraphViewType, typename prop_t>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<prop_t>,
+           rmm::device_uvector<typename GraphViewType::edge_type>>
+gather_one_hop_edgelist(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
+  const rmm::device_uvector<prop_t>& active_major_property,
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_adjacency_list_offsets);
 
 }  // namespace detail
 
