@@ -89,7 +89,7 @@ def pagerank(
     print("Called compat.nx pagerank")
     local_pers = None
     if (personalization != None):
-        dataframe = pd.from_dict(personalization)
+        dataframe = pd.DataFrame.from_dict(personalization)
         local_pers = cudf.from_pandas(dataframe)
 
     return cugraph.pagerank(
