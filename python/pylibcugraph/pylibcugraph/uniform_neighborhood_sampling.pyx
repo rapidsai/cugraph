@@ -55,42 +55,71 @@ from pylibcugraph.utils cimport (
     get_c_type_from_numpy_type,
 )
 
-def EXPERIMENTAL__nbr_sampling(EXPERIMENTAL__ResourceHandle resource_handle,
-                               _GPUGraph graph,
-                               input_graph,
+def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle resource_handle,
+                               _GPUGraph input_graph,
                                start_info_list,
                                h_fan_out,
-                               bool_t without_replacement):
+                               bool_t without_replacement,
+                               bool_t do_expensive_check):
     """
     Does uniform neighborhood sampling.
+
     Parameters
     ----------
     input_graph: ???
     start_info_list: ???
     fanout_vals: ???
-    with_replacement: ???
+    without_replacement: ???
+    do_expensive_check: ???
 
     Examples
     --------
     >>> import pylibcugraph, cupy, numpy
+    >>> srcs = cupy.asarray([0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4],
+    ...                     dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 2, 3, 4, 5, 6, 7, 5, 6, 7, 5, 6, 7],
+    ...                     dtype=numpy.int32)
+    >>> weights = cupy.asarray([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    ...                         1.0, 1.0, 1.0, 1.0], dtype=numpy.float32)
+    >>> resource_handle = pylibcugraph.experimental.ResourceHandle()
+    >>> graph_props = pylibcugraph.experimental.GraphProperties(
+    ...     is_symmetric=False, is_multigraph=False)
+    >>> G = pylibcugraph.experimental.MGGraph(
+    ...     resource_handle, graph_props)
 
     """
     print("Hello from uniform_neighborhood_sampling.pyx!")
     
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
-    cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
+    cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
 
     cdef cugraph_sample_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    # FIXME: For now, just initialize the start_ptr,
-    # start_labels_ptr, and fan_out_ptr. Fix later once
-    # PR#2112 is merged
-    cdef cugraph_type_erased_device_array_view_t* start_ptr
-    cdef cugraph_type_erased_device_array_view_t* start_labels_ptr
-    cdef cugraph_type_erased_host_array_view_t* fan_out_ptr
+    cdef uintptr cai_start_ptr = \
+        start_info_list.__cuda_array_interface__["data"][0]
+    cdef uintptr cai_labels_ptr = \
+        start_info_list.__cuda_array_interface__["data"][1]
+    cdef uintptr cai_fan_out_ptr = \
+        h_fan_out.__cuda_array_interface__["data"][0]
+
+    cdef cugraph_type_erased_device_array_view_t* start_ptr = \
+        cugraph_type_erased_device_array_view_create(
+            <void*>cai_start_ptr,
+            len(start_info_list),
+            get_c_type_from_numpy_type(start_info_list.dtype))
+    cdef cugraph_type_erased_device_array_view_t* start_labels_ptr = \
+        cugraph_type_erased_device_array_view_create(
+            <void*>cai_labels_ptr,
+            len(start_info_list),
+            get_c_type_from_numpy_type(start_info_list.dtype))
+    cdef cugraph_type_erased_host_array_view_t* fan_out_ptr = \
+        cugraph_type_erased_host_array_view_create(
+            <void*>cai_fan_out_ptr,
+            len(h_fan_out),
+            get_c_type_from_numpy_type(h_fan_out.dtype))
 
     error_code = uniform_nbr_sample(c_resource_handle_ptr,
                                     c_graph_ptr,
@@ -98,36 +127,28 @@ def EXPERIMENTAL__nbr_sampling(EXPERIMENTAL__ResourceHandle resource_handle,
                                     start_labels_ptr,
                                     fan_out_ptr,
                                     without_replacement,
+                                    do_expensive_check,
                                     &result_ptr,
                                     &error_ptr)
     assert_success(error_code, error_ptr, "uniform_nbr_sample")
-    
-    return 0
 
-"""
-def uniform_neighborhood_sampling_REAL(input_graph,
-                                                start_info_list,
-                                                h_fan_out,
-                                                bool_t with_replacement):
-    Test.
-    
-    # Remove below code once function signature is confirmed
-    resource_handle = pylibcugraph.experimental.ResourceHandle()
-    graph_props = pylibcugraph.experimental.GraphProperties(
-        is_symmetric=False, is_multigraph=False)
-    # Remove above code once function signature is confirmed
-    cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
-        resource_handle.c_resource_handle_ptr
-    cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
-    cdef cugraph_error_code_t error_code
-    cdef cugraph_error_t* error_ptr
-    error_code = uniform_nbr_sample(c_resource_handle_ptr,
-                                    c_graph_ptr,
-                                    device_starts,
-                                    device_ranks,
-                                    num_starting_vs,
-                                    h_fan_out,
-                                    with_replacement)
-    assert_success(error_code, error_ptr, "uniform_nbr_sample")
-    return (src_vertices, dst_vertices, ranks, indices, rx_counts)
-"""
+    cdef cugraph_type_erased_device_array_view_t* src_ptr = \
+        cugraph_sample_result_get_sources(result_ptr)
+    cdef cugraph_type_erased_device_array_view_t* dst_ptr = \
+        cugraph_sample_result_get_destinations(result_ptr)
+    cdef cugraph_type_erased_device_array_view_t* start_labels_ptr = \
+        cugraph_sample_result_get_start_labels(result_ptr)
+    cdef cugraph_type_erased_device_array_view_t* index_ptr = \
+        cugraph_sample_result_get_index(result_ptr)
+    cdef cugraph_type_erased_device_array_view_t* counts_ptr = \
+        cugraph_sample_result_get_counts(result_ptr)
+
+    cupy_sources = copy_to_cupy_array(c_resource_handle_ptr, src_ptr)
+    cupy_destinations = copy_to_cupy_array(c_resource_handle_ptr, dst_ptr)
+    cupy_labels = copy_to_cupy_array(c_resource_handle_ptr, start_labels_ptr)
+    cupy_indices = copy_to_cupy_array(c_resource_handle_ptr, index_ptr)
+    cupy_counts = copy_to_cupy_array(c_resource_handle_ptr, counts_ptr)
+
+    cugraph_sample_result_free(result_ptr)
+
+    return (cupy_sources, cupy_destinations, cupy_labels, cupy_indices, cupy_counts)

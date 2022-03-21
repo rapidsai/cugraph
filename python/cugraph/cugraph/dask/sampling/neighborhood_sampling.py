@@ -41,6 +41,22 @@ def uniform_neighborhood(G,
 
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
+
+    Returns
+    -------
+    result : dask_cudf.DataFrame
+        GPU data frame containing two dask_cudf.Series
+
+        ddf['srcs']: dask_cudf.Series
+            Contains the source vertices from the sampling result
+        ddf['dsts']: dask_cudf.Series
+            Contains the destination vertices from the sampling result
+        ddf['labels']: dask_cudf.Series
+            Contains the start labels from the sampling result
+        ddf['index']: dask_cudf.Series
+            Contains the indices from the sampling result
+        ddf['counts']: dask_cudf.Series
+            Contains the transaction counts from the sampling result
     """
 
     print("Hello from cugraph/dask!")
