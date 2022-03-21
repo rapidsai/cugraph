@@ -133,9 +133,39 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
     except ModuleNotFoundError:
         raise RuntimeError("hits requires the numpy package, which could "
                            "not be imported")
-  
-    assert_CAI_type(initial_hubs_guess_vertices, "initial_hubs_guess_vertices")
-    assert_CAI_type(initial_hubs_guess_values, "initial_hubs_guess_values")
+    
+    cdef uintptr_t cai_initial_hubs_guess_vertices_ptr = <uintptr_t>NULL
+    cdef uintptr_t cai_initial_hubs_guess_values_ptr = <uintptr_t>NULL
+
+    cdef cugraph_type_erased_device_array_view_t* initial_hubs_guess_vertices_view_ptr = NULL
+    cdef cugraph_type_erased_device_array_view_t* initial_hubs_guess_values_view_ptr = NULL
+
+    # FIXME: Add check ensuring that both initial_hubs_guess_vertices and initial_hubs_guess_values
+    # are passed when calling only pylibcugraph HITS. This is already True for cugraph HITS
+    
+    if initial_hubs_guess_vertices is not None:   
+        assert_CAI_type(initial_hubs_guess_vertices, "initial_hubs_guess_vertices")
+        
+        cai_initial_hubs_guess_vertices_ptr = \
+        initial_hubs_guess_vertices.__cuda_array_interface__["data"][0]
+
+        initial_hubs_guess_vertices_view_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_initial_hubs_guess_vertices_ptr,
+                len(initial_hubs_guess_vertices),
+                get_c_type_from_numpy_type(initial_hubs_guess_vertices.dtype))
+    
+    if initial_hubs_guess_values is not None:
+        assert_CAI_type(initial_hubs_guess_values, "initial_hubs_guess_values")
+
+        cai_initial_hubs_guess_values_ptr = \
+        initial_hubs_guess_values.__cuda_array_interface__["data"][0]
+
+        initial_hubs_guess_values_view_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_initial_hubs_guess_values_ptr,
+                len(initial_hubs_guess_values),
+                get_c_type_from_numpy_type(initial_hubs_guess_values.dtype))
 
     # FIXME: Maybe add a function to ensure that a parameter is set to a default 
     # value because Not Implemented in utils.pyx
@@ -148,24 +178,6 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef cugraph_type_erased_device_array_view_t* nstart_ptr = NULL
-    cdef uintptr_t cai_initial_hubs_guess_vertices_ptr = \
-        initial_hubs_guess_vertices.__cuda_array_interface__["data"][0]
-
-    cdef cugraph_type_erased_device_array_view_t* initial_hubs_guess_vertices_view_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cai_initial_hubs_guess_vertices_ptr,
-            len(initial_hubs_guess_vertices),
-            get_c_type_from_numpy_type(initial_hubs_guess_vertices.dtype))
-
-    cdef uintptr_t cai_initial_hubs_guess_values_ptr = \
-        initial_hubs_guess_values.__cuda_array_interface__["data"][0]
-
-    cdef cugraph_type_erased_device_array_view_t* initial_hubs_guess_values_view_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cai_initial_hubs_guess_values_ptr,
-            len(initial_hubs_guess_values),
-            get_c_type_from_numpy_type(initial_hubs_guess_values.dtype))
 
     error_code = cugraph_hits(c_resource_handle_ptr,
                                 c_graph_ptr,

@@ -21,7 +21,7 @@ import dask_cudf
 from dask_cudf.core import DataFrame as dcDataFrame
 
 import pylibcugraph
-from pylibcugraph.experimental import (ResourceHandle)
+from pylibcugraph.experimental import ResourceHandle
 
 
 def call_hits(sID,
@@ -51,7 +51,7 @@ def call_hits(sID,
                  graph_properties,
                  srcs,
                  dsts,
-                 weigths,
+                 weights,
                  store_transposed,
                  num_edges,
                  do_expensive_check)
@@ -147,8 +147,8 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     ddf = input_graph.edgelist.edgelist_df
 
     #resource_handle = ResourceHandle()
-    #graph_properties = pylibcugraph.experimental.GraphProperties(is_multigraph=False)
-    graph_properties = None
+    graph_properties = pylibcugraph.experimental.GraphProperties(is_multigraph=True)
+    #graph_properties = None
 
     store_transposed = False
     do_expensive_check = False
