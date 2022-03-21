@@ -26,9 +26,9 @@
 
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/extract_if_e.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
@@ -191,19 +191,19 @@ class Tests_MG_ExtractIfE
                       cugraph::get_dataframe_buffer_begin(mg_property_buffer),
                       property_transform_t<vertex_t, property_t>{hash_bin_count});
 
-    cugraph::row_properties_t<decltype(mg_graph_view), property_t> mg_src_properties(handle,
-                                                                                     mg_graph_view);
-    cugraph::col_properties_t<decltype(mg_graph_view), property_t> mg_dst_properties(handle,
-                                                                                     mg_graph_view);
+    cugraph::edge_partition_src_property_t<decltype(mg_graph_view), property_t> mg_src_properties(
+      handle, mg_graph_view);
+    cugraph::edge_partition_dst_property_t<decltype(mg_graph_view), property_t> mg_dst_properties(
+      handle, mg_graph_view);
 
-    copy_to_adj_matrix_row(handle,
-                           mg_graph_view,
-                           cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                           mg_src_properties);
-    copy_to_adj_matrix_col(handle,
-                           mg_graph_view,
-                           cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                           mg_dst_properties);
+    update_edge_partition_src_property(handle,
+                                       mg_graph_view,
+                                       cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
+                                       mg_src_properties);
+    update_edge_partition_dst_property(handle,
+                                       mg_graph_view,
+                                       cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
+                                       mg_dst_properties);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -280,19 +280,19 @@ class Tests_MG_ExtractIfE
                           cugraph::get_dataframe_buffer_begin(sg_property_buffer),
                           property_transform_t<vertex_t, property_t>{hash_bin_count});
 
-        cugraph::row_properties_t<decltype(sg_graph_view), property_t> sg_src_properties(
-          handle, sg_graph_view);
-        cugraph::col_properties_t<decltype(sg_graph_view), property_t> sg_dst_properties(
-          handle, sg_graph_view);
+        cugraph::edge_partition_src_property_t<decltype(sg_graph_view), property_t>
+          sg_src_properties(handle, sg_graph_view);
+        cugraph::edge_partition_dst_property_t<decltype(sg_graph_view), property_t>
+          sg_dst_properties(handle, sg_graph_view);
 
-        copy_to_adj_matrix_row(handle,
-                               sg_graph_view,
-                               cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                               sg_src_properties);
-        copy_to_adj_matrix_col(handle,
-                               sg_graph_view,
-                               cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                               sg_dst_properties);
+        update_edge_partition_src_property(handle,
+                                           sg_graph_view,
+                                           cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
+                                           sg_src_properties);
+        update_edge_partition_dst_property(handle,
+                                           sg_graph_view,
+                                           cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
+                                           sg_dst_properties);
 
         auto [sg_edgelist_srcs, sg_edgelist_dsts, sg_edgelist_weights] =
           extract_if_e(handle,
