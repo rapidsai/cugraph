@@ -28,9 +28,9 @@
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
@@ -130,8 +130,9 @@ struct generate_impl {
                               graph_view_type const& graph_view,
                               property_buffer_type& property)
   {
-    auto output_property = cugraph::col_properties_t<graph_view_type, type>(handle, graph_view);
-    copy_to_adj_matrix_col(
+    auto output_property =
+      cugraph::edge_partition_dst_property_t<graph_view_type, type>(handle, graph_view);
+    update_edge_partition_dst_property(
       handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
     return output_property;
   }
@@ -141,8 +142,9 @@ struct generate_impl {
                            graph_view_type const& graph_view,
                            property_buffer_type& property)
   {
-    auto output_property = cugraph::row_properties_t<graph_view_type, type>(handle, graph_view);
-    copy_to_adj_matrix_row(
+    auto output_property =
+      cugraph::edge_partition_src_property_t<graph_view_type, type>(handle, graph_view);
+    update_edge_partition_src_property(
       handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
     return output_property;
   }
