@@ -38,14 +38,15 @@ requirements:
     - libraft-headers {{ minor_version }}
   run:
     - python x.x
+    - pylibcugraph={{ version }}
     - libcugraph={{ version }}
     - libraft-headers {{ minor_version }}
     - pyraft {{ minor_version }}
     - cudf={{ minor_version }}
     - dask-cudf {{ minor_version }}
     - dask-cuda {{ minor_version }}
-    - dask>=2021.11.1
-    - distributed>=2021.11.1
+    - dask>=2022.02.1
+    - distributed>=2022.02.1
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}

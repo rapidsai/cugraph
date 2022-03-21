@@ -19,8 +19,8 @@
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/device_comm.cuh>
@@ -460,8 +460,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
     auto adj_matrix_col_components =
       GraphViewType::is_multi_gpu
-        ? col_properties_t<GraphViewType, vertex_t>(handle, level_graph_view)
-        : col_properties_t<GraphViewType, vertex_t>(handle);
+        ? edge_partition_dst_property_t<GraphViewType, vertex_t>(handle, level_graph_view)
+        : edge_partition_dst_property_t<GraphViewType, vertex_t>(handle);
     if constexpr (GraphViewType::is_multi_gpu) {
       adj_matrix_col_components.fill(invalid_component_id<vertex_t>::value, handle.get_stream());
     }
@@ -505,7 +505,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       }
 
       if constexpr (GraphViewType::is_multi_gpu) {
-        copy_to_adj_matrix_col(
+        update_edge_partition_dst_property(
           handle,
           level_graph_view,
           thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
@@ -538,12 +538,13 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         GraphViewType::is_multi_gpu ? std::vector<size_t>{static_cast<size_t>(Bucket::next),
                                                           static_cast<size_t>(Bucket::conflict)}
                                     : std::vector<size_t>{static_cast<size_t>(Bucket::next)},
-        dummy_properties_t<vertex_t>{}.device_view(),
-        dummy_properties_t<vertex_t>{}.device_view(),
+        dummy_property_t<vertex_t>{}.device_view(),
+        dummy_property_t<vertex_t>{}.device_view(),
         [col_components =
            GraphViewType::is_multi_gpu
              ? adj_matrix_col_components.mutable_device_view()
-             : detail::minor_properties_device_view_t<vertex_t, vertex_t*>(level_components),
+             : detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t*>(
+                 level_components),
          col_first         = level_graph_view.get_local_adj_matrix_partition_col_first(),
          edge_buffer_first = get_dataframe_buffer_begin(edge_buffer),
          num_edge_inserts =

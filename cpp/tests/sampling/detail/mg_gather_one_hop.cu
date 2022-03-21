@@ -76,7 +76,6 @@ class Tests_MG_GatherEdges
     }
 
     auto mg_graph_view                        = mg_graph.view();
-    constexpr edge_t indices_per_source       = 2;
     constexpr vertex_t repetitions_per_vertex = 5;
     constexpr vertex_t source_sample_count    = 3;
 
@@ -89,11 +88,11 @@ class Tests_MG_GatherEdges
       handle, mg_graph_view, global_degree_offsets, global_out_degrees);
 
     // Generate random sources to gather on
-    auto random_sources = random_vertex_ids(handle,
-                                            mg_graph_view.get_local_vertex_first(),
-                                            mg_graph_view.get_local_vertex_last(),
-                                            source_sample_count,
-                                            repetitions_per_vertex);
+    auto random_sources = cugraph::test::random_vertex_ids(handle,
+                                                           mg_graph_view.get_local_vertex_first(),
+                                                           mg_graph_view.get_local_vertex_last(),
+                                                           source_sample_count,
+                                                           repetitions_per_vertex);
     rmm::device_uvector<int> random_source_gpu_ids(random_sources.size(), handle.get_stream());
     thrust::fill(handle.get_thrust_policy(),
                  random_source_gpu_ids.begin(),
@@ -107,47 +106,25 @@ class Tests_MG_GatherEdges
                                             random_sources.cend(),
                                             random_source_gpu_ids.cbegin());
 
-    // get source global out degrees to generate indices
-    auto active_source_degrees = cugraph::detail::get_active_major_global_degrees(
-      handle, mg_graph_view, active_sources, global_out_degrees);
-
-    auto random_destination_indices =
-      generate_random_destination_indices(handle,
-                                          active_source_degrees,
-                                          mg_graph_view.get_number_of_vertices(),
-                                          mg_graph_view.get_number_of_edges(),
-                                          indices_per_source);
-    rmm::device_uvector<edge_t> input_destination_indices(random_destination_indices.size(),
-                                                          handle.get_stream());
-    raft::update_device(input_destination_indices.data(),
-                        random_destination_indices.data(),
-                        random_destination_indices.size(),
-                        handle.get_stream());
-
-    auto [src, dst, gpu_ids, dst_map] =
-      cugraph::detail::gather_local_edges(handle,
-                                          mg_graph_view,
-                                          active_sources,
-                                          active_source_gpu_ids,
-                                          std::move(input_destination_indices),
-                                          indices_per_source,
-                                          global_degree_offsets,
-                                          global_adjacency_list_offsets);
+    auto [src, dst, gpu_ids, edge_ids] = cugraph::detail::gather_one_hop_edgelist(
+      handle, mg_graph_view, active_sources, active_source_gpu_ids, global_adjacency_list_offsets);
 
     if (prims_usecase.check_correctness) {
       // Gather outputs
       auto mg_out_srcs = cugraph::test::device_gatherv(handle, src.data(), src.size());
       auto mg_out_dsts = cugraph::test::device_gatherv(handle, dst.data(), dst.size());
+      auto mg_out_prop = cugraph::test::device_gatherv(handle, gpu_ids.data(), gpu_ids.size());
+
+      auto mg_out_edge_ids =
+        cugraph::test::device_gatherv(handle, edge_ids.data(), edge_ids.size());
 
       // Gather inputs
-      auto& col_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_rank = col_comm.get_rank();
-      auto sg_random_srcs = cugraph::test::device_gatherv(
+      auto& col_comm         = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_rank    = col_comm.get_rank();
+      auto sg_active_sources = cugraph::test::device_gatherv(
         handle, active_sources.data(), col_rank == 0 ? active_sources.size() : 0);
-      auto sg_random_dst_indices =
-        cugraph::test::device_gatherv(handle,
-                                      random_destination_indices.data(),
-                                      col_rank == 0 ? random_destination_indices.size() : 0);
+      auto sg_active_sources_gpu_ids = cugraph::test::device_gatherv(
+        handle, active_source_gpu_ids.data(), col_rank == 0 ? active_source_gpu_ids.size() : 0);
 
       // Gather input graph edgelist
       rmm::device_uvector<vertex_t> sg_src(0, handle.get_stream());
@@ -158,7 +135,7 @@ class Tests_MG_GatherEdges
       auto aggregated_sg_src = cugraph::test::device_gatherv(handle, sg_src.begin(), sg_src.size());
       auto aggregated_sg_dst = cugraph::test::device_gatherv(handle, sg_dst.begin(), sg_dst.size());
 
-      sort_coo(handle, mg_out_srcs, mg_out_dsts);
+      sort_coo(handle, mg_out_srcs, mg_out_prop, mg_out_dsts);
 
       if (handle.get_comms().get_rank() == int{0}) {
         cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
@@ -181,14 +158,9 @@ class Tests_MG_GatherEdges
             false);
         auto sg_graph_view = sg_graph.view();
         // Call single gpu gather
-        auto [sg_out_srcs, sg_out_dsts] = sg_gather_edges(handle,
-                                                          sg_graph_view,
-                                                          sg_random_srcs.begin(),
-                                                          sg_random_srcs.end(),
-                                                          sg_random_dst_indices.begin(),
-                                                          sg_graph_view.get_number_of_vertices(),
-                                                          indices_per_source);
-        sort_coo(handle, sg_out_srcs, sg_out_dsts);
+        auto [sg_out_srcs, sg_out_dsts, sg_out_prop] =
+          sg_gather_edges(handle, sg_graph_view, sg_active_sources, sg_active_sources_gpu_ids);
+        sort_coo(handle, sg_out_srcs, sg_out_prop, sg_out_dsts);
 
         auto passed = thrust::equal(
           handle.get_thrust_policy(), sg_out_srcs.begin(), sg_out_srcs.end(), mg_out_srcs.begin());

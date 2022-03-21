@@ -609,6 +609,14 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
 
         ###########################################################################################
+        # - MG GATHER_ONE_HOP tests ---------------------------------------------------------------
+        ConfigureTestMG(MG_GATHER_ONE_HOP_TEST sampling/detail/mg_gather_one_hop.cu)
+
+        ###########################################################################################
+        # - MG NBR SAMPLING tests -----------------------------------------------------------------
+        ConfigureTestMG(MG_NBR_SAMPLING_TEST sampling/detail/mg_nbr_sampling.cu)
+        
+        ###########################################################################################
         # - MG C API tests ------------------------------------------------------------------------
         ConfigureCTestMG(MG_CAPI_CREATE_GRAPH c_api/mg_create_graph_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_PAGERANK c_api/mg_pagerank_test.c c_api/mg_test_utils.cpp)
@@ -652,6 +660,7 @@ target_link_libraries(cugraph_c_testutil
 
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
+ConfigureCTest(CAPI_HITS_TEST c_api/hits_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
 ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)
 ConfigureCTest(CAPI_EXTRACT_PATHS_TEST c_api/extract_paths_test.c)
