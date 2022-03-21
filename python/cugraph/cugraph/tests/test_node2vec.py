@@ -127,13 +127,15 @@ def test_node2vec_new(
     directed,
     compress
 ):
-    #G = utils.generate_cugraph_graph_from_file(graph_file, directed=directed,
-    #                                           edgevals=True)
+    # G = utils.generate_cugraph_graph_from_file(graph_file,
+    #                                            directed=directed,
+    #                                            edgevals=True)
     cu_M = utils.read_csv_file(graph_file)
 
     G = cugraph.Graph(directed=directed)
 
-    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2", renumber=False)
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2",
+                         renumber=False)
     num_verts = G.number_of_vertices()
     if graph_file == KARATE:
         k = 12

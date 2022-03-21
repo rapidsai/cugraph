@@ -61,16 +61,16 @@ _test_data = {"karate.csv": {
                   },
               }
 _test_data_2 = {"karate.csv": {
-                "seeds": cp.asarray([], dtype=np.int32),
-                "path_sizes": cp.asarray([], dtype=np.int32),
-                "max_depth": 0
-                },
-              "dolphins.csv": {
-                "seeds": cp.asarray([], dtype=np.int32),
-                "path_sizes": cp.asarray([], dtype=np.int32),
-                "max_depth": 0
-                },
-              }
+                    "seeds": cp.asarray([], dtype=np.int32),
+                    "path_sizes": cp.asarray([], dtype=np.int32),
+                    "max_depth": 0
+                    },
+                "dolphins.csv": {
+                    "seeds": cp.asarray([], dtype=np.int32),
+                    "path_sizes": cp.asarray([], dtype=np.int32),
+                    "max_depth": 0
+                    },
+                }
 
 # =============================================================================
 # Pytest fixtures
@@ -150,7 +150,7 @@ def test_generic_node2vec(src_arr,
                           max_depth,
                           compressed_result,
                           p,
-                          q, 
+                          q,
                           renumbered):
     from pylibcugraph.experimental import node2vec
 
@@ -161,42 +161,44 @@ def test_generic_node2vec(src_arr,
                 do_expensive_check=False)
     (paths, weights, sizes) = node2vec(resource_handle, G, seeds, max_depth,
                                        compressed_result, p, q)
-    #if max_depth == 5:
-    #    breakpoint()
-    
+    paths = paths.get()
+    weights = weights.get()
+    # if max_depth == 5:
+    #     breakpoint()
+
     # Validating results of node2vec by checking each path
     M = np.zeros((num_vertices, num_vertices), dtype=np.float64)
-    #breakpoint()
+    # breakpoint()
     for i in range(num_edges):
         M[src_arr.get()[i]][dst_arr.get()[i]] = wgt_arr.get()[i]
-    
+
     if compressed_result:
         path_offsets = np.zeros(num_seeds + 1, dtype=np.int32)
         path_offsets[0] = 0
         for i in range(num_seeds):
             path_offsets[i + 1] = path_offsets[i] + sizes.get()[i]
-        
+
         for i in range(num_seeds):
             for j in range(path_offsets[i], path_offsets[i + 1]):
-                actual_wgt = weights.get()[j - i]
-                expected_wgt = M[paths.get()[j]][paths.get()[j + 1]]
+                actual_wgt = weights[j - i]
+                expected_wgt = M[paths[j]][paths[j + 1]]
                 if pytest.approx(expected_wgt, 1e-4) != actual_wgt:
                     raise ValueError("Edge ({},{}) has wgt {}, should \
-                                     have been {}".format(paths.get()[j],
-                                                          paths.get()[j+1],
+                                     have been {}".format(paths[j],
+                                                          paths[j+1],
                                                           actual_wgt,
                                                           expected_wgt))
     else:
         for i in range(num_seeds):
             for j in range(max_depth - 1):
                 curr_idx = i * max_depth + j
-                if paths.get()[curr_idx] != num_vertices:
-                    actual_wgt = weights.get()[i * (max_depth - 1) + j]
-                    expected_wgt = M[paths.get()[curr_idx]][paths.get()[curr_idx + 1]]
+                if paths[curr_idx] != num_vertices:
+                    actual_wgt = weights[i * (max_depth - 1) + j]
+                    expected_wgt = M[paths[curr_idx]][paths[curr_idx + 1]]
                     if pytest.approx(expected_wgt, 1e-4) != actual_wgt:
                         raise ValueError("Edge ({},{}) has wgt {}, should \
-                                        have been {}".format(paths.get()[j],
-                                                             paths.get()[j+1],
+                                        have been {}".format(paths[j],
+                                                             paths[j+1],
                                                              actual_wgt,
                                                              expected_wgt))
 
@@ -245,34 +247,43 @@ def test_node2vec_short_sparse():
 def test_node2vec_karate(compress_result, renumbered):
     num_edges = 156
     num_vertices = 34
-    src = cp.asarray([1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2,
-                    3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7, 12,
-                    13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32,
-                    33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27,
-                    31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1,
-                    1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6,
-                    8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22,
-                    23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29,
-                    29, 30, 30, 31, 31, 32])
-    dst = cp.asarray([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,2,2,2,2,2,2,
-                      2,2,3,3,3,4,4,5,5,5,6,8,8,8,9,13,14,14,15,15,18,18,19,20,20,
-                      22,22,23,23,23,23,23,24,24,24,25,26,26,27,28,28,29,29,30,30,
-                      31,31,32,1,2,3,4,5,6,7,8,10,11,12,13,17,19,21,31,2,3,7,13,
-                      17,19,21,30,3,7,8,9,13,27,28,32,7,12,13,6,10,6,10,16,16,30,
-                      32,33,33,33,32,33,32,33,32,33,33,32,33,32,33,25,27,29,32,33,
-                      25,27,31,31,29,33,33,31,33,32,33,32,33,32,33,33])
-    wgt = cp.asarray([1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,
-                      1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,
-                      1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,
-                      1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,
-                      1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,
-                      1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,
-                      1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,
-                      1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,
-                      1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,
-                      1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,
-                      1.0,1.0,1.0,1.0,1.0,1.0])
+    src = cp.asarray([1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31,
+                      2, 3, 7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28,
+                      32, 7, 12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33,
+                      33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27,
+                      29, 32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33,
+                      32, 33, 32, 33, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2,
+                      2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14,
+                      14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23,
+                      23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30,
+                      31, 31, 32])
+    dst = cp.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+                      1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4,
+                      4, 5, 5, 5, 6, 8, 8, 8, 9, 13, 14, 14, 15, 15, 18, 18,
+                      19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25,
+                      26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 1, 2,
+                      3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 19, 21, 31, 2, 3,
+                      7, 13, 17, 19, 21, 30, 3, 7, 8, 9, 13, 27, 28, 32, 7,
+                      12, 13, 6, 10, 6, 10, 16, 16, 30, 32, 33, 33, 33, 32,
+                      33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32,
+                      33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33,
+                      32, 33, 33])
+    wgt = cp.asarray([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0])
     seeds = cp.asarray([12, 28, 20, 23, 15, 26])
     max_depth = 5
 
