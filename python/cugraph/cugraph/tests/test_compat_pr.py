@@ -19,6 +19,8 @@
 # third-party group once this gets fixed.
 import pytest
 from cugraph.tests import utils
+import cugraph.compat.nx as nx
+
 
 MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
@@ -72,21 +74,22 @@ def test_with_max_iter(graph_file, max_iter):
     print(type(Gnx))
     assert type(pr) == dict
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
-def test_perc_spec(graph_file, max_iter ):
-    
-    import cugraph.compat.nx as nx
-
-    personalization_dict = data = {'vertex': [1,2,3,4], 'values': [0.2, 0.5, 0.1, 0.2]}
-
+def test_perc_spec(graph_file, max_iter):
+    personalization_dict = {
+        'vertex': [1, 2, 3, 4],
+        'values': [0.2, 0.5, 0.1, 0.2]
+    }
     M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight",
         create_using=nx.DiGraph()
     )
-    pr = nx.pagerank(Gnx,max_iter=max_iter, personalization=personalization_dict )
+    pr_cu = nx.pagerank(
+        Gnx, max_iter=max_iter,
+        personalization=personalization_dict
+        )
     print(type(Gnx))
-    assert type(pr) == dict
-
-
+    print(pr_cu)
