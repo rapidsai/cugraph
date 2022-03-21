@@ -60,7 +60,6 @@ target_include_directories(cugraphmgtestutil
 
 target_link_libraries(cugraphmgtestutil
     PUBLIC
-        cuco::cuco
         cugraph::cugraph
         NCCL::NCCL
 )
@@ -78,7 +77,6 @@ function(ConfigureTest CMAKE_TEST_NAME)
             GTest::gtest
             GTest::gtest_main
             NCCL::NCCL
-            cuco::cuco
     )
 
     if(OpenMP_CXX_FOUND)
@@ -157,7 +155,6 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         GTest::gtest_main
         NCCL::NCCL
         MPI::MPI_CXX
-        cuco::cuco
     )
 
     if(OpenMP_CXX_FOUND)
@@ -240,7 +237,6 @@ function(ConfigureCTest CMAKE_TEST_NAME)
             cugraph_c_testutil
             GTest::gtest
             GTest::gtest_main
-            cuco::cuco
     )
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
@@ -267,7 +263,6 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
             GTest::gtest_main
             NCCL::NCCL
             MPI::MPI_CXX
-            cuco::cuco
     )
 
     add_test(NAME ${CMAKE_TEST_NAME}

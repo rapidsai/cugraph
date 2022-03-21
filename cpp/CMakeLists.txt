@@ -290,8 +290,8 @@ target_include_directories(cugraph
 target_link_libraries(cugraph
     PUBLIC
         cugraphops::cugraphops
-        raft::raft
     PRIVATE
+        raft::raft
         cuco::cuco
         cugraph::cuHornet
         NCCL::NCCL
