@@ -67,7 +67,6 @@ def calc_node2vec(G,
 
     vertex_paths, edge_weights, vertex_path_sizes = cugraph.node2vec(
         G, start_vertices, max_depth, compress_result, p, q)
-    #breakpoint()
     return (vertex_paths, edge_weights, vertex_path_sizes), start_vertices
 
 
@@ -120,41 +119,7 @@ def test_node2vec_line(graph_file, directed):
     )
 
 
-# NOTE: For this test, a custom dataset csv was created, called
-# small_line.csv. It consists of 9 edges, src vertices 0-8 with
-# corresponding dst vertices 1-9. All edge weights are 1.0.
-# This was an attempt at creating a custom dataset from cudf, without resorting
-# to creating a new csv file, unfortunately this wasn't possible as of yet.
-# A possible new test in the future, though.
-"""
-@pytest.mark.parametrize("store_transposed", [True, False])
-@pytest.mark.parametrize("renumbered", [True, False])
-@pytest.mark.parametrize("do_expensive_check", [True, False])
-def test_node2vec_renumbered(store_transposed, renumbered, do_expensive_check):
-    # from cudf import DataFrame
-    import cudf, numpy
-    ex_graph = cudf.DataFrame(data=[(0, 1, 1), (1, 2, 1), (2, 3, 1),
-                                    (3, 4, 1), (4, 5, 1), (5, 6, 1),
-                                    (6, 7, 1), (7, 8, 1), (8, 9, 1)],
-                                    columns=["0", "1", "2"],
-                                    dtype=numpy.int32)
-    #ex_graph = cudf.DataFrame({"0": [0, 1, 2, 3, 4, 5, 6, 7, 8],
-    #         "1": [1, 2, 3, 4, 5, 6, 7, 8, 9],
-    #         "2": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]})
-
-    g = cugraph.Graph()
-    g.from_cudf_edgelist(ex_graph, source="0", destination="1", edge_attr="2",
-                          renumber=renumbered)
-    max_depth = 3
-    start_vertices = cudf.Series([0, 3, 6], dtype=numpy.int32)
-
-    cugraph.node2vec(g, start_vertices, max_depth,
-                     use_padding=False, p=0.8, q=0.5)
-"""
-
-
-
-@pytest.mark.parametrize("graph_file", [KARATE, DOLPHIN, LINE])
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("compress", [True, False])
 def test_node2vec_new(
@@ -171,9 +136,9 @@ def test_node2vec_new(
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2", renumber=False)
     num_verts = G.number_of_vertices()
     if graph_file == KARATE:
-        k = 6
+        k = 12
         # start_vertices = random.sample(range(num_verts), k)
-        start_vertices = [12, 28, 20, 23, 15, 26]
+        start_vertices = [12, 28, 20, 23, 15, 26, 12, 28, 20, 23, 15, 26]
     else:
         k = 3
         start_vertices = [3, 6, 9]
@@ -285,6 +250,7 @@ def test_node2vec_new(
                 if j >= max_depth - 1:
                     path_at_end = True
             # Check that path sizes matches up correctly with paths
+            # breakpoint()
             if vertex_paths[i * max_depth] != seeds[i]:
                 raise ValueError("vertex_path start did not match seed \
                                  vertex:{}".format(vertex_paths.values))
