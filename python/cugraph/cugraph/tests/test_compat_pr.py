@@ -78,7 +78,7 @@ def test_perc_spec(graph_file, max_iter ):
     
     import cugraph.compat.nx as nx
 
-    personalization_dict = {1: 0.75, 2: 1.1, 3: 44.3}
+    personalization_dict = data = {'vertex': [1,2,3,4], 'values': [0.2, 0.5, 0.1, 0.2]}
 
     M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
