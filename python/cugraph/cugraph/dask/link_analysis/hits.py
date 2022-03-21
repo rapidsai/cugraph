@@ -18,10 +18,8 @@ from cugraph.dask.common.input_utils import get_distributed_data
 
 import cugraph.comms.comms as Comms
 import dask_cudf
-from dask_cudf.core import DataFrame as dcDataFrame
 
 import pylibcugraph
-from pylibcugraph.experimental import ResourceHandle
 
 
 def call_hits(sID,
@@ -37,10 +35,9 @@ def call_hits(sID,
               initial_hubs_guess_vertices,
               initial_hubs_guess_value,
               normalized):
-    
+
     handle = Comms.get_handle(sID)
-    #h = pylibcugraph.handle_create(handle)
-    h = pylibcugraph.experimental.ResourceHandle()
+    h = pylibcugraph.experimental.ResourceHandle(handle)
     srcs = data[0][src_col_name]
     dsts = data[0][dst_col_name]
     weights = None
@@ -48,13 +45,13 @@ def call_hits(sID,
         weights = data[0]['value']
 
     mg = pylibcugraph.experimental.MGGraph(h,
-                 graph_properties,
-                 srcs,
-                 dsts,
-                 weights,
-                 store_transposed,
-                 num_edges,
-                 do_expensive_check)
+                                           graph_properties,
+                                           srcs,
+                                           dsts,
+                                           weights,
+                                           store_transposed,
+                                           num_edges,
+                                           do_expensive_check)
 
     result = pylibcugraph.experimental.hits(h,
                                             mg,
@@ -64,8 +61,7 @@ def call_hits(sID,
                                             initial_hubs_guess_value,
                                             normalized,
                                             do_expensive_check)
-    
-    #pylibcugraph.free_handle(handle)
+
     return result
 
 
@@ -142,13 +138,13 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
 
     client = default_client()
 
-    #FIXME Still compute renumbering at this layer in case str vertex ID are passed
+    # FIXME Still compute renumbering at this layer in case str
+    # vertex ID are passed
     input_graph.compute_renumber_edge_list(transposed=False)
     ddf = input_graph.edgelist.edgelist_df
 
-    #resource_handle = ResourceHandle()
-    graph_properties = pylibcugraph.experimental.GraphProperties(is_multigraph=False)
-    #graph_properties = None
+    graph_properties = pylibcugraph.experimental.GraphProperties(
+        is_multigraph=False)
 
     store_transposed = False
     do_expensive_check = False
@@ -161,8 +157,8 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
     if nstart is not None:
-        initial_hubs_guess_vertices = n_start['vertex']
-        initial_hubs_guess_values = n_start['values']
+        initial_hubs_guess_vertices = nstart['vertex']
+        initial_hubs_guess_values = nstart['values']
 
     result = [client.submit(call_hits,
                             Comms.get_session_id(),
@@ -179,17 +175,12 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
                             initial_hubs_guess_values,
                             normalized,
                             workers=[wf[0]])
-                 for idx, wf in enumerate(data.worker_to_parts.items())]
+              for idx, wf in enumerate(data.worker_to_parts.items())]
 
     wait(result)
 
     ddf = dask_cudf.from_delayed(result)
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, 'vertex')
-    
+
     return ddf
-
-    
-
-
-

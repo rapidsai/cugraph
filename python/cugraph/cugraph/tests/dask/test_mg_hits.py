@@ -16,14 +16,14 @@ import gc
 import pytest
 import cugraph
 import dask_cudf
-import cudf
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 from cugraph.tests import utils
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
+
+
 def setup_function():
     gc.collect()
 
@@ -54,8 +54,8 @@ def input_combo(request):
 @pytest.fixture(scope="module")
 def input_expected_output(input_combo):
     """
-    This fixture returns the expected results from the HITS algo.(based on cuGraph
-    HITS) which can be used for validation.
+    This fixture returns the expected results from the HITS algo.(based on
+    cuGraph HITS) which can be used for validation.
     """
 
     G = utils.generate_cugraph_graph_from_file(
@@ -64,7 +64,11 @@ def input_expected_output(input_combo):
                             G,
                             input_combo["max_iter"],
                             input_combo["tol"])
-    sg_cugraph_hits = sg_cugraph_hits.sort_values("vertex").reset_index(drop=True)
+    # Save the results back to the input_combo dictionary to prevent redundant
+    # cuGraph runs. Other tests using the input_combo fixture will look for
+    # them, and if not present they will have to re-run the same cuGraph call.
+    sg_cugraph_hits = sg_cugraph_hits.sort_values(
+        "vertex").reset_index(drop=True)
 
     input_combo["sg_cugraph_results"] = sg_cugraph_hits
     return input_combo
@@ -78,28 +82,28 @@ def input_expected_output(input_combo):
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-
 def test_cugraph_hits(benchmark, input_combo):
     """
-    Simply run cuGraph HITS on the same set of input combinations used for the
+    Simply run cuGraph HITS on the same set of input combinations used
+    for the
     cuGraph HITS tests.
     This is only in place for generating comparison performance numbers.
     """
-
     G = utils.generate_cugraph_graph_from_file(
         input_combo["graph_file"])
-    
+
     sg_cugraph_hits = benchmark(cugraph.hits,
-                             G,
-                             input_combo["max_iter"],
-                             input_combo["tol"])
+                                G,
+                                input_combo["max_iter"],
+                                input_combo["tol"])
+    input_combo["sg_cugraph_results"] = sg_cugraph_hits
 
 
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 def test_dask_hits(dask_client, benchmark, input_expected_output):
-        
+
     input_data_path = input_expected_output["graph_file"]
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_expected_output["graph_file"])
@@ -114,32 +118,31 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
 
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
-    
 
-
-    result_dist = benchmark(dcg.hits,
+    result_hits = benchmark(dcg.hits,
                             dg,
                             input_expected_output["max_iter"],
                             input_expected_output["tol"])
-    result_dist = result_dist.compute().sort_values("vertex").reset_index(drop=True)
+    result_hits = result_hits.compute().sort_values(
+        "vertex").reset_index(drop=True)
 
-    expected_output = input_expected_output["sg_cugraph_results"].sort_values("vertex").reset_index(drop=True)
+    expected_output = input_expected_output["sg_cugraph_results"].sort_values(
+        "vertex").reset_index(drop=True)
 
-    # Update the dask cugraph HITS results with sg cugraph results for easy comparison using
-    # cuDF DataFrame methods.
-    results_dist["cugraph_hubs"] = expected_output['hubs']
-    results_dist["cugraph_authorities"] = expected_output["authorities"]
+    # Update the dask cugraph HITS results with sg cugraph results for easy
+    # comparison using cuDF DataFrame methods.
+    result_hits["cugraph_hubs"] = expected_output['hubs']
+    result_hits["cugraph_authorities"] = expected_output["authorities"]
 
-    hubs_diffs1 = cugraph_hits.query('hubs - nx_hubs > 0.00001')
-    hubs_diffs2 = cugraph_hits.query('hubs - nx_hubs < -0.00001')
-    authorities_diffs1 = cugraph_hits.query(
-        'authorities - nx_authorities > 0.0001')
-    authorities_diffs2 = cugraph_hits.query(
-        'authorities - nx_authorities < -0.0001')
+    # FIXME: Check this is working
+    hubs_diffs1 = result_hits.query('hubs - cugraph_hubs > 0.00001')
+    hubs_diffs2 = result_hits.query('hubs - cugraph_hubs < -0.00001')
+    authorities_diffs1 = result_hits.query(
+        'authorities - cugraph_authorities > 0.0001')
+    authorities_diffs2 = result_hits.query(
+        'authorities - cugraph_authorities < -0.0001')
 
     assert len(hubs_diffs1) == 0
     assert len(hubs_diffs2) == 0
     assert len(authorities_diffs1) == 0
     assert len(authorities_diffs2) == 0
-
-
