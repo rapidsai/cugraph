@@ -145,6 +145,7 @@ rapids_cpm_init()
 
 # Putting this before raft to override RAFT from pulling them in.
 include(cmake/thirdparty/get_thrust.cmake)
+include(cmake/thirdparty/get_rmm.cmake)
 include(cmake/thirdparty/get_libcudacxx.cmake)
 include(cmake/thirdparty/get_cuco.cmake)
 
