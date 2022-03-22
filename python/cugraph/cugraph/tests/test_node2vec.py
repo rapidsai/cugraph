@@ -247,6 +247,6 @@ def test_node2vec_new(
             # path has 4 walks / 5 vertices visited, path 2 starts at index
             # 10 instead of index 5
             if i * max_depth * 2 < vertex_paths.size and \
-                vertex_paths[i * max_depth * 2] != seeds[i]:
+               vertex_paths[i * max_depth * 2] != seeds[i]:
                 raise ValueError("vertex_path start did not match seed \
                                  vertex:{}".format(vertex_paths.values))
