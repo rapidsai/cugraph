@@ -42,6 +42,7 @@ target_include_directories(cugraphtestutil
 target_link_libraries(cugraphtestutil
     PUBLIC
         raft::raft
+        cugraph::Thrust
         cugraph::cugraph
         NCCL::NCCL
 )
@@ -61,6 +62,7 @@ target_include_directories(cugraphmgtestutil
 
 target_link_libraries(cugraphmgtestutil
     PUBLIC
+        cugraph::Thrust
         cugraph::cugraph
         NCCL::NCCL
 )
@@ -239,6 +241,7 @@ function(ConfigureCTest CMAKE_TEST_NAME)
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
             raft::raft
+            cugraph::Thrust
             cugraph::cugraph_c
             cugraph_c_testutil
             GTest::gtest
