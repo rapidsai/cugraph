@@ -193,5 +193,6 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
         vertex_t *edgelist_major_vertices,
         vertex_t *edgelist_minor_vertices,
         const vector[edge_t]& edge_counts,
+        bool store_transposed,
         bool do_check,
         bool multi_gpu) except +

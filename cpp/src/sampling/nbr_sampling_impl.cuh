@@ -311,14 +311,16 @@ std::tuple<device_vec_t<typename graph_view_t::vertex_type>,
            device_vec_t<typename graph_view_t::vertex_type>,
            device_vec_t<gpu_t>,
            device_vec_t<index_t>>
-uniform_nbr_sample_impl(raft::handle_t const& handle,
-                        graph_view_t const& graph_view,
-                        device_vec_t<typename graph_view_t::vertex_type>& d_in,
-                        device_vec_t<gpu_t>& d_ranks,
-                        std::vector<int> const& h_fan_out,
-                        device_vec_t<typename graph_view_t::edge_type> const& global_out_degrees,
-                        device_vec_t<typename graph_view_t::edge_type> const& global_degree_offsets,
-                        bool flag_replacement)
+uniform_nbr_sample_impl(
+  raft::handle_t const& handle,
+  graph_view_t const& graph_view,
+  device_vec_t<typename graph_view_t::vertex_type>& d_in,
+  device_vec_t<gpu_t>& d_ranks,
+  std::vector<int> const& h_fan_out,
+  device_vec_t<typename graph_view_t::edge_type> const& global_out_degrees,
+  device_vec_t<typename graph_view_t::edge_type> const& global_degree_offsets,
+  device_vec_t<typename graph_view_t::edge_type> const& global_adjacency_list_offsets,
+  bool flag_replacement)
 {
   using vertex_t        = typename graph_view_t::vertex_type;
   using edge_t          = typename graph_view_t::edge_type;
@@ -362,41 +364,60 @@ uniform_nbr_sample_impl(raft::handle_t const& handle,
       //{
       // prep step for extracting out-degs(sources):
       //
-      auto&& [d_new_in, d_new_rank] = gather_active_sources_in_row(
-        handle, graph_view, d_in.cbegin(), d_in.cend(), d_ranks.cbegin());
+      auto&& [d_new_in, d_new_rank] =
+        gather_active_majors(handle, graph_view, d_in.cbegin(), d_in.cend(), d_ranks.cbegin());
 
       auto in_sz = d_in.size();
       if (in_sz > 0) {
-        // extract out-degs(sources):
-        //
-        auto&& d_out_degs =
-          get_active_major_global_degrees(handle, graph_view, d_new_in, global_out_degrees);
+        rmm::device_uvector<vertex_t> d_out_src(0, handle.get_stream());
+        rmm::device_uvector<vertex_t> d_out_dst(0, handle.get_stream());
+        rmm::device_uvector<gpu_t> d_out_ranks(0, handle.get_stream());
+        rmm::device_uvector<edge_t> d_indices(0, handle.get_stream());
+        if (k_level != 0) {
+          // extract out-degs(sources):
+          //
+          auto&& d_out_degs =
+            get_active_major_global_degrees(handle, graph_view, d_new_in, global_out_degrees);
 
-        // segemented-random-generation of indices:
-        //
-        device_vec_t<edge_t> d_rnd_indices(d_new_in.size() * k_level, handle.get_stream());
+          // segemented-random-generation of indices:
+          //
+          device_vec_t<edge_t> d_rnd_indices(d_new_in.size() * k_level, handle.get_stream());
 
-        cugraph_ops::Rng rng(row_rank + level);
-        cugraph_ops::get_sampling_index(detail::raw_ptr(d_rnd_indices),
-                                        rng,
-                                        detail::raw_const_ptr(d_out_degs),
-                                        static_cast<edge_t>(d_out_degs.size()),
-                                        static_cast<int32_t>(k_level),
-                                        flag_replacement,
-                                        handle.get_stream());
+          cugraph_ops::Rng rng(row_rank + level);
+          cugraph_ops::get_sampling_index(detail::raw_ptr(d_rnd_indices),
+                                          rng,
+                                          detail::raw_const_ptr(d_out_degs),
+                                          static_cast<edge_t>(d_out_degs.size()),
+                                          static_cast<int32_t>(k_level),
+                                          flag_replacement,
+                                          handle.get_stream());
 
-        // gather edges step:
-        // invalid entries (not found, etc.) filtered out in result;
-        // d_indices[] filtered out in-place (to avoid copies+moves);
-        //
-        auto&& [d_out_src, d_out_dst, d_out_ranks, d_indices] =
-          gather_local_edges(handle,
-                             graph_view,
-                             d_new_in,
-                             d_new_rank,
-                             std::move(d_rnd_indices),
-                             static_cast<edge_t>(k_level),
-                             global_degree_offsets);
+          // gather edges step:
+          // invalid entries (not found, etc.) filtered out in result;
+          // d_indices[] filtered out in-place (to avoid copies+moves);
+          //
+          auto&& [temp_d_out_src, temp_d_out_dst, temp_d_out_ranks, temp_d_indices] =
+            gather_local_edges(handle,
+                               graph_view,
+                               d_new_in,
+                               d_new_rank,
+                               std::move(d_rnd_indices),
+                               static_cast<edge_t>(k_level),
+                               global_degree_offsets,
+                               global_adjacency_list_offsets);
+          d_out_src   = std::move(temp_d_out_src);
+          d_out_dst   = std::move(temp_d_out_dst);
+          d_out_ranks = std::move(temp_d_out_ranks);
+          d_indices   = std::move(temp_d_indices);
+        } else {
+          auto&& [temp_d_out_src, temp_d_out_dst, temp_d_out_ranks, temp_d_indices] =
+            gather_one_hop_edgelist(
+              handle, graph_view, d_new_in, d_new_rank, global_adjacency_list_offsets);
+          d_out_src   = std::move(temp_d_out_src);
+          d_out_dst   = std::move(temp_d_out_dst);
+          d_out_ranks = std::move(temp_d_out_ranks);
+          d_indices   = std::move(temp_d_indices);
+        }
 
         // resize accumulators:
         //
@@ -506,18 +527,22 @@ uniform_nbr_sample(raft::handle_t const& handle,
   // preamble step for out-degree info:
   //
   auto&& [global_degree_offsets, global_out_degrees] =
-    get_global_degree_information(handle, graph_view);
+    detail::get_global_degree_information(handle, graph_view);
+  auto&& global_adjacency_list_offsets = detail::get_global_adjacency_offset(
+    handle, graph_view, global_degree_offsets, global_out_degrees);
 
   // extract output quad SOA:
   //
-  auto&& [d_src, d_dst, d_gpus, d_indices] = detail::uniform_nbr_sample_impl(handle,
-                                                                             graph_view,
-                                                                             d_start_vs,
-                                                                             d_ranks,
-                                                                             h_fan_out,
-                                                                             global_out_degrees,
-                                                                             global_degree_offsets,
-                                                                             flag_replacement);
+  auto&& [d_src, d_dst, d_gpus, d_indices] =
+    detail::uniform_nbr_sample_impl(handle,
+                                    graph_view,
+                                    d_start_vs,
+                                    d_ranks,
+                                    h_fan_out,
+                                    global_out_degrees,
+                                    global_degree_offsets,
+                                    global_adjacency_list_offsets,
+                                    flag_replacement);
 
   // shuffle quad SOA by d_gpus:
   //
