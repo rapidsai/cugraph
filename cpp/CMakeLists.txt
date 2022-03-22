@@ -294,6 +294,7 @@ target_link_libraries(cugraph
         cugraphops::cugraphops
     PRIVATE
         raft::raft
+        cugraph::Thrust
         cuco::cuco
         cugraph::Thrust
         cugraph::cuHornet
@@ -405,6 +406,7 @@ target_link_libraries(cugraph_c
                 CUDA::cusolver
                 CUDA::cusparse
         PRIVATE
+                cugraph::Thrust
                 raft::raft
                 cuco::cuco
                 cugraph::cugraph
