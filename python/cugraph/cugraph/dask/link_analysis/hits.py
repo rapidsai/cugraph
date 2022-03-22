@@ -38,6 +38,7 @@ def call_hits(sID,
 
     handle = Comms.get_handle(sID)
     h = pylibcugraph.experimental.ResourceHandle(handle)
+    #h = pylibcugraph.experimental.ResourceHandle()
     srcs = data[0][src_col_name]
     dsts = data[0][dst_col_name]
     weights = None
@@ -145,6 +146,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
 
     graph_properties = pylibcugraph.experimental.GraphProperties(
         is_multigraph=False)
+    graph_properties = None
 
     store_transposed = False
     do_expensive_check = False

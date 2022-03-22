@@ -28,7 +28,7 @@ from pylibcugraph._cugraph_c.error cimport (
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_device_array_view_create,
-    cugraph_type_erased_device_array_free,
+    cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -211,5 +211,11 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
     df["authorities"] = cudf_series_authorities
 
     cugraph_hits_result_free(result_ptr)
+
+    if initial_hubs_guess_vertices is not None:
+        cugraph_type_erased_device_array_view_free(initial_hubs_guess_vertices_view_ptr)
+    
+    if initial_hubs_guess_values is not None:
+        cugraph_type_erased_device_array_view_free(initial_hubs_guess_values_view_ptr)
 
     return df
