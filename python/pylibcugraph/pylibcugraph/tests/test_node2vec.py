@@ -203,8 +203,8 @@ def run_node2vec(src_arr,
                     if pytest.approx(expected_wgt, 1e-4) != actual_wgt:
                         s = h_paths[j]
                         d = h_paths[j+1]
-                        raise ValueError(f"Edge ({s},{d}) has wgt {actual_wgt}, "
-                                         f"should have been {expected_wgt}")
+                        raise ValueError(f"Edge ({s},{d}) has wgt {actual_wgt}"
+                                         f", should have been {expected_wgt}")
 
 
 def test_node2vec_short():
@@ -212,7 +212,8 @@ def test_node2vec_short():
     num_vertices = 6
     src = cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32)
     dst = cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32)
-    wgt = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2], dtype=np.float32)
+    wgt = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
+                     dtype=np.float32)
     seeds = cp.asarray([0, 0], dtype=np.int32)
     max_depth = 4
 
@@ -225,7 +226,8 @@ def test_node2vec_short_dense():
     num_vertices = 6
     src = cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32)
     dst = cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32)
-    wgt = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2], dtype=np.float32)
+    wgt = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
+                     dtype=np.float32)
     seeds = cp.asarray([2, 3], dtype=np.int32)
     max_depth = 4
 
@@ -238,7 +240,8 @@ def test_node2vec_short_sparse():
     num_vertices = 6
     src = cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32)
     dst = cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32)
-    wgt = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2], dtype=np.float32)
+    wgt = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
+                     dtype=np.float32)
     seeds = cp.asarray([2, 3], dtype=np.int32)
     max_depth = 4
 
