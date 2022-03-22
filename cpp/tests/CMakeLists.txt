@@ -41,8 +41,6 @@ target_include_directories(cugraphtestutil
 
 target_link_libraries(cugraphtestutil
     PUBLIC
-        raft::raft
-        cugraph::Thrust
         cugraph::cugraph
         NCCL::NCCL
 )
@@ -62,7 +60,6 @@ target_include_directories(cugraphmgtestutil
 
 target_link_libraries(cugraphmgtestutil
     PUBLIC
-        cugraph::Thrust
         cugraph::cugraph
         NCCL::NCCL
 )
@@ -75,8 +72,6 @@ function(ConfigureTest CMAKE_TEST_NAME)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-            raft::raft
-            cugraph::Thrust
             cugraphtestutil
             cugraph::cugraph
             GTest::gtest
@@ -153,8 +148,6 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-        raft::raft
-        cugraph::Thrust
         cugraphmgtestutil
         cugraphtestutil
         cugraph::cugraph
@@ -240,8 +233,6 @@ function(ConfigureCTest CMAKE_TEST_NAME)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-            raft::raft
-            cugraph::Thrust
             cugraph::cugraph_c
             cugraph_c_testutil
             GTest::gtest
@@ -266,8 +257,6 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
-            raft::raft
-            cugraph::Thrust
             cugraph::cugraph_c
             cugraph_c_testutil
             GTest::gtest

@@ -292,10 +292,10 @@ target_include_directories(cugraph
 target_link_libraries(cugraph
     PUBLIC
         cugraphops::cugraphops
-    PRIVATE
         raft::raft
         cuco::cuco
         cugraph::Thrust
+    PRIVATE
         cugraph::cuHornet
         NCCL::NCCL
 )
@@ -404,10 +404,10 @@ target_link_libraries(cugraph_c
                 CUDA::curand
                 CUDA::cusolver
                 CUDA::cusparse
-        PRIVATE
                 cugraph::Thrust
                 raft::raft
                 cuco::cuco
+        PRIVATE
                 cugraph::cugraph
 )
 
