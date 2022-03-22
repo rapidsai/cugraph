@@ -60,17 +60,6 @@ _test_data = {"karate.csv": {
                   "max_depth": 4
                   },
               }
-_test_data_2 = {"karate.csv": {
-                    "seeds": cp.asarray([], dtype=np.int32),
-                    "path_sizes": cp.asarray([], dtype=np.int32),
-                    "max_depth": 0
-                    },
-                "dolphins.csv": {
-                    "seeds": cp.asarray([], dtype=np.int32),
-                    "path_sizes": cp.asarray([], dtype=np.int32),
-                    "max_depth": 0
-                    },
-                }
 
 # =============================================================================
 # Pytest fixtures
