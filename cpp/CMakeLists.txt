@@ -405,6 +405,7 @@ target_link_libraries(cugraph_c
                 CUDA::cusolver
                 CUDA::cusparse
         PRIVATE
+                raft::raft
                 cuco::cuco
                 cugraph::cugraph
 )
