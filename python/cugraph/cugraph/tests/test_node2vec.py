@@ -245,8 +245,9 @@ def test_node2vec_new(
             # FIXME: For some unknown reason, the start of each path is
             # 2x the intended index when the path is padded. So if each
             # path has 4 walks / 5 vertices visited, path 2 starts at index
-            # 10 instead of index 5
-            if i * max_depth * 2 < vertex_paths.size and \
-               vertex_paths[i * max_depth * 2] != seeds[i]:
+            # 10 instead of index 5, the below commented test works
+            # if i * max_depth * 2 < vertex_paths.size and \
+            #   vertex_paths[i * max_depth * 2] != seeds[i]:
+            if vertex_paths[i * max_depth] != seeds[i]:
                 raise ValueError("vertex_path start did not match seed \
                                  vertex:{}".format(vertex_paths.values))
