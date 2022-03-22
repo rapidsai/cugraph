@@ -16,7 +16,7 @@
 function(find_and_configure_thrust)
     include(${rapids-cmake-dir}/cpm/thrust.cmake)
 
-    rapids_cpm_thrust()
+    rapids_cpm_thrust(NAMESPACE cugraph)
     rapids_export_package(BUILD thrust cugraph-exports)
 endfunction()
 

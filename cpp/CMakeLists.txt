@@ -144,9 +144,9 @@ rapids_cpm_init()
 ###
 
 # Putting this before raft to override RAFT from pulling them in.
+include(cmake/thirdparty/get_thrust.cmake)
 include(cmake/thirdparty/get_libcudacxx.cmake)
 include(cmake/thirdparty/get_cuco.cmake)
-include(cmake/thirdparty/get_thrust.cmake)
 
 include(cmake/thirdparty/get_raft.cmake)
 include(cmake/thirdparty/get_libcugraphops.cmake)
@@ -294,7 +294,7 @@ target_link_libraries(cugraph
     PRIVATE
         raft::raft
         cuco::cuco
-        Thrust::Thrust
+        cugraph::Thrust
         cugraph::cuHornet
         NCCL::NCCL
 )
