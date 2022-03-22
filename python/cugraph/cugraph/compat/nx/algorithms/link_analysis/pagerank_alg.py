@@ -13,8 +13,18 @@
 
 import cugraph
 import cugraph.utilities
-import pandas as pd
 import cudf
+import numpy as np
+
+
+def cudify(d):
+    if d is None:
+        return None
+
+    k = np.fromiter(d.keys(), dtype="int32")
+    v = np.fromiter(d.values(), dtype="float32")
+    cuD = cudf.DataFrame({"vertex": k, "values": v})
+    return cuD
 
 
 def pagerank(
@@ -86,12 +96,10 @@ def pagerank(
                A dictionary of nodes with the PageRank as value
 
     """
-    print("Called compat.nx pagerank")
+    print("Called compat.nx pagerank !!!")
     local_pers = None
     if (personalization is not None):
-        dataframe = pd.DataFrame.from_dict(personalization)
-        local_pers = cudf.from_pandas(dataframe)
-
+        local_pers = cudify(personalization)
     return cugraph.pagerank(
             G,
             alpha,
