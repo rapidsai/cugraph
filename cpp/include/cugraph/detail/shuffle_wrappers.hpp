@@ -93,5 +93,29 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
   bool groupby_and_count_local_partition_by_minor = false);
 
+/**
+ * @brief Collect vertex values (represented as k/v pairs across cluster) and update the
+ *        local value arrays on the GPU responsible for each vertex.
+ *
+ * Data will be shuffled and d_local_values[d_vertices[i]] = d_values[i]
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam value_t  Type of value associated with the vertex.
+ * @tparam bool     multi_gpu flag
+ *
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in/out] d_vertices Vertex IDs for the k/v pair
+ * @param[in/out] d_values Values for the k/v pair
+ * @param[out] d_local_values The device vector on each GPU that should be updated
+ * @param[in] local_vertex_first The first vertex id assigned to the local GPU
+ */
+template <typename vertex_t, typename value_t, bool multi_gpu>
+void collect_vertex_values_to_local(raft::handle_t const& handle,
+                                    rmm::device_uvector<vertex_t>& d_vertices,
+                                    rmm::device_uvector<value_t>& d_values,
+                                    rmm::device_uvector<value_t>& d_local_values,
+                                    vertex_t local_vertex_first);
+
 }  // namespace detail
 }  // namespace cugraph
