@@ -24,14 +24,18 @@ def cudify(d):
 
     Parameters
     ----------
-    dictionary with node ids and values
+    dictionary with node ids(key) and values
 
     Returns
     -------
-    a dictionary of nodes and values.
+    a DataFrame of (vertex)ids and values.
     """
     if d is None:
         return None
+    if  not(isinstance(d, dict)):
+            raise TypeError("type_name must be a dict, got: "
+                            f"{type(d)}")
+
 
     k = np.fromiter(d.keys(), dtype="int32")
     v = np.fromiter(d.values(), dtype="float32")
@@ -93,7 +97,8 @@ def pagerank(
             Pagerank values for vertices
 
     weight: str, optional (default=None)
-        This parameter is here for NetworkX compatibility and ignored
+        This parameter is here for NetworkX compatibility and not
+        yet supported in this algorithm
 
     dangling : dict, optional (default=None)
         This parameter is here for NetworkX compatibility and ignored
