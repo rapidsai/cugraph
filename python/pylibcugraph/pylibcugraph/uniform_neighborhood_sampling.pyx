@@ -14,6 +14,8 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
+from libc.stdint cimport uintptr_t
+
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
     data_type_id_t,
@@ -98,11 +100,11 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef uintptr cai_start_ptr = \
+    cdef uintptr_t cai_start_ptr = \
         start_info_list.__cuda_array_interface__["data"][0]
-    cdef uintptr cai_labels_ptr = \
+    cdef uintptr_t cai_labels_ptr = \
         start_info_list.__cuda_array_interface__["data"][1]
-    cdef uintptr cai_fan_out_ptr = \
+    cdef uintptr_t cai_fan_out_ptr = \
         h_fan_out.__cuda_array_interface__["data"][0]
 
     cdef cugraph_type_erased_device_array_view_t* start_ptr = \
@@ -115,6 +117,8 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
             <void*>cai_labels_ptr,
             len(start_info_list),
             get_c_type_from_numpy_type(start_info_list.dtype))
+    # cdef cugraph_type_erased_device_array_view_t* fan_out_ptr = \
+    #    cugraph_type_erased_device_array_view_create(
     cdef cugraph_type_erased_host_array_view_t* fan_out_ptr = \
         cugraph_type_erased_host_array_view_create(
             <void*>cai_fan_out_ptr,
@@ -136,7 +140,7 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
         cugraph_sample_result_get_sources(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* dst_ptr = \
         cugraph_sample_result_get_destinations(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* start_labels_ptr = \
+    cdef cugraph_type_erased_device_array_view_t* labels_ptr = \
         cugraph_sample_result_get_start_labels(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* index_ptr = \
         cugraph_sample_result_get_index(result_ptr)
@@ -145,7 +149,7 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
 
     cupy_sources = copy_to_cupy_array(c_resource_handle_ptr, src_ptr)
     cupy_destinations = copy_to_cupy_array(c_resource_handle_ptr, dst_ptr)
-    cupy_labels = copy_to_cupy_array(c_resource_handle_ptr, start_labels_ptr)
+    cupy_labels = copy_to_cupy_array(c_resource_handle_ptr, labels_ptr)
     cupy_indices = copy_to_cupy_array(c_resource_handle_ptr, index_ptr)
     cupy_counts = copy_to_cupy_array(c_resource_handle_ptr, counts_ptr)
 

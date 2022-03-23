@@ -20,6 +20,29 @@
 import pylibcugraph.experimental as pylibcugraph
 
 
+def call_nbr_sampling(sID,
+                      data,
+                      src_col_name,
+                      dst_col_name,
+                      ):
+
+    # Preparation for graph creation
+    handle = Comms.get_handle(sID)
+    handle = pylibcugraph.experimental.ResourceHandle(handle)
+    srcs = data[0][src_col_name]
+    dsts = data[0][dst_col_name]
+    weights = None
+    if "value" in data[0].columns:
+        weights = data[0]['value']
+
+    mg = pylibcugraph.experimental.MGGraph(handle,
+                                           graph_properties,
+                                           srcs,
+                                           dsts,
+                                           weights,)
+
+
+
 def uniform_neighborhood(G,
                          start_info_list,
                          fanout_vals,
