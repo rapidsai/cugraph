@@ -79,7 +79,6 @@ rapids_cmake_build_type(Release)
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
-option(BUILD_CUGRAPH_OPS_PYTHON_LIBRARY "Build cugraph-ops python library." OFF)
 
 ################################################################################
 # - compiler options -----------------------------------------------------------
