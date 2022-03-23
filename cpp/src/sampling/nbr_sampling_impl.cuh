@@ -332,8 +332,12 @@ uniform_nbr_sample_impl(
 
   if constexpr (graph_view_t::is_multi_gpu) {
     size_t num_starting_vs = d_in.size();
+#if 0
+    // FIXME: After shuffling, there's no guarantee that there will be at least 1 starting
+    //        vertex on each GPU.
     CUGRAPH_EXPECTS(num_starting_vs > 0,
                     "Invalid input argument: starting vertex set cannot be null.");
+#endif
 
     CUGRAPH_EXPECTS(num_starting_vs == d_ranks.size(),
                     "Sets of input vertices and ranks must have same sizes.");
@@ -360,6 +364,7 @@ uniform_nbr_sample_impl(
 
     size_t level{0l};
     for (auto&& k_level : h_fan_out) {
+      std::cout << "k_level = " << k_level << ", self_rank = " << self_rank << ", d_in.size() = " << d_in.size() << std::endl;
       // main body:
       //{
       // prep step for extracting out-degs(sources):
@@ -507,6 +512,10 @@ uniform_nbr_sample(raft::handle_t const& handle,
   thrust::copy_n(handle.get_thrust_policy(), ptr_d_start, num_starting_vs, d_start_vs.begin());
   thrust::copy_n(handle.get_thrust_policy(), ptr_d_ranks, num_starting_vs, d_ranks.begin());
 
+  std::cout << "before shuffling in nbr_sampling_impl, rank = " << self_rank << std::endl;
+  raft::print_device_vector("d_start_vs", d_start_vs.data(), d_start_vs.size(), std::cout);
+  raft::print_device_vector("d_ranks", d_ranks.data(), d_ranks.size(), std::cout);
+
   // shuffle data to local rank:
   //
   auto next_in_zip_begin =
@@ -523,6 +532,10 @@ uniform_nbr_sample(raft::handle_t const& handle,
                                d_start_vs,
                                d_ranks,
                                gpu_t{});
+
+  std::cout << "after shuffling in nbr_sampling_impl, rank = " << self_rank << std::endl;
+  raft::print_device_vector("d_start_vs", d_start_vs.data(), d_start_vs.size(), std::cout);
+  raft::print_device_vector("d_ranks", d_ranks.data(), d_ranks.size(), std::cout);
 
   // preamble step for out-degree info:
   //

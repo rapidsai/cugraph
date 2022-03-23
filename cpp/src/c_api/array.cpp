@@ -150,8 +150,7 @@ extern "C" cugraph_error_code_t cugraph_type_erased_host_array_create(
     size_t n_bytes = n_elems * (::data_type_sz[dtype]);
 
     *array = reinterpret_cast<cugraph_type_erased_host_array_t*>(
-      new cugraph::c_api::cugraph_type_erased_host_array_t{
-        std::make_unique<std::byte[]>(n_bytes), n_elems, n_bytes, dtype});
+      new cugraph::c_api::cugraph_type_erased_host_array_t{n_elems, n_bytes, dtype});
 
     return CUGRAPH_SUCCESS;
   } catch (std::exception const& ex) {
