@@ -29,12 +29,7 @@ function(find_and_configure_cugraph_ops)
 endfunction()
 
 ###
-#
 # To use a locally-built cugraph-ops package, set the CMake variable
 # `-D cugraph-ops_ROOT=/path/to/cugraph-ops/build`
-#
-# To use a local clone of cugraph-ops source and allow CMake to build
-# cugraph-ops as part of building cugraph itself, set the CMake variable
-# `-D CPM_cugraph-ops_SOURCE=/path/to/cugraph-ops`
 ###
 find_and_configure_cugraph_ops(VERSION ${CUGRAPH_MIN_VERSION_cugraph_ops})
