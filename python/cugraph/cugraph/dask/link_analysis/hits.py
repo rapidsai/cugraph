@@ -37,8 +37,7 @@ def call_hits(sID,
               normalized):
 
     handle = Comms.get_handle(sID)
-    h = pylibcugraph.experimental.ResourceHandle(handle)
-    #h = pylibcugraph.experimental.ResourceHandle()
+    h = pylibcugraph.experimental.ResourceHandle(handle.getHandle())
     srcs = data[0][src_col_name]
     dsts = data[0][dst_col_name]
     weights = None

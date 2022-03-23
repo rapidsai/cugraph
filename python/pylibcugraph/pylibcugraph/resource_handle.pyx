@@ -21,11 +21,6 @@ from pylibcugraph._cugraph_c.resource_handle cimport (
 #from cugraph.dask.traversal cimport mg_bfs as c_bfs
 from pylibcugraph cimport resource_handle as c_resource_handle
 
-# FIXME: rather than depend on RAFT here, consider something like a factory
-# function in cugraph (which already has a RAFT dependency) that takes a RAFT
-# handle and constructs/returns a ResourceHandle
-from raft.common.handle cimport handle_t
-
 
 cdef class EXPERIMENTAL__ResourceHandle:
     """
@@ -36,7 +31,11 @@ cdef class EXPERIMENTAL__ResourceHandle:
         cdef void* handle_ptr = NULL
         cdef size_t handle_size_t
         if handle is not None:
-            handle_size_t = <size_t>handle.getHandle()
+            # FIXME: rather than assume a RAFT handle here, consider something
+            # like a factory function in cugraph (which already has a RAFT
+            # dependency and makes RAFT assumptions) that takes a RAFT handle
+            # and constructs/returns a ResourceHandle
+            handle_size_t = <size_t>handle
             handle_ptr = <void*>handle_size_t
 
         self.c_resource_handle_ptr = cugraph_create_resource_handle(handle_ptr)
