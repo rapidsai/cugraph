@@ -18,6 +18,18 @@ import numpy as np
 
 
 def cudify(d):
+    """
+    Converts a dictionary which is what networkx sends to a
+    cudf.DataFrame required in cugraph
+
+    Parameters
+    ----------
+    dictionary with node ids and values
+
+    Returns
+    -------
+    a dictionary of nodes and values.
+    """
     if d is None:
         return None
 
@@ -45,9 +57,6 @@ def pagerank(
     Parameters
     ----------
     G : networkx.Graph
-        cuGraph graph descriptor, should contain the connectivity information
-        as an edge list.
-        The transposed adjacency list will be computed if not already present.
 
     alpha : float, optional (default=0.85)
         The damping factor alpha represents the probability to follow an
@@ -56,7 +65,8 @@ def pagerank(
         Alpha should be greater than 0.0 and strictly lower than 1.0.
 
     personalization : dictionary, optional (default=None)
-        GPU Dataframe containing the personalization information.
+        dictionary comes from networkx is converted to a dataframe
+        containing the personalization information.
 
     max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned. This can
@@ -74,18 +84,16 @@ def pagerank(
         numerical roundoff. Usually values between 0.01 and 0.00001 are
         acceptable.
 
-    nstart : cudf.Dataframe, optional (default=None)
-        GPU Dataframe containing the initial guess for pagerank.
-
+    nstart : dictionary, optional (default=None)
+        dictionary containing the initial guess vertex and value for pagerank.
+        Will be converted to a Dataframe before calling the cugraph algorithm
         nstart['vertex'] : cudf.Series
             Subset of vertices of graph for initial guess for pagerank values
         nstart['values'] : cudf.Series
             Pagerank values for vertices
 
     weight: str, optional (default=None)
-        The attribute column to be used as edge weights.
-        This parameter is here for NetworkX compatibility and is ignored
-        in case of a cugraph.Graph
+        This parameter is here for NetworkX compatibility and ignored
 
     dangling : dict, optional (default=None)
         This parameter is here for NetworkX compatibility and ignored
@@ -96,16 +104,19 @@ def pagerank(
                A dictionary of nodes with the PageRank as value
 
     """
-    print("Called compat.nx pagerank !!!")
+    print("Calling compat.nx pagerank")
     local_pers = None
+    local_nstart = None
     if (personalization is not None):
         local_pers = cudify(personalization)
+    if (nstart is not None):
+        local_nstart = cudify(nstart)
     return cugraph.pagerank(
             G,
             alpha,
             local_pers,
             max_iter,
             tol,
-            nstart,
+            local_nstart,
             weight,
             dangling)

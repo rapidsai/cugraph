@@ -19,7 +19,6 @@
 # third-party group once this gets fixed.
 import pytest
 from cugraph.tests import utils
-import cugraph.compat.nx as nx
 import numpy as np
 import importlib
 
@@ -29,6 +28,21 @@ TOLERANCE = [1.0e-06]
 ALPHA = [0.85]
 PERSONALIZATION_PERC = [10]
 HAS_GUESS = [0]
+
+KARATE_UNDIRECTED = [
+    utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv"
+]
+
+
+KARATE_RANKING = [11, 9, 14, 15, 18, 20, 22,
+                  17, 21, 12, 26, 16, 28, 19]
+
+KARATE_PERS_RANKING = [11, 16, 17, 21, 4, 10, 5,
+                       6, 12, 7, 9, 24, 19, 25]
+
+KARATE_ITER_RANKINGS = [11, 9, 14, 15, 18, 20,
+                        22, 17, 21, 12, 26, 16,
+                        28, 19]
 
 # =============================================================================
 # Pytest fixtures
@@ -45,8 +59,8 @@ def which_import(request):
 
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
+# FIXME: Add some tests with randomized personalizations using this function
 def get_personalization(personalization_perc, nnz_vtx):
-
     personalization = None
     if personalization_perc != 0:
         personalization = {}
@@ -61,12 +75,20 @@ def get_personalization(personalization_perc, nnz_vtx):
         nnz_val = nnz_val / sum(nnz_val)
         for vtx, val in zip(nnz_vtx, nnz_val):
             personalization[vtx] = val
-
     return personalization
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
-def test_with_noparams(graph_file):
+@pytest.mark.parametrize("graph_file", KARATE_UNDIRECTED)
+def test_with_noparams(graph_file, which_import):
+    nx = which_import
+
+    M = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", edge_attr="weight",
+        create_using=nx.DiGraph()
+    )
+    print(type(Gnx))
+    pr = nx.pagerank(Gnx)
 
     M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
@@ -74,22 +96,13 @@ def test_with_noparams(graph_file):
         create_using=nx.DiGraph()
     )
     pr = nx.pagerank(Gnx)
-    print(type(Gnx))
-    assert type(pr) == dict
-
-    M = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight",
-        create_using=nx.DiGraph()
-    )
-    pr = nx.pagerank(Gnx)
-    print(type(Gnx))
-    assert type(pr) == dict
+    assert(sorted(pr, key=pr.get)[:14]) == KARATE_RANKING
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
+@pytest.mark.parametrize("graph_file", KARATE_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
-def test_with_max_iter(graph_file, max_iter):
+def test_with_max_iter(graph_file, max_iter, which_import):
+    nx = which_import
 
     M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
@@ -103,17 +116,21 @@ def test_with_max_iter(graph_file, max_iter):
         create_using=nx.DiGraph()
     )
     pr = nx.pagerank(Gnx, max_iter=max_iter)
-    print(type(Gnx))
-    assert type(pr) == dict
+    assert(sorted(pr, key=pr.get)[:14]) == KARATE_ITER_RANKINGS
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", KARATE_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
-@pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
-def test_perc_spec(graph_file, max_iter, personalization_perc, which_import):
+def test_perc_spec(graph_file, max_iter, which_import):
+    nx = which_import
 
-    test_import = which_import
-    nx = test_import
+    # simple personalization to validate running
+    personalization = {
+                       20: 0.7237260913723357,
+                       12: 0.03952608674390543,
+                       22: 0.2367478218837589
+    }
+
     M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight",
@@ -122,17 +139,16 @@ def test_perc_spec(graph_file, max_iter, personalization_perc, which_import):
 
     # NetworkX PageRank
     M = utils.read_csv_for_nx(graph_file)
-    nnz_vtx = np.unique(M[['0', '1']])
     Gnx = nx.from_pandas_edgelist(M,
                                   source="0",
                                   target="1",
                                   edge_attr="weight",
                                   create_using=nx.DiGraph())
+    # uses the same personalization for each imported package
 
-    personalization_dict = get_personalization(personalization_perc, nnz_vtx)
-    pr_cu = nx.pagerank(
+    pr = nx.pagerank(
         Gnx, max_iter=max_iter,
-        personalization=personalization_dict
+        personalization=personalization
         )
-    print(type(Gnx))
-    print(pr_cu)
+
+    assert(sorted(pr, key=pr.get)[:14]) == KARATE_PERS_RANKING
