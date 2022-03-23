@@ -25,9 +25,9 @@ import cugraph
 # =============================================================================
 DIRECTED_GRAPH_OPTIONS = [pytest.param(d) for d in [False, True]]
 COMPRESSED = [pytest.param(d) for d in [False, True]]
+LINE = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"small_line.csv"
 DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
 KARATE = DATASETS_SMALL[0][0][0]
-LINE = "cugraph/cugraph/tests/small_line.csv"
 
 
 # =============================================================================
@@ -39,8 +39,8 @@ def setup_function():
 
 def calc_node2vec(G,
                   start_vertices,
-                  max_depth=None,
-                  compress_result=False,
+                  max_depth,
+                  compress_result,
                   p=1.0,
                   q=1.0):
     """
@@ -154,13 +154,12 @@ def test_node2vec_new(
             assert vertex_paths.size - k == edge_weights.size
             # This part is for checking to make sure each of the edges
             # in all of the paths are valid and are accurate
-            curr = 0
-            path = 0
-            for i in range(vertex_path_sizes.size):
-                for j in range(vertex_path_sizes[i] - 1):
-                    weight = edge_weights[curr]
-                    u = vertex_paths[curr + path]
-                    v = vertex_paths[curr + path + 1]
+            idx = 0
+            for path_idx in range(vertex_path_sizes.size):
+                for j in range(vertex_path_sizes[path_idx] - 1):
+                    weight = edge_weights[idx]
+                    u = vertex_paths[idx + path_idx]
+                    v = vertex_paths[idx + path_idx + 1]
                     edge_found = G.has_edge(u, v)
                     if not edge_found:
                         raise ValueError("Edge {},{} not found".format(u, v))
@@ -172,19 +171,19 @@ def test_node2vec_new(
                     else:
                         if edge_query["weights"].values[0] != weight:
                             raise ValueError("edge_query weight incorrect")
-                    curr += 1
-                path += 1
+                    idx += 1
+
         else:
             # undirected graphs should never be coalesced
             assert vertex_paths.size == max_depth * k
             assert edge_weights.size == (max_depth - 1) * k
             # This part is for checking to make sure each of the edges
             # in all of the paths are valid and are accurate
-            for i in range(k):
-                for j in range(max_depth - 1):
-                    weight = edge_weights[i * (max_depth - 1) + j]
-                    u = vertex_paths[i * max_depth + j]
-                    v = vertex_paths[i * max_depth + j + 1]
+            for path_idx in range(k):
+                for idx in range(max_depth - 1):
+                    weight = edge_weights[path_idx * (max_depth - 1) + idx]
+                    u = vertex_paths[path_idx * max_depth + idx]
+                    v = vertex_paths[path_idx * max_depth + idx + 1]
                     # Walk not found in edgelist
                     edge_found = G.has_edge(u, v)
                     if not edge_found:
