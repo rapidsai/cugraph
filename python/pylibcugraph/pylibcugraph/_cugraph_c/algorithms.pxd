@@ -204,10 +204,6 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_random_walk_result_t** result,
             cugraph_error_t** error
         )
-<<<<<<< HEAD
-
-=======
->>>>>>> 259d140f41a7021127e4896ebad7ce02ebdefa64
     ###########################################################################
     # hits
     ctypedef struct cugraph_hits_result_t:
@@ -217,29 +213,17 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_hits_result_get_vertices(
             cugraph_hits_result_t* result
         )
-<<<<<<< HEAD
-
-=======
     
->>>>>>> 259d140f41a7021127e4896ebad7ce02ebdefa64
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_hits_result_get_hubs(
             cugraph_hits_result_t* result
         )
-<<<<<<< HEAD
-
-=======
     
->>>>>>> 259d140f41a7021127e4896ebad7ce02ebdefa64
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_hits_result_get_authorities(
             cugraph_hits_result_t* result
         )
-<<<<<<< HEAD
-
-=======
     
->>>>>>> 259d140f41a7021127e4896ebad7ce02ebdefa64
     cdef void \
         cugraph_hits_result_free(
             cugraph_hits_result_t* result
@@ -258,7 +242,6 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_hits_result_t** result,
             cugraph_error_t** error
         )
-<<<<<<< HEAD
 
     ###########################################################################
     # sampling
@@ -308,5 +291,3 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sample_result_t** result,
             cugraph_error_t** error
         )
-=======
->>>>>>> 259d140f41a7021127e4896ebad7ce02ebdefa64
