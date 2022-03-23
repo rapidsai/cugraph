@@ -14,8 +14,8 @@ dependencies:
 - libraft-headers=22.04.*
 - pyraft=22.04.*
 - cuda-python>=11.5,<12.0
-- dask>=2022.02.1
-- distributed>=2022.02.1
+- dask==2022.03.0
+- distributed==2022.03.0
 - dask-cuda=22.04.*
 - dask-cudf=22.04.*
 - nccl>=2.9.9
@@ -45,5 +45,5 @@ dependencies:
 - rapids-pytest-benchmark
 - doxygen
 - pytest-cov
-- gtest
-- gmock
+- gtest=1.10.0
+- gmock=1.10.0
