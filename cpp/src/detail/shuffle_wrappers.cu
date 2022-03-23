@@ -377,53 +377,61 @@ void collect_vertex_values_to_local(raft::handle_t const& handle,
   }
 }
 
-template void collect_vertex_values_to_local<int32_t, float, false>(raft::handle_t const& handle,
-                                             rmm::device_uvector<int32_t>& d_vertices,
-                                             rmm::device_uvector<float>& d_values,
-                                             rmm::device_uvector<float>& d_local_values,
-                                             int32_t local_vertex_first);
+template void collect_vertex_values_to_local<int32_t, float, false>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>& d_vertices,
+  rmm::device_uvector<float>& d_values,
+  rmm::device_uvector<float>& d_local_values,
+  int32_t local_vertex_first);
 
-template void collect_vertex_values_to_local<int64_t, float, false>(raft::handle_t const& handle,
-                                             rmm::device_uvector<int64_t>& d_vertices,
-                                             rmm::device_uvector<float>& d_values,
-                                             rmm::device_uvector<float>& d_local_values,
-                                             int64_t local_vertex_first);
+template void collect_vertex_values_to_local<int64_t, float, false>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>& d_vertices,
+  rmm::device_uvector<float>& d_values,
+  rmm::device_uvector<float>& d_local_values,
+  int64_t local_vertex_first);
 
-template void collect_vertex_values_to_local<int32_t, double, false>(raft::handle_t const& handle,
-                                             rmm::device_uvector<int32_t>& d_vertices,
-                                             rmm::device_uvector<double>& d_values,
-                                             rmm::device_uvector<double>& d_local_values,
-                                             int32_t local_vertex_first);
+template void collect_vertex_values_to_local<int32_t, double, false>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>& d_vertices,
+  rmm::device_uvector<double>& d_values,
+  rmm::device_uvector<double>& d_local_values,
+  int32_t local_vertex_first);
 
-template void collect_vertex_values_to_local<int64_t, double, false>(raft::handle_t const& handle,
-                                             rmm::device_uvector<int64_t>& d_vertices,
-                                             rmm::device_uvector<double>& d_values,
-                                             rmm::device_uvector<double>& d_local_values,
-                                             int64_t local_vertex_first);
+template void collect_vertex_values_to_local<int64_t, double, false>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>& d_vertices,
+  rmm::device_uvector<double>& d_values,
+  rmm::device_uvector<double>& d_local_values,
+  int64_t local_vertex_first);
 
-template void collect_vertex_values_to_local<int32_t, float, true>(raft::handle_t const& handle,
-                                             rmm::device_uvector<int32_t>& d_vertices,
-                                             rmm::device_uvector<float>& d_values,
-                                             rmm::device_uvector<float>& d_local_values,
-                                             int32_t local_vertex_first);
+template void collect_vertex_values_to_local<int32_t, float, true>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>& d_vertices,
+  rmm::device_uvector<float>& d_values,
+  rmm::device_uvector<float>& d_local_values,
+  int32_t local_vertex_first);
 
-template void collect_vertex_values_to_local<int64_t, float, true>(raft::handle_t const& handle,
-                                             rmm::device_uvector<int64_t>& d_vertices,
-                                             rmm::device_uvector<float>& d_values,
-                                             rmm::device_uvector<float>& d_local_values,
-                                             int64_t local_vertex_first);
+template void collect_vertex_values_to_local<int64_t, float, true>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>& d_vertices,
+  rmm::device_uvector<float>& d_values,
+  rmm::device_uvector<float>& d_local_values,
+  int64_t local_vertex_first);
 
-template void collect_vertex_values_to_local<int32_t, double, true>(raft::handle_t const& handle,
-                                             rmm::device_uvector<int32_t>& d_vertices,
-                                             rmm::device_uvector<double>& d_values,
-                                             rmm::device_uvector<double>& d_local_values,
-                                             int32_t local_vertex_first);
+template void collect_vertex_values_to_local<int32_t, double, true>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>& d_vertices,
+  rmm::device_uvector<double>& d_values,
+  rmm::device_uvector<double>& d_local_values,
+  int32_t local_vertex_first);
 
-template void collect_vertex_values_to_local<int64_t, double, true>(raft::handle_t const& handle,
-                                             rmm::device_uvector<int64_t>& d_vertices,
-                                             rmm::device_uvector<double>& d_values,
-                                             rmm::device_uvector<double>& d_local_values,
-                                             int64_t local_vertex_first);
+template void collect_vertex_values_to_local<int64_t, double, true>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>& d_vertices,
+  rmm::device_uvector<double>& d_values,
+  rmm::device_uvector<double>& d_local_values,
+  int64_t local_vertex_first);
 
 }  // namespace detail
 }  // namespace cugraph

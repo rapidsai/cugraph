@@ -34,7 +34,7 @@ extern "C" int run_mg_test(int (*test)(const cugraph_resource_handle_t*),
 
   auto raft_handle =
     reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_;
-  auto &comm = raft_handle->get_comms();
+  auto& comm = raft_handle->get_comms();
 
   rank = cugraph_resource_handle_get_rank(handle);
 
@@ -54,7 +54,8 @@ extern "C" int run_mg_test(int (*test)(const cugraph_resource_handle_t*),
   //         code from the non-thrust code
   rmm::device_uvector<int> d_input(1, raft_handle->get_stream());
   raft::update_device(d_input.data(), &ret_val, 1, raft_handle->get_stream());
-  comm.allreduce(d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream());
+  comm.allreduce(
+    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream());
   raft::update_host(&ret_val, d_input.data(), 1, raft_handle->get_stream());
   auto status = comm.sync_stream(raft_handle->get_stream());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
