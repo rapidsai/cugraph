@@ -10,5 +10,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from networkx.algorithms.traversal import *
-from cugraph.compat.nx.algorithms.traversal.breadth_first_search import *
+from networkx.algorithms.components import *
+from cugraph.experimental.compat.nx.algorithms.components.connected import *

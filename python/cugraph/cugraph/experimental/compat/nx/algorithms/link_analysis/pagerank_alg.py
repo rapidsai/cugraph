@@ -32,11 +32,9 @@ def cudify(d):
     """
     if d is None:
         return None
-    if  not(isinstance(d, dict)):
-            raise TypeError("type_name must be a dict, got: "
-                            f"{type(d)}")
-
-
+    if not(isinstance(d, dict)):
+        raise TypeError("type_name must be a dict, got: "
+                        f"{type(d)}")
     k = np.fromiter(d.keys(), dtype="int32")
     v = np.fromiter(d.values(), dtype="float32")
     cuD = cudf.DataFrame({"vertex": k, "values": v})

@@ -54,7 +54,7 @@ def which_import(request):
     if (request.param == 'networkx'):
         return importlib.import_module("networkx")
     if (request.param == 'nxcompat'):
-        return importlib.import_module("cugraph.compat.nx")
+        return importlib.import_module("cugraph.experimental.compat.nx")
 
 
 # The function selects personalization_perc% of accessible vertices in graph M
