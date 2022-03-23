@@ -29,6 +29,7 @@ Adding Data
    Graph.add_internal_vertex_id
    Graph.add_nodes_from
    Graph.clear
+   Graph.unrenumber
 
 Checks
 ------
@@ -52,9 +53,9 @@ Symmetrize
 .. autosummary::
    :toctree: api/
 
-   cugraph.structure.symmetrize.symmetrize
-   cugraph.structure.symmetrize.symmetrize_ddf
-   cugraph.structure.symmetrize.symmetrize_df
+   cugraph.symmetrize
+   cugraph.symmetrize_ddf
+   cugraph.symmetrize_df
 
 
 Conversion from Other Formats
@@ -62,22 +63,23 @@ Conversion from Other Formats
 .. autosummary::
    :toctree: api/
 
-   cugraph.structure.convert_matrix.from_adjlist
-   cugraph.structure.convert_matrix.from_cudf_edgelist
-   cugraph.structure.convert_matrix.from_edgelist
-   cugraph.structure.convert_matrix.from_numpy_array
-   cugraph.structure.convert_matrix.from_numpy_matrix
-   cugraph.structure.convert_matrix.from_pandas_adjacency
-   cugraph.structure.convert_matrix.from_pandas_edgelist
-   cugraph.structure.convert_matrix.to_numpy_array
-   cugraph.structure.convert_matrix.to_numpy_matrix
-   cugraph.structure.convert_matrix.to_pandas_adjacency
-   cugraph.structure.convert_matrix.to_pandas_edgelist
+   cugraph.from_adjlist
+   cugraph.from_cudf_edgelist
+   cugraph.from_edgelist
+   cugraph.from_numpy_array
+   cugraph.from_numpy_matrix
+   cugraph.from_pandas_adjacency
+   cugraph.from_pandas_edgelist
+   cugraph.to_numpy_array
+   cugraph.to_numpy_matrix
+   cugraph.to_pandas_adjacency
+   cugraph.to_pandas_edgelist
 
 Other
 -----------------------------
 .. autosummary::
    :toctree: api/
 
-   Graph.unrenumber
-   cugraph.structure.hypergraph.hypergraph
+   cugraph.hypergraph
+   cugraph.structure.shuffle
+   cugraph.structure.NumberMap

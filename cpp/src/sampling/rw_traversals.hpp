@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@
 
 #include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
-#include <raft/random/rng.hpp>
+#include <raft/random/rng.cuh>
 
 #include <rmm/device_uvector.hpp>
 
@@ -38,6 +38,7 @@
 #include <thrust/reduce.h>
 
 #include <algorithm>
+#include <ctime>
 #include <future>
 #include <thread>
 
@@ -101,6 +102,29 @@ value_t const* raw_const_ptr(device_const_vector_view<value_t>& dv)
 {
   return dv.begin();
 }
+
+// seeding policy: time (clock) dependent,
+// to avoid RW calls repeating same random data:
+//
+template <typename seed_t>
+struct clock_seeding_t {
+  clock_seeding_t(void) = default;
+
+  seed_t operator()(void) { return static_cast<seed_t>(std::time(nullptr)); }
+};
+
+// seeding policy: fixed for debug/testing repro
+//
+template <typename seed_t>
+struct fixed_seeding_t {
+  // purposely no default cnstr.
+
+  fixed_seeding_t(seed_t seed) : seed_(seed) {}
+  seed_t operator()(void) { return seed_; }
+
+ private:
+  seed_t seed_;
+};
 
 // Uniform RW selector logic:
 //

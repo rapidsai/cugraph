@@ -21,7 +21,7 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
 
 def overlap_coefficient(G, ebunch=None):
     """
-    NetworkX similar API.  See 'jaccard' for a description
+    For NetworkX Compatability.  See `overlap`
 
     """
     vertex_pair = None

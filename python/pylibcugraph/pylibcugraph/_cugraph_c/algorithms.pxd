@@ -14,7 +14,7 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from pylibcugraph._cugraph_c.cugraph_api cimport (
+from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
     cugraph_resource_handle_t,
 )
@@ -162,5 +162,44 @@ cdef extern from "cugraph_c/algorithms.h":
             bool_t compute_predecessors,
             bool_t do_expensive_check,
             cugraph_paths_result_t** result,
+            cugraph_error_t** error
+        )
+
+    ###########################################################################
+    # random_walks
+    ctypedef struct cugraph_random_walk_result_t:
+        pass
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_random_walk_result_get_paths(
+            cugraph_random_walk_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_random_walk_result_get_weights(
+            cugraph_random_walk_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_random_walk_result_get_path_sizes(
+            cugraph_random_walk_result_t* result
+        )
+
+    cdef void \
+        cugraph_random_walk_result_free(
+            cugraph_random_walk_result_t* result
+        )
+
+    # node2vec
+    cdef cugraph_error_code_t \
+        cugraph_node2vec(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* sources,
+            size_t max_depth,
+            bool_t compress_result,
+            double p,
+            double q,
+            cugraph_random_walk_result_t** result,
             cugraph_error_t** error
         )

@@ -1,4 +1,4 @@
-﻿#
+﻿#=============================================================================
 # Copyright (c) 2019-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,8 +74,6 @@ function(ConfigureTest CMAKE_TEST_NAME)
         PRIVATE
             cugraphtestutil
             cugraph::cugraph
-            GTest::gmock
-            GTest::gmock_main
             GTest::gtest
             GTest::gtest_main
             NCCL::NCCL
@@ -133,6 +131,16 @@ function(ConfigureTest CMAKE_TEST_NAME)
     endif(OpenMP_CXX_FOUND)
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
+
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureTestMG CMAKE_TEST_NAME)
@@ -143,8 +151,6 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         cugraphmgtestutil
         cugraphtestutil
         cugraph::cugraph
-        GTest::gmock
-        GTest::gmock_main
         GTest::gtest
         GTest::gtest_main
         NCCL::NCCL
@@ -211,6 +217,15 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
              ${CMAKE_TEST_NAME}
              ${MPIEXEC_POSTFLAGS})
 
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+
+        install(
+            TARGETS ${CMAKE_TEST_NAME}
+            COMPONENT testing
+            DESTINATION bin/gtests/libcugraph_mg
+            EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureCTest CMAKE_TEST_NAME)
@@ -220,14 +235,56 @@ function(ConfigureCTest CMAKE_TEST_NAME)
         PRIVATE
             cugraph::cugraph_c
             cugraph_c_testutil
-            GTest::gmock
-            GTest::gmock_main
             GTest::gtest
             GTest::gtest_main
     )
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
+
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+
+        install(
+            TARGETS ${CMAKE_TEST_NAME}
+            COMPONENT testing
+            DESTINATION bin/gtests/libcugraph_c
+            EXCLUDE_FROM_ALL)
 endfunction()
+
+function(ConfigureCTestMG CMAKE_TEST_NAME)
+    add_executable(${CMAKE_TEST_NAME} ${ARGN})
+
+    target_link_libraries(${CMAKE_TEST_NAME}
+        PRIVATE
+            cugraph::cugraph_c
+            cugraph_c_testutil
+            GTest::gtest
+            GTest::gtest_main
+            NCCL::NCCL
+            MPI::MPI_CXX
+    )
+
+    add_test(NAME ${CMAKE_TEST_NAME}
+             COMMAND ${MPIEXEC_EXECUTABLE}
+             "--noprefix"
+             ${MPIEXEC_NUMPROC_FLAG}
+             ${GPU_COUNT}
+             ${MPIEXEC_PREFLAGS}
+             ${CMAKE_TEST_NAME}
+             ${MPIEXEC_POSTFLAGS})
+
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
+
+        install(
+            TARGETS ${CMAKE_TEST_NAME}
+            COMPONENT testing
+            DESTINATION bin/gtests/libcugraph_c
+            EXCLUDE_FROM_ALL)
+endfunction()
+
 
 ###################################################################################################
 # - set rapids dataset path ----------------------------------------------------------------------
@@ -546,6 +603,23 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS EXTRACT_IF_E tests -----------------------------------------------------------
         ConfigureTestMG(MG_EXTRACT_IF_E_TEST prims/mg_extract_if_e.cu)
+
+        ###########################################################################################
+        # - MG GATHER_UTILS tests -----------------------------------------------------------------
+        ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
+
+        ###########################################################################################
+        # - MG GATHER_ONE_HOP tests ---------------------------------------------------------------
+        ConfigureTestMG(MG_GATHER_ONE_HOP_TEST sampling/detail/mg_gather_one_hop.cu)
+
+        ###########################################################################################
+        # - MG NBR SAMPLING tests -----------------------------------------------------------------
+        ConfigureTestMG(MG_NBR_SAMPLING_TEST sampling/detail/mg_nbr_sampling.cu)
+        
+        ###########################################################################################
+        # - MG C API tests ------------------------------------------------------------------------
+        ConfigureCTestMG(MG_CAPI_CREATE_GRAPH c_api/mg_create_graph_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_PAGERANK c_api/mg_pagerank_test.c c_api/mg_test_utils.cpp)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()
@@ -558,7 +632,7 @@ endif()
 # - common C API test utils -----------------------------------------------------------------------------
 
 add_library(cugraph_c_testutil STATIC
-            c_api/test_utils.c)
+            c_api/test_utils.cpp)
 
 target_compile_options(cugraph_c_testutil
             PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
@@ -579,13 +653,18 @@ target_link_libraries(cugraph_c_testutil
 )
 
 
-ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE_TEST c_api/create_sg_graph_envelope_test.c)
+# FIXME: Disabling these tests, they test an older version of the API which
+#        will be deleted in this release.  Leaving them here to help me remember :-)
+#ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE_TEST c_api/create_sg_graph_envelope_test.c)
+#ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
+
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
-ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
+ConfigureCTest(CAPI_HITS_TEST c_api/hits_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
 ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)
 ConfigureCTest(CAPI_EXTRACT_PATHS_TEST c_api/extract_paths_test.c)
+ConfigureCTest(CAPI_NODE2VEC_TEST c_api/node2vec_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################

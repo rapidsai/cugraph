@@ -75,7 +75,7 @@ conda activate cugraph_dev
 
 
 ### Build and Install Using the `build.sh` Script
-Using the `build.sh` script make compiling and installig cuGraph a breeze.  To build and install, simply do:
+Using the `build.sh` script make compiling and installing cuGraph a breeze.  To build and install, simply do:
 
 ```bash
 $ cd $CUGRAPH_HOME
@@ -144,6 +144,30 @@ This project uses cmake for building the C/C++ library. To configure cmake, run:
   ```
 The default installation locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_INSTALL_PREFIX/include/cugraph` respectively.
 
+#### Updating the RAFT branch
+
+`libcugraph` uses the [RAFT](https://github.com/rapidsai/raft) library and there are times when it might be desirable to build against a different RAFT branch, such as when working on new features that might span both RAFT and cuGraph. 
+
+For local development, the `CPM_raft_SOURCE=<path/to/raft/source>` option can be passed to the `cmake` command to enable `libcugraph` to use the local RAFT branch.
+
+To have CI test a `cugraph` pull request against a different RAFT branch, modify the bottom of the `cpp/cmake/thirdparty/get_raft.cmake` file as follows:
+
+```cmake
+# Change pinned tag and fork here to test a commit in CI
+# To use a different RAFT locally, set the CMake variable
+# RPM_raft_SOURCE=/path/to/local/raft
+find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
+                        FORK       <your_git_fork>
+                        PINNED_TAG <your_git_branch_or_tag>
+
+                        # When PINNED_TAG above doesn't match cugraph,
+                        # force local raft clone in build directory
+                        # even if it's already installed.
+                        CLONE_ON_PIN     ON
+                        )
+```
+
+When the above change is pushed to a pull request, the continuous integration servers will use the specified RAFT branch to run the cuGraph tests. After the changes in the RAFT branch are merged to the release branch, remember to revert the `get_raft.cmake` file back to the original cuGraph branch.
 
 ### Building and installing the Python package
 

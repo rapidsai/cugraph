@@ -11,33 +11,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Have cython use python 3 syntax
-# cython: language_level = 3
-
-from libc.stdint cimport int8_t
-
-
-cdef extern from "cugraph_c/cugraph_api.h":
-
-    ctypedef enum bool_t:
-        FALSE
-        TRUE
-
-    ctypedef enum data_type_id_t:
-        INT32
-        INT64
-        FLOAT32
-        FLOAT64
-
-    ctypedef int8_t byte_t
-
-    ctypedef struct cugraph_resource_handle_t:
-        pass
-
-    cdef cugraph_resource_handle_t* \
-        cugraph_create_resource_handle()
-
-    cdef void \
-        cugraph_free_resource_handle(
-            cugraph_resource_handle_t* p_handle
-        )
+from .graph_store import CuGraphStore
+from .graph_store import CuFeatureStorage

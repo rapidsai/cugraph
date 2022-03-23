@@ -40,7 +40,7 @@ int generic_bfs_test(vertex_t* h_src,
   int test_ret_value = 0;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
-  cugraph_error_t* ret_error;
+  cugraph_error_t* ret_error    = NULL;
 
   cugraph_resource_handle_t* p_handle           = NULL;
   cugraph_graph_t* p_graph                      = NULL;
@@ -48,7 +48,7 @@ int generic_bfs_test(vertex_t* h_src,
   cugraph_type_erased_device_array_t* p_sources = NULL;
   cugraph_type_erased_device_array_view_t* p_source_view = NULL;
 
-  p_handle = cugraph_create_resource_handle();
+  p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
@@ -73,9 +73,9 @@ int generic_bfs_test(vertex_t* h_src,
     p_handle, p_graph, p_source_view, FALSE, depth_limit, TRUE, FALSE, &p_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_bfs failed.");
 
-  cugraph_type_erased_device_array_t* vertices;
-  cugraph_type_erased_device_array_t* distances;
-  cugraph_type_erased_device_array_t* predecessors;
+  cugraph_type_erased_device_array_view_t* vertices;
+  cugraph_type_erased_device_array_view_t* distances;
+  cugraph_type_erased_device_array_view_t* predecessors;
 
   vertices     = cugraph_paths_result_get_vertices(p_result);
   distances    = cugraph_paths_result_get_distances(p_result);

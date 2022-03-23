@@ -10,7 +10,7 @@ HITS
 .. autosummary::
    :toctree: api/
 
-   cugraph.link_analysis.hits.hits
+   cugraph.hits
 
 
 Pagerank
@@ -18,7 +18,7 @@ Pagerank
 .. autosummary::
    :toctree: api/
 
-   cugraph.link_analysis.pagerank.pagerank
+   cugraph.pagerank
 
 Pagerank (MG)
 -------------

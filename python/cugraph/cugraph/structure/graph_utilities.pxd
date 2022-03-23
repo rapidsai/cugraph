@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,7 @@ from libcpp.vector cimport vector
 
 from rmm._lib.device_buffer cimport device_buffer
 
-from cugraph.raft.common.handle cimport handle_t
+from raft.common.handle cimport handle_t
 
 
 # C++ graph utilities
@@ -193,5 +193,6 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
         vertex_t *edgelist_major_vertices,
         vertex_t *edgelist_minor_vertices,
         const vector[edge_t]& edge_counts,
+        bool store_transposed,
         bool do_check,
         bool multi_gpu) except +

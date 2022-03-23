@@ -44,6 +44,7 @@ def _ensure_args(G, source, method, directed,
     G_type = type(G)
     # Check for Graph-type inputs
     if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
+        # FIXME: Improve Graph-type checking
         exc_value = "'%s' cannot be specified for a Graph-type input"
         if directed is not None:
             raise TypeError(exc_value % "directed")
@@ -191,7 +192,7 @@ def sssp(G,
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight",
-        matrix_graph_type=DiGraph if directed else Graph)
+        matrix_graph_type=Graph(directed=directed))
 
     if G.renumbered:
         if isinstance(source, cudf.DataFrame):

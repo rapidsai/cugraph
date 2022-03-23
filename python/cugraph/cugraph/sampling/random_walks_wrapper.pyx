@@ -24,7 +24,7 @@ from cugraph.structure.graph_utilities cimport (populate_graph_container,
                                                 graph_container_t,
                                                 numberTypeEnum,
                                                 )
-from cugraph.raft.common.handle cimport handle_t
+from raft.common.handle cimport handle_t
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.sampling.random_walks cimport (call_random_walks,
                                             call_rw_paths,

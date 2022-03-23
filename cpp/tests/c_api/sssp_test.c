@@ -48,7 +48,7 @@ int generic_sssp_test(vertex_t* h_src,
   cugraph_graph_t* p_graph                      = NULL;
   cugraph_paths_result_t* p_result              = NULL;
 
-  p_handle = cugraph_create_resource_handle();
+  p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(

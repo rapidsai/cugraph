@@ -17,9 +17,6 @@
 
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/mr/host/allocator.hpp>
-#include <raft/mr/host/buffer.hpp>
-
 #include <cudf/column/column_factories.hpp>
 #include <cudf/column/column_view.hpp>
 #include <cudf/strings/strings_column_view.hpp>
@@ -27,6 +24,7 @@
 #include <cudf/utilities/type_dispatcher.hpp>
 
 #include <rmm/exec_policy.hpp>
+#include <rmm/mr/host/new_delete_resource.hpp>
 
 #include <hash/concurrent_unordered_map.cuh>
 
@@ -791,10 +789,9 @@ struct renumber_functor {
 
     cudaStream_t exec_strm = handle.get_stream();
 
-    auto alloc = std::make_shared<raft::mr::host::default_allocator>();
-    raft::mr::host::buffer<accum_type> buff(alloc, exec_strm);
-    buff.resize(sizeof(accum_type) * 32, exec_strm);
-    accum_type* hist_insert_counter = buff.data();
+    auto mr = rmm::mr::new_delete_resource();
+    size_t hist_size = sizeof(accum_type) * 32;
+    accum_type* hist_insert_counter = static_cast<accum_type*>(mr.allocate(hist_size));
     *hist_insert_counter            = 0;
 
     float load_factor = 0.7;
@@ -1042,6 +1039,8 @@ struct renumber_functor {
       new cudf::column(cudf::data_type(cudf::type_id::INT32), num_rows, std::move(dst_buffer))));
 
     CHECK_CUDA(cudaDeviceSynchronize());
+
+    mr.deallocate(hist_insert_counter, hist_size);
 
     return std::make_tuple(
       std::move(cols_vector[0]),

@@ -395,15 +395,17 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                                       sorted_unique_ext_vertices.end())),
       handle.get_stream());
 
-    auto int_vertices_for_sorted_unique_ext_vertices = collect_values_for_unique_keys(
-      comm,
-      renumber_map_labels,
-      renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
-      thrust::make_counting_iterator(local_int_vertex_first),
-      sorted_unique_ext_vertices.begin(),
-      sorted_unique_ext_vertices.end(),
-      detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
-      handle.get_stream());
+    rmm::device_uvector<vertex_t> int_vertices_for_sorted_unique_ext_vertices(0,
+                                                                              handle.get_stream());
+    std::tie(sorted_unique_ext_vertices, int_vertices_for_sorted_unique_ext_vertices) =
+      collect_values_for_unique_keys(
+        comm,
+        renumber_map_labels,
+        renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
+        thrust::make_counting_iterator(local_int_vertex_first),
+        std::move(sorted_unique_ext_vertices),
+        detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
+        handle.get_stream());
 
     renumber_map_ptr.reset();
 

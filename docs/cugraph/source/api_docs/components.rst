@@ -10,9 +10,9 @@ Connected Components
 .. autosummary::
    :toctree: api/
 
-   cugraph.components.connectivity.connected_components
-   cugraph.components.connectivity.strongly_connected_components
-   cugraph.components.connectivity.weakly_connected_components
+   cugraph.connected_components
+   cugraph.strongly_connected_components
+   cugraph.weakly_connected_components
 
 
 Connected Components (MG)

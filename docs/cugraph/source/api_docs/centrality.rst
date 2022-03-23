@@ -10,15 +10,15 @@ Betweenness Centrality
 .. autosummary::
    :toctree: api/
 
-   cugraph.centrality.betweenness_centrality.betweenness_centrality
-   cugraph.centrality.betweenness_centrality.edge_betweenness_centrality
+   cugraph.betweenness_centrality
+   cugraph.edge_betweenness_centrality
 
 Katz Centrality
 ---------------
 .. autosummary::
    :toctree: api/
 
-   cugraph.centrality.katz_centrality.katz_centrality
+   cugraph.katz_centrality
 
 Katz Centrality (MG)
 --------------------

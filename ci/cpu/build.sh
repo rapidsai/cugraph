@@ -36,6 +36,10 @@ export CONDA_BLD_DIR="${WORKSPACE}/.conda-bld"
 # ucx-py version
 export UCX_PY_VERSION='0.25.*'
 
+export CMAKE_CUDA_COMPILER_LAUNCHER="sccache"
+export CMAKE_CXX_COMPILER_LAUNCHER="sccache"
+export CMAKE_C_COMPILER_LAUNCHER="sccache"
+
 ################################################################################
 # SETUP - Check environment
 ################################################################################
@@ -94,6 +98,8 @@ if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
     mkdir -p ${CONDA_BLD_DIR}/libcugraph
     mv ${CONDA_BLD_DIR}/work ${CONDA_BLD_DIR}/libcugraph/work
   fi
+  gpuci_logger "sccache stats"
+  sccache --show-stats
 else
   gpuci_logger "SKIPPING build of conda package for libcugraph and libcugraph_etl"
 fi

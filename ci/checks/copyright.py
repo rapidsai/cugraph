@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,17 @@ import re
 import argparse
 import io
 import os
-import git_helpers
+import sys
+
+SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.expanduser(__file__)))
+
+# Add the scripts dir for gitutils
+sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR,
+                                              "../../cpp/scripts")))
+
+# Now import gitutils. Ignore flake8 error here since there is no other way to
+# set up imports
+import gitutils  # noqa: E402
 
 FilesToCheck = [
     re.compile(r"[.](cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx)$"),
@@ -28,22 +38,25 @@ FilesToCheck = [
     re.compile(r"[.]flake8[.]cython$"),
     re.compile(r"meta[.]yaml$")
 ]
+ExemptFiles = []
 
 # this will break starting at year 10000, which is probably OK :)
-CheckSimple = re.compile(r"Copyright \(c\) (\d{4}), NVIDIA CORPORATION")
+CheckSimple = re.compile(
+    r"Copyright *(?:\(c\))? *(\d{4}),? *NVIDIA C(?:ORPORATION|orporation)")
 CheckDouble = re.compile(
-    r"Copyright \(c\) (\d{4})-(\d{4}), NVIDIA CORPORATION")
+    r"Copyright *(?:\(c\))? *(\d{4})-(\d{4}),? *NVIDIA C(?:ORPORATION|orporation)"  # noqa: E501
+)
 
 
 def checkThisFile(f):
     # This check covers things like symlinks which point to files that DNE
-    if not(os.path.exists(f)):
+    if not (os.path.exists(f)):
         return False
-    if git_helpers and git_helpers.isFileEmpty(f):
+    if gitutils and gitutils.isFileEmpty(f):
         return False
-    # Special case for versioneer.py - it uses a separate copyright.
-    if os.path.basename(f) == "versioneer.py":
-        return False
+    for exempt in ExemptFiles:
+        if exempt.search(f):
+            return False
     for checker in FilesToCheck:
         if checker.search(f):
             return True
@@ -87,12 +100,22 @@ def checkCopyright(f, update_current_year):
             continue
         crFound = True
         if start > end:
-            e = [f, lineNum, "First year after second year in the copyright "
-                 "header (manual fix required)", None]
+            e = [
+                f,
+                lineNum,
+                "First year after second year in the copyright "
+                "header (manual fix required)",
+                None
+            ]
             errs.append(e)
         if thisYear < start or thisYear > end:
-            e = [f, lineNum, "Current year not included in the "
-                 "copyright header", None]
+            e = [
+                f,
+                lineNum,
+                "Current year not included in the "
+                "copyright header",
+                None
+            ]
             if thisYear < start:
                 e[-1] = replaceCurrentYear(line, thisYear, end)
             if thisYear > end:
@@ -103,8 +126,13 @@ def checkCopyright(f, update_current_year):
     fp.close()
     # copyright header itself not found
     if not crFound:
-        e = [f, 0, "Copyright header missing or formatted incorrectly "
-             "(manual fix required)", None]
+        e = [
+            f,
+            0,
+            "Copyright header missing or formatted incorrectly "
+            "(manual fix required)",
+            None
+        ]
         errs.append(e)
     # even if the year matches a copyright header, make the check pass
     if yearMatched:
@@ -125,7 +153,6 @@ def checkCopyright(f, update_current_year):
     return errs
 
 
-
 def getAllFilesUnderDir(root, pathFilter=None):
     retList = []
     for (dirpath, dirnames, filenames) in os.walk(root):
@@ -143,25 +170,47 @@ def checkCopyright_main():
     it compares between branches "$PR_TARGET_BRANCH" and "current-pr-branch"
     """
     retVal = 0
+    global ExemptFiles
 
     argparser = argparse.ArgumentParser(
-        description="Checks for a consistent copyright header")
-    argparser.add_argument("--update-current-year", dest='update_current_year',
-                           action="store_true", required=False, help="If set, "
-                           "update the current year if a header is already "
-                           "present and well formatted.")
-    argparser.add_argument("--git-modified-only", dest='git_modified_only',
-                           action="store_true", required=False, help="If set, "
-                           "only files seen as modified by git will be "
-                           "processed.")
+        "Checks for a consistent copyright header in git's modified files")
+    argparser.add_argument("--update-current-year",
+                           dest='update_current_year',
+                           action="store_true",
+                           required=False,
+                           help="If set, "
+                                "update the current year if a header "
+                                "is already present and well formatted.")
+    argparser.add_argument("--git-modified-only",
+                           dest='git_modified_only',
+                           action="store_true",
+                           required=False,
+                           help="If set, "
+                                "only files seen as modified by git will be "
+                                "processed.")
+    argparser.add_argument("--exclude",
+                           dest='exclude',
+                           action="append",
+                           required=False,
+                           default=["python/cuml/_thirdparty/"],
+                           help=("Exclude the paths specified (regexp). "
+                                 "Can be specified multiple times."))
 
     (args, dirs) = argparser.parse_known_args()
+    try:
+        ExemptFiles = ExemptFiles + [pathName for pathName in args.exclude]
+        ExemptFiles = [re.compile(file) for file in ExemptFiles]
+    except re.error as reException:
+        print("Regular expression error:")
+        print(reException)
+        return 1
+
     if args.git_modified_only:
-        files = git_helpers.modifiedFiles(pathFilter=checkThisFile)
+        files = gitutils.modifiedFiles(pathFilter=checkThisFile)
     else:
         files = []
         for d in [os.path.abspath(d) for d in dirs]:
-            if not(os.path.isdir(d)):
+            if not (os.path.isdir(d)):
                 raise ValueError(f"{d} is not a directory.")
             files += getAllFilesUnderDir(d, pathFilter=checkThisFile)
 
@@ -178,8 +227,9 @@ def checkCopyright_main():
         path_parts = os.path.abspath(__file__).split(os.sep)
         file_from_repo = os.sep.join(path_parts[path_parts.index("ci"):])
         if n_fixable > 0:
-            print("You can run {} --update-current-year to fix {} of these "
-                  "errors.\n".format(file_from_repo, n_fixable))
+            print(("You can run `python {} --git-modified-only "
+                   "--update-current-year` to fix {} of these "
+                   "errors.\n").format(file_from_repo, n_fixable))
         retVal = 1
     else:
         print("Copyright check passed")

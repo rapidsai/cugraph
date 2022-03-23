@@ -18,7 +18,7 @@
 
 #include <math.h>
 
-int nearlyEqual(float a, float b, float epsilon)
+extern "C" int nearlyEqual(float a, float b, float epsilon)
 {
   // FIXME:  There is a better test than this,
   //   perhaps use the gtest comparison for consistency
@@ -29,14 +29,14 @@ int nearlyEqual(float a, float b, float epsilon)
 /*
  * Simple check of creating a graph from a COO on device memory.
  */
-int create_test_graph(const cugraph_resource_handle_t* p_handle,
-                      int32_t* h_src,
-                      int32_t* h_dst,
-                      float* h_wgt,
-                      size_t num_edges,
-                      bool_t store_transposed,
-                      cugraph_graph_t** p_graph,
-                      cugraph_error_t** ret_error)
+extern "C" int create_test_graph(const cugraph_resource_handle_t* p_handle,
+                                 int32_t* h_src,
+                                 int32_t* h_dst,
+                                 float* h_wgt,
+                                 size_t num_edges,
+                                 bool_t store_transposed,
+                                 cugraph_graph_t** p_graph,
+                                 cugraph_error_t** ret_error)
 {
   int test_ret_value = 0;
   cugraph_error_code_t ret_code;
@@ -73,16 +73,16 @@ int create_test_graph(const cugraph_resource_handle_t* p_handle,
   dst_view = cugraph_type_erased_device_array_view(dst);
   wgt_view = cugraph_type_erased_device_array_view(wgt);
 
-  ret_code =
-    cugraph_type_erased_device_array_view_copy_from_host(p_handle, src_view, (byte_t*)h_src, ret_error);
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    p_handle, src_view, (byte_t*)h_src, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
 
-  ret_code =
-    cugraph_type_erased_device_array_view_copy_from_host(p_handle, dst_view, (byte_t*)h_dst, ret_error);
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    p_handle, dst_view, (byte_t*)h_dst, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_from_host failed.");
 
-  ret_code =
-    cugraph_type_erased_device_array_view_copy_from_host(p_handle, wgt_view, (byte_t*)h_wgt, ret_error);
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    p_handle, wgt_view, (byte_t*)h_wgt, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
   ret_code = cugraph_sg_graph_create(p_handle,
@@ -113,7 +113,7 @@ int create_test_graph(const cugraph_resource_handle_t* p_handle,
  *
  * Intended to be used by the RUN_TEST macro.
  */
-int run_test(int (*test)(), const char* test_name)
+extern "C" int run_sg_test(int (*test)(), const char* test_name)
 {
   int ret_val = 0;
   time_t start_time, end_time;
@@ -122,7 +122,9 @@ int run_test(int (*test)(), const char* test_name)
   fflush(stdout);
 
   time(&start_time);
+
   ret_val = test();
+
   time(&end_time);
 
   printf("done (%f seconds).", difftime(end_time, start_time));
