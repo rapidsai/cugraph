@@ -145,7 +145,6 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
 
     graph_properties = pylibcugraph.experimental.GraphProperties(
         is_multigraph=False)
-    graph_properties = None
 
     store_transposed = False
     do_expensive_check = False
