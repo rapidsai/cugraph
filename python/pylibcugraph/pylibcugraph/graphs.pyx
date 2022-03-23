@@ -38,6 +38,13 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_sg_graph_free,
     cugraph_mg_graph_free,
 )
+# FIXME: Verify this holds
+from pylibcugraph._cugraph_c.graph cimport (
+    cugraph_graph_t,
+    cugraph_mg_graph_create,
+    cugraph_graph_properties_t,
+    cugraph_mg_graph_free,
+)
 from pylibcugraph.resource_handle cimport (
     EXPERIMENTAL__ResourceHandle,
 )
@@ -178,28 +185,51 @@ cdef class EXPERIMENTAL__MGGraph(_GPUGraph):
     """
     RAII-stye Graph class for use with multi-GPU APIs that manages the
     individual create/free calls and the corresponding cugraph_graph_t pointer.
+<<<<<<< HEAD
+=======
+
+>>>>>>> 259d140f41a7021127e4896ebad7ce02ebdefa64
     Parameters
     ----------
     resource_handle : ResourceHandle
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
+<<<<<<< HEAD
     graph_properties : GraphProperties
         Object defining intended properties for the graph.
+=======
+
+    graph_properties : GraphProperties
+        Object defining intended properties for the graph.
+
+>>>>>>> 259d140f41a7021127e4896ebad7ce02ebdefa64
     src_array : device array type
         Device array containing the vertex identifiers of the source of each
         directed edge. The order of the array corresponds to the ordering of the
         dst_array, where the ith item in src_array and the ith item in dst_array
         define the ith edge of the graph.
+<<<<<<< HEAD
+=======
+
+>>>>>>> 259d140f41a7021127e4896ebad7ce02ebdefa64
     dst_array : device array type
         Device array containing the vertex identifiers of the destination of
         each directed edge. The order of the array corresponds to the ordering
         of the src_array, where the ith item in src_array and the ith item in
         dst_array define the ith edge of the graph.
+<<<<<<< HEAD
+=======
+
+>>>>>>> 259d140f41a7021127e4896ebad7ce02ebdefa64
     weight_array : device array type
         Device array containing the weight values of each directed edge. The
         order of the array corresponds to the ordering of the src_array and
         dst_array arrays, where the ith item in weight_array is the weight value
         of the ith edge of the graph.
+<<<<<<< HEAD
+=======
+
+>>>>>>> 259d140f41a7021127e4896ebad7ce02ebdefa64
     store_transposed : bool
         Set to True if the graph should be transposed. This is required for some
         algorithms, such as pagerank.
@@ -285,4 +315,8 @@ cdef class EXPERIMENTAL__MGGraph(_GPUGraph):
 
     def __dealloc__(self):
         if self.c_graph_ptr is not NULL:
+<<<<<<< HEAD
             cugraph_mg_graph_free(self.c_graph_ptr)
+=======
+            cugraph_mg_graph_free(self.c_graph_ptr)
+>>>>>>> 259d140f41a7021127e4896ebad7ce02ebdefa64

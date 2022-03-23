@@ -56,6 +56,9 @@ pagerank = experimental_warning_wrapper(EXPERIMENTAL__pagerank)
 from pylibcugraph.sssp import EXPERIMENTAL__sssp
 sssp = experimental_warning_wrapper(EXPERIMENTAL__sssp)
 
+from pylibcugraph.hits import EXPERIMENTAL__hits
+hits = experimental_warning_wrapper(EXPERIMENTAL__hits)
+
 from pylibcugraph.node2vec import EXPERIMENTAL__node2vec
 node2vec = experimental_warning_wrapper(EXPERIMENTAL__node2vec)
 
