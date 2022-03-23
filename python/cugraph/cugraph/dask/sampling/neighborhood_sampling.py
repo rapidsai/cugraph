@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# from dask.distributed import wait, default_client
-# from cugraph.dask.common.input_utils import (get_distributed_data,
-#                                              get_vertex_partition_offsets)
-# import cugraph.comms.comms as Comms
-# import dask_cudf
+from dask.distributed import wait, default_client
+from cugraph.dask.common.input_utils import get_distributed_data
+import cugraph.comms.comms as Comms
+import dask_cudf
 import pylibcugraph.experimental as pylibcugraph
 
 
@@ -24,39 +23,55 @@ def call_nbr_sampling(sID,
                       data,
                       src_col_name,
                       dst_col_name,
-                      ):
+                      num_edges,
+                      do_expensive_check,
+                      start_info_list,
+                      h_fan_out,
+                      with_replacement):
 
     # Preparation for graph creation
     handle = Comms.get_handle(sID)
-    handle = pylibcugraph.experimental.ResourceHandle(handle)
+    handle = pylibcugraph.experimental.ResourceHandle(handle.getHandle())
+    graph_properties = pylibcugraph.experimental.GraphProperties(
+        is_multigraph=False)
     srcs = data[0][src_col_name]
     dsts = data[0][dst_col_name]
     weights = None
     if "value" in data[0].columns:
         weights = data[0]['value']
 
-    mg = pylibcugraph.experimental.MGGraph(handle,
-                                           graph_properties,
-                                           srcs,
-                                           dsts,
-                                           weights,)
+    mg = pylibcugraph.MGGraph(handle,
+                              graph_properties,
+                              srcs,
+                              dsts,
+                              weights,
+                              False,
+                              num_edges,
+                              do_expensive_check)
+
+    return pylibcugraph.uniform_neighborhood_sampling(handle,
+                                                      mg,
+                                                      start_info_list,
+                                                      h_fan_out,
+                                                      with_replacement,
+                                                      do_expensive_check)
 
 
-
-def uniform_neighborhood(G,
+def uniform_neighborhood(input_graph,
                          start_info_list,
                          fanout_vals,
                          with_replacement=True):
     """
     Does neighborhood sampling.
+
     Parameters
     ----------
-    G : cugraph.DiGraph
+    input_graph : cugraph.DiGraph
         cuGraph graph, which contains connectivity information as dask cudf
         edge list dataframe
 
     start_info_list : list
-        List of starting vertices for neighborhood sampling
+        ...
 
     fanout_vals : list
         List of branching out (fan-out) degrees per starting vertex for each
@@ -83,22 +98,45 @@ def uniform_neighborhood(G,
     """
 
     print("Hello from cugraph/dask!")
-    """
+
     # Initialize dask client
     client = default_client()
     # Important for handling renumbering
     input_graph.compute_renumber_edge_list(transposed=True)
 
     ddf = input_graph.edgelist.edgelist_df
-    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
-    num_verts = vertex_partition_offsets.iloc[-1]
+    # vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
+    # num_verts = vertex_partition_offsets.iloc[-1]
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
-    """
 
+    src_col_name = input_graph.renumber_map.renumbered_src_col_name
+    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+
+    """
     # Would want G or whatever takes its place to be a pylibcugraph MG Graph,
     # which isn't implemented yet but will be made. The pylib MG Graph will use
     # cugraph_mg_graph_create, which means that #2110 is a dependency
     return pylibcugraph.uniform_neighborhood_sampling(G, start_info_list,
                                                       fanout_vals,
                                                       with_replacement)
+    """
+    result = [client.submit(call_nbr_sampling,
+                            Comms.get_session_id(),
+                            wf[1],
+                            src_col_name,
+                            dst_col_name,
+                            num_edges,
+                            False,
+                            start_info_list,
+                            fanout_vals,
+                            with_replacement,
+                            workers=[wf[0]])
+              for idx, wf in enumerate(data.worker_to_parts.items())]
+
+    wait(result)
+    ddf = dask_cudf.from_delayed(result)
+    if input_graph.renumbered:
+        return input_graph.unrenumber(ddf, 'vertex')
+
+    return ddf

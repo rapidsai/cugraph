@@ -71,14 +71,16 @@ def test_mg_nbr_sampling_0():
     """
     assert True
 
+
 def test_mg_nbr_sampling_1():
     """
     To ensure a basic call works, does not check vals of outputs.
     """
     assert True
 
+
 def test_mg_nbr_sampling_2():
     """
-    To 
+    To
     """
     assert True

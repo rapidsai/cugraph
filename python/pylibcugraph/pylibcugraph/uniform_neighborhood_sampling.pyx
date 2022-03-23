@@ -30,6 +30,7 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_free,
     cugraph_type_erased_host_array_view_t,
+    cugraph_type_erased_host_array_view_create
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -61,7 +62,7 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
                                _GPUGraph input_graph,
                                start_info_list,
                                h_fan_out,
-                               bool_t without_replacement,
+                               bool_t with_replacement,
                                bool_t do_expensive_check):
     """
     Does uniform neighborhood sampling.
@@ -71,7 +72,7 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     input_graph: ???
     start_info_list: ???
     fanout_vals: ???
-    without_replacement: ???
+    with_replacement: ???
     do_expensive_check: ???
 
     Examples
@@ -117,15 +118,14 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
             <void*>cai_labels_ptr,
             len(start_info_list),
             get_c_type_from_numpy_type(start_info_list.dtype))
-    # cdef cugraph_type_erased_device_array_view_t* fan_out_ptr = \
-    #    cugraph_type_erased_device_array_view_create(
     cdef cugraph_type_erased_host_array_view_t* fan_out_ptr = \
         cugraph_type_erased_host_array_view_create(
             <void*>cai_fan_out_ptr,
             len(h_fan_out),
             get_c_type_from_numpy_type(h_fan_out.dtype))
 
-    error_code = uniform_nbr_sample(c_resource_handle_ptr,
+    """
+    error_code = cugraph_uniform_nbr_sample(c_resource_handle_ptr,
                                     c_graph_ptr,
                                     start_ptr,
                                     start_labels_ptr,
@@ -156,3 +156,5 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     cugraph_sample_result_free(result_ptr)
 
     return (cupy_sources, cupy_destinations, cupy_labels, cupy_indices, cupy_counts)
+    """
+    return 0
