@@ -97,6 +97,37 @@ dataset1 = {
      ],
 }
 
+# CSV file contents used for testing various CSV-based use cases
+edges_edgeprops_vertexprops_csv = """
+src dst edge_attr1 edge_attr2 src_attr1 src_attr2 dst_attr1 dst_attr2
+0 1 87 "a" 3.1 "v0" 1.3 "v1"
+0 2 88 "b" 3.2 "v0" 1.1 "v2"
+2 1 89 "c" 2.3 "v2" 1.9 "v1"
+"""
+
+vertexprops_csv = """
+vertex attr1 attr2
+0 32 dog
+1 54 fish
+2 87 cat
+3 12 snake
+4 901 gecko
+"""
+
+edgeprops_csv = """
+v_src v_dst edge_id
+0 1 123
+0 2 432
+2 1 789
+"""
+
+edgeid_edgeprops_csv = """
+edge_id attr1 attr2
+123 'PUT' 21.32
+432 'POST' 21.44
+789 'GET' 22.03
+"""
+
 # Placeholder for a directed Graph instance. This is not constructed here in
 # order to prevent cuGraph code from running on import, which would prevent
 # proper pytest collection if an exception is raised. See setup_function().
@@ -1043,9 +1074,9 @@ def test_extract_subgraph_with_vertex_ids():
 
 
 @pytest.mark.skip(reason="unfinished")
-def test_dgl_use_case():
+def test_single_csv_multi_vertex_edge_attrs():
     """
-    FIXME: add a test demonstrating typical DGL use cases
+    Read an edgelist CSV that contains both edge and vertex attr
     """
     raise NotImplementedError
 
