@@ -117,7 +117,8 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
     )
 
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    # FIXME: also test with no weights
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
 
     result_hits = benchmark(dcg.hits,
                             dg,
