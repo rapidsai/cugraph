@@ -55,10 +55,14 @@ def test_mg_neighborhood_sampling(dask_client):
 
     # TODO: Incomplete, add more when lower-level
     # APIs are accounted for
-    start_info_list = 0
-    fanout_vals = 0
+    start_info_list = [0, 0]
+    fanout_vals = [1, 2]
     with_replacement = True
-    dcg.uniform_neighborhood(dg, start_info_list,
-                             fanout_vals,
-                             with_replacement)
+    result_nbr = dcg.uniform_neighborhood(dg, start_info_list,
+                                          fanout_vals,
+                                          with_replacement)
+    result_nbr = result_nbr.compute()
+
+    # Because there is no SG version of neighborhood sampling, unsure
+    # as to what to compare, for now the test should fail always
     assert False
