@@ -61,6 +61,7 @@ _test_data = {"karate.csv": {
                   },
               }
 
+
 # =============================================================================
 # Test helpers
 # =============================================================================
@@ -251,6 +252,7 @@ def test_node2vec_short_sparse():
 
     _run_node2vec(src, dst, wgt, seeds, num_vertices, num_edges, max_depth,
                   True, 0.8, 0.5, False)
+
 
 @pytest.mark.parametrize(*_get_param_args("compress_result", [True, False]))
 @pytest.mark.parametrize(*_get_param_args("renumbered", [True, False]))
