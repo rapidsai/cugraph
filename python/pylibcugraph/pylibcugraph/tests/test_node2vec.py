@@ -62,6 +62,89 @@ _test_data = {"karate.csv": {
               }
 
 # =============================================================================
+# Test helpers
+# =============================================================================
+def _get_param_args(param_name, param_values):
+    """
+    Returns a tuple of (<param_name>, <pytest.param list>) which can be applied
+    as the args to pytest.mark.parametrize(). The pytest.param list also
+    contains param id string formed from teh param name and values.
+    """
+    return (param_name,
+            [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
+
+
+def _run_node2vec(src_arr,
+                  dst_arr,
+                  wgt_arr,
+                  seeds,
+                  num_vertices,
+                  num_edges,
+                  max_depth,
+                  compressed_result,
+                  p,
+                  q,
+                  renumbered):
+    """
+    Builds a graph from the input arrays and runs node2vec using the other args
+    to this function, then checks the output for validity.
+    """
+    from pylibcugraph.experimental import node2vec
+
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
+    G = SGGraph(resource_handle, graph_props, src_arr, dst_arr, wgt_arr,
+                store_transposed=False, renumber=renumbered,
+                do_expensive_check=True)
+
+    (paths, weights, sizes) = node2vec(resource_handle, G, seeds, max_depth,
+                                       compressed_result, p, q)
+
+    num_seeds = len(seeds)
+
+    # Validating results of node2vec by checking each path
+    M = np.zeros((num_vertices, num_vertices), dtype=np.float64)
+
+    h_src_arr = src_arr.get()
+    h_dst_arr = dst_arr.get()
+    h_wgt_arr = wgt_arr.get()
+    h_paths = paths.get()
+    h_weights = weights.get()
+
+    for i in range(num_edges):
+        M[h_src_arr[i]][h_dst_arr[i]] = h_wgt_arr[i]
+
+    if compressed_result:
+        path_offsets = np.zeros(num_seeds + 1, dtype=np.int32)
+        path_offsets[0] = 0
+        for i in range(num_seeds):
+            path_offsets[i + 1] = path_offsets[i] + sizes.get()[i]
+
+        for i in range(num_seeds):
+            for j in range(path_offsets[i], (path_offsets[i + 1] - 1)):
+                actual_wgt = h_weights[j - i]
+                expected_wgt = M[h_paths[j]][h_paths[j + 1]]
+                if pytest.approx(expected_wgt, 1e-4) != actual_wgt:
+                    s = h_paths[j]
+                    d = h_paths[j+1]
+                    raise ValueError(f"Edge ({s},{d}) has wgt {actual_wgt}, "
+                                     f"should have been {expected_wgt}")
+    else:
+        max_path_length = int(len(paths) / num_seeds)
+        for i in range(num_seeds):
+            for j in range(max_path_length - 1):
+                curr_idx = i * max_path_length + j
+                next_idx = i * max_path_length + j + 1
+                if (h_paths[next_idx] != num_vertices):
+                    actual_wgt = h_weights[i * (max_path_length - 1) + j]
+                    expected_wgt = M[h_paths[curr_idx]][h_paths[next_idx]]
+                    if pytest.approx(expected_wgt, 1e-4) != actual_wgt:
+                        s = h_paths[j]
+                        d = h_paths[j+1]
+                        raise ValueError(f"Edge ({s},{d}) has wgt {actual_wgt}"
+                                         f", should have been {expected_wgt}")
+
+# =============================================================================
 # Pytest fixtures
 # =============================================================================
 # fixtures used in this test module are defined in conftest.py
@@ -70,8 +153,7 @@ _test_data = {"karate.csv": {
 # =============================================================================
 # Tests
 # =============================================================================
-
-@pytest.mark.parametrize("compress_result", [True, False])
+@pytest.mark.parametrize(*_get_param_args("compress_result", [True, False]))
 def test_node2vec(sg_graph_objs, compress_result):
     from pylibcugraph.experimental import node2vec
 
@@ -129,73 +211,6 @@ def test_node2vec(sg_graph_objs, compress_result):
             path_start += actual_path_sizes[i]
 
 
-def run_node2vec(src_arr,
-                 dst_arr,
-                 wgt_arr,
-                 seeds,
-                 num_vertices,
-                 num_edges,
-                 max_depth,
-                 compressed_result,
-                 p,
-                 q,
-                 renumbered):
-    from pylibcugraph.experimental import node2vec
-
-    resource_handle = ResourceHandle()
-    graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
-    G = SGGraph(resource_handle, graph_props, src_arr, dst_arr, wgt_arr,
-                store_transposed=False, renumber=renumbered,
-                do_expensive_check=True)
-
-    (paths, weights, sizes) = node2vec(resource_handle, G, seeds, max_depth,
-                                       compressed_result, p, q)
-
-    num_seeds = len(seeds)
-
-    # Validating results of node2vec by checking each path
-    M = np.zeros((num_vertices, num_vertices), dtype=np.float64)
-
-    h_src_arr = src_arr.get()
-    h_dst_arr = dst_arr.get()
-    h_wgt_arr = wgt_arr.get()
-    h_paths = paths.get()
-    h_weights = weights.get()
-
-    for i in range(num_edges):
-        M[h_src_arr[i]][h_dst_arr[i]] = h_wgt_arr[i]
-
-    if compressed_result:
-        path_offsets = np.zeros(num_seeds + 1, dtype=np.int32)
-        path_offsets[0] = 0
-        for i in range(num_seeds):
-            path_offsets[i + 1] = path_offsets[i] + sizes.get()[i]
-
-        for i in range(num_seeds):
-            for j in range(path_offsets[i], (path_offsets[i + 1] - 1)):
-                actual_wgt = h_weights[j - i]
-                expected_wgt = M[h_paths[j]][h_paths[j + 1]]
-                if pytest.approx(expected_wgt, 1e-4) != actual_wgt:
-                    s = h_paths[j]
-                    d = h_paths[j+1]
-                    raise ValueError(f"Edge ({s},{d}) has wgt {actual_wgt}, "
-                                     f"should have been {expected_wgt}")
-    else:
-        max_path_length = int(len(paths) / num_seeds)
-        for i in range(num_seeds):
-            for j in range(max_path_length - 1):
-                curr_idx = i * max_path_length + j
-                next_idx = i * max_path_length + j + 1
-                if (h_paths[next_idx] != num_vertices):
-                    actual_wgt = h_weights[i * (max_path_length - 1) + j]
-                    expected_wgt = M[h_paths[curr_idx]][h_paths[next_idx]]
-                    if pytest.approx(expected_wgt, 1e-4) != actual_wgt:
-                        s = h_paths[j]
-                        d = h_paths[j+1]
-                        raise ValueError(f"Edge ({s},{d}) has wgt {actual_wgt}"
-                                         f", should have been {expected_wgt}")
-
-
 def test_node2vec_short():
     num_edges = 8
     num_vertices = 6
@@ -206,8 +221,8 @@ def test_node2vec_short():
     seeds = cp.asarray([0, 0], dtype=np.int32)
     max_depth = 4
 
-    run_node2vec(src, dst, wgt, seeds, num_vertices, num_edges, max_depth,
-                 False, 0.8, 0.5, False)
+    _run_node2vec(src, dst, wgt, seeds, num_vertices, num_edges, max_depth,
+                  False, 0.8, 0.5, False)
 
 
 def test_node2vec_short_dense():
@@ -220,8 +235,8 @@ def test_node2vec_short_dense():
     seeds = cp.asarray([2, 3], dtype=np.int32)
     max_depth = 4
 
-    run_node2vec(src, dst, wgt, seeds, num_vertices, num_edges, max_depth,
-                 False, 0.8, 0.5, False)
+    _run_node2vec(src, dst, wgt, seeds, num_vertices, num_edges, max_depth,
+                  False, 0.8, 0.5, False)
 
 
 def test_node2vec_short_sparse():
@@ -234,12 +249,11 @@ def test_node2vec_short_sparse():
     seeds = cp.asarray([2, 3], dtype=np.int32)
     max_depth = 4
 
-    run_node2vec(src, dst, wgt, seeds, num_vertices, num_edges, max_depth,
-                 True, 0.8, 0.5, False)
+    _run_node2vec(src, dst, wgt, seeds, num_vertices, num_edges, max_depth,
+                  True, 0.8, 0.5, False)
 
-
-@pytest.mark.parametrize("compress_result", [True, False])
-@pytest.mark.parametrize("renumbered", [True, False])
+@pytest.mark.parametrize(*_get_param_args("compress_result", [True, False]))
+@pytest.mark.parametrize(*_get_param_args("renumbered", [True, False]))
 def test_node2vec_karate(compress_result, renumbered):
     num_edges = 156
     num_vertices = 34
@@ -286,5 +300,5 @@ def test_node2vec_karate(compress_result, renumbered):
     seeds = cp.asarray([12, 28, 20, 23, 15, 26], dtype=np.int32)
     max_depth = 5
 
-    run_node2vec(src, dst, wgt, seeds, num_vertices, num_edges, max_depth,
-                 compress_result, 0.8, 0.5, renumbered)
+    _run_node2vec(src, dst, wgt, seeds, num_vertices, num_edges, max_depth,
+                  compress_result, 0.8, 0.5, renumbered)
