@@ -33,7 +33,6 @@ KARATE_UNDIRECTED = [
     utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv"
 ]
 
-
 KARATE_RANKING = [11, 9, 14, 15, 18, 20, 22,
                   17, 21, 12, 26, 16, 28, 19]
 
@@ -43,6 +42,10 @@ KARATE_PERS_RANKING = [11, 16, 17, 21, 4, 10, 5,
 KARATE_ITER_RANKINGS = [11, 9, 14, 15, 18, 20,
                         22, 17, 21, 12, 26, 16,
                         28, 19]
+
+KARATE_NSTART_RANKINGS = [11, 9, 14, 15, 18, 20,
+                          22, 17, 21, 12, 26, 16,
+                          28, 19]
 
 # =============================================================================
 # Pytest fixtures
@@ -96,6 +99,9 @@ def test_with_noparams(graph_file, which_import):
         create_using=nx.DiGraph()
     )
     pr = nx.pagerank(Gnx)
+
+    # Rounding issues show up in runs but this tests that the
+    # cugraph and networkx algrorithmsare being correctly called.
     assert(sorted(pr, key=pr.get)[:14]) == KARATE_RANKING
 
 
@@ -116,6 +122,8 @@ def test_with_max_iter(graph_file, max_iter, which_import):
         create_using=nx.DiGraph()
     )
     pr = nx.pagerank(Gnx, max_iter=max_iter)
+    # Rounding issues show up in runs but this tests that the
+    # cugraph and networkx algrorithmsare being correctly called.
     assert(sorted(pr, key=pr.get)[:14]) == KARATE_ITER_RANKINGS
 
 
@@ -151,4 +159,31 @@ def test_perc_spec(graph_file, max_iter, which_import):
         personalization=personalization
         )
 
+    # Rounding issues show up in runs but this tests that the
+    # cugraph and networkx algrorithmsare being correctly called.
     assert(sorted(pr, key=pr.get)[:14]) == KARATE_PERS_RANKING
+
+
+@pytest.mark.parametrize("graph_file", KARATE_UNDIRECTED)
+@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+def test_with_nstart(graph_file, max_iter, which_import):
+    nx = which_import
+
+    M = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", edge_attr="weight",
+        create_using=nx.DiGraph()
+    )
+
+    z = {k: 1.0 / Gnx.number_of_nodes() for k in Gnx.nodes()}
+
+    M = utils.read_csv_for_nx(graph_file)
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", edge_attr="weight",
+        create_using=nx.DiGraph()
+    )
+    pr = nx.pagerank(Gnx, max_iter=max_iter, nstart=z)
+
+    # Rounding issues show up in runs but this tests that the
+    # cugraph and networkx algrorithmsare being correctly called.
+    assert(sorted(pr, key=pr.get)[:14]) == KARATE_NSTART_RANKINGS
