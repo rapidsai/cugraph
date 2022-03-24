@@ -357,7 +357,7 @@ def test_node2vec_renumber_cupy(graph_file, renumber):
     src_arr = cp.asarray([0, 1, 2, 3, 4, 5, 6, 7, 8], dtype=np.int32)
     dst_arr = cp.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=np.int32)
     wgt_arr = cp.asarray([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-                          dtype=np.float32)
+                         dtype=np.float32)
     seeds = cp.asarray([8, 0, 7, 1, 6, 2], dtype=np.int32)
     max_depth = 4
 
