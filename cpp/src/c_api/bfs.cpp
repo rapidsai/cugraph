@@ -84,8 +84,6 @@ struct bfs_functor : public abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph->get_number_of_vertices(),
-                                               handle_.get_stream());
       rmm::device_uvector<vertex_t> distances(graph->get_number_of_vertices(),
                                               handle_.get_stream());
       rmm::device_uvector<vertex_t> predecessors(0, handle_.get_stream());
@@ -116,6 +114,8 @@ struct bfs_functor : public abstract_functor {
         static_cast<vertex_t>(depth_limit_),
         do_expensive_check_);
 
+      rmm::device_uvector<vertex_t> vertex_ids(graph->get_number_of_vertices(),
+                                               handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
       if (compute_predecessors_) {
