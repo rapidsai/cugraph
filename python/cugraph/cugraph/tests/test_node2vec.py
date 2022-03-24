@@ -264,7 +264,7 @@ def test_node2vec_new(
 
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
 @pytest.mark.parametrize(*_get_param_args("renumber", COMPRESSED))
-def test_node2vec_renumber(
+def test_node2vec_renumber_cudf(
     graph_file,
     renumber
 ):
@@ -274,12 +274,12 @@ def test_node2vec_renumber(
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2",
                          renumber=renumber)
 
-    if graph_file == KARATE:
-        start_vertices = [12, 28, 20, 23]
-    else:
-        start_vertices = [8, 0, 7, 1]
+    # if graph_file == KARATE:
+    #     start_vertices = [12, 28, 20, 23]
+    # else:
+    start_vertices = [8, 0, 7, 1, 6, 2]
     num_seeds = 4
-    max_depth = 5
+    max_depth = 4
     df, seeds = calc_node2vec(
         G,
         start_vertices,

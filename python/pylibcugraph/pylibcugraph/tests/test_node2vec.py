@@ -314,7 +314,7 @@ def test_node2vec_karate(compress_result, renumbered):
 
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
 @pytest.mark.parametrize(*_get_param_args("renumber", COMPRESSED))
-def test_node2vec_renumber(graph_file, renumber):
+def test_node2vec_renumber_cudf(graph_file, renumber):
     from pylibcugraph.experimental import node2vec
     from cudf import read_csv, Series
 
@@ -326,8 +326,8 @@ def test_node2vec_renumber(graph_file, renumber):
     src_arr = G.edgelist.edgelist_df['src']
     dst_arr = G.edgelist.edgelist_df['dst']
     wgt_arr = G.edgelist.edgelist_df['weights']
-    seeds = Series([8, 0, 7, 1])
-    max_depth = 5
+    seeds = Series([8, 0, 7, 1, 6, 2])
+    max_depth = 4
 
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
@@ -340,6 +340,40 @@ def test_node2vec_renumber(graph_file, renumber):
     num_seeds = len(seeds)
 
     for i in range(num_seeds):
+        # raise ValueError("vertex_path {} start did not match seed \
+        #                 vertex".format(paths))
+        if paths[i * max_depth] != seeds[i]:
+            raise ValueError("vertex_path {} start did not match seed \
+                             vertex".format(paths))
+
+
+@pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
+@pytest.mark.parametrize(*_get_param_args("renumber", COMPRESSED))
+def test_node2vec_renumber_cupy(graph_file, renumber):
+    from pylibcugraph.experimental import node2vec
+    import cupy as cp
+    import numpy as np
+
+    src_arr = cp.asarray([0, 1, 2, 3, 4, 5, 6, 7, 8], dtype=np.int32)
+    dst_arr = cp.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=np.int32)
+    wgt_arr = cp.asarray([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                          dtype=np.float32)
+    seeds = cp.asarray([8, 0, 7, 1, 6, 2], dtype=np.int32)
+    max_depth = 4
+
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
+    G = SGGraph(resource_handle, graph_props, src_arr, dst_arr, wgt_arr,
+                store_transposed=False, renumber=renumber,
+                do_expensive_check=True)
+
+    (paths, weights, sizes) = node2vec(resource_handle, G, seeds, max_depth,
+                                       False, 0.8, 0.5)
+    num_seeds = len(seeds)
+
+    for i in range(num_seeds):
+        # raise ValueError("vertex_path {} start did not match seed \
+        #                 vertex".format(paths))
         if paths[i * max_depth] != seeds[i]:
             raise ValueError("vertex_path {} start did not match seed \
                              vertex".format(paths))
