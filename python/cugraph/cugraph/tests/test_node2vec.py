@@ -18,6 +18,7 @@ import pytest
 
 from cugraph.tests import utils
 import cugraph
+import cudf
 
 
 # =============================================================================
@@ -261,21 +262,23 @@ def test_node2vec_new(
             #                     vertex:{}".format(vertex_paths.values))
 
 
-@pytest.mark.parametrize(*_get_param_args("graph_file", [LINE, KARATE]))
+@pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
 @pytest.mark.parametrize(*_get_param_args("renumber", COMPRESSED))
 def test_node2vec_renumber(
     graph_file,
     renumber
 ):
-    cu_M = utils.read_csv_file(graph_file)
+    cu_M = cudf.read_csv(graph_file, delimiter=' ',
+                         dtype=['int32', 'int32', 'float32'], header=None)
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2",
                          renumber=renumber)
+
     if graph_file == KARATE:
-        start_vertices = [12, 28, 20, 23, 15, 26]
+        start_vertices = [12, 28, 20, 23]
     else:
-        start_vertices = [5, 5, 5, 5, 5, 5]
-    num_seeds = 6
+        start_vertices = [8, 0, 7, 1]
+    num_seeds = 4
     max_depth = 5
     df, seeds = calc_node2vec(
         G,
@@ -289,5 +292,5 @@ def test_node2vec_renumber(
 
     for i in range(num_seeds):
         if vertex_paths[i * max_depth] != seeds[i]:
-            raise ValueError("vertex_path start did not match seed \
-                             vertex:{}".format(vertex_paths.values))
+            raise ValueError("vertex_path {} start did not match seed \
+                             vertex".format(vertex_paths.values))
