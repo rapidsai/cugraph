@@ -153,10 +153,8 @@ struct uniform_selector_t {
       auto crt_out_deg = ptr_d_cache_out_degs_[src_v];
       if (crt_out_deg == 0) return thrust::nullopt;  // src_v is a sink
 
-      real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
-      auto interp_vindx = rnd_val * max_ub;
-      vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
-
+      vertex_t v_indx =
+        static_cast<vertex_t>(rnd_val >= 1.0 ? crt_out_deg - 1 : rnd_val * crt_out_deg);
       auto col_indx  = v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx;
       auto start_row = row_offsets_[src_v];
 
