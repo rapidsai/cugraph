@@ -156,7 +156,7 @@ endif()
 ################################################################################
 # - libcugraph library target --------------------------------------------------
 
-add_library(cugraph SHARED
+add_library(cugraph
     src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
     src/utilities/spmv_1D.cu
@@ -344,7 +344,7 @@ endif()
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
-add_library(cugraph_c SHARED
+add_library(cugraph_c
         src/c_api/cugraph_api.cpp
         src/c_api/array.cpp
         src/c_api/error.cpp
