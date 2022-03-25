@@ -263,7 +263,7 @@ def test_node2vec_new(
 
 
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
-@pytest.mark.parametrize(*_get_param_args("renumber", COMPRESSED))
+@pytest.mark.parametrize(*_get_param_args("renumber", [True, False]))
 def test_node2vec_renumber_cudf(
     graph_file,
     renumber
