@@ -47,8 +47,9 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
 /**
  * @brief renumber edgelist (multi-GPU)
  *
- * This function assumes that vertices and edges are pre-shuffled to their target processes using
- * the compute_gpu_id_from_vertex_t & compute_gpu_id_from_edge_t functors, respectively.
+ * This function assumes that vertices are pre-shuffled to their target processes and edges are
+ * pre-shuffled to their target processess and edge partitions using compute_gpu_id_from_vertex_t
+ * and compute_gpu_id_from_edge_t & compute_partition_id_from_edge_t functors, respectively.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -60,28 +61,26 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  * This parameter can be used to include isolated vertices. Applying the
  * compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function to
  * work (vertices should be pre-shuffled).
- * @param edgelist_majors Pointers (one pointer per local graph adjacency matrix partition assigned
- * to this process) to edge source vertex IDs (if the graph adjacency matrix is stored as is) or
- * edge destination vertex IDs (if the transposed graph adjacency matrix is stored). Vertex IDs are
- * updated in-place ([INOUT] parameter). Edges should be pre-shuffled to their final target process
- * & matrix partition; i.e. applying the compute_gpu_id_from_edge_t functor to every (major, minor)
- * pair should return the GPU ID of this process and applying the compute_partition_id_from_edge_t
- * fuctor to every (major, minor) pair for a local matrix partition should return the partition ID
- * of the corresponding matrix partition.
- * @param edgelist_minors Pointers (one pointer per local graph adjacency matrix partition assigned
- * to this process) to edge destination vertex IDs (if the graph adjacency matrix is stored as is)
- * or edge source vertex IDs (if the transposed graph adjacency matrix is stored). Vertex IDs are
- * updated in-place ([INOUT] parameter). Edges should be pre-shuffled to their final target process
- * & matrix partition; i.e. applying the compute_gpu_id_from_edge_t functor to every (major, minor)
- * pair should return the GPU ID of this process and applying the compute_partition_id_from_edge_t
- * fuctor to every (major, minor) pair for a local matrix partition should return the partition ID
- * of the corresponding matrix partition.
- * @param edgelist_edge_counts Edge counts (one count per local graph adjacency matrix partition
- * assigned to this process).
+ * @param edgelist_srcs Pointers (one pointer per local edge partition assigned to this process) to
+ * edge source vertex IDs. Source IDs are updated in-place ([INOUT] parameter). Applying the
+ * compute_gpu_id_from_edge_t functor to every (destination ID, source ID) pair (if store_transposed
+ * = true) or (source ID, destination ID) pair (if store_transposed = false) should return the local
+ * GPU ID for this function to work (edges should be pre-shuffled). Applying the
+ * compute_partition_id_from_edge_t to every (destination ID, source ID) pair (if store_transposed =
+ * true) or (source ID, destination ID) pair (if store_transposed = false) should also return the
+ * corresponding edge partition ID. The best way to enforce this is to use
+ * shuffle_edgelist_by_gpu_id & groupby_and_count_edgelist_by_local_partition_id.
+ * @param edgelist_dsts Pointers (one pointer per local edge partition assigned to this process) to
+ * edge destination vertex IDs. Destination IDs are updated in-place ([INOUT] parameter).
+ * @param edgelist_edge_counts Edge counts (one count per local edge partition assigned to this
+ * process).
  * @param edgelist_intra_partition_segment_offsets If valid, store segment offsets within a local
  * graph adjacency matrix partition; a local partition can be further segmented by applying the
  * compute_gpu_id_from_vertex_t function to edge minor vertex IDs. This optinoal information is used
  * for further memory footprint optimization if provided.
+ * @param store_transposed Should be true if renumbered edges will be used to create a graph with
+ * store_transposed = true. Should be false if the edges will be used to create a graph with
+ * store_transposed = false.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>
  * Tuple of labels (vertex IDs before renumbering) for the entire set of vertices (assigned to this
@@ -98,10 +97,11 @@ std::enable_if_t<
 renumber_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
-  std::vector<vertex_t*> const& edgelist_majors /* [INOUT] */,
-  std::vector<vertex_t*> const& edgelist_minors /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<edge_t> const& edgelist_edge_counts,
   std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
+  bool store_transposed,
   bool do_expensive_check = false);
 
 /**
@@ -115,13 +115,14 @@ renumber_edgelist(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param vertices If valid, vertices in the graph to be renumbered. This parameter can be used to
  * include isolated vertices.
- * @param edgelist_majors Edge source vertex IDs (if the graph adjacency matrix is stored as is) or
- * edge destination vertex IDs (if the transposed graph adjacency matrix is stored). Vertex IDs are
- * updated in-place ([INOUT] parameter).
- * @param edgelist_minors Edge destination vertex IDs (if the graph adjacency matrix is stored as
- * is) or edge source vertex IDs (if the transposed graph adjacency matrix is stored). Vertex IDs
- * are updated in-place ([INOUT] parameter).
+ * @param edgelist_srcs A pointer to edge source vertex IDs. Source IDs are updated in-place
+ * ([INOUT] parameter).
+ * @param edgelist_dsts A pointer to edge destination vertex IDs. Destination IDs are updated
+ * in-place ([INOUT] parameter).
  * @param num_edgelist_edges Number of edges in the edgelist.
+ * @param store_transposed Should be true if renumbered edges will be used to create a graph with
+ * store_transposed = true. Should be false if the edges will be used to create a graph with
+ * store_transposed = false.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>
  * Tuple of labels (vertex IDs before renumbering) for the entire set of vertices and meta-data
@@ -135,9 +136,10 @@ std::enable_if_t<
   std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
 renumber_edgelist(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-                  vertex_t* edgelist_majors /* [INOUT] */,
-                  vertex_t* edgelist_minors /* [INOUT] */,
+                  vertex_t* edgelist_srcs /* [INOUT] */,
+                  vertex_t* edgelist_dsts /* [INOUT] */,
                   edge_t num_edgelist_edges,
+                  bool store_transposed,
                   bool do_expensive_check = false);
 
 /**
