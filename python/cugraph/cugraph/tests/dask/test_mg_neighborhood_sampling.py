@@ -21,6 +21,19 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
+# =============================================================================
+# Test helpers
+# =============================================================================
+def _get_param_args(param_name, param_values):
+    """
+    Returns a tuple of (<param_name>, <pytest.param list>) which can be applied
+    as the args to pytest.mark.parametrize(). The pytest.param list also
+    contains param id string formed from teh param name and values.
+    """
+    return (param_name,
+            [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
+
+
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
