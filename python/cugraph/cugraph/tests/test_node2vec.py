@@ -23,8 +23,10 @@ import cugraph
 # =============================================================================
 # Parameters
 # =============================================================================
-DIRECTED_GRAPH_OPTIONS = [pytest.param(d) for d in [False, True]]
-COMPRESSED = [pytest.param(d) for d in [False, True]]
+DIRECTED_GRAPH_OPTIONS = [pytest.param(d, id=f"directed={d}")
+                          for d in [False, True]]
+COMPRESSED = [pytest.param(d, id=f"compressed={d}")
+              for d in [False, True]]
 LINE = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"small_line.csv"
 DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
 KARATE = DATASETS_SMALL[0][0][0]
