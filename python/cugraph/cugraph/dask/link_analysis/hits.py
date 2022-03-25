@@ -64,6 +64,16 @@ def call_hits(sID,
 
     return result
 
+def convert_to_cudf(cp_arrays):
+    """
+    create a cudf DataFrame from cupy arrays
+    """
+    cupy_vertices, cupy_hubs, cupy_authorities = cp_arrays
+    df = cudf.DataFrame()
+    df["vertex"] = cupy_vertices
+    df["hubs"] = cupy_hubs
+    df["authorities"] = cupy_authorities
+    return df
 
 def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     """
@@ -160,7 +170,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
         initial_hubs_guess_vertices = nstart['vertex']
         initial_hubs_guess_values = nstart['values']
 
-    result = [client.submit(call_hits,
+    cupy_result = [client.submit(call_hits,
                             Comms.get_session_id(),
                             wf[1],
                             src_col_name,
@@ -177,9 +187,15 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
                             workers=[wf[0]])
               for idx, wf in enumerate(data.worker_to_parts.items())]
 
-    wait(result)
+    wait(cupy_result)
 
-    ddf = dask_cudf.from_delayed(result)
+    cudf_result = [client.submit(convert_to_cudf,
+                                 cp_arrays)
+              for cp_arrays in cupy_result]
+
+    wait(cudf_result)
+
+    ddf = dask_cudf.from_delayed(cudf_result)
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, 'vertex')
 

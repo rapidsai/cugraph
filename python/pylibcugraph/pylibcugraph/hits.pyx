@@ -55,7 +55,7 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
-    copy_to_cudf_series,
+    copy_to_cupy_array,
     get_c_type_from_numpy_type
 )
 
@@ -124,7 +124,7 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
 
     # FIXME: Get rid of the unused imports
     try:
-        import cudf
+        import cupy
     except ModuleNotFoundError:
         raise RuntimeError("hits requires the cudf package, which could "
                            "not be imported")
@@ -140,8 +140,9 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* initial_hubs_guess_vertices_view_ptr = NULL
     cdef cugraph_type_erased_device_array_view_t* initial_hubs_guess_values_view_ptr = NULL
 
-    # FIXME: Add check ensuring that both initial_hubs_guess_vertices and initial_hubs_guess_values
-    # are passed when calling only pylibcugraph HITS. This is already True for cugraph HITS
+    # FIXME: Add check ensuring that both initial_hubs_guess_vertices 
+    # and initial_hubs_guess_values are passed when calling only pylibcugraph HITS.
+    # This is already True for cugraph HITS
     
     if initial_hubs_guess_vertices is not None:   
         assert_CAI_type(initial_hubs_guess_vertices, "initial_hubs_guess_vertices")
@@ -200,22 +201,19 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* authorities_ptr = \
         cugraph_hits_result_get_authorities(result_ptr)
 
-    cudf_series_vertices = copy_to_cudf_series(c_resource_handle_ptr, vertices_ptr)
-    cudf_series_hubs = copy_to_cudf_series(c_resource_handle_ptr, hubs_ptr)
-    cudf_series_authorities = copy_to_cudf_series(c_resource_handle_ptr,
+    cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
+    cupy_hubs = copy_to_cupy_array(c_resource_handle_ptr, hubs_ptr)
+    cupy_authorities = copy_to_cupy_array(c_resource_handle_ptr,
                                            authorities_ptr)
-    
-    df = cudf.DataFrame()
-    df["vertex"] = cudf_series_vertices
-    df["hubs"] = cudf_series_hubs
-    df["authorities"] = cudf_series_authorities
-
+  
     cugraph_hits_result_free(result_ptr)
 
     if initial_hubs_guess_vertices is not None:
-        cugraph_type_erased_device_array_view_free(initial_hubs_guess_vertices_view_ptr)
+        cugraph_type_erased_device_array_view_free(
+            initial_hubs_guess_vertices_view_ptr)
     
     if initial_hubs_guess_values is not None:
-        cugraph_type_erased_device_array_view_free(initial_hubs_guess_values_view_ptr)
+        cugraph_type_erased_device_array_view_free(
+            initial_hubs_guess_values_view_ptr)
 
-    return df
+    return (cupy_vertices, cupy_hubs, cupy_authorities)

@@ -127,39 +127,3 @@ cdef copy_to_cupy_array(
     cugraph_type_erased_device_array_view_free(device_array_view_ptr)
 
     return cupy_array
-
-cdef copy_to_cudf_series(
-   cugraph_resource_handle_t* c_resource_handle_ptr,
-   cugraph_type_erased_device_array_view_t* device_array_view_ptr):
-    """
-    Copy the contents from a device array view as returned by various cugraph_*
-    APIs to a new cudf series, typically intended to be used as a return
-    value from pylibcugraph APIs.
-    """
-    cdef c_type = cugraph_type_erased_device_array_view_type(
-        device_array_view_ptr)
-    array_size = cugraph_type_erased_device_array_view_size(
-        device_array_view_ptr)
-
-    cudf_series = cudf.Series(
-        numpy.zeros(array_size, dtype=get_numpy_type_from_c_type(c_type)))
-
-    cdef uintptr_t cudf_series_ptr = \
-        cudf_series.__cuda_array_interface__["data"][0]
-
-    cdef cugraph_type_erased_device_array_view_t* cudf_series_view_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cudf_series_ptr, array_size, c_type)
-
-    cdef cugraph_error_t* error_ptr
-    error_code = cugraph_type_erased_device_array_view_copy(
-        c_resource_handle_ptr,
-        cudf_series_view_ptr,
-        device_array_view_ptr,
-        &error_ptr)
-    assert_success(error_code, error_ptr,
-                   "cugraph_type_erased_device_array_view_copy")
-
-    cugraph_type_erased_device_array_view_free(device_array_view_ptr)
-
-    return cudf_series
