@@ -411,7 +411,9 @@ create_segmented_data(raft::handle_t const& handle,
                      } else {
                        seq[location] = offset[index - 1] - offset[index] + 1;
                      }
-                     if (index < source_count) { src[location] = index; }
+                     if ((index < source_count) && (offset[index] != offset[index + 1])) {
+                       src[location] = index;
+                     }
                    });
   thrust::inclusive_scan(handle.get_thrust_policy(),
                          segmented_sequence.begin(),
@@ -485,6 +487,64 @@ sg_gather_edges(raft::handle_t const& handle,
   return std::make_tuple(std::move(sources), std::move(destinations));
 }
 
+template <typename GraphViewType, typename prop_t>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<prop_t>>
+sg_gather_edges(raft::handle_t const& handle,
+                GraphViewType const& graph_view,
+                const rmm::device_uvector<typename GraphViewType::vertex_type>& sources,
+                const rmm::device_uvector<prop_t>& properties)
+{
+  static_assert(GraphViewType::is_adj_matrix_transposed == false);
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = typename GraphViewType::weight_type;
+
+  auto matrix_partition =
+    cugraph::matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+      graph_view.get_matrix_partition_view());
+
+  rmm::device_uvector<vertex_t> sources_out_degrees(sources.size(), handle.get_stream());
+  thrust::transform(handle.get_thrust_policy(),
+                    sources.cbegin(),
+                    sources.cend(),
+                    sources_out_degrees.begin(),
+                    [offsets = matrix_partition.get_offsets()] __device__(auto s) {
+                      return offsets[s + 1] - offsets[s];
+                    });
+  auto [sources_out_offsets, segmented_source_indices, segmented_sequence] =
+    create_segmented_data(handle, vertex_t{0}, sources_out_degrees);
+  auto edge_count = sources_out_offsets.back_element(handle.get_stream());
+
+  rmm::device_uvector<vertex_t> srcs(edge_count, handle.get_stream());
+  rmm::device_uvector<vertex_t> dsts(edge_count, handle.get_stream());
+  rmm::device_uvector<prop_t> src_prop(edge_count, handle.get_stream());
+
+  thrust::for_each(handle.get_thrust_policy(),
+                   thrust::make_counting_iterator<size_t>(0),
+                   thrust::make_counting_iterator<size_t>(edge_count),
+                   [partition                = matrix_partition,
+                    srcs                     = srcs.data(),
+                    dsts                     = dsts.data(),
+                    src_prop                 = src_prop.data(),
+                    sources                  = sources.data(),
+                    sources_properties       = properties.data(),
+                    sources_out_offsets      = sources_out_offsets.data(),
+                    segmented_source_indices = segmented_source_indices.data(),
+                    segmented_sequence       = segmented_sequence.data()] __device__(auto index) {
+                     auto src_index  = segmented_source_indices[index];
+                     auto src        = sources[src_index];
+                     auto offsets    = partition.get_offsets();
+                     auto indices    = partition.get_indices();
+                     auto dst        = indices[offsets[src] + segmented_sequence[index]];
+                     srcs[index]     = src;
+                     dsts[index]     = dst;
+                     src_prop[index] = sources_properties[src_index];
+                   });
+  return std::make_tuple(std::move(srcs), std::move(dsts), std::move(src_prop));
+}
+
 template <typename vertex_t>
 void sort_coo(raft::handle_t const& handle,
               rmm::device_uvector<vertex_t>& src,
@@ -492,6 +552,18 @@ void sort_coo(raft::handle_t const& handle,
 {
   thrust::sort_by_key(handle.get_thrust_policy(), dst.begin(), dst.end(), src.begin());
   thrust::sort_by_key(handle.get_thrust_policy(), src.begin(), src.end(), dst.begin());
+}
+
+template <typename vertex_t, typename prop_t>
+void sort_coo(raft::handle_t const& handle,
+              rmm::device_uvector<vertex_t>& src,
+              rmm::device_uvector<prop_t>& src_prop,
+              rmm::device_uvector<vertex_t>& dst)
+{
+  thrust::sort(
+    handle.get_thrust_policy(),
+    thrust::make_zip_iterator(thrust::make_tuple(src.begin(), src_prop.begin(), dst.begin())),
+    thrust::make_zip_iterator(thrust::make_tuple(src.end(), src_prop.end(), dst.end())));
 }
 
 template <typename vertex_t, typename edge_t>
