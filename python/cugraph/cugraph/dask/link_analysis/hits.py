@@ -20,6 +20,7 @@ import cugraph.comms.comms as Comms
 import dask_cudf
 
 import pylibcugraph
+import cudf
 
 
 def call_hits(sID,
@@ -64,6 +65,7 @@ def call_hits(sID,
 
     return result
 
+
 def convert_to_cudf(cp_arrays):
     """
     create a cudf DataFrame from cupy arrays
@@ -74,6 +76,7 @@ def convert_to_cudf(cp_arrays):
     df["hubs"] = cupy_hubs
     df["authorities"] = cupy_authorities
     return df
+
 
 def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     """
@@ -171,27 +174,27 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
         initial_hubs_guess_values = nstart['values']
 
     cupy_result = [client.submit(call_hits,
-                            Comms.get_session_id(),
-                            wf[1],
-                            src_col_name,
-                            dst_col_name,
-                            graph_properties,
-                            store_transposed,
-                            num_edges,
-                            do_expensive_check,
-                            tol,
-                            max_iter,
-                            initial_hubs_guess_vertices,
-                            initial_hubs_guess_values,
-                            normalized,
-                            workers=[wf[0]])
-              for idx, wf in enumerate(data.worker_to_parts.items())]
+                                 Comms.get_session_id(),
+                                 wf[1],
+                                 src_col_name,
+                                 dst_col_name,
+                                 graph_properties,
+                                 store_transposed,
+                                 num_edges,
+                                 do_expensive_check,
+                                 tol,
+                                 max_iter,
+                                 initial_hubs_guess_vertices,
+                                 initial_hubs_guess_values,
+                                 normalized,
+                                 workers=[wf[0]])
+                   for idx, wf in enumerate(data.worker_to_parts.items())]
 
     wait(cupy_result)
 
     cudf_result = [client.submit(convert_to_cudf,
                                  cp_arrays)
-              for cp_arrays in cupy_result]
+                   for cp_arrays in cupy_result]
 
     wait(cudf_result)
 
