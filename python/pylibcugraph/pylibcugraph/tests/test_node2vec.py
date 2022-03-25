@@ -15,6 +15,12 @@ import pytest
 import cupy as cp
 import numpy as np
 from pylibcugraph.experimental import ResourceHandle, GraphProperties, SGGraph
+from cugraph.tests import utils
+import cugraph
+
+
+COMPRESSED = [False, True]
+LINE = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"small_line.csv"
 
 
 # =============================================================================
@@ -304,3 +310,70 @@ def test_node2vec_karate(compress_result, renumbered):
 
     _run_node2vec(src, dst, wgt, seeds, num_vertices, num_edges, max_depth,
                   compress_result, 0.8, 0.5, renumbered)
+
+
+@pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
+@pytest.mark.parametrize(*_get_param_args("renumber", COMPRESSED))
+def test_node2vec_renumber_cudf(graph_file, renumber):
+    from pylibcugraph.experimental import node2vec
+    from cudf import read_csv, Series
+
+    cu_M = read_csv(graph_file, delimiter=' ',
+                    dtype=['int32', 'int32', 'float32'], header=None)
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2",
+                         renumber=renumber)
+    src_arr = G.edgelist.edgelist_df['src']
+    dst_arr = G.edgelist.edgelist_df['dst']
+    wgt_arr = G.edgelist.edgelist_df['weights']
+    seeds = Series([8, 0, 7, 1, 6, 2])
+    max_depth = 4
+
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
+    G = SGGraph(resource_handle, graph_props, src_arr, dst_arr, wgt_arr,
+                store_transposed=False, renumber=renumber,
+                do_expensive_check=True)
+
+    (paths, weights, sizes) = node2vec(resource_handle, G, seeds, max_depth,
+                                       False, 0.8, 0.5)
+    num_seeds = len(seeds)
+
+    for i in range(num_seeds):
+        # raise ValueError("vertex_path {} start did not match seed \
+        #                 vertex".format(paths))
+        if paths[i * max_depth] != seeds[i]:
+            raise ValueError("vertex_path {} start did not match seed \
+                             vertex".format(paths))
+
+
+@pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
+@pytest.mark.parametrize(*_get_param_args("renumber", COMPRESSED))
+def test_node2vec_renumber_cupy(graph_file, renumber):
+    from pylibcugraph.experimental import node2vec
+    import cupy as cp
+    import numpy as np
+
+    src_arr = cp.asarray([0, 1, 2, 3, 4, 5, 6, 7, 8], dtype=np.int32)
+    dst_arr = cp.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=np.int32)
+    wgt_arr = cp.asarray([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                         dtype=np.float32)
+    seeds = cp.asarray([8, 0, 7, 1, 6, 2], dtype=np.int32)
+    max_depth = 4
+
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
+    G = SGGraph(resource_handle, graph_props, src_arr, dst_arr, wgt_arr,
+                store_transposed=False, renumber=renumber,
+                do_expensive_check=True)
+
+    (paths, weights, sizes) = node2vec(resource_handle, G, seeds, max_depth,
+                                       False, 0.8, 0.5)
+    num_seeds = len(seeds)
+
+    for i in range(num_seeds):
+        # raise ValueError("vertex_path {} start did not match seed \
+        #                 vertex".format(paths))
+        if paths[i * max_depth] != seeds[i]:
+            raise ValueError("vertex_path {} start did not match seed \
+                             vertex".format(paths))

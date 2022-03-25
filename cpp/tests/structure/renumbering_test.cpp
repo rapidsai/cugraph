@@ -89,7 +89,7 @@ class Tests_Renumbering
 
     std::tie(renumber_map_labels_v, std::ignore) =
       cugraph::renumber_edgelist<vertex_t, edge_t, false>(
-        handle, std::nullopt, src_v.begin(), dst_v.begin(), src_v.size());
+        handle, std::nullopt, src_v.begin(), dst_v.begin(), src_v.size(), false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

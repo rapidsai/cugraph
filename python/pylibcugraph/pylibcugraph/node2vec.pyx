@@ -110,7 +110,7 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     >>> import pylibcugraph, cupy, numpy
     >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
     >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
-    >>> seeds = cupy.asarrray([0, 0, 1], dtype=numpy.int32)
+    >>> seeds = cupy.asarray([0, 0, 1], dtype=numpy.int32)
     >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
     >>> resource_handle = pylibcugraph.experimental.ResourceHandle()
     >>> graph_props = pylibcugraph.experimental.GraphProperties(
@@ -173,7 +173,8 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
     cupy_path_sizes = copy_to_cupy_array(c_resource_handle_ptr,
                                            path_sizes_ptr)
-
+    raise ValueError("{}".format(cupy_paths))
+    
     cugraph_random_walk_result_free(result_ptr)
     cugraph_type_erased_device_array_view_free(seed_view_ptr)
 

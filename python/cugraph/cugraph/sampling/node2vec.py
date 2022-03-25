@@ -117,6 +117,12 @@ def node2vec(G,
     dsts = G.edgelist.edgelist_df['dst']
     weights = G.edgelist.edgelist_df['weights']
 
+    # srcs = cupy.asarray(G.edgelist.edgelist_df['src'], dtype=numpy.int32)
+    # dsts = cupy.asarray(G.edgelist.edgelist_df['dst'], dtype=numpy.int32)
+    # weights = cupy.asarray(G.edgelist.edgelist_df['weights'],
+    #                        dtype=numpy.int32)
+    # start_vertices = cupy.asarray(start_vertices, dtype=numpy.int32)
+
     resource_handle = pylibcugraph.experimental.ResourceHandle()
     graph_props = pylibcugraph.experimental.GraphProperties(
                     is_multigraph=G.is_multigraph())
