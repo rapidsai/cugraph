@@ -326,7 +326,7 @@ def test_node2vec_renumber_cudf(graph_file, renumber):
     src_arr = G.edgelist.edgelist_df['src']
     dst_arr = G.edgelist.edgelist_df['dst']
     wgt_arr = G.edgelist.edgelist_df['weights']
-    seeds = Series([8, 0, 7, 1, 6, 2])
+    seeds = Series([8, 0, 7, 1, 6, 2], dtype="int32")
     max_depth = 4
 
     resource_handle = ResourceHandle()
