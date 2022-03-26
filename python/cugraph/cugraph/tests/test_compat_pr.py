@@ -29,7 +29,7 @@ ALPHA = [0.85]
 PERSONALIZATION_PERC = [10]
 HAS_GUESS = [0]
 
-KARATE_UNDIRECTED = [
+FILES_UNDIRECTED = [
     utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv"
 ]
 
@@ -50,6 +50,42 @@ KARATE_NSTART_RANKINGS = [11, 9, 14, 15, 18, 20,
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
+
+datasets = FILES_UNDIRECTED
+fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
+                                               ([50], "max_iter"),
+                                               ([1.0e-6], "tol")
+                                               )
+
+
+@pytest.fixture(scope="module", params=fixture_params)
+def input_combo(request):
+    """
+    Simply return the current combination of params as a dictionary for use in
+    tests or other parameterized fixtures.
+    """
+    print("parameters are \n", request.param, flush=True)
+    parameters = dict(zip(("graph_file", "max_iter", "tol"), request.param))
+
+    return parameters
+
+
+@pytest.fixture(scope="module")
+def input_expected_output(input_combo):
+    """
+    This fixture returns the expected results from the pagerank algorithm.
+    """
+    import networkx
+    M = utils.read_csv_for_nx(input_combo["graph_file"])
+    Gnx = networkx.from_pandas_edgelist(
+        M, source="0", target="1", edge_attr="weight",
+        create_using=networkx.DiGraph()
+    )
+    print(type(Gnx))
+    pr = networkx.pagerank(Gnx)
+
+    input_combo["nx_pr_rankings"] = sorted(pr, key=pr.get)[:14]
+    return input_combo
 
 
 @pytest.fixture(scope="module", params=['networkx', 'nxcompat'])
@@ -81,7 +117,7 @@ def get_personalization(personalization_perc, nnz_vtx):
     return personalization
 
 
-@pytest.mark.parametrize("graph_file", KARATE_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 def test_with_noparams(graph_file, which_import):
     nx = which_import
 
@@ -93,29 +129,15 @@ def test_with_noparams(graph_file, which_import):
     print(type(Gnx))
     pr = nx.pagerank(Gnx)
 
-    M = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight",
-        create_using=nx.DiGraph()
-    )
-    pr = nx.pagerank(Gnx)
-
     # Rounding issues show up in runs but this tests that the
     # cugraph and networkx algrorithmsare being correctly called.
     assert(sorted(pr, key=pr.get)[:14]) == KARATE_RANKING
 
 
-@pytest.mark.parametrize("graph_file", KARATE_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 def test_with_max_iter(graph_file, max_iter, which_import):
     nx = which_import
-
-    M = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight",
-        create_using=nx.DiGraph()
-    )
-
     M = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight",
@@ -127,7 +149,7 @@ def test_with_max_iter(graph_file, max_iter, which_import):
     assert(sorted(pr, key=pr.get)[:14]) == KARATE_ITER_RANKINGS
 
 
-@pytest.mark.parametrize("graph_file", KARATE_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 def test_perc_spec(graph_file, max_iter, which_import):
     nx = which_import
@@ -164,7 +186,7 @@ def test_perc_spec(graph_file, max_iter, which_import):
     assert(sorted(pr, key=pr.get)[:14]) == KARATE_PERS_RANKING
 
 
-@pytest.mark.parametrize("graph_file", KARATE_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 def test_with_nstart(graph_file, max_iter, which_import):
     nx = which_import
@@ -187,3 +209,17 @@ def test_with_nstart(graph_file, max_iter, which_import):
     # Rounding issues show up in runs but this tests that the
     # cugraph and networkx algrorithmsare being correctly called.
     assert(sorted(pr, key=pr.get)[:14]) == KARATE_NSTART_RANKINGS
+
+
+def test_fixture_data(input_expected_output, which_import):
+    nx = which_import
+    M = utils.read_csv_for_nx(input_expected_output["graph_file"])
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", edge_attr="weight",
+        create_using=nx.DiGraph()
+    )
+    pr = nx.pagerank(Gnx,
+                     max_iter=input_expected_output["max_iter"],
+                     nstart=None)
+    actual = sorted(pr, key=pr.get)[:14]
+    assert(actual == input_expected_output["nx_pr_rankings"])
