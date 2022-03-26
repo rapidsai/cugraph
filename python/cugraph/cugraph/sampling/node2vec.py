@@ -11,9 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pylibcugraph
-import cudf
+from pylibcugraph.experimental import (ResourceHandle,
+                                       GraphProperties,
+                                       SGGraph,
+                                       node2vec as pylibcugraph_node2vec,
+                                       )
 from cugraph.utilities import ensure_cugraph_obj_for_nx
+
+import cudf
 
 
 def node2vec(G,
@@ -104,7 +109,9 @@ def node2vec(G,
         start_vertices = [start_vertices]
 
     if isinstance(start_vertices, list):
-        start_vertices = cudf.Series(start_vertices)
+        # FIXME: do not assume contents of the start_vertices list can be used
+        # for a Series of int32 values.
+        start_vertices = cudf.Series(start_vertices, dtype="int32")
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
@@ -117,15 +124,8 @@ def node2vec(G,
     dsts = G.edgelist.edgelist_df['dst']
     weights = G.edgelist.edgelist_df['weights']
 
-    # srcs = cupy.asarray(G.edgelist.edgelist_df['src'], dtype=numpy.int32)
-    # dsts = cupy.asarray(G.edgelist.edgelist_df['dst'], dtype=numpy.int32)
-    # weights = cupy.asarray(G.edgelist.edgelist_df['weights'],
-    #                        dtype=numpy.int32)
-    # start_vertices = cupy.asarray(start_vertices, dtype=numpy.int32)
-
-    resource_handle = pylibcugraph.experimental.ResourceHandle()
-    graph_props = pylibcugraph.experimental.GraphProperties(
-                    is_multigraph=G.is_multigraph())
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_multigraph=G.is_multigraph())
     store_transposed = False
     renumber = False
     do_expensive_check = False
@@ -133,14 +133,12 @@ def node2vec(G,
     # FIXME: If input graph is not renumbered, then SGGraph creation
     # causes incorrect vertices to be returned when computing pylib
     # version of node2vec
-    sg = pylibcugraph.experimental.SGGraph(resource_handle, graph_props,
-                                           srcs, dsts, weights,
-                                           store_transposed, renumber,
-                                           do_expensive_check)
+    sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
+                 store_transposed, renumber, do_expensive_check)
 
-    vertex_set, edge_set, sizes = pylibcugraph.experimental.node2vec(
-                                    resource_handle, sg, start_vertices,
-                                    max_depth, compress_result, p, q)
+    vertex_set, edge_set, sizes = \
+        pylibcugraph_node2vec(resource_handle, sg, start_vertices,
+                              max_depth, compress_result, p, q)
 
     vertex_set = cudf.Series(vertex_set)
     edge_set = cudf.Series(edge_set)

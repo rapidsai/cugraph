@@ -280,6 +280,7 @@ def test_node2vec_renumber_cudf(
     start_vertices = [8, 0, 7, 1, 6, 2]
     num_seeds = 4
     max_depth = 4
+
     df, seeds = calc_node2vec(
         G,
         start_vertices,
