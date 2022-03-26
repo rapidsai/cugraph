@@ -269,7 +269,7 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sample_result_t* result
         )
     
-    cdef cugraph_type_erased_device_array_view_t* \
+    cdef cugraph_type_erased_host_array_view_t* \
         cugraph_sample_result_get_counts(
             cugraph_sample_result_t* result
         )

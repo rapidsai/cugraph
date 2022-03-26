@@ -69,11 +69,38 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
 
     Parameters
     ----------
-    input_graph: ???
-    start_info_list: ???
-    fanout_vals: ???
-    with_replacement: ???
-    do_expensive_check: ???
+    resource_handle: ResourceHandle
+        Handle to the underlying device and host resources needed for
+        referencing data and running algorithms.
+
+    input_graph: MGGraph
+        The input graph, for Multi-GPU operations.
+
+    start_info_list: device array type
+        Device array containing the list of starting vertices for sampling,
+        as well as starting labels for reorganizing the results after the
+        sending the input to different callers
+
+    fanout_vals: list
+        Host array containing the fan out at each step in the sampling
+        algorithm
+
+    with_replacement: bool
+        If true, sampling procedure is done with replacement (the same vertex
+        can be selected multiple times in the same step)
+
+    do_expensive_check: bool
+        If True, performs more extensive tests on the inputs to ensure
+        validitity, at the expense of increased run time.
+
+    Returns
+    -------
+    A tuple of device arrays, where the first and second items in the tuple
+    are device arrays containing the starting and ending vertices of each
+    walk respectively, the third item in the tuple is a device array
+    containing the start labels, the fourth item in the tuple is a device
+    array containing the indices for ..., and the fifth item in the tuple
+    is a device containing the counts for ...
 
     Examples
     --------
@@ -124,18 +151,22 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
             len(h_fan_out),
             get_c_type_from_numpy_type(h_fan_out.dtype))
 
-    """
-    error_code = cugraph_uniform_nbr_sample(c_resource_handle_ptr,
+
+    error_code = uniform_nbr_sample(c_resource_handle_ptr,
                                     c_graph_ptr,
                                     start_ptr,
                                     start_labels_ptr,
                                     fan_out_ptr,
-                                    without_replacement,
+                                    with_replacement,
                                     do_expensive_check,
                                     &result_ptr,
                                     &error_ptr)
     assert_success(error_code, error_ptr, "uniform_nbr_sample")
 
+
+    # TODO: counts is a part of the output, but another copy_to_cupy array
+    # with appropriate host array types would likely be required. Also
+    # potential memory leak until this is covered
     cdef cugraph_type_erased_device_array_view_t* src_ptr = \
         cugraph_sample_result_get_sources(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* dst_ptr = \
@@ -144,17 +175,16 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
         cugraph_sample_result_get_start_labels(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* index_ptr = \
         cugraph_sample_result_get_index(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* counts_ptr = \
-        cugraph_sample_result_get_counts(result_ptr)
+    # cdef cugraph_type_erased_host_array_view_t* counts_ptr = \
+    #    cugraph_sample_result_get_counts(result_ptr)
 
     cupy_sources = copy_to_cupy_array(c_resource_handle_ptr, src_ptr)
     cupy_destinations = copy_to_cupy_array(c_resource_handle_ptr, dst_ptr)
     cupy_labels = copy_to_cupy_array(c_resource_handle_ptr, labels_ptr)
     cupy_indices = copy_to_cupy_array(c_resource_handle_ptr, index_ptr)
-    cupy_counts = copy_to_cupy_array(c_resource_handle_ptr, counts_ptr)
+    # cupy_counts = copy_to_cupy_array(c_resource_handle_ptr, counts_ptr)
 
     cugraph_sample_result_free(result_ptr)
 
-    return (cupy_sources, cupy_destinations, cupy_labels, cupy_indices, cupy_counts)
-    """
-    return 0
+    return (cupy_sources, cupy_destinations, cupy_labels, cupy_indices)
+    # return (cupy_sources, cupy_destinations, cupy_labels, cupy_indices, cupy_counts)

@@ -31,8 +31,8 @@ def call_nbr_sampling(sID,
 
     # Preparation for graph creation
     handle = Comms.get_handle(sID)
-    handle = pylibcugraph.experimental.ResourceHandle(handle.getHandle())
-    graph_properties = pylibcugraph.experimental.GraphProperties(
+    handle = pylibcugraph.ResourceHandle(handle.getHandle())
+    graph_properties = pylibcugraph.GraphProperties(
         is_multigraph=False)
     srcs = data[0][src_col_name]
     dsts = data[0][dst_col_name]
@@ -55,6 +55,21 @@ def call_nbr_sampling(sID,
                                                       h_fan_out,
                                                       with_replacement,
                                                       do_expensive_check)
+
+
+def convert_to_cudf(cp_arrays):
+    """
+    Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
+    """
+    cupy_sources, cupy_destinations, cupy_labels, cupy_indices = cp_arrays
+    # cupy_sources, cupy_destinations, cupy_labels, cupy_indices, cupy_counts = cp_arrays
+    df = cudf.DataFrame()
+    df["sources"] = cupy_sources
+    df["destinations"] = cupy_destinations
+    df["labels"] = cupy_labels
+    df["indices"] = cupy_indices
+    df["counts"] = cupy_counts
+    return df
 
 
 def uniform_neighborhood(input_graph,
@@ -134,8 +149,16 @@ def uniform_neighborhood(input_graph,
                             workers=[wf[0]])
               for idx, wf in enumerate(data.worker_to_parts.items())]
 
+
     wait(result)
-    ddf = dask_cudf.from_delayed(result)
+
+    cudf_result = [client.submit(convert_to_cudf,
+                                 cp_arrays)
+                   for cp_arrays in cupy_result]
+
+    wait(cudf_result)
+
+    ddf = dask_cudf.from_delayed(cudf_result)
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, 'vertex')
 
