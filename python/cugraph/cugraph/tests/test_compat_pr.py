@@ -20,19 +20,21 @@
 import pytest
 from cugraph.tests import utils
 import numpy as np
+import gc
 import importlib
 
 
-MAX_ITERATIONS = [500]
-TOLERANCE = [1.0e-06]
-ALPHA = [0.85]
-PERSONALIZATION_PERC = [10]
-HAS_GUESS = [0]
+MAX_ITERATIONS = [100, 200]
+TOLERANCE = [1.0e-05]
+ALPHA = [0.85, 0.70]
+PERS_PERCENT = [0, 15]
+HAS_GUESS = [0, 1]
 
 FILES_UNDIRECTED = [
     utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv"
 ]
 
+# these are only used in the missing parameter tests.
 KARATE_RANKING = [11, 9, 14, 15, 18, 20, 22,
                   17, 21, 12, 26, 16, 28, 19]
 
@@ -47,14 +49,23 @@ KARATE_NSTART_RANKINGS = [11, 9, 14, 15, 18, 20,
                           22, 17, 21, 12, 26, 16,
                           28, 19]
 
+
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
+def setup_function():
+    gc.collect()
 
+
+# =============================================================================
+# Pytest fixtures
+# =============================================================================
 datasets = FILES_UNDIRECTED
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
-                                               ([50], "max_iter"),
-                                               ([1.0e-6], "tol")
+                                               (MAX_ITERATIONS, "max_iter"),
+                                               (TOLERANCE, "tol"),
+                                               (PERS_PERCENT, "pers_percent"),
+                                               (HAS_GUESS, "has_guess"),
                                                )
 
 
@@ -65,7 +76,12 @@ def input_combo(request):
     tests or other parameterized fixtures.
     """
     print("parameters are \n", request.param, flush=True)
-    parameters = dict(zip(("graph_file", "max_iter", "tol"), request.param))
+    parameters = dict(zip(("graph_file",
+                           "max_iter",
+                           "tol",
+                           "pers_percent",
+                           "has_guess"),
+                          request.param))
 
     return parameters
 
@@ -76,15 +92,31 @@ def input_expected_output(input_combo):
     This fixture returns the expected results from the pagerank algorithm.
     """
     import networkx
+
     M = utils.read_csv_for_nx(input_combo["graph_file"])
+
     Gnx = networkx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight",
         create_using=networkx.DiGraph()
     )
+    nnz_vtx = np.unique(M[['0', '1']])
+    personalization = get_personalization(input_combo["pers_percent"],
+                                          nnz_vtx)
     print(type(Gnx))
-    pr = networkx.pagerank(Gnx)
+    input_combo["nstart"] = None
+    nstart = None
+    if (input_combo["has_guess"] == 1):
+        z = {k: 1.0 / Gnx.number_of_nodes() for k in Gnx.nodes()}
+        input_combo["nstart"] = z
+        nstart = z
 
-    input_combo["nx_pr_rankings"] = sorted(pr, key=pr.get)[:14]
+    pr = networkx.pagerank(Gnx,
+                           max_iter=input_combo["max_iter"],
+                           tol=input_combo["tol"],
+                           personalization=personalization,
+                           nstart=nstart)
+    input_combo["personalization"] = personalization
+    input_combo["nx_pr_rankings"] = pr
     return input_combo
 
 
@@ -98,7 +130,6 @@ def which_import(request):
 
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
-# FIXME: Add some tests with randomized personalizations using this function
 def get_personalization(personalization_perc, nnz_vtx):
     personalization = None
     if personalization_perc != 0:
@@ -220,6 +251,10 @@ def test_fixture_data(input_expected_output, which_import):
     )
     pr = nx.pagerank(Gnx,
                      max_iter=input_expected_output["max_iter"],
-                     nstart=None)
-    actual = sorted(pr, key=pr.get)[:14]
-    assert(actual == input_expected_output["nx_pr_rankings"])
+                     tol=input_expected_output["tol"],
+                     personalization=input_expected_output["personalization"],
+                     nstart=input_expected_output["nstart"])
+    actual = sorted(pr.items())
+    expected = sorted(input_expected_output["nx_pr_rankings"].items())
+    assert all([a == pytest.approx(b, abs=1.0e-04)
+           for a, b in zip(actual, expected)])
