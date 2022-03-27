@@ -14,26 +14,22 @@
 # limitations under the License.
 #=============================================================================
 
-function(find_and_configure_cugraphops)
+set(CUGRAPH_MIN_VERSION_cugraph_ops "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
 
-    if(TARGET cugraphops::cugraphops)
-        return()
-    endif()
+function(find_and_configure_cugraph_ops)
 
-    rapids_find_generate_module(cugraphops
-        HEADER_NAMES            graph/sampling.hpp
-        LIBRARY_NAMES           cugraph-ops++
-        INCLUDE_SUFFIXES        cugraph-ops
-        BUILD_EXPORT_SET    cugraph-exports
-        INSTALL_EXPORT_SET  cugraph-exports
+    set(oneValueArgs VERSION)
+    cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN})
+
+    rapids_find_package(cugraph-ops ${PKG_VERSION} REQUIRED
+      GLOBAL_TARGETS      cugraph-ops::cugraph-ops++
+      BUILD_EXPORT_SET    cugraph-exports
+      INSTALL_EXPORT_SET  cugraph-exports
     )
-
-    rapids_find_package(cugraphops
-        REQUIRED
-        BUILD_EXPORT_SET    cugraph-exports
-        INSTALL_EXPORT_SET  cugraph-exports
-    )
-
 endfunction()
 
-find_and_configure_cugraphops()
+###
+# To use a locally-built cugraph-ops package, set the CMake variable
+# `-D cugraph-ops_ROOT=/path/to/cugraph-ops/build`
+###
+find_and_configure_cugraph_ops(VERSION ${CUGRAPH_MIN_VERSION_cugraph_ops})
