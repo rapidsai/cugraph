@@ -107,10 +107,6 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       rmm::device_uvector<vertex_t> start(start_->size_, handle_.get_stream());
       raft::copy(start.data(), start_->as_type<vertex_t>(), start.size(), handle_.get_stream());
 
-      std::cout << "before renumbering start" << std::endl;
-      raft::print_device_vector("start", start.data(), start.size(), std::cout);
-      raft::print_device_vector("start_label", start_label_->as_type<int32_t>(), start.size(), std::cout);
-
       //
       // Need to renumber sources
       //
@@ -126,10 +122,6 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       std::vector<int> fan_out(fan_out_->size_);
       std::copy_n(fan_out_->as_type<int>(), fan_out_->size_, fan_out.data());
 
-      std::cout << "about to call uniform_nbr_sample" << std::endl;
-      raft::print_device_vector("start", start.data(), start.size(), std::cout);
-      raft::print_device_vector("start_label", start_label_->as_type<int32_t>(), start.size(), std::cout);
-
       auto&& [tmp_tuple, counts] = cugraph::uniform_nbr_sample(handle_,
                                                                graph_view,
                                                                start.data(),
@@ -139,6 +131,22 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                                                                with_replacement_);
 
       auto&& [srcs, dsts, labels, indices] = tmp_tuple;
+
+      std::vector<vertex_t> vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
+                                                            srcs.data(),
+                                                            srcs.size(),
+                                                            number_map->data(),
+                                                            vertex_partition_lasts,
+                                                            do_expensive_check_);
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
+                                                            dsts.data(),
+                                                            dsts.size(),
+                                                            number_map->data(),
+                                                            vertex_partition_lasts,
+                                                            do_expensive_check_);
 
       result_ = new cugraph::c_api::cugraph_sample_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(srcs, graph_->vertex_type_),
