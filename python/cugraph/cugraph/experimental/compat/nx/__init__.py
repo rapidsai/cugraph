@@ -42,9 +42,6 @@ from networkx import *
 from cugraph.experimental.compat.nx import algorithms
 from cugraph.experimental.compat.nx.algorithms import *
 
-from cugraph.experimental.compat.nx.algorithms import traversal
-from cugraph.experimental.compat.nx.algorithms.traversal import *
-
 from cugraph.experimental.compat.nx.algorithms import link_analysis
 from cugraph.experimental.compat.nx.algorithms.link_analysis import *
 
