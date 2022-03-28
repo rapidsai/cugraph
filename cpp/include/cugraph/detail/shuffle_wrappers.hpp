@@ -117,7 +117,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
  *         vertex (i + local_vertex_first)
  */
 template <typename vertex_t, typename value_t, bool multi_gpu>
-rmm::device_uvector<value_t> collect_renumber_ext_vertex_values_to_local(
+rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_pairs(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& d_vertices,
   rmm::device_uvector<value_t>&& d_values,
