@@ -99,8 +99,8 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
         The adjacency list will be computed if not already present.
 
     tol : float, optional (default=1.0e-5)
-        Set the tolerance the approximation, this parameter should be a small
-        magnitude value.
+        Set the tolerance of the approximation, this parameter should be a
+        small magnitude value.
 
     max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned.
@@ -110,9 +110,9 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
         value
 
         nstart['vertex'] : cudf.Series
-            Intial hubs guess vertices
+            Initial hubs guess vertices
         nstart['values'] : cudf.Series
-            Intial hubs guess values
+            Initial hubs guess values
 
     normalized : bool, optional (default=True)
         A flag to normalize the results
