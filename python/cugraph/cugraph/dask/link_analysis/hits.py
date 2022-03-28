@@ -193,7 +193,9 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     wait(cupy_result)
 
     cudf_result = [client.submit(convert_to_cudf,
-                                 cp_arrays)
+                                 cp_arrays,
+                                 workers=client.who_has(
+                                     cp_arrays)[cp_arrays.key])
                    for cp_arrays in cupy_result]
 
     wait(cudf_result)
