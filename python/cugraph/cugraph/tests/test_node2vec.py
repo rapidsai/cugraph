@@ -41,7 +41,7 @@ def _get_param_args(param_name, param_values):
     """
     Returns a tuple of (<param_name>, <pytest.param list>) which can be applied
     as the args to pytest.mark.parametrize(). The pytest.param list also
-    contains param id string formed from teh param name and values.
+    contains param id string formed from the param name and values.
     """
     return (param_name,
             [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
@@ -145,7 +145,7 @@ def test_node2vec_new(
     k = random.randint(6, 12)
     start_vertices = random.sample(range(num_verts), k)
     max_depth = 5
-    df, seeds = calc_node2vec(
+    result, seeds = calc_node2vec(
         G,
         start_vertices,
         max_depth,
@@ -153,7 +153,7 @@ def test_node2vec_new(
         p=0.8,
         q=0.5
     )
-    vertex_paths, edge_weights, vertex_path_sizes = df
+    vertex_paths, edge_weights, vertex_path_sizes = result
 
     if compress:
         # Paths are coalesced, meaning vertex_path_sizes is nonempty. It's
@@ -166,18 +166,16 @@ def test_node2vec_new(
             # in all of the paths are valid and are accurate
             idx = 0
             for path_idx in range(vertex_path_sizes.size):
-                for j in range(vertex_path_sizes[path_idx] - 1):
+                for _ in range(vertex_path_sizes[path_idx] - 1):
                     weight = edge_weights[idx]
                     u = vertex_paths[idx + path_idx]
                     v = vertex_paths[idx + path_idx + 1]
-                    edge_found = G.has_edge(u, v)
-                    if not edge_found:
-                        raise ValueError("Edge {},{} not found".format(u, v))
+                    # Corresponding weight to edge is not correct
                     expr = "(src == {} and dst == {})".format(u, v)
                     edge_query = G.edgelist.edgelist_df.query(expr)
                     if edge_query.empty:
-                        raise ValueError("edge_query didn't find:({},{}),{}".
-                                         format(u, v, num_verts))
+                        raise ValueError("edge_query didn't find:({},{})".
+                                         format(u, v))
                     else:
                         if edge_query["weights"].values[0] != weight:
                             raise ValueError("edge_query weight incorrect")
@@ -194,16 +192,12 @@ def test_node2vec_new(
                     weight = edge_weights[path_idx * (max_depth - 1) + idx]
                     u = vertex_paths[path_idx * max_depth + idx]
                     v = vertex_paths[path_idx * max_depth + idx + 1]
-                    # Walk not found in edgelist
-                    edge_found = G.has_edge(u, v)
-                    if not edge_found:
-                        raise ValueError("Edge {},{} not found".format(u, v))
                     # Corresponding weight to edge is not correct
                     expr = "(src == {} and dst == {})".format(u, v)
                     edge_query = G.edgelist.edgelist_df.query(expr)
                     if edge_query.empty:
-                        raise ValueError("edge_query didn't find:({},{}),{}".
-                                         format(u, v, num_verts))
+                        raise ValueError("edge_query didn't find:({},{})".
+                                         format(u, v))
                     else:
                         if edge_query["weights"].values[0] != weight:
                             raise ValueError("edge_query weight incorrect")
@@ -231,16 +225,12 @@ def test_node2vec_new(
                 weight = edge_weights[weight_idx]
                 u = vertex_paths[src_idx]
                 v = vertex_paths[dst_idx]
-                # Walk not found in edgelist
-                edge_found = G.has_edge(u, v)
-                if not edge_found:
-                    raise ValueError("Edge {},{} not found".format(u, v))
                 # Corresponding weight to edge is not correct
                 expr = "(src == {} and dst == {})".format(u, v)
                 edge_query = G.edgelist.edgelist_df.query(expr)
                 if edge_query.empty:
-                    raise ValueError("edge_query didn't find:({},{}),{}".
-                                     format(u, v, num_verts))
+                    raise ValueError("edge_query didn't find:({},{})".
+                                     format(u, v))
                 else:
                     if edge_query["weights"].values[0] != weight:
                         raise ValueError("edge_query weight incorrect")
@@ -251,15 +241,9 @@ def test_node2vec_new(
                 if j >= max_depth - 1:
                     path_at_end = True
             # Check that path sizes matches up correctly with paths
-            # FIXME: For some unknown reason, the start of each path is
-            # 2x the intended index when the path is padded. So if each
-            # path has 4 walks / 5 vertices visited, path 2 starts at index
-            # 10 instead of index 5, the below commented test works
-            # if i * max_depth * 2 < vertex_paths.size and \
-            #   vertex_paths[i * max_depth * 2] != seeds[i]:
-            # if vertex_paths[i * max_depth] != seeds[i]:
-            #    raise ValueError("vertex_path start did not match seed \
-            #                     vertex:{}".format(vertex_paths.values))
+            if vertex_paths[i * max_depth] != seeds[i]:
+                raise ValueError("vertex_path start did not match seed \
+                                 vertex:{}".format(vertex_paths.values))
 
 
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
@@ -274,11 +258,8 @@ def test_node2vec_renumber_cudf(
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2",
                          renumber=renumber)
 
-    # if graph_file == KARATE:
-    #     start_vertices = [12, 28, 20, 23]
-    # else:
     start_vertices = [8, 0, 7, 1, 6, 2]
-    num_seeds = 4
+    num_seeds = 6
     max_depth = 4
 
     df, seeds = calc_node2vec(

@@ -14,7 +14,10 @@
 import pytest
 import cupy as cp
 import numpy as np
-from pylibcugraph.experimental import ResourceHandle, GraphProperties, SGGraph
+from pylibcugraph.experimental import (ResourceHandle,
+                                       GraphProperties,
+                                       SGGraph,
+                                       node2vec)
 from cugraph.tests import utils
 import cugraph
 
@@ -96,8 +99,6 @@ def _run_node2vec(src_arr,
     Builds a graph from the input arrays and runs node2vec using the other args
     to this function, then checks the output for validity.
     """
-    from pylibcugraph.experimental import node2vec
-
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
     G = SGGraph(resource_handle, graph_props, src_arr, dst_arr, wgt_arr,
@@ -158,66 +159,8 @@ def _run_node2vec(src_arr,
 
 
 # =============================================================================
-# Tests
+# Tests adapted from libcugraph
 # =============================================================================
-@pytest.mark.parametrize(*_get_param_args("compress_result", [True, False]))
-def test_node2vec(sg_graph_objs, compress_result):
-    from pylibcugraph.experimental import node2vec
-
-    (g, resource_handle, ds_name) = sg_graph_objs
-
-    (seeds, expected_paths, expected_weights, expected_path_sizes, max_depth) \
-        = _test_data[ds_name].values()
-
-    p = 0.8
-    q = 0.5
-
-    result = node2vec(resource_handle, g, seeds, max_depth,
-                      compress_result, p, q)
-
-    (actual_paths, actual_weights, actual_path_sizes) = result
-    num_paths = len(seeds)
-
-    if compress_result:
-        assert actual_paths.dtype == expected_paths.dtype
-        assert actual_weights.dtype == expected_weights.dtype
-        assert actual_path_sizes.dtype == expected_path_sizes.dtype
-        actual_paths = actual_paths.tolist()
-        actual_weights = actual_weights.tolist()
-        actual_path_sizes = actual_path_sizes.tolist()
-        exp_paths = expected_paths.tolist()
-        exp_weights = expected_weights.tolist()
-        exp_path_sizes = expected_path_sizes.tolist()
-        # If compress_results is True, then also verify path lengths match
-        # up with weights array
-        assert len(actual_path_sizes) == num_paths
-        expected_walks = sum(exp_path_sizes) - num_paths
-        # Verify the number of walks was equal to path sizes - num paths
-        assert len(actual_weights) == expected_walks
-    else:
-        assert actual_paths.dtype == expected_paths.dtype
-        assert actual_weights.dtype == expected_weights.dtype
-        actual_paths = actual_paths.tolist()
-        actual_weights = actual_weights.tolist()
-        exp_paths = expected_paths.tolist()
-        exp_weights = expected_weights.tolist()
-
-    # Verify exact walks chosen for linear graph Simple_1
-    if ds_name == 'Simple_1':
-        for i in range(len(exp_paths)):
-            assert pytest.approx(actual_paths[i], 1e-4) == exp_paths[i]
-        for i in range(len(exp_weights)):
-            assert pytest.approx(actual_weights[i], 1e-4) == exp_weights[i]
-
-    # Verify starting vertex of each path is the corresponding seed
-    if compress_result:
-        path_start = 0
-        for i in range(num_paths):
-            assert actual_path_sizes[i] == exp_path_sizes[i]
-            assert actual_paths[path_start] == seeds[i]
-            path_start += actual_path_sizes[i]
-
-
 def test_node2vec_short():
     num_edges = 8
     num_vertices = 6
@@ -312,10 +255,68 @@ def test_node2vec_karate(compress_result, renumbered):
                   compress_result, 0.8, 0.5, renumbered)
 
 
+# =============================================================================
+# Tests
+# =============================================================================
+@pytest.mark.parametrize(*_get_param_args("compress_result", [True, False]))
+def test_node2vec(sg_graph_objs, compress_result):
+    (g, resource_handle, ds_name) = sg_graph_objs
+
+    (seeds, expected_paths, expected_weights, expected_path_sizes, max_depth) \
+        = _test_data[ds_name].values()
+
+    p = 0.8
+    q = 0.5
+
+    result = node2vec(resource_handle, g, seeds, max_depth,
+                      compress_result, p, q)
+
+    (actual_paths, actual_weights, actual_path_sizes) = result
+    num_paths = len(seeds)
+
+    if compress_result:
+        assert actual_paths.dtype == expected_paths.dtype
+        assert actual_weights.dtype == expected_weights.dtype
+        assert actual_path_sizes.dtype == expected_path_sizes.dtype
+        actual_paths = actual_paths.tolist()
+        actual_weights = actual_weights.tolist()
+        actual_path_sizes = actual_path_sizes.tolist()
+        exp_paths = expected_paths.tolist()
+        exp_weights = expected_weights.tolist()
+        exp_path_sizes = expected_path_sizes.tolist()
+        # If compress_results is True, then also verify path lengths match
+        # up with weights array
+        assert len(actual_path_sizes) == num_paths
+        expected_walks = sum(exp_path_sizes) - num_paths
+        # Verify the number of walks was equal to path sizes - num paths
+        assert len(actual_weights) == expected_walks
+    else:
+        assert actual_paths.dtype == expected_paths.dtype
+        assert actual_weights.dtype == expected_weights.dtype
+        actual_paths = actual_paths.tolist()
+        actual_weights = actual_weights.tolist()
+        exp_paths = expected_paths.tolist()
+        exp_weights = expected_weights.tolist()
+
+    # Verify exact walks chosen for linear graph Simple_1
+    if ds_name == 'Simple_1':
+        for i in range(len(exp_paths)):
+            assert pytest.approx(actual_paths[i], 1e-4) == exp_paths[i]
+        for i in range(len(exp_weights)):
+            assert pytest.approx(actual_weights[i], 1e-4) == exp_weights[i]
+
+    # Verify starting vertex of each path is the corresponding seed
+    if compress_result:
+        path_start = 0
+        for i in range(num_paths):
+            assert actual_path_sizes[i] == exp_path_sizes[i]
+            assert actual_paths[path_start] == seeds[i]
+            path_start += actual_path_sizes[i]
+
+
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
 @pytest.mark.parametrize(*_get_param_args("renumber", COMPRESSED))
 def test_node2vec_renumber_cudf(graph_file, renumber):
-    from pylibcugraph.experimental import node2vec
     from cudf import read_csv, Series
 
     cu_M = read_csv(graph_file, delimiter=' ',
@@ -328,6 +329,7 @@ def test_node2vec_renumber_cudf(graph_file, renumber):
     wgt_arr = G.edgelist.edgelist_df['weights']
     seeds = Series([8, 0, 7, 1, 6, 2], dtype="int32")
     max_depth = 4
+    num_seeds = 6
 
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
@@ -337,11 +339,8 @@ def test_node2vec_renumber_cudf(graph_file, renumber):
 
     (paths, weights, sizes) = node2vec(resource_handle, G, seeds, max_depth,
                                        False, 0.8, 0.5)
-    num_seeds = len(seeds)
 
     for i in range(num_seeds):
-        # raise ValueError("vertex_path {} start did not match seed \
-        #                 vertex".format(paths))
         if paths[i * max_depth] != seeds[i]:
             raise ValueError("vertex_path {} start did not match seed \
                              vertex".format(paths))
@@ -350,7 +349,6 @@ def test_node2vec_renumber_cudf(graph_file, renumber):
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
 @pytest.mark.parametrize(*_get_param_args("renumber", COMPRESSED))
 def test_node2vec_renumber_cupy(graph_file, renumber):
-    from pylibcugraph.experimental import node2vec
     import cupy as cp
     import numpy as np
 
@@ -360,6 +358,7 @@ def test_node2vec_renumber_cupy(graph_file, renumber):
                          dtype=np.float32)
     seeds = cp.asarray([8, 0, 7, 1, 6, 2], dtype=np.int32)
     max_depth = 4
+    num_seeds = 6
 
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
@@ -369,11 +368,8 @@ def test_node2vec_renumber_cupy(graph_file, renumber):
 
     (paths, weights, sizes) = node2vec(resource_handle, G, seeds, max_depth,
                                        False, 0.8, 0.5)
-    num_seeds = len(seeds)
 
     for i in range(num_seeds):
-        # raise ValueError("vertex_path {} start did not match seed \
-        #                 vertex".format(paths))
         if paths[i * max_depth] != seeds[i]:
             raise ValueError("vertex_path {} start did not match seed \
                              vertex".format(paths))
