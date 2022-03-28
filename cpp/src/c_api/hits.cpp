@@ -105,8 +105,6 @@ struct hits_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph_view.get_number_of_local_vertices(),
-                                               handle_.get_stream());
       rmm::device_uvector<weight_t> hubs(graph_view.get_number_of_local_vertices(),
                                          handle_.get_stream());
       rmm::device_uvector<weight_t> authorities(graph_view.get_number_of_local_vertices(),
@@ -129,16 +127,16 @@ struct hits_functor : public cugraph::c_api::abstract_functor {
                    guess_values.size(),
                    handle_.get_stream());
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
-                                                            guess_vertices.data(),
-                                                            guess_vertices.size(),
-                                                            number_map->data(),
-                                                            graph_view.get_local_vertex_first(),
-                                                            graph_view.get_local_vertex_last(),
-                                                            do_expensive_check_);
-
-        cugraph::detail::collect_vertex_values_to_local<vertex_t, weight_t, multi_gpu>(
-          handle_, guess_vertices, guess_values, hubs, graph_view.get_local_vertex_first());
+        hubs = cugraph::detail::
+          collect_renumber_ext_vertex_values_to_local<vertex_t, weight_t, multi_gpu>(
+            handle_,
+            std::move(guess_vertices),
+            std::move(guess_values),
+            *number_map,
+            graph_view.get_local_vertex_first(),
+            graph_view.get_local_vertex_last(),
+            weight_t{0},
+            do_expensive_check_);
       }
 
       std::tie(hub_score_differences, number_of_iterations) =
@@ -153,6 +151,8 @@ struct hits_functor : public cugraph::c_api::abstract_functor {
           normalize_,
           do_expensive_check_);
 
+      rmm::device_uvector<vertex_t> vertex_ids(graph_view.get_number_of_local_vertices(),
+                                               handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
       result_ = new cugraph::c_api::cugraph_hits_result_t{

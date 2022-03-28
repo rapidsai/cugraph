@@ -49,6 +49,7 @@ int create_test_graph(const cugraph_resource_handle_t* p_handle,
                       float* h_wgt,
                       size_t num_edges,
                       bool_t store_transposed,
+                      bool_t renumber,
                       cugraph_graph_t** p_graph,
                       cugraph_error_t** ret_error);
 
