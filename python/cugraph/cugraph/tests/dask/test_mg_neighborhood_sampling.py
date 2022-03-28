@@ -18,12 +18,23 @@ import cugraph
 import dask_cudf
 import cudf
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.tests import utils
 
 
 # =============================================================================
 # Test helpers
 # =============================================================================
+def setup_function():
+    gc.collect()
+
+
+datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv"
+fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
+                                               ([], ""),
+                                               ([], ""),
+                                               ([], ""),
+                                                )
+
 def _get_param_args(param_name, param_values):
     """
     Returns a tuple of (<param_name>, <pytest.param list>) which can be applied
