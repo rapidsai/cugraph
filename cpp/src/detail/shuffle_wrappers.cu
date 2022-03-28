@@ -15,10 +15,10 @@
  */
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/graph_functions.hpp>
 
 #include <rmm/exec_policy.hpp>
 
@@ -353,49 +353,37 @@ rmm::device_uvector<value_t> collect_renumber_ext_vertex_values_to_local(
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
 
-    rmm::device_uvector<vertex_t> d_rx_vertices(0, handle.get_stream());
-    rmm::device_uvector<value_t> d_rx_values(0, handle.get_stream());
-
-    std::tie(d_rx_vertices, d_rx_values, std::ignore) =
-      cugraph::groupby_gpu_id_and_shuffle_kv_pairs(
-        comm,
-        d_vertices.begin(),
-        d_vertices.end(),
-        d_values.begin(),
-        cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
-        handle.get_stream());
-
-    // Now I can renumber locally
-    renumber_local_ext_vertices<vertex_t, multi_gpu>(handle,
-                                                     d_vertices.data(),
-                                                     d_vertices.size(),
-                                                     number_map.data(),
-                                                     local_vertex_first,
-                                                     local_vertex_last,
-                                                     do_expensive_check);
-
-    auto vertex_iterator = thrust::make_transform_iterator(
-      d_rx_vertices.begin(),
-      [local_vertex_first] __device__(vertex_t v) { return v - local_vertex_first; });
-
-    d_local_values.resize(local_vertex_last - local_vertex_first, handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(), d_values.begin(), d_values.end(), default_value);
-
-    thrust::scatter(handle.get_thrust_policy(),
-                    d_rx_values.begin(),
-                    d_rx_values.end(),
-                    vertex_iterator,
-                    d_local_values.begin());
-  } else {
-    d_local_values.resize(local_vertex_last - local_vertex_first, handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(), d_values.begin(), d_values.end(), default_value);
-
-    thrust::scatter(handle.get_thrust_policy(),
-                    d_values.begin(),
-                    d_values.end(),
-                    d_vertices.begin(),
-                    d_local_values.begin());
+    std::tie(d_vertices, d_values, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_kv_pairs(
+      comm,
+      d_vertices.begin(),
+      d_vertices.end(),
+      d_values.begin(),
+      cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
+      handle.get_stream());
   }
+
+  // Now I can renumber locally
+  renumber_local_ext_vertices<vertex_t, multi_gpu>(handle,
+                                                   d_vertices.data(),
+                                                   d_vertices.size(),
+                                                   number_map.data(),
+                                                   local_vertex_first,
+                                                   local_vertex_last,
+                                                   do_expensive_check);
+
+  auto vertex_iterator = thrust::make_transform_iterator(
+    d_vertices.begin(),
+    [local_vertex_first] __device__(vertex_t v) { return v - local_vertex_first; });
+
+  d_local_values.resize(local_vertex_last - local_vertex_first, handle.get_stream());
+  thrust::fill(
+    handle.get_thrust_policy(), d_local_values.begin(), d_local_values.end(), default_value);
+
+  thrust::scatter(handle.get_thrust_policy(),
+                  d_values.begin(),
+                  d_values.end(),
+                  vertex_iterator,
+                  d_local_values.begin());
 
   return d_local_values;
 }

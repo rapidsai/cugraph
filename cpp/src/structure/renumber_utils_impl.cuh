@@ -508,7 +508,7 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
     handle.get_stream());
 
   auto pair_first = thrust::make_zip_iterator(
-    thrust::make_tuple(renumber_map_labels, thrust::make_counting_iterator(local_int_vertex_last)));
+    thrust::make_tuple(renumber_map_labels, thrust::make_counting_iterator(local_int_vertex_first)));
   renumber_map_ptr->insert(pair_first,
                            pair_first + (local_int_vertex_last - local_int_vertex_first),
                            cuco::detail::MurmurHash3_32<vertex_t>{},
