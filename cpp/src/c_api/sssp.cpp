@@ -82,8 +82,6 @@ struct sssp_functor : public abstract_functor {
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       rmm::device_uvector<vertex_t> source_ids(1, handle_.get_stream());
-      rmm::device_uvector<vertex_t> vertex_ids(graph->get_number_of_vertices(),
-                                               handle_.get_stream());
       rmm::device_uvector<weight_t> distances(graph->get_number_of_vertices(),
                                               handle_.get_stream());
       rmm::device_uvector<vertex_t> predecessors(0, handle_.get_stream());
@@ -117,6 +115,8 @@ struct sssp_functor : public abstract_functor {
         static_cast<weight_t>(cutoff_),
         do_expensive_check_);
 
+      rmm::device_uvector<vertex_t> vertex_ids(graph->get_number_of_vertices(),
+                                               handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
       if (compute_predecessors_) {

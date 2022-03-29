@@ -18,8 +18,11 @@
 #include <c_api/resource_handle.hpp>
 
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
+
+#include <rmm/device_uvector.hpp>
 
 extern "C" int run_mg_test(int (*test)(const cugraph_resource_handle_t*),
                            const char* test_name,
@@ -28,6 +31,10 @@ extern "C" int run_mg_test(int (*test)(const cugraph_resource_handle_t*),
   int ret_val = 0;
   time_t start_time, end_time;
   int rank = 0;
+
+  auto raft_handle =
+    reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_;
+  auto& comm = raft_handle->get_comms();
 
   rank = cugraph_resource_handle_get_rank(handle);
 
@@ -39,6 +46,19 @@ extern "C" int run_mg_test(int (*test)(const cugraph_resource_handle_t*),
   }
 
   ret_val = test(handle);
+
+  // FIXME:  This is copied from host_scalar_allreduce
+  //         which is in a file of thrust enabled code which can't
+  //         be inclined in a cpp file.  Either make this file a .cu
+  //         or refactor host_scalar_comm.cuh to separate the thrust
+  //         code from the non-thrust code
+  rmm::device_uvector<int> d_input(1, raft_handle->get_stream());
+  raft::update_device(d_input.data(), &ret_val, 1, raft_handle->get_stream());
+  comm.allreduce(
+    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream());
+  raft::update_host(&ret_val, d_input.data(), 1, raft_handle->get_stream());
+  auto status = comm.sync_stream(raft_handle->get_stream());
+  CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   if (rank == 0) {
     time(&end_time);
