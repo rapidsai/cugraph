@@ -103,7 +103,7 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     are device arrays containing the starting and ending vertices of each
     walk respectively, the third item in the tuple is a device array
     containing the start labels, the fourth item in the tuple is a device
-    array containing the indices for 
+    array containing the indices for ...
 
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
