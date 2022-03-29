@@ -67,6 +67,8 @@ std::tuple<std::vector<vertex_t>, std::vector<edge_t>> compute_offset_aligned_ed
                     d_vertex_offsets.size(),
                     handle.get_stream());
 
+  handle.sync_stream();
+
   return std::make_tuple(h_vertex_offsets, h_edge_offsets);
 }
 

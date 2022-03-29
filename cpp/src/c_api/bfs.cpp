@@ -19,13 +19,12 @@
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
 #include <c_api/paths_result.hpp>
+#include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-
-#include <raft/handle.hpp>
 
 namespace cugraph {
 namespace c_api {
@@ -40,7 +39,7 @@ struct bfs_functor : public abstract_functor {
   bool do_expensive_check_;
   cugraph_paths_result_t* result_{};
 
-  bfs_functor(cugraph_resource_handle_t const* handle,
+  bfs_functor(::cugraph_resource_handle_t const* handle,
               ::cugraph_graph_t* graph,
               ::cugraph_type_erased_device_array_view_t* sources,
               bool direction_optimizing,
@@ -48,7 +47,7 @@ struct bfs_functor : public abstract_functor {
               bool compute_predecessors,
               bool do_expensive_check)
     : abstract_functor(),
-      handle_(*reinterpret_cast<raft::handle_t const*>(handle)),
+      handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       sources_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(sources)),
       direction_optimizing_(direction_optimizing),
@@ -85,8 +84,6 @@ struct bfs_functor : public abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph->get_number_of_vertices(),
-                                               handle_.get_stream());
       rmm::device_uvector<vertex_t> distances(graph->get_number_of_vertices(),
                                               handle_.get_stream());
       rmm::device_uvector<vertex_t> predecessors(0, handle_.get_stream());
@@ -117,6 +114,8 @@ struct bfs_functor : public abstract_functor {
         static_cast<vertex_t>(depth_limit_),
         do_expensive_check_);
 
+      rmm::device_uvector<vertex_t> vertex_ids(graph->get_number_of_vertices(),
+                                               handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
       if (compute_predecessors_) {
