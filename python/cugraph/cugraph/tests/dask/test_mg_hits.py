@@ -122,7 +122,6 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
     result_hits["sg_cugraph_hubs"] = expected_output['hubs']
     result_hits["sg_cugraph_authorities"] = expected_output["authorities"]
 
-    # FIXME: Check this is working
     hubs_diffs1 = result_hits.query(
         'mg_cugraph_hubs - sg_cugraph_hubs > 0.00001')
     hubs_diffs2 = result_hits.query(
