@@ -128,7 +128,7 @@ struct hits_functor : public cugraph::c_api::abstract_functor {
                    handle_.get_stream());
 
         hubs = cugraph::detail::
-          collect_renumber_ext_vertex_values_to_local<vertex_t, weight_t, multi_gpu>(
+          collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, weight_t, multi_gpu>(
             handle_,
             std::move(guess_vertices),
             std::move(guess_values),

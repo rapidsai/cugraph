@@ -337,7 +337,7 @@ template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partiti
   bool groupby_and_counts_local_partition);
 
 template <typename vertex_t, typename value_t, bool multi_gpu>
-rmm::device_uvector<value_t> collect_renumber_ext_vertex_values_to_local(
+rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_pairs(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& d_vertices,
   rmm::device_uvector<value_t>&& d_values,
@@ -389,7 +389,7 @@ rmm::device_uvector<value_t> collect_renumber_ext_vertex_values_to_local(
 }
 
 template rmm::device_uvector<float>
-collect_renumber_ext_vertex_values_to_local<int32_t, float, false>(
+collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, float, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& d_vertices,
   rmm::device_uvector<float>&& d_values,
@@ -400,7 +400,7 @@ collect_renumber_ext_vertex_values_to_local<int32_t, float, false>(
   bool do_expensive_check);
 
 template rmm::device_uvector<float>
-collect_renumber_ext_vertex_values_to_local<int64_t, float, false>(
+collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, float, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& d_vertices,
   rmm::device_uvector<float>&& d_values,
@@ -411,7 +411,7 @@ collect_renumber_ext_vertex_values_to_local<int64_t, float, false>(
   bool do_expensive_check);
 
 template rmm::device_uvector<double>
-collect_renumber_ext_vertex_values_to_local<int32_t, double, false>(
+collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, double, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& d_vertices,
   rmm::device_uvector<double>&& d_values,
@@ -422,7 +422,7 @@ collect_renumber_ext_vertex_values_to_local<int32_t, double, false>(
   bool do_expensive_check);
 
 template rmm::device_uvector<double>
-collect_renumber_ext_vertex_values_to_local<int64_t, double, false>(
+collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, double, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& d_vertices,
   rmm::device_uvector<double>&& d_values,
@@ -433,7 +433,7 @@ collect_renumber_ext_vertex_values_to_local<int64_t, double, false>(
   bool do_expensive_check);
 
 template rmm::device_uvector<float>
-collect_renumber_ext_vertex_values_to_local<int32_t, float, true>(
+collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, float, true>(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& d_vertices,
   rmm::device_uvector<float>&& d_values,
@@ -444,7 +444,7 @@ collect_renumber_ext_vertex_values_to_local<int32_t, float, true>(
   bool do_expensive_check);
 
 template rmm::device_uvector<float>
-collect_renumber_ext_vertex_values_to_local<int64_t, float, true>(
+collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, float, true>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& d_vertices,
   rmm::device_uvector<float>&& d_values,
@@ -455,7 +455,7 @@ collect_renumber_ext_vertex_values_to_local<int64_t, float, true>(
   bool do_expensive_check);
 
 template rmm::device_uvector<double>
-collect_renumber_ext_vertex_values_to_local<int32_t, double, true>(
+collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, double, true>(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& d_vertices,
   rmm::device_uvector<double>&& d_values,
@@ -466,7 +466,7 @@ collect_renumber_ext_vertex_values_to_local<int32_t, double, true>(
   bool do_expensive_check);
 
 template rmm::device_uvector<double>
-collect_renumber_ext_vertex_values_to_local<int64_t, double, true>(
+collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, double, true>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& d_vertices,
   rmm::device_uvector<double>&& d_values,
