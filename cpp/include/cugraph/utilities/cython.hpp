@@ -272,9 +272,9 @@ struct renum_tuple_t {
 
   // `partition_t` pass-through getters
   //
-  int get_part_row_size() const { return part_.get_row_size(); }
+  int get_part_row_size() const { return part_.get_row_comm_size(); }
 
-  int get_part_col_size() const { return part_.get_col_size(); }
+  int get_part_col_size() const { return part_.get_col_comm_size(); }
 
   int get_part_comm_rank() const { return part_.get_comm_rank(); }
 

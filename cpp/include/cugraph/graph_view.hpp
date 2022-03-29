@@ -52,8 +52,7 @@ class serializer_t;  // forward...
  * P linear partitions; each partition has the size close to V / P.
  *
  * The 2D graph adjacency matrix is first horizontally partitioned to P slabs, then each slab will
- * be further vertically partitioned to P_row (instead of P_col in the default case) rectangles. One
- * GPU will be responsible col_comm_size rectangular partitions.
+ * be further vertically partitioned to P_row rectangles. One GPU will be responsible col_comm_size rectangular partitions.
  *
  * To be more specific, a GPU with (col_comm_rank, row_comm_rank) will be responsible for
  * col_comm_size rectangular partitions [a_i,b_i) by [c,d) where a_i =
@@ -102,10 +101,9 @@ class partition_t {
     }
   }
 
-  int get_row_size() const { return row_comm_size_; }
-
-  int get_col_size() const { return col_comm_size_; }
-
+  // FIXME: these are used only in cugraph/utilities/cython.hpp, better delete once we fully switch to the pylibcugraph path
+  int get_row_comm_size() const { return row_comm_size_; }
+  int get_col_comm_size() const { return col_comm_size_; }
   int get_comm_rank() const { return comm_rank_; }
 
   std::vector<vertex_t> const& get_vertex_partition_offsets() const
@@ -540,7 +538,7 @@ class graph_view_t<vertex_t,
   {
     if (adj_matrix_partition_segment_offsets_) {
       auto size_per_partition =
-        (*adj_matrix_partition_segment_offsets_).size() / partition_.get_col_size();
+        (*adj_matrix_partition_segment_offsets_).size() / adj_matrix_partition_offsets_.size();
       return std::vector<vertex_t>(
         (*adj_matrix_partition_segment_offsets_).begin() + partition_idx * size_per_partition,
         (*adj_matrix_partition_segment_offsets_).begin() +
