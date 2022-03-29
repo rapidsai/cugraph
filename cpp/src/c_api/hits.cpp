@@ -22,6 +22,7 @@
 #include <c_api/utils.hpp>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
@@ -104,8 +105,6 @@ struct hits_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph_view.get_number_of_local_vertices(),
-                                               handle_.get_stream());
       rmm::device_uvector<weight_t> hubs(graph_view.get_number_of_local_vertices(),
                                          handle_.get_stream());
       rmm::device_uvector<weight_t> authorities(graph_view.get_number_of_local_vertices(),
@@ -113,40 +112,48 @@ struct hits_functor : public cugraph::c_api::abstract_functor {
       weight_t hub_score_differences{0};
       size_t number_of_iterations{0};
 
-#if 0
-      // FIXME:  Implementation will look something like this.
-      
-      if (initial_hubs_guess_ != nullptr) {
-        //
-        // Need to renumber initial_hubs_guess_vertices
-        // Need to shuffle and populate hubs
-        //
-        //  This is the original pagerank code, it will be sort of like this
-        renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
-                                                   personalization_vertices_->as_type<vertex_t>(),
-                                                   personalization_vertices_->size_,
-                                                   number_map->data(),
-                                                   graph_view.get_local_vertex_first(),
-                                                   graph_view.get_local_vertex_last(),
-                                                   do_expensive_check_);
+      if (initial_hubs_guess_vertices_ != nullptr) {
+        rmm::device_uvector<vertex_t> guess_vertices(initial_hubs_guess_vertices_->size_,
+                                                     handle_.get_stream());
+        rmm::device_uvector<weight_t> guess_values(initial_hubs_guess_values_->size_,
+                                                   handle_.get_stream());
+
+        raft::copy(guess_vertices.data(),
+                   initial_hubs_guess_vertices_->as_type<vertex_t>(),
+                   guess_vertices.size(),
+                   handle_.get_stream());
+        raft::copy(guess_values.data(),
+                   initial_hubs_guess_values_->as_type<weight_t>(),
+                   guess_values.size(),
+                   handle_.get_stream());
+
+        hubs = cugraph::detail::
+          collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, weight_t, multi_gpu>(
+            handle_,
+            std::move(guess_vertices),
+            std::move(guess_values),
+            *number_map,
+            graph_view.get_local_vertex_first(),
+            graph_view.get_local_vertex_last(),
+            weight_t{0},
+            do_expensive_check_);
       }
 
-      // TODO:  Add these to the result
       std::tie(hub_score_differences, number_of_iterations) =
-        cugraph::hits<vertex_t, edge_t, weight_t, multi_gpu>(handle_,
-                                                             graph_view,
-                                                             hubs.data(),
-                                                             authorities.data(),
-                                                             epsilon_,
-                                                             max_iterations_,
-                                                             has_initial_hubs_guess,
-                                                             normalize_,
-                                                             do_expensive_check_);
+        cugraph::hits<vertex_t, edge_t, weight_t, multi_gpu>(
+          handle_,
+          graph_view,
+          hubs.data(),
+          authorities.data(),
+          epsilon_,
+          max_iterations_,
+          (initial_hubs_guess_vertices_ != nullptr),
+          normalize_,
+          do_expensive_check_);
 
+      rmm::device_uvector<vertex_t> vertex_ids(graph_view.get_number_of_local_vertices(),
+                                               handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
-#else
-      unsupported();
-#endif
 
       result_ = new cugraph::c_api::cugraph_hits_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
