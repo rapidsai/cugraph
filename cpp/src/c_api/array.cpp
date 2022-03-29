@@ -364,4 +364,3 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy(
     return CUGRAPH_UNKNOWN_ERROR;
   }
 }
-
