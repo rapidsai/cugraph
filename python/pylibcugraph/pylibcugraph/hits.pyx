@@ -76,8 +76,8 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
 
-    graph : MGGraph
-        The input graph.
+    graph : SGGraph or MGGraph
+        The input graph, for either Single or Multi-GPU operations.
     
     tol : float, optional (default=1.0e-5)
         Set the tolerance the approximation, this parameter should be a small
@@ -112,21 +112,6 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
 
     """
 
-    # FIXME: import these modules here for now until a better pattern can be
-    # used for optional imports (perhaps 'import_optional()' from cugraph), or
-    # these are made hard dependencies.
-
-    try:
-        import cupy
-    except ModuleNotFoundError:
-        raise RuntimeError("hits requires the cudf package, which could "
-                           "not be imported")
-    try:
-        import numpy
-    except ModuleNotFoundError:
-        raise RuntimeError("hits requires the numpy package, which could "
-                           "not be imported")
-    
     cdef uintptr_t cai_initial_hubs_guess_vertices_ptr = <uintptr_t>NULL
     cdef uintptr_t cai_initial_hubs_guess_values_ptr = <uintptr_t>NULL
 
@@ -171,15 +156,15 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
 
 
     error_code = cugraph_hits(c_resource_handle_ptr,
-                                c_graph_ptr,
-                                tol,
-                                max_iter,
-                                initial_hubs_guess_vertices_view_ptr,
-                                initial_hubs_guess_values_view_ptr,
-                                normalized,
-                                do_expensive_check,
-                                &result_ptr,
-                                &error_ptr)
+                              c_graph_ptr,
+                              tol,
+                              max_iter,
+                              initial_hubs_guess_vertices_view_ptr,
+                              initial_hubs_guess_values_view_ptr,
+                              normalized,
+                              do_expensive_check,
+                              &result_ptr,
+                              &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_mg_hits")
 
     # Extract individual device array pointers from result and copy to cupy
@@ -194,7 +179,7 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
     cupy_hubs = copy_to_cupy_array(c_resource_handle_ptr, hubs_ptr)
     cupy_authorities = copy_to_cupy_array(c_resource_handle_ptr,
-                                           authorities_ptr)
+                                          authorities_ptr)
   
     cugraph_hits_result_free(result_ptr)
 
