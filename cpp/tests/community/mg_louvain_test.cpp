@@ -155,7 +155,9 @@ class Tests_MG_Louvain
   {
     auto [louvain_usecase, input_usecase] = param;
 
-    raft::handle_t handle{};
+    auto constexpr pool_size = 64;  // FIXME: tuning parameter
+    raft::handle_t handle(rmm::cuda_stream_per_thread,
+                          std::make_shared<rmm::cuda_stream_pool>(pool_size));
     HighResClock hr_clock{};
 
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);

@@ -51,11 +51,11 @@ int generic_node2vec_test(vertex_t* h_src,
   cugraph_type_erased_device_array_t* p_sources          = NULL;
   cugraph_type_erased_device_array_view_t* p_source_view = NULL;
 
-  p_handle = cugraph_create_resource_handle();
+  p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
-    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
+    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   ret_code =

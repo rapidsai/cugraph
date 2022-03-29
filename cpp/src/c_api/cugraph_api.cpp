@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ cugraph_error_code_t extract_rw_result(cugraph_rw_ret_t* p_rw_ret, cugraph_devic
 }  // namespace helpers
 
 extern "C" {
-int data_type_sz[] = {4, 8, 4, 8};
+size_t data_type_sz[] = {4, 8, 4, 8};
 }
 
 bool_t runtime_assert(bool_t statement_truth_value, const char* error_msg)
@@ -348,19 +348,4 @@ extern "C" cugraph_error_code_t cugraph_update_host_buffer(const cugraph_resourc
     status = CUGRAPH_UNKNOWN_ERROR;
   }
   return status;
-}
-
-extern "C" cugraph_resource_handle_t* cugraph_create_resource_handle(void)
-{
-  try {
-    return reinterpret_cast<cugraph_resource_handle_t*>(new raft::handle_t{});
-  } catch (...) {
-    return nullptr;
-  }
-}
-
-extern "C" void cugraph_free_resource_handle(cugraph_resource_handle_t* p_handle)
-{
-  raft::handle_t* p_raft_handle = reinterpret_cast<raft::handle_t*>(p_handle);
-  delete p_raft_handle;
 }

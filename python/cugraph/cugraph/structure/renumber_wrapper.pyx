@@ -85,6 +85,11 @@ def renumber(input_df,           # maybe use cpdef ?
     # TODO: get handle_t out of handle...
     handle_ptr = <handle_t*>handle_size_t
 
+    # FIXME: call_shuffle currently works on major/minor while call_renumber is updated to work on
+    # source/destination. We'd better update call_shuffle to work on source/destination as well to
+    # avoid switching between major/minor & source/destination. Deferring this work at this moment
+    # expecting this legacy code path will be replaced with the new pylibcugrpah & C API based path.
+
     if not transposed:
         major_vertices = input_df[renumbered_src_col_name]
         minor_vertices = input_df[renumbered_dst_col_name]
@@ -122,8 +127,8 @@ def renumber(input_df,           # maybe use cpdef ?
     cdef uintptr_t c_major_vertices = major_vertices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_minor_vertices = minor_vertices.__cuda_array_interface__['data'][0]
 
-    cdef uintptr_t shuffled_major = <uintptr_t>NULL
-    cdef uintptr_t shuffled_minor = <uintptr_t>NULL
+    cdef uintptr_t shuffled_src = <uintptr_t>NULL
+    cdef uintptr_t shuffled_dst = <uintptr_t>NULL
 
     # FIXME: Fix fails when do_check = True
     cdef bool do_check = False # ? for now...
@@ -186,13 +191,18 @@ def renumber(input_df,           # maybe use cpdef ?
                     shuffled_df = input_df
                     edge_counts_32 = make_unique[vector[int]](1, num_local_edges)
 
-                shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
-                shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
+                if not transposed:
+                    shuffled_src = major_vertices.__cuda_array_interface__['data'][0]
+                    shuffled_dst = minor_vertices.__cuda_array_interface__['data'][0]
+                else:
+                    shuffled_src = minor_vertices.__cuda_array_interface__['data'][0]
+                    shuffled_dst = major_vertices.__cuda_array_interface__['data'][0]
 
                 ptr_renum_tuple_32_32.reset(call_renumber[int, int](deref(handle_ptr),
-                                                                    <int*>shuffled_major,
-                                                                    <int*>shuffled_minor,
+                                                                    <int*>shuffled_src,
+                                                                    <int*>shuffled_dst,
                                                                     deref(edge_counts_32.get()),
+                                                                    transposed,
                                                                     do_check,
                                                                     mg_flag).release())
 
@@ -251,13 +261,18 @@ def renumber(input_df,           # maybe use cpdef ?
                     shuffled_df = input_df
                     edge_counts_32 = make_unique[vector[int]](1, num_local_edges)
 
-                shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
-                shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
+                if not transposed:
+                    shuffled_src = major_vertices.__cuda_array_interface__['data'][0]
+                    shuffled_dst = minor_vertices.__cuda_array_interface__['data'][0]
+                else:
+                    shuffled_src = minor_vertices.__cuda_array_interface__['data'][0]
+                    shuffled_dst = major_vertices.__cuda_array_interface__['data'][0]
 
                 ptr_renum_tuple_32_32.reset(call_renumber[int, int](deref(handle_ptr),
-                                                                    <int*>shuffled_major,
-                                                                    <int*>shuffled_minor,
+                                                                    <int*>shuffled_src,
+                                                                    <int*>shuffled_dst,
                                                                     deref(edge_counts_32.get()),
+                                                                    transposed,
                                                                     do_check,
                                                                     mg_flag).release())
 
@@ -318,13 +333,18 @@ def renumber(input_df,           # maybe use cpdef ?
                     shuffled_df = input_df
                     edge_counts_64 = make_unique[vector[long]](1, num_local_edges)
 
-                shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
-                shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
+                if not transposed:
+                    shuffled_src = major_vertices.__cuda_array_interface__['data'][0]
+                    shuffled_dst = minor_vertices.__cuda_array_interface__['data'][0]
+                else:
+                    shuffled_src = minor_vertices.__cuda_array_interface__['data'][0]
+                    shuffled_dst = major_vertices.__cuda_array_interface__['data'][0]
 
                 ptr_renum_tuple_32_64.reset(call_renumber[int, long](deref(handle_ptr),
-                                                                     <int*>shuffled_major,
-                                                                     <int*>shuffled_minor,
+                                                                     <int*>shuffled_src,
+                                                                     <int*>shuffled_dst,
                                                                      deref(edge_counts_64.get()),
+                                                                     transposed,
                                                                      do_check,
                                                                      mg_flag).release())
 
@@ -383,13 +403,18 @@ def renumber(input_df,           # maybe use cpdef ?
                     shuffled_df = input_df
                     edge_counts_64 = make_unique[vector[long]](1, num_local_edges)
 
-                shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
-                shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
+                if not transposed:
+                    shuffled_src = major_vertices.__cuda_array_interface__['data'][0]
+                    shuffled_dst = minor_vertices.__cuda_array_interface__['data'][0]
+                else:
+                    shuffled_src = minor_vertices.__cuda_array_interface__['data'][0]
+                    shuffled_dst = major_vertices.__cuda_array_interface__['data'][0]
 
                 ptr_renum_tuple_32_64.reset(call_renumber[int, long](deref(handle_ptr),
-                                                                     <int*>shuffled_major,
-                                                                     <int*>shuffled_minor,
+                                                                     <int*>shuffled_src,
+                                                                     <int*>shuffled_dst,
                                                                      deref(edge_counts_64.get()),
+                                                                     transposed,
                                                                      do_check,
                                                                      mg_flag).release())
 
@@ -450,13 +475,18 @@ def renumber(input_df,           # maybe use cpdef ?
                     shuffled_df = input_df
                     edge_counts_64 = make_unique[vector[long]](1, num_local_edges)
 
-                shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
-                shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
+                if not transposed:
+                    shuffled_src = major_vertices.__cuda_array_interface__['data'][0]
+                    shuffled_dst = minor_vertices.__cuda_array_interface__['data'][0]
+                else:
+                    shuffled_src = minor_vertices.__cuda_array_interface__['data'][0]
+                    shuffled_dst = major_vertices.__cuda_array_interface__['data'][0]
 
                 ptr_renum_tuple_64_64.reset(call_renumber[long, long](deref(handle_ptr),
-                                                                      <long*>shuffled_major,
-                                                                      <long*>shuffled_minor,
+                                                                      <long*>shuffled_src,
+                                                                      <long*>shuffled_dst,
                                                                       deref(edge_counts_64.get()),
+                                                                      transposed,
                                                                       do_check,
                                                                       mg_flag).release())
 
@@ -516,13 +546,18 @@ def renumber(input_df,           # maybe use cpdef ?
                     shuffled_df = input_df
                     edge_counts_64 = make_unique[vector[long]](1, num_local_edges)
 
-                shuffled_major = major_vertices.__cuda_array_interface__['data'][0]
-                shuffled_minor = minor_vertices.__cuda_array_interface__['data'][0]
+                if not transposed:
+                    shuffled_src = major_vertices.__cuda_array_interface__['data'][0]
+                    shuffled_dst = minor_vertices.__cuda_array_interface__['data'][0]
+                else:
+                    shuffled_src = minor_vertices.__cuda_array_interface__['data'][0]
+                    shuffled_dst = major_vertices.__cuda_array_interface__['data'][0]
 
                 ptr_renum_tuple_64_64.reset(call_renumber[long, long](deref(handle_ptr),
-                                                                      <long*>shuffled_major,
-                                                                      <long*>shuffled_minor,
+                                                                      <long*>shuffled_src,
+                                                                      <long*>shuffled_dst,
                                                                       deref(edge_counts_64.get()),
+                                                                      transposed,
                                                                       do_check,
                                                                       mg_flag).release())
 

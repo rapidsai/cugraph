@@ -324,7 +324,7 @@ class Tests_CoarsenGraph
                           handle.get_stream());
       }
 
-      auto coarse_graph_view = coarse_graph->view();
+      auto coarse_graph_view = coarse_graph.view();
 
       std::vector<edge_t> h_coarse_offsets(coarse_graph_view.get_number_of_vertices() + 1);
       std::vector<vertex_t> h_coarse_indices(coarse_graph_view.get_number_of_edges());

@@ -14,7 +14,7 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from pylibcugraph._cugraph_c.cugraph_api cimport (
+from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_create_resource_handle,
     cugraph_free_resource_handle,
 )
@@ -26,7 +26,7 @@ cdef class EXPERIMENTAL__ResourceHandle:
     the corresponding pointer to a cugraph_resource_handle_t
     """
     def __cinit__(self):
-        self.c_resource_handle_ptr = cugraph_create_resource_handle()
+        self.c_resource_handle_ptr = cugraph_create_resource_handle(NULL)
         # FIXME: check for error
 
     def __dealloc__(self):
