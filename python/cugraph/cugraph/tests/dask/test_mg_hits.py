@@ -31,8 +31,10 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
+
 datasets = utils.DATASETS_UNDIRECTED + \
            [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"email-Eu-core.csv"]
+
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
                                                ([50], "max_iter"),
                                                ([1.0e-6], "tol"),
@@ -117,31 +119,36 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
     )
 
     dg = cugraph.Graph(directed=True)
-    # FIXME: also test with no weights
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
+    dg.from_dask_cudf_edgelist(
+        ddf, source='src', destination='dst', edge_attr='value', renumber=True)
 
     result_hits = benchmark(dcg.hits,
                             dg,
-                            input_expected_output["max_iter"],
-                            input_expected_output["tol"])
+                            input_expected_output["tol"],
+                            input_expected_output["max_iter"])
+
     result_hits = result_hits.compute().sort_values(
-        "vertex").reset_index(drop=True)
+        "vertex").reset_index(drop=True).rename(columns={
+            "hubs": "mg_cugraph_hubs", "authorities": "mg_cugraph_authorities"}
+            )
 
     expected_output = input_expected_output["sg_cugraph_results"].sort_values(
         "vertex").reset_index(drop=True)
 
     # Update the dask cugraph HITS results with sg cugraph results for easy
     # comparison using cuDF DataFrame methods.
-    result_hits["cugraph_hubs"] = expected_output['hubs']
-    result_hits["cugraph_authorities"] = expected_output["authorities"]
+    result_hits["sg_cugraph_hubs"] = expected_output['hubs']
+    result_hits["sg_cugraph_authorities"] = expected_output["authorities"]
 
     # FIXME: Check this is working
-    hubs_diffs1 = result_hits.query('hubs - cugraph_hubs > 0.00001')
-    hubs_diffs2 = result_hits.query('hubs - cugraph_hubs < -0.00001')
+    hubs_diffs1 = result_hits.query(
+        'mg_cugraph_hubs - sg_cugraph_hubs > 0.00001')
+    hubs_diffs2 = result_hits.query(
+        'mg_cugraph_hubs - sg_cugraph_hubs < -0.00001')
     authorities_diffs1 = result_hits.query(
-        'authorities - cugraph_authorities > 0.0001')
+        'mg_cugraph_authorities - sg_cugraph_authorities > 0.0001')
     authorities_diffs2 = result_hits.query(
-        'authorities - cugraph_authorities < -0.0001')
+        'mg_cugraph_authorities - sg_cugraph_authorities < -0.0001')
 
     assert len(hubs_diffs1) == 0
     assert len(hubs_diffs2) == 0
