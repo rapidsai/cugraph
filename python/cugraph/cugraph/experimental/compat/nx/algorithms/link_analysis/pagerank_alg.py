@@ -37,8 +37,8 @@ def create_cudf_from_dict(dict_in):
     # compare performance
     k = np.fromiter(dict_in.keys(), dtype="int32")
     v = np.fromiter(dict_in.values(), dtype="float32")
-    cuD = cudf.DataFrame({"vertex": k, "values": v})
-    return cuD
+    df = cudf.DataFrame({"vertex": k, "values": v})
+    return df
 
 
 def pagerank(

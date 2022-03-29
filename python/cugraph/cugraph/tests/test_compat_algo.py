@@ -19,11 +19,10 @@ def test_connectivity():
     G = nx.Graph()
     G.add_edges_from([(1, 2), (2, 3), (3, 4), (4, 5)])
     G.add_edges_from([(7, 8), (8, 9), (7, 9)])
-    print(list(nx.connected_components(G)))
     assert list(nx.connected_components(G)) == expected
 
 
-def test_pagerank():
+def test_pagerank_result_type():
     G = nx.DiGraph()
     [G.add_node(k) for k in ["A", "B", "C", "D", "E", "F", "G"]]
     G.add_edges_from([('G', 'A'), ('A', 'G'), ('B', 'A'),
@@ -31,7 +30,5 @@ def test_pagerank():
                      ('E', 'A'), ('F', 'A'), ('D', 'B'),
                      ('D', 'F')])
     ppr1 = nx.pagerank(G)
+    # This just tests that the right type is returned.
     assert type(ppr1) == dict
-    print("reached compat pagerank")
-    print(f'Page rank value: {ppr1}')
-    print(ppr1)
