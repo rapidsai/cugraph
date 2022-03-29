@@ -160,7 +160,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
 
 }  // namespace
 
-extern "C" cugraph_error_code_t cugraph_uniform_nbr_sample(
+extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start,

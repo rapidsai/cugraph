@@ -25,27 +25,27 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-int generic_uniform_nbr_sample_test(const cugraph_resource_handle_t* handle,
-                                    vertex_t* h_src,
-                                    vertex_t* h_dst,
-                                    weight_t* h_wgt,
-                                    size_t num_vertices,
-                                    size_t num_edges,
-                                    vertex_t* h_start,
-                                    int* h_start_label,
-                                    size_t num_starts,
-                                    int* fan_out,
-                                    size_t max_depth,
-                                    bool_t with_replacement,
-                                    bool_t store_transposed)
+int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle,
+                                         vertex_t* h_src,
+                                         vertex_t* h_dst,
+                                         weight_t* h_wgt,
+                                         size_t num_vertices,
+                                         size_t num_edges,
+                                         vertex_t* h_start,
+                                         int* h_start_label,
+                                         size_t num_starts,
+                                         int* fan_out,
+                                         size_t max_depth,
+                                         bool_t with_replacement,
+                                         bool_t store_transposed)
 {
   int test_ret_value = 0;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error    = NULL;
 
-  cugraph_graph_t* graph            = NULL;
-  cugraph_sample_result_t* result   = NULL;
+  cugraph_graph_t* graph          = NULL;
+  cugraph_sample_result_t* result = NULL;
 
   cugraph_type_erased_device_array_t* d_start                 = NULL;
   cugraph_type_erased_device_array_view_t* d_start_view       = NULL;
@@ -53,8 +53,8 @@ int generic_uniform_nbr_sample_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_t* d_start_label_view = NULL;
   cugraph_type_erased_host_array_view_t* h_fan_out_view       = NULL;
 
-  ret_code =
-    create_mg_test_graph(handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &graph, &ret_error);
+  ret_code = create_mg_test_graph(
+    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &graph, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   ret_code =
@@ -66,7 +66,6 @@ int generic_uniform_nbr_sample_test(const cugraph_resource_handle_t* handle,
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
     handle, d_start_view, (byte_t*)h_start, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start copy_from_host failed.");
-
 
   ret_code =
     cugraph_type_erased_device_array_create(handle, num_starts, INT32, &d_start_label, &ret_error);
@@ -80,18 +79,18 @@ int generic_uniform_nbr_sample_test(const cugraph_resource_handle_t* handle,
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, max_depth, INT32);
 
-  ret_code = cugraph_uniform_nbr_sample(handle,
-                                        graph,
-                                        d_start_view,
-                                        d_start_label_view,
-                                        h_fan_out_view,
-                                        with_replacement,
-                                        FALSE,
-                                        &result,
-                                        &ret_error);
+  ret_code = cugraph_uniform_neighbor_sample(handle,
+                                             graph,
+                                             d_start_view,
+                                             d_start_label_view,
+                                             h_fan_out_view,
+                                             with_replacement,
+                                             FALSE,
+                                             &result,
+                                             &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_nbr_sample failed.");
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
 
   cugraph_type_erased_device_array_view_t* srcs;
   cugraph_type_erased_device_array_view_t* dsts;
@@ -146,7 +145,7 @@ int generic_uniform_nbr_sample_test(const cugraph_resource_handle_t* handle,
   for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
                 M[h_srcs[i]][h_dsts[i]] > 0.0,
-                "uniform_nbr_sample got edge that doesn't exist");
+                "uniform_neighbor_sample got edge that doesn't exist");
 
     bool_t found = FALSE;
     for (int j = 0; j < num_starts; ++j)
@@ -160,7 +159,7 @@ int generic_uniform_nbr_sample_test(const cugraph_resource_handle_t* handle,
   return test_ret_value;
 }
 
-int test_uniform_nbr_sample(const cugraph_resource_handle_t* handle)
+int test_uniform_neighbor_sample(const cugraph_resource_handle_t* handle)
 {
   size_t num_edges    = 8;
   size_t num_vertices = 6;
@@ -174,19 +173,19 @@ int test_uniform_nbr_sample(const cugraph_resource_handle_t* handle)
   vertex_t start_labels[] = {0, 1};
   int fan_out[]           = {1, 2};
 
-  return generic_uniform_nbr_sample_test(handle,
-                                         src,
-                                         dst,
-                                         wgt,
-                                         num_vertices,
-                                         num_edges,
-                                         start,
-                                         start_labels,
-                                         num_starts,
-                                         fan_out,
-                                         fan_out_size,
-                                         TRUE,
-                                         FALSE);
+  return generic_uniform_neighbor_sample_test(handle,
+                                              src,
+                                              dst,
+                                              wgt,
+                                              num_vertices,
+                                              num_edges,
+                                              start,
+                                              start_labels,
+                                              num_starts,
+                                              fan_out,
+                                              fan_out_size,
+                                              TRUE,
+                                              FALSE);
 }
 
 /******************************************************************************/
@@ -227,7 +226,7 @@ int main(int argc, char** argv)
   handle            = cugraph_create_resource_handle(raft_handle);
 
   if (result == 0) {
-    result |= RUN_MG_TEST(test_uniform_nbr_sample, handle);
+    result |= RUN_MG_TEST(test_uniform_neighbor_sample, handle);
 
     cugraph_free_resource_handle(handle);
   }
