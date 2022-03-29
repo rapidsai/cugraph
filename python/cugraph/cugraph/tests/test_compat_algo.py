@@ -15,7 +15,7 @@ import cugraph.experimental.compat.nx as nx
 
 
 def test_connectivity():
-    expected = list([{1, 2, 3, 4, 5}, {8, 9, 7}])
+    expected = [{1, 2, 3, 4, 5}, {8, 9, 7}]
     G = nx.Graph()
     G.add_edges_from([(1, 2), (2, 3), (3, 4), (4, 5)])
     G.add_edges_from([(7, 8), (8, 9), (7, 9)])
