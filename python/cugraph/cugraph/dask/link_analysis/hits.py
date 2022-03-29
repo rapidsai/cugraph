@@ -18,13 +18,13 @@ from cugraph.dask.common.input_utils import get_distributed_data
 
 import cugraph.comms.comms as Comms
 import dask_cudf
+import cudf
 
 from pylibcugraph.experimental import (ResourceHandle,
                                        GraphProperties,
                                        MGGraph,
                                        hits as pylibcugraph_hits
                                        )
-import cudf
 
 
 def call_hits(sID,
@@ -90,7 +90,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     estimates the node value based on the incoming links.  Hubs estimates
     the node value based on outgoing links.
 
-    Both cuGraph and networkx implementation uses a 1-norm.
+    Both cuGraph and networkx implementation use a 1-norm.
 
     Parameters
     ----------
