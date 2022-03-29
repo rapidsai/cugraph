@@ -150,8 +150,7 @@ extern "C" cugraph_error_code_t cugraph_type_erased_host_array_create(
     size_t n_bytes = n_elems * (::data_type_sz[dtype]);
 
     *array = reinterpret_cast<cugraph_type_erased_host_array_t*>(
-      new cugraph::c_api::cugraph_type_erased_host_array_t{
-        std::make_unique<std::byte[]>(n_bytes), n_elems, n_bytes, dtype});
+      new cugraph::c_api::cugraph_type_erased_host_array_t{n_elems, n_bytes, dtype});
 
     return CUGRAPH_SUCCESS;
   } catch (std::exception const& ex) {
@@ -223,6 +222,46 @@ extern "C" void* cugraph_type_erased_host_array_pointer(
   return internal_pointer->data_;
 }
 
+extern "C" cugraph_error_code_t cugraph_type_erased_host_array_view_copy(
+  const cugraph_resource_handle_t* handle,
+  cugraph_type_erased_host_array_view_t* dst,
+  const cugraph_type_erased_host_array_view_t* src,
+  cugraph_error_t** error)
+{
+  *error = nullptr;
+
+  try {
+    auto p_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
+    auto internal_pointer_dst =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t*>(dst);
+    auto internal_pointer_src =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(src);
+
+    if (!handle) {
+      *error = reinterpret_cast<cugraph_error_t*>(
+        new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
+      return CUGRAPH_INVALID_HANDLE;
+    }
+
+    if (internal_pointer_src->num_bytes() != internal_pointer_dst->num_bytes()) {
+      *error = reinterpret_cast<cugraph_error_t*>(
+        new cugraph::c_api::cugraph_error_t{"source and destination arrays are different sizes"});
+      return CUGRAPH_INVALID_INPUT;
+    }
+
+    raft::copy(reinterpret_cast<byte_t*>(internal_pointer_dst->data_),
+               reinterpret_cast<byte_t const*>(internal_pointer_src->data_),
+               internal_pointer_src->num_bytes(),
+               p_handle->handle_->get_stream());
+
+    return CUGRAPH_SUCCESS;
+  } catch (std::exception const& ex) {
+    auto tmp_error = new cugraph::c_api::cugraph_error_t{ex.what()};
+    *error         = reinterpret_cast<cugraph_error_t*>(tmp_error);
+    return CUGRAPH_UNKNOWN_ERROR;
+  }
+}
+
 extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy_from_host(
   const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_t* dst,
@@ -286,7 +325,6 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy_to_ho
     return CUGRAPH_UNKNOWN_ERROR;
   }
 }
-
 extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy(
   const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_t* dst,
