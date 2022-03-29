@@ -28,18 +28,16 @@ def setup_function():
     gc.collect()
 
 
-datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv"
-fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
-                                               ([], ""),
-                                               ([], ""),
-                                               ([], ""),
-                                                )
+# datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv"
+datasets = utils.DATASETS_SMALL
+fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"))
+
 
 def _get_param_args(param_name, param_values):
     """
     Returns a tuple of (<param_name>, <pytest.param list>) which can be applied
     as the args to pytest.mark.parametrize(). The pytest.param list also
-    contains param id string formed from teh param name and values.
+    contains param id string formed from the param name and values.
     """
     return (param_name,
             [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
@@ -48,11 +46,11 @@ def _get_param_args(param_name, param_values):
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_mg_neighborhood_sampling(dask_client):
+def test_mg_neighborhood_sampling_tree(dask_client):
     gc.collect()
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate.csv").as_posix()
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "small_tree.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -72,20 +70,27 @@ def test_mg_neighborhood_sampling(dask_client):
     )
 
     g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, "src", "dst")
+    g.from_cudf_edgelist(df, "src", "dst", "value")
 
     dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
 
-    # TODO: Incomplete, add more when lower-level
-    # APIs are accounted for
-    start_info_list = [0, 0]
-    fanout_vals = [1, 2]
+    # TODO: Incomplete
+    start_list = cudf.Series([0, 0])
+    info_list = cudf.Series([0, 0])
+    fanout_vals = cudf.Series([4, 1, 3])
     with_replacement = True
-    result_nbr = dcg.uniform_neighborhood(dg, start_info_list,
+    result_nbr = dcg.uniform_neighborhood(dg, start_list,
+                                          info_list,
                                           fanout_vals,
                                           with_replacement)
     result_nbr = result_nbr.compute()
+
+    # Test that lengths of outputs are as intended for small graph
+    assert len(result_nbr['srcs']) == 10
+    assert len(result_nbr['dsts']) == 10
+    assert len(result_nbr['labels']) == 2
+    assert len(result_nbr['index']) == 2
 
     # Because there is no SG version of neighborhood sampling, unsure
     # as to what to compare, for now the test should fail always

@@ -49,7 +49,8 @@ from pylibcugraph.resource_handle cimport (
     EXPERIMENTAL__ResourceHandle,
 )
 from pylibcugraph.graphs cimport (
-    _GPUGraph
+    _GPUGraph,
+    EXPERIMENTAL__MGGraph,
 )
 from pylibcugraph.utils cimport (
     assert_success,
@@ -59,8 +60,9 @@ from pylibcugraph.utils cimport (
 )
 
 def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle resource_handle,
-                               _GPUGraph input_graph,
-                               start_info_list,
+                               EXPERIMENTAL__MGGraph input_graph,
+                               start_list,
+                               info_list,
                                h_fan_out,
                                bool_t with_replacement,
                                bool_t do_expensive_check):
@@ -76,18 +78,20 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     input_graph: MGGraph
         The input graph, for Multi-GPU operations.
 
-    start_info_list: device array type
-        Device array containing the list of starting vertices for sampling,
-        as well as starting labels for reorganizing the results after the
-        sending the input to different callers
+    start_list: device array type
+        Device array containing the list of starting vertices for sampling.
 
-    fanout_vals: list
-        Host array containing the fan out at each step in the sampling
-        algorithm
+    info_list: device array type
+        Device array containing the starting labels for reorganizing the
+        results after sending the input to different callers.
+
+    h_fan_out: cuda array type
+        Device array containing the brancing out (fan-out) degrees per
+        starting vertex for each hop level.
 
     with_replacement: bool
         If true, sampling procedure is done with replacement (the same vertex
-        can be selected multiple times in the same step)
+        can be selected multiple times in the same step).
 
     do_expensive_check: bool
         If True, performs more extensive tests on the inputs to ensure
@@ -99,52 +103,42 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     are device arrays containing the starting and ending vertices of each
     walk respectively, the third item in the tuple is a device array
     containing the start labels, the fourth item in the tuple is a device
-    array containing the indices for ..., and the fifth item in the tuple
-    is a device containing the counts for ...
-
-    Examples
-    --------
-    >>> import pylibcugraph, cupy, numpy
-    >>> srcs = cupy.asarray([0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4],
-    ...                     dtype=numpy.int32)
-    >>> dsts = cupy.asarray([1, 2, 3, 4, 5, 6, 7, 5, 6, 7, 5, 6, 7],
-    ...                     dtype=numpy.int32)
-    >>> weights = cupy.asarray([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    ...                         1.0, 1.0, 1.0, 1.0], dtype=numpy.float32)
-    >>> resource_handle = pylibcugraph.experimental.ResourceHandle()
-    >>> graph_props = pylibcugraph.experimental.GraphProperties(
-    ...     is_symmetric=False, is_multigraph=False)
-    >>> G = pylibcugraph.experimental.MGGraph(
-    ...     resource_handle, graph_props)
+    array containing the indices for 
 
     """
-    print("Hello from uniform_neighborhood_sampling.pyx!")
-    
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
+
+    assert_CAI_type(start_list, "start_list")
+    assert_CAI_type(info_list, "info_list")
+    assert_CAI_type(h_fan_out, "fan_out")
 
     cdef cugraph_sample_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
+    # cdef uintptr_t cai_start_ptr = \
+    #    start_info_list.__cuda_array_interface__["data"][0]
+    # cdef uintptr_t cai_labels_ptr = \
+    #    start_info_list.__cuda_array_interface__["data"][1]
     cdef uintptr_t cai_start_ptr = \
-        start_info_list.__cuda_array_interface__["data"][0]
+        start_list.__cuda_array_interface__["data"][0]
     cdef uintptr_t cai_labels_ptr = \
-        start_info_list.__cuda_array_interface__["data"][1]
+        info_list.__cuda_array_interface__["data"][0]
     cdef uintptr_t cai_fan_out_ptr = \
         h_fan_out.__cuda_array_interface__["data"][0]
 
     cdef cugraph_type_erased_device_array_view_t* start_ptr = \
         cugraph_type_erased_device_array_view_create(
             <void*>cai_start_ptr,
-            len(start_info_list),
-            get_c_type_from_numpy_type(start_info_list.dtype))
+            len(start_list),
+            get_c_type_from_numpy_type(start_list.dtype))
     cdef cugraph_type_erased_device_array_view_t* start_labels_ptr = \
         cugraph_type_erased_device_array_view_create(
             <void*>cai_labels_ptr,
-            len(start_info_list),
-            get_c_type_from_numpy_type(start_info_list.dtype))
+            len(info_list),
+            get_c_type_from_numpy_type(info_list.dtype))
     cdef cugraph_type_erased_host_array_view_t* fan_out_ptr = \
         cugraph_type_erased_host_array_view_create(
             <void*>cai_fan_out_ptr,

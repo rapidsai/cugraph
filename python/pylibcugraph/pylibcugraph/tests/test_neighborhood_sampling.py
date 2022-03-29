@@ -48,7 +48,6 @@ def test_neighborhood_sampling(sg_graph_objs):
     # result = uniform_neighborhood_sampling(G, start_info_list, fanout_vals,
     #                                        with_replacement=True)
     expected = data
-
     assert expected == result
 
 
@@ -62,25 +61,4 @@ def test_mg_nbr_sampling():
     # 3. Generate random vertex ids in the range of current gpu, and generate
     #    generate random sources to gather on
     # 4. Gather input
-    assert True
-
-
-def test_mg_nbr_sampling_0():
-    """
-    Just to ensure that uniform neighborhood sampling exists.
-    """
-    assert True
-
-
-def test_mg_nbr_sampling_1():
-    """
-    To ensure a basic call works, does not check vals of outputs.
-    """
-    assert True
-
-
-def test_mg_nbr_sampling_2():
-    """
-    To
-    """
-    assert True
+    assert False
