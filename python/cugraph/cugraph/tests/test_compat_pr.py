@@ -25,7 +25,7 @@ import importlib
 
 
 MAX_ITERATIONS = [100, 200]
-TOLERANCE = [1.0e-05]
+TOLERANCE = [1.0e-06]
 ALPHA = [0.85, 0.70]
 PERS_PERCENT = [0, 15]
 HAS_GUESS = [0, 1]
