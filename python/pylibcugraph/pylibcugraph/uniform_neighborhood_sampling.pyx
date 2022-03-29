@@ -67,7 +67,8 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
                                bool_t with_replacement,
                                bool_t do_expensive_check):
     """
-    Does uniform neighborhood sampling.
+    Does neighborhood sampling, which samples nodes from a graph based on the
+    current node's neighbors, with a corresponding fanout value at each hop.
 
     Parameters
     ----------

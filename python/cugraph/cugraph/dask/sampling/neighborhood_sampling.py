@@ -76,13 +76,13 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def uniform_neighborhood(input_graph,
-                         start_list,
-                         info_list,
-                         fanout_vals,
-                         with_replacement=True):
+def EXPERIMENTAL__uniform_neighborhood(input_graph,
+                                       start_info_list,
+                                       fanout_vals,
+                                       with_replacement=True):
     """
-    Does neighborhood sampling.
+    Does neighborhood sampling, which samples nodes from a graph based on the
+    current node's neighbors, with a corresponding fanout value at each hop.
 
     Parameters
     ----------
@@ -90,12 +90,12 @@ def uniform_neighborhood(input_graph,
         cuGraph graph, which contains connectivity information as dask cudf
         edge list dataframe
 
-    start_info_list : list or cudf.Series
-        List of starting vertices for sampling, along with a corresponding
-        label for reorganizing results after sending the input to different
-        callers.
+    start_info_list : tuple of list or cudf.Series
+        Tuple of a list of starting vertices for sampling, along with a
+        corresponding list of label for reorganizing results after sending
+        the input to different callers.
 
-    fanout_vals : list
+    fanout_vals : list or cudf.Series
         List of branching out (fan-out) degrees per starting vertex for each
         hop level.
 
@@ -117,30 +117,29 @@ def uniform_neighborhood(input_graph,
             Contains the indices from the sampling result
         ddf['counts']: dask_cudf.Series
             Contains the transaction counts from the sampling result,
-            not currently included
+            not implemented
     """
     # Initialize dask client
     client = default_client()
     # Important for handling renumbering
     input_graph.compute_renumber_edge_list(transposed=True)
 
+    start_list, info_list = start_info_list
+
+    if isinstance(start_list, list):
+        start_list = cudf.Series(start_list)
+    if isinstance(info_list, list):
+        info_list = cudf.Series(info_list)
+    if isinstance(fanout_vals, list):
+        fanout_vals = cudf.Series(fanout_vals)
+
     ddf = input_graph.edgelist.edgelist_df
-    # vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
-    # num_verts = vertex_partition_offsets.iloc[-1]
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
-    """
-    # Would want G or whatever takes its place to be a pylibcugraph MG Graph,
-    # which isn't implemented yet but will be made. The pylib MG Graph will use
-    # cugraph_mg_graph_create, which means that #2110 is a dependency
-    return pylibcugraph.uniform_neighborhood_sampling(G, start_info_list,
-                                                      fanout_vals,
-                                                      with_replacement)
-    """
     result = [client.submit(call_nbr_sampling,
                             Comms.get_session_id(),
                             wf[1],

@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cugraph.utilities.api_tools import experimental_warning_wrapper
+
 from .link_analysis.pagerank import pagerank
 from .link_analysis.hits import hits
 from .traversal.bfs import bfs
@@ -19,4 +21,6 @@ from .common.read_utils import get_chunksize
 from .community.louvain import louvain
 from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
-from .sampling.neighborhood_sampling import uniform_neighborhood
+
+from .sampling.neighborhood_sampling import EXPERIMENTAL__uniform_neighborhood
+uniform_neighborhood = experimental_warning_wrapper(EXPERIMENTAL__uniform_neighborhood)
