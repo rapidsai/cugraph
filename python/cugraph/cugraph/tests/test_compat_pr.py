@@ -56,10 +56,6 @@ KARATE_NSTART_RANKINGS = [11, 9, 14, 15, 18, 20,
 def setup_function():
     gc.collect()
 
-
-# =============================================================================
-# Pytest fixtures
-# =============================================================================
 datasets = FILES_UNDIRECTED
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
                                                (MAX_ITERATIONS, "max_iter"),
