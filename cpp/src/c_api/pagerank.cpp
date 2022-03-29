@@ -105,8 +105,6 @@ struct pagerank_functor : public abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph_view.get_number_of_local_vertices(),
-                                               handle_.get_stream());
       rmm::device_uvector<weight_t> pageranks(graph_view.get_number_of_local_vertices(),
                                               handle_.get_stream());
 
@@ -145,6 +143,8 @@ struct pagerank_functor : public abstract_functor {
         has_initial_guess_,
         do_expensive_check_);
 
+      rmm::device_uvector<vertex_t> vertex_ids(graph_view.get_number_of_local_vertices(),
+                                               handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
       result_ = new cugraph_pagerank_result_t{

@@ -32,7 +32,7 @@ typedef struct {
   bool_t is_multigraph;
 } cugraph_graph_properties_t;
 
-// FIXME: Add support for specifying isloated vertices
+// FIXME: Add support for specifying isolated vertices
 /**
  * @brief     Construct an SG graph
  *
@@ -74,7 +74,7 @@ cugraph_error_code_t cugraph_sg_graph_create(const cugraph_resource_handle_t* ha
 //         but didn't want to confuse with original cugraph_free_graph
 void cugraph_sg_graph_free(cugraph_graph_t* graph);
 
-// FIXME: Add support for specifying isloated vertices
+// FIXME: Add support for specifying isolated vertices
 /**
  * @brief     Construct an MG graph
  *
