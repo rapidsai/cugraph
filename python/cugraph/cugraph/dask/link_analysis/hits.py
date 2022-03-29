@@ -160,11 +160,18 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     do_expensive_check = False
     initial_hubs_guess_vertices = None
     initial_hubs_guess_values = None
-    num_edges = len(ddf)
 
-    data = get_distributed_data(ddf)
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+
+    # FIXME Move this call to the function creating a directed
+    # graph from a dask dataframe because duplicated edges need
+    # to be dropped
+    ddf = ddf.map_partitions(
+        lambda df: df.drop_duplicates(subset=[src_col_name, dst_col_name]))
+
+    num_edges = len(ddf)
+    data = get_distributed_data(ddf)
 
     if nstart is not None:
         initial_hubs_guess_vertices = nstart['vertex']
