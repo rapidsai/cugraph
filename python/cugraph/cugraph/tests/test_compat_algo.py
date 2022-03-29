@@ -15,6 +15,7 @@ import cugraph.experimental.compat.nx as nx
 
 
 def test_connectivity():
+    # Tests a run of a native nx algorithm that hasnt been overridden.
     expected = [{1, 2, 3, 4, 5}, {8, 9, 7}]
     G = nx.Graph()
     G.add_edges_from([(1, 2), (2, 3), (3, 4), (4, 5)])
@@ -31,4 +32,4 @@ def test_pagerank_result_type():
                      ('D', 'F')])
     ppr1 = nx.pagerank(G)
     # This just tests that the right type is returned.
-    assert type(ppr1) == dict
+    assert isinstance(ppr1, dict)

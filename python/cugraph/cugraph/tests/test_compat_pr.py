@@ -155,7 +155,7 @@ def test_with_noparams(graph_file, which_import):
     pr = nx.pagerank(Gnx)
 
     # Rounding issues show up in runs but this tests that the
-    # cugraph and networkx algrorithmsare being correctly called.
+    # cugraph and networkx algrorithms are being correctly called.
     assert(sorted(pr, key=pr.get)[:14]) == KARATE_RANKING
 
 
@@ -170,7 +170,7 @@ def test_with_max_iter(graph_file, max_iter, which_import):
     )
     pr = nx.pagerank(Gnx, max_iter=max_iter)
     # Rounding issues show up in runs but this tests that the
-    # cugraph and networkx algrorithmsare being correctly called.
+    # cugraph and networkx algrorithms are being correctly called.
     assert(sorted(pr, key=pr.get)[:14]) == KARATE_ITER_RANKINGS
 
 
@@ -207,7 +207,7 @@ def test_perc_spec(graph_file, max_iter, which_import):
         )
 
     # Rounding issues show up in runs but this tests that the
-    # cugraph and networkx algrorithmsare being correctly called.
+    # cugraph and networkx algrorithms are being correctly called.
     assert(sorted(pr, key=pr.get)[:14]) == KARATE_PERS_RANKING
 
 
@@ -232,7 +232,7 @@ def test_with_nstart(graph_file, max_iter, which_import):
     pr = nx.pagerank(Gnx, max_iter=max_iter, nstart=z)
 
     # Rounding issues show up in runs but this tests that the
-    # cugraph and networkx algrorithmsare being correctly called.
+    # cugraph and networkx algrorithms are being correctly called.
     assert(sorted(pr, key=pr.get)[:14]) == KARATE_NSTART_RANKINGS
 
 
