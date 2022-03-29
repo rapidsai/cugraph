@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "c_test_utils.h"  /* RUN_TEST */
 #include "mg_test_utils.h" /* RUN_TEST */
 
 #include <cugraph_c/algorithms.h>
@@ -49,12 +48,16 @@ int generic_pagerank_test(const cugraph_resource_handle_t* handle,
   ret_code = create_mg_test_graph(
     handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
 
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
   ret_code = cugraph_pagerank(
     handle, p_graph, NULL, alpha, epsilon, max_iterations, FALSE, FALSE, &p_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_pagerank failed.");
 
+  // NOTE: Because we get back vertex ids and pageranks, we can simply compare
+  //       the returned values with the expected results for the entire
+  //       graph.  Each GPU will have a subset of the total vertices, so
+  //       they will do a subset of the comparisons.
   cugraph_type_erased_device_array_view_t* vertices;
   cugraph_type_erased_device_array_view_t* pageranks;
 
@@ -83,7 +86,7 @@ int generic_pagerank_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_free(pageranks);
   cugraph_type_erased_device_array_view_free(vertices);
   cugraph_pagerank_result_free(p_result);
-  cugraph_sg_graph_free(p_graph);
+  cugraph_mg_graph_free(p_graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
