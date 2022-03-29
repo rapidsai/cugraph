@@ -125,8 +125,6 @@ struct node2vec_functor : public abstract_functor {
 
       //
       // Need to unrenumber the vertices in the resulting paths
-      // FIXME: this is not necessary (wasteful) if the input graph was not
-      // renumbered.
       //
       unrenumber_local_int_vertices<vertex_t>(
         handle_, paths.data(), paths.size(), number_map->data(), 0, paths.size() - 1, false);

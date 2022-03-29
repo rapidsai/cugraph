@@ -84,13 +84,15 @@ def test_node2vec_invalid(
     G = utils.generate_cugraph_graph_from_file(graph_file, directed=True,
                                                edgevals=True)
     k = random.randint(1, 10)
-    start_vertices = random.sample(range(G.number_of_vertices()), k)
+    start_vertices = cudf.Series(random.sample(range(G.number_of_vertices()),
+                                 k), dtype="int32")
     compress = True
     max_depth = 1
     p = 1
     q = 1
     invalid_max_depths = [None, -1, "1", 4.5]
     invalid_pqs = [None, -1, "1"]
+    invalid_start_vertices = [1.0, "1", 2147483648]
 
     # Tests for invalid max_depth
     for bad_depth in invalid_max_depths:
@@ -108,6 +110,13 @@ def test_node2vec_invalid(
             df, seeds = calc_node2vec(G, start_vertices, max_depth=max_depth,
                                       compress_result=compress, p=p, q=bad_q)
 
+    # Tests for invalid start_vertices dtypes, modify when more types are
+    # supported
+    for bad_start in invalid_start_vertices:
+        with pytest.raises(ValueError):
+            df, seeds = calc_node2vec(G, bad_start, max_depth=max_depth,
+                                      compress_result=compress, p=p, q=q)
+
 
 # Remove once bug is resolved
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
@@ -116,7 +125,7 @@ def test_node2vec_line(graph_file, directed):
     G = utils.generate_cugraph_graph_from_file(graph_file, directed=directed,
                                                edgevals=True)
     max_depth = 3
-    start_vertices = [0, 3, 6]
+    start_vertices = cudf.Series([0, 3, 6], dtype="int32")
     df, seeds = calc_node2vec(
         G,
         start_vertices,
@@ -143,7 +152,8 @@ def test_node2vec_new(
                          renumber=False)
     num_verts = G.number_of_vertices()
     k = random.randint(6, 12)
-    start_vertices = random.sample(range(num_verts), k)
+    start_vertices = cudf.Series(random.sample(range(num_verts), k),
+                                 dtype="int32")
     max_depth = 5
     result, seeds = calc_node2vec(
         G,
@@ -258,7 +268,7 @@ def test_node2vec_renumber_cudf(
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2",
                          renumber=renumber)
 
-    start_vertices = [8, 0, 7, 1, 6, 2]
+    start_vertices = cudf.Series([8, 0, 7, 1, 6, 2], dtype="int32")
     num_seeds = 6
     max_depth = 4
 

@@ -47,7 +47,7 @@ def node2vec(G,
     start_vertices: int or list or cudf.Series or cudf.DataFrame
         A single node or a list or a cudf.Series of nodes from which to run
         the random walks. In case of multi-column vertices it should be
-        a cudf.DataFrame
+        a cudf.DataFrame. Only supports int32 currently.
 
     max_depth: int
         The maximum depth of the random walks
@@ -87,7 +87,7 @@ def node2vec(G,
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
-    >>> start_vertices = cudf.Series([0, 2])
+    >>> start_vertices = cudf.Series([0, 2], dtype=np.int32)
     >>> paths, weights, path_sizes = cugraph.node2vec(G, start_vertices, 3,
     ...                                               True, 0.8, 0.5)
 
@@ -109,9 +109,10 @@ def node2vec(G,
         start_vertices = [start_vertices]
 
     if isinstance(start_vertices, list):
-        # FIXME: do not assume contents of the start_vertices list can be used
-        # for a Series of int32 values.
-        start_vertices = cudf.Series(start_vertices, dtype="int32")
+        start_vertices = cudf.Series(start_vertices)
+        if start_vertices.dtype != 'int32':
+            raise ValueError(f"'start_vertices' must have int32 values, \
+                            got: {start_vertices.dtype}")
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
@@ -124,15 +125,16 @@ def node2vec(G,
     dsts = G.edgelist.edgelist_df['dst']
     weights = G.edgelist.edgelist_df['weights']
 
+    if srcs.dtype != 'int32':
+        raise ValueError(f"Graph vertices must have int32 values, \
+                        got: {srcs.dtype}")
+
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_multigraph=G.is_multigraph())
     store_transposed = False
     renumber = False
     do_expensive_check = False
 
-    # FIXME: If input graph is not renumbered, then SGGraph creation
-    # causes incorrect vertices to be returned when computing pylib
-    # version of node2vec
     sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
                  store_transposed, renumber, do_expensive_check)
 
