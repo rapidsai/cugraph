@@ -17,10 +17,10 @@ import cudf
 import numpy as np
 
 
-def cudify(d):
+def create_cudf_from_dict(dict_in):
     """
-    Converts a dictionary which is what networkx sends to a
-    cudf.DataFrame required in cugraph
+    converts python dictionary to a cudf.Dataframe as needed by this
+    cugraph pagerank call.
 
     Parameters
     ----------
@@ -28,15 +28,15 @@ def cudify(d):
 
     Returns
     -------
-    a DataFrame of (vertex)ids and values.
+    a cudf DataFrame of (vertex)ids and values.
     """
-    if d is None:
-        return None
-    if not(isinstance(d, dict)):
+    if not(isinstance(dict_in, dict)):
         raise TypeError("type_name must be a dict, got: "
-                        f"{type(d)}")
-    k = np.fromiter(d.keys(), dtype="int32")
-    v = np.fromiter(d.values(), dtype="float32")
+                        f"{type(dict_in)}")
+    # FIXME: Looking to replacing fromiter with rename and
+    # compare performance
+    k = np.fromiter(dict_in.keys(), dtype="int32")
+    v = np.fromiter(dict_in.values(), dtype="float32")
     cuD = cudf.DataFrame({"vertex": k, "values": v})
     return cuD
 
@@ -113,9 +113,9 @@ def pagerank(
     local_pers = None
     local_nstart = None
     if (personalization is not None):
-        local_pers = cudify(personalization)
+        local_pers = create_cudf_from_dict(personalization)
     if (nstart is not None):
-        local_nstart = cudify(nstart)
+        local_nstart = create_cudf_from_dict(nstart)
     return cugraph.pagerank(
             G,
             alpha,

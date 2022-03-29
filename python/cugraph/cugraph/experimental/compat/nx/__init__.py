@@ -88,7 +88,7 @@ del _import_submodules_recursively
 # could be used to override the corresponding types *inside* the
 # networkx modules imported above. For example, the networkx graph generators
 # will still return networkx.Graph objects instead of cugraph.nx.Graph
-# objects (unless the userknows to pass a "create_using" arg, if available).
+# objects (unless the user knows to pass a "create_using" arg, if available).
 # For specific overrides, assignments could be made in the imported
 # a networkx modules so cugraph.nx types are used by default.
 # NOTE: this has the side-effect of causing all networkx
