@@ -96,15 +96,14 @@ struct cugraph_type_erased_host_array_view_t {
 };
 
 struct cugraph_type_erased_host_array_t {
-  // NOTE: size must be first here because the device buffer is released
-  size_t size_{0};
   std::unique_ptr<std::byte[]> data_{nullptr};
+  size_t size_{0};
   size_t num_bytes_{0};
   data_type_id_t type_;
 
   cugraph_type_erased_host_array_t(size_t size, size_t num_bytes, data_type_id_t type)
-    : size_(size),
-      data_(std::make_unique<std::byte[]>(num_bytes)),
+    : data_(std::make_unique<std::byte[]>(num_bytes)),
+      size_(size),
       num_bytes_(num_bytes),
       type_(type)
   {
