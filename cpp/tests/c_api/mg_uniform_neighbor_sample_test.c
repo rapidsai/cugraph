@@ -210,18 +210,6 @@ int main(int argc, char** argv)
   C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
   C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
 
-#if 0
-  // TODO:  Need something a bit more sophisticated for bigger systems
-  prows = (int)sqrt((double)comm_size);
-  while (comm_size % prows != 0) {
-    --prows;
-  }
-
-  ret_code = cugraph_resource_handle_init_comms(handle, prows, &ret_error);
-  TEST_ASSERT(result, ret_code == CUGRAPH_SUCCESS, "handle create failed.");
-  TEST_ASSERT(result, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-#endif
-
   void* raft_handle = create_raft_handle(prows);
   handle            = cugraph_create_resource_handle(raft_handle);
 

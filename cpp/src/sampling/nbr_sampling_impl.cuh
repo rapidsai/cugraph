@@ -335,12 +335,6 @@ uniform_nbr_sample_impl(
 
   if constexpr (graph_view_t::is_multi_gpu) {
     size_t num_starting_vs = d_in.size();
-#if 0
-    // FIXME: After shuffling, there's no guarantee that there will be at least 1 starting
-    //        vertex on each GPU.
-    CUGRAPH_EXPECTS(num_starting_vs > 0,
-                    "Invalid input argument: starting vertex set cannot be null.");
-#endif
 
     CUGRAPH_EXPECTS(num_starting_vs == d_ranks.size(),
                     "Sets of input vertices and ranks must have same sizes.");
@@ -367,20 +361,16 @@ uniform_nbr_sample_impl(
 
     size_t level{0l};
     for (auto&& k_level : h_fan_out) {
-      // main body:
-      //{
       // prep step for extracting out-degs(sources):
       //
       auto&& [d_new_in, d_new_rank] =
         gather_active_majors(handle, graph_view, d_in.cbegin(), d_in.cend(), d_ranks.cbegin());
 
-      auto in_sz = d_in.size();
-      // FIXME: Need to call collective operations from all threads
-      // if (in_sz > 0) {
       rmm::device_uvector<vertex_t> d_out_src(0, handle.get_stream());
       rmm::device_uvector<vertex_t> d_out_dst(0, handle.get_stream());
       rmm::device_uvector<gpu_t> d_out_ranks(0, handle.get_stream());
       rmm::device_uvector<edge_t> d_indices(0, handle.get_stream());
+
       if (k_level != 0) {
         // extract out-degs(sources):
         //
@@ -471,9 +461,7 @@ uniform_nbr_sample_impl(
                            d_in,
                            d_ranks,
                            gpu_t{});
-      //}
 
-      //}
       ++level;
     }
 
