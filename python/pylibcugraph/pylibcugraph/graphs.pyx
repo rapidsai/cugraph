@@ -36,7 +36,6 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_properties_t,
     cugraph_sg_graph_free,
 )
-# FIXME: Verify this holds
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
     cugraph_mg_graph_create,
@@ -178,7 +177,6 @@ cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
             cugraph_sg_graph_free(self.c_graph_ptr)
 
 
-#FIXME: Not Implemented
 cdef class EXPERIMENTAL__MGGraph(_GPUGraph):
     """
     RAII-stye Graph class for use with multi-GPU APIs that manages the

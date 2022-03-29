@@ -18,7 +18,6 @@ from libc.stdint cimport uintptr_t
 
 import numpy
 import cupy
-import cudf
 
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_size,

@@ -33,7 +33,6 @@ from pylibcugraph._cugraph_c.array cimport (
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
-# FIXME: update this with corresponding HITS
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_hits,
     cugraph_hits_result_t,
@@ -42,16 +41,12 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_hits_result_get_authorities,
     cugraph_hits_result_free,
 )
-
 from pylibcugraph.resource_handle cimport (
     EXPERIMENTAL__ResourceHandle,
 )
-# FIXME: update with EXPERIMENTAL__MGGraph(_GPUGraph):
-
 from pylibcugraph.graphs cimport (
     _GPUGraph,
 )
-
 from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
@@ -59,8 +54,7 @@ from pylibcugraph.utils cimport (
     get_c_type_from_numpy_type
 )
 
-# FIXME: nstart is not supported in sg_hits, check if it is the case
-# for mg_hits
+
 def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
                        _GPUGraph graph,
                        double tol,
@@ -114,7 +108,7 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
 
     Examples
     --------
-    # FIXME: How to call MG HITS with pylibcugraph alone without using dask?
+    # FIXME: No example yet
 
     """
 
@@ -122,7 +116,6 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
     # used for optional imports (perhaps 'import_optional()' from cugraph), or
     # these are made hard dependencies.
 
-    # FIXME: Get rid of the unused imports
     try:
         import cupy
     except ModuleNotFoundError:
@@ -167,9 +160,6 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
                 <void*>cai_initial_hubs_guess_values_ptr,
                 len(initial_hubs_guess_values),
                 get_c_type_from_numpy_type(initial_hubs_guess_values.dtype))
-
-    # FIXME: Maybe add a function to ensure that a parameter is set to a default 
-    # value because Not Implemented in utils.pyx
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
