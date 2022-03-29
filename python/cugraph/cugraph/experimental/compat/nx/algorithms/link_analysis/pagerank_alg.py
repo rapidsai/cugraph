@@ -107,9 +107,6 @@ def pagerank(
                A dictionary of nodes with the PageRank as value
 
     """
-    # Purposely leaving in this statement to demonstrate when cugraph
-    # algorith is being called.
-    print("Calling compat.nx pagerank")
     local_pers = None
     local_nstart = None
     if (personalization is not None):

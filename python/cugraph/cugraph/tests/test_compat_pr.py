@@ -72,7 +72,6 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    print("parameters are \n", request.param, flush=True)
     parameters = dict(zip(("graph_file",
                            "max_iter",
                            "tol",
@@ -99,7 +98,6 @@ def input_expected_output(input_combo):
     nnz_vtx = np.unique(M[['0', '1']])
     personalization = get_personalization(input_combo["pers_percent"],
                                           nnz_vtx)
-    print(type(Gnx))
     input_combo["nstart"] = None
     nstart = None
     if (input_combo["has_guess"] == 1):
@@ -154,7 +152,6 @@ def test_with_noparams(graph_file, which_import):
         M, source="0", target="1", edge_attr="weight",
         create_using=nx.DiGraph()
     )
-    print(type(Gnx))
     pr = nx.pagerank(Gnx)
 
     # Rounding issues show up in runs but this tests that the
