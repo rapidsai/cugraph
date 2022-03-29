@@ -20,6 +20,7 @@ import cugraph.comms.comms as Comms
 import dask_cudf
 
 import pylibcugraph
+import cudf
 
 
 def call_hits(sID,
@@ -65,6 +66,18 @@ def call_hits(sID,
     return result
 
 
+def convert_to_cudf(cp_arrays):
+    """
+    create a cudf DataFrame from cupy arrays
+    """
+    cupy_vertices, cupy_hubs, cupy_authorities = cp_arrays
+    df = cudf.DataFrame()
+    df["vertex"] = cupy_vertices
+    df["hubs"] = cupy_hubs
+    df["authorities"] = cupy_authorities
+    return df
+
+
 def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     """
     Compute HITS hubs and authorities values for each vertex
@@ -73,10 +86,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     estimates the node value based on the incoming links.  Hubs estimates
     the node value based on outgoing links.
 
-    The cuGraph implementation of HITS is a wrapper around the gunrock
-    implementation of HITS.
-
-    Note that the gunrock implementation uses a 2-norm, while networkx
+    Note that the cuGraph implementation uses a 2-norm, while networkx
     uses a 1-norm.  The raw scores will be different, but the rank ordering
     should be comparable with networkx.
 
@@ -89,8 +99,8 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
         The adjacency list will be computed if not already present.
 
     tol : float, optional (default=1.0e-5)
-        Set the tolerance the approximation, this parameter should be a small
-        magnitude value.
+        Set the tolerance of the approximation, this parameter should be a
+        small magnitude value.
 
     max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned.
@@ -100,9 +110,9 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
         value
 
         nstart['vertex'] : cudf.Series
-            Intial hubs guess vertices
+            Initial hubs guess vertices
         nstart['values'] : cudf.Series
-            Intial hubs guess values
+            Initial hubs guess values
 
     normalized : bool, optional (default=True)
         A flag to normalize the results
@@ -150,36 +160,51 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     do_expensive_check = False
     initial_hubs_guess_vertices = None
     initial_hubs_guess_values = None
-    num_edges = len(ddf)
 
-    data = get_distributed_data(ddf)
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+
+    # FIXME Move this call to the function creating a directed
+    # graph from a dask dataframe because duplicated edges need
+    # to be dropped
+    ddf = ddf.map_partitions(
+        lambda df: df.drop_duplicates(subset=[src_col_name, dst_col_name]))
+
+    num_edges = len(ddf)
+    data = get_distributed_data(ddf)
 
     if nstart is not None:
         initial_hubs_guess_vertices = nstart['vertex']
         initial_hubs_guess_values = nstart['values']
 
-    result = [client.submit(call_hits,
-                            Comms.get_session_id(),
-                            wf[1],
-                            src_col_name,
-                            dst_col_name,
-                            graph_properties,
-                            store_transposed,
-                            num_edges,
-                            do_expensive_check,
-                            tol,
-                            max_iter,
-                            initial_hubs_guess_vertices,
-                            initial_hubs_guess_values,
-                            normalized,
-                            workers=[wf[0]])
-              for idx, wf in enumerate(data.worker_to_parts.items())]
+    cupy_result = [client.submit(call_hits,
+                                 Comms.get_session_id(),
+                                 wf[1],
+                                 src_col_name,
+                                 dst_col_name,
+                                 graph_properties,
+                                 store_transposed,
+                                 num_edges,
+                                 do_expensive_check,
+                                 tol,
+                                 max_iter,
+                                 initial_hubs_guess_vertices,
+                                 initial_hubs_guess_values,
+                                 normalized,
+                                 workers=[wf[0]])
+                   for idx, wf in enumerate(data.worker_to_parts.items())]
 
-    wait(result)
+    wait(cupy_result)
 
-    ddf = dask_cudf.from_delayed(result)
+    cudf_result = [client.submit(convert_to_cudf,
+                                 cp_arrays,
+                                 workers=client.who_has(
+                                     cp_arrays)[cp_arrays.key])
+                   for cp_arrays in cupy_result]
+
+    wait(cudf_result)
+
+    ddf = dask_cudf.from_delayed(cudf_result)
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, 'vertex')
 
