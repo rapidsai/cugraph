@@ -90,9 +90,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     estimates the node value based on the incoming links.  Hubs estimates
     the node value based on outgoing links.
 
-    Note that the cuGraph implementation uses a 2-norm, while networkx
-    uses a 1-norm.  The raw scores will be different, but the rank ordering
-    should be comparable with networkx.
+    Both cuGraph and networkx implementation uses a 1-norm.
 
     Parameters
     ----------
