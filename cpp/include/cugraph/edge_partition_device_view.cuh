@@ -33,9 +33,9 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-class matrix_partition_device_view_base_t {
+class edge_partition_device_view_base_t {
  public:
-  matrix_partition_device_view_base_t(edge_t const* offsets,
+  edge_partition_device_view_base_t(edge_t const* offsets,
                                       vertex_t const* indices,
                                       std::optional<weight_t const*> weights,
                                       edge_t number_of_edges)
@@ -91,20 +91,20 @@ template <typename vertex_t,
           typename weight_t,
           bool multi_gpu,
           typename Enable = void>
-class matrix_partition_device_view_t;
+class edge_partition_device_view_t;
 
 // multi-GPU version
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-class matrix_partition_device_view_t<vertex_t,
+class edge_partition_device_view_t<vertex_t,
                                      edge_t,
                                      weight_t,
                                      multi_gpu,
                                      std::enable_if_t<multi_gpu>>
-  : public detail::matrix_partition_device_view_base_t<vertex_t, edge_t, weight_t> {
+  : public detail::edge_partition_device_view_base_t<vertex_t, edge_t, weight_t> {
  public:
-  matrix_partition_device_view_t(
-    matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu> view)
-    : detail::matrix_partition_device_view_base_t<vertex_t, edge_t, weight_t>(
+  edge_partition_device_view_t(
+    edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu> view)
+    : detail::edge_partition_device_view_base_t<vertex_t, edge_t, weight_t>(
         view.get_offsets(), view.get_indices(), view.get_weights(), view.number_of_edges()),
       dcs_nzd_vertices_(view.get_dcs_nzd_vertices()
                           ? thrust::optional<vertex_t const*>{*(view.get_dcs_nzd_vertices())}
@@ -218,16 +218,16 @@ class matrix_partition_device_view_t<vertex_t,
 
 // single-GPU version
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-class matrix_partition_device_view_t<vertex_t,
+class edge_partition_device_view_t<vertex_t,
                                      edge_t,
                                      weight_t,
                                      multi_gpu,
                                      std::enable_if_t<!multi_gpu>>
-  : public detail::matrix_partition_device_view_base_t<vertex_t, edge_t, weight_t> {
+  : public detail::edge_partition_device_view_base_t<vertex_t, edge_t, weight_t> {
  public:
-  matrix_partition_device_view_t(
-    matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu> view)
-    : detail::matrix_partition_device_view_base_t<vertex_t, edge_t, weight_t>(
+  edge_partition_device_view_t(
+    edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu> view)
+    : detail::edge_partition_device_view_base_t<vertex_t, edge_t, weight_t>(
         view.get_offsets(), view.get_indices(), view.get_weights(), view.number_of_edges()),
       number_of_vertices_(view.get_major_last())
   {

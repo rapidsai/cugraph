@@ -129,9 +129,9 @@ template <typename vertex_t,
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   raft::handle_t const& handle,
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
+  edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const edge_partition,
   vertex_t const* major_label_first,
   AdjMatrixMinorLabelInputWrapper const minor_label_input,
   std::optional<std::vector<vertex_t>> const& segment_offsets,
@@ -142,16 +142,16 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
   // compressed sparse format to save memory
 
-  rmm::device_uvector<vertex_t> edgelist_majors(matrix_partition.number_of_edges(),
+  rmm::device_uvector<vertex_t> edgelist_majors(edge_partition.number_of_edges(),
                                                 handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-  auto edgelist_weights = matrix_partition.get_weights()
+  auto edgelist_weights = edge_partition.get_weights()
                             ? std::make_optional<rmm::device_uvector<weight_t>>(
                                 edgelist_majors.size(), handle.get_stream())
                             : std::nullopt;
-  detail::decompress_matrix_partition_to_edgelist(
+  detail::decompress_edge_partition_to_edgelist(
     handle,
-    matrix_partition,
+    edge_partition,
     edgelist_majors.data(),
     edgelist_minors.data(),
     edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
@@ -165,8 +165,8 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                     pair_first,
                     [major_label_first,
                      minor_label_input,
-                     major_first = matrix_partition.get_major_first(),
-                     minor_first = matrix_partition.get_minor_first()] __device__(auto val) {
+                     major_first = edge_partition.get_major_first(),
+                     minor_first = edge_partition.get_minor_first()] __device__(auto val) {
                       return thrust::make_tuple(
                         *(major_label_first + (thrust::get<0>(val) - major_first)),
                         minor_label_input.get(thrust::get<1>(val) - minor_first));
@@ -291,9 +291,9 @@ coarsen_graph(
                  handle.get_stream());
 
     auto [edgelist_majors, edgelist_minors, edgelist_weights] =
-      decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+      decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
         handle,
-        matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+        edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
           graph_view.local_edge_partition_view(i)),
         major_labels.data(),
         adj_matrix_minor_labels.device_view(),
@@ -517,9 +517,9 @@ coarsen_graph(
   bool lower_triangular_only = graph_view.is_symmetric();
 
   auto [coarsened_edgelist_majors, coarsened_edgelist_minors, coarsened_edgelist_weights] =
-    decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+    decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
       handle,
-      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
         graph_view.local_edge_partition_view()),
       labels,
       detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(labels),

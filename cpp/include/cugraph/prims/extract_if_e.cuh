@@ -41,11 +41,11 @@ template <typename GraphViewType,
           typename EdgePartitionDstValueInputWrapper,
           typename EdgeOp>
 struct call_e_op_t {
-  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+  edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                  typename GraphViewType::edge_type,
                                  typename GraphViewType::weight_type,
                                  GraphViewType::is_multi_gpu>
-    matrix_partition{};
+    edge_partition{};
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input{};
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input{};
   EdgeOp e_op{};
@@ -62,8 +62,8 @@ struct call_e_op_t {
     auto minor = thrust::get<1>(e);
     weight_t weight{1.0};
     if constexpr (thrust::tuple_size<Edge>::value == 3) { weight = thrust::get<2>(e); }
-    auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
-    auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
+    auto major_offset = edge_partition.get_major_offset_from_major_nocheck(major);
+    auto minor_offset = edge_partition.get_minor_offset_from_minor_nocheck(minor);
     auto src          = GraphViewType::is_adj_matrix_transposed ? minor : major;
     auto dst          = GraphViewType::is_adj_matrix_transposed ? major : minor;
     auto src_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
@@ -153,21 +153,21 @@ extract_if_e(raft::handle_t const& handle,
 
   size_t cur_size{0};
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    auto matrix_partition =
-      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+    auto edge_partition =
+      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
-    auto matrix_partition_src_value_input = edge_partition_src_value_input;
-    auto matrix_partition_dst_value_input = edge_partition_dst_value_input;
+    auto edge_partition_src_value_input_copy = edge_partition_src_value_input;
+    auto edge_partition_dst_value_input_copy = edge_partition_dst_value_input;
     if constexpr (GraphViewType::is_adj_matrix_transposed) {
-      matrix_partition_dst_value_input.set_local_adj_matrix_partition_idx(i);
+      edge_partition_dst_value_input_copy.set_local_edge_partition_idx(i);
     } else {
-      matrix_partition_src_value_input.set_local_adj_matrix_partition_idx(i);
+      edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
     }
 
-    detail::decompress_matrix_partition_to_edgelist(
+    detail::decompress_edge_partition_to_edgelist(
       handle,
-      matrix_partition,
+      edge_partition,
       edgelist_majors.data() + cur_size,
       edgelist_minors.data() + cur_size,
       edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data() + cur_size}
@@ -184,9 +184,9 @@ extract_if_e(raft::handle_t const& handle,
                           detail::call_e_op_t<GraphViewType,
                                               EdgePartitionSrcValueInputWrapper,
                                               EdgePartitionDstValueInputWrapper,
-                                              EdgeOp>{matrix_partition,
-                                                      matrix_partition_src_value_input,
-                                                      matrix_partition_dst_value_input,
+                                              EdgeOp>{edge_partition,
+                                                      edge_partition_src_value_input_copy,
+                                                      edge_partition_dst_value_input_copy,
                                                       e_op})));
     } else {
       auto edge_first = thrust::make_zip_iterator(
@@ -199,9 +199,9 @@ extract_if_e(raft::handle_t const& handle,
                           detail::call_e_op_t<GraphViewType,
                                               EdgePartitionSrcValueInputWrapper,
                                               EdgePartitionDstValueInputWrapper,
-                                              EdgeOp>{matrix_partition,
-                                                      edge_partition_src_value_input,
-                                                      edge_partition_dst_value_input,
+                                              EdgeOp>{edge_partition,
+                                                      edge_partition_src_value_input_copy,
+                                                      edge_partition_dst_value_input_copy,
                                                       e_op})));
     }
   }

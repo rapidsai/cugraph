@@ -168,8 +168,8 @@ void update_edge_partition_major_property(
                          : graph_view.local_sorted_unique_edge_src_offsets();
 
     for (int i = 0; i < col_comm_size; ++i) {
-      auto matrix_partition =
-        matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      auto edge_partition =
+        edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
           graph_view.local_edge_partition_view(i));
 
       if (i == col_comm_rank) {
@@ -216,8 +216,8 @@ void update_edge_partition_major_property(
           });
       } else {
         auto map_first = thrust::make_transform_iterator(
-          rx_vertices.begin(), [matrix_partition] __device__(auto v) {
-            return matrix_partition.get_major_offset_from_major_nocheck(v);
+          rx_vertices.begin(), [edge_partition] __device__(auto v) {
+            return edge_partition.get_major_offset_from_major_nocheck(v);
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
@@ -226,7 +226,7 @@ void update_edge_partition_major_property(
                         rx_value_first + rx_counts[i],
                         map_first,
                         edge_partition_major_property_output.value_data() +
-                          matrix_partition.get_major_value_start_offset());
+                          edge_partition.get_major_value_start_offset());
       }
     }
   } else {
@@ -366,8 +366,8 @@ void update_edge_partition_minor_property(
                          ? graph_view.local_sorted_unique_edge_src_offsets()
                          : graph_view.local_sorted_unique_edge_dst_offsets();
 
-    auto matrix_partition =
-      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+    auto edge_partition =
+      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(size_t{0}));
     for (int i = 0; i < row_comm_size; ++i) {
       if (i == row_comm_rank) {
@@ -414,8 +414,8 @@ void update_edge_partition_minor_property(
           });
       } else {
         auto map_first = thrust::make_transform_iterator(
-          rx_vertices.begin(), [matrix_partition] __device__(auto v) {
-            return matrix_partition.get_minor_offset_from_minor_nocheck(v);
+          rx_vertices.begin(), [edge_partition] __device__(auto v) {
+            return edge_partition.get_minor_offset_from_minor_nocheck(v);
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)

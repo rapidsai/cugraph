@@ -42,10 +42,10 @@ template <bool edge_partition_src_key,
           typename EdgeOp,
           typename T>
 __device__ void update_buffer_element(
-  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+  edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                  typename GraphViewType::edge_type,
                                  typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu>& matrix_partition,
+                                 GraphViewType::is_multi_gpu>& edge_partition,
   typename GraphViewType::vertex_type major,
   typename GraphViewType::vertex_type minor,
   typename GraphViewType::weight_type weight,
@@ -58,8 +58,8 @@ __device__ void update_buffer_element(
 {
   using vertex_t = typename GraphViewType::vertex_type;
 
-  auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
-  auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
+  auto major_offset = edge_partition.get_major_offset_from_major_nocheck(major);
+  auto minor_offset = edge_partition.get_minor_offset_from_minor_nocheck(minor);
   auto src          = GraphViewType::is_adj_matrix_transposed ? minor : major;
   auto dst          = GraphViewType::is_adj_matrix_transposed ? major : minor;
   auto src_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
@@ -89,10 +89,10 @@ template <bool edge_partition_src_key,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_hypersparse(
-  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+  edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                  typename GraphViewType::edge_type,
                                  typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> matrix_partition,
+                                 GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_hypersparse_first,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
@@ -107,25 +107,25 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   auto major_start_offset =
-    static_cast<size_t>(major_hypersparse_first - matrix_partition.get_major_first());
+    static_cast<size_t>(major_hypersparse_first - edge_partition.get_major_first());
   auto idx = static_cast<size_t>(tid);
 
-  auto dcs_nzd_vertex_count = *(matrix_partition.get_dcs_nzd_vertex_count());
+  auto dcs_nzd_vertex_count = *(edge_partition.get_dcs_nzd_vertex_count());
 
   while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
     auto major =
-      *(matrix_partition.get_major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
+      *(edge_partition.get_major_from_major_hypersparse_idx_nocheck(static_cast<vertex_t>(idx)));
     auto major_idx =
       major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
     vertex_t const* indices{nullptr};
     thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
-      matrix_partition.get_local_edges(static_cast<vertex_t>(major_idx));
-    auto local_offset = matrix_partition.get_local_offset(major_idx);
+      edge_partition.get_local_edges(static_cast<vertex_t>(major_idx));
+    auto local_offset = edge_partition.get_local_offset(major_idx);
     for (edge_t i = 0; i < local_degree; ++i) {
       update_buffer_element<edge_partition_src_key, GraphViewType>(
-        matrix_partition,
+        edge_partition,
         major,
         indices[i],
         weights ? (*weights)[i] : weight_t{1.0},
@@ -149,10 +149,10 @@ template <bool edge_partition_src_key,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_low_degree(
-  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+  edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                  typename GraphViewType::edge_type,
                                  typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> matrix_partition,
+                                 GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -167,22 +167,22 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   using weight_t = typename GraphViewType::weight_type;
 
   auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
-  auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
+  auto major_start_offset = static_cast<size_t>(major_first - edge_partition.get_major_first());
   auto idx                = static_cast<size_t>(tid);
 
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     auto major =
-      matrix_partition.get_major_from_major_offset_nocheck(static_cast<vertex_t>(major_offset));
+      edge_partition.get_major_from_major_offset_nocheck(static_cast<vertex_t>(major_offset));
     vertex_t const* indices{nullptr};
     thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
-      matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
-    auto local_offset = matrix_partition.get_local_offset(major_offset);
+      edge_partition.get_local_edges(static_cast<vertex_t>(major_offset));
+    auto local_offset = edge_partition.get_local_offset(major_offset);
     for (edge_t i = 0; i < local_degree; ++i) {
       update_buffer_element<edge_partition_src_key, GraphViewType>(
-        matrix_partition,
+        edge_partition,
         major,
         indices[i],
         weights ? (*weights)[i] : weight_t{1.0},
@@ -206,10 +206,10 @@ template <bool edge_partition_src_key,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_mid_degree(
-  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+  edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                  typename GraphViewType::edge_type,
                                  typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> matrix_partition,
+                                 GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -226,22 +226,22 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(transform_reduce_by_src_dst_key_e_for_all_block_size % raft::warp_size() == 0);
   auto const lane_id      = tid % raft::warp_size();
-  auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
+  auto major_start_offset = static_cast<size_t>(major_first - edge_partition.get_major_first());
   size_t idx              = static_cast<size_t>(tid / raft::warp_size());
 
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     auto major =
-      matrix_partition.get_major_from_major_offset_nocheck(static_cast<vertex_t>(major_offset));
+      edge_partition.get_major_from_major_offset_nocheck(static_cast<vertex_t>(major_offset));
     vertex_t const* indices{nullptr};
     thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
-      matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
-    auto local_offset = matrix_partition.get_local_offset(major_offset);
+      edge_partition.get_local_edges(static_cast<vertex_t>(major_offset));
+    auto local_offset = edge_partition.get_local_offset(major_offset);
     for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
       update_buffer_element<edge_partition_src_key, GraphViewType>(
-        matrix_partition,
+        edge_partition,
         major,
         indices[i],
         weights ? (*weights)[i] : weight_t{1.0},
@@ -265,10 +265,10 @@ template <bool edge_partition_src_key,
           typename EdgeOp,
           typename T>
 __global__ void for_all_major_for_all_nbr_high_degree(
-  matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+  edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                  typename GraphViewType::edge_type,
                                  typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> matrix_partition,
+                                 GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_first,
   typename GraphViewType::vertex_type major_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -282,22 +282,22 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
+  auto major_start_offset = static_cast<size_t>(major_first - edge_partition.get_major_first());
   auto idx                = static_cast<size_t>(blockIdx.x);
 
   while (idx < static_cast<size_t>(major_last - major_first)) {
     auto major_offset = major_start_offset + idx;
     auto major =
-      matrix_partition.get_major_from_major_offset_nocheck(static_cast<vertex_t>(major_offset));
+      edge_partition.get_major_from_major_offset_nocheck(static_cast<vertex_t>(major_offset));
     vertex_t const* indices{nullptr};
     thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
-      matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
-    auto local_offset = matrix_partition.get_local_offset(major_offset);
+      edge_partition.get_local_edges(static_cast<vertex_t>(major_offset));
+    auto local_offset = edge_partition.get_local_offset(major_offset);
     for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
       update_buffer_element<edge_partition_src_key, GraphViewType>(
-        matrix_partition,
+        edge_partition,
         major,
         indices[i],
         weights ? (*weights)[i] : weight_t{1.0},
@@ -369,8 +369,8 @@ transform_reduce_by_src_dst_key_e(
   rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
   auto value_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-    auto matrix_partition =
-      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+    auto edge_partition =
+      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
     int comm_root_rank = 0;
@@ -383,23 +383,23 @@ transform_reduce_by_src_dst_key_e(
       comm_root_rank           = i * row_comm_size + row_comm_rank;
     }
 
-    auto num_edges = matrix_partition.number_of_edges();
+    auto num_edges = edge_partition.number_of_edges();
 
     rmm::device_uvector<vertex_t> tmp_keys(num_edges, handle.get_stream());
     auto tmp_value_buffer = allocate_dataframe_buffer<T>(tmp_keys.size(), handle.get_stream());
 
     if (graph_view.vertex_partition_range_size(comm_root_rank) > 0) {
-      auto matrix_partition_src_value_input = edge_partition_src_value_input;
-      auto matrix_partition_dst_value_input = edge_partition_dst_value_input;
+      auto edge_partition_src_value_input_copy = edge_partition_src_value_input;
+      auto edge_partition_dst_value_input_copy = edge_partition_dst_value_input;
       if constexpr (GraphViewType::is_adj_matrix_transposed) {
-        matrix_partition_dst_value_input.set_local_adj_matrix_partition_idx(i);
+        edge_partition_dst_value_input_copy.set_local_edge_partition_idx(i);
       } else {
-        matrix_partition_src_value_input.set_local_adj_matrix_partition_idx(i);
+        edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
       }
-      auto matrix_partition_src_dst_key_input = edge_partition_src_dst_key_input;
+      auto edge_partition_src_dst_key_input_copy = edge_partition_src_dst_key_input;
       if constexpr ((edge_partition_src_key && !GraphViewType::is_adj_matrix_transposed) ||
                     (!edge_partition_src_key && GraphViewType::is_adj_matrix_transposed)) {
-        matrix_partition_src_dst_key_input.set_local_adj_matrix_partition_idx(i);
+        edge_partition_src_dst_key_input_copy.set_local_edge_partition_idx(i);
       }
 
       auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
@@ -415,12 +415,12 @@ transform_reduce_by_src_dst_key_e(
             handle.get_device_properties().maxGridSize[0]);
           detail::for_all_major_for_all_nbr_high_degree<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-              matrix_partition,
-              matrix_partition.get_major_first(),
-              matrix_partition.get_major_first() + (*segment_offsets)[1],
-              matrix_partition_src_value_input,
-              matrix_partition_dst_value_input,
-              matrix_partition_src_dst_key_input,
+              edge_partition,
+              edge_partition.get_major_first(),
+              edge_partition.get_major_first() + (*segment_offsets)[1],
+              edge_partition_src_value_input_copy,
+              edge_partition_dst_value_input_copy,
+              edge_partition_src_dst_key_input_copy,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin(tmp_value_buffer));
@@ -432,12 +432,12 @@ transform_reduce_by_src_dst_key_e(
             handle.get_device_properties().maxGridSize[0]);
           detail::for_all_major_for_all_nbr_mid_degree<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-              matrix_partition,
-              matrix_partition.get_major_first() + (*segment_offsets)[1],
-              matrix_partition.get_major_first() + (*segment_offsets)[2],
-              matrix_partition_src_value_input,
-              matrix_partition_dst_value_input,
-              matrix_partition_src_dst_key_input,
+              edge_partition,
+              edge_partition.get_major_first() + (*segment_offsets)[1],
+              edge_partition.get_major_first() + (*segment_offsets)[2],
+              edge_partition_src_value_input_copy,
+              edge_partition_dst_value_input_copy,
+              edge_partition_src_dst_key_input_copy,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin(tmp_value_buffer));
@@ -449,47 +449,47 @@ transform_reduce_by_src_dst_key_e(
             handle.get_device_properties().maxGridSize[0]);
           detail::for_all_major_for_all_nbr_low_degree<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-              matrix_partition,
-              matrix_partition.get_major_first() + (*segment_offsets)[2],
-              matrix_partition.get_major_first() + (*segment_offsets)[3],
-              matrix_partition_src_value_input,
-              matrix_partition_dst_value_input,
-              matrix_partition_src_dst_key_input,
+              edge_partition,
+              edge_partition.get_major_first() + (*segment_offsets)[2],
+              edge_partition.get_major_first() + (*segment_offsets)[3],
+              edge_partition_src_value_input_copy,
+              edge_partition_dst_value_input_copy,
+              edge_partition_src_dst_key_input_copy,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin(tmp_value_buffer));
         }
-        if (matrix_partition.get_dcs_nzd_vertex_count() &&
-            (*(matrix_partition.get_dcs_nzd_vertex_count()) > 0)) {
+        if (edge_partition.get_dcs_nzd_vertex_count() &&
+            (*(edge_partition.get_dcs_nzd_vertex_count()) > 0)) {
           raft::grid_1d_thread_t update_grid(
-            *(matrix_partition.get_dcs_nzd_vertex_count()),
+            *(edge_partition.get_dcs_nzd_vertex_count()),
             detail::transform_reduce_by_src_dst_key_e_for_all_block_size,
             handle.get_device_properties().maxGridSize[0]);
           detail::for_all_major_for_all_nbr_hypersparse<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-              matrix_partition,
-              matrix_partition.get_major_first() + (*segment_offsets)[3],
-              matrix_partition_src_value_input,
-              matrix_partition_dst_value_input,
-              matrix_partition_src_dst_key_input,
+              edge_partition,
+              edge_partition.get_major_first() + (*segment_offsets)[3],
+              edge_partition_src_value_input_copy,
+              edge_partition_dst_value_input_copy,
+              edge_partition_src_dst_key_input_copy,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin(tmp_value_buffer));
         }
       } else {
         raft::grid_1d_thread_t update_grid(
-          matrix_partition.get_major_size(),
+          edge_partition.get_major_size(),
           detail::transform_reduce_by_src_dst_key_e_for_all_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
         detail::for_all_major_for_all_nbr_low_degree<edge_partition_src_key, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-            matrix_partition,
-            matrix_partition.get_major_first(),
-            matrix_partition.get_major_last(),
-            matrix_partition_src_value_input,
-            matrix_partition_dst_value_input,
-            matrix_partition_src_dst_key_input,
+            edge_partition,
+            edge_partition.get_major_first(),
+            edge_partition.get_major_last(),
+            edge_partition_src_value_input_copy,
+            edge_partition_dst_value_input_copy,
+            edge_partition_src_dst_key_input_copy,
             e_op,
             tmp_keys.data(),
             get_dataframe_buffer_begin(tmp_value_buffer));

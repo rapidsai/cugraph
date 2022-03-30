@@ -162,7 +162,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_major_global_d
  * are dealt with by the previous partitions.
  */
 template <typename GraphViewType>
-std::tuple<rmm::device_uvector<matrix_partition_device_view_t<typename GraphViewType::vertex_type,
+std::tuple<rmm::device_uvector<edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                                               typename GraphViewType::edge_type,
                                                               typename GraphViewType::weight_type,
                                                               GraphViewType::is_multi_gpu>>,

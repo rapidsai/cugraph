@@ -23,9 +23,9 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-class matrix_partition_view_base_t {
+class edge_partition_view_base_t {
  public:
-  matrix_partition_view_base_t(edge_t const* offsets,
+  edge_partition_view_base_t(edge_t const* offsets,
                                vertex_t const* indices,
                                std::optional<weight_t const*> weights,
                                edge_t number_of_edges)
@@ -53,26 +53,26 @@ template <typename vertex_t,
           typename weight_t,
           bool multi_gpu,
           typename Enable = void>
-class matrix_partition_view_t;
+class edge_partition_view_t;
 
 // multi-GPU version
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-class matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>
-  : public detail::matrix_partition_view_base_t<vertex_t, edge_t, weight_t> {
+class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>
+  : public detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t> {
  public:
-  matrix_partition_view_t(edge_t const* offsets,
+  edge_partition_view_t(edge_t const* offsets,
                           vertex_t const* indices,
                           std::optional<weight_t const*> weights,
                           std::optional<vertex_t const*> dcs_nzd_vertices,
                           std::optional<vertex_t> dcs_nzd_vertex_count,
-                          edge_t number_of_matrix_partition_edges,
+                          edge_t number_of_edge_partition_edges,
                           vertex_t major_first,
                           vertex_t major_last,
                           vertex_t minor_first,
                           vertex_t minor_last,
                           vertex_t major_value_start_offset)
-    : detail::matrix_partition_view_base_t<vertex_t, edge_t, weight_t>(
-        offsets, indices, weights, number_of_matrix_partition_edges),
+    : detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t>(
+        offsets, indices, weights, number_of_edge_partition_edges),
       dcs_nzd_vertices_(dcs_nzd_vertices),
       dcs_nzd_vertex_count_(dcs_nzd_vertex_count),
       major_first_(major_first),
@@ -108,15 +108,15 @@ class matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable
 
 // single-GPU version
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-class matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<!multi_gpu>>
-  : public detail::matrix_partition_view_base_t<vertex_t, edge_t, weight_t> {
+class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<!multi_gpu>>
+  : public detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t> {
  public:
-  matrix_partition_view_t(edge_t const* offsets,
+  edge_partition_view_t(edge_t const* offsets,
                           vertex_t const* indices,
                           std::optional<weight_t const*> weights,
                           vertex_t number_of_vertices,
                           edge_t number_of_edges)
-    : detail::matrix_partition_view_base_t<vertex_t, edge_t, weight_t>(
+    : detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t>(
         offsets, indices, weights, number_of_edges),
       number_of_vertices_(number_of_vertices)
   {

@@ -447,8 +447,8 @@ sg_gather_edges(raft::handle_t const& handle,
   auto edge_count   = source_count * indices_per_source;
   rmm::device_uvector<vertex_t> sources(edge_count, handle.get_stream());
   rmm::device_uvector<vertex_t> destinations(edge_count, handle.get_stream());
-  auto matrix_partition =
-    cugraph::matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+  auto edge_partition =
+    cugraph::edge_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
       graph_view.local_edge_partition_view());
   thrust::for_each(handle.get_thrust_policy(),
                    thrust::make_counting_iterator<size_t>(0),
@@ -458,8 +458,8 @@ sg_gather_edges(raft::handle_t const& handle,
                     edge_index_first,
                     sources      = sources.data(),
                     destinations = destinations.data(),
-                    offsets      = matrix_partition.get_offsets(),
-                    indices      = matrix_partition.get_indices(),
+                    offsets      = edge_partition.get_offsets(),
+                    indices      = edge_partition.get_indices(),
                     invalid_vertex_id] __device__(auto index) {
                      auto source        = vertex_input_first[index / indices_per_source];
                      sources[index]     = source;
@@ -501,8 +501,8 @@ sg_gather_edges(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto matrix_partition =
-    cugraph::matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+  auto edge_partition =
+    cugraph::edge_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
       graph_view.local_edge_partition_view());
 
   rmm::device_uvector<vertex_t> sources_out_degrees(sources.size(), handle.get_stream());
@@ -510,7 +510,7 @@ sg_gather_edges(raft::handle_t const& handle,
                     sources.cbegin(),
                     sources.cend(),
                     sources_out_degrees.begin(),
-                    [offsets = matrix_partition.get_offsets()] __device__(auto s) {
+                    [offsets = edge_partition.get_offsets()] __device__(auto s) {
                       return offsets[s + 1] - offsets[s];
                     });
   auto [sources_out_offsets, segmented_source_indices, segmented_sequence] =
@@ -524,7 +524,7 @@ sg_gather_edges(raft::handle_t const& handle,
   thrust::for_each(handle.get_thrust_policy(),
                    thrust::make_counting_iterator<size_t>(0),
                    thrust::make_counting_iterator<size_t>(edge_count),
-                   [partition                = matrix_partition,
+                   [partition                = edge_partition,
                     srcs                     = srcs.data(),
                     dsts                     = dsts.data(),
                     src_prop                 = src_prop.data(),

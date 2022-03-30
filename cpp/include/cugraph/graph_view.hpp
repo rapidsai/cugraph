@@ -531,10 +531,10 @@ class graph_view_t<vertex_t,
                                                    this->local_vertex_partition_range_last());
   }
 
-  matrix_partition_view_t<vertex_t, edge_t, weight_t, true> local_edge_partition_view(
+  edge_partition_view_t<vertex_t, edge_t, weight_t, true> local_edge_partition_view(
     size_t partition_idx) const
   {
-    return matrix_partition_view_t<vertex_t, edge_t, weight_t, true>(
+    return edge_partition_view_t<vertex_t, edge_t, weight_t, true>(
       edge_partition_offsets_[partition_idx],
       edge_partition_indices_[partition_idx],
       edge_partition_weights_
@@ -784,11 +784,11 @@ class graph_view_t<vertex_t,
     return vertex_partition_view_t<vertex_t, false>(this->number_of_vertices());
   }
 
-  matrix_partition_view_t<vertex_t, edge_t, weight_t, false> local_edge_partition_view(
+  edge_partition_view_t<vertex_t, edge_t, weight_t, false> local_edge_partition_view(
     size_t partition_idx = 0) const
   {
     assert(partition_idx == 0);  // there is only one edge partition in single-GPU
-    return matrix_partition_view_t<vertex_t, edge_t, weight_t, false>(
+    return edge_partition_view_t<vertex_t, edge_t, weight_t, false>(
       offsets_, indices_, weights_, this->number_of_vertices(), this->number_of_edges());
   }
 
