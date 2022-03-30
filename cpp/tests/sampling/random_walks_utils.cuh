@@ -99,9 +99,9 @@ bool host_check_rw_paths(
   vertex_t num_vertices = graph_view.number_of_vertices();
   edge_t num_edges      = graph_view.number_of_edges();
 
-  auto offsets = graph_view.local_edge_partition_view().get_offsets();
-  auto indices = graph_view.local_edge_partition_view().get_indices();
-  auto values  = graph_view.local_edge_partition_view().get_weights();
+  auto offsets = graph_view.local_edge_partition_view().offsets();
+  auto indices = graph_view.local_edge_partition_view().indices();
+  auto values  = graph_view.local_edge_partition_view().weights();
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);

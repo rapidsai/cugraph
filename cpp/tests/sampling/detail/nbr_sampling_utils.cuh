@@ -458,8 +458,8 @@ sg_gather_edges(raft::handle_t const& handle,
                     edge_index_first,
                     sources      = sources.data(),
                     destinations = destinations.data(),
-                    offsets      = edge_partition.get_offsets(),
-                    indices      = edge_partition.get_indices(),
+                    offsets      = edge_partition.offsets(),
+                    indices      = edge_partition.indices(),
                     invalid_vertex_id] __device__(auto index) {
                      auto source        = vertex_input_first[index / indices_per_source];
                      sources[index]     = source;
@@ -510,7 +510,7 @@ sg_gather_edges(raft::handle_t const& handle,
                     sources.cbegin(),
                     sources.cend(),
                     sources_out_degrees.begin(),
-                    [offsets = edge_partition.get_offsets()] __device__(auto s) {
+                    [offsets = edge_partition.offsets()] __device__(auto s) {
                       return offsets[s + 1] - offsets[s];
                     });
   auto [sources_out_offsets, segmented_source_indices, segmented_sequence] =
@@ -535,8 +535,8 @@ sg_gather_edges(raft::handle_t const& handle,
                     segmented_sequence       = segmented_sequence.data()] __device__(auto index) {
                      auto src_index  = segmented_source_indices[index];
                      auto src        = sources[src_index];
-                     auto offsets    = partition.get_offsets();
-                     auto indices    = partition.get_indices();
+                     auto offsets    = partition.offsets();
+                     auto indices    = partition.indices();
                      auto dst        = indices[offsets[src] + segmented_sequence[index]];
                      srcs[index]     = src;
                      dsts[index]     = dst;

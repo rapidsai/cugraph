@@ -150,9 +150,9 @@ extract_induced_subgraphs(
         thrust::optional<weight_t const*> weights{thrust::nullopt};
         edge_t local_degree{};
         auto major_offset =
-          edge_partition.get_major_offset_from_major_nocheck(subgraph_vertices[i]);
+          edge_partition.major_offset_from_major_nocheck(subgraph_vertices[i]);
         thrust::tie(indices, weights, local_degree) =
-          edge_partition.get_local_edges(major_offset);
+          edge_partition.local_edges(major_offset);
         // FIXME: this is inefficient for high local degree vertices
         return thrust::count_if(
           thrust::seq,
@@ -208,9 +208,9 @@ extract_induced_subgraphs(
         thrust::optional<weight_t const*> weights{thrust::nullopt};
         edge_t local_degree{};
         auto major_offset =
-          edge_partition.get_major_offset_from_major_nocheck(subgraph_vertices[i]);
+          edge_partition.major_offset_from_major_nocheck(subgraph_vertices[i]);
         thrust::tie(indices, weights, local_degree) =
-          edge_partition.get_local_edges(major_offset);
+          edge_partition.local_edges(major_offset);
         if (weights) {
           auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
             thrust::make_constant_iterator(subgraph_vertices[i]), indices, *weights));

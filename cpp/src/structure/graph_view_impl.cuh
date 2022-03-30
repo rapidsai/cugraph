@@ -68,14 +68,14 @@ std::vector<edge_t> update_edge_partition_edge_counts(
                                                        0);
   auto use_dcs = edge_partition_dcs_nzd_vertex_counts.has_value();
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
-    auto [major_first, major_last] = partition.local_edge_partition_major_range(i);
+    auto [major_range_first, major_range_last] = partition.local_edge_partition_major_range(i);
     raft::update_host(&(edge_partition_edge_counts[i]),
                       edge_partition_offsets[i] +
                         (use_dcs ? ((*edge_partition_segment_offsets)
                                       [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
                                        detail::num_sparse_segments_per_vertex_partition] +
                                     (*edge_partition_dcs_nzd_vertex_counts)[i])
-                                 : (major_last - major_first)),
+                                 : (major_range_last - major_range_first)),
                       1,
                       stream);
   }
@@ -116,45 +116,45 @@ rmm::device_uvector<edge_t> compute_major_degrees(
   local_degrees.resize(max_num_local_degrees, handle.get_stream());
   for (int i = 0; i < col_comm_size; ++i) {
     auto vertex_partition_idx = static_cast<size_t>(i * row_comm_size + row_comm_rank);
-    vertex_t major_first{};
-    vertex_t major_last{};
-    std::tie(major_first, major_last) = partition.vertex_partition_range(vertex_partition_idx);
+    vertex_t major_range_first{};
+    vertex_t major_range_last{};
+    std::tie(major_range_first, major_range_last) = partition.vertex_partition_range(vertex_partition_idx);
     auto p_offsets                    = edge_partition_offsets[i];
     auto major_hypersparse_first =
-      use_dcs ? major_first + (*edge_partition_segment_offsets)
+      use_dcs ? major_range_first + (*edge_partition_segment_offsets)
                                 [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
                                  detail::num_sparse_segments_per_vertex_partition]
-              : major_last;
+              : major_range_last;
     auto execution_policy = handle.get_thrust_policy();
     thrust::transform(execution_policy,
                       thrust::make_counting_iterator(vertex_t{0}),
-                      thrust::make_counting_iterator(major_hypersparse_first - major_first),
+                      thrust::make_counting_iterator(major_hypersparse_first - major_range_first),
                       local_degrees.begin(),
                       [p_offsets] __device__(auto i) { return p_offsets[i + 1] - p_offsets[i]; });
     if (use_dcs) {
       auto p_dcs_nzd_vertices   = (*edge_partition_dcs_nzd_vertices)[i];
       auto dcs_nzd_vertex_count = (*edge_partition_dcs_nzd_vertex_counts)[i];
       thrust::fill(execution_policy,
-                   local_degrees.begin() + (major_hypersparse_first - major_first),
-                   local_degrees.begin() + (major_last - major_first),
+                   local_degrees.begin() + (major_hypersparse_first - major_range_first),
+                   local_degrees.begin() + (major_range_last - major_range_first),
                    edge_t{0});
       thrust::for_each(execution_policy,
                        thrust::make_counting_iterator(vertex_t{0}),
                        thrust::make_counting_iterator(dcs_nzd_vertex_count),
                        [p_offsets,
                         p_dcs_nzd_vertices,
-                        major_first,
+                        major_range_first,
                         major_hypersparse_first,
                         local_degrees = local_degrees.data()] __device__(auto i) {
-                         auto d = p_offsets[(major_hypersparse_first - major_first) + i + 1] -
-                                  p_offsets[(major_hypersparse_first - major_first) + i];
+                         auto d = p_offsets[(major_hypersparse_first - major_range_first) + i + 1] -
+                                  p_offsets[(major_hypersparse_first - major_range_first) + i];
                          auto v                         = p_dcs_nzd_vertices[i];
-                         local_degrees[v - major_first] = d;
+                         local_degrees[v - major_range_first] = d;
                        });
     }
     col_comm.reduce(local_degrees.data(),
                     i == col_comm_rank ? degrees.data() : static_cast<edge_t*>(nullptr),
-                    static_cast<size_t>(major_last - major_first),
+                    static_cast<size_t>(major_range_last - major_range_first),
                     raft::comms::op_t::SUM,
                     i,
                     handle.get_stream());
@@ -253,26 +253,26 @@ int32_t constexpr count_edge_partition_multi_edges_block_size = 1024;
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 __global__ void for_all_major_for_all_nbr_mid_degree(
   edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition,
-  vertex_t major_first,
-  vertex_t major_last,
+  vertex_t major_range_first,
+  vertex_t major_range_last,
   edge_t* count)
 {
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(count_edge_partition_multi_edges_block_size % raft::warp_size() == 0);
   auto const lane_id      = tid % raft::warp_size();
-  auto major_start_offset = static_cast<size_t>(major_first - edge_partition.get_major_first());
+  auto major_start_offset = static_cast<size_t>(major_range_first - edge_partition.major_range_first());
   size_t idx              = static_cast<size_t>(tid / raft::warp_size());
 
   using BlockReduce = cub::BlockReduce<edge_t, count_edge_partition_multi_edges_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
   property_op<edge_t, thrust::plus> edge_property_add{};
   edge_t count_sum{0};
-  while (idx < static_cast<size_t>(major_last - major_first)) {
+  while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = static_cast<vertex_t>(major_start_offset + idx);
     vertex_t const* indices{nullptr};
     [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
-    thrust::tie(indices, weights, local_degree) = edge_partition.get_local_edges(major_offset);
+    thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
     for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
       if ((i != 0) && (indices[i - 1] == indices[i])) { ++count_sum; }
     }
@@ -286,24 +286,24 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 __global__ void for_all_major_for_all_nbr_high_degree(
   edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition,
-  vertex_t major_first,
-  vertex_t major_last,
+  vertex_t major_range_first,
+  vertex_t major_range_last,
   edge_t* count)
 {
-  auto major_start_offset = static_cast<size_t>(major_first - edge_partition.get_major_first());
+  auto major_start_offset = static_cast<size_t>(major_range_first - edge_partition.major_range_first());
   size_t idx              = static_cast<size_t>(blockIdx.x);
 
   using BlockReduce = cub::BlockReduce<edge_t, count_edge_partition_multi_edges_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
   property_op<edge_t, thrust::plus> edge_property_add{};
   edge_t count_sum{0};
-  while (idx < static_cast<size_t>(major_last - major_first)) {
+  while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
     [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
-      edge_partition.get_local_edges(static_cast<vertex_t>(major_offset));
+      edge_partition.local_edges(static_cast<vertex_t>(major_offset));
     for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
       if ((i != 0) && (indices[i - 1] == indices[i])) { ++count_sum; }
     }
@@ -337,8 +337,8 @@ edge_t count_edge_partition_multi_edges(
                                                        0,
                                                        handle.get_stream()>>>(
         edge_partition,
-        edge_partition.get_major_first(),
-        edge_partition.get_major_first() + (*segment_offsets)[1],
+        edge_partition.major_range_first(),
+        edge_partition.major_range_first() + (*segment_offsets)[1],
         count.data());
     }
     if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
@@ -351,23 +351,23 @@ edge_t count_edge_partition_multi_edges(
                                                       0,
                                                       handle.get_stream()>>>(
         edge_partition,
-        edge_partition.get_major_first() + (*segment_offsets)[1],
-        edge_partition.get_major_first() + (*segment_offsets)[2],
+        edge_partition.major_range_first() + (*segment_offsets)[1],
+        edge_partition.major_range_first() + (*segment_offsets)[2],
         count.data());
     }
     auto ret = count.value(handle.get_stream());
     if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
       ret += thrust::transform_reduce(
         execution_policy,
-        thrust::make_counting_iterator(edge_partition.get_major_first()) + (*segment_offsets)[2],
-        thrust::make_counting_iterator(edge_partition.get_major_first()) + (*segment_offsets)[3],
+        thrust::make_counting_iterator(edge_partition.major_range_first()) + (*segment_offsets)[2],
+        thrust::make_counting_iterator(edge_partition.major_range_first()) + (*segment_offsets)[3],
         [edge_partition] __device__(auto major) {
-          auto major_offset = edge_partition.get_major_offset_from_major_nocheck(major);
+          auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
           vertex_t const* indices{nullptr};
           [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
           edge_t local_degree{};
           thrust::tie(indices, weights, local_degree) =
-            edge_partition.get_local_edges(major_offset);
+            edge_partition.local_edges(major_offset);
           edge_t count{0};
           for (edge_t i = 1; i < local_degree; ++i) {  // assumes neighbors are sorted
             if (indices[i - 1] == indices[i]) { ++count; }
@@ -377,19 +377,19 @@ edge_t count_edge_partition_multi_edges(
         edge_t{0},
         thrust::plus<edge_t>{});
     }
-    if (edge_partition.get_dcs_nzd_vertex_count() &&
-        (*(edge_partition.get_dcs_nzd_vertex_count()) > 0)) {
+    if (edge_partition.dcs_nzd_vertex_count() &&
+        (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
       ret += thrust::transform_reduce(
         execution_policy,
         thrust::make_counting_iterator(vertex_t{0}),
-        thrust::make_counting_iterator(*(edge_partition.get_dcs_nzd_vertex_count())),
+        thrust::make_counting_iterator(*(edge_partition.dcs_nzd_vertex_count())),
         [edge_partition, major_start_offset = (*segment_offsets)[3]] __device__(auto idx) {
           auto major_idx =
             major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
           vertex_t const* indices{nullptr};
           [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
           edge_t local_degree{};
-          thrust::tie(indices, weights, local_degree) = edge_partition.get_local_edges(major_idx);
+          thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_idx);
           edge_t count{0};
           for (edge_t i = 1; i < local_degree; ++i) {  // assumes neighbors are sorted
             if (indices[i - 1] == indices[i]) { ++count; }
@@ -404,16 +404,16 @@ edge_t count_edge_partition_multi_edges(
   } else {
     return thrust::transform_reduce(
       execution_policy,
-      thrust::make_counting_iterator(edge_partition.get_major_first()),
-      thrust::make_counting_iterator(edge_partition.get_major_first()) +
-        edge_partition.get_major_size(),
+      thrust::make_counting_iterator(edge_partition.major_range_first()),
+      thrust::make_counting_iterator(edge_partition.major_range_first()) +
+        edge_partition.major_range_size(),
       [edge_partition] __device__(auto major) {
-        auto major_offset = edge_partition.get_major_offset_from_major_nocheck(major);
+        auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
         vertex_t const* indices{nullptr};
         [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
         edge_t local_degree{};
         thrust::tie(indices, weights, local_degree) =
-          edge_partition.get_local_edges(major_offset);
+          edge_partition.local_edges(major_offset);
         edge_t count{0};
         for (edge_t i = 1; i < local_degree; ++i) {  // assumes neighbors are sorted
           if (indices[i - 1] == indices[i]) { ++count; }

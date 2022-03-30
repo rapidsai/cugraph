@@ -114,8 +114,8 @@ namespace {
                                                  start.data(),
                                                  start.size(),
                                                  number_map->data(),
-                                                 graph_view.local_vertex_range_first(),
-                                                 graph_view.get_local_vertex_last(),
+                                                 graph_view.local_vertex_partition_range_first(),
+                                                 graph_view.local_vertex_partition_range_last(),
                                                  false);
 
       // TODO:  How can I do this?

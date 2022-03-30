@@ -229,11 +229,11 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<vertex_t> lv_ci(num_edges);
 
     raft::update_host(lv_ro.data(),
-                      lgraph_view.local_edge_partition_view().get_offsets(),
+                      lgraph_view.local_edge_partition_view().offsets(),
                       num_vertices + 1,
                       handle.get_stream());
     raft::update_host(lv_ci.data(),
-                      lgraph_view.local_edge_partition_view().get_indices(),
+                      lgraph_view.local_edge_partition_view().indices(),
                       num_edges,
                       handle.get_stream());
 
@@ -241,11 +241,11 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<vertex_t> rv_ci(num_edges);
 
     raft::update_host(rv_ro.data(),
-                      rgraph_view.local_edge_partition_view().get_offsets(),
+                      rgraph_view.local_edge_partition_view().offsets(),
                       num_vertices + 1,
                       handle.get_stream());
     raft::update_host(rv_ci.data(),
-                      rgraph_view.local_edge_partition_view().get_indices(),
+                      rgraph_view.local_edge_partition_view().indices(),
                       num_edges,
                       handle.get_stream());
 
@@ -253,12 +253,12 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     auto rv_vs = is_weighted ? std::make_optional<std::vector<weight_t>>(num_edges) : std::nullopt;
     if (is_weighted) {
       raft::update_host((*lv_vs).data(),
-                        *(lgraph_view.local_edge_partition_view().get_weights()),
+                        *(lgraph_view.local_edge_partition_view().weights()),
                         num_edges,
                         handle.get_stream());
 
       raft::update_host((*rv_vs).data(),
-                        *(rgraph_view.local_edge_partition_view().get_weights()),
+                        *(rgraph_view.local_edge_partition_view().weights()),
                         num_edges,
                         handle.get_stream());
     }

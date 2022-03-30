@@ -220,11 +220,11 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       auto unrenumbered_graph_view = unrenumbered_graph.view();
       auto offsets =
         cugraph::test::to_host(handle,
-                               unrenumbered_graph_view.local_edge_partition_view().get_offsets(),
+                               unrenumbered_graph_view.local_edge_partition_view().offsets(),
                                unrenumbered_graph_view.number_of_vertices() + 1);
       auto indices =
         cugraph::test::to_host(handle,
-                               unrenumbered_graph_view.local_edge_partition_view().get_indices(),
+                               unrenumbered_graph_view.local_edge_partition_view().indices(),
                                unrenumbered_graph_view.number_of_edges());
       auto reference_result = hits_reference<weight_t>(
         offsets.data(),

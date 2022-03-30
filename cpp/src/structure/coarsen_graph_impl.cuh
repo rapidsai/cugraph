@@ -145,7 +145,7 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   rmm::device_uvector<vertex_t> edgelist_majors(edge_partition.number_of_edges(),
                                                 handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-  auto edgelist_weights = edge_partition.get_weights()
+  auto edgelist_weights = edge_partition.weights()
                             ? std::make_optional<rmm::device_uvector<weight_t>>(
                                 edgelist_majors.size(), handle.get_stream())
                             : std::nullopt;
@@ -165,11 +165,11 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                     pair_first,
                     [major_label_first,
                      minor_label_input,
-                     major_first = edge_partition.get_major_first(),
-                     minor_first = edge_partition.get_minor_first()] __device__(auto val) {
+                     major_range_first = edge_partition.major_range_first(),
+                     minor_range_first = edge_partition.minor_range_first()] __device__(auto val) {
                       return thrust::make_tuple(
-                        *(major_label_first + (thrust::get<0>(val) - major_first)),
-                        minor_label_input.get(thrust::get<1>(val) - minor_first));
+                        *(major_label_first + (thrust::get<0>(val) - major_range_first)),
+                        minor_label_input.get(thrust::get<1>(val) - minor_range_first));
                     });
 
   if (lower_triangular_only) {

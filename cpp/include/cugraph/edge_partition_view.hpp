@@ -35,9 +35,9 @@ class edge_partition_view_base_t {
 
   edge_t number_of_edges() const { return number_of_edges_; }
 
-  edge_t const* get_offsets() const { return offsets_; }
-  vertex_t const* get_indices() const { return indices_; }
-  std::optional<weight_t const*> get_weights() const { return weights_; }
+  edge_t const* offsets() const { return offsets_; }
+  vertex_t const* indices() const { return indices_; }
+  std::optional<weight_t const*> weights() const { return weights_; }
 
  private:
   edge_t const* offsets_{nullptr};
@@ -66,42 +66,42 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
                           std::optional<vertex_t const*> dcs_nzd_vertices,
                           std::optional<vertex_t> dcs_nzd_vertex_count,
                           edge_t number_of_edge_partition_edges,
-                          vertex_t major_first,
-                          vertex_t major_last,
-                          vertex_t minor_first,
-                          vertex_t minor_last,
+                          vertex_t major_range_first,
+                          vertex_t major_range_last,
+                          vertex_t minor_range_first,
+                          vertex_t minor_range_last,
                           vertex_t major_value_start_offset)
     : detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t>(
         offsets, indices, weights, number_of_edge_partition_edges),
       dcs_nzd_vertices_(dcs_nzd_vertices),
       dcs_nzd_vertex_count_(dcs_nzd_vertex_count),
-      major_first_(major_first),
-      major_last_(major_last),
-      minor_first_(minor_first),
-      minor_last_(minor_last),
+      major_range_first_(major_range_first),
+      major_range_last_(major_range_last),
+      minor_range_first_(minor_range_first),
+      minor_range_last_(minor_range_last),
       major_value_start_offset_(major_value_start_offset)
   {
   }
 
-  std::optional<vertex_t const*> get_dcs_nzd_vertices() const { return dcs_nzd_vertices_; }
-  std::optional<vertex_t> get_dcs_nzd_vertex_count() const { return dcs_nzd_vertex_count_; }
+  std::optional<vertex_t const*> dcs_nzd_vertices() const { return dcs_nzd_vertices_; }
+  std::optional<vertex_t> dcs_nzd_vertex_count() const { return dcs_nzd_vertex_count_; }
 
-  vertex_t get_major_first() const { return major_first_; }
-  vertex_t get_major_last() const { return major_last_; }
-  vertex_t get_minor_first() const { return minor_first_; }
-  vertex_t get_minor_last() const { return minor_last_; }
+  vertex_t major_range_first() const { return major_range_first_; }
+  vertex_t major_range_last() const { return major_range_last_; }
+  vertex_t minor_range_first() const { return minor_range_first_; }
+  vertex_t minor_range_last() const { return minor_range_last_; }
 
-  vertex_t get_major_value_start_offset() const { return major_value_start_offset_; }
+  vertex_t major_value_start_offset() const { return major_value_start_offset_; }
 
  private:
   // relevant only if we use the CSR + DCSR (or CSC + DCSC) hybrid format
   std::optional<vertex_t const*> dcs_nzd_vertices_{};
   std::optional<vertex_t> dcs_nzd_vertex_count_{};
 
-  vertex_t major_first_{0};
-  vertex_t major_last_{0};
-  vertex_t minor_first_{0};
-  vertex_t minor_last_{0};
+  vertex_t major_range_first_{0};
+  vertex_t major_range_last_{0};
+  vertex_t minor_range_first_{0};
+  vertex_t minor_range_last_{0};
 
   vertex_t major_value_start_offset_{0};
 };
@@ -122,13 +122,13 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
   {
   }
 
-  std::optional<vertex_t const*> get_dcs_nzd_vertices() const { return std::nullopt; }
-  std::optional<vertex_t> get_dcs_nzd_vertex_count() const { return std::nullopt; }
+  std::optional<vertex_t const*> dcs_nzd_vertices() const { return std::nullopt; }
+  std::optional<vertex_t> dcs_nzd_vertex_count() const { return std::nullopt; }
 
-  vertex_t get_major_first() const { return vertex_t{0}; }
-  vertex_t get_major_last() const { return number_of_vertices_; }
-  vertex_t get_minor_first() const { return vertex_t{0}; }
-  vertex_t get_minor_last() const { return number_of_vertices_; }
+  vertex_t major_range_first() const { return vertex_t{0}; }
+  vertex_t major_range_last() const { return number_of_vertices_; }
+  vertex_t minor_range_first() const { return vertex_t{0}; }
+  vertex_t minor_range_last() const { return number_of_vertices_; }
 
  private:
   vertex_t number_of_vertices_{0};

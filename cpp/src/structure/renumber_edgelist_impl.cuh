@@ -222,7 +222,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
 
     assert(edgelist_majors.size() == col_comm_size);
 
-    auto edge_partition_major_sizes =
+    auto edge_partition_major_range_sizes =
       host_scalar_allgather(col_comm, sorted_local_vertices.size(), handle.get_stream());
 
     if ((col_comm_size >= 2) && (handle.get_stream_pool_size() >= 2)) {
@@ -260,11 +260,11 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                            ? handle.get_stream_from_stream_pool(i % (*stream_pool_indices).size())
                            : handle.get_stream();
 
-      rmm::device_uvector<vertex_t> sorted_majors(edge_partition_major_sizes[i], loop_stream);
+      rmm::device_uvector<vertex_t> sorted_majors(edge_partition_major_range_sizes[i], loop_stream);
       device_bcast(col_comm,
                    sorted_local_vertices.data(),
                    sorted_majors.data(),
-                   edge_partition_major_sizes[i],
+                   edge_partition_major_range_sizes[i],
                    i,
                    loop_stream);
 
@@ -315,7 +315,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
       device_reduce(col_comm,
                     sorted_major_degrees.begin(),
                     sorted_major_degrees.begin(),
-                    edge_partition_major_sizes[i],
+                    edge_partition_major_range_sizes[i],
                     raft::comms::op_t::SUM,
                     i,
                     loop_stream);
@@ -537,7 +537,7 @@ void expensive_check_edgelist(
           }) == 0,
         "Invalid input argument: local_vertices should be pre-shuffled.");
 
-      auto major_sizes =
+      auto major_range_sizes =
         host_scalar_allgather(col_comm, (*sorted_local_vertices).size(), handle.get_stream());
 
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
@@ -557,11 +557,11 @@ void expensive_check_edgelist(
       for (size_t i = 0; i < edgelist_majors.size(); ++i) {
         rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
         {
-          sorted_majors.resize(major_sizes[i], handle.get_stream());
+          sorted_majors.resize(major_range_sizes[i], handle.get_stream());
           device_bcast(col_comm,
                        (*sorted_local_vertices).begin(),
                        sorted_majors.begin(),
-                       major_sizes[i],
+                       major_range_sizes[i],
                        i,
                        handle.get_stream());
         }
@@ -718,12 +718,12 @@ renumber_edgelist(
   // footprint and execution time
 
   {
-    vertex_t max_edge_partition_major_size{0};
+    vertex_t max_edge_partition_major_range_size{0};
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-      max_edge_partition_major_size =
-        std::max(max_edge_partition_major_size, partition.local_edge_partition_major_range_size(i));
+      max_edge_partition_major_range_size =
+        std::max(max_edge_partition_major_range_size, partition.local_edge_partition_major_range_size(i));
     }
-    rmm::device_uvector<vertex_t> renumber_map_major_labels(max_edge_partition_major_size,
+    rmm::device_uvector<vertex_t> renumber_map_major_labels(max_edge_partition_major_range_size,
                                                             handle.get_stream());
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
       device_bcast(col_comm,

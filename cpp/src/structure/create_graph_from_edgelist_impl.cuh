@@ -42,17 +42,17 @@ namespace {
 
 template <typename vertex_t>
 struct check_edge_t {
-  vertex_t const* sorted_valid_major_first{nullptr};
-  vertex_t const* sorted_valid_major_last{nullptr};
-  vertex_t const* sorted_valid_minor_first{nullptr};
-  vertex_t const* sorted_valid_minor_last{nullptr};
+  vertex_t const* sorted_valid_major_range_first{nullptr};
+  vertex_t const* sorted_valid_major_range_last{nullptr};
+  vertex_t const* sorted_valid_minor_range_first{nullptr};
+  vertex_t const* sorted_valid_minor_range_last{nullptr};
 
   __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> const& e) const
   {
     return !thrust::binary_search(
-             thrust::seq, sorted_valid_major_first, sorted_valid_major_last, thrust::get<0>(e)) ||
+             thrust::seq, sorted_valid_major_range_first, sorted_valid_major_range_last, thrust::get<0>(e)) ||
            !thrust::binary_search(
-             thrust::seq, sorted_valid_minor_first, sorted_valid_minor_last, thrust::get<1>(e));
+             thrust::seq, sorted_valid_minor_range_first, sorted_valid_minor_range_last, thrust::get<1>(e));
   }
 };
 

@@ -52,17 +52,17 @@ namespace {
 // extended __device__ lambda must allow its address to be taken)
 template <typename vertex_t>
 struct out_of_range_t {
-  vertex_t major_first{};
-  vertex_t major_last{};
-  vertex_t minor_first{};
-  vertex_t minor_last{};
+  vertex_t major_range_first{};
+  vertex_t major_range_last{};
+  vertex_t minor_range_first{};
+  vertex_t minor_range_last{};
 
   __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> t) const
   {
     auto major = thrust::get<0>(t);
     auto minor = thrust::get<1>(t);
-    return (major < major_first) || (major >= major_last) || (minor < minor_first) ||
-           (minor >= minor_last);
+    return (major < major_range_first) || (major >= major_range_last) || (minor < minor_range_first) ||
+           (minor >= minor_range_last);
   }
 };
 
@@ -71,11 +71,11 @@ struct out_of_range_t {
 template <typename vertex_t, typename edge_t>
 struct has_nzd_t {
   edge_t const* offsets{nullptr};
-  vertex_t major_first{};
+  vertex_t major_range_first{};
 
   __device__ bool operator()(vertex_t major) const
   {
-    auto major_offset = major - major_first;
+    auto major_offset = major - major_range_first;
     return offsets[major_offset + 1] - offsets[major_offset] > 0;
   }
 };
@@ -85,11 +85,11 @@ struct has_nzd_t {
 template <typename vertex_t>
 struct atomic_or_bitmap_t {
   uint32_t* bitmaps{nullptr};
-  vertex_t minor_first{};
+  vertex_t minor_range_first{};
 
   __device__ void operator()(vertex_t minor) const
   {
-    auto minor_offset = minor - minor_first;
+    auto minor_offset = minor - minor_range_first;
     auto mask         = uint32_t{1} << (minor_offset % (sizeof(uint32_t) * 8));
     atomicOr(bitmaps + (minor_offset / (sizeof(uint32_t) * 8)), mask);
   }
@@ -316,8 +316,8 @@ std::enable_if_t<multi_gpu, void> check_graph_constructor_input_arguments(
   if (do_expensive_check) {
     edge_t number_of_local_edges{0};
     for (size_t i = 0; i < edgelists.size(); ++i) {
-      auto [major_first, major_last] = meta.partition.local_edge_partition_major_range(i);
-      auto [minor_first, minor_last] = meta.partition.local_edge_partition_minor_range();
+      auto [major_range_first, major_range_last] = meta.partition.local_edge_partition_major_range(i);
+      auto [minor_range_first, minor_range_last] = meta.partition.local_edge_partition_minor_range();
 
       number_of_local_edges += edgelists[i].number_of_edges;
 
@@ -329,7 +329,7 @@ std::enable_if_t<multi_gpu, void> check_graph_constructor_input_arguments(
                                        edge_first,
                                        edge_first + edgelists[i].number_of_edges,
                                        out_of_range_t<vertex_t>{
-                                         major_first, major_last, minor_first, minor_last}) == 0,
+                                         major_range_first, major_range_last, minor_range_first, minor_range_last}) == 0,
                       "Invalid input argument: edgelists[] have out-of-range values.");
     }
     auto number_of_local_edges_sum = host_scalar_allreduce(
@@ -496,16 +496,16 @@ update_local_sorted_unique_edge_majors_minors(
       has_nzd_t<vertex_t, edge_t>{edge_partition_offsets[i].data(), vertex_t{0}});
   }
 
-  auto [minor_first, minor_last] = meta.partition.local_edge_partition_minor_range();
+  auto [minor_range_first, minor_range_last] = meta.partition.local_edge_partition_minor_range();
   rmm::device_uvector<uint32_t> minor_bitmaps(
-    ((minor_last - minor_first) + sizeof(uint32_t) * 8 - 1) / (sizeof(uint32_t) * 8),
+    ((minor_range_last - minor_range_first) + sizeof(uint32_t) * 8 - 1) / (sizeof(uint32_t) * 8),
     handle.get_stream());
   thrust::fill(handle.get_thrust_policy(), minor_bitmaps.begin(), minor_bitmaps.end(), uint32_t{0});
   for (size_t i = 0; i < edge_partition_indices.size(); ++i) {
     thrust::for_each(handle.get_thrust_policy(),
                      edge_partition_indices[i].begin(),
                      edge_partition_indices[i].end(),
-                     atomic_or_bitmap_t<vertex_t>{minor_bitmaps.data(), minor_first});
+                     atomic_or_bitmap_t<vertex_t>{minor_bitmaps.data(), minor_range_first});
   }
 
   auto count_first = thrust::make_transform_iterator(minor_bitmaps.begin(), popc_t<vertex_t>{});
@@ -515,14 +515,14 @@ update_local_sorted_unique_edge_majors_minors(
   minor_bitmaps.resize(0, handle.get_stream());
   minor_bitmaps.shrink_to_fit(handle.get_stream());
 
-  vertex_t aggregate_major_size{0};
+  vertex_t aggregate_major_range_size{0};
   for (size_t i = 0; i < meta.partition.number_of_local_edge_partitions(); ++i) {
-    aggregate_major_size += meta.partition.local_edge_partition_major_range_size(i);
+    aggregate_major_range_size += meta.partition.local_edge_partition_major_range_size(i);
   }
   auto minor_size                      = meta.partition.local_edge_partition_minor_range_size();
   auto max_major_properties_fill_ratio = host_scalar_allreduce(
     comm,
-    static_cast<double>(num_local_unique_edge_majors) / static_cast<double>(aggregate_major_size),
+    static_cast<double>(num_local_unique_edge_majors) / static_cast<double>(aggregate_major_range_size),
     raft::comms::op_t::MAX,
     handle.get_stream());
   auto max_minor_properties_fill_ratio = host_scalar_allreduce(
@@ -536,9 +536,9 @@ update_local_sorted_unique_edge_majors_minors(
       rmm::device_uvector<vertex_t>(num_local_unique_edge_majors, handle.get_stream());
     size_t cur_size{0};
     for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
-      auto [major_first, major_last] = meta.partition.local_edge_partition_major_range(i);
+      auto [major_range_first, major_range_last] = meta.partition.local_edge_partition_major_range(i);
       auto major_hypersparse_first =
-        use_dcs ? std::optional<vertex_t>{major_first +
+        use_dcs ? std::optional<vertex_t>{major_range_first +
                                           (*edge_partition_segment_offsets)
                                             [(*(meta.segment_offsets)).size() * i +
                                              detail::num_sparse_segments_per_vertex_partition]}
@@ -547,10 +547,10 @@ update_local_sorted_unique_edge_majors_minors(
         (*local_sorted_unique_edge_majors).data() + cur_size,
         thrust::copy_if(
           handle.get_thrust_policy(),
-          thrust::make_counting_iterator(major_first),
-          thrust::make_counting_iterator(use_dcs ? *major_hypersparse_first : major_last),
+          thrust::make_counting_iterator(major_range_first),
+          thrust::make_counting_iterator(use_dcs ? *major_hypersparse_first : major_range_last),
           (*local_sorted_unique_edge_majors).data() + cur_size,
-          has_nzd_t<vertex_t, edge_t>{edge_partition_offsets[i].data(), major_first}));
+          has_nzd_t<vertex_t, edge_t>{edge_partition_offsets[i].data(), major_range_first}));
       if (use_dcs) {
         thrust::copy(handle.get_thrust_policy(),
                      (*edge_partition_dcs_nzd_vertices)[i].begin(),
@@ -668,14 +668,14 @@ std::tuple<rmm::device_uvector<edge_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
-                  vertex_t major_first,
+                  vertex_t major_range_first,
                   std::optional<vertex_t> major_hypersparse_first,
-                  vertex_t major_last,
-                  vertex_t /* minor_first */,
-                  vertex_t /* minor_last */,
+                  vertex_t major_range_last,
+                  vertex_t /* minor_range_first */,
+                  vertex_t /* minor_range_last */,
                   rmm::cuda_stream_view stream_view)
 {
-  rmm::device_uvector<edge_t> offsets((major_last - major_first) + 1, stream_view);
+  rmm::device_uvector<edge_t> offsets((major_range_last - major_range_first) + 1, stream_view);
   rmm::device_uvector<vertex_t> indices(edgelist.number_of_edges, stream_view);
   auto weights = edgelist.p_edge_weights ? std::make_optional<rmm::device_uvector<weight_t>>(
                                              edgelist.number_of_edges, stream_view)
@@ -688,8 +688,8 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                    store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
                    store_transposed ? edgelist.p_dst_vertices + edgelist.number_of_edges
                                     : edgelist.p_src_vertices + edgelist.number_of_edges,
-                   [p_offsets, major_first] __device__(auto v) {
-                     atomicAdd(p_offsets + (v - major_first), edge_t{1});
+                   [p_offsets, major_range_first] __device__(auto v) {
+                     atomicAdd(p_offsets + (v - major_range_first), edge_t{1});
                    });
   thrust::exclusive_scan(
     rmm::exec_policy(stream_view), offsets.begin(), offsets.end(), offsets.begin());
@@ -703,18 +703,18 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
     thrust::for_each(rmm::exec_policy(stream_view),
                      edge_first,
                      edge_first + edgelist.number_of_edges,
-                     [p_offsets, p_indices, p_weights, major_first] __device__(auto e) {
+                     [p_offsets, p_indices, p_weights, major_range_first] __device__(auto e) {
                        auto s      = thrust::get<0>(e);
                        auto d      = thrust::get<1>(e);
                        auto w      = thrust::get<2>(e);
                        auto major  = store_transposed ? d : s;
                        auto minor  = store_transposed ? s : d;
-                       auto start  = p_offsets[major - major_first];
-                       auto degree = p_offsets[(major - major_first) + 1] - start;
+                       auto start  = p_offsets[major - major_range_first];
+                       auto degree = p_offsets[(major - major_range_first) + 1] - start;
                        auto idx    = atomicAdd(p_indices + (start + degree - 1),
                                             vertex_t{1});  // use the last element as a counter
-                       // FIXME: we can actually store minor - minor_first instead of minor to save
-                       // memory if minor can be larger than 32 bit but minor - minor_first fits
+                       // FIXME: we can actually store minor - minor_range_first instead of minor to save
+                       // memory if minor can be larger than 32 bit but minor - minor_range_first fits
                        // within 32 bit
                        p_indices[start + idx] =
                          minor;  // overwrite the counter only if idx == degree - 1 (no race)
@@ -726,17 +726,17 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
     thrust::for_each(rmm::exec_policy(stream_view),
                      edge_first,
                      edge_first + edgelist.number_of_edges,
-                     [p_offsets, p_indices, major_first] __device__(auto e) {
+                     [p_offsets, p_indices, major_range_first] __device__(auto e) {
                        auto s      = thrust::get<0>(e);
                        auto d      = thrust::get<1>(e);
                        auto major  = store_transposed ? d : s;
                        auto minor  = store_transposed ? s : d;
-                       auto start  = p_offsets[major - major_first];
-                       auto degree = p_offsets[(major - major_first) + 1] - start;
+                       auto start  = p_offsets[major - major_range_first];
+                       auto degree = p_offsets[(major - major_range_first) + 1] - start;
                        auto idx    = atomicAdd(p_indices + (start + degree - 1),
                                             vertex_t{1});  // use the last element as a counter
-                       // FIXME: we can actually store minor - minor_first instead of minor to save
-                       // memory if minor can be larger than 32 bit but minor - minor_first fits
+                       // FIXME: we can actually store minor - minor_range_first instead of minor to save
+                       // memory if minor can be larger than 32 bit but minor - minor_range_first fits
                        // within 32 bit
                        p_indices[start + idx] =
                          minor;  // overwrite the counter only if idx == degree - 1 (no race)
@@ -745,7 +745,7 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
 
   auto dcs_nzd_vertices = major_hypersparse_first
                             ? std::make_optional<rmm::device_uvector<vertex_t>>(
-                                major_last - *major_hypersparse_first, stream_view)
+                                major_range_last - *major_hypersparse_first, stream_view)
                             : std::nullopt;
   if (dcs_nzd_vertices) {
     auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
@@ -753,15 +753,15 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
     thrust::transform(
       rmm::exec_policy(stream_view),
       thrust::make_counting_iterator(*major_hypersparse_first),
-      thrust::make_counting_iterator(major_last),
+      thrust::make_counting_iterator(major_range_last),
       (*dcs_nzd_vertices).begin(),
-      [major_first, offsets = offsets.data()] __device__(auto major) {
-        auto major_offset = major - major_first;
+      [major_range_first, offsets = offsets.data()] __device__(auto major) {
+        auto major_offset = major - major_range_first;
         return offsets[major_offset + 1] - offsets[major_offset] > 0 ? major : invalid_vertex;
       });
 
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      (*dcs_nzd_vertices).begin(), offsets.begin() + (*major_hypersparse_first - major_first)));
+      (*dcs_nzd_vertices).begin(), offsets.begin() + (*major_hypersparse_first - major_range_first)));
     (*dcs_nzd_vertices)
       .resize(thrust::distance(pair_first,
                                thrust::remove_if(rmm::exec_policy(stream_view),
@@ -772,13 +772,13 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                                                  })),
               stream_view);
     (*dcs_nzd_vertices).shrink_to_fit(stream_view);
-    if (static_cast<vertex_t>((*dcs_nzd_vertices).size()) < major_last - *major_hypersparse_first) {
+    if (static_cast<vertex_t>((*dcs_nzd_vertices).size()) < major_range_last - *major_hypersparse_first) {
       thrust::copy(
         rmm::exec_policy(stream_view),
-        offsets.begin() + (major_last - major_first),
+        offsets.begin() + (major_range_last - major_range_first),
         offsets.end(),
-        offsets.begin() + (*major_hypersparse_first - major_first) + (*dcs_nzd_vertices).size());
-      offsets.resize((*major_hypersparse_first - major_first) + (*dcs_nzd_vertices).size() + 1,
+        offsets.begin() + (*major_hypersparse_first - major_range_first) + (*dcs_nzd_vertices).size());
+      offsets.resize((*major_hypersparse_first - major_range_first) + (*dcs_nzd_vertices).size() + 1,
                      stream_view);
       offsets.shrink_to_fit(stream_view);
     }
@@ -933,21 +933,21 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     (*edge_partition_dcs_nzd_vertex_counts_).reserve(edgelists.size());
   }
   for (size_t i = 0; i < edgelists.size(); ++i) {
-    auto [major_first, major_last] = partition_.local_edge_partition_major_range(i);
-    auto [minor_first, minor_last] = partition_.local_edge_partition_minor_range();
+    auto [major_range_first, major_range_last] = partition_.local_edge_partition_major_range(i);
+    auto [minor_range_first, minor_range_last] = partition_.local_edge_partition_minor_range();
     auto major_hypersparse_first =
-      use_dcs ? std::optional<vertex_t>{major_first +
+      use_dcs ? std::optional<vertex_t>{major_range_first +
                                         (*edge_partition_segment_offsets_)
                                           [(*(meta.segment_offsets)).size() * i +
                                            detail::num_sparse_segments_per_vertex_partition]}
               : std::nullopt;
     auto [offsets, indices, weights, dcs_nzd_vertices] =
       compress_edgelist<store_transposed>(edgelists[i],
-                                          major_first,
+                                          major_range_first,
                                           major_hypersparse_first,
-                                          major_last,
-                                          minor_first,
-                                          minor_last,
+                                          major_range_last,
+                                          minor_range_first,
+                                          minor_range_last,
                                           handle.get_stream());
 
     edge_partition_offsets_.push_back(std::move(offsets));
@@ -1065,21 +1065,21 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     (*edge_partition_dcs_nzd_vertex_counts_).reserve(edgelists.size());
   }
   for (size_t i = 0; i < edgelists.size(); ++i) {
-    auto [major_first, major_last] = partition_.local_edge_partition_major_range(i);
-    auto [minor_first, minor_last] = partition_.local_edge_partition_minor_range();
+    auto [major_range_first, major_range_last] = partition_.local_edge_partition_major_range(i);
+    auto [minor_range_first, minor_range_last] = partition_.local_edge_partition_minor_range();
     auto major_hypersparse_first =
-      use_dcs ? std::optional<vertex_t>{major_first +
+      use_dcs ? std::optional<vertex_t>{major_range_first +
                                         (*edge_partition_segment_offsets_)
                                           [(*(meta.segment_offsets)).size() * i +
                                            detail::num_sparse_segments_per_vertex_partition]}
               : std::nullopt;
     auto [offsets, indices, weights, dcs_nzd_vertices] =
       compress_edgelist<store_transposed>(edgelists[i],
-                                          major_first,
+                                          major_range_first,
                                           major_hypersparse_first,
-                                          major_last,
-                                          minor_first,
-                                          minor_last,
+                                          major_range_last,
+                                          minor_range_first,
+                                          minor_range_last,
                                           handle.get_stream());
     edgelist_src_partitions[i].resize(0, handle.get_stream());
     edgelist_src_partitions[i].shrink_to_fit(handle.get_stream());

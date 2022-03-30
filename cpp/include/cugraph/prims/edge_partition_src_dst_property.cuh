@@ -61,11 +61,11 @@ class edge_partition_major_property_device_view_t {
   edge_partition_major_property_device_view_t(vertex_t const* key_first,
                                               ValueIterator value_first,
                                               vertex_t const* edge_partition_key_offsets,
-                                              vertex_t const* edge_partition_major_firsts)
+                                              vertex_t const* edge_partition_major_range_firsts)
     : key_first_(key_first),
       value_first_(value_first),
       edge_partition_key_offsets_(edge_partition_key_offsets),
-      edge_partition_major_firsts_(edge_partition_major_firsts)
+      edge_partition_major_range_firsts_(edge_partition_major_range_firsts)
   {
     set_local_edge_partition_idx(size_t{0});
   }
@@ -77,7 +77,7 @@ class edge_partition_major_property_device_view_t {
         *key_first_ + (*edge_partition_key_offsets_)[partition_idx];
       edge_partition_key_last_ =
         *key_first_ + (*edge_partition_key_offsets_)[partition_idx + 1];
-      edge_partition_major_first_ = (*edge_partition_major_firsts_)[partition_idx];
+      edge_partition_major_range_first_ = (*edge_partition_major_range_firsts_)[partition_idx];
       edge_partition_value_first_ =
         value_first_ + (*edge_partition_key_offsets_)[partition_idx];
     } else {
@@ -105,10 +105,10 @@ class edge_partition_major_property_device_view_t {
              : std::nullopt;
   }
 
-  std::optional<vertex_t const*> edge_partition_major_firsts() const
+  std::optional<vertex_t const*> edge_partition_major_range_firsts() const
   {
-    return edge_partition_major_firsts_
-             ? std::optional<vertex_t const*>{*edge_partition_major_firsts_}
+    return edge_partition_major_range_firsts_
+             ? std::optional<vertex_t const*>{*edge_partition_major_range_firsts_}
              : std::nullopt;
   }
 
@@ -126,9 +126,9 @@ class edge_partition_major_property_device_view_t {
       auto it = thrust::lower_bound(thrust::seq,
                                     *edge_partition_key_first_,
                                     *edge_partition_key_last_,
-                                    *edge_partition_major_first_ + offset);
+                                    *edge_partition_major_range_first_ + offset);
       assert((it != *edge_partition_key_last_) &&
-             (*it == (*edge_partition_major_first_ + offset)));
+             (*it == (*edge_partition_major_range_first_ + offset)));
       value_offset = static_cast<vertex_t>(thrust::distance(*edge_partition_key_first_, it));
     }
     return edge_partition_value_first_ + value_offset;
@@ -141,14 +141,14 @@ class edge_partition_major_property_device_view_t {
   ValueIterator value_first_{};
 
   thrust::optional<vertex_t const*> edge_partition_key_offsets_{thrust::nullopt};   // host data
-  thrust::optional<vertex_t const*> edge_partition_major_firsts_{thrust::nullopt};  // host data
+  thrust::optional<vertex_t const*> edge_partition_major_range_firsts_{thrust::nullopt};  // host data
 
   thrust::optional<vertex_t const*> edge_partition_major_value_start_offsets_{
     thrust::nullopt};  // host data
 
   thrust::optional<vertex_t const*> edge_partition_key_first_{thrust::nullopt};
   thrust::optional<vertex_t const*> edge_partition_key_last_{thrust::nullopt};
-  thrust::optional<vertex_t> edge_partition_major_first_{thrust::nullopt};
+  thrust::optional<vertex_t> edge_partition_major_range_first_{thrust::nullopt};
 
   ValueIterator edge_partition_value_first_{};
 };
@@ -166,11 +166,11 @@ class edge_partition_minor_property_device_view_t {
 
   edge_partition_minor_property_device_view_t(vertex_t const* key_first,
                                               vertex_t const* key_last,
-                                              vertex_t minor_first,
+                                              vertex_t minor_range_first,
                                               ValueIterator value_first)
     : key_first_(key_first),
       key_last_(key_last),
-      minor_first_(minor_first),
+      minor_range_first_(minor_range_first),
       value_first_(value_first)
   {
   }
@@ -193,8 +193,8 @@ class edge_partition_minor_property_device_view_t {
   {
     auto value_offset = offset;
     if (key_first_) {
-      auto it = thrust::lower_bound(thrust::seq, *key_first_, *key_last_, *minor_first_ + offset);
-      assert((it != *key_last_) && (*it == (*minor_first_ + offset)));
+      auto it = thrust::lower_bound(thrust::seq, *key_first_, *key_last_, *minor_range_first_ + offset);
+      assert((it != *key_last_) && (*it == (*minor_range_first_ + offset)));
       value_offset = static_cast<vertex_t>(thrust::distance(*key_first_, it));
     }
     return value_first_ + value_offset;
@@ -205,7 +205,7 @@ class edge_partition_minor_property_device_view_t {
  private:
   thrust::optional<vertex_t const*> key_first_{thrust::nullopt};
   thrust::optional<vertex_t const*> key_last_{thrust::nullopt};
-  thrust::optional<vertex_t> minor_first_{thrust::nullopt};
+  thrust::optional<vertex_t> minor_range_first_{thrust::nullopt};
 
   ValueIterator value_first_{};
 };
@@ -236,12 +236,12 @@ class edge_partition_major_property_t {
   edge_partition_major_property_t(raft::handle_t const& handle,
                                   vertex_t const* key_first,
                                   std::vector<vertex_t>&& edge_partition_key_offsets,
-                                  std::vector<vertex_t>&& edge_partition_major_firsts)
+                                  std::vector<vertex_t>&& edge_partition_major_range_firsts)
     : key_first_(key_first),
       buffer_(
         allocate_dataframe_buffer<T>(edge_partition_key_offsets.back(), handle.get_stream())),
       edge_partition_key_offsets_(std::move(edge_partition_key_offsets)),
-      edge_partition_major_firsts_(std::move(edge_partition_major_firsts))
+      edge_partition_major_range_firsts_(std::move(edge_partition_major_range_firsts))
   {
   }
 
@@ -253,7 +253,7 @@ class edge_partition_major_property_t {
     shrink_to_fit_dataframe_buffer(buffer_, handle.get_stream());
 
     edge_partition_key_offsets_  = std::nullopt;
-    edge_partition_major_firsts_ = std::nullopt;
+    edge_partition_major_range_firsts_ = std::nullopt;
 
     edge_partition_major_value_start_offsets_ = std::nullopt;
   }
@@ -281,7 +281,7 @@ class edge_partition_major_property_t {
         *key_first_,
         value_first,
         (*edge_partition_key_offsets_).data(),
-        (*edge_partition_major_firsts_).data());
+        (*edge_partition_major_range_firsts_).data());
     } else if (edge_partition_major_value_start_offsets_) {
       return edge_partition_major_property_device_view_t<vertex_t, decltype(value_first)>(
         value_first, (*edge_partition_major_value_start_offsets_).data());
@@ -299,7 +299,7 @@ class edge_partition_major_property_t {
         *key_first_,
         value_first,
         (*edge_partition_key_offsets_).data(),
-        (*edge_partition_major_firsts_).data());
+        (*edge_partition_major_range_firsts_).data());
     } else if (edge_partition_major_value_start_offsets_) {
       return edge_partition_major_property_device_view_t<vertex_t, decltype(value_first)>(
         value_first, (*edge_partition_major_value_start_offsets_).data());
@@ -315,7 +315,7 @@ class edge_partition_major_property_t {
   decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{})) buffer_;
 
   std::optional<std::vector<vertex_t>> edge_partition_key_offsets_{std::nullopt};
-  std::optional<std::vector<vertex_t>> edge_partition_major_firsts_{std::nullopt};
+  std::optional<std::vector<vertex_t>> edge_partition_major_range_firsts_{std::nullopt};
 
   std::optional<std::vector<vertex_t>> edge_partition_major_value_start_offsets_{std::nullopt};
 };
@@ -336,10 +336,10 @@ class edge_partition_minor_property_t {
   edge_partition_minor_property_t(raft::handle_t const& handle,
                                   vertex_t const* key_first,
                                   vertex_t const* key_last,
-                                  vertex_t minor_first)
+                                  vertex_t minor_range_first)
     : key_first_(key_first),
       key_last_(key_last),
-      minor_first_(minor_first),
+      minor_range_first_(minor_range_first),
       buffer_(
         allocate_dataframe_buffer<T>(thrust::distance(key_first, key_last), handle.get_stream()))
   {
@@ -349,7 +349,7 @@ class edge_partition_minor_property_t {
   {
     key_first_   = std::nullopt;
     key_last_    = std::nullopt;
-    minor_first_ = std::nullopt;
+    minor_range_first_ = std::nullopt;
 
     resize_dataframe_buffer(buffer_, size_t{0}, handle.get_stream());
     shrink_to_fit_dataframe_buffer(buffer_, handle.get_stream());
@@ -370,7 +370,7 @@ class edge_partition_minor_property_t {
     auto value_first = get_dataframe_buffer_cbegin(buffer_);
     if (key_first_) {
       return edge_partition_minor_property_device_view_t<vertex_t, decltype(value_first)>(
-        *key_first_, *key_last_, *minor_first_, value_first);
+        *key_first_, *key_last_, *minor_range_first_, value_first);
     } else {
       return edge_partition_minor_property_device_view_t<vertex_t, decltype(value_first)>(
         value_first);
@@ -382,7 +382,7 @@ class edge_partition_minor_property_t {
     auto value_first = get_dataframe_buffer_begin(buffer_);
     if (key_first_) {
       return edge_partition_minor_property_device_view_t<vertex_t, decltype(value_first)>(
-        *key_first_, *key_last_, *minor_first_, value_first);
+        *key_first_, *key_last_, *minor_range_first_, value_first);
     } else {
       return edge_partition_minor_property_device_view_t<vertex_t, decltype(value_first)>(
         value_first);
@@ -392,7 +392,7 @@ class edge_partition_minor_property_t {
  private:
   std::optional<vertex_t const*> key_first_{std::nullopt};
   std::optional<vertex_t const*> key_last_{std::nullopt};
-  std::optional<vertex_t> minor_first_{std::nullopt};
+  std::optional<vertex_t> minor_range_first_{std::nullopt};
 
   decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{})) buffer_;
 };
@@ -443,17 +443,17 @@ class edge_partition_src_property_t {
           property_     = detail::edge_partition_minor_property_t<vertex_t, T>(
             handle, *key_first, *key_last, graph_view.local_edge_partition_src_range_first());
         } else {
-          std::vector<vertex_t> edge_partition_major_firsts(
+          std::vector<vertex_t> edge_partition_major_range_firsts(
             graph_view.number_of_local_edge_partitions());
           for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-            edge_partition_major_firsts[i] =
+            edge_partition_major_range_firsts[i] =
               graph_view.local_edge_partition_src_range_first(i);
           }
           property_ = detail::edge_partition_major_property_t<vertex_t, T>(
             handle,
             *key_first,
             *(graph_view.local_sorted_unique_edge_src_offsets()),
-            std::move(edge_partition_major_firsts));
+            std::move(edge_partition_major_range_firsts));
         }
       } else {
         assert(false);
@@ -520,17 +520,17 @@ class edge_partition_dst_property_t {
     if (key_first) {
       if constexpr (GraphViewType::is_multi_gpu) {
         if constexpr (GraphViewType::is_adj_matrix_transposed) {
-          std::vector<vertex_t> edge_partition_major_firsts(
+          std::vector<vertex_t> edge_partition_major_range_firsts(
             graph_view.number_of_local_edge_partitions());
           for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-            edge_partition_major_firsts[i] =
+            edge_partition_major_range_firsts[i] =
               graph_view.local_edge_partition_dst_range_first(i);
           }
           property_ = detail::edge_partition_major_property_t<vertex_t, T>(
             handle,
             *key_first,
             *(graph_view.local_sorted_unique_edge_dst_offsets()),
-            std::move(edge_partition_major_firsts));
+            std::move(edge_partition_major_range_firsts));
         } else {
           auto key_last = graph_view.local_sorted_unique_edge_dst_end();
           property_     = detail::edge_partition_minor_property_t<vertex_t, T>(
@@ -613,7 +613,7 @@ auto device_view_concat(
       *(first.key_data()),
       concat_first,
       *(first.edge_partition_key_offsets()),
-      *(first.edge_partition_major_firsts()));
+      *(first.edge_partition_major_range_firsts()));
   } else if (first.edge_partition_major_value_start_offsets()) {
     return detail::edge_partition_major_property_device_view_t<vertex_t, decltype(concat_first)>(
       concat_first, *(first.edge_partition_major_value_start_offsets()));

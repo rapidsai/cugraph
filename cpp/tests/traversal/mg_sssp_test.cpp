@@ -191,15 +191,15 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
         std::vector<vertex_t> h_sg_indices(sg_graph_view.number_of_edges());
         std::vector<weight_t> h_sg_weights(sg_graph_view.number_of_edges());
         raft::update_host(h_sg_offsets.data(),
-                          sg_graph_view.local_edge_partition_view().get_offsets(),
+                          sg_graph_view.local_edge_partition_view().offsets(),
                           sg_graph_view.number_of_vertices() + 1,
                           handle.get_stream());
         raft::update_host(h_sg_indices.data(),
-                          sg_graph_view.local_edge_partition_view().get_indices(),
+                          sg_graph_view.local_edge_partition_view().indices(),
                           sg_graph_view.number_of_edges(),
                           handle.get_stream());
         raft::update_host(h_sg_weights.data(),
-                          *(sg_graph_view.local_edge_partition_view().get_weights()),
+                          *(sg_graph_view.local_edge_partition_view().weights()),
                           sg_graph_view.number_of_edges(),
                           handle.get_stream());
 

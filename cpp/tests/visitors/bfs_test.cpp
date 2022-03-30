@@ -158,11 +158,11 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     std::vector<edge_t> h_offsets(graph_view.number_of_vertices() + 1);
     std::vector<vertex_t> h_indices(graph_view.number_of_edges());
     raft::update_host(h_offsets.data(),
-                      graph_view.local_edge_partition_view().get_offsets(),
+                      graph_view.local_edge_partition_view().offsets(),
                       graph_view.number_of_vertices() + 1,
                       handle.get_stream());
     raft::update_host(h_indices.data(),
-                      graph_view.local_edge_partition_view().get_indices(),
+                      graph_view.local_edge_partition_view().indices(),
                       graph_view.number_of_edges(),
                       handle.get_stream());
     handle.sync_stream();

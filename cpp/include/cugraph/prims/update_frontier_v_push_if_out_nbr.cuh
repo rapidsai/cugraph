@@ -252,7 +252,7 @@ __global__ void for_all_frontier_src_for_all_nbr_hypersparse(
   auto const warp_id = threadIdx.x / raft::warp_size();
   auto const lane_id = tid % raft::warp_size();
   auto src_start_offset =
-    static_cast<size_t>(major_hypersparse_first - edge_partition.get_major_first());
+    static_cast<size_t>(major_hypersparse_first - edge_partition.major_range_first());
   auto idx = static_cast<size_t>(tid);
 
   __shared__ edge_t
@@ -266,8 +266,8 @@ __global__ void for_all_frontier_src_for_all_nbr_hypersparse(
   __shared__ size_t buffer_warp_start_indices[update_frontier_v_push_if_out_nbr_for_all_block_size /
                                               raft::warp_size()];
 
-  auto indices = edge_partition.get_indices();
-  auto weights = edge_partition.get_weights();
+  auto indices = edge_partition.indices();
+  auto weights = edge_partition.weights();
 
   vertex_t num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
   auto rounded_up_num_keys =
@@ -290,11 +290,11 @@ __global__ void for_all_frontier_src_for_all_nbr_hypersparse(
       } else {
         src = thrust::get<0>(key);
       }
-      auto src_hypersparse_idx = edge_partition.get_major_hypersparse_idx_from_major_nocheck(src);
+      auto src_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(src);
       if (src_hypersparse_idx) {
         auto src_idx                             = src_start_offset + *src_hypersparse_idx;
-        local_degree                             = edge_partition.get_local_degree(src_idx);
-        warp_key_local_edge_offsets[threadIdx.x] = edge_partition.get_local_offset(src_idx);
+        local_degree                             = edge_partition.local_degree(src_idx);
+        warp_key_local_edge_offsets[threadIdx.x] = edge_partition.local_offset(src_idx);
       } else {
         local_degree                             = edge_t{0};
         warp_key_local_edge_offsets[threadIdx.x] = edge_t{0};  // dummy
@@ -339,8 +339,8 @@ __global__ void for_all_frontier_src_for_all_nbr_hypersparse(
           src = thrust::get<0>(key);
         }
         dst             = indices[local_edge_offset];
-        auto src_offset = edge_partition.get_major_offset_from_major_nocheck(src);
-        auto dst_offset = edge_partition.get_minor_offset_from_minor_nocheck(dst);
+        auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
+        auto dst_offset = edge_partition.minor_offset_from_minor_nocheck(dst);
         e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
                                        EdgePartitionSrcValueInputWrapper,
@@ -433,8 +433,8 @@ __global__ void for_all_frontier_src_for_all_nbr_low_degree(
   __shared__ size_t buffer_warp_start_indices[update_frontier_v_push_if_out_nbr_for_all_block_size /
                                               raft::warp_size()];
 
-  auto indices = edge_partition.get_indices();
-  auto weights = edge_partition.get_weights();
+  auto indices = edge_partition.indices();
+  auto weights = edge_partition.weights();
 
   vertex_t num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
   auto rounded_up_num_keys =
@@ -457,9 +457,9 @@ __global__ void for_all_frontier_src_for_all_nbr_low_degree(
       } else {
         src = thrust::get<0>(key);
       }
-      auto src_offset = edge_partition.get_major_offset_from_major_nocheck(src);
-      local_degree    = edge_partition.get_local_degree(src_offset);
-      warp_key_local_edge_offsets[threadIdx.x] = edge_partition.get_local_offset(src_offset);
+      auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
+      local_degree    = edge_partition.local_degree(src_offset);
+      warp_key_local_edge_offsets[threadIdx.x] = edge_partition.local_offset(src_offset);
     }
     WarpScan(temp_storage)
       .InclusiveSum(local_degree, warp_local_degree_inclusive_sums[threadIdx.x]);
@@ -499,8 +499,8 @@ __global__ void for_all_frontier_src_for_all_nbr_low_degree(
           src = thrust::get<0>(key);
         }
         dst             = indices[local_edge_offset];
-        auto src_offset = edge_partition.get_major_offset_from_major_nocheck(src);
-        auto dst_offset = edge_partition.get_minor_offset_from_minor_nocheck(dst);
+        auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
+        auto dst_offset = edge_partition.minor_offset_from_minor_nocheck(dst);
         e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
                                        EdgePartitionSrcValueInputWrapper,
@@ -593,11 +593,11 @@ __global__ void for_all_frontier_src_for_all_nbr_mid_degree(
     } else {
       src = thrust::get<0>(key);
     }
-    auto src_offset = edge_partition.get_major_offset_from_major_nocheck(src);
+    auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
     vertex_t const* indices{nullptr};
     thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_out_degree{};
-    thrust::tie(indices, weights, local_out_degree) = edge_partition.get_local_edges(src_offset);
+    thrust::tie(indices, weights, local_out_degree) = edge_partition.local_edges(src_offset);
     auto rounded_up_local_out_degree =
       ((static_cast<size_t>(local_out_degree) + (raft::warp_size() - 1)) / raft::warp_size()) *
       raft::warp_size();
@@ -607,7 +607,7 @@ __global__ void for_all_frontier_src_for_all_nbr_mid_degree(
 
       if (i < static_cast<size_t>(local_out_degree)) {
         dst             = indices[i];
-        auto dst_offset = edge_partition.get_minor_offset_from_minor_nocheck(dst);
+        auto dst_offset = edge_partition.minor_offset_from_minor_nocheck(dst);
         e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
                                        EdgePartitionSrcValueInputWrapper,
@@ -698,11 +698,11 @@ __global__ void for_all_frontier_src_for_all_nbr_high_degree(
     } else {
       src = thrust::get<0>(key);
     }
-    auto src_offset = edge_partition.get_major_offset_from_major_nocheck(src);
+    auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
     vertex_t const* indices{nullptr};
     thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_out_degree{};
-    thrust::tie(indices, weights, local_out_degree) = edge_partition.get_local_edges(src_offset);
+    thrust::tie(indices, weights, local_out_degree) = edge_partition.local_edges(src_offset);
     auto rounded_up_local_out_degree =
       ((static_cast<size_t>(local_out_degree) +
         (update_frontier_v_push_if_out_nbr_for_all_block_size - 1)) /
@@ -715,7 +715,7 @@ __global__ void for_all_frontier_src_for_all_nbr_high_degree(
 
       if (i < static_cast<size_t>(local_out_degree)) {
         dst             = indices[i];
-        auto dst_offset = edge_partition.get_minor_offset_from_minor_nocheck(dst);
+        auto dst_offset = edge_partition.minor_offset_from_minor_nocheck(dst);
         e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
                                        EdgePartitionSrcValueInputWrapper,
@@ -886,18 +886,18 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
               frontier_vertices.end(),
               [edge_partition,
                major_hypersparse_first =
-                 edge_partition.get_major_first() +
+                 edge_partition.major_range_first() +
                  (*segment_offsets)
                    [detail::num_sparse_segments_per_vertex_partition]] __device__(auto major) {
                 if (major < major_hypersparse_first) {
-                  auto major_offset = edge_partition.get_major_offset_from_major_nocheck(major);
-                  return edge_partition.get_local_degree(major_offset);
+                  auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+                  return edge_partition.local_degree(major_offset);
                 } else {
                   auto major_hypersparse_idx =
-                    edge_partition.get_major_hypersparse_idx_from_major_nocheck(major);
+                    edge_partition.major_hypersparse_idx_from_major_nocheck(major);
                   return major_hypersparse_idx
-                           ? edge_partition.get_local_degree(
-                               edge_partition.get_major_offset_from_major_nocheck(
+                           ? edge_partition.local_degree(
+                               edge_partition.major_offset_from_major_nocheck(
                                  major_hypersparse_first) +
                                *major_hypersparse_idx)
                            : edge_t{0};
@@ -910,8 +910,8 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
               frontier_vertices.begin(),
               frontier_vertices.end(),
               [edge_partition] __device__(auto major) {
-                auto major_offset = edge_partition.get_major_offset_from_major_nocheck(major);
-                return edge_partition.get_local_degree(major_offset);
+                auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+                return edge_partition.local_degree(major_offset);
               },
               edge_t{0},
               thrust::plus<edge_t>());
@@ -922,8 +922,8 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
         local_frontier_vertex_first,
         local_frontier_vertex_last,
         [edge_partition] __device__(auto major) {
-          auto major_offset = edge_partition.get_major_offset_from_major_nocheck(major);
-          return edge_partition.get_local_degree(major_offset);
+          auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+          return edge_partition.local_degree(major_offset);
         },
         edge_t{0},
         thrust::plus<edge_t>());
@@ -1106,18 +1106,18 @@ void update_frontier_v_push_if_out_nbr(
                   edge_partition_frontier_src_last,
                   [edge_partition,
                    major_hypersparse_first =
-                     edge_partition.get_major_first() +
+                     edge_partition.major_range_first() +
                      (*segment_offsets)
                        [detail::num_sparse_segments_per_vertex_partition]] __device__(auto src) {
                     if (src < major_hypersparse_first) {
-                      auto src_offset = edge_partition.get_major_offset_from_major_nocheck(src);
-                      return edge_partition.get_local_degree(src_offset);
+                      auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
+                      return edge_partition.local_degree(src_offset);
                     } else {
                       auto src_hypersparse_idx =
-                        edge_partition.get_major_hypersparse_idx_from_major_nocheck(src);
+                        edge_partition.major_hypersparse_idx_from_major_nocheck(src);
                       return src_hypersparse_idx
-                               ? edge_partition.get_local_degree(
-                                   edge_partition.get_major_offset_from_major_nocheck(
+                               ? edge_partition.local_degree(
+                                   edge_partition.major_offset_from_major_nocheck(
                                      major_hypersparse_first) +
                                    *src_hypersparse_idx)
                                : edge_t{0};
@@ -1130,8 +1130,8 @@ void update_frontier_v_push_if_out_nbr(
                   edge_partition_frontier_src_first,
                   edge_partition_frontier_src_last,
                   [edge_partition] __device__(auto src) {
-                    auto src_offset = edge_partition.get_major_offset_from_major_nocheck(src);
-                    return edge_partition.get_local_degree(src_offset);
+                    auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
+                    return edge_partition.local_degree(src_offset);
                   },
                   edge_t{0},
                   thrust::plus<edge_t>());
@@ -1150,9 +1150,9 @@ void update_frontier_v_push_if_out_nbr(
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
       std::vector<vertex_t> h_thresholds(detail::num_sparse_segments_per_vertex_partition +
                                          (use_dcs ? 1 : 0) - 1);
-      h_thresholds[0] = edge_partition.get_major_first() + (*segment_offsets)[1];
-      h_thresholds[1] = edge_partition.get_major_first() + (*segment_offsets)[2];
-      if (use_dcs) { h_thresholds[2] = edge_partition.get_major_first() + (*segment_offsets)[3]; }
+      h_thresholds[0] = edge_partition.major_range_first() + (*segment_offsets)[1];
+      h_thresholds[1] = edge_partition.major_range_first() + (*segment_offsets)[2];
+      if (use_dcs) { h_thresholds[2] = edge_partition.major_range_first() + (*segment_offsets)[3]; }
       rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), handle.get_stream());
       raft::update_device(
         d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
@@ -1221,7 +1221,7 @@ void update_frontier_v_push_if_out_nbr(
             buffer_idx.data(),
             e_op);
       }
-      if (edge_partition.get_dcs_nzd_vertex_count() && (h_offsets[3] - h_offsets[2] > 0)) {
+      if (edge_partition.dcs_nzd_vertex_count() && (h_offsets[3] - h_offsets[2] > 0)) {
         raft::grid_1d_thread_t update_grid(
           h_offsets[3] - h_offsets[2],
           detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
@@ -1229,7 +1229,7 @@ void update_frontier_v_push_if_out_nbr(
         detail::for_all_frontier_src_for_all_nbr_hypersparse<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            edge_partition.get_major_first() + (*segment_offsets)[3],
+            edge_partition.major_range_first() + (*segment_offsets)[3],
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[2],
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[3],
             edge_partition_src_value_input_copy,

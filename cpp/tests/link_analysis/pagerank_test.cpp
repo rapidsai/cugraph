@@ -275,16 +275,16 @@ class Tests_PageRank
                              unrenumbered_graph_view.number_of_edges(), weight_t{0.0})
                          : std::nullopt;
       raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().get_offsets(),
+                        unrenumbered_graph_view.local_edge_partition_view().offsets(),
                         unrenumbered_graph_view.number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().get_indices(),
+                        unrenumbered_graph_view.local_edge_partition_view().indices(),
                         unrenumbered_graph_view.number_of_edges(),
                         handle.get_stream());
       if (h_weights) {
         raft::update_host((*h_weights).data(),
-                          *(unrenumbered_graph_view.local_edge_partition_view().get_weights()),
+                          *(unrenumbered_graph_view.local_edge_partition_view().weights()),
                           unrenumbered_graph_view.number_of_edges(),
                           handle.get_stream());
       }

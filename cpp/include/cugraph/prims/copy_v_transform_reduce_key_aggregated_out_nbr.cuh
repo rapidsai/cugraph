@@ -43,10 +43,10 @@ template <typename EdgePartitionDstKeyInputWrapper>
 struct minor_to_key_t {
   using vertex_t = typename EdgePartitionDstKeyInputWrapper::value_type;
   EdgePartitionDstKeyInputWrapper edge_partition_dst_key_input{};
-  vertex_t minor_first{};
+  vertex_t minor_range_first{};
   __device__ vertex_t operator()(vertex_t minor) const
   {
-    return edge_partition_dst_key_input.get(minor - minor_first);
+    return edge_partition_dst_key_input.get(minor - minor_range_first);
   }
 };
 
@@ -100,7 +100,7 @@ struct call_key_aggregated_e_op_t {
                                key,
                                w,
                                edge_partition_src_value_input.get(
-                                 edge_partition.get_major_offset_from_major_nocheck(major)),
+                                 edge_partition.major_offset_from_major_nocheck(major)),
                                kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
   }
 };
@@ -285,20 +285,20 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
         handle, edge_partition, tmp_majors.data(), segment_offsets);
 
       auto minor_key_first = thrust::make_transform_iterator(
-        edge_partition.get_indices(),
+        edge_partition.indices(),
         detail::minor_to_key_t<EdgePartitionDstKeyInputWrapper>{
-          edge_partition_dst_key_input, edge_partition.get_minor_first()});
+          edge_partition_dst_key_input, edge_partition.minor_range_first()});
 
       // to limit memory footprint ((1 << 20) is a tuning parameter)
       auto approx_edges_to_sort_per_iteration =
         static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
       auto [h_vertex_offsets, h_edge_offsets] = detail::compute_offset_aligned_edge_chunks(
         handle,
-        edge_partition.get_offsets(),
-        edge_partition.get_dcs_nzd_vertices()
+        edge_partition.offsets(),
+        edge_partition.dcs_nzd_vertices()
           ? (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition] +
-              *(edge_partition.get_dcs_nzd_vertex_count())
-          : edge_partition.get_major_size(),
+              *(edge_partition.dcs_nzd_vertex_count())
+          : edge_partition.major_range_size(),
         edge_partition.number_of_edges(),
         approx_edges_to_sort_per_iteration);
       auto num_chunks = h_vertex_offsets.size() - 1;
@@ -324,14 +324,14 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
         size_t tmp_storage_bytes{0};
         auto offset_first =
-          thrust::make_transform_iterator(edge_partition.get_offsets() + h_vertex_offsets[j],
+          thrust::make_transform_iterator(edge_partition.offsets() + h_vertex_offsets[j],
                                           detail::rebase_offset_t<edge_t>{h_edge_offsets[j]});
         if (graph_view.is_weighted()) {
           cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
                                               tmp_storage_bytes,
                                               tmp_minor_keys.begin() + h_edge_offsets[j],
                                               unreduced_minor_keys.begin(),
-                                              *(edge_partition.get_weights()) + h_edge_offsets[j],
+                                              *(edge_partition.weights()) + h_edge_offsets[j],
                                               unreduced_key_aggregated_edge_weights.begin(),
                                               h_edge_offsets[j + 1] - h_edge_offsets[j],
                                               h_vertex_offsets[j + 1] - h_vertex_offsets[j],
@@ -357,7 +357,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                                               tmp_storage_bytes,
                                               tmp_minor_keys.begin() + h_edge_offsets[j],
                                               unreduced_minor_keys.begin(),
-                                              *(edge_partition.get_weights()) + h_edge_offsets[j],
+                                              *(edge_partition.weights()) + h_edge_offsets[j],
                                               unreduced_key_aggregated_edge_weights.begin(),
                                               h_edge_offsets[j + 1] - h_edge_offsets[j],
                                               h_vertex_offsets[j + 1] - h_vertex_offsets[j],

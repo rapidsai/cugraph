@@ -309,17 +309,17 @@ class Tests_CoarsenGraph
       std::vector<vertex_t> h_org_indices(graph_view.number_of_edges());
       std::vector<weight_t> h_org_weights{};
       raft::update_host(h_org_offsets.data(),
-                        graph_view.local_edge_partition_view().get_offsets(),
+                        graph_view.local_edge_partition_view().offsets(),
                         graph_view.number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_org_indices.data(),
-                        graph_view.local_edge_partition_view().get_indices(),
+                        graph_view.local_edge_partition_view().indices(),
                         graph_view.number_of_edges(),
                         handle.get_stream());
       if (graph_view.is_weighted()) {
         h_org_weights.assign(graph_view.number_of_edges(), weight_t{0.0});
         raft::update_host(h_org_weights.data(),
-                          *(graph_view.local_edge_partition_view().get_weights()),
+                          *(graph_view.local_edge_partition_view().weights()),
                           graph_view.number_of_edges(),
                           handle.get_stream());
       }
@@ -330,17 +330,17 @@ class Tests_CoarsenGraph
       std::vector<vertex_t> h_coarse_indices(coarse_graph_view.number_of_edges());
       std::vector<weight_t> h_coarse_weights{};
       raft::update_host(h_coarse_offsets.data(),
-                        coarse_graph_view.local_edge_partition_view().get_offsets(),
+                        coarse_graph_view.local_edge_partition_view().offsets(),
                         coarse_graph_view.number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_coarse_indices.data(),
-                        coarse_graph_view.local_edge_partition_view().get_indices(),
+                        coarse_graph_view.local_edge_partition_view().indices(),
                         coarse_graph_view.number_of_edges(),
                         handle.get_stream());
       if (graph_view.is_weighted()) {
         h_coarse_weights.resize(coarse_graph_view.number_of_edges());
         raft::update_host(h_coarse_weights.data(),
-                          *(coarse_graph_view.local_edge_partition_view().get_weights()),
+                          *(coarse_graph_view.local_edge_partition_view().weights()),
                           coarse_graph_view.number_of_edges(),
                           handle.get_stream());
       }

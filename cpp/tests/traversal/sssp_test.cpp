@@ -164,15 +164,15 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
       std::vector<vertex_t> h_indices(unrenumbered_graph_view.number_of_edges());
       std::vector<weight_t> h_weights(unrenumbered_graph_view.number_of_edges());
       raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().get_offsets(),
+                        unrenumbered_graph_view.local_edge_partition_view().offsets(),
                         unrenumbered_graph_view.number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().get_indices(),
+                        unrenumbered_graph_view.local_edge_partition_view().indices(),
                         unrenumbered_graph_view.number_of_edges(),
                         handle.get_stream());
       raft::update_host(h_weights.data(),
-                        *(unrenumbered_graph_view.local_edge_partition_view().get_weights()),
+                        *(unrenumbered_graph_view.local_edge_partition_view().weights()),
                         unrenumbered_graph_view.number_of_edges(),
                         handle.get_stream());
 

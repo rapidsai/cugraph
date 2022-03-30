@@ -128,16 +128,16 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
                                                   graph_view.number_of_edges(), weight_t{0.0})
                                               : std::nullopt;
     raft::update_host(h_offsets.data(),
-                      graph_view.local_edge_partition_view().get_offsets(),
+                      graph_view.local_edge_partition_view().offsets(),
                       graph_view.number_of_vertices() + 1,
                       handle.get_stream());
     raft::update_host(h_indices.data(),
-                      graph_view.local_edge_partition_view().get_indices(),
+                      graph_view.local_edge_partition_view().indices(),
                       graph_view.number_of_edges(),
                       handle.get_stream());
     if (h_weights) {
       raft::update_host((*h_weights).data(),
-                        *(graph_view.local_edge_partition_view().get_weights()),
+                        *(graph_view.local_edge_partition_view().weights()),
                         graph_view.number_of_edges(),
                         handle.get_stream());
     }

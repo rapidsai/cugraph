@@ -181,9 +181,9 @@ void serializer_t::serialize(graph_t const& graph, serializer_t::graph_meta_t<gr
 
     gvmeta = graph_meta_t<graph_t>{graph};
 
-    auto offsets = gview.local_edge_partition_view().get_offsets();
-    auto indices = gview.local_edge_partition_view().get_indices();
-    auto weights = gview.local_edge_partition_view().get_weights();
+    auto offsets = gview.local_edge_partition_view().offsets();
+    auto indices = gview.local_edge_partition_view().indices();
+    auto weights = gview.local_edge_partition_view().weights();
 
     // FIXME: remove when host_bcast() becomes available for vectors;
     //

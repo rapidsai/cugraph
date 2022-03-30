@@ -62,8 +62,8 @@ struct call_e_op_t {
     auto minor = thrust::get<1>(e);
     weight_t weight{1.0};
     if constexpr (thrust::tuple_size<Edge>::value == 3) { weight = thrust::get<2>(e); }
-    auto major_offset = edge_partition.get_major_offset_from_major_nocheck(major);
-    auto minor_offset = edge_partition.get_minor_offset_from_minor_nocheck(minor);
+    auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+    auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
     auto src          = GraphViewType::is_adj_matrix_transposed ? minor : major;
     auto dst          = GraphViewType::is_adj_matrix_transposed ? major : minor;
     auto src_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;

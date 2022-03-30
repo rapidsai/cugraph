@@ -383,12 +383,12 @@ symmetrize_edgelist(raft::handle_t const& handle,
       .resize(merged_lower_triangular_majors.size(), handle.get_stream());
     (*merged_lower_triangular_weights).shrink_to_fit(handle.get_stream());
 
-    auto merged_major_minor_first = thrust::make_zip_iterator(thrust::make_tuple(
+    auto merged_major_minor_range_first = thrust::make_zip_iterator(thrust::make_tuple(
       merged_lower_triangular_majors.begin(), merged_lower_triangular_minors.begin()));
     thrust::transform(handle.get_thrust_policy(),
-                      merged_major_minor_first,
-                      merged_major_minor_first + merged_lower_triangular_majors.size(),
-                      merged_major_minor_first,
+                      merged_major_minor_range_first,
+                      merged_major_minor_range_first + merged_lower_triangular_majors.size(),
+                      merged_major_minor_range_first,
                       to_lower_triangular_t<vertex_t>{});
   } else {
     auto lower_triangular_edge_first = thrust::make_zip_iterator(

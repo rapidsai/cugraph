@@ -217,7 +217,7 @@ void update_edge_partition_major_property(
       } else {
         auto map_first = thrust::make_transform_iterator(
           rx_vertices.begin(), [edge_partition] __device__(auto v) {
-            return edge_partition.get_major_offset_from_major_nocheck(v);
+            return edge_partition.major_offset_from_major_nocheck(v);
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
@@ -226,7 +226,7 @@ void update_edge_partition_major_property(
                         rx_value_first + rx_counts[i],
                         map_first,
                         edge_partition_major_property_output.value_data() +
-                          edge_partition.get_major_value_start_offset());
+                          edge_partition.major_value_start_offset());
       }
     }
   } else {
@@ -415,7 +415,7 @@ void update_edge_partition_minor_property(
       } else {
         auto map_first = thrust::make_transform_iterator(
           rx_vertices.begin(), [edge_partition] __device__(auto v) {
-            return edge_partition.get_minor_offset_from_minor_nocheck(v);
+            return edge_partition.minor_offset_from_minor_nocheck(v);
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
         // directly scatters from the internal buffer)
