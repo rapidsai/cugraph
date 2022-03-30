@@ -46,13 +46,53 @@ def _get_param_args(param_name, param_values):
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
+def test_mg_neighborhood_sampling_simple(dask_client):
+
+    from cugraph.experimental.dask import uniform_neighborhood_sampling
+
+    df = cudf.DataFrame({"src": cudf.Series([0, 1, 1, 2, 2, 2, 3, 4], dtype="int32"),
+                         "dst": cudf.Series([1, 3, 4, 0, 1, 3, 5, 5], dtype="int32"),
+                         "value": cudf.Series([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
+                                              dtype="float32"),
+                         })
+    ddf = dask_cudf.from_cudf(df, npartitions=2)
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
+
+    # TODO: Incomplete, include more testing for tree graph as well as
+    # for larger graphs
+    start_list = cudf.Series([0, 1], dtype="int32")
+    info_list = cudf.Series([0, 0], dtype="int32")
+    fanout_vals = [1, 1]
+    with_replacement = True
+    result_nbr = uniform_neighborhood_sampling(G,
+                                               (start_list, info_list),
+                                               fanout_vals,
+                                               with_replacement)
+    result_nbr = result_nbr.compute()
+
+    # Since the validity of results have (probably) been tested at botht he C++
+    # and C layers, simply test that the python interface and conversions were
+    # done correctly.
+    assert result_nbr['sources'].dtype == "int32"
+    assert result_nbr['destinations'].dtype == "int32"
+    assert result_nbr['labels'].dtype == "int32"
+    assert result_nbr['indices'].dtype == "int32"
+
+    # ALl labels should be 0 or 1
+    assert result_nbr['labels'].isin([0, 1]).all()
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 def test_mg_neighborhood_sampling_tree(dask_client):
 
     from cugraph.experimental.dask import uniform_neighborhood_sampling
 
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "small_tree.csv").as_posix()
-    print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(
@@ -63,33 +103,28 @@ def test_mg_neighborhood_sampling_tree(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    df = cudf.read_csv(
-        input_data_path,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    g = cugraph.DiGraph()
-    g.from_cudf_edgelist(df, "src", "dst", "value")
-
-    dg = cugraph.DiGraph()
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
 
     # TODO: Incomplete, include more testing for tree graph as well as
     # for larger graphs
     start_list = cudf.Series([0, 0], dtype="int32")
     info_list = cudf.Series([0, 0], dtype="int32")
-    fanout_vals = cudf.Series([4, 1, 3], dtype="int32")
-    with_replacement = False
-    result_nbr = uniform_neighborhood_sampling(dg,
+    fanout_vals = [4, 1, 3]
+    with_replacement = True
+    result_nbr = uniform_neighborhood_sampling(G,
                                                (start_list, info_list),
                                                fanout_vals,
                                                with_replacement)
     result_nbr = result_nbr.compute()
 
-    # Test that lengths of outputs are as intended for small graph
-    assert len(result_nbr['srcs']) == 10
-    assert len(result_nbr['dsts']) == 10
-    assert len(result_nbr['labels']) == 2
-    assert len(result_nbr['index']) == 2
+    # Since the validity of results have (probably) been tested at botht he C++
+    # and C layers, simply test that the python interface and conversions were
+    # done correctly.
+    assert result_nbr['sources'].dtype == "int32"
+    assert result_nbr['destinations'].dtype == "int32"
+    assert result_nbr['labels'].dtype == "int32"
+    assert result_nbr['indices'].dtype == "int32"
+
+    # ALl labels should be 0
+    assert (result_nbr['labels']==0).all()

@@ -56,13 +56,15 @@ from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
     assert_CAI_type,
+    assert_AI_type,
     get_c_type_from_numpy_type,
 )
+
 
 def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle resource_handle,
                                EXPERIMENTAL__MGGraph input_graph,
                                start_list,
-                               info_list,
+                               labels_list,
                                h_fan_out,
                                bool_t with_replacement,
                                bool_t do_expensive_check):
@@ -82,11 +84,11 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     start_list: device array type
         Device array containing the list of starting vertices for sampling.
 
-    info_list: device array type
+    labels_list: device array type
         Device array containing the starting labels for reorganizing the
         results after sending the input to different callers.
 
-    h_fan_out: cuda array type
+    h_fan_out: numpy array type
         Device array containing the brancing out (fan-out) degrees per
         starting vertex for each hop level.
 
@@ -112,8 +114,8 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
 
     assert_CAI_type(start_list, "start_list")
-    assert_CAI_type(info_list, "info_list")
-    assert_CAI_type(h_fan_out, "fan_out")
+    assert_CAI_type(labels_list, "labels_list")
+    assert_AI_type(h_fan_out, "h_fan_out")
 
     cdef cugraph_sample_result_t* result_ptr
     cdef cugraph_error_code_t error_code
@@ -122,9 +124,9 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     cdef uintptr_t cai_start_ptr = \
         start_list.__cuda_array_interface__["data"][0]
     cdef uintptr_t cai_labels_ptr = \
-        info_list.__cuda_array_interface__["data"][0]
-    cdef uintptr_t cai_fan_out_ptr = \
-        h_fan_out.__cuda_array_interface__["data"][0]
+        labels_list.__cuda_array_interface__["data"][0]
+    cdef uintptr_t ai_fan_out_ptr = \
+        h_fan_out.__array_interface__["data"][0]
 
     cdef cugraph_type_erased_device_array_view_t* start_ptr = \
         cugraph_type_erased_device_array_view_create(
@@ -134,11 +136,11 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     cdef cugraph_type_erased_device_array_view_t* start_labels_ptr = \
         cugraph_type_erased_device_array_view_create(
             <void*>cai_labels_ptr,
-            len(info_list),
-            get_c_type_from_numpy_type(info_list.dtype))
+            len(labels_list),
+            get_c_type_from_numpy_type(labels_list.dtype))
     cdef cugraph_type_erased_host_array_view_t* fan_out_ptr = \
         cugraph_type_erased_host_array_view_create(
-            <void*>cai_fan_out_ptr,
+            <void*>ai_fan_out_ptr,
             len(h_fan_out),
             get_c_type_from_numpy_type(h_fan_out.dtype))
 
@@ -172,8 +174,6 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     cupy_labels = copy_to_cupy_array(c_resource_handle_ptr, labels_ptr)
     cupy_indices = copy_to_cupy_array(c_resource_handle_ptr, index_ptr)
     # cupy_counts = copy_to_cupy_array(c_resource_handle_ptr, counts_ptr)
-
-    cugraph_sample_result_free(result_ptr)
 
     return (cupy_sources, cupy_destinations, cupy_labels, cupy_indices)
     # return (cupy_sources, cupy_destinations, cupy_labels, cupy_indices, cupy_counts)
