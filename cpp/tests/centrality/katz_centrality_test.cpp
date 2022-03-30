@@ -145,7 +145,7 @@ class Tests_KatzCentrality
     result_t constexpr beta{1.0};
     result_t constexpr epsilon{1e-6};
 
-    rmm::device_uvector<result_t> d_katz_centralities(graph_view.get_number_of_vertices(),
+    rmm::device_uvector<result_t> d_katz_centralities(graph_view.number_of_vertices(),
                                                       handle.get_stream());
 
     if (cugraph::test::g_perf) {
@@ -180,31 +180,31 @@ class Tests_KatzCentrality
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-      std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
-      std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
+      std::vector<edge_t> h_offsets(unrenumbered_graph_view.number_of_vertices() + 1);
+      std::vector<vertex_t> h_indices(unrenumbered_graph_view.number_of_edges());
       auto h_weights = unrenumbered_graph_view.is_weighted()
                          ? std::make_optional<std::vector<weight_t>>(
-                             unrenumbered_graph_view.get_number_of_edges(), weight_t{0.0})
+                             unrenumbered_graph_view.number_of_edges(), weight_t{0.0})
                          : std::nullopt;
       raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
-                        unrenumbered_graph_view.get_number_of_vertices() + 1,
+                        unrenumbered_graph_view.local_edge_partition_view().get_offsets(),
+                        unrenumbered_graph_view.number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
-                        unrenumbered_graph_view.get_number_of_edges(),
+                        unrenumbered_graph_view.local_edge_partition_view().get_indices(),
+                        unrenumbered_graph_view.number_of_edges(),
                         handle.get_stream());
       if (h_weights) {
         raft::update_host((*h_weights).data(),
-                          *(unrenumbered_graph_view.get_matrix_partition_view().get_weights()),
-                          unrenumbered_graph_view.get_number_of_edges(),
+                          *(unrenumbered_graph_view.local_edge_partition_view().get_weights()),
+                          unrenumbered_graph_view.number_of_edges(),
                           handle.get_stream());
       }
 
       handle.sync_stream();
 
       std::vector<result_t> h_reference_katz_centralities(
-        unrenumbered_graph_view.get_number_of_vertices());
+        unrenumbered_graph_view.number_of_vertices());
 
       katz_centrality_reference(
         h_offsets.data(),
@@ -212,7 +212,7 @@ class Tests_KatzCentrality
         h_weights ? std::optional<weight_t const*>{(*h_weights).data()} : std::nullopt,
         static_cast<result_t*>(nullptr),
         h_reference_katz_centralities.data(),
-        unrenumbered_graph_view.get_number_of_vertices(),
+        unrenumbered_graph_view.number_of_vertices(),
         alpha,
         beta,
         epsilon,
@@ -220,7 +220,7 @@ class Tests_KatzCentrality
         false,
         true);
 
-      std::vector<result_t> h_cugraph_katz_centralities(graph_view.get_number_of_vertices());
+      std::vector<result_t> h_cugraph_katz_centralities(graph_view.number_of_vertices());
       if (renumber) {
         rmm::device_uvector<result_t> d_unrenumbered_katz_centralities(size_t{0},
                                                                        handle.get_stream());
@@ -241,7 +241,7 @@ class Tests_KatzCentrality
 
       auto threshold_ratio = 1e-3;
       auto threshold_magnitude =
-        (1.0 / static_cast<result_t>(graph_view.get_number_of_vertices())) *
+        (1.0 / static_cast<result_t>(graph_view.number_of_vertices())) *
         threshold_ratio;  // skip comparison for low Katz Centrality verties (lowly ranked vertices)
       auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
         return std::abs(lhs - rhs) <

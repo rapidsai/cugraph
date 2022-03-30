@@ -126,7 +126,7 @@ class Tests_WeaklyConnectedComponent
     ASSERT_TRUE(graph_view.is_symmetric())
       << "Weakly connected components works only on undirected (symmetric) graphs.";
 
-    rmm::device_uvector<vertex_t> d_components(graph_view.get_number_of_vertices(),
+    rmm::device_uvector<vertex_t> d_components(graph_view.number_of_vertices(),
                                                handle.get_stream());
 
     if (cugraph::test::g_perf) {
@@ -152,28 +152,28 @@ class Tests_WeaklyConnectedComponent
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-      std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
-      std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
+      std::vector<edge_t> h_offsets(unrenumbered_graph_view.number_of_vertices() + 1);
+      std::vector<vertex_t> h_indices(unrenumbered_graph_view.number_of_edges());
       raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
-                        unrenumbered_graph_view.get_number_of_vertices() + 1,
+                        unrenumbered_graph_view.local_edge_partition_view().get_offsets(),
+                        unrenumbered_graph_view.number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
-                        unrenumbered_graph_view.get_number_of_edges(),
+                        unrenumbered_graph_view.local_edge_partition_view().get_indices(),
+                        unrenumbered_graph_view.number_of_edges(),
                         handle.get_stream());
 
       handle.sync_stream();
 
       std::vector<vertex_t> h_reference_components(
-        unrenumbered_graph_view.get_number_of_vertices());
+        unrenumbered_graph_view.number_of_vertices());
 
       weakly_connected_components_reference(h_offsets.data(),
                                             h_indices.data(),
                                             h_reference_components.data(),
-                                            unrenumbered_graph_view.get_number_of_vertices());
+                                            unrenumbered_graph_view.number_of_vertices());
 
-      std::vector<vertex_t> h_cugraph_components(graph_view.get_number_of_vertices());
+      std::vector<vertex_t> h_cugraph_components(graph_view.number_of_vertices());
       if (renumber) {
         rmm::device_uvector<vertex_t> d_unrenumbered_components(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_components) =

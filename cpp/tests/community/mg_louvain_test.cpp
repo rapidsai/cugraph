@@ -129,7 +129,7 @@ class Tests_MG_Louvain
         if (rank == 0) {
           auto graph_view = sg_graph->view();
 
-          d_clustering_v.resize(graph_view.get_number_of_vertices(), handle.get_stream());
+          d_clustering_v.resize(graph_view.number_of_vertices(), handle.get_stream());
 
           std::tie(std::ignore, sg_modularity) =
             cugraph::louvain(handle, graph_view, d_clustering_v.data(), size_t{1}, resolution);

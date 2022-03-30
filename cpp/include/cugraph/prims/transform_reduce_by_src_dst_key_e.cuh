@@ -368,10 +368,10 @@ transform_reduce_by_src_dst_key_e(
 
   rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
   auto value_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.get_matrix_partition_view(i));
+        graph_view.local_edge_partition_view(i));
 
     int comm_root_rank = 0;
     if (GraphViewType::is_multi_gpu) {
@@ -383,12 +383,12 @@ transform_reduce_by_src_dst_key_e(
       comm_root_rank           = i * row_comm_size + row_comm_rank;
     }
 
-    auto num_edges = matrix_partition.get_number_of_edges();
+    auto num_edges = matrix_partition.number_of_edges();
 
     rmm::device_uvector<vertex_t> tmp_keys(num_edges, handle.get_stream());
     auto tmp_value_buffer = allocate_dataframe_buffer<T>(tmp_keys.size(), handle.get_stream());
 
-    if (graph_view.get_vertex_partition_size(comm_root_rank) > 0) {
+    if (graph_view.vertex_partition_range_size(comm_root_rank) > 0) {
       auto matrix_partition_src_value_input = edge_partition_src_value_input;
       auto matrix_partition_dst_value_input = edge_partition_dst_value_input;
       if constexpr (GraphViewType::is_adj_matrix_transposed) {
@@ -402,7 +402,7 @@ transform_reduce_by_src_dst_key_e(
         matrix_partition_src_dst_key_input.set_local_adj_matrix_partition_idx(i);
       }
 
-      auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
       if (segment_offsets) {
         // FIXME: we may further improve performance by 1) concurrently running kernels on different
         // segments; 2) individually tuning block sizes for different segments; and 3) adding one

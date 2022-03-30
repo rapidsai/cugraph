@@ -105,9 +105,9 @@ struct pagerank_functor : public abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph_view.get_number_of_local_vertices(),
+      rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());
-      rmm::device_uvector<weight_t> pageranks(graph_view.get_number_of_local_vertices(),
+      rmm::device_uvector<weight_t> pageranks(graph_view.local_vertex_partition_range_size(),
                                               handle_.get_stream());
 
       if (personalization_vertices_ != nullptr) {
@@ -118,8 +118,8 @@ struct pagerank_functor : public abstract_functor {
                                                    personalization_vertices_->as_type<vertex_t>(),
                                                    personalization_vertices_->size_,
                                                    number_map->data(),
-                                                   graph_view.get_local_vertex_first(),
-                                                   graph_view.get_local_vertex_last(),
+                                                   graph_view.local_vertex_partition_range_first(),
+                                                   graph_view.local_vertex_partition_range_last(),
                                                    do_expensive_check_);
       }
 

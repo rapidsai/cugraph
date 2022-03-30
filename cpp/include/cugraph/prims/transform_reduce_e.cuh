@@ -417,10 +417,10 @@ T transform_reduce_e(raft::handle_t const& handle,
                get_dataframe_buffer_begin(result_buffer) + 1,
                T{});
 
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.get_matrix_partition_view(i));
+        graph_view.local_edge_partition_view(i));
 
     auto matrix_partition_src_value_input = edge_partition_src_value_input;
     auto matrix_partition_dst_value_input = edge_partition_dst_value_input;
@@ -430,7 +430,7 @@ T transform_reduce_e(raft::handle_t const& handle,
       matrix_partition_src_value_input.set_local_adj_matrix_partition_idx(i);
     }
 
-    auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
     if (segment_offsets) {
       // FIXME: we may further improve performance by 1) concurrently running kernels on different
       // segments; 2) individually tuning block sizes for different segments; and 3) adding one more

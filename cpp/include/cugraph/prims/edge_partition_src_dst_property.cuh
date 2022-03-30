@@ -435,24 +435,24 @@ class edge_partition_src_property_t {
   {
     using vertex_t = typename GraphViewType::vertex_type;
 
-    auto key_first = graph_view.get_local_sorted_unique_edge_row_begin();
+    auto key_first = graph_view.local_sorted_unique_edge_src_begin();
     if (key_first) {
       if constexpr (GraphViewType::is_multi_gpu) {
         if constexpr (GraphViewType::is_adj_matrix_transposed) {
-          auto key_last = graph_view.get_local_sorted_unique_edge_row_end();
+          auto key_last = graph_view.local_sorted_unique_edge_src_end();
           property_     = detail::edge_partition_minor_property_t<vertex_t, T>(
-            handle, *key_first, *key_last, graph_view.get_local_adj_matrix_partition_row_first());
+            handle, *key_first, *key_last, graph_view.local_edge_partition_src_range_first());
         } else {
           std::vector<vertex_t> matrix_partition_major_firsts(
-            graph_view.get_number_of_local_adj_matrix_partitions());
-          for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+            graph_view.number_of_local_edge_partitions());
+          for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
             matrix_partition_major_firsts[i] =
-              graph_view.get_local_adj_matrix_partition_row_first(i);
+              graph_view.local_edge_partition_src_range_first(i);
           }
           property_ = detail::edge_partition_major_property_t<vertex_t, T>(
             handle,
             *key_first,
-            *(graph_view.get_local_sorted_unique_edge_row_offsets()),
+            *(graph_view.local_sorted_unique_edge_src_offsets()),
             std::move(matrix_partition_major_firsts));
         }
       } else {
@@ -461,22 +461,22 @@ class edge_partition_src_property_t {
     } else {
       if constexpr (GraphViewType::is_adj_matrix_transposed) {
         property_ = detail::edge_partition_minor_property_t<vertex_t, T>(
-          handle, graph_view.get_number_of_local_adj_matrix_partition_rows());
+          handle, graph_view.local_edge_partition_src_range_size());
       } else {
         if constexpr (GraphViewType::is_multi_gpu) {
           std::vector<vertex_t> matrix_partition_major_value_start_offsets(
-            graph_view.get_number_of_local_adj_matrix_partitions());
-          for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+            graph_view.number_of_local_edge_partitions());
+          for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
             matrix_partition_major_value_start_offsets[i] =
-              graph_view.get_local_adj_matrix_partition_row_value_start_offset(i);
+              graph_view.local_edge_partition_src_value_start_offset(i);
           }
           property_ = detail::edge_partition_major_property_t<vertex_t, T>(
             handle,
-            graph_view.get_number_of_local_adj_matrix_partition_rows(),
+            graph_view.local_edge_partition_src_range_size(),
             std::move(matrix_partition_major_value_start_offsets));
         } else {
           property_ = detail::edge_partition_major_property_t<vertex_t, T>(
-            handle, graph_view.get_number_of_local_adj_matrix_partition_rows());
+            handle, graph_view.local_edge_partition_src_range_size());
         }
       }
     }
@@ -516,25 +516,25 @@ class edge_partition_dst_property_t {
   {
     using vertex_t = typename GraphViewType::vertex_type;
 
-    auto key_first = graph_view.get_local_sorted_unique_edge_col_begin();
+    auto key_first = graph_view.local_sorted_unique_edge_dst_begin();
     if (key_first) {
       if constexpr (GraphViewType::is_multi_gpu) {
         if constexpr (GraphViewType::is_adj_matrix_transposed) {
           std::vector<vertex_t> matrix_partition_major_firsts(
-            graph_view.get_number_of_local_adj_matrix_partitions());
-          for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+            graph_view.number_of_local_edge_partitions());
+          for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
             matrix_partition_major_firsts[i] =
-              graph_view.get_local_adj_matrix_partition_col_first(i);
+              graph_view.local_edge_partition_dst_range_first(i);
           }
           property_ = detail::edge_partition_major_property_t<vertex_t, T>(
             handle,
             *key_first,
-            *(graph_view.get_local_sorted_unique_edge_col_offsets()),
+            *(graph_view.local_sorted_unique_edge_dst_offsets()),
             std::move(matrix_partition_major_firsts));
         } else {
-          auto key_last = graph_view.get_local_sorted_unique_edge_col_end();
+          auto key_last = graph_view.local_sorted_unique_edge_dst_end();
           property_     = detail::edge_partition_minor_property_t<vertex_t, T>(
-            handle, *key_first, *key_last, graph_view.get_local_adj_matrix_partition_col_first());
+            handle, *key_first, *key_last, graph_view.local_edge_partition_dst_range_first());
         }
       } else {
         assert(false);
@@ -543,22 +543,22 @@ class edge_partition_dst_property_t {
       if constexpr (GraphViewType::is_adj_matrix_transposed) {
         if constexpr (GraphViewType::is_multi_gpu) {
           std::vector<vertex_t> matrix_partition_major_value_start_offsets(
-            graph_view.get_number_of_local_adj_matrix_partitions());
-          for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+            graph_view.number_of_local_edge_partitions());
+          for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
             matrix_partition_major_value_start_offsets[i] =
-              graph_view.get_local_adj_matrix_partition_col_value_start_offset(i);
+              graph_view.local_edge_partition_dst_value_start_offset(i);
           }
           property_ = detail::edge_partition_major_property_t<vertex_t, T>(
             handle,
-            graph_view.get_number_of_local_adj_matrix_partition_cols(),
+            graph_view.local_edge_partition_dst_range_size(),
             std::move(matrix_partition_major_value_start_offsets));
         } else {
           property_ = detail::edge_partition_major_property_t<vertex_t, T>(
-            handle, graph_view.get_number_of_local_adj_matrix_partition_cols());
+            handle, graph_view.local_edge_partition_dst_range_size());
         }
       } else {
         property_ = detail::edge_partition_minor_property_t<vertex_t, T>(
-          handle, graph_view.get_number_of_local_adj_matrix_partition_cols());
+          handle, graph_view.local_edge_partition_dst_range_size());
       }
     }
   }

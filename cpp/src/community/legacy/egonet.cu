@@ -65,7 +65,7 @@ extract(raft::handle_t const& handle,
         vertex_t n_subgraphs,
         vertex_t radius)
 {
-  auto v                = csr_view.get_number_of_vertices();
+  auto v                = csr_view.number_of_vertices();
   auto user_stream_view = handle.get_stream();
   rmm::device_vector<size_t> neighbors_offsets(n_subgraphs + 1);
   rmm::device_vector<vertex_t> neighbors;
@@ -195,10 +195,10 @@ extract_ego(raft::handle_t const& handle,
                            rmm::device_uvector<size_t>(0, handle.get_stream()));
   }
   CUGRAPH_EXPECTS(n_subgraphs > 0, "Need at least one source to extract the egonet from");
-  CUGRAPH_EXPECTS(n_subgraphs < graph_view.get_number_of_vertices(),
+  CUGRAPH_EXPECTS(n_subgraphs < graph_view.number_of_vertices(),
                   "Can't have more sources to extract from than vertices in the graph");
   CUGRAPH_EXPECTS(radius > 0, "Radius should be at least 1");
-  CUGRAPH_EXPECTS(radius < graph_view.get_number_of_vertices(), "radius is too large");
+  CUGRAPH_EXPECTS(radius < graph_view.number_of_vertices(), "radius is too large");
   // source_vertex range is checked in bfs.
 
   return extract<vertex_t, edge_t, weight_t>(

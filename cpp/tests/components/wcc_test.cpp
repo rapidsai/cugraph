@@ -52,7 +52,7 @@ class Tests_WCC : public ::testing::TestWithParam<std::tuple<WCC_Usecase, input_
 
     auto graph_view = graph.view();
 
-    rmm::device_uvector<vertex_t> component_labels_v(graph_view.get_number_of_vertices(),
+    rmm::device_uvector<vertex_t> component_labels_v(graph_view.number_of_vertices(),
                                                      handle.get_stream());
 
     // cugraph::weakly_connected_components(handle, graph_view, component_labels_v.begin());

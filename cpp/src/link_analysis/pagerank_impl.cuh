@@ -65,7 +65,7 @@ void pagerank(
   static_assert(GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the pull model.");
 
-  auto const num_vertices = pull_graph_view.get_number_of_vertices();
+  auto const num_vertices = pull_graph_view.number_of_vertices();
   if (num_vertices == 0) { return; }
 
   auto aggregate_personalization_vector_size =
@@ -119,7 +119,7 @@ void pagerank(
 
     if (aggregate_personalization_vector_size > 0) {
       auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-        pull_graph_view.get_vertex_partition_view());
+        pull_graph_view.local_vertex_partition_view());
       auto num_invalid_vertices =
         count_if_v(handle,
                    pull_graph_view,
@@ -127,7 +127,7 @@ void pagerank(
                    *personalization_vertices + *personalization_vector_size,
                    [vertex_partition] __device__(auto val) {
                      return !(vertex_partition.is_valid_vertex(val) &&
-                              vertex_partition.is_local_vertex_nocheck(val));
+                              vertex_partition.in_local_vertex_partition_range_nocheck(val));
                    });
       CUGRAPH_EXPECTS(num_invalid_vertices == 0,
                       "Invalid input argument: peresonalization vertices have invalid vertex IDs.");
@@ -160,13 +160,13 @@ void pagerank(
                     "guess values should be positive.");
     thrust::transform(handle.get_thrust_policy(),
                       pageranks,
-                      pageranks + pull_graph_view.get_number_of_local_vertices(),
+                      pageranks + pull_graph_view.local_vertex_partition_range_size(),
                       pageranks,
                       [sum] __device__(auto val) { return val / sum; });
   } else {
     thrust::fill(handle.get_thrust_policy(),
                  pageranks,
-                 pageranks + pull_graph_view.get_number_of_local_vertices(),
+                 pageranks + pull_graph_view.local_vertex_partition_range_size(),
                  result_t{1.0} / static_cast<result_t>(num_vertices));
   }
 
@@ -187,7 +187,7 @@ void pagerank(
   // 5. pagerank iteration
 
   // old PageRank values
-  rmm::device_uvector<result_t> old_pageranks(pull_graph_view.get_number_of_local_vertices(),
+  rmm::device_uvector<result_t> old_pageranks(pull_graph_view.local_vertex_partition_range_size(),
                                               handle.get_stream());
   edge_partition_src_property_t<GraphViewType, result_t> adj_matrix_row_pageranks(handle,
                                                                                   pull_graph_view);
@@ -195,7 +195,7 @@ void pagerank(
   while (true) {
     thrust::copy(handle.get_thrust_policy(),
                  pageranks,
-                 pageranks + pull_graph_view.get_number_of_local_vertices(),
+                 pageranks + pull_graph_view.local_vertex_partition_range_size(),
                  old_pageranks.data());
 
     auto vertex_val_first =
@@ -214,7 +214,7 @@ void pagerank(
 
     thrust::transform(handle.get_thrust_policy(),
                       vertex_val_first,
-                      vertex_val_first + pull_graph_view.get_number_of_local_vertices(),
+                      vertex_val_first + pull_graph_view.local_vertex_partition_range_size(),
                       pageranks,
                       [] __device__(auto val) {
                         auto const pagerank       = thrust::get<0>(val);
@@ -245,7 +245,7 @@ void pagerank(
 
     if (aggregate_personalization_vector_size > 0) {
       auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-        pull_graph_view.get_vertex_partition_view());
+        pull_graph_view.local_vertex_partition_view());
       auto val_first = thrust::make_zip_iterator(
         thrust::make_tuple(*personalization_vertices, *personalization_values));
       thrust::for_each(
@@ -256,7 +256,7 @@ void pagerank(
           auto val) {
           auto v     = thrust::get<0>(val);
           auto value = thrust::get<1>(val);
-          *(pageranks + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) +=
+          *(pageranks + vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)) +=
             (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) *
             (value / personalization_sum);
         });

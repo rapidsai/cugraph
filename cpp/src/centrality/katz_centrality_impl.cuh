@@ -59,7 +59,7 @@ void katz_centrality(raft::handle_t const& handle,
   static_assert(GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the pull model.");
 
-  auto const num_vertices = pull_graph_view.get_number_of_vertices();
+  auto const num_vertices = pull_graph_view.number_of_vertices();
   if (num_vertices == 0) { return; }
 
   // 1. check input arguments
@@ -84,7 +84,7 @@ void katz_centrality(raft::handle_t const& handle,
   if (!has_initial_guess) {
     thrust::fill(handle.get_thrust_policy(),
                  katz_centralities,
-                 katz_centralities + pull_graph_view.get_number_of_local_vertices(),
+                 katz_centralities + pull_graph_view.local_vertex_partition_range_size(),
                  result_t{0.0});
   }
 
@@ -92,7 +92,7 @@ void katz_centrality(raft::handle_t const& handle,
 
   // old katz centrality values
   rmm::device_uvector<result_t> tmp_katz_centralities(
-    pull_graph_view.get_number_of_local_vertices(), handle.get_stream());
+    pull_graph_view.local_vertex_partition_range_size(), handle.get_stream());
   edge_partition_src_property_t<GraphViewType, result_t> adj_matrix_row_katz_centralities(
     handle, pull_graph_view);
   auto new_katz_centralities = katz_centralities;
@@ -119,7 +119,7 @@ void katz_centrality(raft::handle_t const& handle,
       auto val_first = thrust::make_zip_iterator(thrust::make_tuple(new_katz_centralities, betas));
       thrust::transform(handle.get_thrust_policy(),
                         val_first,
-                        val_first + pull_graph_view.get_number_of_local_vertices(),
+                        val_first + pull_graph_view.local_vertex_partition_range_size(),
                         new_katz_centralities,
                         [] __device__(auto val) {
                           auto const katz_centrality = thrust::get<0>(val);
@@ -147,7 +147,7 @@ void katz_centrality(raft::handle_t const& handle,
   if (new_katz_centralities != katz_centralities) {
     thrust::copy(handle.get_thrust_policy(),
                  new_katz_centralities,
-                 new_katz_centralities + pull_graph_view.get_number_of_local_vertices(),
+                 new_katz_centralities + pull_graph_view.local_vertex_partition_range_size(),
                  katz_centralities);
   }
 
@@ -163,7 +163,7 @@ void katz_centrality(raft::handle_t const& handle,
                     "L2 norm of the computed Katz Centrality values should be positive.");
     thrust::transform(handle.get_thrust_policy(),
                       katz_centralities,
-                      katz_centralities + pull_graph_view.get_number_of_local_vertices(),
+                      katz_centralities + pull_graph_view.local_vertex_partition_range_size(),
                       katz_centralities,
                       [l2_norm] __device__(auto val) { return val / l2_norm; });
   }

@@ -260,26 +260,26 @@ collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
                                           vertex_t const* collect_unique_vertex_first,
                                           vertex_t num_vertices,
                                           ValueIterator local_value_first,
-                                          std::vector<vertex_t> const& vertex_partition_lasts,
+                                          std::vector<vertex_t> const& vertex_partition_range_lasts,
                                           rmm::cuda_stream_view stream_view)
 {
   using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
 
   // 1: Compute bounds of values
-  rmm::device_uvector<vertex_t> d_vertex_partition_lasts(vertex_partition_lasts.size(),
+  rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
                                                          stream_view);
-  rmm::device_uvector<size_t> d_local_counts(vertex_partition_lasts.size(), stream_view);
+  rmm::device_uvector<size_t> d_local_counts(vertex_partition_range_lasts.size(), stream_view);
 
-  raft::copy(d_vertex_partition_lasts.data(),
-             vertex_partition_lasts.data(),
-             vertex_partition_lasts.size(),
+  raft::copy(d_vertex_partition_range_lasts.data(),
+             vertex_partition_range_lasts.data(),
+             vertex_partition_range_lasts.size(),
              stream_view);
 
   thrust::lower_bound(rmm::exec_policy(stream_view),
                       collect_unique_vertex_first,
                       collect_unique_vertex_first + num_vertices,
-                      d_vertex_partition_lasts.begin(),
-                      d_vertex_partition_lasts.end(),
+                      d_vertex_partition_range_lasts.begin(),
+                      d_vertex_partition_range_lasts.end(),
                       d_local_counts.begin());
 
   thrust::adjacent_difference(rmm::exec_policy(stream_view),
@@ -307,7 +307,7 @@ collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
     [local_value_first,
      vertex_local_first =
        (comm.get_rank() == 0 ? vertex_t{0}
-                             : vertex_partition_lasts[comm.get_rank() - 1])] __device__(auto v) {
+                             : vertex_partition_range_lasts[comm.get_rank() - 1])] __device__(auto v) {
       return local_value_first[v - vertex_local_first];
     });
 
@@ -327,7 +327,7 @@ collect_values_for_vertices(
   VertexIterator collect_vertex_last,
   ValueIterator local_value_first,
   std::vector<typename thrust::iterator_traits<VertexIterator>::value_type> const&
-    vertex_partition_lasts,
+    vertex_partition_range_lasts,
   rmm::cuda_stream_view stream_view)
 {
   using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
@@ -352,7 +352,7 @@ collect_values_for_vertices(
                                               input_vertices.data(),
                                               static_cast<vertex_t>(input_vertices.size()),
                                               local_value_first,
-                                              vertex_partition_lasts,
+                                              vertex_partition_range_lasts,
                                               stream_view);
 
   thrust::transform(rmm::exec_policy(stream_view),

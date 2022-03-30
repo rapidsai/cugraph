@@ -58,7 +58,7 @@ struct compute_max_distance {
 
   vertex_t __device__ operator()(vertex_t v)
   {
-    auto offset = vertex_partition_.get_local_vertex_offset_from_vertex_nocheck(v);
+    auto offset = vertex_partition_.local_vertex_partition_offset_from_vertex_nocheck(v);
 
     return (predecessors_[offset] == invalid_vertex_) ? vertex_t{0} : distances_[offset];
   }
@@ -74,7 +74,7 @@ struct map_index_to_path_offset {
   size_t __device__ operator()(size_t idx)
   {
     return (idx * max_path_length_) +
-           distances_[vertex_partition_.get_local_vertex_offset_from_vertex_nocheck(
+           distances_[vertex_partition_.local_vertex_partition_offset_from_vertex_nocheck(
              destinations_[idx])];
   }
 };
@@ -146,7 +146,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
                   "Invalid input argument: destinations cannot be null");
 
   vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition_device_view(
-    graph_view.get_vertex_partition_view());
+    graph_view.local_vertex_partition_view());
 
   if constexpr (multi_gpu) {
     CUGRAPH_EXPECTS(0 == thrust::count_if(handle.get_thrust_policy(),
@@ -185,7 +185,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   thrust::fill(handle.get_thrust_policy(), paths.begin(), paths.end(), invalid_vertex);
   raft::copy(current_frontier.data(), destinations, n_destinations, handle.get_stream());
 
-  auto h_vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
+  auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
 
   thrust::tabulate(handle.get_thrust_policy(),
                    current_position.begin(),
@@ -214,7 +214,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
                                                      current_frontier.begin(),
                                                      current_frontier.end(),
                                                      predecessors,
-                                                     h_vertex_partition_lasts,
+                                                     h_vertex_partition_range_lasts,
                                                      handle.get_stream());
     } else {
       thrust::transform(handle.get_thrust_policy(),

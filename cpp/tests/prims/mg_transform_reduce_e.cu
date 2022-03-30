@@ -309,8 +309,8 @@ class Tests_MG_TransformReduceE
       auto sg_graph_view = sg_graph.view();
 
       auto sg_vertex_property_data = generate<result_t>::vertex_property(
-        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
-        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
+        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
         hash_bin_count,
         handle);
       auto sg_col_prop =

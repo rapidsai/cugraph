@@ -108,25 +108,25 @@ shuffle_to_gpus(raft::handle_t const& handle,
   using vertex_t = typename graph_view_t::vertex_type;
   using edge_t   = typename graph_view_t::edge_type;
 
-  auto vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
-  device_vec_t<vertex_t> d_vertex_partition_lasts(vertex_partition_lasts.size(),
+  auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+  device_vec_t<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
                                                   handle.get_stream());
-  raft::update_device(d_vertex_partition_lasts.data(),
-                      vertex_partition_lasts.data(),
-                      vertex_partition_lasts.size(),
+  raft::update_device(d_vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.size(),
                       handle.get_stream());
 
   return groupby_gpu_id_and_shuffle_values(
     handle.get_comms(),
     begin,
     end,
-    [vertex_partition_lasts = d_vertex_partition_lasts.data(),
-     num_vertex_partitions  = d_vertex_partition_lasts.size()] __device__(auto tpl_v_r) {
+    [vertex_partition_range_lasts = d_vertex_partition_range_lasts.data(),
+     num_vertex_partitions  = d_vertex_partition_range_lasts.size()] __device__(auto tpl_v_r) {
       return static_cast<gpu_t>(
-        thrust::distance(vertex_partition_lasts,
+        thrust::distance(vertex_partition_range_lasts,
                          thrust::lower_bound(thrust::seq,
-                                             vertex_partition_lasts,
-                                             vertex_partition_lasts + num_vertex_partitions,
+                                             vertex_partition_range_lasts,
+                                             vertex_partition_range_lasts + num_vertex_partitions,
                                              thrust::get<0>(tpl_v_r))));
     },
     handle.get_stream());

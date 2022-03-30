@@ -75,8 +75,8 @@ class Tests_RWSegSort : public ::testing::TestWithParam<RandomWalks_Usecase> {
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
         handle, target.graph_file_full_path, target.test_weighted, false);
 
-    size_t num_vertices = graph.get_number_of_vertices();
-    size_t num_edges    = graph.get_number_of_edges();
+    size_t num_vertices = graph.number_of_vertices();
+    size_t num_edges    = graph.number_of_edges();
 
     topo::segment_sorter_by_weights_t seg_sort(handle, num_vertices, num_edges);
 
@@ -87,11 +87,11 @@ class Tests_RWSegSort : public ::testing::TestWithParam<RandomWalks_Usecase> {
     // segmented weight sort for a graph;
     //
 
-    edge_t* offsets = const_cast<edge_t*>(graph_view.get_matrix_partition_view().get_offsets());
+    edge_t* offsets = const_cast<edge_t*>(graph_view.local_edge_partition_view().get_offsets());
 
-    vertex_t* indices = const_cast<vertex_t*>(graph_view.get_matrix_partition_view().get_indices());
+    vertex_t* indices = const_cast<vertex_t*>(graph_view.local_edge_partition_view().get_indices());
     weight_t* values =
-      const_cast<weight_t*>(*(graph_view.get_matrix_partition_view().get_weights()));
+      const_cast<weight_t*>(*(graph_view.local_edge_partition_view().get_weights()));
 
     HighResTimer hr_timer;
     std::string label{};

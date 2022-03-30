@@ -121,12 +121,12 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
     auto graph_view = graph.view();
 
     ASSERT_TRUE(static_cast<vertex_t>(bfs_usecase.source) >= 0 &&
-                static_cast<vertex_t>(bfs_usecase.source) < graph_view.get_number_of_vertices())
+                static_cast<vertex_t>(bfs_usecase.source) < graph_view.number_of_vertices())
       << "Invalid starting source.";
 
-    rmm::device_uvector<vertex_t> d_distances(graph_view.get_number_of_vertices(),
+    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(),
                                               handle.get_stream());
-    rmm::device_uvector<vertex_t> d_predecessors(graph_view.get_number_of_vertices(),
+    rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
                                                  handle.get_stream());
 
     if (cugraph::test::g_perf) {
@@ -161,15 +161,15 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-      std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
-      std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
+      std::vector<edge_t> h_offsets(unrenumbered_graph_view.number_of_vertices() + 1);
+      std::vector<vertex_t> h_indices(unrenumbered_graph_view.number_of_edges());
       raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
-                        unrenumbered_graph_view.get_number_of_vertices() + 1,
+                        unrenumbered_graph_view.local_edge_partition_view().get_offsets(),
+                        unrenumbered_graph_view.number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
-                        unrenumbered_graph_view.get_number_of_edges(),
+                        unrenumbered_graph_view.local_edge_partition_view().get_indices(),
+                        unrenumbered_graph_view.number_of_edges(),
                         handle.get_stream());
 
       handle.sync_stream();
@@ -187,27 +187,27 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
         unrenumbered_source = h_renumber_map_labels[bfs_usecase.source];
       }
 
-      std::vector<vertex_t> h_reference_distances(unrenumbered_graph_view.get_number_of_vertices());
+      std::vector<vertex_t> h_reference_distances(unrenumbered_graph_view.number_of_vertices());
       std::vector<vertex_t> h_reference_predecessors(
-        unrenumbered_graph_view.get_number_of_vertices());
+        unrenumbered_graph_view.number_of_vertices());
 
       bfs_reference(h_offsets.data(),
                     h_indices.data(),
                     h_reference_distances.data(),
                     h_reference_predecessors.data(),
-                    unrenumbered_graph_view.get_number_of_vertices(),
+                    unrenumbered_graph_view.number_of_vertices(),
                     unrenumbered_source,
                     std::numeric_limits<vertex_t>::max());
 
-      std::vector<vertex_t> h_cugraph_distances(graph_view.get_number_of_vertices());
-      std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
+      std::vector<vertex_t> h_cugraph_distances(graph_view.number_of_vertices());
+      std::vector<vertex_t> h_cugraph_predecessors(graph_view.number_of_vertices());
       if (renumber) {
         cugraph::unrenumber_local_int_vertices(handle,
                                                d_predecessors.data(),
                                                d_predecessors.size(),
                                                (*d_renumber_map_labels).data(),
                                                vertex_t{0},
-                                               graph_view.get_number_of_vertices(),
+                                               graph_view.number_of_vertices(),
                                                true);
 
         rmm::device_uvector<vertex_t> d_unrenumbered_distances(size_t{0}, handle.get_stream());

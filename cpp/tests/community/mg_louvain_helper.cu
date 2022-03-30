@@ -224,15 +224,15 @@ coarsen_graph(
         coarsened_edgelist_minor_vertices,
         coarsened_edgelist_weights] =
     compressed_sparse_to_relabeled_and_sorted_and_coarsened_edgelist(
-      graph_view.get_matrix_partition_view().get_offsets(),
-      graph_view.get_matrix_partition_view().get_indices(),
-      graph_view.get_matrix_partition_view().get_weights(),
+      graph_view.local_edge_partition_view().get_offsets(),
+      graph_view.local_edge_partition_view().get_indices(),
+      graph_view.local_edge_partition_view().get_weights(),
       labels,
       labels,
       vertex_t{0},
-      graph_view.get_number_of_vertices(),
+      graph_view.number_of_vertices(),
       vertex_t{0},
-      graph_view.get_number_of_vertices(),
+      graph_view.number_of_vertices(),
       handle.get_stream());
 
   cugraph::edgelist_t<vertex_t, edge_t, weight_t> edgelist{};
@@ -247,7 +247,7 @@ coarsen_graph(
 
   vertex_t new_number_of_vertices = 1 + thrust::reduce(handle.get_thrust_policy(),
                                                        labels,
-                                                       labels + graph_view.get_number_of_vertices(),
+                                                       labels + graph_view.number_of_vertices(),
                                                        vertex_t{0},
                                                        thrust::maximum<vertex_t>());
 

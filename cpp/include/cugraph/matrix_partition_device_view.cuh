@@ -46,7 +46,7 @@ class matrix_partition_device_view_base_t {
   {
   }
 
-  __host__ __device__ edge_t get_number_of_edges() const { return number_of_edges_; }
+  __host__ __device__ edge_t number_of_edges() const { return number_of_edges_; }
 
   __host__ __device__ edge_t const* get_offsets() const { return offsets_; }
   __host__ __device__ vertex_t const* get_indices() const { return indices_; }
@@ -105,7 +105,7 @@ class matrix_partition_device_view_t<vertex_t,
   matrix_partition_device_view_t(
     matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu> view)
     : detail::matrix_partition_device_view_base_t<vertex_t, edge_t, weight_t>(
-        view.get_offsets(), view.get_indices(), view.get_weights(), view.get_number_of_edges()),
+        view.get_offsets(), view.get_indices(), view.get_weights(), view.number_of_edges()),
       dcs_nzd_vertices_(view.get_dcs_nzd_vertices()
                           ? thrust::optional<vertex_t const*>{*(view.get_dcs_nzd_vertices())}
                           : thrust::nullopt),
@@ -228,7 +228,7 @@ class matrix_partition_device_view_t<vertex_t,
   matrix_partition_device_view_t(
     matrix_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu> view)
     : detail::matrix_partition_device_view_base_t<vertex_t, edge_t, weight_t>(
-        view.get_offsets(), view.get_indices(), view.get_weights(), view.get_number_of_edges()),
+        view.get_offsets(), view.get_indices(), view.get_weights(), view.number_of_edges()),
       number_of_vertices_(view.get_major_last())
   {
   }

@@ -47,12 +47,11 @@ class serializer_t;  // forward...
  * P_col column communicators of size P_row. row_comm_size = P_col and col_comm_size = P_row.
  * row_comm_rank & col_comm_rank are ranks within the row & column communicators, respectively.
  *
- * We need to partition 1D vertex arrays (storing per vertex values) and the 2D graph adjacency
- * matrix (or transposed 2D graph adjacency matrix) of G. An 1D vertex array of size V is divided to
- * P linear partitions; each partition has the size close to V / P.
+ * We need to partition 1D vertex array and the 2D edge matrix (major = source if not transposed, destination if transposed). 
  *
- * The 2D graph adjacency matrix is first horizontally partitioned to P slabs, then each slab will
- * be further vertically partitioned to P_row rectangles. One GPU will be responsible col_comm_size rectangular partitions.
+ * An 1D vertex array of size V is divided to P linear partitions; each partition has the size close to V / P.
+ *
+ * The 2D edge matrix is first horizontally partitioned to P slabs, then each slab will be further vertically partitioned to P_row rectangles. One GPU will be responsible col_comm_size rectangular partitions.
  *
  * To be more specific, a GPU with (col_comm_rank, row_comm_rank) will be responsible for
  * col_comm_size rectangular partitions [a_i,b_i) by [c,d) where a_i =
@@ -94,116 +93,111 @@ class partition_t {
                     "Invalid API parameter: partition.vertex_partition_offsets[0] should be 0.");
 
     vertex_t start_offset{0};
-    matrix_partition_major_value_start_offsets_.assign(get_number_of_matrix_partitions(), 0);
-    for (size_t i = 0; i < matrix_partition_major_value_start_offsets_.size(); ++i) {
-      matrix_partition_major_value_start_offsets_[i] = start_offset;
-      start_offset += get_matrix_partition_major_last(i) - get_matrix_partition_major_first(i);
+    edge_partition_major_value_start_offsets_.assign(number_of_local_edge_partitions(), 0);
+    for (size_t i = 0; i < edge_partition_major_value_start_offsets_.size(); ++i) {
+      edge_partition_major_value_start_offsets_[i] = start_offset;
+      start_offset += local_edge_partition_major_range_last(i) - local_edge_partition_major_range_first(i);
     }
   }
 
   // FIXME: these are used only in cugraph/utilities/cython.hpp, better delete once we fully switch to the pylibcugraph path
-  int get_row_comm_size() const { return row_comm_size_; }
-  int get_col_comm_size() const { return col_comm_size_; }
-  int get_comm_rank() const { return comm_rank_; }
+  int row_comm_size() const { return row_comm_size_; }
+  int col_comm_size() const { return col_comm_size_; }
+  int comm_rank() const { return comm_rank_; }
 
-  std::vector<vertex_t> const& get_vertex_partition_offsets() const
+  std::vector<vertex_t> const& vertex_partition_offsets() const
   {
     return vertex_partition_offsets_;
   }
 
-  std::vector<vertex_t> get_vertex_partition_lasts() const
+  std::vector<vertex_t> vertex_partition_range_lasts() const
   {
     return std::vector<vertex_t>(vertex_partition_offsets_.begin() + 1,
                                  vertex_partition_offsets_.end());
   }
 
-  std::tuple<vertex_t, vertex_t> get_local_vertex_range() const
+  std::tuple<vertex_t, vertex_t> local_vertex_partition_range() const
   {
     return std::make_tuple(vertex_partition_offsets_[comm_rank_],
                            vertex_partition_offsets_[comm_rank_ + 1]);
   }
 
-  vertex_t get_local_vertex_first() const { return vertex_partition_offsets_[comm_rank_]; }
+  vertex_t local_vertex_partition_range_first() const { return vertex_partition_offsets_[comm_rank_]; }
 
-  vertex_t get_local_vertex_last() const { return vertex_partition_offsets_[comm_rank_ + 1]; }
+  vertex_t local_vertex_partition_range_last() const { return vertex_partition_offsets_[comm_rank_ + 1]; }
 
-  std::tuple<vertex_t, vertex_t> get_vertex_partition_range(size_t vertex_partition_idx) const
+  vertex_t local_vertex_partition_range_size() const { return local_vertex_partition_range_last() - local_vertex_partition_range_first(); }
+
+  std::tuple<vertex_t, vertex_t> vertex_partition_range(size_t partition_idx) const
   {
-    return std::make_tuple(vertex_partition_offsets_[vertex_partition_idx],
-                           vertex_partition_offsets_[vertex_partition_idx + 1]);
+    return std::make_tuple(vertex_partition_offsets_[partition_idx],
+                           vertex_partition_offsets_[partition_idx + 1]);
   }
 
-  vertex_t get_vertex_partition_first(size_t vertex_partition_idx) const
+  vertex_t vertex_partition_range_first(size_t partition_idx) const
   {
-    return vertex_partition_offsets_[vertex_partition_idx];
+    return vertex_partition_offsets_[partition_idx];
   }
 
-  vertex_t get_vertex_partition_last(size_t vertex_partition_idx) const
+  vertex_t vertex_partition_range_last(size_t partition_idx) const
   {
-    return vertex_partition_offsets_[vertex_partition_idx + 1];
+    return vertex_partition_offsets_[partition_idx + 1];
   }
 
-  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const
+  vertex_t vertex_partition_range_size(size_t partition_idx) const
   {
-    return get_vertex_partition_last(vertex_partition_idx) -
-           get_vertex_partition_first(vertex_partition_idx);
+    return vertex_partition_range_last(partition_idx) -
+           vertex_partition_range_first(partition_idx);
   }
 
-  size_t get_number_of_matrix_partitions() const { return col_comm_size_; }
+  size_t number_of_local_edge_partitions() const { return col_comm_size_; }
 
-  // major: row of the graph adjacency matrix (if the graph adjacency matrix is stored as is) or
-  // column of the graph adjacency matrix (if the transposed graph adjacency matrix is stored).
-  std::tuple<vertex_t, vertex_t> get_matrix_partition_major_range(size_t partition_idx) const
+  // major: source of the edge partition (if not transposed) or destination of the edge partition (if transposed).
+  std::tuple<vertex_t, vertex_t> local_edge_partition_major_range(size_t partition_idx) const
   {
-    auto major_first = get_matrix_partition_major_first(partition_idx);
-    auto major_last  = get_matrix_partition_major_last(partition_idx);
-    return std::make_tuple(major_first, major_last);
+    return std::make_tuple(local_edge_partition_major_range_first(partition_idx), local_edge_partition_major_range_last(partition_idx));
   }
 
-  vertex_t get_matrix_partition_major_first(size_t partition_idx) const
+  vertex_t local_edge_partition_major_range_first(size_t partition_idx) const
   {
     return vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_];
   }
 
-  vertex_t get_matrix_partition_major_last(size_t partition_idx) const
+  vertex_t local_edge_partition_major_range_last(size_t partition_idx) const
   {
     return vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1];
   }
 
-  vertex_t get_matrix_partition_major_size(size_t partition_idx) const
+  vertex_t local_edge_partition_major_range_size(size_t partition_idx) const
   {
-    return get_matrix_partition_major_last(partition_idx) -
-           get_matrix_partition_major_first(partition_idx);
+    return local_edge_partition_major_range_last(partition_idx) -
+           local_edge_partition_major_range_first(partition_idx);
   }
 
-  vertex_t get_matrix_partition_major_value_start_offset(size_t partition_idx) const
+  vertex_t local_edge_partition_major_value_start_offset(size_t partition_idx) const
   {
-    return matrix_partition_major_value_start_offsets_[partition_idx];
+    return edge_partition_major_value_start_offsets_[partition_idx];
   }
 
-  // minor: column of the graph adjacency matrix (if the graph adjacency matrix is stored as is) or
-  // row of the graph adjacency matrix (if the transposed graph adjacency matrix is stored).
-  std::tuple<vertex_t, vertex_t> get_matrix_partition_minor_range() const
+  // minor: destination of the edge partition (if not transposed) or source of the edge partition (if transposed).
+  std::tuple<vertex_t, vertex_t> local_edge_partition_minor_range() const
   {
-    auto minor_first = get_matrix_partition_minor_first();
-    auto minor_last  = get_matrix_partition_minor_last();
-
-    return std::make_tuple(minor_first, minor_last);
+    return std::make_tuple(local_edge_partition_minor_range_first(), local_edge_partition_minor_range_last());
   }
 
-  vertex_t get_matrix_partition_minor_first() const
+  vertex_t local_edge_partition_minor_range_first() const
   {
     return vertex_partition_offsets_[col_comm_rank_ * row_comm_size_];
   }
 
-  vertex_t get_matrix_partition_minor_last() const
+  vertex_t local_edge_partition_minor_range_last() const
   {
     return vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
   }
 
-  vertex_t get_matrix_partition_minor_size() const
+  vertex_t local_edge_partition_minor_range_size() const
   {
-    return get_matrix_partition_minor_last() - get_matrix_partition_minor_first();
+    return local_edge_partition_minor_range_last() - local_edge_partition_minor_range_first();
   }
 
  private:
@@ -216,7 +210,7 @@ class partition_t {
   int col_comm_rank_{0};
 
   std::vector<vertex_t>
-    matrix_partition_major_value_start_offsets_{};  // size = get_number_of_matrix_partitions()
+    edge_partition_major_value_start_offsets_{};  // size = number_of_local_edge_partitions()
 };
 
 struct graph_properties_t {
@@ -256,8 +250,8 @@ class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ 
       number_of_edges_(number_of_edges),
       properties_(properties){};
 
-  vertex_t get_number_of_vertices() const { return number_of_vertices_; }
-  edge_t get_number_of_edges() const { return number_of_edges_; }
+  vertex_t number_of_vertices() const { return number_of_vertices_; }
+  edge_t number_of_edges() const { return number_of_edges_; }
 
   template <typename vertex_type = vertex_t>
   std::enable_if_t<std::is_signed<vertex_type>::value, bool> is_valid_vertex(vertex_type v) const
@@ -282,8 +276,8 @@ class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ 
  protected:
   friend class cugraph::serializer::serializer_t;
 
-  raft::handle_t const* get_handle_ptr() const { return handle_ptr_; };
-  graph_properties_t get_graph_properties() const { return properties_; }
+  raft::handle_t const* handle_ptr() const { return handle_ptr_; };
+  graph_properties_t graph_properties() const { return properties_; }
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
@@ -309,14 +303,14 @@ struct graph_view_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu
   partition_t<vertex_t> partition{};
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
-  std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets{};
+  std::optional<std::vector<vertex_t>> edge_partition_segment_offsets{};
 
-  std::optional<vertex_t const*> local_sorted_unique_edge_row_first{std::nullopt};
-  std::optional<vertex_t const*> local_sorted_unique_edge_row_last{std::nullopt};
-  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_row_offsets{std::nullopt};
-  std::optional<vertex_t const*> local_sorted_unique_edge_col_first{std::nullopt};
-  std::optional<vertex_t const*> local_sorted_unique_edge_col_last{std::nullopt};
-  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_col_offsets{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_src_first{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_src_last{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_src_offsets{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_dst_first{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_dst_last{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_dst_offsets{std::nullopt};
 };
 
 // single-GPU version
@@ -361,229 +355,211 @@ class graph_view_t<vertex_t,
 
   graph_view_t(
     raft::handle_t const& handle,
-    std::vector<edge_t const*> const& adj_matrix_partition_offsets,
-    std::vector<vertex_t const*> const& adj_matrix_partition_indices,
-    std::optional<std::vector<weight_t const*>> const& adj_matrix_partition_weights,
-    std::optional<std::vector<vertex_t const*>> const& adj_matrix_partition_dcs_nzd_vertices,
-    std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
+    std::vector<edge_t const*> const& edge_partition_offsets,
+    std::vector<vertex_t const*> const& edge_partition_indices,
+    std::optional<std::vector<weight_t const*>> const& edge_partition_weights,
+    std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
+    std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
     graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta);
 
-  bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
+  bool is_weighted() const { return edge_partition_weights_.has_value(); }
 
-  std::vector<vertex_t> get_vertex_partition_lasts() const
+  std::vector<vertex_t> vertex_partition_range_lasts() const
   {
-    return partition_.get_vertex_partition_lasts();
+    return partition_.vertex_partition_range_lasts();
   }
 
-  vertex_t get_number_of_local_vertices() const
+  vertex_t local_vertex_partition_range_size() const
   {
-    return partition_.get_local_vertex_last() - partition_.get_local_vertex_first();
+    return partition_.local_vertex_partition_range_size();
   }
 
-  vertex_t get_local_vertex_first() const { return partition_.get_local_vertex_first(); }
+  vertex_t local_vertex_partition_range_first() const { return partition_.local_vertex_partition_range_first(); }
 
-  vertex_t get_local_vertex_last() const { return partition_.get_local_vertex_last(); }
+  vertex_t local_vertex_partition_range_last() const { return partition_.local_vertex_partition_range_last(); }
 
-  vertex_t get_vertex_partition_first(size_t vertex_partition_idx) const
+  vertex_t vertex_partition_range_first(size_t partition_idx) const
   {
-    return partition_.get_vertex_partition_first(vertex_partition_idx);
+    return partition_.vertex_partition_range_first(partition_idx);
   }
 
-  vertex_t get_vertex_partition_last(size_t vertex_partition_idx) const
+  vertex_t vertex_partition_range_last(size_t partition_idx) const
   {
-    return partition_.get_vertex_partition_last(vertex_partition_idx);
+    return partition_.vertex_partition_range_last(partition_idx);
   }
 
-  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const
+  vertex_t vertex_partition_range_size(size_t partition_idx) const
   {
-    return get_vertex_partition_last(vertex_partition_idx) -
-           get_vertex_partition_first(vertex_partition_idx);
+    return partition_.vertex_partition_range_size(partition_idx);
   }
 
-  bool is_local_vertex_nocheck(vertex_t v) const
+  bool in_local_vertex_partition_range_nocheck(vertex_t v) const
   {
-    return (v >= get_local_vertex_first()) && (v < get_local_vertex_last());
+    return (v >= local_vertex_partition_range_first()) && (v < local_vertex_partition_range_last());
   }
 
-  size_t get_number_of_local_adj_matrix_partitions() const
+  size_t number_of_local_edge_partitions() const
   {
-    return adj_matrix_partition_offsets_.size();
+    return edge_partition_offsets_.size();
   }
 
-  vertex_t get_number_of_local_adj_matrix_partition_rows() const
+  edge_t number_of_local_edge_partition_edges(size_t partition_idx) const {
+    return edge_partition_number_of_edges_[partition_idx];
+  }
+
+  vertex_t local_edge_partition_src_range_size() const
   {
-    if (!store_transposed) {
+    if (!store_transposed) {  // source range can be non-contiguous
       vertex_t ret{0};
-      for (size_t i = 0; i < partition_.get_number_of_matrix_partitions(); ++i) {
-        ret += partition_.get_matrix_partition_major_last(i) -
-               partition_.get_matrix_partition_major_first(i);
+      for (size_t i = 0; i < partition_.number_of_local_edge_partitions(); ++i) {
+        ret += partition_.local_edge_partition_major_range_size(i);
       }
       return ret;
     } else {
-      return partition_.get_matrix_partition_minor_last() -
-             partition_.get_matrix_partition_minor_first();
+      return partition_.local_edge_partition_minor_range_size();
     }
   }
 
-  vertex_t get_number_of_local_adj_matrix_partition_cols() const
+  vertex_t local_edge_partition_dst_range_size() const
   {
-    if (store_transposed) {
+    if (store_transposed) {  // destination range can be non-contiguous
       vertex_t ret{0};
-      for (size_t i = 0; i < partition_.get_number_of_matrix_partitions(); ++i) {
-        ret += partition_.get_matrix_partition_major_last(i) -
-               partition_.get_matrix_partition_major_first(i);
+      for (size_t i = 0; i < partition_.number_of_local_edge_partitions(); ++i) {
+        ret += partition_.local_edge_partition_major_range_size(i);
       }
       return ret;
     } else {
-      return partition_.get_matrix_partition_minor_last() -
-             partition_.get_matrix_partition_minor_first();
+      return partition_.local_edge_partition_minor_range_size();
     }
   }
 
-  edge_t get_number_of_local_adj_matrix_partition_edges(size_t adj_matrix_partition_idx) const
+  template <bool transposed = is_adj_matrix_transposed>
+  std::enable_if_t<transposed, vertex_t> local_edge_partition_src_range_first() const
   {
-    return adj_matrix_partition_number_of_edges_[adj_matrix_partition_idx];
+    return partition_.local_edge_partition_minor_range_first();
   }
 
   template <bool transposed = is_adj_matrix_transposed>
-  std::enable_if_t<transposed, vertex_t> get_local_adj_matrix_partition_row_first() const
+  std::enable_if_t<transposed, vertex_t> local_edge_partition_src_range_last() const
   {
-    return partition_.get_matrix_partition_minor_first();
+    return partition_.local_edge_partition_minor_range_last();
   }
 
-  template <bool transposed = is_adj_matrix_transposed>
-  std::enable_if_t<transposed, vertex_t> get_local_adj_matrix_partition_row_last() const
+  vertex_t local_edge_partition_src_range_first(size_t partition_idx) const
   {
-    return partition_.get_matrix_partition_minor_last();
+    return store_transposed ? partition_.local_edge_partition_minor_range_first()
+                            : partition_.local_edge_partition_major_range_first(partition_idx);
   }
 
-  template <bool transposed = is_adj_matrix_transposed>
-  std::enable_if_t<transposed, vertex_t> get_number_of_local_adj_matrix_partition_rows() const
+  vertex_t local_edge_partition_src_range_last(size_t partition_idx) const
   {
-    return get_local_adj_matrix_partition_row_last() - get_local_adj_matrix_partition_row_first();
+    return store_transposed ? partition_.local_edge_partition_minor_range_last()
+                            : partition_.local_edge_partition_major_range_last(partition_idx);
   }
 
-  vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx) const
+  vertex_t local_edge_partition_src_range_size(size_t partition_idx) const
   {
-    return store_transposed ? partition_.get_matrix_partition_minor_first()
-                            : partition_.get_matrix_partition_major_first(adj_matrix_partition_idx);
+    return local_edge_partition_src_range_last(partition_idx) -
+           local_edge_partition_src_range_first(partition_idx);
   }
 
-  vertex_t get_local_adj_matrix_partition_row_last(size_t adj_matrix_partition_idx) const
-  {
-    return store_transposed ? partition_.get_matrix_partition_minor_last()
-                            : partition_.get_matrix_partition_major_last(adj_matrix_partition_idx);
-  }
-
-  vertex_t get_number_of_local_adj_matrix_partition_rows(size_t adj_matrix_partition_idx) const
-  {
-    return get_local_adj_matrix_partition_row_last(adj_matrix_partition_idx) -
-           get_local_adj_matrix_partition_row_first(adj_matrix_partition_idx);
-  }
-
-  vertex_t get_local_adj_matrix_partition_row_value_start_offset(
-    size_t adj_matrix_partition_idx) const
+  vertex_t local_edge_partition_src_value_start_offset(
+    size_t partition_idx) const
   {
     return store_transposed
              ? vertex_t{0}
-             : partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx);
+             : partition_.local_edge_partition_major_value_start_offset(partition_idx);
   }
 
   template <bool transposed = is_adj_matrix_transposed>
-  std::enable_if_t<!transposed, vertex_t> get_local_adj_matrix_partition_col_first() const
+  std::enable_if_t<!transposed, vertex_t> local_edge_partition_dst_range_first() const
   {
-    return partition_.get_matrix_partition_minor_first();
+    return partition_.local_edge_partition_minor_range_first();
   }
 
   template <bool transposed = is_adj_matrix_transposed>
-  std::enable_if_t<!transposed, vertex_t> get_local_adj_matrix_partition_col_last() const
+  std::enable_if_t<!transposed, vertex_t> local_edge_partition_dst_range_last() const
   {
-    return partition_.get_matrix_partition_minor_last();
+    return partition_.local_edge_partition_minor_range_last();
   }
 
-  template <bool transposed = is_adj_matrix_transposed>
-  std::enable_if_t<!transposed, vertex_t> get_number_of_local_adj_matrix_partition_cols() const
+  vertex_t local_edge_partition_dst_range_first(size_t partition_idx) const
   {
-    return get_local_adj_matrix_partition_col_last() - get_local_adj_matrix_partition_col_first();
+    return store_transposed ? partition_.local_edge_partition_major_range_first(partition_idx)
+                            : partition_.local_edge_partition_minor_range_first();
   }
 
-  vertex_t get_local_adj_matrix_partition_col_first(size_t adj_matrix_partition_idx) const
+  vertex_t local_edge_partition_dst_range_last(size_t partition_idx) const
   {
-    return store_transposed ? partition_.get_matrix_partition_major_first(adj_matrix_partition_idx)
-                            : partition_.get_matrix_partition_minor_first();
+    return store_transposed ? partition_.local_edge_partition_major_range_last(partition_idx)
+                            : partition_.local_edge_partition_minor_range_last();
   }
 
-  vertex_t get_local_adj_matrix_partition_col_last(size_t adj_matrix_partition_idx) const
+  vertex_t local_edge_partition_dst_range_size(size_t partition_idx) const
   {
-    return store_transposed ? partition_.get_matrix_partition_major_last(adj_matrix_partition_idx)
-                            : partition_.get_matrix_partition_minor_last();
+    return local_edge_partition_dst_range_last(partition_idx) -
+           local_edge_partition_dst_range_first(partition_idx);
   }
 
-  vertex_t get_number_of_local_adj_matrix_partition_cols(size_t adj_matrix_partition_idx) const
-  {
-    return get_local_adj_matrix_partition_col_last(adj_matrix_partition_idx) -
-           get_local_adj_matrix_partition_col_first(adj_matrix_partition_idx);
-  }
-
-  vertex_t get_local_adj_matrix_partition_col_value_start_offset(
-    size_t adj_matrix_partition_idx) const
+  vertex_t local_edge_partition_dst_value_start_offset(
+    size_t partition_idx) const
   {
     return store_transposed
-             ? partition_.get_matrix_partition_major_value_start_offset(adj_matrix_partition_idx)
+             ? partition_.local_edge_partition_major_value_start_offset(partition_idx)
              : vertex_t{0};
   }
 
-  std::optional<std::vector<vertex_t>> get_local_adj_matrix_partition_segment_offsets(
+  std::optional<std::vector<vertex_t>> local_edge_partition_segment_offsets(
     size_t partition_idx) const
   {
-    if (adj_matrix_partition_segment_offsets_) {
+    if (edge_partition_segment_offsets_) {
       auto size_per_partition =
-        (*adj_matrix_partition_segment_offsets_).size() / adj_matrix_partition_offsets_.size();
+        (*edge_partition_segment_offsets_).size() / edge_partition_offsets_.size();
       return std::vector<vertex_t>(
-        (*adj_matrix_partition_segment_offsets_).begin() + partition_idx * size_per_partition,
-        (*adj_matrix_partition_segment_offsets_).begin() +
+        (*edge_partition_segment_offsets_).begin() + partition_idx * size_per_partition,
+        (*edge_partition_segment_offsets_).begin() +
           (partition_idx + 1) * size_per_partition);
     } else {
       return std::nullopt;
     }
   }
 
-  vertex_partition_view_t<vertex_t, true> get_vertex_partition_view() const
+  vertex_partition_view_t<vertex_t, true> local_vertex_partition_view() const
   {
-    return vertex_partition_view_t<vertex_t, true>(this->get_number_of_vertices(),
-                                                   this->get_local_vertex_first(),
-                                                   this->get_local_vertex_last());
+    return vertex_partition_view_t<vertex_t, true>(this->number_of_vertices(),
+                                                   this->local_vertex_partition_range_first(),
+                                                   this->local_vertex_partition_range_last());
   }
 
-  matrix_partition_view_t<vertex_t, edge_t, weight_t, true> get_matrix_partition_view(
-    size_t adj_matrix_partition_idx) const
+  matrix_partition_view_t<vertex_t, edge_t, weight_t, true> local_edge_partition_view(
+    size_t partition_idx) const
   {
     return matrix_partition_view_t<vertex_t, edge_t, weight_t, true>(
-      adj_matrix_partition_offsets_[adj_matrix_partition_idx],
-      adj_matrix_partition_indices_[adj_matrix_partition_idx],
-      adj_matrix_partition_weights_
-        ? std::optional<weight_t const*>{(*adj_matrix_partition_weights_)[adj_matrix_partition_idx]}
+      edge_partition_offsets_[partition_idx],
+      edge_partition_indices_[partition_idx],
+      edge_partition_weights_
+        ? std::optional<weight_t const*>{(*edge_partition_weights_)[partition_idx]}
         : std::nullopt,
-      adj_matrix_partition_dcs_nzd_vertices_
+      edge_partition_dcs_nzd_vertices_
         ? std::optional<vertex_t const*>{(
-            *adj_matrix_partition_dcs_nzd_vertices_)[adj_matrix_partition_idx]}
+            *edge_partition_dcs_nzd_vertices_)[partition_idx]}
         : std::nullopt,
-      adj_matrix_partition_dcs_nzd_vertex_counts_
+      edge_partition_dcs_nzd_vertex_counts_
         ? std::optional<vertex_t>{(
-            *adj_matrix_partition_dcs_nzd_vertex_counts_)[adj_matrix_partition_idx]}
+            *edge_partition_dcs_nzd_vertex_counts_)[partition_idx]}
         : std::nullopt,
-      this->get_number_of_local_adj_matrix_partition_edges(adj_matrix_partition_idx),
-      store_transposed ? this->get_local_adj_matrix_partition_col_first(adj_matrix_partition_idx)
-                       : this->get_local_adj_matrix_partition_row_first(adj_matrix_partition_idx),
-      store_transposed ? this->get_local_adj_matrix_partition_col_last(adj_matrix_partition_idx)
-                       : this->get_local_adj_matrix_partition_row_last(adj_matrix_partition_idx),
-      store_transposed ? this->get_local_adj_matrix_partition_row_first(adj_matrix_partition_idx)
-                       : this->get_local_adj_matrix_partition_col_first(adj_matrix_partition_idx),
-      store_transposed ? this->get_local_adj_matrix_partition_row_last(adj_matrix_partition_idx)
-                       : this->get_local_adj_matrix_partition_col_last(adj_matrix_partition_idx),
+      edge_partition_number_of_edges_[partition_idx],
+      store_transposed ? this->local_edge_partition_dst_range_first(partition_idx)
+                       : this->local_edge_partition_src_range_first(partition_idx),
+      store_transposed ? this->local_edge_partition_dst_range_last(partition_idx)
+                       : this->local_edge_partition_src_range_last(partition_idx),
+      store_transposed ? this->local_edge_partition_src_range_first(partition_idx)
+                       : this->local_edge_partition_dst_range_first(partition_idx),
+      store_transposed ? this->local_edge_partition_src_range_last(partition_idx)
+                       : this->local_edge_partition_dst_range_last(partition_idx),
       store_transposed
-        ? this->get_local_adj_matrix_partition_col_value_start_offset(adj_matrix_partition_idx)
-        : this->get_local_adj_matrix_partition_row_value_start_offset(adj_matrix_partition_idx));
+        ? this->local_edge_partition_dst_value_start_offset(partition_idx)
+        : this->local_edge_partition_src_value_start_offset(partition_idx));
   }
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
@@ -601,34 +577,34 @@ class graph_view_t<vertex_t,
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;
 
-  std::optional<vertex_t const*> get_local_sorted_unique_edge_row_begin() const
+  std::optional<vertex_t const*> local_sorted_unique_edge_src_begin() const
   {
-    return local_sorted_unique_edge_row_first_;
+    return local_sorted_unique_edge_src_first_;
   }
 
-  std::optional<vertex_t const*> get_local_sorted_unique_edge_row_end() const
+  std::optional<vertex_t const*> local_sorted_unique_edge_src_end() const
   {
-    return local_sorted_unique_edge_row_last_;
+    return local_sorted_unique_edge_src_last_;
   }
 
-  std::optional<std::vector<vertex_t>> get_local_sorted_unique_edge_row_offsets() const
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_src_offsets() const
   {
-    return local_sorted_unique_edge_row_offsets_;
+    return local_sorted_unique_edge_src_offsets_;
   }
 
-  std::optional<vertex_t const*> get_local_sorted_unique_edge_col_begin() const
+  std::optional<vertex_t const*> local_sorted_unique_edge_dst_begin() const
   {
-    return local_sorted_unique_edge_col_first_;
+    return local_sorted_unique_edge_dst_first_;
   }
 
-  std::optional<vertex_t const*> get_local_sorted_unique_edge_col_end() const
+  std::optional<vertex_t const*> local_sorted_unique_edge_dst_end() const
   {
-    return local_sorted_unique_edge_col_last_;
+    return local_sorted_unique_edge_dst_last_;
   }
 
-  std::optional<std::vector<vertex_t>> get_local_sorted_unique_edge_col_offsets() const
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_dst_offsets() const
   {
-    return local_sorted_unique_edge_col_offsets_;
+    return local_sorted_unique_edge_dst_offsets_;
   }
 
   std::tuple<rmm::device_uvector<vertex_t>,
@@ -638,29 +614,28 @@ class graph_view_t<vertex_t,
                          std::optional<rmm::device_uvector<vertex_t>> const& renumber_map) const;
 
  private:
-  std::vector<edge_t const*> adj_matrix_partition_offsets_{};
-  std::vector<vertex_t const*> adj_matrix_partition_indices_{};
-  std::optional<std::vector<weight_t const*>> adj_matrix_partition_weights_{};
+  std::vector<edge_t const*> edge_partition_offsets_{};
+  std::vector<vertex_t const*> edge_partition_indices_{};
+  std::optional<std::vector<weight_t const*>> edge_partition_weights_{};
 
   // relevant only if we use the CSR + DCSR (or CSC + DCSC) hybrid format
-  std::optional<std::vector<vertex_t const*>> adj_matrix_partition_dcs_nzd_vertices_{};
-  std::optional<std::vector<vertex_t>> adj_matrix_partition_dcs_nzd_vertex_counts_{};
+  std::optional<std::vector<vertex_t const*>> edge_partition_dcs_nzd_vertices_{};
+  std::optional<std::vector<vertex_t>> edge_partition_dcs_nzd_vertex_counts_{};
 
-  std::vector<edge_t> adj_matrix_partition_number_of_edges_{};
+  std::vector<edge_t> edge_partition_number_of_edges_{};
 
   partition_t<vertex_t> partition_{};
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
-  std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets_{};
+  std::optional<std::vector<vertex_t>> edge_partition_segment_offsets_{};
 
-  // if valid, store row/column properties in key/value pairs (this saves memory if # unique edge
-  // rows/cols << V / row_comm_size|col_comm_size).
-  std::optional<vertex_t const*> local_sorted_unique_edge_row_first_{std::nullopt};
-  std::optional<vertex_t const*> local_sorted_unique_edge_row_last_{std::nullopt};
-  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_row_offsets_{std::nullopt};
-  std::optional<vertex_t const*> local_sorted_unique_edge_col_first_{std::nullopt};
-  std::optional<vertex_t const*> local_sorted_unique_edge_col_last_{std::nullopt};
-  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_col_offsets_{std::nullopt};
+  // if valid, store source/destination property values in key/value pairs (this saves memory if # unique edge sources/destinations << V / row_comm_size|col_comm_size).
+  std::optional<vertex_t const*> local_sorted_unique_edge_src_first_{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_src_last_{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_src_offsets_{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_dst_first_{std::nullopt};
+  std::optional<vertex_t const*> local_sorted_unique_edge_dst_last_{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_dst_offsets_{std::nullopt};
 };
 
 // single-GPU version
@@ -691,142 +666,130 @@ class graph_view_t<vertex_t,
 
   bool is_weighted() const { return weights_.has_value(); }
 
-  vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
-
-  std::vector<vertex_t> get_vertex_partition_lasts() const
+  std::vector<vertex_t> vertex_partition_range_lasts() const
   {
-    return std::vector<vertex_t>{get_local_vertex_last()};
+    return std::vector<vertex_t>{local_vertex_partition_range_last()};
   }
 
-  constexpr vertex_t get_local_vertex_first() const { return vertex_t{0}; }
+  vertex_t local_vertex_partition_range_size() const { return this->number_of_vertices(); }
 
-  vertex_t get_local_vertex_last() const { return this->get_number_of_vertices(); }
+  constexpr vertex_t local_vertex_partition_range_first() const { return vertex_t{0}; }
 
-  vertex_t get_vertex_partition_first(size_t vertex_partition_idx) const { return vertex_t{0}; }
+  vertex_t local_vertex_partition_range_last() const { return this->number_of_vertices(); }
 
-  vertex_t get_vertex_partition_last(size_t vertex_partition_idx) const
+  vertex_t vertex_partition_range_first(size_t partition_idx) const { assert(partition_idx == 0); return vertex_t{0}; }
+
+  vertex_t vertex_partition_range_last(size_t partition_idx) const
   {
-    return this->get_number_of_vertices();
+    assert(partition_idx == 0);
+    return this->number_of_vertices();
   }
 
-  vertex_t get_vertex_partition_size(size_t vertex_partition_idx) const
+  vertex_t vertex_partition_range_size(size_t partition_idx) const
   {
-    return get_vertex_partition_last(vertex_partition_idx) -
-           get_vertex_partition_first(vertex_partition_idx);
+    assert(partition_idx == 0);
+    return this->number_of_vertices();
   }
 
-  constexpr bool is_local_vertex_nocheck(vertex_t v) const { return true; }
+  constexpr bool in_local_vertex_partition_range_nocheck(vertex_t v) const { return true; }
 
-  constexpr size_t get_number_of_local_adj_matrix_partitions() const { return size_t(1); }
+  constexpr size_t number_of_local_edge_partitions() const { return size_t(1); }
 
-  vertex_t get_number_of_local_adj_matrix_partition_rows() const
-  {
-    return this->get_number_of_vertices();
+  edge_t number_of_local_edge_partition_edges(size_t partition_idx = 0) const {
+    assert(partition_idx == 0);
+    return this->number_of_edges();
   }
 
-  vertex_t get_number_of_local_adj_matrix_partition_cols() const
+  vertex_t local_edge_partition_src_range_size() const
   {
-    return this->get_number_of_vertices();
+    return this->number_of_vertices();
   }
 
-  edge_t get_number_of_local_adj_matrix_partition_edges(size_t adj_matrix_partition_idx = 0) const
+  vertex_t local_edge_partition_dst_range_size() const
   {
-    assert(adj_matrix_partition_idx == 0);
-    return this->get_number_of_edges();
-  }
-
-  template <bool transposed = is_adj_matrix_transposed>
-  std::enable_if_t<transposed, vertex_t> get_local_adj_matrix_partition_row_first() const
-  {
-    return get_local_adj_matrix_partition_row_first(0);
+    return this->number_of_vertices();
   }
 
   template <bool transposed = is_adj_matrix_transposed>
-  std::enable_if_t<transposed, vertex_t> get_local_adj_matrix_partition_row_last() const
+  std::enable_if_t<transposed, vertex_t> local_edge_partition_src_range_first() const
   {
-    return get_local_adj_matrix_partition_row_last(0);
+    return local_edge_partition_src_range_first(0);
   }
 
   template <bool transposed = is_adj_matrix_transposed>
-  std::enable_if_t<transposed, vertex_t> get_number_of_local_adj_matrix_partition_rows() const
+  std::enable_if_t<transposed, vertex_t> local_edge_partition_src_range_last() const
   {
-    return get_number_of_local_adj_matrix_partition_rows(0);
+    return local_edge_partition_src_range_last(0);
   }
 
-  vertex_t get_local_adj_matrix_partition_row_first(size_t adj_matrix_partition_idx = 0) const
+  vertex_t local_edge_partition_src_range_first(size_t partition_idx = 0) const
   {
-    assert(adj_matrix_partition_idx == 0);
+    assert(partition_idx == 0);
     return vertex_t{0};
   }
 
-  vertex_t get_local_adj_matrix_partition_row_last(size_t adj_matrix_partition_idx = 0) const
+  vertex_t local_edge_partition_src_range_last(size_t partition_idx = 0) const
   {
-    assert(adj_matrix_partition_idx == 0);
-    return this->get_number_of_vertices();
+    assert(partition_idx == 0);
+    return this->number_of_vertices();
   }
 
-  vertex_t get_local_adj_matrix_partition_row_value_start_offset(
-    size_t adj_matrix_partition_idx = 0) const
+  vertex_t local_edge_partition_src_value_start_offset(
+    size_t partition_idx = 0) const
   {
-    assert(adj_matrix_partition_idx == 0);
+    assert(partition_idx == 0);
     return vertex_t{0};
   }
 
   template <bool transposed = is_adj_matrix_transposed>
-  std::enable_if_t<!transposed, vertex_t> get_local_adj_matrix_partition_col_first() const
+  std::enable_if_t<!transposed, vertex_t> local_edge_partition_dst_range_first() const
   {
-    return get_local_adj_matrix_partition_col_first(0);
+    return local_edge_partition_dst_range_first(0);
   }
 
   template <bool transposed = is_adj_matrix_transposed>
-  std::enable_if_t<!transposed, vertex_t> get_local_adj_matrix_partition_col_last() const
+  std::enable_if_t<!transposed, vertex_t> local_edge_partition_dst_range_last() const
   {
-    return get_local_adj_matrix_partition_col_last(0);
+    return local_edge_partition_dst_range_last(0);
   }
 
-  template <bool transposed = is_adj_matrix_transposed>
-  std::enable_if_t<!transposed, vertex_t> get_number_of_local_adj_matrix_partition_cols() const
+  vertex_t local_edge_partition_dst_range_first(size_t partition_idx = 0) const
   {
-    return get_number_of_local_adj_matrix_partition_cols(0);
-  }
-
-  vertex_t get_local_adj_matrix_partition_col_first(size_t adj_matrix_partition_idx = 0) const
-  {
-    assert(adj_matrix_partition_idx == 0);
+    assert(partition_idx == 0);
     return vertex_t{0};
   }
 
-  vertex_t get_local_adj_matrix_partition_col_last(size_t adj_matrix_partition_idx = 0) const
+  vertex_t local_edge_partition_dst_range_last(size_t partition_idx = 0) const
   {
-    assert(adj_matrix_partition_idx == 0);
-    return this->get_number_of_vertices();
+    assert(partition_idx == 0);
+    return this->number_of_vertices();
   }
 
-  vertex_t get_local_adj_matrix_partition_col_value_start_offset(
-    size_t adj_matrix_partition_idx = 0) const
+  vertex_t local_edge_partition_dst_value_start_offset(
+    size_t partition_idx = 0) const
   {
-    assert(adj_matrix_partition_idx == 0);
+    assert(partition_idx == 0);
     return vertex_t{0};
   }
 
-  std::optional<std::vector<vertex_t>> get_local_adj_matrix_partition_segment_offsets(
-    size_t adj_matrix_partition_idx = 0) const
+  std::optional<std::vector<vertex_t>> local_edge_partition_segment_offsets(
+    size_t partition_idx = 0) const
   {
-    assert(adj_matrix_partition_idx == 0);
+    assert(partition_idx == 0);
     return segment_offsets_;
   }
 
-  vertex_partition_view_t<vertex_t, false> get_vertex_partition_view() const
+  vertex_partition_view_t<vertex_t, false> local_vertex_partition_view() const
   {
-    return vertex_partition_view_t<vertex_t, false>(this->get_number_of_vertices());
+    return vertex_partition_view_t<vertex_t, false>(this->number_of_vertices());
   }
 
-  matrix_partition_view_t<vertex_t, edge_t, weight_t, false> get_matrix_partition_view(
-    size_t adj_matrix_partition_idx = 0) const
+  matrix_partition_view_t<vertex_t, edge_t, weight_t, false> local_edge_partition_view(
+    size_t partition_idx = 0) const
   {
-    assert(adj_matrix_partition_idx == 0);  // there is only one matrix partition in single-GPU
+    assert(partition_idx == 0);  // there is only one edge partition in single-GPU
     return matrix_partition_view_t<vertex_t, edge_t, weight_t, false>(
-      offsets_, indices_, weights_, this->get_number_of_vertices(), this->get_number_of_edges());
+      offsets_, indices_, weights_, this->number_of_vertices(), this->number_of_edges());
   }
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
@@ -844,22 +807,22 @@ class graph_view_t<vertex_t,
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;
 
-  std::optional<vertex_t const*> get_local_sorted_unique_edge_row_begin() const
+  std::optional<vertex_t const*> local_sorted_unique_edge_src_begin() const
   {
     return std::nullopt;
   }
 
-  std::optional<vertex_t const*> get_local_sorted_unique_edge_row_end() const
+  std::optional<vertex_t const*> local_sorted_unique_edge_src_end() const
   {
     return std::nullopt;
   }
 
-  std::optional<vertex_t const*> get_local_sorted_unique_edge_col_begin() const
+  std::optional<vertex_t const*> local_sorted_unique_edge_dst_begin() const
   {
     return std::nullopt;
   }
 
-  std::optional<vertex_t const*> get_local_sorted_unique_edge_col_end() const
+  std::optional<vertex_t const*> local_sorted_unique_edge_dst_end() const
   {
     return std::nullopt;
   }

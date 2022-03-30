@@ -142,7 +142,7 @@ struct call_v_op_t {
   __device__ std::enable_if_t<std::is_same_v<key_type, vertex_type>, uint8_t> operator()(
     key_t key) const
   {
-    auto v_offset    = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(key);
+    auto v_offset    = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(key);
     auto v_val       = *(vertex_value_input_first + v_offset);
     auto v_op_result = v_op(key, v_val);
     if (v_op_result) {
@@ -158,7 +158,7 @@ struct call_v_op_t {
     key_t key) const
   {
     auto v_offset =
-      vertex_partition.get_local_vertex_offset_from_vertex_nocheck(thrust::get<0>(key));
+      vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(thrust::get<0>(key));
     auto v_val       = *(vertex_value_input_first + v_offset);
     auto v_op_result = v_op(key, v_val);
     if (v_op_result) {
@@ -854,10 +854,10 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
   } else {
     local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(cur_frontier_bucket.size())};
   }
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.get_matrix_partition_view(i));
+        graph_view.local_edge_partition_view(i));
 
     auto execution_policy = handle.get_thrust_policy();
     if (GraphViewType::is_multi_gpu) {
@@ -872,7 +872,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
                    static_cast<int>(i),
                    handle.get_stream());
 
-      auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
       auto use_dcs =
         segment_offsets
           ? ((*segment_offsets).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
@@ -975,16 +975,12 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
+ * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.get_number_of_local_vertices().
- * @param v_op Ternary operator takes (tagged-)vertex ID, *(@p vertex_value_input_first + i) (where
- * i is [0, @p graph_view.get_number_of_local_vertices())) and reduced value of the @p e_op outputs
- * for this vertex and returns the target bucket index (for frontier update) and new verrtex
- * property values (to update *(@p vertex_value_output_first + i)). The target bucket index should
- * either be VertexFrontierType::kInvalidBucketIdx or an index in @p next_frontier_bucket_indices.
+ * graph_view.local_vertex_partition_range_size().
+ * @param v_op Ternary operator takes (tagged-)vertex ID, *(@p vertex_value_input_first + i) (where i is [0, @p graph_view.local_vertex_partition_range_size())) and reduced value of the @p e_op outputs for this vertex and returns the target bucket index (for frontier update) and new verrtex property values (to update *(@p vertex_value_output_first + i)). The target bucket index should either be VertexFrontierType::kInvalidBucketIdx or an index in @p next_frontier_bucket_indices.
  */
 template <typename GraphViewType,
           typename VertexFrontierType,
@@ -1052,10 +1048,10 @@ void update_frontier_v_push_if_out_nbr(
     local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(
       static_cast<vertex_t>(thrust::distance(frontier_key_first, frontier_key_last)))};
   }
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.get_matrix_partition_view(i));
+        graph_view.local_edge_partition_view(i));
 
     auto matrix_partition_frontier_key_buffer =
       allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
@@ -1096,7 +1092,7 @@ void update_frontier_v_push_if_out_nbr(
         get_dataframe_buffer_end(matrix_partition_frontier_key_buffer).get_iterator_tuple());
     }
 
-    auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
     auto use_dcs =
       segment_offsets
         ? ((*segment_offsets).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
@@ -1283,7 +1279,7 @@ void update_frontier_v_push_if_out_nbr(
 
     std::vector<vertex_t> h_vertex_lasts(row_comm_size);
     for (size_t i = 0; i < h_vertex_lasts.size(); ++i) {
-      h_vertex_lasts[i] = graph_view.get_vertex_partition_last(col_comm_rank * row_comm_size + i);
+      h_vertex_lasts[i] = graph_view.vertex_partition_range_last(col_comm_rank * row_comm_size + i);
     }
 
     rmm::device_uvector<vertex_t> d_vertex_lasts(h_vertex_lasts.size(), handle.get_stream());
@@ -1340,7 +1336,7 @@ void update_frontier_v_push_if_out_nbr(
     rmm::device_uvector<uint8_t> bucket_indices(num_buffer_elements, handle.get_stream());
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-      graph_view.get_vertex_partition_view());
+      graph_view.local_vertex_partition_view());
 
     if constexpr (!std::is_same_v<payload_t, void>) {
       auto key_payload_pair_first = thrust::make_zip_iterator(
@@ -1360,10 +1356,10 @@ void update_frontier_v_push_if_out_nbr(
           auto payload = thrust::get<1>(pair);
           vertex_t v_offset{};
           if constexpr (std::is_same_v<key_t, vertex_t>) {
-            v_offset = vertex_partition.get_local_vertex_offset_from_vertex_nocheck(key);
+            v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(key);
           } else {
             v_offset =
-              vertex_partition.get_local_vertex_offset_from_vertex_nocheck(thrust::get<0>(key));
+              vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(thrust::get<0>(key));
           }
           auto v_val       = *(vertex_value_input_first + v_offset);
           auto v_op_result = v_op(key, v_val, payload);

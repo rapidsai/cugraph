@@ -91,38 +91,38 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
         handle, configuration.graph_file_full_path, true, false);
     auto graph_view = graph.view();
 
-    std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
-    std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
-    std::vector<weight_t> h_weights(graph_view.get_number_of_edges());
+    std::vector<edge_t> h_offsets(graph_view.number_of_vertices() + 1);
+    std::vector<vertex_t> h_indices(graph_view.number_of_edges());
+    std::vector<weight_t> h_weights(graph_view.number_of_edges());
     raft::update_host(h_offsets.data(),
-                      graph_view.get_matrix_partition_view().get_offsets(),
-                      graph_view.get_number_of_vertices() + 1,
+                      graph_view.local_edge_partition_view().get_offsets(),
+                      graph_view.number_of_vertices() + 1,
                       handle.get_stream());
     raft::update_host(h_indices.data(),
-                      graph_view.get_matrix_partition_view().get_indices(),
-                      graph_view.get_number_of_edges(),
+                      graph_view.local_edge_partition_view().get_indices(),
+                      graph_view.number_of_edges(),
                       handle.get_stream());
     raft::update_host(h_weights.data(),
-                      *(graph_view.get_matrix_partition_view().get_weights()),
-                      graph_view.get_number_of_edges(),
+                      *(graph_view.local_edge_partition_view().get_weights()),
+                      graph_view.number_of_edges(),
                       handle.get_stream());
     handle.sync_stream();
 
-    std::vector<weight_t> h_reference_in_weight_sums(graph_view.get_number_of_vertices());
-    std::vector<weight_t> h_reference_out_weight_sums(graph_view.get_number_of_vertices());
+    std::vector<weight_t> h_reference_in_weight_sums(graph_view.number_of_vertices());
+    std::vector<weight_t> h_reference_out_weight_sums(graph_view.number_of_vertices());
 
     weight_sum_reference(h_offsets.data(),
                          h_indices.data(),
                          h_weights.data(),
                          h_reference_in_weight_sums.data(),
-                         graph_view.get_number_of_vertices(),
+                         graph_view.number_of_vertices(),
                          store_transposed);
 
     weight_sum_reference(h_offsets.data(),
                          h_indices.data(),
                          h_weights.data(),
                          h_reference_out_weight_sums.data(),
-                         graph_view.get_number_of_vertices(),
+                         graph_view.number_of_vertices(),
                          !store_transposed);
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -132,8 +132,8 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    std::vector<weight_t> h_cugraph_in_weight_sums(graph_view.get_number_of_vertices());
-    std::vector<weight_t> h_cugraph_out_weight_sums(graph_view.get_number_of_vertices());
+    std::vector<weight_t> h_cugraph_in_weight_sums(graph_view.number_of_vertices());
+    std::vector<weight_t> h_cugraph_out_weight_sums(graph_view.number_of_vertices());
 
     raft::update_host(h_cugraph_in_weight_sums.data(),
                       d_in_weight_sums.data(),

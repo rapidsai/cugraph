@@ -93,10 +93,10 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
     auto mg_graph_view      = mg_graph.view();
     auto maximum_iterations = 200;
     weight_t tolerance      = 1e-8;
-    rmm::device_uvector<weight_t> d_mg_hubs(mg_graph_view.get_number_of_local_vertices(),
+    rmm::device_uvector<weight_t> d_mg_hubs(mg_graph_view.local_vertex_partition_range_size(),
                                             handle.get_stream());
 
-    rmm::device_uvector<weight_t> d_mg_authorities(mg_graph_view.get_number_of_local_vertices(),
+    rmm::device_uvector<weight_t> d_mg_authorities(mg_graph_view.local_vertex_partition_range_size(),
                                                    handle.get_stream());
 
     std::vector<weight_t> initial_random_hubs =
@@ -177,14 +177,14 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
 
         auto sg_graph_view = sg_graph.view();
 
-        ASSERT_TRUE(mg_graph_view.get_number_of_vertices() ==
-                    sg_graph_view.get_number_of_vertices());
+        ASSERT_TRUE(mg_graph_view.number_of_vertices() ==
+                    sg_graph_view.number_of_vertices());
 
         // 4-4. run SG Hits
 
-        rmm::device_uvector<weight_t> d_sg_hubs(sg_graph_view.get_number_of_vertices(),
+        rmm::device_uvector<weight_t> d_sg_hubs(sg_graph_view.number_of_vertices(),
                                                 handle.get_stream());
-        rmm::device_uvector<weight_t> d_sg_authorities(sg_graph_view.get_number_of_vertices(),
+        rmm::device_uvector<weight_t> d_sg_authorities(sg_graph_view.number_of_vertices(),
                                                        handle.get_stream());
         if (hits_usecase.check_initial_input) {
           raft::update_device(
@@ -203,13 +203,13 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
 
         // 4-5. compare
 
-        std::vector<result_t> h_mg_aggregate_hubs(mg_graph_view.get_number_of_vertices());
+        std::vector<result_t> h_mg_aggregate_hubs(mg_graph_view.number_of_vertices());
         raft::update_host(h_mg_aggregate_hubs.data(),
                           d_mg_aggregate_hubs.data(),
                           d_mg_aggregate_hubs.size(),
                           handle.get_stream());
 
-        std::vector<result_t> h_sg_hubs(sg_graph_view.get_number_of_vertices());
+        std::vector<result_t> h_sg_hubs(sg_graph_view.number_of_vertices());
         raft::update_host(
           h_sg_hubs.data(), d_sg_hubs.data(), d_sg_hubs.size(), handle.get_stream());
 
@@ -217,7 +217,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =
-          (1.0 / static_cast<result_t>(mg_graph_view.get_number_of_vertices())) *
+          (1.0 / static_cast<result_t>(mg_graph_view.number_of_vertices())) *
           threshold_ratio;  // skip comparison for low Hits verties (lowly ranked
                             // vertices)
         auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {

@@ -116,16 +116,16 @@ void core_number(raft::handle_t const& handle,
   // remove 0 degree vertices (as they already belong to 0-core and they don't affect core numbers)
   // and clip core numbers of the "less than k_first degree" vertices to 0
 
-  rmm::device_uvector<vertex_t> remaining_vertices(graph_view.get_number_of_local_vertices(),
+  rmm::device_uvector<vertex_t> remaining_vertices(graph_view.local_vertex_partition_range_size(),
                                                    handle.get_stream());
   remaining_vertices.resize(
     thrust::distance(
       remaining_vertices.begin(),
       thrust::copy_if(handle.get_thrust_policy(),
-                      thrust::make_counting_iterator(graph_view.get_local_vertex_first()),
-                      thrust::make_counting_iterator(graph_view.get_local_vertex_last()),
+                      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
+                      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
                       remaining_vertices.begin(),
-                      [core_numbers, v_first = graph_view.get_local_vertex_first()] __device__(
+                      [core_numbers, v_first = graph_view.local_vertex_partition_range_first()] __device__(
                         auto v) { return core_numbers[v - v_first] > edge_t{0}; })),
     handle.get_stream());
 
@@ -134,7 +134,7 @@ void core_number(raft::handle_t const& handle,
       handle.get_thrust_policy(),
       remaining_vertices.begin(),
       remaining_vertices.end(),
-      [k_first, core_numbers, v_first = graph_view.get_local_vertex_first()] __device__(auto v) {
+      [k_first, core_numbers, v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
         if (core_numbers[v - v_first] < k_first) { core_numbers[v - v_first] = edge_t{0}; }
       });
   }
@@ -173,7 +173,7 @@ void core_number(raft::handle_t const& handle,
       handle.get_thrust_policy(),
       remaining_vertices.begin(),
       remaining_vertices.end(),
-      [core_numbers, k, v_first = graph_view.get_local_vertex_first()] __device__(auto v) {
+      [core_numbers, k, v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
         return core_numbers[v - v_first] >= k;
       });
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
@@ -207,7 +207,7 @@ void core_number(raft::handle_t const& handle,
             reduce_op::plus<edge_t>(),
             core_numbers,
             core_numbers,
-            [k_first, k, delta, v_first = graph_view.get_local_vertex_first()] __device__(
+            [k_first, k, delta, v_first = graph_view.local_vertex_partition_range_first()] __device__(
               auto v, auto v_val, auto pushed_val) {
               auto new_core_number = v_val >= pushed_val ? v_val - pushed_val : edge_t{0};
               new_core_number      = new_core_number < (k - delta) ? (k - delta) : new_core_number;
@@ -239,7 +239,7 @@ void core_number(raft::handle_t const& handle,
               handle.get_thrust_policy(),
               vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).begin(),
               vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).end(),
-              [core_numbers, k, v_first = graph_view.get_local_vertex_first()] __device__(auto v) {
+              [core_numbers, k, v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
                 return core_numbers[v - v_first] >= k;
               }))));
         vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).shrink_to_fit();
@@ -262,7 +262,7 @@ void core_number(raft::handle_t const& handle,
             handle.get_thrust_policy(),
             remaining_vertices.begin(),
             remaining_vertices.end(),
-            [core_numbers, k, v_first = graph_view.get_local_vertex_first()] __device__(auto v) {
+            [core_numbers, k, v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
               return core_numbers[v - v_first] < k;
             })),
         handle.get_stream());
@@ -270,7 +270,7 @@ void core_number(raft::handle_t const& handle,
     } else {
       auto remaining_vertex_core_number_first = thrust::make_transform_iterator(
         remaining_vertices.begin(),
-        v_to_core_number_t<vertex_t, edge_t>{core_numbers, graph_view.get_local_vertex_first()});
+        v_to_core_number_t<vertex_t, edge_t>{core_numbers, graph_view.local_vertex_partition_range_first()});
       auto min_core_number =
         reduce_v(handle,
                  graph_view,

@@ -81,13 +81,13 @@ extract_induced_subgraphs(
         handle.get_thrust_policy(), subgraph_offsets, subgraph_offsets + (num_subgraphs + 1)),
       "Invalid input argument: subgraph_offsets is not sorted.");
     auto vertex_partition =
-      vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.get_vertex_partition_view());
+      vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
     CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
                                      subgraph_vertices,
                                      subgraph_vertices + num_aggregate_subgraph_vertices,
                                      [vertex_partition] __device__(auto v) {
                                        return !vertex_partition.is_valid_vertex(v) ||
-                                              !vertex_partition.is_local_vertex_nocheck(v);
+                                              !vertex_partition.in_local_vertex_partition_range_nocheck(v);
                                      }) == 0,
                     "Invalid input argument: subgraph_vertices has invalid vertex IDs.");
 
@@ -134,7 +134,7 @@ extract_induced_subgraphs(
       handle.get_stream());  // for each element of subgraph_vertices
 
     auto matrix_partition = matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-      graph_view.get_matrix_partition_view());
+      graph_view.local_edge_partition_view());
     // count the numbers of the induced subgraph edges for each vertex in the aggregate subgraph
     // vertex list.
     thrust::transform(

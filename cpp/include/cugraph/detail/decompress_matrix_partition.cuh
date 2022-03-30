@@ -429,7 +429,7 @@ void decompress_matrix_partition_to_edgelist(
   std::optional<weight_t*> edgelist_weights /* [OUT] */,
   std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
-  auto number_of_edges = matrix_partition.get_number_of_edges();
+  auto number_of_edges = matrix_partition.number_of_edges();
 
   decompress_matrix_partition_to_fill_edgelist_majors(
     handle, matrix_partition, edgelist_majors, segment_offsets);

@@ -123,7 +123,7 @@ class Tests_RandomWalks
     edge_t num_paths = 10;
     rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
 
-    vertex_t num_vertices = graph_view.get_number_of_vertices();
+    vertex_t num_vertices = graph_view.number_of_vertices();
     fill_start(handle, d_start, num_vertices);
 
     // 0-copy const device view:

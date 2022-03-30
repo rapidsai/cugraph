@@ -57,7 +57,7 @@ template void unrenumber_int_vertices<int32_t, false>(
   int32_t* vertices,
   size_t num_vertices,
   int32_t const* renumber_map_labels,
-  std::vector<int32_t> const& vertex_partition_lasts,
+  std::vector<int32_t> const& vertex_partition_range_lasts,
   bool do_expensive_check);
 
 template void unrenumber_int_vertices<int64_t, false>(
@@ -65,7 +65,7 @@ template void unrenumber_int_vertices<int64_t, false>(
   int64_t* vertices,
   size_t num_vertices,
   int64_t const* renumber_map_labels,
-  std::vector<int64_t> const& vertex_partition_lasts,
+  std::vector<int64_t> const& vertex_partition_range_lasts,
   bool do_expensive_check);
 
 template void unrenumber_local_int_edges<int32_t, false, false>(

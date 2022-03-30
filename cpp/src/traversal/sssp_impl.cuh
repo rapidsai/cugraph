@@ -59,8 +59,8 @@ void sssp(raft::handle_t const& handle,
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
 
-  auto const num_vertices = push_graph_view.get_number_of_vertices();
-  auto const num_edges    = push_graph_view.get_number_of_edges();
+  auto const num_vertices = push_graph_view.number_of_vertices();
+  auto const num_edges    = push_graph_view.number_of_edges();
   if (num_vertices == 0) { return; }
 
   // implements the Near-Far Pile method in
@@ -93,8 +93,8 @@ void sssp(raft::handle_t const& handle,
 
   auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
   thrust::transform(handle.get_thrust_policy(),
-                    thrust::make_counting_iterator(push_graph_view.get_local_vertex_first()),
-                    thrust::make_counting_iterator(push_graph_view.get_local_vertex_last()),
+                    thrust::make_counting_iterator(push_graph_view.local_vertex_partition_range_first()),
+                    thrust::make_counting_iterator(push_graph_view.local_vertex_partition_range_last()),
                     val_first,
                     [source_vertex] __device__(auto val) {
                       auto distance = invalid_distance;
@@ -141,7 +141,7 @@ void sssp(raft::handle_t const& handle,
     adj_matrix_row_distances.fill(std::numeric_limits<weight_t>::max(), handle.get_stream());
   }
 
-  if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
+  if (push_graph_view.in_local_vertex_partition_range_nocheck(source_vertex)) {
     vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(source_vertex);
   }
 
@@ -158,7 +158,7 @@ void sssp(raft::handle_t const& handle,
     }
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-      push_graph_view.get_vertex_partition_view());
+      push_graph_view.local_vertex_partition_view());
 
     update_frontier_v_push_if_out_nbr(
       handle,
@@ -175,9 +175,9 @@ void sssp(raft::handle_t const& handle,
         auto push         = true;
         auto new_distance = src_val + w;
         auto threshold    = cutoff;
-        if (vertex_partition.is_local_vertex_nocheck(dst)) {
+        if (vertex_partition.in_local_vertex_partition_range_nocheck(dst)) {
           auto local_vertex_offset =
-            vertex_partition.get_local_vertex_offset_from_vertex_nocheck(dst);
+            vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst);
           auto old_distance = *(distances + local_vertex_offset);
           threshold         = old_distance < threshold ? old_distance : threshold;
         }
@@ -222,7 +222,7 @@ void sssp(raft::handle_t const& handle,
           [vertex_partition, distances, old_near_far_threshold, near_far_threshold] __device__(
             auto v) {
             auto dist =
-              *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v));
+              *(distances + vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v));
             return dist >= old_near_far_threshold
                      ? thrust::optional<size_t>{static_cast<size_t>(
                          dist < near_far_threshold ? Bucket::cur_near : Bucket::far)}

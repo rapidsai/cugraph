@@ -449,7 +449,7 @@ sg_gather_edges(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> destinations(edge_count, handle.get_stream());
   auto matrix_partition =
     cugraph::matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
-      graph_view.get_matrix_partition_view());
+      graph_view.local_edge_partition_view());
   thrust::for_each(handle.get_thrust_policy(),
                    thrust::make_counting_iterator<size_t>(0),
                    thrust::make_counting_iterator<size_t>(edge_count),
@@ -503,7 +503,7 @@ sg_gather_edges(raft::handle_t const& handle,
 
   auto matrix_partition =
     cugraph::matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
-      graph_view.get_matrix_partition_view());
+      graph_view.local_edge_partition_view());
 
   rmm::device_uvector<vertex_t> sources_out_degrees(sources.size(), handle.get_stream());
   thrust::transform(handle.get_thrust_policy(),

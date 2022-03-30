@@ -175,10 +175,10 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
     auto graph_view         = graph.view();
     auto maximum_iterations = 500;
     weight_t tolerance      = 1e-8;
-    rmm::device_uvector<weight_t> d_hubs(graph_view.get_number_of_local_vertices(),
+    rmm::device_uvector<weight_t> d_hubs(graph_view.local_vertex_partition_range_size(),
                                          handle.get_stream());
 
-    rmm::device_uvector<weight_t> d_authorities(graph_view.get_number_of_local_vertices(),
+    rmm::device_uvector<weight_t> d_authorities(graph_view.local_vertex_partition_range_size(),
                                                 handle.get_stream());
 
     std::vector<weight_t> initial_random_hubs =
@@ -220,17 +220,17 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       auto unrenumbered_graph_view = unrenumbered_graph.view();
       auto offsets =
         cugraph::test::to_host(handle,
-                               unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
-                               unrenumbered_graph_view.get_number_of_vertices() + 1);
+                               unrenumbered_graph_view.local_edge_partition_view().get_offsets(),
+                               unrenumbered_graph_view.number_of_vertices() + 1);
       auto indices =
         cugraph::test::to_host(handle,
-                               unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
-                               unrenumbered_graph_view.get_number_of_edges());
+                               unrenumbered_graph_view.local_edge_partition_view().get_indices(),
+                               unrenumbered_graph_view.number_of_edges());
       auto reference_result = hits_reference<weight_t>(
         offsets.data(),
         indices.data(),
-        unrenumbered_graph_view.get_number_of_vertices(),
-        unrenumbered_graph_view.get_number_of_edges(),
+        unrenumbered_graph_view.number_of_vertices(),
+        unrenumbered_graph_view.number_of_edges(),
         maximum_iterations,
         (hits_usecase.check_initial_input) ? std::make_optional(initial_random_hubs.data())
                                            : std::nullopt,
@@ -252,7 +252,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       handle.sync_stream();
       auto threshold_ratio = 1e-3;
       auto threshold_magnitude =
-        (1.0 / static_cast<weight_t>(graph_view.get_number_of_vertices())) *
+        (1.0 / static_cast<weight_t>(graph_view.number_of_vertices())) *
         threshold_ratio;  // skip comparison for low hits vertices (lowly ranked vertices)
       auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
         return std::abs(lhs - rhs) <=

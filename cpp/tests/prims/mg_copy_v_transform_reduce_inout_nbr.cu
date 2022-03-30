@@ -289,9 +289,9 @@ class Tests_MG_CopyVTransformReduceInOutNbr
       generate<result_t>::column_property(handle, mg_graph_view, vertex_property_data);
     auto row_prop   = generate<result_t>::row_property(handle, mg_graph_view, vertex_property_data);
     auto out_result = cugraph::allocate_dataframe_buffer<property_t>(
-      mg_graph_view.get_number_of_local_vertices(), handle.get_stream());
+      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
     auto in_result = cugraph::allocate_dataframe_buffer<property_t>(
-      mg_graph_view.get_number_of_local_vertices(), handle.get_stream());
+      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -361,8 +361,8 @@ class Tests_MG_CopyVTransformReduceInOutNbr
       auto sg_graph_view = sg_graph.view();
 
       auto sg_vertex_property_data = generate<result_t>::vertex_property(
-        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
-        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
+        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
         hash_bin_count,
         handle);
       auto sg_col_prop =
@@ -372,7 +372,7 @@ class Tests_MG_CopyVTransformReduceInOutNbr
       result_compare comp{handle};
 
       auto global_out_result = cugraph::allocate_dataframe_buffer<property_t>(
-        sg_graph_view.get_number_of_local_vertices(), handle.get_stream());
+        sg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
       copy_v_transform_reduce_out_nbr(
         handle,
         sg_graph_view,
@@ -389,7 +389,7 @@ class Tests_MG_CopyVTransformReduceInOutNbr
         cugraph::get_dataframe_buffer_begin(global_out_result));
 
       auto global_in_result = cugraph::allocate_dataframe_buffer<property_t>(
-        sg_graph_view.get_number_of_local_vertices(), handle.get_stream());
+        sg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
       copy_v_transform_reduce_in_nbr(
         handle,
         sg_graph_view,

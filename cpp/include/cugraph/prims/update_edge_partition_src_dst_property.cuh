@@ -67,13 +67,13 @@ void update_edge_partition_major_property(
 
     if (edge_partition_major_property_output.key_first()) {
       auto key_offsets = GraphViewType::is_adj_matrix_transposed
-                           ? *(graph_view.get_local_sorted_unique_edge_col_offsets())
-                           : *(graph_view.get_local_sorted_unique_edge_row_offsets());
+                           ? *(graph_view.local_sorted_unique_edge_dst_offsets())
+                           : *(graph_view.local_sorted_unique_edge_src_offsets());
 
       vertex_t max_rx_size{0};
       for (int i = 0; i < col_comm_size; ++i) {
         max_rx_size = std::max(
-          max_rx_size, graph_view.get_vertex_partition_size(i * row_comm_size + row_comm_rank));
+          max_rx_size, graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank));
       }
       auto rx_value_buffer = allocate_dataframe_buffer<
         typename std::iterator_traits<VertexPropertyInputIterator>::value_type>(
@@ -83,13 +83,13 @@ void update_edge_partition_major_property(
         device_bcast(col_comm,
                      vertex_property_input_first,
                      rx_value_first,
-                     graph_view.get_vertex_partition_size(i * row_comm_size + row_comm_rank),
+                     graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank),
                      i,
                      handle.get_stream());
 
         auto v_offset_first = thrust::make_transform_iterator(
           *(edge_partition_major_property_output.key_first()) + key_offsets[i],
-          [v_first = graph_view.get_vertex_partition_first(
+          [v_first = graph_view.vertex_partition_range_first(
              i * row_comm_size + row_comm_rank)] __device__(auto v) { return v - v_first; });
         thrust::gather(handle.get_thrust_policy(),
                        v_offset_first,
@@ -101,7 +101,7 @@ void update_edge_partition_major_property(
       std::vector<size_t> rx_counts(col_comm_size, size_t{0});
       std::vector<size_t> displacements(col_comm_size, size_t{0});
       for (int i = 0; i < col_comm_size; ++i) {
-        rx_counts[i]     = graph_view.get_vertex_partition_size(i * row_comm_size + row_comm_rank);
+        rx_counts[i]     = graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank);
         displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
       }
       device_allgatherv(col_comm,
@@ -113,12 +113,12 @@ void update_edge_partition_major_property(
     }
   } else {
     assert(!(edge_partition_major_property_output.key_first()));
-    assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
-             ? graph_view.get_number_of_local_adj_matrix_partition_cols()
-             : graph_view.get_number_of_local_adj_matrix_partition_rows());
+    assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_adj_matrix_transposed
+             ? graph_view.local_edge_partition_dst_range_size()
+             : graph_view.local_edge_partition_src_range_size());
     thrust::copy(handle.get_thrust_policy(),
                  vertex_property_input_first,
-                 vertex_property_input_first + graph_view.get_number_of_local_vertices(),
+                 vertex_property_input_first + graph_view.local_vertex_partition_range_size(),
                  edge_partition_major_property_output.value_data());
   }
 }
@@ -164,21 +164,21 @@ void update_edge_partition_major_property(
     auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
     auto key_offsets = GraphViewType::is_adj_matrix_transposed
-                         ? graph_view.get_local_sorted_unique_edge_col_offsets()
-                         : graph_view.get_local_sorted_unique_edge_row_offsets();
+                         ? graph_view.local_sorted_unique_edge_dst_offsets()
+                         : graph_view.local_sorted_unique_edge_src_offsets();
 
     for (int i = 0; i < col_comm_size; ++i) {
       auto matrix_partition =
         matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-          graph_view.get_matrix_partition_view(i));
+          graph_view.local_edge_partition_view(i));
 
       if (i == col_comm_rank) {
         auto vertex_partition =
           vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-            graph_view.get_vertex_partition_view());
+            graph_view.local_vertex_partition_view());
         auto map_first =
           thrust::make_transform_iterator(vertex_first, [vertex_partition] __device__(auto v) {
-            return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v);
+            return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
           });
         // FIXME: this gather (and temporary buffer) is unnecessary if NCCL directly takes a
         // permutation iterator (and directly gathers to the internal buffer)
@@ -231,9 +231,9 @@ void update_edge_partition_major_property(
     }
   } else {
     assert(!(edge_partition_major_property_output.key_first()));
-    assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
-             ? graph_view.get_number_of_local_adj_matrix_partition_cols()
-             : graph_view.get_number_of_local_adj_matrix_partition_rows());
+    assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_adj_matrix_transposed
+             ? graph_view.local_edge_partition_dst_range_size()
+             : graph_view.local_edge_partition_src_range_size());
     auto val_first = thrust::make_permutation_iterator(vertex_property_input_first, vertex_first);
     thrust::scatter(handle.get_thrust_policy(),
                     val_first,
@@ -266,13 +266,13 @@ void update_edge_partition_minor_property(
 
     if (edge_partition_minor_property_output.key_first()) {
       auto key_offsets = GraphViewType::is_adj_matrix_transposed
-                           ? *(graph_view.get_local_sorted_unique_edge_row_offsets())
-                           : *(graph_view.get_local_sorted_unique_edge_col_offsets());
+                           ? *(graph_view.local_sorted_unique_edge_src_offsets())
+                           : *(graph_view.local_sorted_unique_edge_dst_offsets());
 
       vertex_t max_rx_size{0};
       for (int i = 0; i < row_comm_size; ++i) {
         max_rx_size = std::max(
-          max_rx_size, graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i));
+          max_rx_size, graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i));
       }
       auto rx_value_buffer = allocate_dataframe_buffer<
         typename std::iterator_traits<VertexPropertyInputIterator>::value_type>(
@@ -282,13 +282,13 @@ void update_edge_partition_minor_property(
         device_bcast(row_comm,
                      vertex_property_input_first,
                      rx_value_first,
-                     graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i),
+                     graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i),
                      i,
                      handle.get_stream());
 
         auto v_offset_first = thrust::make_transform_iterator(
           *(edge_partition_minor_property_output.key_first()) + key_offsets[i],
-          [v_first = graph_view.get_vertex_partition_first(
+          [v_first = graph_view.vertex_partition_range_first(
              col_comm_rank * row_comm_size + i)] __device__(auto v) { return v - v_first; });
         thrust::gather(handle.get_thrust_policy(),
                        v_offset_first,
@@ -300,7 +300,7 @@ void update_edge_partition_minor_property(
       std::vector<size_t> rx_counts(row_comm_size, size_t{0});
       std::vector<size_t> displacements(row_comm_size, size_t{0});
       for (int i = 0; i < row_comm_size; ++i) {
-        rx_counts[i]     = graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i);
+        rx_counts[i]     = graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i);
         displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
       }
       device_allgatherv(row_comm,
@@ -312,12 +312,12 @@ void update_edge_partition_minor_property(
     }
   } else {
     assert(!(edge_partition_minor_property_output.key_first()));
-    assert(graph_view.get_number_of_local_vertices() == GraphViewType::is_adj_matrix_transposed
-             ? graph_view.get_number_of_local_adj_matrix_partition_rows()
-             : graph_view.get_number_of_local_adj_matrix_partition_cols());
+    assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_adj_matrix_transposed
+             ? graph_view.local_edge_partition_src_range_size()
+             : graph_view.local_edge_partition_dst_range_size());
     thrust::copy(handle.get_thrust_policy(),
                  vertex_property_input_first,
-                 vertex_property_input_first + graph_view.get_number_of_local_vertices(),
+                 vertex_property_input_first + graph_view.local_vertex_partition_range_size(),
                  edge_partition_minor_property_output.value_data());
   }
 }
@@ -363,20 +363,20 @@ void update_edge_partition_minor_property(
     auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
     auto key_offsets = GraphViewType::is_adj_matrix_transposed
-                         ? graph_view.get_local_sorted_unique_edge_row_offsets()
-                         : graph_view.get_local_sorted_unique_edge_col_offsets();
+                         ? graph_view.local_sorted_unique_edge_src_offsets()
+                         : graph_view.local_sorted_unique_edge_dst_offsets();
 
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.get_matrix_partition_view(size_t{0}));
+        graph_view.local_edge_partition_view(size_t{0}));
     for (int i = 0; i < row_comm_size; ++i) {
       if (i == row_comm_rank) {
         auto vertex_partition =
           vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-            graph_view.get_vertex_partition_view());
+            graph_view.local_vertex_partition_view());
         auto map_first =
           thrust::make_transform_iterator(vertex_first, [vertex_partition] __device__(auto v) {
-            return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v);
+            return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
           });
         // FIXME: this gather (and temporary buffer) is unnecessary if NCCL directly takes a
         // permutation iterator (and directly gathers to the internal buffer)
@@ -428,8 +428,8 @@ void update_edge_partition_minor_property(
     }
   } else {
     assert(!(edge_partition_minor_property_output.key_first()));
-    assert(graph_view.get_number_of_local_vertices() ==
-           graph_view.get_number_of_local_adj_matrix_partition_rows());
+    assert(graph_view.local_vertex_partition_range_size() ==
+           graph_view.local_edge_partition_src_range_size());
     auto val_first = thrust::make_permutation_iterator(vertex_property_input_first, vertex_first);
     thrust::scatter(handle.get_thrust_policy(),
                     val_first,
@@ -455,7 +455,7 @@ void update_edge_partition_minor_property(
  * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
- * graph_view.get_number_of_local_vertices().
+ * graph_view.local_vertex_partition_range_size().
  * @param edge_partition_src_property_output Device-copyable wrapper used to store source property
  * values (for the edge sources assigned to this process in multi-GPU). Use
  * cugraph::edge_partition_src_property_t::device_view().
@@ -498,7 +498,7 @@ void update_edge_partition_src_property(
  * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
- * graph_view.get_number_of_local_vertices().
+ * graph_view.local_vertex_partition_range_size().
  * @param edge_partition_src_property_output Device-copyable wrapper used to store source property
  * values (for the edge sources assigned to this process in multi-GPU). Use
  * cugraph::edge_partition_src_property_t::device_view().
@@ -547,7 +547,7 @@ void update_edge_partition_src_property(
  * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
- * graph_view.get_number_of_local_vertices().
+ * graph_view.local_vertex_partition_range_size().
  * @param edge_partition_dst_property_output Device-copyable wrapper used to store destination
  * property values (for the edge destinations assigned to this process in multi-GPU). Use
  * cugraph::edge_partition_dst_property_t::device_view().
@@ -591,7 +591,7 @@ void update_edge_partition_dst_property(
  * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
- * graph_view.get_number_of_local_vertices().
+ * graph_view.local_vertex_partition_range_size().
  * @param edge_partition_dst_property_output Device-copyable wrapper used to store destination
  * property values (for the edge destinations assigned to this process in multi-GPU). Use
  * cugraph::edge_partition_dst_property_t::device_view().

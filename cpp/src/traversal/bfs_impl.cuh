@@ -103,7 +103,7 @@ void bfs(raft::handle_t const& handle,
   static_assert(!GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the push model.");
 
-  auto const num_vertices = push_graph_view.get_number_of_vertices();
+  auto const num_vertices = push_graph_view.number_of_vertices();
   if (num_vertices == 0) { return; }
 
   // 1. check input arguments
@@ -125,7 +125,7 @@ void bfs(raft::handle_t const& handle,
 
   if (do_expensive_check) {
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-      push_graph_view.get_vertex_partition_view());
+      push_graph_view.local_vertex_partition_view());
     auto num_invalid_vertices =
       count_if_v(handle,
                  push_graph_view,
@@ -133,7 +133,7 @@ void bfs(raft::handle_t const& handle,
                  sources + n_sources,
                  [vertex_partition] __device__(auto val) {
                    return !(vertex_partition.is_valid_vertex(val) &&
-                            vertex_partition.is_local_vertex_nocheck(val));
+                            vertex_partition.in_local_vertex_partition_range_nocheck(val));
                  });
     CUGRAPH_EXPECTS(num_invalid_vertices == 0,
                     "Invalid input argument: sources have invalid vertex IDs.");
@@ -146,21 +146,21 @@ void bfs(raft::handle_t const& handle,
 
   thrust::fill(rmm::exec_policy(handle.get_thrust_policy()),
                distances,
-               distances + push_graph_view.get_number_of_local_vertices(),
+               distances + push_graph_view.local_vertex_partition_range_size(),
                invalid_distance);
   thrust::fill(rmm::exec_policy(handle.get_thrust_policy()),
                predecessor_first,
-               predecessor_first + push_graph_view.get_number_of_local_vertices(),
+               predecessor_first + push_graph_view.local_vertex_partition_range_size(),
                invalid_vertex);
   auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-    push_graph_view.get_vertex_partition_view());
+    push_graph_view.local_vertex_partition_view());
   if (n_sources) {
     thrust::for_each(
       rmm::exec_policy(handle.get_thrust_policy()),
       sources,
       sources + n_sources,
       [vertex_partition, distances, predecessor_first] __device__(auto v) {
-        *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) =
+        *(distances + vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)) =
           vertex_t{0};
       });
   }
@@ -175,7 +175,7 @@ void bfs(raft::handle_t const& handle,
 
   vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(sources, sources + n_sources);
   rmm::device_uvector<uint32_t> visited_flags(
-    (push_graph_view.get_number_of_local_vertices() + (sizeof(uint32_t) * 8 - 1)) /
+    (push_graph_view.local_vertex_partition_range_size() + (sizeof(uint32_t) * 8 - 1)) /
       (sizeof(uint32_t) * 8),
     handle.get_stream());
   thrust::fill(handle.get_thrust_policy(), visited_flags.begin(), visited_flags.end(), uint32_t{0});
@@ -216,7 +216,7 @@ void bfs(raft::handle_t const& handle,
       e_op_t<vertex_t, GraphViewType::is_multi_gpu> e_op{};
       if constexpr (GraphViewType::is_multi_gpu) {
         e_op.visited_flags = dst_visited_flags.mutable_device_view();
-        e_op.dst_first     = push_graph_view.get_local_adj_matrix_partition_col_first();
+        e_op.dst_first     = push_graph_view.local_edge_partition_dst_range_first();
       } else {
         e_op.visited_flags      = visited_flags.data();
         e_op.prev_visited_flags = prev_visited_flags.data();
@@ -239,9 +239,9 @@ void bfs(raft::handle_t const& handle,
         [vertex_partition, distances] __device__(
           vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
           auto push = true;
-          if (vertex_partition.is_local_vertex_nocheck(dst)) {
+          if (vertex_partition.in_local_vertex_partition_range_nocheck(dst)) {
             auto distance =
-              *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(dst));
+              *(distances + vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst));
             if (distance != invalid_distance) { push = false; }
           }
           return push ? thrust::optional<vertex_t>{src} : thrust::nullopt;

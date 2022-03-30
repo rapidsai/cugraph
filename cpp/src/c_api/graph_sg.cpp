@@ -116,11 +116,11 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       if (renumber_) {
         *number_map = std::move(new_number_map.value());
       } else {
-        number_map->resize(graph->get_number_of_vertices(), handle_.get_stream());
+        number_map->resize(graph->number_of_vertices(), handle_.get_stream());
         cugraph::detail::sequence_fill(handle_.get_stream(),
                                        number_map->data(),
                                        number_map->size(),
-                                       graph->view().get_local_vertex_first());
+                                       graph->view().local_vertex_partition_range_first());
       }
 
       // Set up return

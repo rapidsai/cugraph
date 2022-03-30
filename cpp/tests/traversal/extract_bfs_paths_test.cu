@@ -86,16 +86,16 @@ class Tests_ExtractBfsPaths
 
     ASSERT_TRUE(static_cast<vertex_t>(extract_bfs_paths_usecase.source) >= 0 &&
                 static_cast<vertex_t>(extract_bfs_paths_usecase.source) <
-                  graph_view.get_number_of_vertices())
+                  graph_view.number_of_vertices())
       << "Invalid starting source.";
 
     ASSERT_TRUE(extract_bfs_paths_usecase.num_paths_to_check > 0) << "Invalid num_paths_to_check";
-    ASSERT_TRUE(extract_bfs_paths_usecase.num_paths_to_check < graph_view.get_number_of_vertices())
+    ASSERT_TRUE(extract_bfs_paths_usecase.num_paths_to_check < graph_view.number_of_vertices())
       << "Invalid num_paths_to_check, more than number of vertices";
 
-    rmm::device_uvector<vertex_t> d_distances(graph_view.get_number_of_vertices(),
+    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(),
                                               handle.get_stream());
-    rmm::device_uvector<vertex_t> d_predecessors(graph_view.get_number_of_vertices(),
+    rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
                                                  handle.get_stream());
 
     rmm::device_scalar<vertex_t> const d_source(extract_bfs_paths_usecase.source,
@@ -110,8 +110,8 @@ class Tests_ExtractBfsPaths
                  false,
                  std::numeric_limits<vertex_t>::max());
 
-    std::vector<vertex_t> h_distances(graph_view.get_number_of_vertices());
-    std::vector<vertex_t> h_predecessors(graph_view.get_number_of_vertices());
+    std::vector<vertex_t> h_distances(graph_view.number_of_vertices());
+    std::vector<vertex_t> h_predecessors(graph_view.number_of_vertices());
 
     raft::update_host(
       h_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());
@@ -120,7 +120,7 @@ class Tests_ExtractBfsPaths
 
     auto d_destinations = cugraph::test::randomly_select_destinations<false>(
       handle,
-      graph_view.get_number_of_vertices(),
+      graph_view.number_of_vertices(),
       vertex_t{0},
       d_predecessors,
       extract_bfs_paths_usecase.num_paths_to_check);

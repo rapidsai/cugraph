@@ -139,8 +139,8 @@ class Tests_MG_CountIfV
       auto sg_graph_view = sg_graph.view();
       auto expected_vertex_count =
         thrust::count_if(handle.get_thrust_policy(),
-                         thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
-                         thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
+                         thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+                         thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
                          test_predicate<vertex_t>(hash_bin_count));
       ASSERT_TRUE(expected_vertex_count == vertex_count);
     }

@@ -183,7 +183,7 @@ class Tests_MG_ExtractIfE
     constexpr int hash_bin_count = 5;
 
     auto mg_property_buffer = cugraph::allocate_dataframe_buffer<property_t>(
-      mg_graph_view.get_number_of_local_vertices(), handle.get_stream());
+      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
     thrust::transform(handle.get_thrust_policy(),
                       (*mg_renumber_map_labels).begin(),
@@ -253,13 +253,13 @@ class Tests_MG_ExtractIfE
           mg_aggregate_edgelist_srcs.data(),
           mg_aggregate_edgelist_srcs.size(),
           mg_aggregate_renumber_map_labels.data(),
-          std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
+          std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
         cugraph::unrenumber_int_vertices<vertex_t, false>(
           handle,
           mg_aggregate_edgelist_dsts.data(),
           mg_aggregate_edgelist_dsts.size(),
           mg_aggregate_renumber_map_labels.data(),
-          std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
+          std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
 
         // 4-3. create SG graph
 
@@ -272,11 +272,11 @@ class Tests_MG_ExtractIfE
         // 4-4. run SG extract_if_e
 
         auto sg_property_buffer = cugraph::allocate_dataframe_buffer<property_t>(
-          sg_graph_view.get_number_of_local_vertices(), handle.get_stream());
+          sg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
         thrust::transform(handle.get_thrust_policy(),
-                          thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
-                          thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
+                          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+                          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
                           cugraph::get_dataframe_buffer_begin(sg_property_buffer),
                           property_transform_t<vertex_t, property_t>{hash_bin_count});
 

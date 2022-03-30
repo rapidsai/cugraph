@@ -512,17 +512,17 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     } else {
       thrust::fill(execution_policy,
                    vertex_value_output_first,
-                   vertex_value_output_first + graph_view.get_number_of_local_vertices(),
+                   vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
                    minor_init);
     }
   }
 
   std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
-    if ((graph_view.get_local_adj_matrix_partition_segment_offsets(0)) &&
+    if ((graph_view.local_edge_partition_segment_offsets(0)) &&
         (handle.get_stream_pool_size() >= max_segments)) {
-      for (size_t i = 1; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-        assert(graph_view.get_local_adj_matrix_partition_segment_offsets(i));
+      for (size_t i = 1; i < graph_view.number_of_local_edge_partitions(); ++i) {
+        assert(graph_view.local_edge_partition_segment_offsets(i));
       }
 
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
@@ -544,9 +544,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
           value_size = sizeof(T);
         }
 
-        auto avg_vertex_degree = graph_view.get_number_of_vertices() > 0
-                                   ? (static_cast<double>(graph_view.get_number_of_edges()) /
-                                      static_cast<double>(graph_view.get_number_of_vertices()))
+        auto avg_vertex_degree = graph_view.number_of_vertices() > 0
+                                   ? (static_cast<double>(graph_view.number_of_edges()) /
+                                      static_cast<double>(graph_view.number_of_vertices()))
                                    : double{0.0};
 
         num_streams =
@@ -568,18 +568,18 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     major_tmp_buffers{};
   if constexpr (GraphViewType::is_multi_gpu && update_major) {
     std::vector<size_t> major_tmp_buffer_sizes(
-      graph_view.get_number_of_local_adj_matrix_partitions(), size_t{0});
-    for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+      graph_view.number_of_local_edge_partitions(), size_t{0});
+    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
       major_tmp_buffer_sizes[i] = GraphViewType::is_adj_matrix_transposed
-                                    ? graph_view.get_number_of_local_adj_matrix_partition_cols(i)
-                                    : graph_view.get_number_of_local_adj_matrix_partition_rows(i);
+                                    ? graph_view.local_edge_partition_dst_range_size(i)
+                                    : graph_view.local_edge_partition_src_range_size(i);
     }
     if (stream_pool_indices) {
       auto num_concurrent_loops = (*stream_pool_indices).size() / max_segments;
       major_tmp_buffers.reserve(num_concurrent_loops);
       for (size_t i = 0; i < num_concurrent_loops; ++i) {
         size_t max_size{0};
-        for (size_t j = i; j < graph_view.get_number_of_local_adj_matrix_partitions();
+        for (size_t j = i; j < graph_view.number_of_local_edge_partitions();
              j += num_concurrent_loops) {
           max_size = std::max(major_tmp_buffer_sizes[j], max_size);
         }
@@ -598,10 +598,10 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
 
   if (stream_pool_indices) { handle.sync_stream(); }
 
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.get_matrix_partition_view(i));
+        graph_view.local_edge_partition_view(i));
 
     auto major_init = T{};
     if constexpr (update_major) {
@@ -641,7 +641,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       output_buffer = vertex_value_output_first;
     }
 
-    auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
     if (segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
 
@@ -836,25 +836,25 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       for (int i = 0; i < row_comm_size; ++i) {
         max_vertex_partition_size =
           std::max(max_vertex_partition_size,
-                   graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i));
+                   graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i));
       }
       auto tx_buffer = allocate_dataframe_buffer<T>(max_vertex_partition_size, handle.get_stream());
       auto tx_first  = get_dataframe_buffer_begin(tx_buffer);
       auto minor_key_offsets = GraphViewType::is_adj_matrix_transposed
-                                 ? graph_view.get_local_sorted_unique_edge_row_offsets()
-                                 : graph_view.get_local_sorted_unique_edge_col_offsets();
+                                 ? graph_view.local_sorted_unique_edge_src_offsets()
+                                 : graph_view.local_sorted_unique_edge_dst_offsets();
       for (int i = 0; i < row_comm_size; ++i) {
         thrust::fill(
           handle.get_thrust_policy(),
           tx_first,
-          tx_first + graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i),
+          tx_first + graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i),
           T{});
         thrust::scatter(handle.get_thrust_policy(),
                         minor_tmp_buffer.value_data() + (*minor_key_offsets)[i],
                         minor_tmp_buffer.value_data() + (*minor_key_offsets)[i + 1],
                         thrust::make_transform_iterator(
                           *(minor_tmp_buffer.key_first()) + (*minor_key_offsets)[i],
-                          [key_first = graph_view.get_vertex_partition_first(
+                          [key_first = graph_view.vertex_partition_range_first(
                              col_comm_rank * row_comm_size + i)] __device__(auto key) {
                             return key - key_first;
                           }),
@@ -863,20 +863,20 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                       tx_first,
                       vertex_value_output_first,
                       static_cast<size_t>(
-                        graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i)),
+                        graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i)),
                       raft::comms::op_t::SUM,
                       i,
                       handle.get_stream());
       }
     } else {
       for (int i = 0; i < row_comm_size; ++i) {
-        auto offset = (graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size + i) -
-                       graph_view.get_vertex_partition_first(col_comm_rank * row_comm_size));
+        auto offset = (graph_view.vertex_partition_range_first(col_comm_rank * row_comm_size + i) -
+                       graph_view.vertex_partition_range_first(col_comm_rank * row_comm_size));
         device_reduce(row_comm,
                       minor_tmp_buffer.value_data() + offset,
                       vertex_value_output_first,
                       static_cast<size_t>(
-                        graph_view.get_vertex_partition_size(col_comm_rank * row_comm_size + i)),
+                        graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i)),
                       raft::comms::op_t::SUM,
                       i,
                       handle.get_stream());
@@ -921,7 +921,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.get_number_of_local_vertices().
+ * graph_view.local_vertex_partition_range_size().
  */
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
@@ -982,7 +982,7 @@ void copy_v_transform_reduce_in_nbr(
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
  * first (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.get_number_of_local_vertices().
+ * graph_view.local_vertex_partition_range_size().
  */
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,

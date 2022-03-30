@@ -128,7 +128,7 @@ struct vertex_local_offset_t {
   vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition{};
   __device__ vertex_t operator()(vertex_t v) const
   {
-    return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v);
+    return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
   }
 };
 
@@ -193,7 +193,7 @@ struct reduce_with_init_t {
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
  * first (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.get_number_of_local_vertices().
+ * graph_view.local_vertex_partition_range_size().
  */
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
@@ -267,19 +267,19 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   auto e_op_result_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.get_matrix_partition_view(i));
+        graph_view.local_edge_partition_view(i));
 
-    rmm::device_uvector<vertex_t> tmp_majors(matrix_partition.get_number_of_edges(),
+    rmm::device_uvector<vertex_t> tmp_majors(matrix_partition.number_of_edges(),
                                              handle.get_stream());
     rmm::device_uvector<vertex_t> tmp_minor_keys(tmp_majors.size(), handle.get_stream());
     rmm::device_uvector<weight_t> tmp_key_aggregated_edge_weights(tmp_majors.size(),
                                                                   handle.get_stream());
 
-    if (matrix_partition.get_number_of_edges() > 0) {
-      auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+    if (matrix_partition.number_of_edges() > 0) {
+      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
 
       detail::decompress_matrix_partition_to_fill_edgelist_majors(
         handle, matrix_partition, tmp_majors.data(), segment_offsets);
@@ -299,7 +299,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
           ? (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition] +
               *(matrix_partition.get_dcs_nzd_vertex_count())
           : matrix_partition.get_major_size(),
-        matrix_partition.get_number_of_edges(),
+        matrix_partition.number_of_edges(),
         approx_edges_to_sort_per_iteration);
       auto num_chunks = h_vertex_offsets.size() - 1;
 
@@ -698,7 +698,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
   thrust::fill(handle.get_thrust_policy(),
                vertex_value_output_first,
-               vertex_value_output_first + graph_view.get_number_of_local_vertices(),
+               vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
                T{});
 
   thrust::scatter(handle.get_thrust_policy(),
@@ -707,12 +707,12 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                   thrust::make_transform_iterator(
                     majors.begin(),
                     detail::vertex_local_offset_t<vertex_t, GraphViewType::is_multi_gpu>{
-                      graph_view.get_vertex_partition_view()}),
+                      graph_view.local_vertex_partition_view()}),
                   vertex_value_output_first);
 
   thrust::transform(handle.get_thrust_policy(),
                     vertex_value_output_first,
-                    vertex_value_output_first + graph_view.get_number_of_local_vertices(),
+                    vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
                     vertex_value_output_first,
                     detail::reduce_with_init_t<ReduceOp, T>{reduce_op, init});
 }

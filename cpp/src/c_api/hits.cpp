@@ -104,11 +104,11 @@ struct hits_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph_view.get_number_of_local_vertices(),
+      rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());
-      rmm::device_uvector<weight_t> hubs(graph_view.get_number_of_local_vertices(),
+      rmm::device_uvector<weight_t> hubs(graph_view.local_vertex_partition_range_size(),
                                          handle_.get_stream());
-      rmm::device_uvector<weight_t> authorities(graph_view.get_number_of_local_vertices(),
+      rmm::device_uvector<weight_t> authorities(graph_view.local_vertex_partition_range_size(),
                                                 handle_.get_stream());
       weight_t hub_score_differences{0};
       size_t number_of_iterations{0};

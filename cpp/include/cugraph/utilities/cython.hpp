@@ -272,90 +272,90 @@ struct renum_tuple_t {
 
   // `partition_t` pass-through getters
   //
-  int get_part_row_size() const { return part_.get_row_comm_size(); }
+  int get_part_row_size() const { return part_.row_comm_size(); }
 
-  int get_part_col_size() const { return part_.get_col_comm_size(); }
+  int get_part_col_size() const { return part_.col_comm_size(); }
 
-  int get_part_comm_rank() const { return part_.get_comm_rank(); }
+  int get_part_comm_rank() const { return part_.comm_rank(); }
 
-  // FIXME: part_.get_vertex_partition_offsets() returns a std::vector
+  // FIXME: part_.vertex_partition_offsets() returns a std::vector
   //
   std::unique_ptr<std::vector<vertex_t>> get_partition_offsets_wrap(void)  // const
   {
-    return std::make_unique<std::vector<vertex_t>>(part_.get_vertex_partition_offsets());
+    return std::make_unique<std::vector<vertex_t>>(part_.vertex_partition_offsets());
   }
 
   std::pair<vertex_t, vertex_t> get_part_local_vertex_range() const
   {
-    auto tpl_v = part_.get_local_vertex_range();
+    auto tpl_v = part_.local_vertex_partition_range();
     return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
   }
 
-  vertex_t get_part_local_vertex_first() const { return part_.get_local_vertex_first(); }
+  vertex_t get_part_local_vertex_first() const { return part_.local_vertex_partition_range_first(); }
 
-  vertex_t get_part_local_vertex_last() const { return part_.get_local_vertex_last(); }
+  vertex_t get_part_local_vertex_last() const { return part_.local_vertex_partition_range_last(); }
 
   std::pair<vertex_t, vertex_t> get_part_vertex_partition_range(size_t vertex_partition_idx) const
   {
-    auto tpl_v = part_.get_vertex_partition_range(vertex_partition_idx);
+    auto tpl_v = part_.vertex_partition_range(vertex_partition_idx);
     return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
   }
 
   vertex_t get_part_vertex_partition_first(size_t vertex_partition_idx) const
   {
-    return part_.get_vertex_partition_first(vertex_partition_idx);
+    return part_.vertex_partition_range_first(vertex_partition_idx);
   }
 
   vertex_t get_part_vertex_partition_last(size_t vertex_partition_idx) const
   {
-    return part_.get_vertex_partition_last(vertex_partition_idx);
+    return part_.vertex_partition_range_last(vertex_partition_idx);
   }
 
   vertex_t get_part_vertex_partition_size(size_t vertex_partition_idx) const
   {
-    return part_.get_vertex_partition_size(vertex_partition_idx);
+    return part_.vertex_partition_range_size(vertex_partition_idx);
   }
 
   size_t get_part_number_of_matrix_partitions() const
   {
-    return part_.get_number_of_matrix_partitions();
+    return part_.number_of_local_edgex_partitions();
   }
 
   std::pair<vertex_t, vertex_t> get_part_matrix_partition_major_range(size_t partition_idx) const
   {
-    auto tpl_v = part_.get_matrix_partition_major_range(partition_idx);
+    auto tpl_v = part_.local_edgex_partition_major_range(partition_idx);
     return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
   }
 
   vertex_t get_part_matrix_partition_major_first(size_t partition_idx) const
   {
-    return part_.get_matrix_partition_major_first(partition_idx);
+    return part_.local_edge_partition_major_first(partition_idx);
   }
 
   vertex_t get_part_matrix_partition_major_last(size_t partition_idx) const
   {
-    return part_.get_matrix_partition_major_last(partition_idx);
+    return part_.local_edge_partition_major_range_last(partition_idx);
   }
 
   vertex_t get_part_matrix_partition_major_value_start_offset(size_t partition_idx) const
   {
-    return part_.get_part_matrix_partition_major_value_start_offset(partition_idx);
+    return part_.local_edge_partition_major_value_start_offset(partition_idx);
   }
 
   std::pair<vertex_t, vertex_t> get_part_matrix_partition_minor_range() const
   {
-    auto tpl_v = part_.get_matrix_partition_minor_range();
+    auto tpl_v = part_.local_edge_partition_minor_range();
     return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
   }
 
   vertex_t get_part_matrix_partition_minor_first() const
   {
-    return part_.get_matrix_partition_minor_first();
+    return part_.local_edge_partition_minor_range_first();
   }
 
   vertex_t get_part_matrix_partition_minor_last() const
   {
-    return part_.get_matrix_partition_minor_last();
+    return part_.local_edge_partition_minor_range_last();
   }
 
  private:

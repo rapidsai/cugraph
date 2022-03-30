@@ -135,11 +135,11 @@ extract_if_e(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  std::vector<size_t> edgelist_edge_counts(graph_view.get_number_of_local_adj_matrix_partitions(),
+  std::vector<size_t> edgelist_edge_counts(graph_view.number_of_local_edge_partitions(),
                                            size_t{0});
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
     edgelist_edge_counts[i] =
-      static_cast<size_t>(graph_view.get_number_of_local_adj_matrix_partition_edges(i));
+      static_cast<size_t>(graph_view.number_of_local_edge_partition_edges(i));
   }
   auto number_of_local_edges =
     std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
@@ -155,7 +155,7 @@ extract_if_e(raft::handle_t const& handle,
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.get_matrix_partition_view(i));
+        graph_view.local_edge_partition_view(i));
 
     auto matrix_partition_src_value_input = edge_partition_src_value_input;
     auto matrix_partition_dst_value_input = edge_partition_dst_value_input;
@@ -172,7 +172,7 @@ extract_if_e(raft::handle_t const& handle,
       edgelist_minors.data() + cur_size,
       edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data() + cur_size}
                        : std::nullopt,
-      graph_view.get_local_adj_matrix_partition_segment_offsets(i));
+      graph_view.local_edge_partition_segment_offsets(i));
     if (edgelist_weights) {
       auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
         edgelist_majors.begin(), edgelist_minors.begin(), (*edgelist_weights).begin()));

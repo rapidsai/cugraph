@@ -152,8 +152,8 @@ class Tests_MGSymmetrize
 
         // 4-6. compare
 
-        ASSERT_TRUE(mg_graph.get_number_of_vertices() == sg_graph.get_number_of_vertices());
-        ASSERT_TRUE(mg_graph.get_number_of_edges() == sg_graph.get_number_of_edges());
+        ASSERT_TRUE(mg_graph.number_of_vertices() == sg_graph.number_of_vertices());
+        ASSERT_TRUE(mg_graph.number_of_edges() == sg_graph.number_of_edges());
 
         std::vector<vertex_t> h_mg_aggregate_rows(d_mg_aggregate_rows.size());
         std::vector<vertex_t> h_mg_aggregate_cols(d_mg_aggregate_rows.size());

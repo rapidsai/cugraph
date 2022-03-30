@@ -178,10 +178,10 @@ class Tests_PageRank
     if (pagerank_usecase.personalization_ratio > 0.0) {
       std::default_random_engine generator{};
       std::uniform_real_distribution<double> distribution{0.0, 1.0};
-      h_personalization_vertices = std::vector<vertex_t>(graph_view.get_number_of_local_vertices());
+      h_personalization_vertices = std::vector<vertex_t>(graph_view.local_vertex_partition_range_size());
       std::iota((*h_personalization_vertices).begin(),
                 (*h_personalization_vertices).end(),
-                graph_view.get_local_vertex_first());
+                graph_view.local_vertex_partition_range_first());
       (*h_personalization_vertices)
         .erase(std::remove_if((*h_personalization_vertices).begin(),
                               (*h_personalization_vertices).end(),
@@ -226,7 +226,7 @@ class Tests_PageRank
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
 
-    rmm::device_uvector<result_t> d_pageranks(graph_view.get_number_of_vertices(),
+    rmm::device_uvector<result_t> d_pageranks(graph_view.number_of_vertices(),
                                               handle.get_stream());
 
     if (cugraph::test::g_perf) {
@@ -268,24 +268,24 @@ class Tests_PageRank
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-      std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
-      std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
+      std::vector<edge_t> h_offsets(unrenumbered_graph_view.number_of_vertices() + 1);
+      std::vector<vertex_t> h_indices(unrenumbered_graph_view.number_of_edges());
       auto h_weights = unrenumbered_graph_view.is_weighted()
                          ? std::make_optional<std::vector<weight_t>>(
-                             unrenumbered_graph_view.get_number_of_edges(), weight_t{0.0})
+                             unrenumbered_graph_view.number_of_edges(), weight_t{0.0})
                          : std::nullopt;
       raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
-                        unrenumbered_graph_view.get_number_of_vertices() + 1,
+                        unrenumbered_graph_view.local_edge_partition_view().get_offsets(),
+                        unrenumbered_graph_view.number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
-                        unrenumbered_graph_view.get_number_of_edges(),
+                        unrenumbered_graph_view.local_edge_partition_view().get_indices(),
+                        unrenumbered_graph_view.number_of_edges(),
                         handle.get_stream());
       if (h_weights) {
         raft::update_host((*h_weights).data(),
-                          *(unrenumbered_graph_view.get_matrix_partition_view().get_weights()),
-                          unrenumbered_graph_view.get_number_of_edges(),
+                          *(unrenumbered_graph_view.local_edge_partition_view().get_weights()),
+                          unrenumbered_graph_view.number_of_edges(),
                           handle.get_stream());
       }
 
@@ -316,7 +316,7 @@ class Tests_PageRank
                                                  d_unrenumbered_personalization_vertices.size(),
                                                  (*d_renumber_map_labels).data(),
                                                  vertex_t{0},
-                                                 graph_view.get_number_of_vertices());
+                                                 graph_view.number_of_vertices());
           std::tie(d_unrenumbered_personalization_vertices, d_unrenumbered_personalization_values) =
             cugraph::test::sort_by_key(handle,
                                        d_unrenumbered_personalization_vertices,
@@ -344,7 +344,7 @@ class Tests_PageRank
 
       handle.sync_stream();
 
-      std::vector<result_t> h_reference_pageranks(unrenumbered_graph_view.get_number_of_vertices());
+      std::vector<result_t> h_reference_pageranks(unrenumbered_graph_view.number_of_vertices());
 
       pagerank_reference(
         h_offsets.data(),
@@ -361,13 +361,13 @@ class Tests_PageRank
               (*h_unrenumbered_personalization_vertices).size())}
           : std::nullopt,
         h_reference_pageranks.data(),
-        unrenumbered_graph_view.get_number_of_vertices(),
+        unrenumbered_graph_view.number_of_vertices(),
         alpha,
         epsilon,
         std::numeric_limits<size_t>::max(),
         false);
 
-      std::vector<result_t> h_cugraph_pageranks(graph_view.get_number_of_vertices());
+      std::vector<result_t> h_cugraph_pageranks(graph_view.number_of_vertices());
       if (renumber) {
         rmm::device_uvector<result_t> d_unrenumbered_pageranks(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_pageranks) =
@@ -385,7 +385,7 @@ class Tests_PageRank
 
       auto threshold_ratio = 1e-3;
       auto threshold_magnitude =
-        (1.0 / static_cast<result_t>(graph_view.get_number_of_vertices())) *
+        (1.0 / static_cast<result_t>(graph_view.number_of_vertices())) *
         threshold_ratio;  // skip comparison for low PageRank verties (lowly ranked vertices)
       auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
         return std::abs(lhs - rhs) <

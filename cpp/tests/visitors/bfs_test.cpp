@@ -155,37 +155,37 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     auto graph_view = p_graph->view();
 
-    std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
-    std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
+    std::vector<edge_t> h_offsets(graph_view.number_of_vertices() + 1);
+    std::vector<vertex_t> h_indices(graph_view.number_of_edges());
     raft::update_host(h_offsets.data(),
-                      graph_view.get_matrix_partition_view().get_offsets(),
-                      graph_view.get_number_of_vertices() + 1,
+                      graph_view.local_edge_partition_view().get_offsets(),
+                      graph_view.number_of_vertices() + 1,
                       handle.get_stream());
     raft::update_host(h_indices.data(),
-                      graph_view.get_matrix_partition_view().get_indices(),
-                      graph_view.get_number_of_edges(),
+                      graph_view.local_edge_partition_view().get_indices(),
+                      graph_view.number_of_edges(),
                       handle.get_stream());
     handle.sync_stream();
 
     ASSERT_TRUE(configuration.source >= 0 &&
-                configuration.source <= graph_view.get_number_of_vertices())
+                configuration.source <= graph_view.number_of_vertices())
       << "Starting source vertex value should be >= 0 and"
       << " less than the number of vertices in the graph.";
 
-    std::vector<vertex_t> h_reference_distances(graph_view.get_number_of_vertices());
-    std::vector<vertex_t> h_reference_predecessors(graph_view.get_number_of_vertices());
+    std::vector<vertex_t> h_reference_distances(graph_view.number_of_vertices());
+    std::vector<vertex_t> h_reference_predecessors(graph_view.number_of_vertices());
 
     bfs_reference(h_offsets.data(),
                   h_indices.data(),
                   h_reference_distances.data(),
                   h_reference_predecessors.data(),
-                  graph_view.get_number_of_vertices(),
+                  graph_view.number_of_vertices(),
                   static_cast<vertex_t>(configuration.source),
                   std::numeric_limits<vertex_t>::max());
 
-    rmm::device_uvector<vertex_t> d_distances(graph_view.get_number_of_vertices(),
+    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(),
                                               handle.get_stream());
-    rmm::device_uvector<vertex_t> d_predecessors(graph_view.get_number_of_vertices(),
+    rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
                                                  handle.get_stream());
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -244,8 +244,8 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    std::vector<vertex_t> h_cugraph_distances(graph_view.get_number_of_vertices());
-    std::vector<vertex_t> h_cugraph_predecessors(graph_view.get_number_of_vertices());
+    std::vector<vertex_t> h_cugraph_distances(graph_view.number_of_vertices());
+    std::vector<vertex_t> h_cugraph_predecessors(graph_view.number_of_vertices());
 
     raft::update_host(
       h_cugraph_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());

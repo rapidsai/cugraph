@@ -220,8 +220,7 @@ void unrenumber_local_int_vertices(
  * @param num_vertices Number of vertices to be unrenumbered.
  * @param renumber_map_labels Pointer to the external vertices corresponding to the internal
  * vertices in the range [@p local_int_vertex_first, @p local_int_vertex_last).
- * @param vertex_partition_lasts Last local internal vertices (exclusive, assigned to each process
- * in multi-GPU).
+ * @param vertex_partition_range_lasts Last local internal vertices (exclusive, assigned to each process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, bool multi_gpu>
@@ -229,7 +228,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                              vertex_t* vertices /* [INOUT] */,
                              size_t num_vertices,
                              vertex_t const* renumber_map_labels,
-                             std::vector<vertex_t> const& vertex_partition_lasts,
+                             std::vector<vertex_t> const& vertex_partition_range_lasts,
                              bool do_expensive_check = false);
 
 /**
@@ -253,8 +252,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
  * assigned to this process).
  * @param renumber_map_labels Pointer to the external vertices corresponding to the internal
  * vertices in the range assigned to this process.
- * @param vertex_partition_lasts Last local internal vertices (exclusive, assigned to each process
- * in multi-GPU).
+ * @param vertex_partition_range_lasts Last local internal vertices (exclusive, assigned to each process in multi-GPU).
  * @param edgelist_intra_partition_segment_offsets If valid, store segment offsets within a local
  * graph adjacency matrix partition; a local partition can be further segmented by applying the
  * compute_gpu_id_from_vertex_t function to edge minor vertex IDs. This optinoal information is used
@@ -268,7 +266,7 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
   std::vector<vertex_t*> const& edgelist_cols /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   vertex_t const* renumber_map_labels,
-  std::vector<vertex_t> const& vertex_partition_lasts,
+  std::vector<vertex_t> const& vertex_partition_range_lasts,
   std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check = false);
 

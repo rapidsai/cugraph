@@ -33,7 +33,7 @@ class matrix_partition_view_base_t {
   {
   }
 
-  edge_t get_number_of_edges() const { return number_of_edges_; }
+  edge_t number_of_edges() const { return number_of_edges_; }
 
   edge_t const* get_offsets() const { return offsets_; }
   vertex_t const* get_indices() const { return indices_; }
