@@ -128,6 +128,39 @@ cdef copy_to_cupy_array(
 
     return cupy_array
 
+"""
+cdef copy_to_cupy_array_host(
+   cugraph_resource_handle_t* c_resource_handle_ptr,
+   cugraph_type_erased_host_array_view_t* host_array_view_ptr):
+    cdef c_type = cugraph_type_erased_host_array_view_type(
+        host_array_view_ptr)
+    array_size = cugraph_type_erased_host_array_view_size(
+        host_array_view_ptr)
+
+    cupy_array = cupy.zeros(
+        array_size, dtype=get_numpy_type_from_c_type(c_type))
+
+    cdef uintptr_t cupy_array_ptr = \
+        cupy_array.__cuda_array_interface__["data"][0]
+
+    cdef cugraph_type_erased_host_array_view_t* cupy_array_view_ptr = \
+        cugraph_type_erased_host_array_view_create(
+            <void*>cupy_array_ptr, array_size, c_type)
+
+    cdef cugraph_error_t* error_ptr
+    error_code = cugraph_type_erased_host_array_view_copy(
+        c_resource_handle_ptr,
+        cupy_array_view_ptr,
+        host_array_view_ptr,
+        &error_ptr)
+    assert_success(error_code, error_ptr,
+                   "cugraph_type_erased_host_array_view_copy")
+
+    cugraph_type_erased_host_array_view_free(host_array_view_ptr)
+
+    return cupy_array
+"""
+
 cdef copy_to_cudf_series(
    cugraph_resource_handle_t* c_resource_handle_ptr,
    cugraph_type_erased_device_array_view_t* device_array_view_ptr):

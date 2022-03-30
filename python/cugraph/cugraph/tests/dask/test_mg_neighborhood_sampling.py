@@ -75,11 +75,12 @@ def test_mg_neighborhood_sampling_tree(dask_client):
     dg = cugraph.DiGraph()
     dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
 
-    # TODO: Incomplete
-    start_list = cudf.Series([0, 0])
-    info_list = cudf.Series([0, 0])
-    fanout_vals = cudf.Series([4, 1, 3])
-    with_replacement = True
+    # TODO: Incomplete, include more testing for tree graph as well as
+    # for larger graphs
+    start_list = cudf.Series([0, 0], dtype="int32")
+    info_list = cudf.Series([0, 0], dtype="int32")
+    fanout_vals = cudf.Series([4, 1, 3], dtype="int32")
+    with_replacement = False
     result_nbr = dcg.uniform_neighborhood(dg, start_list,
                                           info_list,
                                           fanout_vals,
@@ -91,7 +92,3 @@ def test_mg_neighborhood_sampling_tree(dask_client):
     assert len(result_nbr['dsts']) == 10
     assert len(result_nbr['labels']) == 2
     assert len(result_nbr['index']) == 2
-
-    # Because there is no SG version of neighborhood sampling, unsure
-    # as to what to compare, for now the test should fail always
-    assert False

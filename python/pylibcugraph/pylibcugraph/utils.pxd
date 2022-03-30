@@ -41,6 +41,10 @@ cdef copy_to_cupy_array(
    cugraph_resource_handle_t* c_resource_handle_ptr,
    cugraph_type_erased_device_array_view_t* device_array_view_ptr)
 
+# cdef copy_to_cupy_array_host(
+#   cugraph_resource_handle_t* c_resource_handle_ptr,
+#   cugraph_type_erased_host_array_view_t* host_array_view_ptr)
+
 cdef copy_to_cudf_series(
    cugraph_resource_handle_t* c_resource_handle_ptr,
    cugraph_type_erased_device_array_view_t* device_array_view_ptr)

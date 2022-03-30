@@ -36,7 +36,7 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
-    uniform_nbr_sample,
+    cugraph_uniform_neighbor_sample,
     cugraph_sample_result_t,
     cugraph_sample_result_get_sources,
     cugraph_sample_result_get_destinations,
@@ -104,7 +104,7 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     are device arrays containing the starting and ending vertices of each
     walk respectively, the third item in the tuple is a device array
     containing the start labels, the fourth item in the tuple is a device
-    array containing the indices for ...
+    array containing the indices for reconstructing paths.
 
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
@@ -147,15 +147,15 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
             get_c_type_from_numpy_type(h_fan_out.dtype))
 
 
-    error_code = uniform_nbr_sample(c_resource_handle_ptr,
-                                    c_graph_ptr,
-                                    start_ptr,
-                                    start_labels_ptr,
-                                    fan_out_ptr,
-                                    with_replacement,
-                                    do_expensive_check,
-                                    &result_ptr,
-                                    &error_ptr)
+    error_code = cugraph_uniform_neighbor_sample(c_resource_handle_ptr,
+                                                 c_graph_ptr,
+                                                 start_ptr,
+                                                 start_labels_ptr,
+                                                 fan_out_ptr,
+                                                 with_replacement,
+                                                 do_expensive_check,
+                                                 &result_ptr,
+                                                 &error_ptr)
     assert_success(error_code, error_ptr, "uniform_nbr_sample")
 
 

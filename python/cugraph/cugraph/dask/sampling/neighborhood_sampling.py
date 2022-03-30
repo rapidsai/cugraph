@@ -16,7 +16,11 @@ from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
 import cugraph.comms.comms as Comms
 import dask_cudf
-import pylibcugraph.experimental as pylibcugraph
+from pylibcugraph.experimental import (MGGraph,
+                                       ResourceHandle,
+                                       GraphProperties,
+                                       uniform_neighborhood_sampling,
+                                       )
 import cudf
 
 
@@ -33,31 +37,30 @@ def call_nbr_sampling(sID,
 
     # Preparation for graph creation
     handle = Comms.get_handle(sID)
-    handle = pylibcugraph.ResourceHandle(handle.getHandle())
-    graph_properties = pylibcugraph.GraphProperties(
-        is_multigraph=False)
+    handle = ResourceHandle(handle.getHandle())
+    graph_properties = GraphProperties(is_multigraph=False)
     srcs = data[0][src_col_name]
     dsts = data[0][dst_col_name]
     weights = None
     if "value" in data[0].columns:
         weights = data[0]['value']
 
-    mg = pylibcugraph.MGGraph(handle,
-                              graph_properties,
-                              srcs,
-                              dsts,
-                              weights,
-                              False,
-                              num_edges,
-                              do_expensive_check)
+    mg = MGGraph(handle,
+                 graph_properties,
+                 srcs,
+                 dsts,
+                 weights,
+                 False,
+                 num_edges,
+                 do_expensive_check)
 
-    return pylibcugraph.uniform_neighborhood_sampling(handle,
-                                                      mg,
-                                                      start_list,
-                                                      info_list,
-                                                      h_fan_out,
-                                                      with_replacement,
-                                                      do_expensive_check)
+    return uniform_neighborhood_sampling(handle,
+                                         mg,
+                                         start_list,
+                                         info_list,
+                                         h_fan_out,
+                                         with_replacement,
+                                         do_expensive_check)
 
 
 def convert_to_cudf(cp_arrays):
@@ -114,7 +117,8 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
         ddf['labels']: dask_cudf.Series
             Contains the start labels from the sampling result
         ddf['index']: dask_cudf.Series
-            Contains the indices from the sampling result
+            Contains the indices from the sampling result for path
+            reconstruction
         ddf['counts']: dask_cudf.Series
             Contains the transaction counts from the sampling result,
             not implemented
