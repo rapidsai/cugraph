@@ -76,6 +76,7 @@ rapids_cmake_build_type(Release)
 ################################################################################
 # - User Options  --------------------------------------------------------------
 
+option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
@@ -157,7 +158,7 @@ endif()
 ################################################################################
 # - libcugraph library target --------------------------------------------------
 
-add_library(cugraph SHARED
+add_library(cugraph
     src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
     src/utilities/cython.cu
@@ -347,7 +348,7 @@ endif()
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
-add_library(cugraph_c SHARED
+add_library(cugraph_c
         src/c_api/cugraph_api.cpp
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
