@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# import pytest
+import pytest
 import cupy as cp
 import numpy as np
 import cudf
@@ -61,6 +61,7 @@ def check_edges(result, srcs, dsts, weights, num_verts, num_edges, num_seeds):
 
 # TODO: Refactor after creating a helper within conftest.py to pass in an
 # mg_graph_objs instance
+@pytest.mark.skip(reason="pylibcugraph MG test infra not complete")
 def test_neighborhood_sampling_cupy():
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
@@ -93,6 +94,7 @@ def test_neighborhood_sampling_cupy():
     check_edges(result, device_srcs, device_dsts, device_weights, 6, 8, 2)
 
 
+@pytest.mark.skip(reason="pylibcugraph MG test infra not complete")
 def test_neighborhood_sampling_cudf():
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)

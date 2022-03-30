@@ -14,7 +14,7 @@
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
-import cugraph.comms.comms as Comms
+from cugraph.comms import comms as Comms
 import dask_cudf
 from pylibcugraph.experimental import (MGGraph,
                                        ResourceHandle,
@@ -119,9 +119,6 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
         ddf['index']: dask_cudf.Series
             Contains the indices from the sampling result for path
             reconstruction
-        ddf['counts']: dask_cudf.Series
-            Contains the transaction counts from the sampling result,
-            not implemented
     """
     # Initialize dask client
     client = default_client()

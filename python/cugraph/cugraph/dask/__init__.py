@@ -21,6 +21,3 @@ from .common.read_utils import get_chunksize
 from .community.louvain import louvain
 from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
-
-from .sampling.neighborhood_sampling import EXPERIMENTAL__uniform_neighborhood
-uniform_neighborhood = experimental_warning_wrapper(EXPERIMENTAL__uniform_neighborhood)

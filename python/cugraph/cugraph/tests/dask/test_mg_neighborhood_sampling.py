@@ -47,7 +47,8 @@ def _get_param_args(param_name, param_values):
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 def test_mg_neighborhood_sampling_tree(dask_client):
-    gc.collect()
+
+    from cugraph.experimental.dask import uniform_neighborhood_sampling
 
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "small_tree.csv").as_posix()
@@ -81,10 +82,10 @@ def test_mg_neighborhood_sampling_tree(dask_client):
     info_list = cudf.Series([0, 0], dtype="int32")
     fanout_vals = cudf.Series([4, 1, 3], dtype="int32")
     with_replacement = False
-    result_nbr = dcg.uniform_neighborhood(dg, start_list,
-                                          info_list,
-                                          fanout_vals,
-                                          with_replacement)
+    result_nbr = uniform_neighborhood_sampling(dg,
+                                               (start_list, info_list),
+                                               fanout_vals,
+                                               with_replacement)
     result_nbr = result_nbr.compute()
 
     # Test that lengths of outputs are as intended for small graph
