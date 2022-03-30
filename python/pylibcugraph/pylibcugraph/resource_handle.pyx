@@ -25,8 +25,18 @@ cdef class EXPERIMENTAL__ResourceHandle:
     RAII-stye resource handle class to manage individual create/free calls and
     the corresponding pointer to a cugraph_resource_handle_t
     """
-    def __cinit__(self):
-        self.c_resource_handle_ptr = cugraph_create_resource_handle(NULL)
+    def __cinit__(self, handle=None):
+        cdef void* handle_ptr = NULL
+        cdef size_t handle_size_t
+        if handle is not None:
+            # FIXME: rather than assume a RAFT handle here, consider something
+            # like a factory function in cugraph (which already has a RAFT
+            # dependency and makes RAFT assumptions) that takes a RAFT handle
+            # and constructs/returns a ResourceHandle
+            handle_size_t = <size_t>handle
+            handle_ptr = <void*>handle_size_t
+
+        self.c_resource_handle_ptr = cugraph_create_resource_handle(handle_ptr)
         # FIXME: check for error
 
     def __dealloc__(self):
