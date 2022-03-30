@@ -123,6 +123,12 @@ struct node2vec_functor : public abstract_functor {
         // std::make_unique<sampling_params_t>(2, p_, q_, false));
         std::make_unique<sampling_params_t>(cugraph::sampling_strategy_t::NODE2VEC, p_, q_));
 
+      //
+      // Need to unrenumber the vertices in the resulting paths
+      //
+      unrenumber_local_int_vertices<vertex_t>(
+        handle_, paths.data(), paths.size(), number_map->data(), 0, paths.size() - 1, false);
+
       result_ = new cugraph_random_walk_result_t{
         compress_result_,
         max_depth_,
