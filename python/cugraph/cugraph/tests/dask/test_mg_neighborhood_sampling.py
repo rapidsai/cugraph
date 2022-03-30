@@ -50,9 +50,12 @@ def test_mg_neighborhood_sampling_simple(dask_client):
 
     from cugraph.experimental.dask import uniform_neighborhood_sampling
 
-    df = cudf.DataFrame({"src": cudf.Series([0, 1, 1, 2, 2, 2, 3, 4], dtype="int32"),
-                         "dst": cudf.Series([1, 3, 4, 0, 1, 3, 5, 5], dtype="int32"),
-                         "value": cudf.Series([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
+    df = cudf.DataFrame({"src": cudf.Series([0, 1, 1, 2, 2, 2, 3, 4],
+                                            dtype="int32"),
+                         "dst": cudf.Series([1, 3, 4, 0, 1, 3, 5, 5],
+                                            dtype="int32"),
+                         "value": cudf.Series([0.1, 2.1, 1.1, 5.1, 3.1,
+                                               4.1, 7.2, 3.2],
                                               dtype="float32"),
                          })
     ddf = dask_cudf.from_cudf(df, npartitions=2)
@@ -126,5 +129,5 @@ def test_mg_neighborhood_sampling_tree(dask_client):
     assert result_nbr['labels'].dtype == "int32"
     assert result_nbr['indices'].dtype == "int32"
 
-    # ALl labels should be 0
-    assert (result_nbr['labels']==0).all()
+    # All labels should be 0
+    assert (result_nbr['labels'] == 0).all()

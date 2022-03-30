@@ -66,7 +66,6 @@ def call_nbr_sampling(sID,
                                             h_fan_out,
                                             with_replacement,
                                             do_expensive_check)
-    print(ret_val)
     return ret_val
 
 
@@ -143,7 +142,8 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
     if isinstance(fanout_vals, list):
         fanout_vals = numpy.asarray(fanout_vals, dtype="int32")
     else:
-        raise TypeError(f"fanout_vals must be a list, got: {type(fanout_vals)}")
+        raise TypeError("fanout_vals must be a list, "
+                        f"got: {type(fanout_vals)}")
 
     ddf = input_graph.edgelist.edgelist_df
     num_edges = len(ddf)
