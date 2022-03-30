@@ -247,6 +247,7 @@ set_target_properties(cugraph
                CXX_STANDARD_REQUIRED               ON
                CUDA_STANDARD                       17
                CUDA_STANDARD_REQUIRED              ON
+               POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
 )
 
