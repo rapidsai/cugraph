@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/detail/decompress_matrix_partition.cuh>
+#include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>

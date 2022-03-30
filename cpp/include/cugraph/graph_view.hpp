@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <cugraph/matrix_partition_view.hpp>
+#include <cugraph/edge_partition_view.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_view.hpp>
 

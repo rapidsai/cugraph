@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/matrix_partition_device_view.cuh>
+#include <cugraph/edge_partition_device_view.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>

@@ -41,7 +41,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/graph_functions.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/matrix_partition_device_view.cuh>
+#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 

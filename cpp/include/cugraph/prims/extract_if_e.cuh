@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <cugraph/detail/decompress_matrix_partition.cuh>
+#include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/matrix_partition_device_view.cuh>
+#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/extract_if_e.cuh>
 #include <cugraph/prims/property_op_utils.cuh>

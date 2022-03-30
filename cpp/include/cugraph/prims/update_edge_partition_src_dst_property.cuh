@@ -16,7 +16,7 @@
 #pragma once
 
 #include <cugraph/graph_view.hpp>
-#include <cugraph/matrix_partition_device_view.cuh>
+#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>

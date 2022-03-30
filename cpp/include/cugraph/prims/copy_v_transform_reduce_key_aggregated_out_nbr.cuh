@@ -15,10 +15,10 @@
  */
 #pragma once
 
-#include <cugraph/detail/decompress_matrix_partition.cuh>
+#include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/matrix_partition_device_view.cuh>
+#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>

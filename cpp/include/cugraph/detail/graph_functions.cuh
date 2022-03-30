@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <cugraph/matrix_partition_device_view.cuh>
+#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/host_scalar_comm.cuh>
