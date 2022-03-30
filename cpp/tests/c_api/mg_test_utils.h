@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include "c_test_utils.h"
+
 #include <mpi.h>
 #include <stdlib.h>
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,22 @@ template void renumber_ext_vertices<int64_t, true>(raft::handle_t const& handle,
                                                    int64_t local_int_vertex_first,
                                                    int64_t local_int_vertex_last,
                                                    bool do_expensive_check);
+
+template void renumber_local_ext_vertices<int32_t, true>(raft::handle_t const& handle,
+                                                         int32_t* vertices,
+                                                         size_t num_vertices,
+                                                         int32_t const* renumber_map_labels,
+                                                         int32_t local_int_vertex_first,
+                                                         int32_t local_int_vertex_last,
+                                                         bool do_expensive_check);
+
+template void renumber_local_ext_vertices<int64_t, true>(raft::handle_t const& handle,
+                                                         int64_t* vertices,
+                                                         size_t num_vertices,
+                                                         int64_t const* renumber_map_labels,
+                                                         int64_t local_int_vertex_first,
+                                                         int64_t local_int_vertex_last,
+                                                         bool do_expensive_check);
 
 template void unrenumber_int_vertices<int32_t, true>(
   raft::handle_t const& handle,

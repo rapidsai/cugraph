@@ -114,7 +114,7 @@ namespace {
                                                  start.data(),
                                                  start.size(),
                                                  number_map->data(),
-                                                 graph_view.get_local_vertex_first(),
+                                                 graph_view.local_vertex_range_first(),
                                                  graph_view.get_local_vertex_last(),
                                                  false);
 

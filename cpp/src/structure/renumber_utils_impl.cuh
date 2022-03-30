@@ -471,6 +471,71 @@ void renumber_ext_vertices(raft::handle_t const& handle,
   renumber_map_ptr->find(vertices, vertices + num_vertices, vertices);
 }
 
+template <typename vertex_t, bool multi_gpu>
+void renumber_local_ext_vertices(raft::handle_t const& handle,
+                                 vertex_t* vertices /* [INOUT] */,
+                                 size_t num_vertices,
+                                 vertex_t const* renumber_map_labels,
+                                 vertex_t local_int_vertex_first,
+                                 vertex_t local_int_vertex_last,
+                                 bool do_expensive_check)
+{
+  double constexpr load_factor = 0.7;
+
+  if (do_expensive_check) {
+    rmm::device_uvector<vertex_t> labels(local_int_vertex_last - local_int_vertex_first,
+                                         handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 renumber_map_labels,
+                 renumber_map_labels + labels.size(),
+                 labels.begin());
+    thrust::sort(handle.get_thrust_policy(), labels.begin(), labels.end());
+    CUGRAPH_EXPECTS(
+      thrust::unique(handle.get_thrust_policy(), labels.begin(), labels.end()) == labels.end(),
+      "Invalid input arguments: renumber_map_labels have duplicate elements.");
+  }
+
+  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+  auto stream_adapter   = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
+  auto renumber_map_ptr = std::make_unique<
+    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
+    std::max(static_cast<size_t>(
+               static_cast<double>(local_int_vertex_last - local_int_vertex_first) / load_factor),
+             static_cast<size_t>(local_int_vertex_last - local_int_vertex_first) + 1),
+    invalid_vertex_id<vertex_t>::value,
+    invalid_vertex_id<vertex_t>::value,
+    stream_adapter,
+    handle.get_stream());
+
+  auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+    renumber_map_labels, thrust::make_counting_iterator(local_int_vertex_first)));
+  renumber_map_ptr->insert(pair_first,
+                           pair_first + (local_int_vertex_last - local_int_vertex_first),
+                           cuco::detail::MurmurHash3_32<vertex_t>{},
+                           thrust::equal_to<vertex_t>{},
+                           handle.get_stream());
+
+  if (do_expensive_check) {
+    rmm::device_uvector<bool> contains(num_vertices, handle.get_stream());
+    renumber_map_ptr->contains(vertices, vertices + num_vertices, contains.begin());
+    auto vc_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertices, contains.begin()));
+    CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
+                                     vc_pair_first,
+                                     vc_pair_first + num_vertices,
+                                     [] __device__(auto pair) {
+                                       auto v = thrust::get<0>(pair);
+                                       auto c = thrust::get<1>(pair);
+                                       return v == invalid_vertex_id<vertex_t>::value
+                                                ? (c == true)
+                                                : (c == false);
+                                     }) == 0,
+                    "Invalid input arguments: vertices have elements that are missing in "
+                    "(aggregate) renumber_map_labels.");
+  }
+
+  renumber_map_ptr->find(vertices, vertices + num_vertices, vertices);
+}
+
 template <typename vertex_t>
 void unrenumber_local_int_vertices(
   raft::handle_t const& handle,
