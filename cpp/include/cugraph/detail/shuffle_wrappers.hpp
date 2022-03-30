@@ -93,5 +93,39 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
   bool groupby_and_count_local_partition_by_minor = false);
 
+/**
+ * @brief Collect vertex values (represented as k/v pairs across cluster) and return
+ *        local value arrays on the GPU responsible for each vertex.
+ *
+ * Data will be shuffled, renumbered and initialized with the default value,
+ * then:  return_array[d_vertices[i]] = d_values[i]
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam value_t  Type of value associated with the vertex.
+ * @tparam bool     multi_gpu flag
+ *
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] d_vertices Vertex IDs for the k/v pair
+ * @param[in] d_values Values for the k/v pair
+ * @param[in] The number map for performing renumbering
+ * @param[in] local_vertex_first The first vertex id assigned to the local GPU
+ * @param[in] local_vertex_last The last vertex id assigned to the local GPU
+ * @param[in] default_value The default value the return array will be initialized by
+ * @param[in] do_expensive_check If true, enable expensive validation checks
+ * @return device vector of values, where return[i] is the value associated with
+ *         vertex (i + local_vertex_first)
+ */
+template <typename vertex_t, typename value_t, bool multi_gpu>
+rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_pairs(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& d_vertices,
+  rmm::device_uvector<value_t>&& d_values,
+  rmm::device_uvector<vertex_t> const& number_map,
+  vertex_t local_vertex_first,
+  vertex_t local_vertex_last,
+  value_t default_value,
+  bool do_expensive_check);
+
 }  // namespace detail
 }  // namespace cugraph

@@ -125,10 +125,9 @@ struct rrandom_gen_t {
       d_ptr_out_degs,              // input2
       d_ptr_out_degs,              // also stencil
       d_col_indx.begin(),
-      [] __device__(real_t rnd_vindx, edge_t crt_out_deg) {
-        real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
-        auto interp_vindx = rnd_vindx * max_ub;
-        vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
+      [] __device__(real_t rnd_val, edge_t crt_out_deg) {
+        vertex_t v_indx =
+          static_cast<vertex_t>(rnd_val >= 1.0 ? crt_out_deg - 1 : rnd_val * crt_out_deg);
         return (v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx);
       },
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
