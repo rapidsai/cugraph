@@ -47,7 +47,6 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    print("parameters are \n", request.param, flush=True)
     parameters = dict(zip(("graph_file", "max_iter", "tol"), request.param))
 
     return parameters
@@ -56,12 +55,14 @@ def input_combo(request):
 @pytest.fixture(scope="module")
 def input_expected_output(input_combo):
     """
-    This fixture returns the expected results from the HITS algo.(based on
-    cuGraph HITS) which can be used for validation.
+    This fixture returns the inputs and expected results from the HITS algo.
+    (based on cuGraph HITS) which can be used for validation.
     """
 
+    input_data_path = input_combo["graph_file"]
+
     G = utils.generate_cugraph_graph_from_file(
-        input_combo["graph_file"])
+        input_data_path)
     sg_cugraph_hits = cugraph.hits(
                             G,
                             input_combo["max_iter"],
@@ -73,43 +74,7 @@ def input_expected_output(input_combo):
         "vertex").reset_index(drop=True)
 
     input_combo["sg_cugraph_results"] = sg_cugraph_hits
-    return input_combo
-
-
-# =============================================================================
-# Tests
-# =============================================================================
-
-
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
-def test_cugraph_hits(benchmark, input_combo):
-    """
-    Simply run cuGraph HITS on the same set of input combinations used
-    for the
-    cuGraph HITS tests.
-    This is only in place for generating comparison performance numbers.
-    """
-    G = utils.generate_cugraph_graph_from_file(
-        input_combo["graph_file"])
-
-    sg_cugraph_hits = benchmark(cugraph.hits,
-                                G,
-                                input_combo["max_iter"],
-                                input_combo["tol"])
-    input_combo["sg_cugraph_results"] = sg_cugraph_hits
-
-
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
-def test_dask_hits(dask_client, benchmark, input_expected_output):
-
-    input_data_path = input_expected_output["graph_file"]
-    print(f"dataset={input_data_path}")
-    chunksize = dcg.get_chunksize(input_expected_output["graph_file"])
-
+    chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
         chunksize=chunksize,
@@ -121,6 +86,23 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(
         ddf, source='src', destination='dst', edge_attr='value', renumber=True)
+
+    input_combo["MGGraph"] = dg
+
+    return input_combo
+
+
+# =============================================================================
+# Tests
+# =============================================================================
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+def test_dask_hits(dask_client, benchmark, input_expected_output):
+
+    dg = input_expected_output["MGGraph"]
 
     result_hits = benchmark(dcg.hits,
                             dg,
@@ -140,7 +122,6 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
     result_hits["sg_cugraph_hubs"] = expected_output['hubs']
     result_hits["sg_cugraph_authorities"] = expected_output["authorities"]
 
-    # FIXME: Check this is working
     hubs_diffs1 = result_hits.query(
         'mg_cugraph_hubs - sg_cugraph_hubs > 0.00001')
     hubs_diffs2 = result_hits.query(

@@ -19,8 +19,13 @@ from cugraph.dask.common.input_utils import get_distributed_data
 import cugraph.comms.comms as Comms
 import dask_cudf
 
-import pylibcugraph
 import cudf
+
+from pylibcugraph.experimental import (ResourceHandle,
+                                       GraphProperties,
+                                       MGGraph,
+                                       hits as pylibcugraph_hits
+                                       )
 
 
 def call_hits(sID,
@@ -38,30 +43,30 @@ def call_hits(sID,
               normalized):
 
     handle = Comms.get_handle(sID)
-    h = pylibcugraph.experimental.ResourceHandle(handle.getHandle())
+    h = ResourceHandle(handle.getHandle())
     srcs = data[0][src_col_name]
     dsts = data[0][dst_col_name]
     weights = None
     if "value" in data[0].columns:
         weights = data[0]['value']
 
-    mg = pylibcugraph.experimental.MGGraph(h,
-                                           graph_properties,
-                                           srcs,
-                                           dsts,
-                                           weights,
-                                           store_transposed,
-                                           num_edges,
-                                           do_expensive_check)
+    mg = MGGraph(h,
+                 graph_properties,
+                 srcs,
+                 dsts,
+                 weights,
+                 store_transposed,
+                 num_edges,
+                 do_expensive_check)
 
-    result = pylibcugraph.experimental.hits(h,
-                                            mg,
-                                            tolerance,
-                                            max_iter,
-                                            initial_hubs_guess_vertices,
-                                            initial_hubs_guess_value,
-                                            normalized,
-                                            do_expensive_check)
+    result = pylibcugraph_hits(h,
+                               mg,
+                               tolerance,
+                               max_iter,
+                               initial_hubs_guess_vertices,
+                               initial_hubs_guess_value,
+                               normalized,
+                               do_expensive_check)
 
     return result
 
@@ -86,9 +91,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     estimates the node value based on the incoming links.  Hubs estimates
     the node value based on outgoing links.
 
-    Note that the cuGraph implementation uses a 2-norm, while networkx
-    uses a 1-norm.  The raw scores will be different, but the rank ordering
-    should be comparable with networkx.
+    Both cuGraph and networkx implementation use a 1-norm.
 
     Parameters
     ----------
@@ -153,7 +156,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     input_graph.compute_renumber_edge_list(transposed=False)
     ddf = input_graph.edgelist.edgelist_df
 
-    graph_properties = pylibcugraph.experimental.GraphProperties(
+    graph_properties = GraphProperties(
         is_multigraph=False)
 
     store_transposed = False
