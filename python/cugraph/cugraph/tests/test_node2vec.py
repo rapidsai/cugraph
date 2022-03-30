@@ -118,7 +118,6 @@ def test_node2vec_invalid(
                                       compress_result=compress, p=p, q=q)
 
 
-# Remove once bug is resolved
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
 @pytest.mark.parametrize(*_get_param_args("directed", DIRECTED_GRAPH_OPTIONS))
 def test_node2vec_line(graph_file, directed):
