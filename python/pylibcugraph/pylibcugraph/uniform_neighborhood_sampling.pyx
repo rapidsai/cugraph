@@ -119,10 +119,6 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    # cdef uintptr_t cai_start_ptr = \
-    #    start_info_list.__cuda_array_interface__["data"][0]
-    # cdef uintptr_t cai_labels_ptr = \
-    #    start_info_list.__cuda_array_interface__["data"][1]
     cdef uintptr_t cai_start_ptr = \
         start_list.__cuda_array_interface__["data"][0]
     cdef uintptr_t cai_labels_ptr = \
@@ -146,7 +142,6 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
             len(h_fan_out),
             get_c_type_from_numpy_type(h_fan_out.dtype))
 
-
     error_code = cugraph_uniform_neighbor_sample(c_resource_handle_ptr,
                                                  c_graph_ptr,
                                                  start_ptr,
@@ -157,7 +152,6 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle res
                                                  &result_ptr,
                                                  &error_ptr)
     assert_success(error_code, error_ptr, "uniform_nbr_sample")
-
 
     # TODO: counts is a part of the output, but another copy_to_cupy array
     # with appropriate host array types would likely be required. Also

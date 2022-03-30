@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,11 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .link_analysis.pagerank import pagerank
-from .link_analysis.hits import hits
-from .traversal.bfs import bfs
-from .traversal.sssp import sssp
-from .common.read_utils import get_chunksize
-from .community.louvain import louvain
-from .centrality.katz_centrality import katz_centrality
-from .components.connectivity import weakly_connected_components
+from cugraph.utilities.api_tools import experimental_warning_wrapper
+
+from cugraph.dask.sampling.neighborhood_sampling import \
+    EXPERIMENTAL__uniform_neighborhood
+uniform_neighborhood_sampling = \
+    experimental_warning_wrapper(EXPERIMENTAL__uniform_neighborhood)
