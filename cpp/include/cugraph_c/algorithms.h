@@ -157,14 +157,13 @@ cugraph_error_code_t cugraph_personalized_pagerank(
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_eigenvector_centrality(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  double epsilon,
-  size_t max_iterations,
-  bool_t do_expensive_check,
-  cugraph_centrality_result_t** result,
-  cugraph_error_t** error);
+cugraph_error_code_t cugraph_eigenvector_centrality(const cugraph_resource_handle_t* handle,
+                                                    cugraph_graph_t* graph,
+                                                    double epsilon,
+                                                    size_t max_iterations,
+                                                    bool_t do_expensive_check,
+                                                    cugraph_centrality_result_t** result,
+                                                    cugraph_error_t** error);
 
 /**
  * @brief     Opaque hits result type
