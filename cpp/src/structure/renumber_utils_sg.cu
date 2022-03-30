@@ -86,16 +86,16 @@ template void unrenumber_int_vertices<int64_t, false>(
 
 template void unrenumber_local_int_edges<int32_t, false, false>(
   raft::handle_t const& handle,
-  int32_t* edgelist_rows /* [INOUT] */,
-  int32_t* edgelist_cols /* [INOUT] */,
+  int32_t* edgelist_srcs /* [INOUT] */,
+  int32_t* edgelist_dsts /* [INOUT] */,
   size_t num_edgelist_edges,
   int32_t const* renumber_map_labels,
   int32_t num_vertices,
   bool do_expensive_check);
 
 template void unrenumber_local_int_edges<int32_t, true, false>(raft::handle_t const& handle,
-                                                               int32_t* edgelist_rows /* [INOUT] */,
-                                                               int32_t* edgelist_cols /* [INOUT] */,
+                                                               int32_t* edgelist_srcs /* [INOUT] */,
+                                                               int32_t* edgelist_dsts /* [INOUT] */,
                                                                size_t num_edgelist_edges,
                                                                int32_t const* renumber_map_labels,
                                                                int32_t num_vertices,
@@ -103,16 +103,16 @@ template void unrenumber_local_int_edges<int32_t, true, false>(raft::handle_t co
 
 template void unrenumber_local_int_edges<int64_t, false, false>(
   raft::handle_t const& handle,
-  int64_t* edgelist_rows /* [INOUT] */,
-  int64_t* edgelist_cols /* [INOUT] */,
+  int64_t* edgelist_srcs /* [INOUT] */,
+  int64_t* edgelist_dsts /* [INOUT] */,
   size_t num_edgelist_edges,
   int64_t const* renumber_map_labels,
   int64_t num_vertices,
   bool do_expensive_check);
 
 template void unrenumber_local_int_edges<int64_t, true, false>(raft::handle_t const& handle,
-                                                               int64_t* edgelist_rows /* [INOUT] */,
-                                                               int64_t* edgelist_cols /* [INOUT] */,
+                                                               int64_t* edgelist_srcs /* [INOUT] */,
+                                                               int64_t* edgelist_dsts /* [INOUT] */,
                                                                size_t num_edgelist_edges,
                                                                int64_t const* renumber_map_labels,
                                                                int64_t num_vertices,

@@ -532,8 +532,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 symmetrize_edgelist(raft::handle_t const& handle,
-                    rmm::device_uvector<vertex_t>&& edgelist_rows,
-                    rmm::device_uvector<vertex_t>&& edgelist_cols,
+                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
                     std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                     bool reciprocal)
 {
@@ -542,8 +542,8 @@ symmetrize_edgelist(raft::handle_t const& handle,
   std::tie(edgelist_majors, edgelist_minors, edgelist_weights) =
     detail::symmetrize_edgelist<vertex_t, weight_t, multi_gpu>(
       handle,
-      store_transposed ? std::move(edgelist_cols) : std::move(edgelist_rows),
-      store_transposed ? std::move(edgelist_rows) : std::move(edgelist_cols),
+      store_transposed ? std::move(edgelist_dsts) : std::move(edgelist_srcs),
+      store_transposed ? std::move(edgelist_srcs) : std::move(edgelist_dsts),
       std::move(edgelist_weights),
       reciprocal);
 

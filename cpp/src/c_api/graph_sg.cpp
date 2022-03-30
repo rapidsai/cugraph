@@ -76,13 +76,13 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
 
       std::optional<rmm::device_uvector<vertex_t>> new_number_map;
 
-      rmm::device_uvector<vertex_t> edgelist_rows(src_->size_, handle_.get_stream());
-      rmm::device_uvector<vertex_t> edgelist_cols(dst_->size_, handle_.get_stream());
+      rmm::device_uvector<vertex_t> edgelist_srcs(src_->size_, handle_.get_stream());
+      rmm::device_uvector<vertex_t> edgelist_dsts(dst_->size_, handle_.get_stream());
 
       raft::copy<vertex_t>(
-        edgelist_rows.data(), src_->as_type<vertex_t>(), src_->size_, handle_.get_stream());
+        edgelist_srcs.data(), src_->as_type<vertex_t>(), src_->size_, handle_.get_stream());
       raft::copy<vertex_t>(
-        edgelist_cols.data(), dst_->as_type<vertex_t>(), dst_->size_, handle_.get_stream());
+        edgelist_dsts.data(), dst_->as_type<vertex_t>(), dst_->size_, handle_.get_stream());
 
       std::optional<rmm::device_uvector<weight_t>> edgelist_weights =
         weights_
@@ -106,8 +106,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
           handle_,
           std::nullopt,
-          std::move(edgelist_rows),
-          std::move(edgelist_cols),
+          std::move(edgelist_srcs),
+          std::move(edgelist_dsts),
           std::move(edgelist_weights),
           cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
           renumber_,

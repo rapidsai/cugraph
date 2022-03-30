@@ -75,9 +75,7 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  * @param edgelist_edge_counts Edge counts (one count per local edge partition assigned to this
  * process).
  * @param edgelist_intra_partition_segment_offsets If valid, store segment offsets within a local
- * graph adjacency matrix partition; a local partition can be further segmented by applying the
- * compute_gpu_id_from_vertex_t function to edge minor vertex IDs. This optinoal information is used
- * for further memory footprint optimization if provided.
+ * edge partition; a local edge partition can be further segmented by applying the compute_gpu_id_from_vertex_t function to edge minor vertex IDs. This optinoal information is used for further memory footprint optimization if provided.
  * @param store_transposed Should be true if renumbered edges will be used to create a graph with
  * store_transposed = true. Should be false if the edges will be used to create a graph with
  * store_transposed = false.
@@ -242,28 +240,20 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @params edgelist_rows Pointers (one pointer per local graph adjacency matrix partition assigned
- * to this process) to the local internal row (source) vertex IDs to be unrenumbered. The input row
- * (source) vertex Ids are renumbered to external IDs in-place.
- * @params edgelist_cols Pointers (one pointer per local graph adjacency matrix partition assigned
- * to this process) to the local internal column (destination) vertex IDs to be unrenumbered. The
- * input column (destination) vertex Ids are renumbered to external IDs in-place.
- * @param edgelist_edge_counts Edge counts (one count per local graph adjacency matrix partition
- * assigned to this process).
+ * @params edgelist_srcs Pointers (one pointer per local edge partition assigned to this process) to the local internal source vertex IDs to be unrenumbered. The input  source vertex IDs are renumbered to external IDs in-place.
+ * @params edgelist_dsts Pointers (one pointer per local edge partition assigned to this process) to the local internal destination vertex IDs to be unrenumbered. The input destination vertex IDs are renumbered to external IDs in-place.
+ * @param edgelist_edge_counts Edge counts (one count per local edge partition assigned to this process).
  * @param renumber_map_labels Pointer to the external vertices corresponding to the internal
  * vertices in the range assigned to this process.
  * @param vertex_partition_range_lasts Last local internal vertices (exclusive, assigned to each process in multi-GPU).
- * @param edgelist_intra_partition_segment_offsets If valid, store segment offsets within a local
- * graph adjacency matrix partition; a local partition can be further segmented by applying the
- * compute_gpu_id_from_vertex_t function to edge minor vertex IDs. This optinoal information is used
- * for further memory footprint optimization if provided.
+ * @param edgelist_intra_partition_segment_offsets If valid, store segment offsets within a local edge partition; a local edge partition can be further segmented by applying the compute_gpu_id_from_vertex_t function to edge minor vertex IDs. This optinoal information is used for further memory footprint optimization if provided.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, bool store_transposed, bool multi_gpu>
 std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
   raft::handle_t const& handle,
-  std::vector<vertex_t*> const& edgelist_rows /* [INOUT] */,
-  std::vector<vertex_t*> const& edgelist_cols /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   vertex_t const* renumber_map_labels,
   std::vector<vertex_t> const& vertex_partition_range_lasts,
@@ -281,10 +271,8 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @params edgelist_rows Pointer to the local internal row (source) vertex IDs to be unrenumbered.
- * The input row (source) vertex Ids are renumbered to external IDs in-place.
- * @params edgelist_cols Pointer to the local internal column (destination) vertex IDs to be
- * unrenumbered. The input column (destination) vertex Ids are renumbered to external IDs in-place.
+ * @params edgelist_srcs Pointer to the local internal source vertex IDs to be unrenumbered. The input source vertex IDs are renumbered to external IDs in-place.
+ * @params edgelist_dsts Pointer to the local internal destination vertex IDs to be unrenumbered. The input destination vertex IDs are renumbered to external IDs in-place.
  * @param num_edgelist_edges Number of edges in the edge list.
  * @param renumber_map_labels Pointer to the external vertices corresponding to the internal
  * vertices.
@@ -293,8 +281,8 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
  */
 template <typename vertex_t, bool store_transposed, bool multi_gpu>
 std::enable_if_t<!multi_gpu, void> unrenumber_local_int_edges(raft::handle_t const& handle,
-                                                              vertex_t* edgelist_rows /* [INOUT] */,
-                                                              vertex_t* edgelist_cols /* [INOUT] */,
+                                                              vertex_t* edgelist_srcs /* [INOUT] */,
+                                                              vertex_t* edgelist_dsts /* [INOUT] */,
                                                               size_t num_edgelist_edges,
                                                               vertex_t const* renumber_map_labels,
                                                               vertex_t num_vertices,
@@ -342,15 +330,13 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param edgelist_rows Vector of edge row (source) vertex IDs. If multi-GPU, applying the
- * compute_gpu_id_from_edge_t to every edge should return the local GPU ID for this function to work
- * (edges should be pre-shuffled).
- * @param edgelist_cols Vector of edge column (destination) vertex IDs.
+ * @param edgelist_srcs Vector of edge source vertex IDs. If multi-GPU, applying the compute_gpu_id_from_edge_t to every edge should return the local GPU ID for this function to work (edges should be pre-shuffled).
+ * @param edgelist_dsts Vector of edge destination vertex IDs.
  * @param edgelist_weights Vector of edge weights.
  * @param reciprocal Flag indicating whether to keep (if set to `false`) or discard (if set to
  * `true`) edges that appear only in one direction.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>,
- * std::optional<rmm::device_uvector<weight_t>>> Tuple of symmetrized rows, columns, and optional
+ * std::optional<rmm::device_uvector<weight_t>>> Tuple of symmetrized sources, destinations, and optional
  * weights (if @p edgelist_weights is valid).
  */
 template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
@@ -358,8 +344,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 symmetrize_edgelist(raft::handle_t const& handle,
-                    rmm::device_uvector<vertex_t>&& edgelist_rows,
-                    rmm::device_uvector<vertex_t>&& edgelist_cols,
+                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
                     std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                     bool reciprocal);
 
@@ -490,10 +476,8 @@ extract_induced_subgraphs(
  * This parameter can be used to include isolated vertices. If multi-GPU, applying the
  * compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function to
  * work (vertices should be pre-shuffled).
- * @param edgelist_rows Vector of edge row (source) vertex IDs. If multi-GPU, applying the
- * compute_gpu_id_from_edge_t to every edge should return the local GPU ID for this function to work
- * (edges should be pre-shuffled).
- * @param edgelist_cols Vector of edge column (destination) vertex IDs.
+ * @param edgelist_srcs Vector of edge source vertex IDs. If multi-GPU, applying the compute_gpu_id_from_edge_t to every edge should return the local GPU ID for this function to work (edges should be pre-shuffled).
+ * @param edgelist_dsts Vector of edge destination vertex IDs.
  * @param edgelist_weights Vector of edge weights.
  * @param graph_properties Properties of the graph represented by the input (optional vertex list
  * and) edge list.
@@ -512,8 +496,8 @@ std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(raft::handle_t const& handle,
                            std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-                           rmm::device_uvector<vertex_t>&& edgelist_rows,
-                           rmm::device_uvector<vertex_t>&& edgelist_cols,
+                           rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                           rmm::device_uvector<vertex_t>&& edgelist_dsts,
                            std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                            graph_properties_t graph_properties,
                            bool renumber,

@@ -70,8 +70,8 @@ template void unrenumber_int_vertices<int64_t, true>(
 
 template void unrenumber_local_int_edges<int32_t, false, true>(
   raft::handle_t const& handle,
-  std::vector<int32_t*> const& edgelist_rows /* [INOUT] */,
-  std::vector<int32_t*> const& edgelist_cols /* [INOUT] */,
+  std::vector<int32_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<int32_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   int32_t const* renumber_map_labels,
   std::vector<int32_t> const& vertex_partition_range_lasts,
@@ -80,8 +80,8 @@ template void unrenumber_local_int_edges<int32_t, false, true>(
 
 template void unrenumber_local_int_edges<int32_t, true, true>(
   raft::handle_t const& handle,
-  std::vector<int32_t*> const& edgelist_rows /* [INOUT] */,
-  std::vector<int32_t*> const& edgelist_cols /* [INOUT] */,
+  std::vector<int32_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<int32_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   int32_t const* renumber_map_labels,
   std::vector<int32_t> const& vertex_partition_range_lasts,
@@ -90,8 +90,8 @@ template void unrenumber_local_int_edges<int32_t, true, true>(
 
 template void unrenumber_local_int_edges<int64_t, false, true>(
   raft::handle_t const& handle,
-  std::vector<int64_t*> const& edgelist_rows /* [INOUT] */,
-  std::vector<int64_t*> const& edgelist_cols /* [INOUT] */,
+  std::vector<int64_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<int64_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   int64_t const* renumber_map_labels,
   std::vector<int64_t> const& vertex_partition_range_lasts,
@@ -100,8 +100,8 @@ template void unrenumber_local_int_edges<int64_t, false, true>(
 
 template void unrenumber_local_int_edges<int64_t, true, true>(
   raft::handle_t const& handle,
-  std::vector<int64_t*> const& edgelist_rows /* [INOUT] */,
-  std::vector<int64_t*> const& edgelist_cols /* [INOUT] */,
+  std::vector<int64_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<int64_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   int64_t const* renumber_map_labels,
   std::vector<int64_t> const& vertex_partition_range_lasts,

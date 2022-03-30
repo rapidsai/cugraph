@@ -92,8 +92,8 @@ class Tests_MG_Louvain
     if (rank == 0) {
       // Create initial SG graph, renumbered according to the MNMG renumber map
 
-      auto [d_edgelist_rows,
-            d_edgelist_cols,
+      auto [d_edgelist_srcs,
+            d_edgelist_dsts,
             d_edgelist_weights,
             d_vertices,
             number_of_vertices,
@@ -105,14 +105,14 @@ class Tests_MG_Louvain
 
       // renumber using d_renumber_map_gathered_v
       cugraph::test::single_gpu_renumber_edgelist_given_number_map(
-        handle, d_edgelist_rows, d_edgelist_cols, d_renumber_map_gathered_v);
+        handle, d_edgelist_srcs, d_edgelist_dsts, d_renumber_map_gathered_v);
 
       std::tie(*sg_graph, std::ignore) =
         cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
           handle,
           std::move(d_vertices),
-          std::move(d_edgelist_rows),
-          std::move(d_edgelist_cols),
+          std::move(d_edgelist_srcs),
+          std::move(d_edgelist_dsts),
           std::move(d_edgelist_weights),
           cugraph::graph_properties_t{is_symmetric, false},
           false);

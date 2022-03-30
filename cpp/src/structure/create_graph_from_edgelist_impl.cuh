@@ -191,8 +191,8 @@ std::enable_if_t<
              std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(raft::handle_t const& handle,
                                 std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
-                                rmm::device_uvector<vertex_t>&& edgelist_rows,
-                                rmm::device_uvector<vertex_t>&& edgelist_cols,
+                                rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                                rmm::device_uvector<vertex_t>&& edgelist_dsts,
                                 std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                                 graph_properties_t graph_properties,
                                 bool renumber,
@@ -203,17 +203,17 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_size = col_comm.get_size();
 
-  CUGRAPH_EXPECTS(edgelist_rows.size() == edgelist_cols.size(),
-                  "Invalid input arguments: edgelist_rows.size() != edgelist_cols.size().");
-  CUGRAPH_EXPECTS(!edgelist_weights || (edgelist_rows.size() == (*edgelist_weights).size()),
-                  "Invalid input arguments: edgelist_rows.size() != edgelist_weights.size().");
+  CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
+                  "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
+  CUGRAPH_EXPECTS(!edgelist_weights || (edgelist_srcs.size() == (*edgelist_weights).size()),
+                  "Invalid input arguments: edgelist_srcs.size() != edgelist_weights.size().");
   CUGRAPH_EXPECTS(renumber, "renumber should be true if multi_gpu is true.");
 
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, multi_gpu>(handle,
                                                   local_vertices,
-                                                  store_transposed ? edgelist_cols : edgelist_rows,
-                                                  store_transposed ? edgelist_rows : edgelist_cols);
+                                                  store_transposed ? edgelist_dsts : edgelist_srcs,
+                                                  store_transposed ? edgelist_srcs : edgelist_dsts);
   }
 
   // 1. groupby edges to their target local adjacency matrix partition (and further groupby within
@@ -221,8 +221,8 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
 
   auto edge_counts = cugraph::detail::groupby_and_count_edgelist_by_local_partition_id(
     handle,
-    store_transposed ? edgelist_cols : edgelist_rows,
-    store_transposed ? edgelist_rows : edgelist_cols,
+    store_transposed ? edgelist_dsts : edgelist_srcs,
+    store_transposed ? edgelist_srcs : edgelist_dsts,
     edgelist_weights,
     true);
 
@@ -255,26 +255,26 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   for (int i = 0; i < col_comm_size; ++i) {
     rmm::device_uvector<vertex_t> tmp_srcs(edgelist_edge_counts[i], handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
-                 edgelist_rows.begin() + edgelist_displacements[i],
-                 edgelist_rows.begin() + edgelist_displacements[i] + edgelist_edge_counts[i],
+                 edgelist_srcs.begin() + edgelist_displacements[i],
+                 edgelist_srcs.begin() + edgelist_displacements[i] + edgelist_edge_counts[i],
                  tmp_srcs.begin());
     edgelist_src_partitions.push_back(std::move(tmp_srcs));
   }
-  edgelist_rows.resize(0, handle.get_stream());
-  edgelist_rows.shrink_to_fit(handle.get_stream());
+  edgelist_srcs.resize(0, handle.get_stream());
+  edgelist_srcs.shrink_to_fit(handle.get_stream());
 
   std::vector<rmm::device_uvector<vertex_t>> edgelist_dst_partitions{};
   edgelist_dst_partitions.reserve(col_comm_size);
   for (int i = 0; i < col_comm_size; ++i) {
     rmm::device_uvector<vertex_t> tmp_dsts(edgelist_edge_counts[i], handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
-                 edgelist_cols.begin() + edgelist_displacements[i],
-                 edgelist_cols.begin() + edgelist_displacements[i] + edgelist_edge_counts[i],
+                 edgelist_dsts.begin() + edgelist_displacements[i],
+                 edgelist_dsts.begin() + edgelist_displacements[i] + edgelist_edge_counts[i],
                  tmp_dsts.begin());
     edgelist_dst_partitions.push_back(std::move(tmp_dsts));
   }
-  edgelist_cols.resize(0, handle.get_stream());
-  edgelist_cols.shrink_to_fit(handle.get_stream());
+  edgelist_dsts.resize(0, handle.get_stream());
+  edgelist_dsts.shrink_to_fit(handle.get_stream());
 
   std::optional<std::vector<rmm::device_uvector<weight_t>>> edgelist_weight_partitions{};
   if (edgelist_weights) {
@@ -337,23 +337,23 @@ std::enable_if_t<
              std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(raft::handle_t const& handle,
                                 std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-                                rmm::device_uvector<vertex_t>&& edgelist_rows,
-                                rmm::device_uvector<vertex_t>&& edgelist_cols,
+                                rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                                rmm::device_uvector<vertex_t>&& edgelist_dsts,
                                 std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                                 graph_properties_t graph_properties,
                                 bool renumber,
                                 bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(edgelist_rows.size() == edgelist_cols.size(),
-                  "Invalid input arguments: edgelist_rows.size() != edgelist_cols.size().");
-  CUGRAPH_EXPECTS(!edgelist_weights || (edgelist_rows.size() == (*edgelist_weights).size()),
-                  "Invalid input arguments: edgelist_rows.size() != edgelist_weights.size().");
+  CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
+                  "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
+  CUGRAPH_EXPECTS(!edgelist_weights || (edgelist_srcs.size() == (*edgelist_weights).size()),
+                  "Invalid input arguments: edgelist_srcs.size() != edgelist_weights.size().");
 
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, multi_gpu>(handle,
                                                   vertices,
-                                                  store_transposed ? edgelist_cols : edgelist_rows,
-                                                  store_transposed ? edgelist_rows : edgelist_cols);
+                                                  store_transposed ? edgelist_dsts : edgelist_srcs,
+                                                  store_transposed ? edgelist_srcs : edgelist_dsts);
   }
 
   auto input_vertex_list_size = vertices ? static_cast<vertex_t>((*vertices).size()) : vertex_t{0};
@@ -366,9 +366,9 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
     std::tie(*renumber_map_labels, meta) = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
       std::move(vertices),
-      edgelist_rows.data(),
-      edgelist_cols.data(),
-      static_cast<edge_t>(edgelist_rows.size()),
+      edgelist_srcs.data(),
+      edgelist_dsts.data(),
+      static_cast<edge_t>(edgelist_srcs.size()),
       store_transposed);
   }
 
@@ -380,15 +380,15 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
       num_vertices = input_vertex_list_size;
     } else {
       num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
-                           handle.get_stream(), edgelist_rows, edgelist_cols);
+                           handle.get_stream(), edgelist_srcs, edgelist_dsts);
     }
   }
 
   return std::make_tuple(
     cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
-      std::move(edgelist_rows),
-      std::move(edgelist_cols),
+      std::move(edgelist_srcs),
+      std::move(edgelist_dsts),
       std::move(edgelist_weights),
       cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{
         num_vertices,
@@ -408,8 +408,8 @@ std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(raft::handle_t const& handle,
                            std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-                           rmm::device_uvector<vertex_t>&& edgelist_rows,
-                           rmm::device_uvector<vertex_t>&& edgelist_cols,
+                           rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                           rmm::device_uvector<vertex_t>&& edgelist_dsts,
                            std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                            graph_properties_t graph_properties,
                            bool renumber,
@@ -418,8 +418,8 @@ create_graph_from_edgelist(raft::handle_t const& handle,
   return create_graph_from_edgelist_impl<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
     handle,
     std::move(vertices),
-    std::move(edgelist_rows),
-    std::move(edgelist_cols),
+    std::move(edgelist_srcs),
+    std::move(edgelist_dsts),
     std::move(edgelist_weights),
     graph_properties,
     renumber,

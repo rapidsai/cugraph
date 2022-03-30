@@ -703,8 +703,8 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
 template <typename vertex_t, bool store_transposed, bool multi_gpu>
 std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
   raft::handle_t const& handle,
-  std::vector<vertex_t*> const& edgelist_rows /* [INOUT] */,
-  std::vector<vertex_t*> const& edgelist_cols /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   vertex_t const* renumber_map_labels,
   std::vector<vertex_t> const& vertex_partition_range_lasts,
@@ -712,8 +712,8 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
   bool do_expensive_check)
 {
   return detail::unrenumber_local_int_edges(handle,
-                                            store_transposed ? edgelist_cols : edgelist_rows,
-                                            store_transposed ? edgelist_rows : edgelist_cols,
+                                            store_transposed ? edgelist_dsts : edgelist_srcs,
+                                            store_transposed ? edgelist_srcs : edgelist_dsts,
                                             edgelist_edge_counts,
                                             renumber_map_labels,
                                             vertex_partition_range_lasts,
@@ -723,22 +723,22 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
 
 template <typename vertex_t, bool store_transposed, bool multi_gpu>
 std::enable_if_t<!multi_gpu, void> unrenumber_local_int_edges(raft::handle_t const& handle,
-                                                              vertex_t* edgelist_rows /* [INOUT] */,
-                                                              vertex_t* edgelist_cols /* [INOUT] */,
+                                                              vertex_t* edgelist_srcs /* [INOUT] */,
+                                                              vertex_t* edgelist_dsts /* [INOUT] */,
                                                               size_t num_edgelist_edges,
                                                               vertex_t const* renumber_map_labels,
                                                               vertex_t num_vertices,
                                                               bool do_expensive_check)
 {
   unrenumber_local_int_vertices(handle,
-                                edgelist_rows,
+                                edgelist_srcs,
                                 num_edgelist_edges,
                                 renumber_map_labels,
                                 vertex_t{0},
                                 num_vertices,
                                 do_expensive_check);
   unrenumber_local_int_vertices(handle,
-                                edgelist_cols,
+                                edgelist_dsts,
                                 num_edgelist_edges,
                                 renumber_map_labels,
                                 vertex_t{0},
