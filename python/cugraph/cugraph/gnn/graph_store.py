@@ -115,7 +115,7 @@ class CuGraphStore:
             if len(filtered_list) > fanout:
                 sampled_indices = random.sample(filtered_list.index.to_arrow().to_pylist(), fanout)
                 filtered_list = filtered_list.reindex(index = sampled_indices)
-​
+
             children = cupy.asarray(filtered_list['src'])
             parents = cupy.asarray(filtered_list['dst'])
             all_parents = cupy.append(all_parents, parents)
