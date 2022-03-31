@@ -61,3 +61,6 @@ hits = experimental_warning_wrapper(EXPERIMENTAL__hits)
 
 from pylibcugraph.node2vec import EXPERIMENTAL__node2vec
 node2vec = experimental_warning_wrapper(EXPERIMENTAL__node2vec)
+
+from pylibcugraph.uniform_neighborhood_sampling import EXPERIMENTAL__uniform_neighborhood_sampling
+uniform_neighborhood_sampling = experimental_warning_wrapper(EXPERIMENTAL__uniform_neighborhood_sampling)

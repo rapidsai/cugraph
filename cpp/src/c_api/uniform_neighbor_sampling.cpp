@@ -150,7 +150,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
 
       result_ = new cugraph::c_api::cugraph_sample_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(srcs, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(dsts, graph_->weight_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(dsts, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(labels, start_label_->type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(indices, graph_->edge_type_),
         new cugraph::c_api::cugraph_type_erased_host_array_t(counts, graph_->vertex_type_)};
