@@ -143,7 +143,7 @@ renumber_edgelist(raft::handle_t const& handle,
                   bool do_expensive_check = false);
 
 /**
- * @brief Renumber external vertices to internal vertices based on the provoided @p
+ * @brief Renumber external vertices to internal vertices based on the provided @p
  * renumber_map_labels.
  *
  * Note cugraph::invalid_id<vertex_t>::value remains unchanged.
@@ -301,6 +301,37 @@ std::enable_if_t<!multi_gpu, void> unrenumber_local_int_edges(raft::handle_t con
                                                               vertex_t const* renumber_map_labels,
                                                               vertex_t num_vertices,
                                                               bool do_expensive_check = false);
+
+/**
+ * @brief Renumber local external vertices to internal vertices based on the provided @p
+ * renumber_map_labels.
+ *
+ * Note cugraph::invalid_id<vertex_t>::value remains unchanged.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param vertices Pointer to the vertices to be renumbered. The input external vertices are
+ * renumbered to internal vertices in-place.
+ * @param num_vertices Number of vertices to be renumbered.
+ * @param renumber_map_labels Pointer to the external vertices corresponding to the internal
+ * vertices in the range [@p local_int_vertex_first, @p local_int_vertex_last).
+ * @param local_int_vertex_first The first local internal vertex (inclusive, assigned to this
+ * process in multi-GPU).
+ * @param local_int_vertex_last The last local internal vertex (exclusive, assigned to this process
+ * in multi-GPU).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, bool multi_gpu>
+void renumber_local_ext_vertices(raft::handle_t const& handle,
+                                 vertex_t* vertices /* [INOUT] */,
+                                 size_t num_vertices,
+                                 vertex_t const* renumber_map_labels,
+                                 vertex_t local_int_vertex_first,
+                                 vertex_t local_int_vertex_last,
+                                 bool do_expensive_check = false);
 
 /**
  * @brief Symmetrize edgelist.

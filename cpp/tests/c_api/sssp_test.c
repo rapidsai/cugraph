@@ -52,7 +52,7 @@ int generic_sssp_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
-    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
+    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
 
   ret_code = cugraph_sssp(
     p_handle, p_graph, source, cutoff, TRUE, FALSE, &p_result, &ret_error);
