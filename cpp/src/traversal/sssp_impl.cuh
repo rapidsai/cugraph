@@ -133,12 +133,12 @@ void sssp(raft::handle_t const& handle,
 
   // 5. SSSP iteration
 
-  auto adj_matrix_row_distances =
+  auto edge_partition_src_distances =
     GraphViewType::is_multi_gpu
       ? edge_partition_src_property_t<GraphViewType, weight_t>(handle, push_graph_view)
       : edge_partition_src_property_t<GraphViewType, weight_t>(handle);
   if (GraphViewType::is_multi_gpu) {
-    adj_matrix_row_distances.fill(std::numeric_limits<weight_t>::max(), handle.get_stream());
+    edge_partition_src_distances.fill(std::numeric_limits<weight_t>::max(), handle.get_stream());
   }
 
   if (push_graph_view.in_local_vertex_partition_range_nocheck(source_vertex)) {
@@ -154,7 +154,7 @@ void sssp(raft::handle_t const& handle,
         vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
         vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
         distances,
-        adj_matrix_row_distances);
+        edge_partition_src_distances);
     }
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
@@ -167,7 +167,7 @@ void sssp(raft::handle_t const& handle,
       static_cast<size_t>(Bucket::cur_near),
       std::vector<size_t>{static_cast<size_t>(Bucket::next_near), static_cast<size_t>(Bucket::far)},
       GraphViewType::is_multi_gpu
-        ? adj_matrix_row_distances.device_view()
+        ? edge_partition_src_distances.device_view()
         : detail::edge_partition_major_property_device_view_t<vertex_t, weight_t const*>(distances),
       dummy_property_t<vertex_t>{}.device_view(),
       [vertex_partition, distances, cutoff] __device__(

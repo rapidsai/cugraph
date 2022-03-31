@@ -189,7 +189,7 @@ void pagerank(
   // old PageRank values
   rmm::device_uvector<result_t> old_pageranks(pull_graph_view.local_vertex_partition_range_size(),
                                               handle.get_stream());
-  edge_partition_src_property_t<GraphViewType, result_t> adj_matrix_row_pageranks(handle,
+  edge_partition_src_property_t<GraphViewType, result_t> edge_partition_src_pageranks(handle,
                                                                                   pull_graph_view);
   size_t iter{0};
   while (true) {
@@ -225,7 +225,7 @@ void pagerank(
                       });
 
     update_edge_partition_src_property(
-      handle, pull_graph_view, pageranks, adj_matrix_row_pageranks);
+      handle, pull_graph_view, pageranks, edge_partition_src_pageranks);
 
     auto unvarying_part = aggregate_personalization_vector_size == 0
                             ? (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) /
@@ -235,7 +235,7 @@ void pagerank(
     copy_v_transform_reduce_in_nbr(
       handle,
       pull_graph_view,
-      adj_matrix_row_pageranks.device_view(),
+      edge_partition_src_pageranks.device_view(),
       dummy_property_t<vertex_t>{}.device_view(),
       [alpha] __device__(vertex_t, vertex_t, weight_t w, auto src_val, auto) {
         return src_val * w * alpha;

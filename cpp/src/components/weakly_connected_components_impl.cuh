@@ -442,7 +442,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       init_max_new_roots = std::min(init_max_new_roots, max_new_roots);
     }
 
-    // 2-3. initialize vertex frontier, edge_buffer, and adj_matrix_col_components (if multi-gpu)
+    // 2-3. initialize vertex frontier, edge_buffer, and edge_partition_dst_components (if multi-gpu)
 
     VertexFrontier<vertex_t,
                    vertex_t,
@@ -458,12 +458,12 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     // requires placing the atomic variable on managed memory and this make it less attractive.
     rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream());
 
-    auto adj_matrix_col_components =
+    auto edge_partition_dst_components =
       GraphViewType::is_multi_gpu
         ? edge_partition_dst_property_t<GraphViewType, vertex_t>(handle, level_graph_view)
         : edge_partition_dst_property_t<GraphViewType, vertex_t>(handle);
     if constexpr (GraphViewType::is_multi_gpu) {
-      adj_matrix_col_components.fill(invalid_component_id<vertex_t>::value, handle.get_stream());
+      edge_partition_dst_components.fill(invalid_component_id<vertex_t>::value, handle.get_stream());
     }
 
     // 2.4 iterate till every vertex gets visited
@@ -515,7 +515,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                            .end()
                            .get_iterator_tuple()),
           level_components,
-          adj_matrix_col_components);
+          edge_partition_dst_components);
       }
 
       auto max_pushes =
@@ -542,7 +542,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         dummy_property_t<vertex_t>{}.device_view(),
         [col_components =
            GraphViewType::is_multi_gpu
-             ? adj_matrix_col_components.mutable_device_view()
+             ? edge_partition_dst_components.mutable_device_view()
              : detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t*>(
                  level_components),
          col_first         = level_graph_view.local_edge_partition_dst_range_first(),

@@ -259,11 +259,11 @@ coarsen_graph(
                      edge_partition_dst_property_t<
                        graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
                        vertex_t>>
-    adj_matrix_minor_labels(handle, graph_view);
+    edge_partition_minor_labels(handle, graph_view);
   if constexpr (store_transposed) {
-    update_edge_partition_src_property(handle, graph_view, labels, adj_matrix_minor_labels);
+    update_edge_partition_src_property(handle, graph_view, labels, edge_partition_minor_labels);
   } else {
-    update_edge_partition_dst_property(handle, graph_view, labels, adj_matrix_minor_labels);
+    update_edge_partition_dst_property(handle, graph_view, labels, edge_partition_minor_labels);
   }
 
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_majors{};
@@ -296,7 +296,7 @@ coarsen_graph(
         edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
           graph_view.local_edge_partition_view(i)),
         major_labels.data(),
-        adj_matrix_minor_labels.device_view(),
+        edge_partition_minor_labels.device_view(),
         graph_view.local_edge_partition_segment_offsets(i),
         lower_triangular_only);
 
@@ -320,7 +320,7 @@ coarsen_graph(
     coarsened_edgelist_minors.push_back(std::move(edgelist_minors));
     if (edgelist_weights) { (*coarsened_edgelist_weights).push_back(std::move(*edgelist_weights)); }
   }
-  adj_matrix_minor_labels.clear(handle);
+  edge_partition_minor_labels.clear(handle);
 
   // 2. concatenate and groupby and coarsen again (and if the input graph is symmetric, 1) create a
   // copy excluding self loops, 2) globally shuffle, and 3) concatenate again)

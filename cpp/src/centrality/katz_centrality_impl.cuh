@@ -93,7 +93,7 @@ void katz_centrality(raft::handle_t const& handle,
   // old katz centrality values
   rmm::device_uvector<result_t> tmp_katz_centralities(
     pull_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-  edge_partition_src_property_t<GraphViewType, result_t> adj_matrix_row_katz_centralities(
+  edge_partition_src_property_t<GraphViewType, result_t> edge_partition_src_katz_centralities(
     handle, pull_graph_view);
   auto new_katz_centralities = katz_centralities;
   auto old_katz_centralities = tmp_katz_centralities.data();
@@ -102,12 +102,12 @@ void katz_centrality(raft::handle_t const& handle,
     std::swap(new_katz_centralities, old_katz_centralities);
 
     update_edge_partition_src_property(
-      handle, pull_graph_view, old_katz_centralities, adj_matrix_row_katz_centralities);
+      handle, pull_graph_view, old_katz_centralities, edge_partition_src_katz_centralities);
 
     copy_v_transform_reduce_in_nbr(
       handle,
       pull_graph_view,
-      adj_matrix_row_katz_centralities.device_view(),
+      edge_partition_src_katz_centralities.device_view(),
       dummy_property_t<vertex_t>{}.device_view(),
       [alpha] __device__(vertex_t, vertex_t, weight_t w, auto src_val, auto) {
         return static_cast<result_t>(alpha * src_val * w);
