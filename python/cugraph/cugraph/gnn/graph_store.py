@@ -93,15 +93,35 @@ class CuGraphStore:
             positive (though they don't have to sum up to one). Otherwise,
             the result will be undefined. If not specified, sample uniformly.
         replace : bool
-            If True, sample with replacement.
-
+            If True, sample with replacement. 
         Returns
         -------
-        DGLGraph
-            The sampled subgraph with the same node ID space with the original
-            graph.
+        CuPy array
+            The sampled arrays for bipartite graph.
         """
-        pass
+        current_seeds = cudf.Series(nodes.to_array())
+        ego_edge_list, seeds_offsets = cugraph.community.egonet.batched_ego_graphs(self.__G, current_seeds, radius = 1)
+        all_parents = cupy.ndarray(0)
+        all_children = cupy.ndarray(0)
+        # filter and get a certain size neighborhood
+        for i in range(1, len(seeds_offsets)):
+            pos0 = seeds_offsets[i-1]
+            pos1 = seeds_offsets[i]
+            edge_list = ego_edge_list[pos0:pos1]
+            # get randomness fanout
+            filtered_list = edge_list[edge_list ['dst']== current_seeds[i-1]]
+             
+            # get sampled_list
+            if len(filtered_list) > fanout:
+                sampled_indices = random.sample(filtered_list.index.to_arrow().to_pylist(), fanout)
+                filtered_list = filtered_list.reindex(index = sampled_indices)
+​
+            children = cupy.asarray(filtered_list['src'])
+            parents = cupy.asarray(filtered_list['dst'])
+            all_parents = cupy.append(all_parents, parents)
+            all_children = cupy.append(all_children, children)
+        return all_parents, all_children
+
 
     def node_subgraph(self,
                       nodes=None,
