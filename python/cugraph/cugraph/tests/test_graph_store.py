@@ -107,7 +107,7 @@ def test_egonet(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_workflow(graph_file):
-    # from cugraph.community.egonet import batched_ego_graphs
+    from cugraph.community.egonet import batched_ego_graphs
 
     cu_M = utils.read_csv_file(graph_file)
 
@@ -132,3 +132,32 @@ def test_workflow(graph_file):
     ego_edge_list, seeds_offsets = gstore.egonet(sampled_nodes, k=1)
 
     assert len(ego_edge_list) > 0
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_sample_neighbors(graph_file):
+    cu_M = utils.read_csv_file(graph_file)
+
+    g = cugraph.Graph(directed=True)
+    g.from_cudf_edgelist(cu_M, source='0', destination='1', renumber=True)
+
+    pg = PropertyGraph()
+    pg.add_edge_data(cu_M,
+                     type_name="edge",
+                     vertex_col_names=("0", "1"),
+                     property_columns=["2"])
+
+    gstore = cugraph.gnn.CuGraphStore(graph=pg)
+
+    nodes = gstore.get_vertex_ids()
+    num_nodes = len(nodes)
+
+    assert num_nodes > 0
+
+    sampled_nodes = nodes[:5]
+
+    parents_list, children_list = gstore.sample_neighbors(sampled_nodes)
+    
+    assert len(ego_edge_list) > 0
+
+
+
