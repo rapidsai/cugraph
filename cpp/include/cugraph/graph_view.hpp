@@ -223,9 +223,8 @@ namespace detail {
 using namespace cugraph::visitors;
 
 // FIXME: threshold values require tuning (currently disabled)
-// use (key, value) pairs to store row/column properties if (unique edge rows/cols) over (V /
-// row_comm_size|col_comm_size) is smaller than the threshold value
-double constexpr row_col_properties_kv_pair_fill_ratio_threshold = 0.0;
+// use (key, value) pairs to store source/destination properties if (unique edge sources/destinations) over (V / row_comm_size|col_comm_size) is smaller than the threshold value
+double constexpr edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold = 0.0;
 
 // FIXME: threshold values require tuning
 // use the hypersparse format (currently, DCSR or DCSC) for the vertices with their degrees smaller

@@ -31,10 +31,8 @@ namespace detail {
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
- * @param[in] d_edgelist_majors Vertex IDs for rows (if the graph adjacency matrix is stored as is)
- * or columns (if the graph adjacency matrix is stored transposed)
- * @param[in] d_edgelist_minors Vertex IDs for columns (if the graph adjacency matrix is stored as
- * is) or rows (if the graph adjacency matrix is stored transposed)
+ * @param[in] d_edgelist_majors Vertex IDs for sources (if we are internally storing edges in the sparse 2D matrix using sources as major indices) or destinations (otherwise)
+ * @param[in] d_edgelist_minors Vertex IDs for destinations (if we are internally storing edges in the sparse 2D matrix using sources as major indices) or sources (otherwise)
  * @param[in] d_edgelist_weights Optional edge weights
  *
  * @return Tuple of shuffled major vertices, minor vertices and optional weights
@@ -71,10 +69,8 @@ rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
- * @param[in/out] d_edgelist_majors Vertex IDs for rows (if the graph adjacency matrix is stored as
- * is) or columns (if the graph adjacency matrix is stored transposed)
- * @param[in/out] d_edgelist_minors Vertex IDs for columns (if the graph adjacency matrix is stored
- * as is) or rows (if the graph adjacency matrix is stored transposed)
+ * @param[in/out] d_edgelist_majors Vertex IDs for sources (if we are internally storing edges in the sparse 2D matrix using sources as major indices) or destinations (otherwise)
+ * @param[in/out] d_edgelist_minors Vertex IDs for destinations (if we are internally storing edges in the sparse 2D matrix using sources as major indices) or sources (otherwise)
  * @param[in/out] d_edgelist_weights Optional edge weights
  * @param[in] groupby_and_count_local_partition_by_minor If set to true, groupby and count edges
  * based on (local partition ID, GPU ID) pairs (where GPU IDs are computed by applying the

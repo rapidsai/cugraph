@@ -234,7 +234,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
  * provided @p renumber_map_labels (multi-GPU).
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam store_transposed Flag indicating whether to store the graph adjacency matrix as is or as
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if true) as major indices in storing edges using a 2D sparse matrix.
  * transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
@@ -265,7 +265,7 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
  * provided @p renumber_map_labels (single-GPU).
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam store_transposed Flag indicating whether to store the graph adjacency matrix as is or as
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if true) as major indices in storing edges using a 2D sparse matrix.
  * transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
@@ -324,7 +324,7 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam store_transposed Flag indicating whether to store the graph adjacency matrix as is or as
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if true) as major indices in storing edges using a 2D sparse matrix.
  * transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
@@ -359,7 +359,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam store_transposed Flag indicating whether to store the graph adjacency matrix as is or as
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if true) as major indices in storing edges using a 2D sparse matrix.
  * transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
@@ -422,7 +422,7 @@ void relabel(raft::handle_t const& handle,
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights.
- * @tparam store_transposed Flag indicating whether to store the graph adjacency matrix as is or as
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if true) as major indices in storing edges using a 2D sparse matrix.
  * transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
@@ -466,7 +466,7 @@ extract_induced_subgraphs(
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam store_transposed Flag indicating whether to store the graph adjacency matrix as is or as
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if true) as major indices in storing edges using a 2D sparse matrix.
  * transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).

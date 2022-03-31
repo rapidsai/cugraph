@@ -55,23 +55,23 @@ void weakly_connected_components_reference(edge_t const* offsets,
     num_scanned += static_cast<vertex_t>(std::distance(components + num_scanned, it));
     auto source            = num_scanned;
     *(components + source) = source;
-    std::vector<vertex_t> cur_frontier_rows{source};
-    std::vector<vertex_t> new_frontier_rows{};
+    std::vector<vertex_t> cur_frontier_srcs{source};
+    std::vector<vertex_t> new_frontier_srcs{};
 
-    while (cur_frontier_rows.size() > 0) {
-      for (auto const row : cur_frontier_rows) {
-        auto nbr_offset_first = *(offsets + row);
-        auto nbr_offset_last  = *(offsets + row + 1);
+    while (cur_frontier_srcs.size() > 0) {
+      for (auto const src : cur_frontier_srcs) {
+        auto nbr_offset_first = *(offsets + src);
+        auto nbr_offset_last  = *(offsets + src + 1);
         for (auto nbr_offset = nbr_offset_first; nbr_offset != nbr_offset_last; ++nbr_offset) {
           auto nbr = *(indices + nbr_offset);
           if (*(components + nbr) == cugraph::invalid_component_id<vertex_t>::value) {
             *(components + nbr) = source;
-            new_frontier_rows.push_back(nbr);
+            new_frontier_srcs.push_back(nbr);
           }
         }
       }
-      std::swap(cur_frontier_rows, new_frontier_rows);
-      new_frontier_rows.clear();
+      std::swap(cur_frontier_srcs, new_frontier_srcs);
+      new_frontier_srcs.clear();
     }
   }
 

@@ -160,40 +160,40 @@ bool check_symmetric(raft::handle_t const& handle,
                                          std::move(org_weights));
   }
 
-  rmm::device_uvector<vertex_t> symmetrized_rows(org_srcs.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> symmetrized_cols(org_dsts.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> symmetrized_srcs(org_srcs.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> symmetrized_dsts(org_dsts.size(), handle.get_stream());
   auto symmetrized_weights = org_weights ? std::make_optional<rmm::device_uvector<weight_t>>(
                                              (*org_weights).size(), handle.get_stream())
                                          : std::nullopt;
   thrust::copy(
-    handle.get_thrust_policy(), org_srcs.begin(), org_srcs.end(), symmetrized_rows.begin());
+    handle.get_thrust_policy(), org_srcs.begin(), org_srcs.end(), symmetrized_srcs.begin());
   thrust::copy(
-    handle.get_thrust_policy(), org_dsts.begin(), org_dsts.end(), symmetrized_cols.begin());
+    handle.get_thrust_policy(), org_dsts.begin(), org_dsts.end(), symmetrized_dsts.begin());
   if (org_weights) {
     thrust::copy(handle.get_thrust_policy(),
                  (*org_weights).begin(),
                  (*org_weights).end(),
                  (*symmetrized_weights).begin());
   }
-  std::tie(symmetrized_rows, symmetrized_cols, symmetrized_weights) =
+  std::tie(symmetrized_srcs, symmetrized_dsts, symmetrized_weights) =
     symmetrize_edgelist<vertex_t, weight_t, store_transposed, multi_gpu>(
       handle,
-      std::move(symmetrized_rows),
-      std::move(symmetrized_cols),
+      std::move(symmetrized_srcs),
+      std::move(symmetrized_dsts),
       std::move(symmetrized_weights),
       true);
 
-  if (org_srcs.size() != symmetrized_rows.size()) { return false; }
+  if (org_srcs.size() != symmetrized_srcs.size()) { return false; }
 
   if (org_weights) {
     auto org_edge_first = thrust::make_zip_iterator(
       thrust::make_tuple(org_srcs.begin(), org_dsts.begin(), (*org_weights).begin()));
     thrust::sort(handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
     auto symmetrized_edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-      symmetrized_rows.begin(), symmetrized_cols.begin(), (*symmetrized_weights).begin()));
+      symmetrized_srcs.begin(), symmetrized_dsts.begin(), (*symmetrized_weights).begin()));
     thrust::sort(handle.get_thrust_policy(),
                  symmetrized_edge_first,
-                 symmetrized_edge_first + symmetrized_rows.size());
+                 symmetrized_edge_first + symmetrized_srcs.size());
 
     return thrust::equal(handle.get_thrust_policy(),
                          org_edge_first,
@@ -204,10 +204,10 @@ bool check_symmetric(raft::handle_t const& handle,
       thrust::make_zip_iterator(thrust::make_tuple(org_srcs.begin(), org_dsts.begin()));
     thrust::sort(handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
     auto symmetrized_edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(symmetrized_rows.begin(), symmetrized_cols.begin()));
+      thrust::make_tuple(symmetrized_srcs.begin(), symmetrized_dsts.begin()));
     thrust::sort(handle.get_thrust_policy(),
                  symmetrized_edge_first,
-                 symmetrized_edge_first + symmetrized_rows.size());
+                 symmetrized_edge_first + symmetrized_srcs.size());
 
     return thrust::equal(handle.get_thrust_policy(),
                          org_edge_first,
@@ -531,7 +531,7 @@ update_local_sorted_unique_edge_majors_minors(
     raft::comms::op_t::MAX,
     handle.get_stream());
 
-  if (max_major_properties_fill_ratio < detail::row_col_properties_kv_pair_fill_ratio_threshold) {
+  if (max_major_properties_fill_ratio < detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
     local_sorted_unique_edge_majors =
       rmm::device_uvector<vertex_t>(num_local_unique_edge_majors, handle.get_stream());
     size_t cur_size{0};
@@ -589,7 +589,7 @@ update_local_sorted_unique_edge_majors_minors(
     local_sorted_unique_edge_major_offsets = std::move(h_key_offsets);
   }
 
-  if (max_minor_properties_fill_ratio < detail::row_col_properties_kv_pair_fill_ratio_threshold) {
+  if (max_minor_properties_fill_ratio < detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
     local_sorted_unique_edge_minors = rmm::device_uvector<vertex_t>(0, handle.get_stream());
     for (size_t i = 0; i < edge_partition_indices.size(); ++i) {
       rmm::device_uvector<vertex_t> tmp_minors(edge_partition_indices[i].size(),
@@ -975,12 +975,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // update local sorted unique edge sources/destinations (only if key, value pair will be used)
 
-  std::tie(store_transposed ? local_sorted_unique_edge_cols_ : local_sorted_unique_edge_rows_,
-           store_transposed ? local_sorted_unique_edge_col_offsets_
-                            : local_sorted_unique_edge_row_offsets_,
-           store_transposed ? local_sorted_unique_edge_rows_ : local_sorted_unique_edge_cols_,
-           store_transposed ? local_sorted_unique_edge_row_offsets_
-                            : local_sorted_unique_edge_col_offsets_) =
+  std::tie(store_transposed ? local_sorted_unique_edge_dsts_ : local_sorted_unique_edge_srcs_,
+           store_transposed ? local_sorted_unique_edge_dst_offsets_
+                            : local_sorted_unique_edge_src_offsets_,
+           store_transposed ? local_sorted_unique_edge_srcs_ : local_sorted_unique_edge_dsts_,
+           store_transposed ? local_sorted_unique_edge_src_offsets_
+                            : local_sorted_unique_edge_dst_offsets_) =
     update_local_sorted_unique_edge_majors_minors<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       meta,
@@ -1115,12 +1115,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // update local sorted unique edge sources/destinations (only if key, value pair will be used)
 
-  std::tie(store_transposed ? local_sorted_unique_edge_cols_ : local_sorted_unique_edge_rows_,
-           store_transposed ? local_sorted_unique_edge_col_offsets_
-                            : local_sorted_unique_edge_row_offsets_,
-           store_transposed ? local_sorted_unique_edge_rows_ : local_sorted_unique_edge_cols_,
-           store_transposed ? local_sorted_unique_edge_row_offsets_
-                            : local_sorted_unique_edge_col_offsets_) =
+  std::tie(store_transposed ? local_sorted_unique_edge_dsts_ : local_sorted_unique_edge_srcs_,
+           store_transposed ? local_sorted_unique_edge_dst_offsets_
+                            : local_sorted_unique_edge_src_offsets_,
+           store_transposed ? local_sorted_unique_edge_srcs_ : local_sorted_unique_edge_dsts_,
+           store_transposed ? local_sorted_unique_edge_src_offsets_
+                            : local_sorted_unique_edge_dst_offsets_) =
     update_local_sorted_unique_edge_majors_minors<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       meta,

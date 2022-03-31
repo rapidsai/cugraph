@@ -59,11 +59,11 @@ void bfs_reference(edge_t* offsets,
   std::fill(predecessors, predecessors + num_vertices, cugraph::invalid_vertex_id<vertex_t>::value);
 
   *(distances + source) = depth;
-  std::vector<vertex_t> cur_frontier_rows{source};
-  std::vector<vertex_t> new_frontier_rows{};
+  std::vector<vertex_t> cur_frontier_srcs{source};
+  std::vector<vertex_t> new_frontier_srcs{};
 
-  while (cur_frontier_rows.size() > 0) {
-    for (auto const row : cur_frontier_rows) {
+  while (cur_frontier_srcs.size() > 0) {
+    for (auto const row : cur_frontier_srcs) {
       auto nbr_offset_first = *(offsets + row);
       auto nbr_offset_last  = *(offsets + row + 1);
       for (auto nbr_offset = nbr_offset_first; nbr_offset != nbr_offset_last; ++nbr_offset) {
@@ -71,12 +71,12 @@ void bfs_reference(edge_t* offsets,
         if (*(distances + nbr) == std::numeric_limits<vertex_t>::max()) {
           *(distances + nbr)    = depth + 1;
           *(predecessors + nbr) = row;
-          new_frontier_rows.push_back(nbr);
+          new_frontier_srcs.push_back(nbr);
         }
       }
     }
-    std::swap(cur_frontier_rows, new_frontier_rows);
-    new_frontier_rows.clear();
+    std::swap(cur_frontier_srcs, new_frontier_srcs);
+    new_frontier_srcs.clear();
     ++depth;
     if (depth >= depth_limit) { break; }
   }

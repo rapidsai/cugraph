@@ -83,8 +83,7 @@ std::vector<edge_t> update_edge_partition_edge_counts(
   return edge_partition_edge_counts;
 }
 
-// compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
-// false) or columns (of the graph adjacency matrix, if store_transposed = true)
+// compute out-degrees (if we are internally storing edges in the sparse 2D matrix using sources as major indices) or in-degrees (otherwise)
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_major_degrees(
   raft::handle_t const& handle,
@@ -163,8 +162,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
   return degrees;
 }
 
-// compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
-// false) or columns (of the graph adjacency matrix, if store_transposed = true)
+// compute out-degrees (if we are internally storing edges in the sparse 2D matrix using sources as major indices) or in-degrees (otherwise)
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const& handle,
                                                   edge_t const* offsets,
