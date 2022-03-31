@@ -439,7 +439,7 @@ sg_gather_edges(raft::handle_t const& handle,
                 typename GraphViewType::vertex_type invalid_vertex_id,
                 typename GraphViewType::edge_type indices_per_source)
 {
-  static_assert(GraphViewType::is_adj_matrix_transposed == false);
+  static_assert(GraphViewType::is_storage_transposed == false);
   using vertex_t    = typename GraphViewType::vertex_type;
   using edge_t      = typename GraphViewType::edge_type;
   using weight_t    = typename GraphViewType::weight_type;
@@ -496,7 +496,7 @@ sg_gather_edges(raft::handle_t const& handle,
                 const rmm::device_uvector<typename GraphViewType::vertex_type>& sources,
                 const rmm::device_uvector<prop_t>& properties)
 {
-  static_assert(GraphViewType::is_adj_matrix_transposed == false);
+  static_assert(GraphViewType::is_storage_transposed == false);
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;

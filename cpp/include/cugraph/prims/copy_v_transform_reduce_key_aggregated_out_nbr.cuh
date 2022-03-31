@@ -217,7 +217,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   T init,
   VertexValueOutputIterator vertex_value_output_first)
 {
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
+  static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
   static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
                              typename GraphViewType::vertex_type>::value);

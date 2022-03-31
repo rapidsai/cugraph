@@ -66,7 +66,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                 "GraphViewType::vertex_type should be integral.");
   static_assert(std::is_floating_point<result_t>::value,
                 "result_t should be a floating-point type.");
-  static_assert(GraphViewType::is_adj_matrix_transposed,
+  static_assert(GraphViewType::is_storage_transposed,
                 "GraphViewType should support the pull model.");
 
   auto const num_vertices = graph_view.number_of_vertices();

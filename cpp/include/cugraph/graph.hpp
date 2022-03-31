@@ -87,7 +87,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   using vertex_type                              = vertex_t;
   using edge_type                                = edge_t;
   using weight_type                              = weight_t;
-  static constexpr bool is_adj_matrix_transposed = store_transposed;
+  static constexpr bool is_storage_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
 
   graph_t(raft::handle_t const& handle) : detail::graph_base_t<vertex_t, edge_t, weight_t>() {}
@@ -258,7 +258,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   using vertex_type                              = vertex_t;
   using edge_type                                = edge_t;
   using weight_type                              = weight_t;
-  static constexpr bool is_adj_matrix_transposed = store_transposed;
+  static constexpr bool is_storage_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
 
   graph_t(raft::handle_t const& handle)

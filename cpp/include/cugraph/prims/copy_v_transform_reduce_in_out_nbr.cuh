@@ -102,12 +102,12 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
       auto minor        = indices[i];
       auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-      auto src          = GraphViewType::is_adj_matrix_transposed ? minor : major;
-      auto dst          = GraphViewType::is_adj_matrix_transposed ? major : minor;
-      auto src_offset   = GraphViewType::is_adj_matrix_transposed
+      auto src          = GraphViewType::is_storage_transposed ? minor : major;
+      auto dst          = GraphViewType::is_storage_transposed ? major : minor;
+      auto src_offset   = GraphViewType::is_storage_transposed
                             ? minor_offset
                             : static_cast<vertex_t>(major_offset);
-      auto dst_offset   = GraphViewType::is_adj_matrix_transposed
+      auto dst_offset   = GraphViewType::is_storage_transposed
                             ? static_cast<vertex_t>(major_offset)
                             : minor_offset;
       return evaluate_edge_op<GraphViewType,
@@ -211,16 +211,16 @@ __global__ void for_all_major_for_all_nbr_low_degree(
       auto minor        = indices[i];
       auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-      auto src          = GraphViewType::is_adj_matrix_transposed
+      auto src          = GraphViewType::is_storage_transposed
                             ? minor
                             : edge_partition.major_from_major_offset_nocheck(major_offset);
-      auto dst          = GraphViewType::is_adj_matrix_transposed
+      auto dst          = GraphViewType::is_storage_transposed
                             ? edge_partition.major_from_major_offset_nocheck(major_offset)
                             : minor;
-      auto src_offset   = GraphViewType::is_adj_matrix_transposed
+      auto src_offset   = GraphViewType::is_storage_transposed
                             ? minor_offset
                             : static_cast<vertex_t>(major_offset);
-      auto dst_offset   = GraphViewType::is_adj_matrix_transposed
+      auto dst_offset   = GraphViewType::is_storage_transposed
                             ? static_cast<vertex_t>(major_offset)
                             : minor_offset;
       return evaluate_edge_op<GraphViewType,
@@ -327,16 +327,16 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
       auto minor        = indices[i];
       auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-      auto src          = GraphViewType::is_adj_matrix_transposed
+      auto src          = GraphViewType::is_storage_transposed
                             ? minor
                             : edge_partition.major_from_major_offset_nocheck(major_offset);
-      auto dst          = GraphViewType::is_adj_matrix_transposed
+      auto dst          = GraphViewType::is_storage_transposed
                             ? edge_partition.major_from_major_offset_nocheck(major_offset)
                             : minor;
-      auto src_offset   = GraphViewType::is_adj_matrix_transposed
+      auto src_offset   = GraphViewType::is_storage_transposed
                             ? minor_offset
                             : static_cast<vertex_t>(major_offset);
-      auto dst_offset   = GraphViewType::is_adj_matrix_transposed
+      auto dst_offset   = GraphViewType::is_storage_transposed
                             ? static_cast<vertex_t>(major_offset)
                             : minor_offset;
       auto e_op_result  = evaluate_edge_op<GraphViewType,
@@ -420,16 +420,16 @@ __global__ void for_all_major_for_all_nbr_high_degree(
       auto minor        = indices[i];
       auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-      auto src          = GraphViewType::is_adj_matrix_transposed
+      auto src          = GraphViewType::is_storage_transposed
                             ? minor
                             : edge_partition.major_from_major_offset_nocheck(major_offset);
-      auto dst          = GraphViewType::is_adj_matrix_transposed
+      auto dst          = GraphViewType::is_storage_transposed
                             ? edge_partition.major_from_major_offset_nocheck(major_offset)
                             : minor;
-      auto src_offset   = GraphViewType::is_adj_matrix_transposed
+      auto src_offset   = GraphViewType::is_storage_transposed
                             ? minor_offset
                             : static_cast<vertex_t>(major_offset);
-      auto dst_offset   = GraphViewType::is_adj_matrix_transposed
+      auto dst_offset   = GraphViewType::is_storage_transposed
                             ? static_cast<vertex_t>(major_offset)
                             : minor_offset;
       auto e_op_result  = evaluate_edge_op<GraphViewType,
@@ -477,7 +477,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                                  T init,
                                  VertexValueOutputIterator vertex_value_output_first)
 {
-  constexpr auto update_major = (in == GraphViewType::is_adj_matrix_transposed);
+  constexpr auto update_major = (in == GraphViewType::is_storage_transposed);
   [[maybe_unused]] constexpr auto max_segments =
     detail::num_sparse_segments_per_vertex_partition + size_t{1};
   using vertex_t = typename GraphViewType::vertex_type;
@@ -486,12 +486,12 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  [[maybe_unused]] std::conditional_t<GraphViewType::is_adj_matrix_transposed,
+  [[maybe_unused]] std::conditional_t<GraphViewType::is_storage_transposed,
                                       edge_partition_src_property_t<GraphViewType, T>,
                                       edge_partition_dst_property_t<GraphViewType, T>>
     minor_tmp_buffer(handle);  // relevant only when (GraphViewType::is_multi_gpu && !update_major
   if constexpr (GraphViewType::is_multi_gpu && !update_major) {
-    if constexpr (GraphViewType::is_adj_matrix_transposed) {
+    if constexpr (GraphViewType::is_storage_transposed) {
       minor_tmp_buffer = edge_partition_src_property_t<GraphViewType, T>(handle, graph_view);
     } else {
       minor_tmp_buffer = edge_partition_dst_property_t<GraphViewType, T>(handle, graph_view);
@@ -570,7 +570,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     std::vector<size_t> major_tmp_buffer_sizes(
       graph_view.number_of_local_edge_partitions(), size_t{0});
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      major_tmp_buffer_sizes[i] = GraphViewType::is_adj_matrix_transposed
+      major_tmp_buffer_sizes[i] = GraphViewType::is_storage_transposed
                                     ? graph_view.local_edge_partition_dst_range_size(i)
                                     : graph_view.local_edge_partition_src_range_size(i);
     }
@@ -616,7 +616,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
 
     auto edge_partition_src_value_input_copy = edge_partition_src_value_input;
     auto edge_partition_dst_value_input_copy = edge_partition_dst_value_input;
-    if constexpr (GraphViewType::is_adj_matrix_transposed) {
+    if constexpr (GraphViewType::is_storage_transposed) {
       edge_partition_dst_value_input_copy.set_local_edge_partition_idx(i);
     } else {
       edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
@@ -840,7 +840,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
       }
       auto tx_buffer = allocate_dataframe_buffer<T>(max_vertex_partition_size, handle.get_stream());
       auto tx_first  = get_dataframe_buffer_begin(tx_buffer);
-      auto minor_key_offsets = GraphViewType::is_adj_matrix_transposed
+      auto minor_key_offsets = GraphViewType::is_storage_transposed
                                  ? graph_view.local_sorted_unique_edge_src_offsets()
                                  : graph_view.local_sorted_unique_edge_dst_offsets();
       for (int i = 0; i < row_comm_size; ++i) {

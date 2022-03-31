@@ -224,7 +224,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
   static_assert(std::is_integral<vertex_t>::value,
                 "GraphViewType::vertex_type should be integral.");
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
+  static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
   auto const num_vertices = push_graph_view.number_of_vertices();
@@ -258,7 +258,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
   graph_t<vertex_t,
           edge_t,
           typename GraphViewType::weight_type,
-          GraphViewType::is_adj_matrix_transposed,
+          GraphViewType::is_storage_transposed,
           GraphViewType::is_multi_gpu>
     level_graph(handle);
   rmm::device_uvector<vertex_t> level_renumber_map(0, handle.get_stream());
@@ -704,7 +704,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         create_graph_from_edgelist<vertex_t,
                                    edge_t,
                                    weight_t,
-                                   GraphViewType::is_adj_matrix_transposed,
+                                   GraphViewType::is_storage_transposed,
                                    GraphViewType::is_multi_gpu>(handle,
                                                                 std::nullopt,
                                                                 std::move(std::get<0>(edge_buffer)),

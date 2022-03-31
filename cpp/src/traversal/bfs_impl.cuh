@@ -100,7 +100,7 @@ void bfs(raft::handle_t const& handle,
 
   static_assert(std::is_integral<vertex_t>::value,
                 "GraphViewType::vertex_type should be integral.");
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
+  static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
   auto const num_vertices = push_graph_view.number_of_vertices();

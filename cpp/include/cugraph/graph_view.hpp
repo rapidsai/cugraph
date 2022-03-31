@@ -349,7 +349,7 @@ class graph_view_t<vertex_t,
   using vertex_type                              = vertex_t;
   using edge_type                                = edge_t;
   using weight_type                              = weight_t;
-  static constexpr bool is_adj_matrix_transposed = store_transposed;
+  static constexpr bool is_storage_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
 
   graph_view_t(
@@ -432,13 +432,13 @@ class graph_view_t<vertex_t,
     }
   }
 
-  template <bool transposed = is_adj_matrix_transposed>
+  template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, vertex_t> local_edge_partition_src_range_first() const
   {
     return partition_.local_edge_partition_minor_range_first();
   }
 
-  template <bool transposed = is_adj_matrix_transposed>
+  template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, vertex_t> local_edge_partition_src_range_last() const
   {
     return partition_.local_edge_partition_minor_range_last();
@@ -470,13 +470,13 @@ class graph_view_t<vertex_t,
              : partition_.local_edge_partition_major_value_start_offset(partition_idx);
   }
 
-  template <bool transposed = is_adj_matrix_transposed>
+  template <bool transposed = is_storage_transposed>
   std::enable_if_t<!transposed, vertex_t> local_edge_partition_dst_range_first() const
   {
     return partition_.local_edge_partition_minor_range_first();
   }
 
-  template <bool transposed = is_adj_matrix_transposed>
+  template <bool transposed = is_storage_transposed>
   std::enable_if_t<!transposed, vertex_t> local_edge_partition_dst_range_last() const
   {
     return partition_.local_edge_partition_minor_range_last();
@@ -654,7 +654,7 @@ class graph_view_t<vertex_t,
   using vertex_type                              = vertex_t;
   using edge_type                                = edge_t;
   using weight_type                              = weight_t;
-  static constexpr bool is_adj_matrix_transposed = store_transposed;
+  static constexpr bool is_storage_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
 
   graph_view_t(raft::handle_t const& handle,
@@ -709,13 +709,13 @@ class graph_view_t<vertex_t,
     return this->number_of_vertices();
   }
 
-  template <bool transposed = is_adj_matrix_transposed>
+  template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, vertex_t> local_edge_partition_src_range_first() const
   {
     return local_edge_partition_src_range_first(0);
   }
 
-  template <bool transposed = is_adj_matrix_transposed>
+  template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, vertex_t> local_edge_partition_src_range_last() const
   {
     return local_edge_partition_src_range_last(0);
@@ -740,13 +740,13 @@ class graph_view_t<vertex_t,
     return vertex_t{0};
   }
 
-  template <bool transposed = is_adj_matrix_transposed>
+  template <bool transposed = is_storage_transposed>
   std::enable_if_t<!transposed, vertex_t> local_edge_partition_dst_range_first() const
   {
     return local_edge_partition_dst_range_first(0);
   }
 
-  template <bool transposed = is_adj_matrix_transposed>
+  template <bool transposed = is_storage_transposed>
   std::enable_if_t<!transposed, vertex_t> local_edge_partition_dst_range_last() const
   {
     return local_edge_partition_dst_range_last(0);

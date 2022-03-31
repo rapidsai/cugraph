@@ -66,7 +66,7 @@ void update_edge_partition_major_property(
     auto const col_comm_size = col_comm.get_size();
 
     if (edge_partition_major_property_output.key_first()) {
-      auto key_offsets = GraphViewType::is_adj_matrix_transposed
+      auto key_offsets = GraphViewType::is_storage_transposed
                            ? *(graph_view.local_sorted_unique_edge_dst_offsets())
                            : *(graph_view.local_sorted_unique_edge_src_offsets());
 
@@ -113,7 +113,7 @@ void update_edge_partition_major_property(
     }
   } else {
     assert(!(edge_partition_major_property_output.key_first()));
-    assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_adj_matrix_transposed
+    assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_storage_transposed
              ? graph_view.local_edge_partition_dst_range_size()
              : graph_view.local_edge_partition_src_range_size());
     thrust::copy(handle.get_thrust_policy(),
@@ -163,7 +163,7 @@ void update_edge_partition_major_property(
                                                                               handle.get_stream());
     auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
-    auto key_offsets = GraphViewType::is_adj_matrix_transposed
+    auto key_offsets = GraphViewType::is_storage_transposed
                          ? graph_view.local_sorted_unique_edge_dst_offsets()
                          : graph_view.local_sorted_unique_edge_src_offsets();
 
@@ -231,7 +231,7 @@ void update_edge_partition_major_property(
     }
   } else {
     assert(!(edge_partition_major_property_output.key_first()));
-    assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_adj_matrix_transposed
+    assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_storage_transposed
              ? graph_view.local_edge_partition_dst_range_size()
              : graph_view.local_edge_partition_src_range_size());
     auto val_first = thrust::make_permutation_iterator(vertex_property_input_first, vertex_first);
@@ -265,7 +265,7 @@ void update_edge_partition_minor_property(
     auto const col_comm_size = col_comm.get_size();
 
     if (edge_partition_minor_property_output.key_first()) {
-      auto key_offsets = GraphViewType::is_adj_matrix_transposed
+      auto key_offsets = GraphViewType::is_storage_transposed
                            ? *(graph_view.local_sorted_unique_edge_src_offsets())
                            : *(graph_view.local_sorted_unique_edge_dst_offsets());
 
@@ -312,7 +312,7 @@ void update_edge_partition_minor_property(
     }
   } else {
     assert(!(edge_partition_minor_property_output.key_first()));
-    assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_adj_matrix_transposed
+    assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_storage_transposed
              ? graph_view.local_edge_partition_src_range_size()
              : graph_view.local_edge_partition_dst_range_size());
     thrust::copy(handle.get_thrust_policy(),
@@ -362,7 +362,7 @@ void update_edge_partition_minor_property(
                                                                               handle.get_stream());
     auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
-    auto key_offsets = GraphViewType::is_adj_matrix_transposed
+    auto key_offsets = GraphViewType::is_storage_transposed
                          ? graph_view.local_sorted_unique_edge_src_offsets()
                          : graph_view.local_sorted_unique_edge_dst_offsets();
 
@@ -470,7 +470,7 @@ void update_edge_partition_src_property(
     typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
     edge_partition_src_property_output)
 {
-  if constexpr (GraphViewType::is_adj_matrix_transposed) {
+  if constexpr (GraphViewType::is_storage_transposed) {
     update_edge_partition_minor_property(
       handle, graph_view, vertex_property_input_first, edge_partition_src_property_output);
   } else {
@@ -515,7 +515,7 @@ void update_edge_partition_src_property(
     typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
     edge_partition_src_property_output)
 {
-  if constexpr (GraphViewType::is_adj_matrix_transposed) {
+  if constexpr (GraphViewType::is_storage_transposed) {
     detail::update_edge_partition_minor_property(handle,
                                                  graph_view,
                                                  vertex_first,
@@ -562,7 +562,7 @@ void update_edge_partition_dst_property(
     typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
     edge_partition_dst_property_output)
 {
-  if constexpr (GraphViewType::is_adj_matrix_transposed) {
+  if constexpr (GraphViewType::is_storage_transposed) {
     detail::update_edge_partition_major_property(
       handle, graph_view, vertex_property_input_first, edge_partition_dst_property_output);
   } else {
@@ -608,7 +608,7 @@ void update_edge_partition_dst_property(
     typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
     edge_partition_dst_property_output)
 {
-  if constexpr (GraphViewType::is_adj_matrix_transposed) {
+  if constexpr (GraphViewType::is_storage_transposed) {
     detail::update_edge_partition_major_property(handle,
                                                  graph_view,
                                                  vertex_first,

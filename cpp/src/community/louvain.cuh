@@ -125,10 +125,10 @@ class Louvain {
   using graph_t      = graph_t<vertex_t,
                           edge_t,
                           weight_t,
-                          graph_view_t::is_adj_matrix_transposed,
+                          graph_view_t::is_storage_transposed,
                           graph_view_t::is_multi_gpu>;
 
-  static_assert(!graph_view_t::is_adj_matrix_transposed);
+  static_assert(!graph_view_t::is_storage_transposed);
 
   Louvain(raft::handle_t const& handle, graph_view_t const& graph_view)
     :

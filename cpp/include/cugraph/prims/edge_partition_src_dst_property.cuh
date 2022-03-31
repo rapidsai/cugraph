@@ -438,7 +438,7 @@ class edge_partition_src_property_t {
     auto key_first = graph_view.local_sorted_unique_edge_src_begin();
     if (key_first) {
       if constexpr (GraphViewType::is_multi_gpu) {
-        if constexpr (GraphViewType::is_adj_matrix_transposed) {
+        if constexpr (GraphViewType::is_storage_transposed) {
           auto key_last = graph_view.local_sorted_unique_edge_src_end();
           property_     = detail::edge_partition_minor_property_t<vertex_t, T>(
             handle, *key_first, *key_last, graph_view.local_edge_partition_src_range_first());
@@ -459,7 +459,7 @@ class edge_partition_src_property_t {
         assert(false);
       }
     } else {
-      if constexpr (GraphViewType::is_adj_matrix_transposed) {
+      if constexpr (GraphViewType::is_storage_transposed) {
         property_ = detail::edge_partition_minor_property_t<vertex_t, T>(
           handle, graph_view.local_edge_partition_src_range_size());
       } else {
@@ -496,7 +496,7 @@ class edge_partition_src_property_t {
 
  private:
   std::conditional_t<
-    GraphViewType::is_adj_matrix_transposed,
+    GraphViewType::is_storage_transposed,
     detail::edge_partition_minor_property_t<typename GraphViewType::vertex_type, T>,
     detail::edge_partition_major_property_t<typename GraphViewType::vertex_type, T>>
     property_;
@@ -519,7 +519,7 @@ class edge_partition_dst_property_t {
     auto key_first = graph_view.local_sorted_unique_edge_dst_begin();
     if (key_first) {
       if constexpr (GraphViewType::is_multi_gpu) {
-        if constexpr (GraphViewType::is_adj_matrix_transposed) {
+        if constexpr (GraphViewType::is_storage_transposed) {
           std::vector<vertex_t> edge_partition_major_range_firsts(
             graph_view.number_of_local_edge_partitions());
           for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
@@ -540,7 +540,7 @@ class edge_partition_dst_property_t {
         assert(false);
       }
     } else {
-      if constexpr (GraphViewType::is_adj_matrix_transposed) {
+      if constexpr (GraphViewType::is_storage_transposed) {
         if constexpr (GraphViewType::is_multi_gpu) {
           std::vector<vertex_t> edge_partition_major_value_start_offsets(
             graph_view.number_of_local_edge_partitions());
@@ -577,7 +577,7 @@ class edge_partition_dst_property_t {
 
  private:
   std::conditional_t<
-    GraphViewType::is_adj_matrix_transposed,
+    GraphViewType::is_storage_transposed,
     detail::edge_partition_major_property_t<typename GraphViewType::vertex_type, T>,
     detail::edge_partition_minor_property_t<typename GraphViewType::vertex_type, T>>
     property_;

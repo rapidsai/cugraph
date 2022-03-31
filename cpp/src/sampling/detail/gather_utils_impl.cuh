@@ -46,13 +46,13 @@ template <typename GraphViewType>
 rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degrees(
   raft::handle_t const& handle, GraphViewType const& graph_view)
 {
-  static_assert(GraphViewType::is_adj_matrix_transposed == false);
+  static_assert(GraphViewType::is_storage_transposed == false);
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
   rmm::device_uvector<edge_t> local_degrees(
-    GraphViewType::is_adj_matrix_transposed
+    GraphViewType::is_storage_transposed
       ? graph_view.local_edge_partition_dst_range_size()
       : graph_view.local_edge_partition_src_range_size(),
     handle.get_stream());
@@ -248,7 +248,7 @@ gather_active_majors(raft::handle_t const& handle,
                      GPUIdIterator gpu_id_first)
 {
   static_assert(GraphViewType::is_multi_gpu == true);
-  static_assert(GraphViewType::is_adj_matrix_transposed == false);
+  static_assert(GraphViewType::is_storage_transposed == false);
   using gpu_t    = typename std::iterator_traits<GPUIdIterator>::value_type;
   using vertex_t = typename GraphViewType::vertex_type;
 

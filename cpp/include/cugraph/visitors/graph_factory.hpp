@@ -56,7 +56,7 @@ struct graph_arg_unpacker_t {
   using vertex_t           = typename graph_type::vertex_type;
   using edge_t             = typename graph_type::edge_type;
   using weight_t           = typename graph_type::weight_type;
-  static constexpr bool st = graph_type::is_adj_matrix_transposed;
+  static constexpr bool st = graph_type::is_storage_transposed;
   static constexpr bool mg = graph_type::is_multi_gpu;
 
   void operator()(erased_pack_t& ep,

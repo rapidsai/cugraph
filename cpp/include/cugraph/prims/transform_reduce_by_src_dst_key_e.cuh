@@ -60,13 +60,13 @@ __device__ void update_buffer_element(
 
   auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
   auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-  auto src          = GraphViewType::is_adj_matrix_transposed ? minor : major;
-  auto dst          = GraphViewType::is_adj_matrix_transposed ? major : minor;
-  auto src_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
-  auto dst_offset   = GraphViewType::is_adj_matrix_transposed ? major_offset : minor_offset;
+  auto src          = GraphViewType::is_storage_transposed ? minor : major;
+  auto dst          = GraphViewType::is_storage_transposed ? major : minor;
+  auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
+  auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
 
   *key = edge_partition_src_dst_key_input.get(
-    ((GraphViewType::is_adj_matrix_transposed != edge_partition_src_key) ? major_offset
+    ((GraphViewType::is_storage_transposed != edge_partition_src_key) ? major_offset
                                                                          : minor_offset));
   *value = evaluate_edge_op<GraphViewType,
                             vertex_t,
@@ -391,14 +391,14 @@ transform_reduce_by_src_dst_key_e(
     if (graph_view.vertex_partition_range_size(comm_root_rank) > 0) {
       auto edge_partition_src_value_input_copy = edge_partition_src_value_input;
       auto edge_partition_dst_value_input_copy = edge_partition_dst_value_input;
-      if constexpr (GraphViewType::is_adj_matrix_transposed) {
+      if constexpr (GraphViewType::is_storage_transposed) {
         edge_partition_dst_value_input_copy.set_local_edge_partition_idx(i);
       } else {
         edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
       }
       auto edge_partition_src_dst_key_input_copy = edge_partition_src_dst_key_input;
-      if constexpr ((edge_partition_src_key && !GraphViewType::is_adj_matrix_transposed) ||
-                    (!edge_partition_src_key && GraphViewType::is_adj_matrix_transposed)) {
+      if constexpr ((edge_partition_src_key && !GraphViewType::is_storage_transposed) ||
+                    (!edge_partition_src_key && GraphViewType::is_storage_transposed)) {
         edge_partition_src_dst_key_input_copy.set_local_edge_partition_idx(i);
       }
 

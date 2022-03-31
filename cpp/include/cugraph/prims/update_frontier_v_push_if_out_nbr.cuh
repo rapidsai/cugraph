@@ -245,7 +245,7 @@ __global__ void for_all_frontier_src_for_all_nbr_hypersparse(
                                                   EdgePartitionDstValueInputWrapper,
                                                   EdgeOp>::result_type;
 
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
+  static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
   auto const tid     = threadIdx.x + blockIdx.x * blockDim.x;
@@ -414,7 +414,7 @@ __global__ void for_all_frontier_src_for_all_nbr_low_degree(
                                                   EdgePartitionDstValueInputWrapper,
                                                   EdgeOp>::result_type;
 
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
+  static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
   auto const tid     = threadIdx.x + blockIdx.x * blockDim.x;
@@ -574,7 +574,7 @@ __global__ void for_all_frontier_src_for_all_nbr_mid_degree(
                                                   EdgePartitionDstValueInputWrapper,
                                                   EdgeOp>::result_type;
 
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
+  static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
@@ -681,7 +681,7 @@ __global__ void for_all_frontier_src_for_all_nbr_high_degree(
                                                   EdgePartitionDstValueInputWrapper,
                                                   EdgeOp>::result_type;
 
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
+  static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
   auto idx = static_cast<size_t>(blockIdx.x);
@@ -825,7 +825,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
   VertexFrontierType const& frontier,
   size_t cur_frontier_bucket_idx)
 {
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
+  static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
   using vertex_t = typename GraphViewType::vertex_type;
@@ -1019,7 +1019,7 @@ void update_frontier_v_push_if_out_nbr(
   // primitives.
   VertexOp v_op)
 {
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
+  static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
   using vertex_t  = typename GraphViewType::vertex_type;

@@ -64,10 +64,10 @@ struct call_e_op_t {
     if constexpr (thrust::tuple_size<Edge>::value == 3) { weight = thrust::get<2>(e); }
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-    auto src          = GraphViewType::is_adj_matrix_transposed ? minor : major;
-    auto dst          = GraphViewType::is_adj_matrix_transposed ? major : minor;
-    auto src_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
-    auto dst_offset   = GraphViewType::is_adj_matrix_transposed ? major_offset : minor_offset;
+    auto src          = GraphViewType::is_storage_transposed ? minor : major;
+    auto dst          = GraphViewType::is_storage_transposed ? major : minor;
+    auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
+    auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
     return !evaluate_edge_op<GraphViewType,
                              vertex_t,
                              EdgePartitionSrcValueInputWrapper,
@@ -159,7 +159,7 @@ extract_if_e(raft::handle_t const& handle,
 
     auto edge_partition_src_value_input_copy = edge_partition_src_value_input;
     auto edge_partition_dst_value_input_copy = edge_partition_dst_value_input;
-    if constexpr (GraphViewType::is_adj_matrix_transposed) {
+    if constexpr (GraphViewType::is_storage_transposed) {
       edge_partition_dst_value_input_copy.set_local_edge_partition_idx(i);
     } else {
       edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
@@ -216,8 +216,8 @@ extract_if_e(raft::handle_t const& handle,
   }
 
   return std::make_tuple(
-    std::move(GraphViewType::is_adj_matrix_transposed ? edgelist_minors : edgelist_majors),
-    std::move(GraphViewType::is_adj_matrix_transposed ? edgelist_majors : edgelist_minors),
+    std::move(GraphViewType::is_storage_transposed ? edgelist_minors : edgelist_majors),
+    std::move(GraphViewType::is_storage_transposed ? edgelist_majors : edgelist_minors),
     std::move(edgelist_weights));
 }
 
