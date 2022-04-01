@@ -70,12 +70,11 @@ void cugraph_labeling_result_free(cugraph_labeling_result_t* result);
  * @param [out] error       Pointer to an error object storing details of any error.  Will
  *                          be populated if error code is not CUGRAPH_SUCCESS
  */
-cugraph_error_code_t cugraph_weakly_connected_components(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  bool_t do_expensive_check,
-  cugraph_labeling_result_t** result,
-  cugraph_error_t** error);
+cugraph_error_code_t cugraph_weakly_connected_components(const cugraph_resource_handle_t* handle,
+                                                         cugraph_graph_t* graph,
+                                                         bool_t do_expensive_check,
+                                                         cugraph_labeling_result_t** result,
+                                                         cugraph_error_t** error);
 
 /**
  * @brief Labels each vertex in the input graph with its (strongly-connected-)component ID
@@ -91,12 +90,11 @@ cugraph_error_code_t cugraph_weakly_connected_components(
  * @param [out] error       Pointer to an error object storing details of any error.  Will
  *                          be populated if error code is not CUGRAPH_SUCCESS
  */
-cugraph_error_code_t cugraph_strongly_connected_components(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  bool_t do_expensive_check,
-  cugraph_labeling_result_t** result,
-  cugraph_error_t** error);
+cugraph_error_code_t cugraph_strongly_connected_components(const cugraph_resource_handle_t* handle,
+                                                           cugraph_graph_t* graph,
+                                                           bool_t do_expensive_check,
+                                                           cugraph_labeling_result_t** result,
+                                                           cugraph_error_t** error);
 
 #ifdef __cplusplus
 }

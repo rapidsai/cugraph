@@ -28,4 +28,3 @@ struct cugraph_labeling_result_t {
 
 }  // namespace c_api
 }  // namespace cugraph
-

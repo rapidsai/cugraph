@@ -41,5 +41,3 @@ extern "C" void cugraph_labeling_result_free(cugraph_labeling_result_t* result)
   delete internal_pointer->labels_;
   delete internal_pointer;
 }
-
-
