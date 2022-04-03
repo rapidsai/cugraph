@@ -33,11 +33,15 @@ class CuGraphStore:
 
     @property
     def ndata(self):
-        raise NotImplementedError("not yet implemented")
+       #raise NotImplementedError("not yet implemented")
+        return self.__G._vertex_prop_dataframe
 
     @property
     def edata(self):
-        raise NotImplementedError("not yet implemented")
+        #raise NotImplementedError("not yet implemented")
+        return self.__G._edge_prop_dataframe
+
+
 
     @property
     def gdata(self):
