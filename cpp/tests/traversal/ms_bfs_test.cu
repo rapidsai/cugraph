@@ -215,8 +215,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     hr_timer.stop();
 
     // ms
-    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(),
-                                              handle.get_stream());
+    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
     rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
                                                  handle.get_stream());
 

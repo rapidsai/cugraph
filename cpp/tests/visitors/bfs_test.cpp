@@ -183,8 +183,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                   static_cast<vertex_t>(configuration.source),
                   std::numeric_limits<vertex_t>::max());
 
-    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(),
-                                              handle.get_stream());
+    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
     rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
                                                  handle.get_stream());
 

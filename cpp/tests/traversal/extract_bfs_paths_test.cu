@@ -93,8 +93,7 @@ class Tests_ExtractBfsPaths
     ASSERT_TRUE(extract_bfs_paths_usecase.num_paths_to_check < graph_view.number_of_vertices())
       << "Invalid num_paths_to_check, more than number of vertices";
 
-    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(),
-                                              handle.get_stream());
+    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
     rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
                                                  handle.get_stream());
 
