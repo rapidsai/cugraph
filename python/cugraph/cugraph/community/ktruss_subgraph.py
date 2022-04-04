@@ -64,6 +64,15 @@ def k_truss(G, k):
     G_truss : cuGraph.Graph or networkx.Graph
         A cugraph graph descriptor with the k-truss subgraph for the given k.
         The networkx graph will NOT have all attributes copied over
+
+    Examples
+    --------
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> k_subgraph = cugraph.k_truss(G, 3)
+
     """
 
     _ensure_compatible_cuda_version()

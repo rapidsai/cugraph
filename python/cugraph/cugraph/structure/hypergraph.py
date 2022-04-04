@@ -167,6 +167,13 @@ def hypergraph(
         entities : cudf.DataFrame
             A DataFrame of the found entity node attributes.
 
+    Examples
+    --------
+    >>> M = cudf.read_csv(datasets_path / karate.csv', delimiter=' ',
+    ...                   names=['src', 'dst', 'weights'],
+    ...                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> nodes, edges, G, events, entities = cugraph.hypergraph(M)
+
     """
 
     columns = values.columns if columns is None else columns
