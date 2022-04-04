@@ -64,8 +64,7 @@ std::vector<edge_t> update_edge_partition_edge_counts(
   std::optional<std::vector<vertex_t>> const& edge_partition_segment_offsets,
   cudaStream_t stream)
 {
-  std::vector<edge_t> edge_partition_edge_counts(partition.number_of_local_edge_partitions(),
-                                                       0);
+  std::vector<edge_t> edge_partition_edge_counts(partition.number_of_local_edge_partitions(), 0);
   auto use_dcs = edge_partition_dcs_nzd_vertex_counts.has_value();
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
     auto [major_range_first, major_range_last] = partition.local_edge_partition_major_range(i);
@@ -83,7 +82,8 @@ std::vector<edge_t> update_edge_partition_edge_counts(
   return edge_partition_edge_counts;
 }
 
-// compute out-degrees (if we are internally storing edges in the sparse 2D matrix using sources as major indices) or in-degrees (otherwise)
+// compute out-degrees (if we are internally storing edges in the sparse 2D matrix using sources as
+// major indices) or in-degrees (otherwise)
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_major_degrees(
   raft::handle_t const& handle,
@@ -117,12 +117,13 @@ rmm::device_uvector<edge_t> compute_major_degrees(
     auto vertex_partition_idx = static_cast<size_t>(i * row_comm_size + row_comm_rank);
     vertex_t major_range_first{};
     vertex_t major_range_last{};
-    std::tie(major_range_first, major_range_last) = partition.vertex_partition_range(vertex_partition_idx);
-    auto p_offsets                    = edge_partition_offsets[i];
+    std::tie(major_range_first, major_range_last) =
+      partition.vertex_partition_range(vertex_partition_idx);
+    auto p_offsets = edge_partition_offsets[i];
     auto major_hypersparse_first =
       use_dcs ? major_range_first + (*edge_partition_segment_offsets)
-                                [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
-                                 detail::num_sparse_segments_per_vertex_partition]
+                                      [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
+                                       detail::num_sparse_segments_per_vertex_partition]
               : major_range_last;
     auto execution_policy = handle.get_thrust_policy();
     thrust::transform(execution_policy,
@@ -147,7 +148,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                         local_degrees = local_degrees.data()] __device__(auto i) {
                          auto d = p_offsets[(major_hypersparse_first - major_range_first) + i + 1] -
                                   p_offsets[(major_hypersparse_first - major_range_first) + i];
-                         auto v                         = p_dcs_nzd_vertices[i];
+                         auto v                               = p_dcs_nzd_vertices[i];
                          local_degrees[v - major_range_first] = d;
                        });
     }
@@ -162,7 +163,8 @@ rmm::device_uvector<edge_t> compute_major_degrees(
   return degrees;
 }
 
-// compute out-degrees (if we are internally storing edges in the sparse 2D matrix using sources as major indices) or in-degrees (otherwise)
+// compute out-degrees (if we are internally storing edges in the sparse 2D matrix using sources as
+// major indices) or in-degrees (otherwise)
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const& handle,
                                                   edge_t const* offsets,
@@ -257,9 +259,10 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 {
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(count_edge_partition_multi_edges_block_size % raft::warp_size() == 0);
-  auto const lane_id      = tid % raft::warp_size();
-  auto major_start_offset = static_cast<size_t>(major_range_first - edge_partition.major_range_first());
-  size_t idx              = static_cast<size_t>(tid / raft::warp_size());
+  auto const lane_id = tid % raft::warp_size();
+  auto major_start_offset =
+    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
+  size_t idx = static_cast<size_t>(tid / raft::warp_size());
 
   using BlockReduce = cub::BlockReduce<edge_t, count_edge_partition_multi_edges_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
@@ -288,8 +291,9 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   vertex_t major_range_last,
   edge_t* count)
 {
-  auto major_start_offset = static_cast<size_t>(major_range_first - edge_partition.major_range_first());
-  size_t idx              = static_cast<size_t>(blockIdx.x);
+  auto major_start_offset =
+    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
+  size_t idx = static_cast<size_t>(blockIdx.x);
 
   using BlockReduce = cub::BlockReduce<edge_t, count_edge_partition_multi_edges_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
@@ -364,8 +368,7 @@ edge_t count_edge_partition_multi_edges(
           vertex_t const* indices{nullptr};
           [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
           edge_t local_degree{};
-          thrust::tie(indices, weights, local_degree) =
-            edge_partition.local_edges(major_offset);
+          thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
           edge_t count{0};
           for (edge_t i = 1; i < local_degree; ++i) {  // assumes neighbors are sorted
             if (indices[i - 1] == indices[i]) { ++count; }
@@ -375,8 +378,7 @@ edge_t count_edge_partition_multi_edges(
         edge_t{0},
         thrust::plus<edge_t>{});
     }
-    if (edge_partition.dcs_nzd_vertex_count() &&
-        (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
+    if (edge_partition.dcs_nzd_vertex_count() && (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
       ret += thrust::transform_reduce(
         execution_policy,
         thrust::make_counting_iterator(vertex_t{0}),
@@ -410,8 +412,7 @@ edge_t count_edge_partition_multi_edges(
         vertex_t const* indices{nullptr};
         [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
         edge_t local_degree{};
-        thrust::tie(indices, weights, local_degree) =
-          edge_partition.local_edges(major_offset);
+        thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
         edge_t count{0};
         for (edge_t i = 1; i < local_degree; ++i) {  // assumes neighbors are sorted
           if (indices[i - 1] == indices[i]) { ++count; }
@@ -431,14 +432,13 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  graph_view_t(
-    raft::handle_t const& handle,
-    std::vector<edge_t const*> const& edge_partition_offsets,
-    std::vector<vertex_t const*> const& edge_partition_indices,
-    std::optional<std::vector<weight_t const*>> const& edge_partition_weights,
-    std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
-    std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
-    graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta)
+  graph_view_t(raft::handle_t const& handle,
+               std::vector<edge_t const*> const& edge_partition_offsets,
+               std::vector<vertex_t const*> const& edge_partition_indices,
+               std::optional<std::vector<weight_t const*>> const& edge_partition_weights,
+               std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
+               std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
+               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
     edge_partition_offsets_(edge_partition_offsets),
@@ -448,10 +448,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
     edge_partition_dcs_nzd_vertex_counts_(edge_partition_dcs_nzd_vertex_counts),
     edge_partition_number_of_edges_(
       update_edge_partition_edge_counts(edge_partition_offsets,
-                                              edge_partition_dcs_nzd_vertex_counts,
-                                              meta.partition,
-                                              meta.edge_partition_segment_offsets,
-                                              handle.get_stream())),
+                                        edge_partition_dcs_nzd_vertex_counts,
+                                        meta.partition,
+                                        meta.edge_partition_segment_offsets,
+                                        handle.get_stream())),
     partition_(meta.partition),
     edge_partition_segment_offsets_(meta.edge_partition_segment_offsets),
     local_sorted_unique_edge_src_first_(meta.local_sorted_unique_edge_src_first),
@@ -463,9 +463,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 {
   // cheap error checks
 
-  auto const col_comm_size = this->handle_ptr()
-                               ->get_subcomm(cugraph::partition_2d::key_naming_t().col_name())
-                               .get_size();
+  auto const col_comm_size =
+    this->handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name()).get_size();
 
   auto is_weighted = edge_partition_weights.has_value();
   auto use_dcs     = edge_partition_dcs_nzd_vertices.has_value();
@@ -484,10 +483,10 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                                (*edge_partition_dcs_nzd_vertex_counts).size()),
                   "Internal Error: edge_partition_dcs_nzd_vertices.size() and "
                   "edge_partition_dcs_nzd_vertex_counts.size() should coincide (if used).");
-  CUGRAPH_EXPECTS(!use_dcs || ((*edge_partition_dcs_nzd_vertices).size() ==
-                               edge_partition_offsets.size()),
-                  "Internal Error: edge_partition_dcs_nzd_vertices.size() should coincide "
-                  "with edge_partition_offsets.size() (if used).");
+  CUGRAPH_EXPECTS(
+    !use_dcs || ((*edge_partition_dcs_nzd_vertices).size() == edge_partition_offsets.size()),
+    "Internal Error: edge_partition_dcs_nzd_vertices.size() should coincide "
+    "with edge_partition_offsets.size() (if used).");
 
   CUGRAPH_EXPECTS(edge_partition_offsets.size() == static_cast<size_t>(col_comm_size),
                   "Internal Error: erroneous edge_partition_offsets.size().");
@@ -973,8 +972,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 
   std::vector<size_t> edgelist_edge_counts(number_of_local_edge_partitions(), size_t{0});
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    edgelist_edge_counts[i] =
-      static_cast<size_t>(number_of_local_edge_partition_edges(i));
+    edgelist_edge_counts[i] = static_cast<size_t>(number_of_local_edge_partition_edges(i));
   }
   auto number_of_local_edges =
     std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());

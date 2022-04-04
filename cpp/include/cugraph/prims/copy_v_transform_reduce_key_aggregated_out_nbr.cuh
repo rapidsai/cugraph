@@ -17,8 +17,8 @@
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/graph_utils.cuh>
-#include <cugraph/graph_view.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -96,12 +96,12 @@ struct call_key_aggregated_e_op_t {
     auto major = thrust::get<0>(val);
     auto key   = thrust::get<1>(val);
     auto w     = thrust::get<2>(val);
-    return key_aggregated_e_op(major,
-                               key,
-                               w,
-                               edge_partition_src_value_input.get(
-                                 edge_partition.major_offset_from_major_nocheck(major)),
-                               kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
+    return key_aggregated_e_op(
+      major,
+      key,
+      w,
+      edge_partition_src_value_input.get(edge_partition.major_offset_from_major_nocheck(major)),
+      kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
   }
 };
 
@@ -272,8 +272,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
-    rmm::device_uvector<vertex_t> tmp_majors(edge_partition.number_of_edges(),
-                                             handle.get_stream());
+    rmm::device_uvector<vertex_t> tmp_majors(edge_partition.number_of_edges(), handle.get_stream());
     rmm::device_uvector<vertex_t> tmp_minor_keys(tmp_majors.size(), handle.get_stream());
     rmm::device_uvector<weight_t> tmp_key_aggregated_edge_weights(tmp_majors.size(),
                                                                   handle.get_stream());

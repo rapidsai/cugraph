@@ -69,8 +69,9 @@ void unrenumber_local_int_edges(
                   "Invalid input arguments: erroneous edgelist_minors.size().");
   CUGRAPH_EXPECTS(edgelist_edge_counts.size() == static_cast<size_t>(col_comm_size),
                   "Invalid input arguments: erroneous edgelist_edge_counts.size().");
-  CUGRAPH_EXPECTS(std::is_sorted(vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.end()),
-                  "Invalid input arguments: vertex_partition_range_lasts is not sorted.");
+  CUGRAPH_EXPECTS(
+    std::is_sorted(vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.end()),
+    "Invalid input arguments: vertex_partition_range_lasts is not sorted.");
   if (edgelist_intra_partition_segment_offsets) {
     CUGRAPH_EXPECTS(
       (*edgelist_intra_partition_segment_offsets).size() == static_cast<size_t>(col_comm_size),
@@ -95,11 +96,11 @@ void unrenumber_local_int_edges(
 
   if (do_expensive_check) {
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-      auto vertex_partition_rank        = static_cast<int>(i) * row_comm_size + row_comm_rank;
-      auto edge_partition_major_range_first = vertex_partition_rank == 0
-                                            ? vertex_t{0}
-                                            : vertex_partition_range_lasts[vertex_partition_rank - 1];
-      auto edge_partition_major_range_last  = vertex_partition_range_lasts[vertex_partition_rank];
+      auto vertex_partition_rank = static_cast<int>(i) * row_comm_size + row_comm_rank;
+      auto edge_partition_major_range_first =
+        vertex_partition_rank == 0 ? vertex_t{0}
+                                   : vertex_partition_range_lasts[vertex_partition_rank - 1];
+      auto edge_partition_major_range_last = vertex_partition_range_lasts[vertex_partition_rank];
       CUGRAPH_EXPECTS(
         thrust::count_if(
           handle.get_thrust_policy(),
@@ -176,12 +177,13 @@ void unrenumber_local_int_edges(
     rmm::device_uvector<vertex_t> renumber_map_major_labels(max_edge_partition_major_range_size,
                                                             handle.get_stream());
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-      auto vertex_partition_rank        = static_cast<int>(i) * row_comm_size + row_comm_rank;
-      auto edge_partition_major_range_first = vertex_partition_rank == 0
-                                            ? vertex_t{0}
-                                            : vertex_partition_range_lasts[vertex_partition_rank - 1];
-      auto edge_partition_major_range_last  = vertex_partition_range_lasts[vertex_partition_rank];
-      auto edge_partition_major_range_size = edge_partition_major_range_last - edge_partition_major_range_first;
+      auto vertex_partition_rank = static_cast<int>(i) * row_comm_size + row_comm_rank;
+      auto edge_partition_major_range_first =
+        vertex_partition_rank == 0 ? vertex_t{0}
+                                   : vertex_partition_range_lasts[vertex_partition_rank - 1];
+      auto edge_partition_major_range_last = vertex_partition_range_lasts[vertex_partition_rank];
+      auto edge_partition_major_range_size =
+        edge_partition_major_range_last - edge_partition_major_range_first;
       device_bcast(col_comm,
                    renumber_map_labels,
                    renumber_map_major_labels.data(),
@@ -194,8 +196,8 @@ void unrenumber_local_int_edges(
       auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
       cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
         renumber_map{// cuco::static_map requires at least one empty slot
-                     std::max(static_cast<size_t>(static_cast<double>(edge_partition_major_range_size) /
-                                                  load_factor),
+                     std::max(static_cast<size_t>(
+                                static_cast<double>(edge_partition_major_range_size) / load_factor),
                               static_cast<size_t>(edge_partition_major_range_size) + 1),
                      invalid_vertex_id<vertex_t>::value,
                      invalid_vertex_id<vertex_t>::value,
@@ -240,11 +242,11 @@ void unrenumber_local_int_edges(
     }
     rmm::device_uvector<vertex_t> renumber_map_minor_labels(max_segment_size, handle.get_stream());
     for (int i = 0; i < row_comm_size; ++i) {
-      auto vertex_partition_rank        = col_comm_rank * row_comm_size + i;
-      auto vertex_partition_minor_range_first = vertex_partition_rank == 0
-                                            ? vertex_t{0}
-                                            : vertex_partition_range_lasts[vertex_partition_rank - 1];
-      auto vertex_partition_minor_range_last  = vertex_partition_range_lasts[vertex_partition_rank];
+      auto vertex_partition_rank = col_comm_rank * row_comm_size + i;
+      auto vertex_partition_minor_range_first =
+        vertex_partition_rank == 0 ? vertex_t{0}
+                                   : vertex_partition_range_lasts[vertex_partition_rank - 1];
+      auto vertex_partition_minor_range_last = vertex_partition_range_lasts[vertex_partition_rank];
       auto segment_size = vertex_partition_minor_range_last - vertex_partition_minor_range_first;
       device_bcast(row_comm,
                    renumber_map_labels,
@@ -622,8 +624,8 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                                       sorted_unique_int_vertices.end())),
       handle.get_stream());
 
-    rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
-                                                           handle.get_stream());
+    rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
+      vertex_partition_range_lasts.size(), handle.get_stream());
     raft::update_device(d_vertex_partition_range_lasts.data(),
                         vertex_partition_range_lasts.data(),
                         vertex_partition_range_lasts.size(),

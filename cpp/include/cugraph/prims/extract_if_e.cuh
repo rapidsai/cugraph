@@ -16,8 +16,8 @@
 #pragma once
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
-#include <cugraph/graph_view.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/extract_if_e.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
@@ -42,9 +42,9 @@ template <typename GraphViewType,
           typename EdgeOp>
 struct call_e_op_t {
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu>
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu>
     edge_partition{};
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input{};
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input{};
@@ -135,8 +135,7 @@ extract_if_e(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  std::vector<size_t> edgelist_edge_counts(graph_view.number_of_local_edge_partitions(),
-                                           size_t{0});
+  std::vector<size_t> edgelist_edge_counts(graph_view.number_of_local_edge_partitions(), size_t{0});
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
     edgelist_edge_counts[i] =
       static_cast<size_t>(graph_view.number_of_local_edge_partition_edges(i));

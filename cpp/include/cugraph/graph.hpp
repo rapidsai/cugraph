@@ -84,11 +84,11 @@ template <typename vertex_t,
 class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>
   : public detail::graph_base_t<vertex_t, edge_t, weight_t> {
  public:
-  using vertex_type                              = vertex_t;
-  using edge_type                                = edge_t;
-  using weight_type                              = weight_t;
+  using vertex_type                           = vertex_t;
+  using edge_type                             = edge_t;
+  using weight_type                           = weight_t;
   static constexpr bool is_storage_transposed = store_transposed;
-  static constexpr bool is_multi_gpu             = multi_gpu;
+  static constexpr bool is_multi_gpu          = multi_gpu;
 
   graph_t(raft::handle_t const& handle) : detail::graph_base_t<vertex_t, edge_t, weight_t>() {}
 
@@ -160,19 +160,17 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   {
     std::vector<edge_t const*> offsets(edge_partition_offsets_.size(), nullptr);
     std::vector<vertex_t const*> indices(edge_partition_indices_.size(), nullptr);
-    auto weights          = edge_partition_weights_
-                              ? std::make_optional<std::vector<weight_t const*>>(
-                         (*edge_partition_weights_).size(), nullptr)
-                              : std::nullopt;
-    auto dcs_nzd_vertices = edge_partition_dcs_nzd_vertices_
-                              ? std::make_optional<std::vector<vertex_t const*>>(
+    auto weights = edge_partition_weights_ ? std::make_optional<std::vector<weight_t const*>>(
+                                               (*edge_partition_weights_).size(), nullptr)
+                                           : std::nullopt;
+    auto dcs_nzd_vertices      = edge_partition_dcs_nzd_vertices_
+                                   ? std::make_optional<std::vector<vertex_t const*>>(
                                   (*edge_partition_dcs_nzd_vertices_).size(), nullptr)
-                              : std::nullopt;
-    auto dcs_nzd_vertex_counts =
-      edge_partition_dcs_nzd_vertex_counts_
-        ? std::make_optional<std::vector<vertex_t>>(
-            (*edge_partition_dcs_nzd_vertex_counts_).size(), vertex_t{0})
-        : std::nullopt;
+                                   : std::nullopt;
+    auto dcs_nzd_vertex_counts = edge_partition_dcs_nzd_vertex_counts_
+                                   ? std::make_optional<std::vector<vertex_t>>(
+                                       (*edge_partition_dcs_nzd_vertex_counts_).size(), vertex_t{0})
+                                   : std::nullopt;
     for (size_t i = 0; i < offsets.size(); ++i) {
       offsets[i] = edge_partition_offsets_[i].data();
       indices[i] = edge_partition_indices_[i].data();
@@ -225,8 +223,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
  private:
   std::vector<rmm::device_uvector<edge_t>> edge_partition_offsets_{};
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_indices_{};
-  std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_partition_weights_{
-    std::nullopt};
+  std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_partition_weights_{std::nullopt};
 
   // nzd: nonzero (local) degree, relevant only if segment_offsets.size() > 0
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> edge_partition_dcs_nzd_vertices_{
@@ -255,11 +252,11 @@ template <typename vertex_t,
 class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>
   : public detail::graph_base_t<vertex_t, edge_t, weight_t> {
  public:
-  using vertex_type                              = vertex_t;
-  using edge_type                                = edge_t;
-  using weight_type                              = weight_t;
+  using vertex_type                           = vertex_t;
+  using edge_type                             = edge_t;
+  using weight_type                           = weight_t;
   static constexpr bool is_storage_transposed = store_transposed;
-  static constexpr bool is_multi_gpu             = multi_gpu;
+  static constexpr bool is_multi_gpu          = multi_gpu;
 
   graph_t(raft::handle_t const& handle)
     : detail::graph_base_t<vertex_t, edge_t, weight_t>(),

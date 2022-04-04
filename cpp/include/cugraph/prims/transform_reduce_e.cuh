@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <cugraph/graph_view.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -46,9 +46,9 @@ template <typename GraphViewType,
           typename EdgeOp>
 __global__ void for_all_major_for_all_nbr_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_hypersparse_first,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
@@ -98,12 +98,10 @@ __global__ void for_all_major_for_all_nbr_hypersparse(
         auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
         auto src          = GraphViewType::is_storage_transposed ? minor : major;
         auto dst          = GraphViewType::is_storage_transposed ? major : minor;
-        auto src_offset   = GraphViewType::is_storage_transposed
-                                                                 ? minor_offset
-                                                                 : static_cast<vertex_t>(major_offset);
-        auto dst_offset   = GraphViewType::is_storage_transposed
-                                                                 ? static_cast<vertex_t>(major_offset)
-                                                                 : minor_offset;
+        auto src_offset =
+          GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
+        auto dst_offset =
+          GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
         return evaluate_edge_op<GraphViewType,
                                 vertex_t,
                                 EdgePartitionSrcValueInputWrapper,
@@ -134,9 +132,9 @@ template <typename GraphViewType,
           typename EdgeOp>
 __global__ void for_all_major_for_all_nbr_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_range_first,
   typename GraphViewType::vertex_type major_range_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -149,9 +147,10 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   using weight_t      = typename GraphViewType::weight_type;
   using e_op_result_t = typename std::iterator_traits<ResultIterator>::value_type;
 
-  auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
-  auto major_start_offset = static_cast<size_t>(major_range_first - edge_partition.major_range_first());
-  size_t idx              = static_cast<size_t>(tid);
+  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
+  auto major_start_offset =
+    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
+  size_t idx = static_cast<size_t>(tid);
 
   using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
@@ -184,12 +183,10 @@ __global__ void for_all_major_for_all_nbr_low_degree(
         auto dst          = GraphViewType::is_storage_transposed
                                                                  ? edge_partition.major_from_major_offset_nocheck(major_offset)
                                                                  : minor;
-        auto src_offset   = GraphViewType::is_storage_transposed
-                                                                 ? minor_offset
-                                                                 : static_cast<vertex_t>(major_offset);
-        auto dst_offset   = GraphViewType::is_storage_transposed
-                                                                 ? static_cast<vertex_t>(major_offset)
-                                                                 : minor_offset;
+        auto src_offset =
+          GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
+        auto dst_offset =
+          GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
         return evaluate_edge_op<GraphViewType,
                                 vertex_t,
                                 EdgePartitionSrcValueInputWrapper,
@@ -220,9 +217,9 @@ template <typename GraphViewType,
           typename EdgeOp>
 __global__ void for_all_major_for_all_nbr_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_range_first,
   typename GraphViewType::vertex_type major_range_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -237,9 +234,10 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(transform_reduce_e_for_all_block_size % raft::warp_size() == 0);
-  auto const lane_id      = tid % raft::warp_size();
-  auto major_start_offset = static_cast<size_t>(major_range_first - edge_partition.major_range_first());
-  size_t idx              = static_cast<size_t>(tid / raft::warp_size());
+  auto const lane_id = tid % raft::warp_size();
+  auto major_start_offset =
+    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
+  size_t idx = static_cast<size_t>(tid / raft::warp_size());
 
   using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
@@ -261,13 +259,11 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
       auto dst          = GraphViewType::is_storage_transposed
                             ? edge_partition.major_from_major_offset_nocheck(major_offset)
                             : minor;
-      auto src_offset   = GraphViewType::is_storage_transposed
-                            ? minor_offset
-                            : static_cast<vertex_t>(major_offset);
-      auto dst_offset   = GraphViewType::is_storage_transposed
-                            ? static_cast<vertex_t>(major_offset)
-                            : minor_offset;
-      auto e_op_result  = evaluate_edge_op<GraphViewType,
+      auto src_offset =
+        GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
+      auto dst_offset =
+        GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
+      auto e_op_result = evaluate_edge_op<GraphViewType,
                                           vertex_t,
                                           EdgePartitionSrcValueInputWrapper,
                                           EdgePartitionDstValueInputWrapper,
@@ -294,9 +290,9 @@ template <typename GraphViewType,
           typename EdgeOp>
 __global__ void for_all_major_for_all_nbr_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_range_first,
   typename GraphViewType::vertex_type major_range_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -309,8 +305,9 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   using weight_t      = typename GraphViewType::weight_type;
   using e_op_result_t = typename std::iterator_traits<ResultIterator>::value_type;
 
-  auto major_start_offset = static_cast<size_t>(major_range_first - edge_partition.major_range_first());
-  size_t idx              = static_cast<size_t>(blockIdx.x);
+  auto major_start_offset =
+    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
+  size_t idx = static_cast<size_t>(blockIdx.x);
 
   using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_for_all_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
@@ -332,13 +329,11 @@ __global__ void for_all_major_for_all_nbr_high_degree(
       auto dst          = GraphViewType::is_storage_transposed
                             ? edge_partition.major_from_major_offset_nocheck(major_offset)
                             : minor;
-      auto src_offset   = GraphViewType::is_storage_transposed
-                            ? minor_offset
-                            : static_cast<vertex_t>(major_offset);
-      auto dst_offset   = GraphViewType::is_storage_transposed
-                            ? static_cast<vertex_t>(major_offset)
-                            : minor_offset;
-      auto e_op_result  = evaluate_edge_op<GraphViewType,
+      auto src_offset =
+        GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
+      auto dst_offset =
+        GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
+      auto e_op_result = evaluate_edge_op<GraphViewType,
                                           vertex_t,
                                           EdgePartitionSrcValueInputWrapper,
                                           EdgePartitionDstValueInputWrapper,
@@ -478,8 +473,7 @@ T transform_reduce_e(raft::handle_t const& handle,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
-      if (edge_partition.dcs_nzd_vertex_count() &&
-          (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
+      if (edge_partition.dcs_nzd_vertex_count() && (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
         raft::grid_1d_thread_t update_grid(*(edge_partition.dcs_nzd_vertex_count()),
                                            detail::transform_reduce_e_for_all_block_size,
                                            handle.get_device_properties().maxGridSize[0]);

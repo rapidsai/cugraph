@@ -94,7 +94,8 @@ class vertex_partition_device_view_t<vertex_t, multi_gpu, std::enable_if_t<!mult
   {
   }
 
-  __host__ __device__ constexpr bool in_local_vertex_partition_range_nocheck(vertex_t v) const noexcept
+  __host__ __device__ constexpr bool in_local_vertex_partition_range_nocheck(
+    vertex_t v) const noexcept
   {
     return true;
   }

@@ -26,9 +26,9 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 class edge_partition_view_base_t {
  public:
   edge_partition_view_base_t(edge_t const* offsets,
-                               vertex_t const* indices,
-                               std::optional<weight_t const*> weights,
-                               edge_t number_of_edges)
+                             vertex_t const* indices,
+                             std::optional<weight_t const*> weights,
+                             edge_t number_of_edges)
     : offsets_(offsets), indices_(indices), weights_(weights), number_of_edges_(number_of_edges)
   {
   }
@@ -61,16 +61,16 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
   : public detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t> {
  public:
   edge_partition_view_t(edge_t const* offsets,
-                          vertex_t const* indices,
-                          std::optional<weight_t const*> weights,
-                          std::optional<vertex_t const*> dcs_nzd_vertices,
-                          std::optional<vertex_t> dcs_nzd_vertex_count,
-                          edge_t number_of_edge_partition_edges,
-                          vertex_t major_range_first,
-                          vertex_t major_range_last,
-                          vertex_t minor_range_first,
-                          vertex_t minor_range_last,
-                          vertex_t major_value_start_offset)
+                        vertex_t const* indices,
+                        std::optional<weight_t const*> weights,
+                        std::optional<vertex_t const*> dcs_nzd_vertices,
+                        std::optional<vertex_t> dcs_nzd_vertex_count,
+                        edge_t number_of_edge_partition_edges,
+                        vertex_t major_range_first,
+                        vertex_t major_range_last,
+                        vertex_t minor_range_first,
+                        vertex_t minor_range_last,
+                        vertex_t major_value_start_offset)
     : detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t>(
         offsets, indices, weights, number_of_edge_partition_edges),
       dcs_nzd_vertices_(dcs_nzd_vertices),
@@ -112,10 +112,10 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
   : public detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t> {
  public:
   edge_partition_view_t(edge_t const* offsets,
-                          vertex_t const* indices,
-                          std::optional<weight_t const*> weights,
-                          vertex_t number_of_vertices,
-                          edge_t number_of_edges)
+                        vertex_t const* indices,
+                        std::optional<weight_t const*> weights,
+                        vertex_t number_of_vertices,
+                        edge_t number_of_edges)
     : detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t>(
         offsets, indices, weights, number_of_edges),
       number_of_vertices_(number_of_vertices)

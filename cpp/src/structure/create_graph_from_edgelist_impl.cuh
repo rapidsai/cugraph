@@ -49,10 +49,14 @@ struct check_edge_t {
 
   __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> const& e) const
   {
-    return !thrust::binary_search(
-             thrust::seq, sorted_valid_major_range_first, sorted_valid_major_range_last, thrust::get<0>(e)) ||
-           !thrust::binary_search(
-             thrust::seq, sorted_valid_minor_range_first, sorted_valid_minor_range_last, thrust::get<1>(e));
+    return !thrust::binary_search(thrust::seq,
+                                  sorted_valid_major_range_first,
+                                  sorted_valid_major_range_last,
+                                  thrust::get<0>(e)) ||
+           !thrust::binary_search(thrust::seq,
+                                  sorted_valid_minor_range_first,
+                                  sorted_valid_minor_range_last,
+                                  thrust::get<1>(e));
   }
 };
 

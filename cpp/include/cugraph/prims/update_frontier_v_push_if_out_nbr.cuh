@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/graph_view.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/prims/reduce_op.cuh>
@@ -218,9 +218,9 @@ template <typename GraphViewType,
           typename EdgeOp>
 __global__ void for_all_frontier_src_for_all_nbr_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_hypersparse_first,
   KeyIterator key_first,
   KeyIterator key_last,
@@ -388,9 +388,9 @@ template <typename GraphViewType,
           typename EdgeOp>
 __global__ void for_all_frontier_src_for_all_nbr_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
   KeyIterator key_first,
   KeyIterator key_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -548,9 +548,9 @@ template <typename GraphViewType,
           typename EdgeOp>
 __global__ void for_all_frontier_src_for_all_nbr_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
   KeyIterator key_first,
   KeyIterator key_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -655,9 +655,9 @@ template <typename GraphViewType,
           typename EdgeOp>
 __global__ void for_all_frontier_src_for_all_nbr_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
   KeyIterator key_first,
   KeyIterator key_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -878,43 +878,42 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
           ? ((*segment_offsets).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
           : false;
 
-      ret +=
-        use_dcs
-          ? thrust::transform_reduce(
-              execution_policy,
-              frontier_vertices.begin(),
-              frontier_vertices.end(),
-              [edge_partition,
-               major_hypersparse_first =
-                 edge_partition.major_range_first() +
-                 (*segment_offsets)
-                   [detail::num_sparse_segments_per_vertex_partition]] __device__(auto major) {
-                if (major < major_hypersparse_first) {
-                  auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
-                  return edge_partition.local_degree(major_offset);
-                } else {
-                  auto major_hypersparse_idx =
-                    edge_partition.major_hypersparse_idx_from_major_nocheck(major);
-                  return major_hypersparse_idx
-                           ? edge_partition.local_degree(
-                               edge_partition.major_offset_from_major_nocheck(
-                                 major_hypersparse_first) +
-                               *major_hypersparse_idx)
-                           : edge_t{0};
-                }
-              },
-              edge_t{0},
-              thrust::plus<edge_t>())
-          : thrust::transform_reduce(
-              execution_policy,
-              frontier_vertices.begin(),
-              frontier_vertices.end(),
-              [edge_partition] __device__(auto major) {
-                auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
-                return edge_partition.local_degree(major_offset);
-              },
-              edge_t{0},
-              thrust::plus<edge_t>());
+      ret += use_dcs
+               ? thrust::transform_reduce(
+                   execution_policy,
+                   frontier_vertices.begin(),
+                   frontier_vertices.end(),
+                   [edge_partition,
+                    major_hypersparse_first =
+                      edge_partition.major_range_first() +
+                      (*segment_offsets)
+                        [detail::num_sparse_segments_per_vertex_partition]] __device__(auto major) {
+                     if (major < major_hypersparse_first) {
+                       auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+                       return edge_partition.local_degree(major_offset);
+                     } else {
+                       auto major_hypersparse_idx =
+                         edge_partition.major_hypersparse_idx_from_major_nocheck(major);
+                       return major_hypersparse_idx
+                                ? edge_partition.local_degree(
+                                    edge_partition.major_offset_from_major_nocheck(
+                                      major_hypersparse_first) +
+                                    *major_hypersparse_idx)
+                                : edge_t{0};
+                     }
+                   },
+                   edge_t{0},
+                   thrust::plus<edge_t>())
+               : thrust::transform_reduce(
+                   execution_policy,
+                   frontier_vertices.begin(),
+                   frontier_vertices.end(),
+                   [edge_partition] __device__(auto major) {
+                     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+                     return edge_partition.local_degree(major_offset);
+                   },
+                   edge_t{0},
+                   thrust::plus<edge_t>());
     } else {
       assert(i == 0);
       ret += thrust::transform_reduce(
@@ -980,7 +979,11 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
  * graph_view.local_vertex_partition_range_size().
- * @param v_op Ternary operator takes (tagged-)vertex ID, *(@p vertex_value_input_first + i) (where i is [0, @p graph_view.local_vertex_partition_range_size())) and reduced value of the @p e_op outputs for this vertex and returns the target bucket index (for frontier update) and new verrtex property values (to update *(@p vertex_value_output_first + i)). The target bucket index should either be VertexFrontierType::kInvalidBucketIdx or an index in @p next_frontier_bucket_indices.
+ * @param v_op Ternary operator takes (tagged-)vertex ID, *(@p vertex_value_input_first + i) (where
+ * i is [0, @p graph_view.local_vertex_partition_range_size())) and reduced value of the @p e_op
+ * outputs for this vertex and returns the target bucket index (for frontier update) and new verrtex
+ * property values (to update *(@p vertex_value_output_first + i)). The target bucket index should
+ * either be VertexFrontierType::kInvalidBucketIdx or an index in @p next_frontier_bucket_indices.
  */
 template <typename GraphViewType,
           typename VertexFrontierType,
@@ -1115,12 +1118,11 @@ void update_frontier_v_push_if_out_nbr(
                     } else {
                       auto src_hypersparse_idx =
                         edge_partition.major_hypersparse_idx_from_major_nocheck(src);
-                      return src_hypersparse_idx
-                               ? edge_partition.local_degree(
-                                   edge_partition.major_offset_from_major_nocheck(
-                                     major_hypersparse_first) +
-                                   *src_hypersparse_idx)
-                               : edge_t{0};
+                      return src_hypersparse_idx ? edge_partition.local_degree(
+                                                     edge_partition.major_offset_from_major_nocheck(
+                                                       major_hypersparse_first) +
+                                                     *src_hypersparse_idx)
+                                                 : edge_t{0};
                     }
                   },
                   edge_t{0},
@@ -1358,8 +1360,8 @@ void update_frontier_v_push_if_out_nbr(
           if constexpr (std::is_same_v<key_t, vertex_t>) {
             v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(key);
           } else {
-            v_offset =
-              vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(thrust::get<0>(key));
+            v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(
+              thrust::get<0>(key));
           }
           auto v_val       = *(vertex_value_input_first + v_offset);
           auto v_op_result = v_op(key, v_val, payload);

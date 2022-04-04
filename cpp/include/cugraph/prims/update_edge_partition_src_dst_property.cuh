@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/graph_view.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
@@ -101,7 +101,7 @@ void update_edge_partition_major_property(
       std::vector<size_t> rx_counts(col_comm_size, size_t{0});
       std::vector<size_t> displacements(col_comm_size, size_t{0});
       for (int i = 0; i < col_comm_size; ++i) {
-        rx_counts[i]     = graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank);
+        rx_counts[i] = graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank);
         displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
       }
       device_allgatherv(col_comm,
@@ -215,8 +215,8 @@ void update_edge_partition_major_property(
             }
           });
       } else {
-        auto map_first = thrust::make_transform_iterator(
-          rx_vertices.begin(), [edge_partition] __device__(auto v) {
+        auto map_first =
+          thrust::make_transform_iterator(rx_vertices.begin(), [edge_partition] __device__(auto v) {
             return edge_partition.major_offset_from_major_nocheck(v);
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
@@ -300,7 +300,7 @@ void update_edge_partition_minor_property(
       std::vector<size_t> rx_counts(row_comm_size, size_t{0});
       std::vector<size_t> displacements(row_comm_size, size_t{0});
       for (int i = 0; i < row_comm_size; ++i) {
-        rx_counts[i]     = graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i);
+        rx_counts[i] = graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i);
         displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
       }
       device_allgatherv(row_comm,
@@ -413,8 +413,8 @@ void update_edge_partition_minor_property(
             }
           });
       } else {
-        auto map_first = thrust::make_transform_iterator(
-          rx_vertices.begin(), [edge_partition] __device__(auto v) {
+        auto map_first =
+          thrust::make_transform_iterator(rx_vertices.begin(), [edge_partition] __device__(auto v) {
             return edge_partition.minor_offset_from_minor_nocheck(v);
           });
         // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and

@@ -58,8 +58,7 @@ void flatten_dendrogram(
   Dendrogram<vertex_t> const& dendrogram,
   vertex_t* clustering)
 {
-  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices(),
-                                             handle.get_stream());
+  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices(), handle.get_stream());
 
   thrust::sequence(handle.get_thrust_policy(),
                    vertex_ids_v.begin(),

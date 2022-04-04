@@ -189,8 +189,8 @@ void pagerank(
   // old PageRank values
   rmm::device_uvector<result_t> old_pageranks(pull_graph_view.local_vertex_partition_range_size(),
                                               handle.get_stream());
-  edge_partition_src_property_t<GraphViewType, result_t> edge_partition_src_pageranks(handle,
-                                                                                  pull_graph_view);
+  edge_partition_src_property_t<GraphViewType, result_t> edge_partition_src_pageranks(
+    handle, pull_graph_view);
   size_t iter{0};
   while (true) {
     thrust::copy(handle.get_thrust_policy(),

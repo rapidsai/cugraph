@@ -16,8 +16,8 @@
 #pragma once
 
 #include <cugraph/detail/graph_utils.cuh>
-#include <cugraph/graph_view.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -43,9 +43,9 @@ template <bool edge_partition_src_key,
           typename T>
 __device__ void update_buffer_element(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu>& edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu>& edge_partition,
   typename GraphViewType::vertex_type major,
   typename GraphViewType::vertex_type minor,
   typename GraphViewType::weight_type weight,
@@ -67,7 +67,7 @@ __device__ void update_buffer_element(
 
   *key = edge_partition_src_dst_key_input.get(
     ((GraphViewType::is_storage_transposed != edge_partition_src_key) ? major_offset
-                                                                         : minor_offset));
+                                                                      : minor_offset));
   *value = evaluate_edge_op<GraphViewType,
                             vertex_t,
                             EdgePartitionSrcValueInputWrapper,
@@ -90,9 +90,9 @@ template <bool edge_partition_src_key,
           typename T>
 __global__ void for_all_major_for_all_nbr_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_hypersparse_first,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
@@ -150,9 +150,9 @@ template <bool edge_partition_src_key,
           typename T>
 __global__ void for_all_major_for_all_nbr_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_range_first,
   typename GraphViewType::vertex_type major_range_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -166,9 +166,10 @@ __global__ void for_all_major_for_all_nbr_low_degree(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
-  auto major_start_offset = static_cast<size_t>(major_range_first - edge_partition.major_range_first());
-  auto idx                = static_cast<size_t>(tid);
+  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
+  auto major_start_offset =
+    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
+  auto idx = static_cast<size_t>(tid);
 
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = major_start_offset + idx;
@@ -207,9 +208,9 @@ template <bool edge_partition_src_key,
           typename T>
 __global__ void for_all_major_for_all_nbr_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_range_first,
   typename GraphViewType::vertex_type major_range_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -225,9 +226,10 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(transform_reduce_by_src_dst_key_e_for_all_block_size % raft::warp_size() == 0);
-  auto const lane_id      = tid % raft::warp_size();
-  auto major_start_offset = static_cast<size_t>(major_range_first - edge_partition.major_range_first());
-  size_t idx              = static_cast<size_t>(tid / raft::warp_size());
+  auto const lane_id = tid % raft::warp_size();
+  auto major_start_offset =
+    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
+  size_t idx = static_cast<size_t>(tid / raft::warp_size());
 
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = major_start_offset + idx;
@@ -266,9 +268,9 @@ template <bool edge_partition_src_key,
           typename T>
 __global__ void for_all_major_for_all_nbr_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                 typename GraphViewType::edge_type,
-                                 typename GraphViewType::weight_type,
-                                 GraphViewType::is_multi_gpu> edge_partition,
+                               typename GraphViewType::edge_type,
+                               typename GraphViewType::weight_type,
+                               GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_range_first,
   typename GraphViewType::vertex_type major_range_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -282,8 +284,9 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto major_start_offset = static_cast<size_t>(major_range_first - edge_partition.major_range_first());
-  auto idx                = static_cast<size_t>(blockIdx.x);
+  auto major_start_offset =
+    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
+  auto idx = static_cast<size_t>(blockIdx.x);
 
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = major_start_offset + idx;

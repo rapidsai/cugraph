@@ -103,8 +103,9 @@ accumulate_new_roots(raft::handle_t const& handle,
           output_pair_first,
           [vertex_partition, components] __device__(auto pair) {
             auto v = thrust::get<0>(pair);
-            return (components[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)] ==
-                    invalid_component_id<vertex_t>::value);
+            return (
+              components[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)] ==
+              invalid_component_id<vertex_t>::value);
           }))),
       handle.get_stream());
     tmp_indices.resize(tmp_new_roots.size(), handle.get_stream());
@@ -274,7 +275,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       num_levels == 0 ? vertex_t{0} : level_graph_view.local_vertex_partition_range_size(),
       handle.get_stream()));
     level_renumber_map_vectors.push_back(std::move(level_renumber_map));
-    level_local_vertex_first_vectors.push_back(level_graph_view.local_vertex_partition_range_first());
+    level_local_vertex_first_vectors.push_back(
+      level_graph_view.local_vertex_partition_range_first());
     auto level_components =
       num_levels == 0 ? components : level_component_vectors[num_levels].data();
     ++num_levels;
@@ -283,7 +285,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     // 2-1. filter out isolated vertices
 
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_first()), degrees.begin()));
+      thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_first()),
+      degrees.begin()));
     thrust::transform(handle.get_thrust_policy(),
                       pair_first,
                       pair_first + level_graph_view.local_vertex_partition_range_size(),
@@ -317,8 +320,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_last()),
           new_root_candidates.begin(),
           [vertex_partition, level_components] __device__(auto v) {
-            return level_components[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(
-                     v)] == invalid_component_id<vertex_t>::value;
+            return level_components[vertex_partition
+                                      .local_vertex_partition_offset_from_vertex_nocheck(v)] ==
+                   invalid_component_id<vertex_t>::value;
           })),
       handle.get_stream());
     auto high_degree_partition_last = thrust::stable_partition(
@@ -442,7 +446,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       init_max_new_roots = std::min(init_max_new_roots, max_new_roots);
     }
 
-    // 2-3. initialize vertex frontier, edge_buffer, and edge_partition_dst_components (if multi-gpu)
+    // 2-3. initialize vertex frontier, edge_buffer, and edge_partition_dst_components (if
+    // multi-gpu)
 
     VertexFrontier<vertex_t,
                    vertex_t,
@@ -463,7 +468,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         ? edge_partition_dst_property_t<GraphViewType, vertex_t>(handle, level_graph_view)
         : edge_partition_dst_property_t<GraphViewType, vertex_t>(handle);
     if constexpr (GraphViewType::is_multi_gpu) {
-      edge_partition_dst_components.fill(invalid_component_id<vertex_t>::value, handle.get_stream());
+      edge_partition_dst_components.fill(invalid_component_id<vertex_t>::value,
+                                         handle.get_stream());
     }
 
     // 2.4 iterate till every vertex gets visited

@@ -47,11 +47,15 @@ class serializer_t;  // forward...
  * P_col column communicators of size P_row. row_comm_size = P_col and col_comm_size = P_row.
  * row_comm_rank & col_comm_rank are ranks within the row & column communicators, respectively.
  *
- * We need to partition 1D vertex array and the 2D edge matrix (major = source if not transposed, destination if transposed). 
+ * We need to partition 1D vertex array and the 2D edge matrix (major = source if not transposed,
+ * destination if transposed).
  *
- * An 1D vertex array of size V is divided to P linear partitions; each partition has the size close to V / P.
+ * An 1D vertex array of size V is divided to P linear partitions; each partition has the size close
+ * to V / P.
  *
- * The 2D edge matrix is first horizontally partitioned to P slabs, then each slab will be further vertically partitioned to P_row rectangles. One GPU will be responsible col_comm_size rectangular partitions.
+ * The 2D edge matrix is first horizontally partitioned to P slabs, then each slab will be further
+ * vertically partitioned to P_row rectangles. One GPU will be responsible col_comm_size rectangular
+ * partitions.
  *
  * To be more specific, a GPU with (col_comm_rank, row_comm_rank) will be responsible for
  * col_comm_size rectangular partitions [a_i,b_i) by [c,d) where a_i =
@@ -96,11 +100,13 @@ class partition_t {
     edge_partition_major_value_start_offsets_.assign(number_of_local_edge_partitions(), 0);
     for (size_t i = 0; i < edge_partition_major_value_start_offsets_.size(); ++i) {
       edge_partition_major_value_start_offsets_[i] = start_offset;
-      start_offset += local_edge_partition_major_range_last(i) - local_edge_partition_major_range_first(i);
+      start_offset +=
+        local_edge_partition_major_range_last(i) - local_edge_partition_major_range_first(i);
     }
   }
 
-  // FIXME: these are used only in cugraph/utilities/cython.hpp, better delete once we fully switch to the pylibcugraph path
+  // FIXME: these are used only in cugraph/utilities/cython.hpp, better delete once we fully switch
+  // to the pylibcugraph path
   int row_comm_size() const { return row_comm_size_; }
   int col_comm_size() const { return col_comm_size_; }
   int comm_rank() const { return comm_rank_; }
@@ -122,11 +128,20 @@ class partition_t {
                            vertex_partition_offsets_[comm_rank_ + 1]);
   }
 
-  vertex_t local_vertex_partition_range_first() const { return vertex_partition_offsets_[comm_rank_]; }
+  vertex_t local_vertex_partition_range_first() const
+  {
+    return vertex_partition_offsets_[comm_rank_];
+  }
 
-  vertex_t local_vertex_partition_range_last() const { return vertex_partition_offsets_[comm_rank_ + 1]; }
+  vertex_t local_vertex_partition_range_last() const
+  {
+    return vertex_partition_offsets_[comm_rank_ + 1];
+  }
 
-  vertex_t local_vertex_partition_range_size() const { return local_vertex_partition_range_last() - local_vertex_partition_range_first(); }
+  vertex_t local_vertex_partition_range_size() const
+  {
+    return local_vertex_partition_range_last() - local_vertex_partition_range_first();
+  }
 
   std::tuple<vertex_t, vertex_t> vertex_partition_range(size_t partition_idx) const
   {
@@ -146,16 +161,17 @@ class partition_t {
 
   vertex_t vertex_partition_range_size(size_t partition_idx) const
   {
-    return vertex_partition_range_last(partition_idx) -
-           vertex_partition_range_first(partition_idx);
+    return vertex_partition_range_last(partition_idx) - vertex_partition_range_first(partition_idx);
   }
 
   size_t number_of_local_edge_partitions() const { return col_comm_size_; }
 
-  // major: source of the edge partition (if not transposed) or destination of the edge partition (if transposed).
+  // major: source of the edge partition (if not transposed) or destination of the edge partition
+  // (if transposed).
   std::tuple<vertex_t, vertex_t> local_edge_partition_major_range(size_t partition_idx) const
   {
-    return std::make_tuple(local_edge_partition_major_range_first(partition_idx), local_edge_partition_major_range_last(partition_idx));
+    return std::make_tuple(local_edge_partition_major_range_first(partition_idx),
+                           local_edge_partition_major_range_last(partition_idx));
   }
 
   vertex_t local_edge_partition_major_range_first(size_t partition_idx) const
@@ -179,10 +195,12 @@ class partition_t {
     return edge_partition_major_value_start_offsets_[partition_idx];
   }
 
-  // minor: destination of the edge partition (if not transposed) or source of the edge partition (if transposed).
+  // minor: destination of the edge partition (if not transposed) or source of the edge partition
+  // (if transposed).
   std::tuple<vertex_t, vertex_t> local_edge_partition_minor_range() const
   {
-    return std::make_tuple(local_edge_partition_minor_range_first(), local_edge_partition_minor_range_last());
+    return std::make_tuple(local_edge_partition_minor_range_first(),
+                           local_edge_partition_minor_range_last());
   }
 
   vertex_t local_edge_partition_minor_range_first() const
@@ -223,7 +241,8 @@ namespace detail {
 using namespace cugraph::visitors;
 
 // FIXME: threshold values require tuning (currently disabled)
-// use (key, value) pairs to store source/destination properties if (unique edge sources/destinations) over (V / row_comm_size|col_comm_size) is smaller than the threshold value
+// use (key, value) pairs to store source/destination properties if (unique edge
+// sources/destinations) over (V / row_comm_size|col_comm_size) is smaller than the threshold value
 double constexpr edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold = 0.0;
 
 // FIXME: threshold values require tuning
@@ -346,20 +365,19 @@ class graph_view_t<vertex_t,
                    std::enable_if_t<multi_gpu>>
   : public detail::graph_base_t<vertex_t, edge_t, weight_t> {
  public:
-  using vertex_type                              = vertex_t;
-  using edge_type                                = edge_t;
-  using weight_type                              = weight_t;
+  using vertex_type                           = vertex_t;
+  using edge_type                             = edge_t;
+  using weight_type                           = weight_t;
   static constexpr bool is_storage_transposed = store_transposed;
-  static constexpr bool is_multi_gpu             = multi_gpu;
+  static constexpr bool is_multi_gpu          = multi_gpu;
 
-  graph_view_t(
-    raft::handle_t const& handle,
-    std::vector<edge_t const*> const& edge_partition_offsets,
-    std::vector<vertex_t const*> const& edge_partition_indices,
-    std::optional<std::vector<weight_t const*>> const& edge_partition_weights,
-    std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
-    std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
-    graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta);
+  graph_view_t(raft::handle_t const& handle,
+               std::vector<edge_t const*> const& edge_partition_offsets,
+               std::vector<vertex_t const*> const& edge_partition_indices,
+               std::optional<std::vector<weight_t const*>> const& edge_partition_weights,
+               std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
+               std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
+               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta);
 
   bool is_weighted() const { return edge_partition_weights_.has_value(); }
 
@@ -373,9 +391,15 @@ class graph_view_t<vertex_t,
     return partition_.local_vertex_partition_range_size();
   }
 
-  vertex_t local_vertex_partition_range_first() const { return partition_.local_vertex_partition_range_first(); }
+  vertex_t local_vertex_partition_range_first() const
+  {
+    return partition_.local_vertex_partition_range_first();
+  }
 
-  vertex_t local_vertex_partition_range_last() const { return partition_.local_vertex_partition_range_last(); }
+  vertex_t local_vertex_partition_range_last() const
+  {
+    return partition_.local_vertex_partition_range_last();
+  }
 
   vertex_t vertex_partition_range_first(size_t partition_idx) const
   {
@@ -397,12 +421,10 @@ class graph_view_t<vertex_t,
     return (v >= local_vertex_partition_range_first()) && (v < local_vertex_partition_range_last());
   }
 
-  size_t number_of_local_edge_partitions() const
-  {
-    return edge_partition_offsets_.size();
-  }
+  size_t number_of_local_edge_partitions() const { return edge_partition_offsets_.size(); }
 
-  edge_t number_of_local_edge_partition_edges(size_t partition_idx) const {
+  edge_t number_of_local_edge_partition_edges(size_t partition_idx) const
+  {
     return edge_partition_number_of_edges_[partition_idx];
   }
 
@@ -462,8 +484,7 @@ class graph_view_t<vertex_t,
            local_edge_partition_src_range_first(partition_idx);
   }
 
-  vertex_t local_edge_partition_src_value_start_offset(
-    size_t partition_idx) const
+  vertex_t local_edge_partition_src_value_start_offset(size_t partition_idx) const
   {
     return store_transposed
              ? vertex_t{0}
@@ -500,8 +521,7 @@ class graph_view_t<vertex_t,
            local_edge_partition_dst_range_first(partition_idx);
   }
 
-  vertex_t local_edge_partition_dst_value_start_offset(
-    size_t partition_idx) const
+  vertex_t local_edge_partition_dst_value_start_offset(size_t partition_idx) const
   {
     return store_transposed
              ? partition_.local_edge_partition_major_value_start_offset(partition_idx)
@@ -516,8 +536,7 @@ class graph_view_t<vertex_t,
         (*edge_partition_segment_offsets_).size() / edge_partition_offsets_.size();
       return std::vector<vertex_t>(
         (*edge_partition_segment_offsets_).begin() + partition_idx * size_per_partition,
-        (*edge_partition_segment_offsets_).begin() +
-          (partition_idx + 1) * size_per_partition);
+        (*edge_partition_segment_offsets_).begin() + (partition_idx + 1) * size_per_partition);
     } else {
       return std::nullopt;
     }
@@ -540,12 +559,10 @@ class graph_view_t<vertex_t,
         ? std::optional<weight_t const*>{(*edge_partition_weights_)[partition_idx]}
         : std::nullopt,
       edge_partition_dcs_nzd_vertices_
-        ? std::optional<vertex_t const*>{(
-            *edge_partition_dcs_nzd_vertices_)[partition_idx]}
+        ? std::optional<vertex_t const*>{(*edge_partition_dcs_nzd_vertices_)[partition_idx]}
         : std::nullopt,
       edge_partition_dcs_nzd_vertex_counts_
-        ? std::optional<vertex_t>{(
-            *edge_partition_dcs_nzd_vertex_counts_)[partition_idx]}
+        ? std::optional<vertex_t>{(*edge_partition_dcs_nzd_vertex_counts_)[partition_idx]}
         : std::nullopt,
       edge_partition_number_of_edges_[partition_idx],
       store_transposed ? this->local_edge_partition_dst_range_first(partition_idx)
@@ -556,9 +573,8 @@ class graph_view_t<vertex_t,
                        : this->local_edge_partition_dst_range_first(partition_idx),
       store_transposed ? this->local_edge_partition_src_range_last(partition_idx)
                        : this->local_edge_partition_dst_range_last(partition_idx),
-      store_transposed
-        ? this->local_edge_partition_dst_value_start_offset(partition_idx)
-        : this->local_edge_partition_src_value_start_offset(partition_idx));
+      store_transposed ? this->local_edge_partition_dst_value_start_offset(partition_idx)
+                       : this->local_edge_partition_src_value_start_offset(partition_idx));
   }
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
@@ -628,7 +644,8 @@ class graph_view_t<vertex_t,
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> edge_partition_segment_offsets_{};
 
-  // if valid, store source/destination property values in key/value pairs (this saves memory if # unique edge sources/destinations << V / row_comm_size|col_comm_size).
+  // if valid, store source/destination property values in key/value pairs (this saves memory if #
+  // unique edge sources/destinations << V / row_comm_size|col_comm_size).
   std::optional<vertex_t const*> local_sorted_unique_edge_src_first_{std::nullopt};
   std::optional<vertex_t const*> local_sorted_unique_edge_src_last_{std::nullopt};
   std::optional<std::vector<vertex_t>> local_sorted_unique_edge_src_offsets_{std::nullopt};
@@ -651,11 +668,11 @@ class graph_view_t<vertex_t,
                    std::enable_if_t<!multi_gpu>>
   : public detail::graph_base_t<vertex_t, edge_t, weight_t> {
  public:
-  using vertex_type                              = vertex_t;
-  using edge_type                                = edge_t;
-  using weight_type                              = weight_t;
+  using vertex_type                           = vertex_t;
+  using edge_type                             = edge_t;
+  using weight_type                           = weight_t;
   static constexpr bool is_storage_transposed = store_transposed;
-  static constexpr bool is_multi_gpu             = multi_gpu;
+  static constexpr bool is_multi_gpu          = multi_gpu;
 
   graph_view_t(raft::handle_t const& handle,
                edge_t const* offsets,
@@ -676,7 +693,11 @@ class graph_view_t<vertex_t,
 
   vertex_t local_vertex_partition_range_last() const { return this->number_of_vertices(); }
 
-  vertex_t vertex_partition_range_first(size_t partition_idx) const { assert(partition_idx == 0); return vertex_t{0}; }
+  vertex_t vertex_partition_range_first(size_t partition_idx) const
+  {
+    assert(partition_idx == 0);
+    return vertex_t{0};
+  }
 
   vertex_t vertex_partition_range_last(size_t partition_idx) const
   {
@@ -694,20 +715,15 @@ class graph_view_t<vertex_t,
 
   constexpr size_t number_of_local_edge_partitions() const { return size_t(1); }
 
-  edge_t number_of_local_edge_partition_edges(size_t partition_idx = 0) const {
+  edge_t number_of_local_edge_partition_edges(size_t partition_idx = 0) const
+  {
     assert(partition_idx == 0);
     return this->number_of_edges();
   }
 
-  vertex_t local_edge_partition_src_range_size() const
-  {
-    return this->number_of_vertices();
-  }
+  vertex_t local_edge_partition_src_range_size() const { return this->number_of_vertices(); }
 
-  vertex_t local_edge_partition_dst_range_size() const
-  {
-    return this->number_of_vertices();
-  }
+  vertex_t local_edge_partition_dst_range_size() const { return this->number_of_vertices(); }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, vertex_t> local_edge_partition_src_range_first() const
@@ -733,8 +749,7 @@ class graph_view_t<vertex_t,
     return this->number_of_vertices();
   }
 
-  vertex_t local_edge_partition_src_value_start_offset(
-    size_t partition_idx = 0) const
+  vertex_t local_edge_partition_src_value_start_offset(size_t partition_idx = 0) const
   {
     assert(partition_idx == 0);
     return vertex_t{0};
@@ -764,8 +779,7 @@ class graph_view_t<vertex_t,
     return this->number_of_vertices();
   }
 
-  vertex_t local_edge_partition_dst_value_start_offset(
-    size_t partition_idx = 0) const
+  vertex_t local_edge_partition_dst_value_start_offset(size_t partition_idx = 0) const
   {
     assert(partition_idx == 0);
     return vertex_t{0};
@@ -806,25 +820,13 @@ class graph_view_t<vertex_t,
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;
 
-  std::optional<vertex_t const*> local_sorted_unique_edge_src_begin() const
-  {
-    return std::nullopt;
-  }
+  std::optional<vertex_t const*> local_sorted_unique_edge_src_begin() const { return std::nullopt; }
 
-  std::optional<vertex_t const*> local_sorted_unique_edge_src_end() const
-  {
-    return std::nullopt;
-  }
+  std::optional<vertex_t const*> local_sorted_unique_edge_src_end() const { return std::nullopt; }
 
-  std::optional<vertex_t const*> local_sorted_unique_edge_dst_begin() const
-  {
-    return std::nullopt;
-  }
+  std::optional<vertex_t const*> local_sorted_unique_edge_dst_begin() const { return std::nullopt; }
 
-  std::optional<vertex_t const*> local_sorted_unique_edge_dst_end() const
-  {
-    return std::nullopt;
-  }
+  std::optional<vertex_t const*> local_sorted_unique_edge_dst_end() const { return std::nullopt; }
 
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,

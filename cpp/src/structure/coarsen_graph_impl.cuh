@@ -582,8 +582,7 @@ coarsen_graph(
     }
   }
 
-  rmm::device_uvector<vertex_t> unique_labels(graph_view.number_of_vertices(),
-                                              handle.get_stream());
+  rmm::device_uvector<vertex_t> unique_labels(graph_view.number_of_vertices(), handle.get_stream());
   thrust::copy(
     handle.get_thrust_policy(), labels, labels + unique_labels.size(), unique_labels.begin());
   thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());

@@ -73,13 +73,10 @@ class edge_partition_major_property_device_view_t {
   void set_local_edge_partition_idx(size_t partition_idx)
   {
     if (key_first_) {
-      edge_partition_key_first_ =
-        *key_first_ + (*edge_partition_key_offsets_)[partition_idx];
-      edge_partition_key_last_ =
-        *key_first_ + (*edge_partition_key_offsets_)[partition_idx + 1];
+      edge_partition_key_first_ = *key_first_ + (*edge_partition_key_offsets_)[partition_idx];
+      edge_partition_key_last_  = *key_first_ + (*edge_partition_key_offsets_)[partition_idx + 1];
       edge_partition_major_range_first_ = (*edge_partition_major_range_firsts_)[partition_idx];
-      edge_partition_value_first_ =
-        value_first_ + (*edge_partition_key_offsets_)[partition_idx];
+      edge_partition_value_first_ = value_first_ + (*edge_partition_key_offsets_)[partition_idx];
     } else {
       if (edge_partition_major_value_start_offsets_) {
         edge_partition_value_first_ =
@@ -140,8 +137,9 @@ class edge_partition_major_property_device_view_t {
   thrust::optional<vertex_t const*> key_first_{thrust::nullopt};
   ValueIterator value_first_{};
 
-  thrust::optional<vertex_t const*> edge_partition_key_offsets_{thrust::nullopt};   // host data
-  thrust::optional<vertex_t const*> edge_partition_major_range_firsts_{thrust::nullopt};  // host data
+  thrust::optional<vertex_t const*> edge_partition_key_offsets_{thrust::nullopt};  // host data
+  thrust::optional<vertex_t const*> edge_partition_major_range_firsts_{
+    thrust::nullopt};  // host data
 
   thrust::optional<vertex_t const*> edge_partition_major_value_start_offsets_{
     thrust::nullopt};  // host data
@@ -193,7 +191,8 @@ class edge_partition_minor_property_device_view_t {
   {
     auto value_offset = offset;
     if (key_first_) {
-      auto it = thrust::lower_bound(thrust::seq, *key_first_, *key_last_, *minor_range_first_ + offset);
+      auto it =
+        thrust::lower_bound(thrust::seq, *key_first_, *key_last_, *minor_range_first_ + offset);
       assert((it != *key_last_) && (*it == (*minor_range_first_ + offset)));
       value_offset = static_cast<vertex_t>(thrust::distance(*key_first_, it));
     }
@@ -223,13 +222,11 @@ class edge_partition_major_property_t {
   {
   }
 
-  edge_partition_major_property_t(
-    raft::handle_t const& handle,
-    vertex_t buffer_size,
-    std::vector<vertex_t>&& edge_partition_major_value_start_offsets)
+  edge_partition_major_property_t(raft::handle_t const& handle,
+                                  vertex_t buffer_size,
+                                  std::vector<vertex_t>&& edge_partition_major_value_start_offsets)
     : buffer_(allocate_dataframe_buffer<T>(buffer_size, handle.get_stream())),
-      edge_partition_major_value_start_offsets_(
-        std::move(edge_partition_major_value_start_offsets))
+      edge_partition_major_value_start_offsets_(std::move(edge_partition_major_value_start_offsets))
   {
   }
 
@@ -238,8 +235,7 @@ class edge_partition_major_property_t {
                                   std::vector<vertex_t>&& edge_partition_key_offsets,
                                   std::vector<vertex_t>&& edge_partition_major_range_firsts)
     : key_first_(key_first),
-      buffer_(
-        allocate_dataframe_buffer<T>(edge_partition_key_offsets.back(), handle.get_stream())),
+      buffer_(allocate_dataframe_buffer<T>(edge_partition_key_offsets.back(), handle.get_stream())),
       edge_partition_key_offsets_(std::move(edge_partition_key_offsets)),
       edge_partition_major_range_firsts_(std::move(edge_partition_major_range_firsts))
   {
@@ -252,7 +248,7 @@ class edge_partition_major_property_t {
     resize_dataframe_buffer(buffer_, size_t{0}, handle.get_stream());
     shrink_to_fit_dataframe_buffer(buffer_, handle.get_stream());
 
-    edge_partition_key_offsets_  = std::nullopt;
+    edge_partition_key_offsets_        = std::nullopt;
     edge_partition_major_range_firsts_ = std::nullopt;
 
     edge_partition_major_value_start_offsets_ = std::nullopt;
@@ -347,8 +343,8 @@ class edge_partition_minor_property_t {
 
   void clear(raft::handle_t const& handle)
   {
-    key_first_   = std::nullopt;
-    key_last_    = std::nullopt;
+    key_first_         = std::nullopt;
+    key_last_          = std::nullopt;
     minor_range_first_ = std::nullopt;
 
     resize_dataframe_buffer(buffer_, size_t{0}, handle.get_stream());

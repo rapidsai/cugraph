@@ -92,15 +92,16 @@ void sssp(raft::handle_t const& handle,
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
   auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
-  thrust::transform(handle.get_thrust_policy(),
-                    thrust::make_counting_iterator(push_graph_view.local_vertex_partition_range_first()),
-                    thrust::make_counting_iterator(push_graph_view.local_vertex_partition_range_last()),
-                    val_first,
-                    [source_vertex] __device__(auto val) {
-                      auto distance = invalid_distance;
-                      if (val == source_vertex) { distance = weight_t{0.0}; }
-                      return thrust::make_tuple(distance, invalid_vertex);
-                    });
+  thrust::transform(
+    handle.get_thrust_policy(),
+    thrust::make_counting_iterator(push_graph_view.local_vertex_partition_range_first()),
+    thrust::make_counting_iterator(push_graph_view.local_vertex_partition_range_last()),
+    val_first,
+    [source_vertex] __device__(auto val) {
+      auto distance = invalid_distance;
+      if (val == source_vertex) { distance = weight_t{0.0}; }
+      return thrust::make_tuple(distance, invalid_vertex);
+    });
 
   if (num_edges == 0) { return; }
 

@@ -720,8 +720,8 @@ renumber_edgelist(
   {
     vertex_t max_edge_partition_major_range_size{0};
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-      max_edge_partition_major_range_size =
-        std::max(max_edge_partition_major_range_size, partition.local_edge_partition_major_range_size(i));
+      max_edge_partition_major_range_size = std::max(
+        max_edge_partition_major_range_size, partition.local_edge_partition_major_range_size(i));
     }
     rmm::device_uvector<vertex_t> renumber_map_major_labels(max_edge_partition_major_range_size,
                                                             handle.get_stream());
@@ -739,10 +739,10 @@ renumber_edgelist(
       cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
         renumber_map{
           // cuco::static_map requires at least one empty slot
-          std::max(
-            static_cast<size_t>(static_cast<double>(partition.local_edge_partition_major_range_size(i)) /
-                                load_factor),
-            static_cast<size_t>(partition.local_edge_partition_major_range_size(i)) + 1),
+          std::max(static_cast<size_t>(
+                     static_cast<double>(partition.local_edge_partition_major_range_size(i)) /
+                     load_factor),
+                   static_cast<size_t>(partition.local_edge_partition_major_range_size(i)) + 1),
           invalid_vertex_id<vertex_t>::value,
           invalid_vertex_id<vertex_t>::value,
           stream_adapter,

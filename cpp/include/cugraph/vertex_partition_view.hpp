@@ -54,7 +54,10 @@ class vertex_partition_view_t<vertex_t, multi_gpu, std::enable_if_t<multi_gpu>>
   {
   }
 
-  vertex_t local_vertex_partition_range_first() const { return local_vertex_partition_range_first_; }
+  vertex_t local_vertex_partition_range_first() const
+  {
+    return local_vertex_partition_range_first_;
+  }
   vertex_t local_vertex_partition_range_last() const { return local_vertex_partition_range_last_; }
 
  private:

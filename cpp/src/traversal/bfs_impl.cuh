@@ -240,8 +240,8 @@ void bfs(raft::handle_t const& handle,
           vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
           auto push = true;
           if (vertex_partition.in_local_vertex_partition_range_nocheck(dst)) {
-            auto distance =
-              *(distances + vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst));
+            auto distance = *(
+              distances + vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst));
             if (distance != invalid_distance) { push = false; }
           }
           return push ? thrust::optional<vertex_t>{src} : thrust::nullopt;

@@ -61,8 +61,8 @@ struct out_of_range_t {
   {
     auto major = thrust::get<0>(t);
     auto minor = thrust::get<1>(t);
-    return (major < major_range_first) || (major >= major_range_last) || (minor < minor_range_first) ||
-           (minor >= minor_range_last);
+    return (major < major_range_first) || (major >= major_range_last) ||
+           (minor < minor_range_first) || (minor >= minor_range_last);
   }
 };
 
@@ -316,8 +316,10 @@ std::enable_if_t<multi_gpu, void> check_graph_constructor_input_arguments(
   if (do_expensive_check) {
     edge_t number_of_local_edges{0};
     for (size_t i = 0; i < edgelists.size(); ++i) {
-      auto [major_range_first, major_range_last] = meta.partition.local_edge_partition_major_range(i);
-      auto [minor_range_first, minor_range_last] = meta.partition.local_edge_partition_minor_range();
+      auto [major_range_first, major_range_last] =
+        meta.partition.local_edge_partition_major_range(i);
+      auto [minor_range_first, minor_range_last] =
+        meta.partition.local_edge_partition_minor_range();
 
       number_of_local_edges += edgelists[i].number_of_edges;
 
@@ -325,12 +327,14 @@ std::enable_if_t<multi_gpu, void> check_graph_constructor_input_arguments(
         store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices,
         store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices));
       // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
-      CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
-                                       edge_first,
-                                       edge_first + edgelists[i].number_of_edges,
-                                       out_of_range_t<vertex_t>{
-                                         major_range_first, major_range_last, minor_range_first, minor_range_last}) == 0,
-                      "Invalid input argument: edgelists[] have out-of-range values.");
+      CUGRAPH_EXPECTS(
+        thrust::count_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + edgelists[i].number_of_edges,
+          out_of_range_t<vertex_t>{
+            major_range_first, major_range_last, minor_range_first, minor_range_last}) == 0,
+        "Invalid input argument: edgelists[] have out-of-range values.");
     }
     auto number_of_local_edges_sum = host_scalar_allreduce(
       comm, number_of_local_edges, raft::comms::op_t::SUM, handle.get_stream());
@@ -460,8 +464,7 @@ update_local_sorted_unique_edge_majors_minors(
   std::optional<std::vector<vertex_t>> const& edge_partition_segment_offsets,
   std::vector<rmm::device_uvector<edge_t>> const& edge_partition_offsets,
   std::vector<rmm::device_uvector<vertex_t>> const& edge_partition_indices,
-  std::optional<std::vector<rmm::device_uvector<vertex_t>>> const&
-    edge_partition_dcs_nzd_vertices,
+  std::optional<std::vector<rmm::device_uvector<vertex_t>>> const& edge_partition_dcs_nzd_vertices,
   std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts)
 {
   auto& comm               = handle.get_comms();
@@ -491,8 +494,7 @@ update_local_sorted_unique_edge_majors_minors(
     num_local_unique_edge_majors += thrust::count_if(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(vertex_t{0}),
-      thrust::make_counting_iterator(
-        static_cast<vertex_t>(edge_partition_offsets[i].size() - 1)),
+      thrust::make_counting_iterator(static_cast<vertex_t>(edge_partition_offsets[i].size() - 1)),
       has_nzd_t<vertex_t, edge_t>{edge_partition_offsets[i].data(), vertex_t{0}});
   }
 
@@ -519,24 +521,27 @@ update_local_sorted_unique_edge_majors_minors(
   for (size_t i = 0; i < meta.partition.number_of_local_edge_partitions(); ++i) {
     aggregate_major_range_size += meta.partition.local_edge_partition_major_range_size(i);
   }
-  auto minor_size                      = meta.partition.local_edge_partition_minor_range_size();
-  auto max_major_properties_fill_ratio = host_scalar_allreduce(
-    comm,
-    static_cast<double>(num_local_unique_edge_majors) / static_cast<double>(aggregate_major_range_size),
-    raft::comms::op_t::MAX,
-    handle.get_stream());
+  auto minor_size = meta.partition.local_edge_partition_minor_range_size();
+  auto max_major_properties_fill_ratio =
+    host_scalar_allreduce(comm,
+                          static_cast<double>(num_local_unique_edge_majors) /
+                            static_cast<double>(aggregate_major_range_size),
+                          raft::comms::op_t::MAX,
+                          handle.get_stream());
   auto max_minor_properties_fill_ratio = host_scalar_allreduce(
     comm,
     static_cast<double>(num_local_unique_edge_minors) / static_cast<double>(minor_size),
     raft::comms::op_t::MAX,
     handle.get_stream());
 
-  if (max_major_properties_fill_ratio < detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
+  if (max_major_properties_fill_ratio <
+      detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
     local_sorted_unique_edge_majors =
       rmm::device_uvector<vertex_t>(num_local_unique_edge_majors, handle.get_stream());
     size_t cur_size{0};
     for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
-      auto [major_range_first, major_range_last] = meta.partition.local_edge_partition_major_range(i);
+      auto [major_range_first, major_range_last] =
+        meta.partition.local_edge_partition_major_range(i);
       auto major_hypersparse_first =
         use_dcs ? std::optional<vertex_t>{major_range_first +
                                           (*edge_partition_segment_offsets)
@@ -589,7 +594,8 @@ update_local_sorted_unique_edge_majors_minors(
     local_sorted_unique_edge_major_offsets = std::move(h_key_offsets);
   }
 
-  if (max_minor_properties_fill_ratio < detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
+  if (max_minor_properties_fill_ratio <
+      detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
     local_sorted_unique_edge_minors = rmm::device_uvector<vertex_t>(0, handle.get_stream());
     for (size_t i = 0; i < edge_partition_indices.size(); ++i) {
       rmm::device_uvector<vertex_t> tmp_minors(edge_partition_indices[i].size(),
@@ -713,9 +719,9 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                        auto degree = p_offsets[(major - major_range_first) + 1] - start;
                        auto idx    = atomicAdd(p_indices + (start + degree - 1),
                                             vertex_t{1});  // use the last element as a counter
-                       // FIXME: we can actually store minor - minor_range_first instead of minor to save
-                       // memory if minor can be larger than 32 bit but minor - minor_range_first fits
-                       // within 32 bit
+                       // FIXME: we can actually store minor - minor_range_first instead of minor to
+                       // save memory if minor can be larger than 32 bit but minor -
+                       // minor_range_first fits within 32 bit
                        p_indices[start + idx] =
                          minor;  // overwrite the counter only if idx == degree - 1 (no race)
                        p_weights[start + idx] = w;
@@ -735,9 +741,9 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                        auto degree = p_offsets[(major - major_range_first) + 1] - start;
                        auto idx    = atomicAdd(p_indices + (start + degree - 1),
                                             vertex_t{1});  // use the last element as a counter
-                       // FIXME: we can actually store minor - minor_range_first instead of minor to save
-                       // memory if minor can be larger than 32 bit but minor - minor_range_first fits
-                       // within 32 bit
+                       // FIXME: we can actually store minor - minor_range_first instead of minor to
+                       // save memory if minor can be larger than 32 bit but minor -
+                       // minor_range_first fits within 32 bit
                        p_indices[start + idx] =
                          minor;  // overwrite the counter only if idx == degree - 1 (no race)
                      });
@@ -760,8 +766,9 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
         return offsets[major_offset + 1] - offsets[major_offset] > 0 ? major : invalid_vertex;
       });
 
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      (*dcs_nzd_vertices).begin(), offsets.begin() + (*major_hypersparse_first - major_range_first)));
+    auto pair_first = thrust::make_zip_iterator(
+      thrust::make_tuple((*dcs_nzd_vertices).begin(),
+                         offsets.begin() + (*major_hypersparse_first - major_range_first)));
     (*dcs_nzd_vertices)
       .resize(thrust::distance(pair_first,
                                thrust::remove_if(rmm::exec_policy(stream_view),
@@ -772,14 +779,16 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                                                  })),
               stream_view);
     (*dcs_nzd_vertices).shrink_to_fit(stream_view);
-    if (static_cast<vertex_t>((*dcs_nzd_vertices).size()) < major_range_last - *major_hypersparse_first) {
-      thrust::copy(
-        rmm::exec_policy(stream_view),
-        offsets.begin() + (major_range_last - major_range_first),
-        offsets.end(),
-        offsets.begin() + (*major_hypersparse_first - major_range_first) + (*dcs_nzd_vertices).size());
-      offsets.resize((*major_hypersparse_first - major_range_first) + (*dcs_nzd_vertices).size() + 1,
-                     stream_view);
+    if (static_cast<vertex_t>((*dcs_nzd_vertices).size()) <
+        major_range_last - *major_hypersparse_first) {
+      thrust::copy(rmm::exec_policy(stream_view),
+                   offsets.begin() + (major_range_last - major_range_first),
+                   offsets.end(),
+                   offsets.begin() + (*major_hypersparse_first - major_range_first) +
+                     (*dcs_nzd_vertices).size());
+      offsets.resize(
+        (*major_hypersparse_first - major_range_first) + (*dcs_nzd_vertices).size() + 1,
+        stream_view);
       offsets.shrink_to_fit(stream_view);
     }
   }
@@ -914,8 +923,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     handle, edgelists, meta, do_expensive_check);
 
   if (meta.segment_offsets) {
-    edge_partition_segment_offsets_ =
-      aggregate_segment_offsets(handle, (*meta.segment_offsets));
+    edge_partition_segment_offsets_ = aggregate_segment_offsets(handle, (*meta.segment_offsets));
   }
 
   // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
@@ -1046,8 +1054,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     handle, edgelists, meta, do_expensive_check);
 
   if (meta.segment_offsets) {
-    edge_partition_segment_offsets_ =
-      aggregate_segment_offsets(handle, (*meta.segment_offsets));
+    edge_partition_segment_offsets_ = aggregate_segment_offsets(handle, (*meta.segment_offsets));
   }
 
   // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid

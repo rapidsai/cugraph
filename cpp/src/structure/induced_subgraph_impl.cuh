@@ -15,9 +15,9 @@
  */
 #pragma once
 
+#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
@@ -82,14 +82,15 @@ extract_induced_subgraphs(
       "Invalid input argument: subgraph_offsets is not sorted.");
     auto vertex_partition =
       vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
-    CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
-                                     subgraph_vertices,
-                                     subgraph_vertices + num_aggregate_subgraph_vertices,
-                                     [vertex_partition] __device__(auto v) {
-                                       return !vertex_partition.is_valid_vertex(v) ||
-                                              !vertex_partition.in_local_vertex_partition_range_nocheck(v);
-                                     }) == 0,
-                    "Invalid input argument: subgraph_vertices has invalid vertex IDs.");
+    CUGRAPH_EXPECTS(
+      thrust::count_if(handle.get_thrust_policy(),
+                       subgraph_vertices,
+                       subgraph_vertices + num_aggregate_subgraph_vertices,
+                       [vertex_partition] __device__(auto v) {
+                         return !vertex_partition.is_valid_vertex(v) ||
+                                !vertex_partition.in_local_vertex_partition_range_nocheck(v);
+                       }) == 0,
+      "Invalid input argument: subgraph_vertices has invalid vertex IDs.");
 
     CUGRAPH_EXPECTS(
       thrust::count_if(
@@ -149,10 +150,8 @@ extract_induced_subgraphs(
         vertex_t const* indices{nullptr};
         thrust::optional<weight_t const*> weights{thrust::nullopt};
         edge_t local_degree{};
-        auto major_offset =
-          edge_partition.major_offset_from_major_nocheck(subgraph_vertices[i]);
-        thrust::tie(indices, weights, local_degree) =
-          edge_partition.local_edges(major_offset);
+        auto major_offset = edge_partition.major_offset_from_major_nocheck(subgraph_vertices[i]);
+        thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
         // FIXME: this is inefficient for high local degree vertices
         return thrust::count_if(
           thrust::seq,
@@ -207,10 +206,8 @@ extract_induced_subgraphs(
         vertex_t const* indices{nullptr};
         thrust::optional<weight_t const*> weights{thrust::nullopt};
         edge_t local_degree{};
-        auto major_offset =
-          edge_partition.major_offset_from_major_nocheck(subgraph_vertices[i]);
-        thrust::tie(indices, weights, local_degree) =
-          edge_partition.local_edges(major_offset);
+        auto major_offset = edge_partition.major_offset_from_major_nocheck(subgraph_vertices[i]);
+        thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
         if (weights) {
           auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
             thrust::make_constant_iterator(subgraph_vertices[i]), indices, *weights));
