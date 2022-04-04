@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -12,13 +12,13 @@
 // Force_Atlas2 tests
 // Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 
-#include <layout/trust_worthiness.h>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <layout/trust_worthiness.h>
 
 #include <raft/error.hpp>
 #include <rmm/exec_policy.hpp>
@@ -136,9 +136,9 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     T* weights = weights_v.data();
 
     // FIXME: RAFT error handling mechanism should be used instead
-    CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
-    CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
-    CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
+    RAFT_CUDA_TRY(cudaMemcpy(srcs, &cooRowInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
+    RAFT_CUDA_TRY(cudaMemcpy(dests, &cooColInd[0], sizeof(int) * nnz, cudaMemcpyDefault));
+    RAFT_CUDA_TRY(cudaMemcpy(weights, &cooVal[0], sizeof(T) * nnz, cudaMemcpyDefault));
     cugraph::legacy::GraphCOOView<int, int, T> G(srcs, dests, weights, m, nnz);
 
     const int max_iter                    = 500;
@@ -205,7 +205,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
 
     // Copy pos to host
     std::vector<float> h_pos(m * 2);
-    CUDA_TRY(cudaMemcpy(&h_pos[0], pos.data(), sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
+    RAFT_CUDA_TRY(cudaMemcpy(&h_pos[0], pos.data(), sizeof(float) * m * 2, cudaMemcpyDeviceToHost));
 
     // Transpose the data
     std::vector<std::vector<double>> C_contiguous_embedding(m, std::vector<double>(2));
@@ -230,10 +230,10 @@ TEST_P(Tests_Force_Atlas2, CheckFP64_T) { run_current_test<double>(GetParam()); 
 // --gtest_filter=*simple_test*
 INSTANTIATE_TEST_SUITE_P(simple_test,
                          Tests_Force_Atlas2,
-                         ::testing::Values(Force_Atlas2_Usecase("test/datasets/karate.mtx", 0.73),
-                                           Force_Atlas2_Usecase("test/datasets/dolphins.mtx", 0.69),
-                                           Force_Atlas2_Usecase("test/datasets/polbooks.mtx", 0.76),
+                         ::testing::Values(Force_Atlas2_Usecase("test/datasets/karate.mtx", 0.70),
+                                           Force_Atlas2_Usecase("test/datasets/dolphins.mtx", 0.66),
+                                           Force_Atlas2_Usecase("test/datasets/polbooks.mtx", 0.75),
                                            Force_Atlas2_Usecase("test/datasets/netscience.mtx",
-                                                                0.80)));
+                                                                0.66)));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

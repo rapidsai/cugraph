@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,8 +33,8 @@ namespace test {
 
 template <typename T>
 void single_gpu_renumber_edgelist_given_number_map(raft::handle_t const& handle,
-                                                   rmm::device_uvector<T>& edgelist_rows_v,
-                                                   rmm::device_uvector<T>& edgelist_cols_v,
+                                                   rmm::device_uvector<T>& edgelist_srcs_v,
+                                                   rmm::device_uvector<T>& edgelist_dsts_v,
                                                    rmm::device_uvector<T>& renumber_map_gathered_v)
 {
   rmm::device_uvector<T> index_v(renumber_map_gathered_v.size(), handle.get_stream());
@@ -48,15 +48,15 @@ void single_gpu_renumber_edgelist_given_number_map(raft::handle_t const& handle,
       auto idx) { d_index[d_renumber_map_gathered[idx]] = idx; });
 
   thrust::transform(execution_policy,
-                    edgelist_rows_v.begin(),
-                    edgelist_rows_v.end(),
-                    edgelist_rows_v.begin(),
+                    edgelist_srcs_v.begin(),
+                    edgelist_srcs_v.end(),
+                    edgelist_srcs_v.begin(),
                     [d_index = index_v.data()] __device__(auto v) { return d_index[v]; });
 
   thrust::transform(execution_policy,
-                    edgelist_cols_v.begin(),
-                    edgelist_cols_v.end(),
-                    edgelist_cols_v.begin(),
+                    edgelist_dsts_v.begin(),
+                    edgelist_dsts_v.end(),
+                    edgelist_dsts_v.begin(),
                     [d_index = index_v.data()] __device__(auto v) { return d_index[v]; });
 }
 
@@ -74,7 +74,7 @@ compressed_sparse_to_edgelist(edge_t const* compressed_sparse_offsets,
   edge_t number_of_edges{0};
   raft::update_host(
     &number_of_edges, compressed_sparse_offsets + (major_last - major_first), 1, stream);
-  CUDA_TRY(cudaStreamSynchronize(stream));
+  RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
   rmm::device_uvector<vertex_t> edgelist_major_vertices(number_of_edges, stream);
   rmm::device_uvector<vertex_t> edgelist_minor_vertices(number_of_edges, stream);
   auto edgelist_weights =
@@ -264,14 +264,25 @@ coarsen_graph(
 
 template void single_gpu_renumber_edgelist_given_number_map(
   raft::handle_t const& handle,
-  rmm::device_uvector<int>& d_edgelist_rows,
-  rmm::device_uvector<int>& d_edgelist_cols,
-  rmm::device_uvector<int>& d_renumber_map_gathered_v);
+  rmm::device_uvector<int32_t>& d_edgelist_srcs,
+  rmm::device_uvector<int32_t>& d_edgelist_dsts,
+  rmm::device_uvector<int32_t>& d_renumber_map_gathered_v);
+
+template void single_gpu_renumber_edgelist_given_number_map(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>& d_edgelist_srcs,
+  rmm::device_uvector<int64_t>& d_edgelist_dsts,
+  rmm::device_uvector<int64_t>& d_renumber_map_gathered_v);
 
 template std::unique_ptr<cugraph::graph_t<int32_t, int32_t, float, false, false>> coarsen_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
   int32_t const* labels);
+
+template std::unique_ptr<cugraph::graph_t<int64_t, int64_t, float, false, false>> coarsen_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+  int64_t const* labels);
 
 }  // namespace test
 }  // namespace cugraph

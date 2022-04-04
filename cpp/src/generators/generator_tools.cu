@@ -217,8 +217,8 @@ symmetrize_edgelist_from_triangular(
   }
 
   auto offset = d_src_v.size();
-  d_src_v.resize(offset + num_strictly_triangular_edges, handle.get_stream_view());
-  d_dst_v.resize(offset + num_strictly_triangular_edges, handle.get_stream_view());
+  d_src_v.resize(offset + num_strictly_triangular_edges, handle.get_stream());
+  d_dst_v.resize(offset + num_strictly_triangular_edges, handle.get_stream());
 
   thrust::copy(handle.get_thrust_policy(),
                d_dst_v.begin(),
@@ -229,7 +229,7 @@ symmetrize_edgelist_from_triangular(
                d_src_v.begin() + num_strictly_triangular_edges,
                d_dst_v.begin() + offset);
   if (optional_d_weights_v) {
-    optional_d_weights_v->resize(d_src_v.size(), handle.get_stream_view());
+    optional_d_weights_v->resize(d_src_v.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
                  optional_d_weights_v->begin(),
                  optional_d_weights_v->begin() + num_strictly_triangular_edges,

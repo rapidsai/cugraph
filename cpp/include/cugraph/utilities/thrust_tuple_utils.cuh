@@ -19,9 +19,9 @@
 #include <raft/device_atomics.cuh>
 #include <rmm/device_uvector.hpp>
 
+#include <cub/cub.cuh>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/tuple.h>
-#include <cub/cub.cuh>
 
 #include <array>
 #include <type_traits>

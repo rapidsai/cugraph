@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <cugraph_c/graph.h>
 #include <c_api/array.hpp>
 #include <c_api/error.hpp>
+#include <cugraph_c/graph.h>
 
 #include <cugraph/graph.hpp>
 

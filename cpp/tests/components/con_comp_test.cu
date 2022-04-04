@@ -12,8 +12,8 @@
 // connected components tests
 // Author: Andrei Schaffer aschaffer@nvidia.com
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 
 #include <cuda_profiler_api.h>

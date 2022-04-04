@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -77,7 +77,7 @@ TEST(leiden_karate, success)
 
     raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
 
-    CUDA_TRY(cudaDeviceSynchronize());
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 

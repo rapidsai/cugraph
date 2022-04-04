@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,15 +18,16 @@
 #include <cugraph/detail/decompress_matrix_partition.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_device_view.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/extract_if_e.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
 
 #include <cstdint>
+#include <numeric>
 #include <optional>
 #include <tuple>
 #include <type_traits>
@@ -36,8 +37,8 @@ namespace cugraph {
 namespace detail {
 
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename EdgeOp>
 struct call_e_op_t {
   matrix_partition_device_view_t<typename GraphViewType::vertex_type,
@@ -45,8 +46,8 @@ struct call_e_op_t {
                                  typename GraphViewType::weight_type,
                                  GraphViewType::is_multi_gpu>
     matrix_partition{};
-  AdjMatrixRowValueInputWrapper adj_matrix_row_value_input{};
-  AdjMatrixColValueInputWrapper adj_matrix_col_value_input{};
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input{};
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input{};
   EdgeOp e_op{};
 
   template <typename Edge>
@@ -63,20 +64,20 @@ struct call_e_op_t {
     if constexpr (thrust::tuple_size<Edge>::value == 3) { weight = thrust::get<2>(e); }
     auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
     auto minor_offset = matrix_partition.get_minor_offset_from_minor_nocheck(minor);
-    auto row          = GraphViewType::is_adj_matrix_transposed ? minor : major;
-    auto col          = GraphViewType::is_adj_matrix_transposed ? major : minor;
-    auto row_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
-    auto col_offset   = GraphViewType::is_adj_matrix_transposed ? major_offset : minor_offset;
+    auto src          = GraphViewType::is_adj_matrix_transposed ? minor : major;
+    auto dst          = GraphViewType::is_adj_matrix_transposed ? major : minor;
+    auto src_offset   = GraphViewType::is_adj_matrix_transposed ? minor_offset : major_offset;
+    auto dst_offset   = GraphViewType::is_adj_matrix_transposed ? major_offset : minor_offset;
     return !evaluate_edge_op<GraphViewType,
                              vertex_t,
-                             AdjMatrixRowValueInputWrapper,
-                             AdjMatrixColValueInputWrapper,
+                             EdgePartitionSrcValueInputWrapper,
+                             EdgePartitionDstValueInputWrapper,
                              EdgeOp>()
-              .compute(row,
-                       col,
+              .compute(src,
+                       dst,
                        weight,
-                       adj_matrix_row_value_input.get(row_offset),
-                       adj_matrix_col_value_input.get(col_offset),
+                       edge_partition_src_value_input.get(src_offset),
+                       edge_partition_dst_value_input.get(dst_offset),
                        e_op);
   }
 };
@@ -90,44 +91,44 @@ struct call_e_op_t {
  * This function is inspired by thrust::copy_if & thrust::remove_if().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam AdjMatrixRowValueInputWrapper Type of the wrapper for graph adjacency matrix row input
- * properties.
- * @tparam AdjMatrixColValueInputWrapper Type of the wrapper for graph adjacency matrix column input
- * properties.
+ * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
+ * values.
+ * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
+ * property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param adj_matrix_row_value_input Device-copyable wrapper used to access row input properties
- * (for the rows assigned to this process in multi-GPU). Use either
- * cugraph::row_properties_t::device_view() (if @p e_op needs to access row properties) or
- * cugraph::dummy_properties_t::device_view() (if @p e_op does not access row properties). Use
- * copy_to_adj_matrix_row to fill the wrapper.
- * @param adj_matrix_col_value_input Device-copyable wrapper used to access column input properties
- * (for the columns assigned to this process in multi-GPU). Use either
- * cugraph::col_properties_t::device_view() (if @p e_op needs to access column properties) or
- * cugraph::dummy_properties_t::device_view() (if @p e_op does not access column properties). Use
- * copy_to_adj_matrix_col to fill the wrapper.
+ * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
+ * property values (for the edge sources assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
+ * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
+ * values). Use update_edge_partition_src_property to fill the wrapper.
+ * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
+ * property values (for the edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
+ * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
+ * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), properties for the row (i.e. source), and properties for the column  (i.e. destination)
- * and returns a boolean value to designate whether to include this edge in the returned edge list
- * (if true is returned) or not (if false is returned).
+ * weight), property values for the source, and property values for the destination and returns a
+ * boolean value to designate whether to include this edge in the returned edge list (if true is
+ * returned) or not (if false is returned).
  * @return std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
  * rmm::device_uvector<typename GraphViewType::vertex_type>,
  * std::optional<rmm::device_uvector<typename GraphViewType::weight_type>>> Tuple storing an
  * extracted edge list (sources, destinations, and optional weights).
  */
 template <typename GraphViewType,
-          typename AdjMatrixRowValueInputWrapper,
-          typename AdjMatrixColValueInputWrapper,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
           typename EdgeOp>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
            std::optional<rmm::device_uvector<typename GraphViewType::weight_type>>>
 extract_if_e(raft::handle_t const& handle,
              GraphViewType const& graph_view,
-             AdjMatrixRowValueInputWrapper adj_matrix_row_value_input,
-             AdjMatrixColValueInputWrapper adj_matrix_col_value_input,
+             EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+             EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
              EdgeOp e_op)
 {
   using vertex_t = typename GraphViewType::vertex_type;
@@ -155,6 +156,15 @@ extract_if_e(raft::handle_t const& handle,
     auto matrix_partition =
       matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.get_matrix_partition_view(i));
+
+    auto matrix_partition_src_value_input = edge_partition_src_value_input;
+    auto matrix_partition_dst_value_input = edge_partition_dst_value_input;
+    if constexpr (GraphViewType::is_adj_matrix_transposed) {
+      matrix_partition_dst_value_input.set_local_adj_matrix_partition_idx(i);
+    } else {
+      matrix_partition_src_value_input.set_local_adj_matrix_partition_idx(i);
+    }
+
     detail::decompress_matrix_partition_to_edgelist(
       handle,
       matrix_partition,
@@ -168,29 +178,31 @@ extract_if_e(raft::handle_t const& handle,
         edgelist_majors.begin(), edgelist_minors.begin(), (*edgelist_weights).begin()));
       cur_size += static_cast<size_t>(thrust::distance(
         edge_first + cur_size,
-        thrust::remove_if(
-          handle.get_thrust_policy(),
-          edge_first + cur_size,
-          edge_first + cur_size + edgelist_edge_counts[i],
-          detail::call_e_op_t<GraphViewType,
-                              AdjMatrixRowValueInputWrapper,
-                              AdjMatrixColValueInputWrapper,
-                              EdgeOp>{
-            matrix_partition, adj_matrix_row_value_input, adj_matrix_col_value_input, e_op})));
+        thrust::remove_if(handle.get_thrust_policy(),
+                          edge_first + cur_size,
+                          edge_first + cur_size + edgelist_edge_counts[i],
+                          detail::call_e_op_t<GraphViewType,
+                                              EdgePartitionSrcValueInputWrapper,
+                                              EdgePartitionDstValueInputWrapper,
+                                              EdgeOp>{matrix_partition,
+                                                      matrix_partition_src_value_input,
+                                                      matrix_partition_dst_value_input,
+                                                      e_op})));
     } else {
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
       cur_size += static_cast<size_t>(thrust::distance(
         edge_first + cur_size,
-        thrust::remove_if(
-          handle.get_thrust_policy(),
-          edge_first + cur_size,
-          edge_first + cur_size + edgelist_edge_counts[i],
-          detail::call_e_op_t<GraphViewType,
-                              AdjMatrixRowValueInputWrapper,
-                              AdjMatrixColValueInputWrapper,
-                              EdgeOp>{
-            matrix_partition, adj_matrix_row_value_input, adj_matrix_col_value_input, e_op})));
+        thrust::remove_if(handle.get_thrust_policy(),
+                          edge_first + cur_size,
+                          edge_first + cur_size + edgelist_edge_counts[i],
+                          detail::call_e_op_t<GraphViewType,
+                                              EdgePartitionSrcValueInputWrapper,
+                                              EdgePartitionDstValueInputWrapper,
+                                              EdgeOp>{matrix_partition,
+                                                      edge_partition_src_value_input,
+                                                      edge_partition_dst_value_input,
+                                                      e_op})));
     }
   }
 

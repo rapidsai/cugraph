@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -33,24 +33,30 @@ def spectralBalancedCutClustering(
     Parameters
     ----------
     G : cugraph.Graph or networkx.Graph
-         graph descriptor
+        Graph descriptor
+
     num_clusters : integer
-         Specifies the number of clusters to find, must be greater than 1
-    num_eigen_vects : integer
-         Specifies the number of eigenvectors to use. Must be lower or equal to
-         num_clusters.   Default is 2
-    evs_tolerance: float
-         Specifies the tolerance to use in the eigensolver.
-         Default is 0.00001
-    evs_max_iter: integer
-         Specifies the maximum number of iterations for the eigensolver.
-         Default is 100
-    kmean_tolerance: float
-         Specifies the tolerance to use in the k-means solver.
-         Default is 0.00001
-    kmean_max_iter: integer
-         Specifies the maximum number of iterations for the k-means solver.
-         Default is 100
+        Specifies the number of clusters to find, must be greater than 1
+
+    num_eigen_vects : integer, optional
+        Specifies the number of eigenvectors to use. Must be lower or equal to
+        num_clusters. Default is 2
+
+    evs_tolerance: float, optional
+        Specifies the tolerance to use in the eigensolver.
+        Default is 0.00001
+
+    evs_max_iter: integer, optional
+        Specifies the maximum number of iterations for the eigensolver.
+        Default is 100
+
+    kmean_tolerance: float, optional
+        Specifies the tolerance to use in the k-means solver.
+        Default is 0.00001
+
+    kmean_max_iter: integer, optional
+        Specifies the maximum number of iterations for the k-means solver.
+        Default is 100
 
     Returns
     -------
@@ -65,13 +71,14 @@ def spectralBalancedCutClustering(
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
+
     """
 
     # Error checking in C++ code
@@ -114,27 +121,36 @@ def spectralModularityMaximizationClustering(
     ----------
     G : cugraph.Graph or networkx.Graph
         cuGraph graph descriptor. This graph should have edge weights.
+
     num_clusters : integer
-         Specifies the number of clusters to find
-    num_eigen_vects : integer
-         Specifies the number of eigenvectors to use. Must be lower or equal to
-         num_clusters.  Default is 2
-    evs_tolerance: float
-         Specifies the tolerance to use in the eigensolver.
-         Default is 0.00001
-    evs_max_iter: integer
-         Specifies the maximum number of iterations for the eigensolver.
-         Default is 100
-    kmean_tolerance: float
-         Specifies the tolerance to use in the k-means solver.
-         Default is 0.00001
-    kmean_max_iter: integer
-         Specifies the maximum number of iterations for the k-means solver.
-         Default is 100
+        Specifies the number of clusters to find
+
+    num_eigen_vects : integer, optional
+        Specifies the number of eigenvectors to use. Must be lower or equal to
+        num_clusters.  Default is 2
+
+    evs_tolerance: float, optional
+        Specifies the tolerance to use in the eigensolver.
+        Default is 0.00001
+
+    evs_max_iter: integer, optional
+        Specifies the maximum number of iterations for the eigensolver.
+        Default is 100
+
+    kmean_tolerance: float, optional
+        Specifies the tolerance to use in the k-means solver.
+        Default is 0.00001
+
+    kmean_max_iter: integer, optional
+        Specifies the maximum number of iterations for the k-means solver.
+        Default is 100
 
     Returns
     -------
     df : cudf.DataFrame
+        GPU data frame containing two cudf.Series of size V: the vertex
+        identifiers and the corresponding cluster assignments.
+
         df['vertex'] : cudf.Series
             contains the vertex identifiers
         df['cluster'] : cudf.Series
@@ -142,13 +158,14 @@ def spectralModularityMaximizationClustering(
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
+
     """
 
     # Error checking in C++ code
@@ -187,14 +204,18 @@ def analyzeClustering_modularity(G, n_clusters, clustering,
     ----------
     G : cugraph.Graph or networkx.Graph
         graph descriptor. This graph should have edge weights.
+
     n_clusters : integer
         Specifies the number of clusters in the given clustering
+
     clustering : cudf.DataFrame
         The cluster assignment to analyze.
-    vertex_col_name : str or list of str
+
+    vertex_col_name : str or list of str, optional (default='vertex')
         The names of the column in the clustering dataframe identifying
         the external vertex id
-    cluster_col_name : str
+
+    cluster_col_name : str, optional (default='cluster')
         The name of the column in the clustering dataframe identifying
         the cluster id
 
@@ -205,14 +226,15 @@ def analyzeClustering_modularity(G, n_clusters, clustering,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_modularity(G, 5, df)
+
     """
     if type(vertex_col_name) is list:
         if not all(isinstance(name, str) for name in vertex_col_name):
@@ -253,14 +275,18 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
     ----------
     G : cugraph.Graph
         cuGraph graph descriptor
+
     n_clusters : integer
         Specifies the number of clusters in the given clustering
+
     clustering : cudf.DataFrame
         The cluster assignment to analyze.
-    vertex_col_name : str
+
+    vertex_col_name : str, optional (default='vertex')
         The name of the column in the clustering dataframe identifying
         the external vertex id
-    cluster_col_name : str
+
+    cluster_col_name : str, optional (default='cluster')
         The name of the column in the clustering dataframe identifying
         the cluster id
 
@@ -271,14 +297,15 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df)
+
     """
     if type(vertex_col_name) is list:
         if not all(isinstance(name, str) for name in vertex_col_name):
@@ -316,14 +343,18 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering,
     ----------
     G : cugraph.Graph
         cuGraph graph descriptor. This graph should have edge weights.
+
     n_clusters : integer
         Specifies the number of clusters in the given clustering
+
     clustering : cudf.DataFrame
         The cluster assignment to analyze.
-    vertex_col_name : str
+
+    vertex_col_name : str, optional (default='vertex')
         The name of the column in the clustering dataframe identifying
         the external vertex id
-    cluster_col_name : str
+
+    cluster_col_name : str, optional (default='cluster')
         The name of the column in the clustering dataframe identifying
         the cluster id
 
@@ -334,15 +365,16 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
-    >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df,
-    >>>   'vertex', 'cluster')
+    >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df, 'vertex',
+    ...                                             'cluster')
+
     """
     if type(vertex_col_name) is list:
         if not all(isinstance(name, str) for name in vertex_col_name):

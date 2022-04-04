@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -70,65 +70,92 @@ def hypergraph(
     entries into node attributes. If direct=False (default), every unique
     value within a column is also turned into a node. Edges are added to
     connect a row's nodes to each of its column nodes, or if direct=True, to
-    one another. Nodes are given the attribute specified by ``NODETYPE``
-    that corresponds to the originating column name, or if a row ``EVENTID``.
+    one another. Nodes are given the attribute specified by NODETYPE
+    that corresponds to the originating column name, or if a row EVENTID.
     Consider a list of events. Each row represents a distinct event, and each
     column some metadata about an event. If multiple events have common
     metadata, they will be transitively connected through those metadata
     values. Conversely, if an event has unique metadata, the unique metadata
     will turn into nodes that only have connections to the event node.
-    For best results, set ``EVENTID`` to a row's unique ID, ``SKIP`` to all
-    non-categorical columns (or ``columns`` to all categorical columns),
-    and ``categories`` to group columns with the same kinds of values.
+    For best results, set EVENTID to a row's unique ID, SKIP to all
+    non-categorical columns (or columns to all categorical columns),
+    and categories to group columns with the same kinds of values.
+
+
+
     Parameters
     ----------
+
     values : cudf.DataFrame
         The input Dataframe to transform into a hypergraph.
-    columns : sequence, optional, default ``values.columns``
+
+    columns : sequence, optional (default=None)
         An optional sequence of column names to process.
-    dropna : bool, optional, default True
+
+    dropna : bool, optional (default=True)
         If True, do not include "null" values in the graph.
-    direct : bool, optional, default False
+
+    direct : bool, optional (default=False)
         If True, omit hypernodes and instead strongly connect nodes for each
         row with each other.
-    categories : dict, optional
+
+    graph_class : cugraph.Graph, optional (default=cugraph.Graph)
+        Specify the type of Graph to create.
+
+    categories : dict, optional (default=dict())
         Dictionary mapping column names to distinct categories. If the same
         value appears columns mapped to the same category, the transform will
         generate one node for it, instead of one for each column.
-    drop_edge_attrs : bool, optional, default False
-        If True, exclude each row's attributes from its edges (default: False)
-    categorical_metadata : bool, optional, default True
+
+    drop_edge_attrs : bool, optional, (default=False)
+        If True, exclude each row's attributes from its edges
+
+    categorical_metadata : bool, optional (default=True)
         Whether to use cudf.CategoricalDtype for the ``CATEGORY``,
         ``NODETYPE``, and ``EDGETYPE`` columns. These columns are typically
         large string columns with with low cardinality, and using categorical
         dtypes can save a significant amount of memory.
+
     SKIP : sequence, optional
         A sequence of column names not to transform into nodes.
+
     EDGES : dict, optional
         When ``direct=True``, select column pairs instead of making all edges.
-    DELIM : str, optional, default "::"
+
+    DELIM : str, optional (default="::")
         The delimiter to use when joining column names, categories, and ids.
-    SOURCE : str, optional, default "src"
+
+    SOURCE : str, optional (default="src")
         The name to use as the source column in the graph and edge DF.
-    TARGET : str, optional, default "dst"
+
+    TARGET : str, optional (default="dst")
         The name to use as the target column in the graph and edge DF.
-    WEIGHTS : str, optional, default None
+
+    WEIGHTS : str, optional (default=None)
         The column name from the input DF to map as the graph's edge weights.
-    NODEID : str, optional, default "node_id"
+
+    NODEID : str, optional (default="node_id")
         The name to use as the node id column in the graph and node DFs.
-    EVENTID : str, optional, default "event_id"
+
+    EVENTID : str, optional (default="event_id")
         The name to use as the event id column in the graph and node DFs.
-    ATTRIBID : str, optional, default "attrib_id"
+
+    ATTRIBID : str, optional (default="attrib_id")
         The name to use as the attribute id column in the graph and node DFs.
-    CATEGORY : str, optional, default "category"
+
+    CATEGORY : str, optional (default "category")
         The name to use as the category column in the graph and DFs.
-    NODETYPE : str, optional, default "node_type"
+
+    NODETYPE : str, optional (default="node_type")
         The name to use as the node type column in the graph and node DFs.
-    EDGETYPE : str, optional, default "edge_type"
+
+    EDGETYPE : str, optional (default="edge_type")
         The name to use as the edge type column in the graph and edge DF.
+
     Returns
     -------
     result : dict {"nodes", "edges", "graph", "events", "entities"}
+
         nodes : cudf.DataFrame
             A DataFrame of found entity and hyper node attributes.
         edges : cudf.DataFrame
@@ -139,6 +166,7 @@ def hypergraph(
             If direct=True, a DataFrame of hyper node attributes, else empty.
         entities : cudf.DataFrame
             A DataFrame of the found entity node attributes.
+
     """
 
     columns = values.columns if columns is None else columns

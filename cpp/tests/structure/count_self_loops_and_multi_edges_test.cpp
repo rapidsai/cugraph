@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -85,7 +85,7 @@ class Tests_CountSelfLoopsAndMultiEdges
     HighResClock hr_clock{};
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -94,7 +94,7 @@ class Tests_CountSelfLoopsAndMultiEdges
         handle, input_usecase, false, renumber);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -103,28 +103,28 @@ class Tests_CountSelfLoopsAndMultiEdges
     auto graph_view = graph.view();
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
     auto num_self_loops = graph_view.count_self_loops(handle);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "Counting self-loops took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
     auto num_multi_edges = graph_view.count_multi_edges(handle);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "Counting multi-edges took " << elapsed_time * 1e-6 << " s.\n";
@@ -151,7 +151,7 @@ class Tests_CountSelfLoopsAndMultiEdges
                         unrenumbered_graph_view.get_number_of_edges(),
                         handle.get_stream());
 
-      handle.get_stream_view().synchronize();
+      handle.sync_stream();
 
       auto self_loop_and_multi_edge_counts = count_self_loops_and_multi_edges_reference(
         h_offsets.data(), h_indices.data(), unrenumbered_graph_view.get_number_of_vertices());

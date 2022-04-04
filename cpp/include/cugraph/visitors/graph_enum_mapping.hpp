@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include <cugraph/graph.hpp>
 #include "graph_enum.hpp"
+#include <cugraph/graph.hpp>
 
 namespace cugraph {
 namespace visitors {

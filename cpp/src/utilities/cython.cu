@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -112,7 +112,7 @@ std::vector<edge_t> compute_edge_counts(raft::handle_t const& handle,
   std::vector<edge_t> h_edge_counts(num_local_partitions, 0);
   raft::update_host(
     h_edge_counts.data(), d_edge_counts.data(), d_edge_counts.size(), handle.get_stream());
-  handle.get_stream_view().synchronize();
+  handle.sync_stream();
 
   return h_edge_counts;
 }
@@ -821,9 +821,9 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
       static_cast<size_t>(n_subgraphs),
       std::make_unique<rmm::device_buffer>(std::get<0>(g).release()),
       std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
-      std::make_unique<rmm::device_buffer>(
-        std::get<2>(g) ? (*std::get<2>(g)).release()
-                       : rmm::device_buffer(size_t{0}, handle.get_stream_view())),
+      std::make_unique<rmm::device_buffer>(std::get<2>(g)
+                                             ? (*std::get<2>(g)).release()
+                                             : rmm::device_buffer(size_t{0}, handle.get_stream())),
       std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
     return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
   } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
@@ -840,9 +840,9 @@ std::unique_ptr<cy_multi_edgelists_t> call_egonet(raft::handle_t const& handle,
       static_cast<size_t>(n_subgraphs),
       std::make_unique<rmm::device_buffer>(std::get<0>(g).release()),
       std::make_unique<rmm::device_buffer>(std::get<1>(g).release()),
-      std::make_unique<rmm::device_buffer>(
-        std::get<2>(g) ? (*std::get<2>(g)).release()
-                       : rmm::device_buffer(size_t{0}, handle.get_stream_view())),
+      std::make_unique<rmm::device_buffer>(std::get<2>(g)
+                                             ? (*std::get<2>(g)).release()
+                                             : rmm::device_buffer(size_t{0}, handle.get_stream())),
       std::make_unique<rmm::device_buffer>(std::get<3>(g).release())};
     return std::make_unique<cy_multi_edgelists_t>(std::move(coo_contents));
   } else {
@@ -1182,7 +1182,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
   raft::handle_t const& handle,
   vertex_t*
-    edgelist_major_vertices,  // [IN / OUT]: groupby_gpuid_and_shuffle_values() sorts in-place
+    edgelist_major_vertices,  // [IN / OUT]: groupby_gpu_id_and_shuffle_values() sorts in-place
   vertex_t* edgelist_minor_vertices,  // [IN / OUT]
   weight_t* edgelist_weights,         // [IN / OUT]
   edge_t num_edgelist_edges)
@@ -1204,7 +1204,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
     std::forward_as_tuple(
       std::tie(ptr_ret->get_major(), ptr_ret->get_minor(), ptr_ret->get_weights()),
       std::ignore) =
-      cugraph::groupby_gpuid_and_shuffle_values(
+      cugraph::groupby_gpu_id_and_shuffle_values(
         comm,  // handle.get_comms(),
         zip_edge,
         zip_edge + num_edgelist_edges,
@@ -1220,7 +1220,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
 
     std::forward_as_tuple(std::tie(ptr_ret->get_major(), ptr_ret->get_minor()),
                           std::ignore) =
-      cugraph::groupby_gpuid_and_shuffle_values(
+      cugraph::groupby_gpu_id_and_shuffle_values(
         comm,  // handle.get_comms(),
         zip_edge,
         zip_edge + num_edgelist_edges,
@@ -1248,17 +1248,19 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
                                                     ptr_ret->get_weights().data(),
                                                     local_partition_id_op,
                                                     col_comm_size,
+                                                    false,
                                                     handle.get_stream())
                        : cugraph::groupby_and_count(pair_first,
                                                     pair_first + ptr_ret->get_major().size(),
                                                     local_partition_id_op,
                                                     col_comm_size,
+                                                    false,
                                                     handle.get_stream());
 
   std::vector<size_t> h_edge_counts(edge_counts.size());
   raft::update_host(
     h_edge_counts.data(), edge_counts.data(), edge_counts.size(), handle.get_stream());
-  handle.get_stream_view().synchronize();
+  handle.sync_stream();
 
   ptr_ret->get_edge_counts().resize(h_edge_counts.size());
   for (size_t i = 0; i < h_edge_counts.size(); ++i) {
@@ -1274,9 +1276,10 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
 template <typename vertex_t, typename edge_t>
 std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
   raft::handle_t const& handle,
-  vertex_t* shuffled_edgelist_major_vertices /* [INOUT] */,
-  vertex_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  vertex_t* shuffled_edgelist_src_vertices /* [INOUT] */,
+  vertex_t* shuffled_edgelist_dst_vertices /* [INOUT] */,
   std::vector<edge_t> const& edge_counts,
+  bool store_transposed,
   bool do_expensive_check,
   bool multi_gpu)  // bc. cython cannot take non-type template params
 {
@@ -1288,16 +1291,23 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
   if (multi_gpu) {
     std::vector<edge_t> displacements(edge_counts.size(), edge_t{0});
     std::partial_sum(edge_counts.begin(), edge_counts.end() - 1, displacements.begin() + 1);
-    std::vector<vertex_t*> major_ptrs(edge_counts.size());
-    std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
+    std::vector<vertex_t*> src_ptrs(edge_counts.size());
+    std::vector<vertex_t*> dst_ptrs(src_ptrs.size());
     for (size_t i = 0; i < edge_counts.size(); ++i) {
-      major_ptrs[i] = shuffled_edgelist_major_vertices + displacements[i];
-      minor_ptrs[i] = shuffled_edgelist_minor_vertices + displacements[i];
+      src_ptrs[i] = shuffled_edgelist_src_vertices + displacements[i];
+      dst_ptrs[i] = shuffled_edgelist_dst_vertices + displacements[i];
     }
 
     cugraph::renumber_meta_t<vertex_t, edge_t, true> meta{};
-    std::tie(p_ret->get_dv(), meta) = cugraph::renumber_edgelist<vertex_t, edge_t, true>(
-      handle, std::nullopt, major_ptrs, minor_ptrs, edge_counts, std::nullopt, do_expensive_check);
+    std::tie(p_ret->get_dv(), meta) =
+      cugraph::renumber_edgelist<vertex_t, edge_t, true>(handle,
+                                                         std::nullopt,
+                                                         src_ptrs,
+                                                         dst_ptrs,
+                                                         edge_counts,
+                                                         std::nullopt,
+                                                         store_transposed,
+                                                         do_expensive_check);
     p_ret->get_num_vertices()    = meta.number_of_vertices;
     p_ret->get_num_edges()       = meta.number_of_edges;
     p_ret->get_partition()       = meta.partition;
@@ -1307,9 +1317,10 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
     std::tie(p_ret->get_dv(), meta) =
       cugraph::renumber_edgelist<vertex_t, edge_t, false>(handle,
                                                           std::nullopt,
-                                                          shuffled_edgelist_major_vertices,
-                                                          shuffled_edgelist_minor_vertices,
+                                                          shuffled_edgelist_src_vertices,
+                                                          shuffled_edgelist_dst_vertices,
                                                           edge_counts[0],
+                                                          store_transposed,
                                                           do_expensive_check);
 
     p_ret->get_num_vertices()    = static_cast<vertex_t>(p_ret->get_dv().size());
@@ -1669,25 +1680,28 @@ template std::unique_ptr<major_minor_weights_t<int64_t, int64_t, double>> call_s
 //
 template std::unique_ptr<renum_tuple_t<int32_t, int32_t>> call_renumber(
   raft::handle_t const& handle,
-  int32_t* shuffled_edgelist_major_vertices /* [INOUT] */,
-  int32_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  int32_t* shuffled_edgelist_src_vertices /* [INOUT] */,
+  int32_t* shuffled_edgelist_dst_vertices /* [INOUT] */,
   std::vector<int32_t> const& edge_counts,
+  bool store_transposed,
   bool do_expensive_check,
   bool multi_gpu);
 
 template std::unique_ptr<renum_tuple_t<int32_t, int64_t>> call_renumber(
   raft::handle_t const& handle,
-  int32_t* shuffled_edgelist_major_vertices /* [INOUT] */,
-  int32_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  int32_t* shuffled_edgelist_src_vertices /* [INOUT] */,
+  int32_t* shuffled_edgelist_dst_vertices /* [INOUT] */,
   std::vector<int64_t> const& edge_counts,
+  bool store_transposed,
   bool do_expensive_check,
   bool multi_gpu);
 
 template std::unique_ptr<renum_tuple_t<int64_t, int64_t>> call_renumber(
   raft::handle_t const& handle,
-  int64_t* shuffled_edgelist_major_vertices /* [INOUT] */,
-  int64_t* shuffled_edgelist_minor_vertices /* [INOUT] */,
+  int64_t* shuffled_edgelist_src_vertices /* [INOUT] */,
+  int64_t* shuffled_edgelist_dst_vertices /* [INOUT] */,
   std::vector<int64_t> const& edge_counts,
+  bool store_transposed,
   bool do_expensive_check,
   bool multi_gpu);
 

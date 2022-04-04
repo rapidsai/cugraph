@@ -16,10 +16,10 @@
 
 #pragma once
 
-#include <cugraph/legacy/graph.hpp>
-#include <rmm/device_vector.hpp>
 #include "frontier_expand_kernels.cuh"
 #include "vertex_binning.cuh"
+#include <cugraph/legacy/graph.hpp>
+#include <rmm/device_vector.hpp>
 
 namespace cugraph {
 

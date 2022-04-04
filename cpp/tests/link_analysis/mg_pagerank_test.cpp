@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -61,7 +61,9 @@ class Tests_MGPageRank
   {
     // 1. initialize handle
 
-    raft::handle_t handle{};
+    auto constexpr pool_size = 64;  // FIXME: tuning parameter
+    raft::handle_t handle(rmm::cuda_stream_per_thread,
+                          std::make_shared<rmm::cuda_stream_pool>(pool_size));
     HighResClock hr_clock{};
 
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
@@ -73,13 +75,14 @@ class Tests_MGPageRank
     while (comm_size % row_comm_size != 0) {
       --row_comm_size;
     }
+
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
       subcomm_factory(handle, row_comm_size);
 
     // 2. create MG graph
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -89,7 +92,7 @@ class Tests_MGPageRank
         handle, input_usecase, pagerank_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -154,7 +157,7 @@ class Tests_MGPageRank
                                                  handle.get_stream());
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -179,7 +182,7 @@ class Tests_MGPageRank
       false);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -274,7 +277,7 @@ class Tests_MGPageRank
         raft::update_host(
           h_sg_pageranks.data(), d_sg_pageranks.data(), d_sg_pageranks.size(), handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.sync_stream();
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =

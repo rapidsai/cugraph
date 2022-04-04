@@ -146,8 +146,8 @@ def has_pair(first_arr, second_arr, first, second):
 
 def check_all_two_hops(df, M):
     num_verts = len(M.indptr) - 1
-    first_arr = df["first"].to_array()
-    second_arr = df["second"].to_array()
+    first_arr = df["first"].to_numpy()
+    second_arr = df["second"].to_numpy()
     for start in range(num_verts):
         for idx in range(M.indptr[start], M.indptr[start + 1]):
             mid = M.indices[idx]
@@ -173,7 +173,7 @@ def test_add_edge_list_to_adj_list(graph_file):
     indices_exp = M.indices
 
     # cugraph add_egde_list to_adj_list call
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1", renumber=False)
     offsets_cu, indices_cu, values_cu = G.view_adj_list()
     compare_series(offsets_cu, offsets_exp)
@@ -198,7 +198,7 @@ def test_add_adj_list_to_edge_list(graph_file):
     destinations_exp = cudf.Series(Mcoo.col)
 
     # cugraph add_adj_list to_edge_list call
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_cudf_adjlist(offsets, indices, None)
 
     edgelist = G.view_edge_list()
@@ -219,7 +219,7 @@ def test_view_edge_list_from_adj_list(graph_file):
 
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_cudf_adjlist(offsets, indices, None)
     edgelist_df = G.view_edge_list()
     Mcoo = Mcsr.tocoo()
@@ -245,7 +245,7 @@ def test_delete_edge_list_delete_adj_list(graph_file):
     indices = cudf.Series(Mcsr.indices)
 
     # cugraph delete_adj_list delete_edge_list call
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(df, source="src", destination="dst")
     G.delete_edge_list()
     with pytest.raises(Exception):
@@ -273,7 +273,7 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
 
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
 
     # If cugraph has at least one graph representation, adding a new graph
     # should fail to prevent a single graph object storing two different
@@ -370,10 +370,10 @@ def test_view_edge_list_for_Graph(graph_file):
     # Compare nx and cugraph edges when viewing edgelist
     # assert cu_edge_list.equals(nx_edge_list)
     assert (
-        cu_edge_list["src"].to_array() == nx_edge_list["src"].to_array()
+        cu_edge_list["src"].to_numpy() == nx_edge_list["src"].to_numpy()
     ).all()
     assert (
-        cu_edge_list["dst"].to_array() == nx_edge_list["dst"].to_array()
+        cu_edge_list["dst"].to_numpy() == nx_edge_list["dst"].to_numpy()
     ).all()
 
 
@@ -416,7 +416,7 @@ def test_consolidation(graph_file):
 def test_two_hop_neighbors(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
 
     df = G.get_two_hop_neighbors()
@@ -436,7 +436,7 @@ def test_degree_functionality(graph_file):
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
 
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
 
     Gnx = nx.from_pandas_edgelist(
@@ -474,7 +474,7 @@ def test_degrees_functionality(graph_file):
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
 
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
 
     Gnx = nx.from_pandas_edgelist(
@@ -509,7 +509,7 @@ def test_number_of_vertices(graph_file):
         raise TypeError("Could not read the input graph")
 
     # cugraph add_edge_list
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
@@ -557,7 +557,7 @@ def test_to_undirected(graph_file):
     assert len(cu_M) == len(M)
 
     # cugraph add_edge_list
-    DiG = cugraph.DiGraph()
+    DiG = cugraph.Graph(directed=True)
     DiG.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     DiGnx = nx.from_pandas_edgelist(

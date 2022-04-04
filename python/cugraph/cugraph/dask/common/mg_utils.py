@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,7 +18,7 @@ import numba.cuda
 from dask_cuda import LocalCUDACluster
 from dask.distributed import Client
 
-from cugraph.raft.dask.common.utils import default_client
+from raft.dask.common.utils import default_client
 # FIXME: cugraph/__init__.py also imports the comms module, but
 # depending on the import environment, cugraph/comms/__init__.py
 # may be imported instead. The following imports the comms.py

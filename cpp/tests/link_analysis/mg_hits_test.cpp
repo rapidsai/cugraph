@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -71,7 +71,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
     // 2. create MG graph
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -81,7 +81,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
         handle, input_usecase, false, true);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -112,7 +112,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
     }
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -128,7 +128,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
                                 hits_usecase.check_initial_input);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -213,7 +213,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
         raft::update_host(
           h_sg_hubs.data(), d_sg_hubs.data(), d_sg_hubs.size(), handle.get_stream());
 
-        handle.get_stream_view().synchronize();
+        handle.sync_stream();
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =

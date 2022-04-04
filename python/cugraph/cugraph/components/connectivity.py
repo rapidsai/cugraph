@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -89,7 +89,7 @@ def _convert_df_to_output_type(df, input_type, return_labels):
             if is_cp_matrix_type(input_type):
                 labels = cp.fromDlpack(sorted_df["labels"].to_dlpack())
             else:
-                labels = sorted_df["labels"].to_array()
+                labels = sorted_df["labels"].to_numpy()
             return (n_components, labels)
         else:
             return n_components
@@ -117,31 +117,31 @@ def weakly_connected_components(G,
         The adjacency list will be computed if not already present.  The number
         of vertices should fit into a 32b int.
 
-    directed : bool, optional
+    directed : bool, optional (default=True)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only.
             Raises TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to a cugraph.DiGraph
+        If True, then convert the input matrix to a cugraph.DiGraph
         and only move from point i to point j along paths csgraph[i, j]. If
         False, then find the shortest path on an undirected graph: the
         algorithm can progress from point i to j along csgraph[i, j] or
         csgraph[j, i].
 
-    connection : str, optional
+    connection : str, optional (default=None)
 
         Added for SciPy compatibility, can only be specified for non-Graph-type
         (eg. sparse matrix) values of G only (raises TypeError if used with a
         Graph object), and can only be set to "weak" for this API.
 
-    return_labels : bool, optional
+    return_labels : bool, optional (default=True)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True (default), then return the labels for each of the connected
+        If True, then return the labels for each of the connected
         components.
 
     Returns
@@ -171,13 +171,14 @@ def weakly_connected_components(G,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.weakly_connected_components(G)
+
     """
     (directed, connection, return_labels) = _ensure_args(
         "weakly_connected_components", G, directed, connection, return_labels)
@@ -185,7 +186,7 @@ def weakly_connected_components(G,
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight",
-        matrix_graph_type=DiGraph if directed else Graph)
+        matrix_graph_type=Graph(directed=directed))
 
     df = connectivity_wrapper.weakly_connected_components(G)
 
@@ -214,31 +215,31 @@ def strongly_connected_components(G,
         The adjacency list will be computed if not already present.  The number
         of vertices should fit into a 32b int.
 
-    directed : bool, optional
+    directed : bool, optional (default=True)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only.
             Raises TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to a cugraph.DiGraph
+        If True, then convert the input matrix to a cugraph.DiGraph
         and only move from point i to point j along paths csgraph[i, j]. If
         False, then find the shortest path on an undirected graph: the
         algorithm can progress from point i to j along csgraph[i, j] or
         csgraph[j, i].
 
-    connection : str, optional
+    connection : str, optional (default=None)
 
         Added for SciPy compatibility, can only be specified for non-Graph-type
         (eg. sparse matrix) values of G only (raises TypeError if used with a
         Graph object), and can only be set to "strong" for this API.
 
-    return_labels : bool, optional
+    return_labels : bool, optional (default=True)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True (default), then return the labels for each of the connected
+        If True, then return the labels for each of the connected
         components.
 
     Returns
@@ -268,13 +269,14 @@ def strongly_connected_components(G,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.strongly_connected_components(G)
+
     """
     (directed, connection, return_labels) = _ensure_args(
         "strongly_connected_components", G, directed,
@@ -283,7 +285,7 @@ def strongly_connected_components(G,
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight",
-        matrix_graph_type=DiGraph if directed else Graph)
+        matrix_graph_type=Graph(directed=directed))
 
     df = connectivity_wrapper.strongly_connected_components(G)
 
@@ -298,7 +300,7 @@ def connected_components(G,
                          connection="weak",
                          return_labels=None):
     """
-    Generate either the stronlgly or weakly connected components and attach a
+    Generate either the strongly or weakly connected components and attach a
     component label to each vertex.
 
     Parameters
@@ -312,30 +314,30 @@ def connected_components(G,
         The adjacency list will be computed if not already present.  The number
         of vertices should fit into a 32b int.
 
-    directed : bool, optional
+    directed : bool, optional (default=True)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True (default), then convert the input matrix to a cugraph.DiGraph
+        If True, then convert the input matrix to a cugraph.DiGraph
         and only move from point i to point j along paths csgraph[i, j]. If
         False, then find the shortest path on an undirected graph: the
         algorithm can progress from point i to j along csgraph[i, j] or
         csgraph[j, i].
 
-    connection : str, optional
+    connection : str, optional (default='weak')
 
         [‘weak’|’strong’]. Return either weakly or strongly connected
         components.
 
-    return_labels : bool, optional
+    return_labels : bool, optional (default=True)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True (default), then return the labels for each of the connected
+        If True, then return the labels for each of the connected
         components.
 
     Returns
@@ -365,13 +367,14 @@ def connected_components(G,
 
     Examples
     --------
-    >>> M = cudf.read_csv('datasets/karate.csv',
-                          delimiter = ' ',
-                          dtype=['int32', 'int32', 'float32'],
-                          header=None)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr=None)
     >>> df = cugraph.connected_components(G, connection="weak")
+
     """
     if connection == "weak":
         return weakly_connected_components(G, directed,

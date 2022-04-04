@@ -31,8 +31,8 @@
 #include "enum_mapping.hpp"
 #include "graph_enum_mapping.hpp"
 
-#include <cugraph/utilities/graph_traits.hpp>
 #include "graph_factory.hpp"
+#include <cugraph/utilities/graph_traits.hpp>
 
 namespace cugraph {
 namespace visitors {

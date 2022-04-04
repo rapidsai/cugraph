@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@ from dask.dataframe.shuffle import rearrange_by_column
 
 def call_pagerank(sID,
                   data,
+                  src_col_name,
+                  dst_col_name,
                   num_verts,
                   num_edges,
                   vertex_partition_offsets,
@@ -39,6 +41,8 @@ def call_pagerank(sID,
     segment_offsets = \
         aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
     return mg_pagerank.mg_pagerank(data[0],
+                                   src_col_name,
+                                   dst_col_name,
                                    num_verts,
                                    num_edges,
                                    vertex_partition_offsets,
@@ -67,16 +71,18 @@ def pagerank(input_graph,
 
     Parameters
     ----------
-    graph : cugraph.DiGraph
+    input_graph : cugraph.DiGraph
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
         algorithm). Undirected Graph not currently supported.
-    alpha : float
+
+    alpha : float, optional (default=0.85)
         The damping factor alpha represents the probability to follow an
         outgoing edge, standard value is 0.85.
         Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
         Alpha should be greater than 0.0 and strictly lower than 1.0.
-    personalization : cudf.Dataframe
+
+    personalization : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the personalization information.
         Currently not supported.
 
@@ -84,11 +90,13 @@ def pagerank(input_graph,
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
             Personalization values for vertices
-    max_iter : int
+
+    max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned.
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 30.
-    tolerance : float
+
+    tol : float, optional (default=1.0e-5)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -96,6 +104,7 @@ def pagerank(input_graph,
         Setting too small a tolerance can lead to non-convergence due to
         numerical roundoff. Usually values between 0.01 and 0.00001 are
         acceptable.
+
     nstart : not supported
         initial guess for pagerank
 
@@ -112,19 +121,17 @@ def pagerank(input_graph,
 
     Examples
     --------
-    >>> import cugraph.dask as dcg
-    >>> ... Init a DASK Cluster
-    >>    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
-    >>  Download dataset from https://github.com/rapidsai/cugraph/datasets/...
-    >>> chunksize = dcg.get_chunksize(input_data_path)
-    >>> ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize,
-                                 delimiter=' ',
-                                 names=['src', 'dst', 'value'],
-                                 dtype=['int32', 'int32', 'float32'])
-    >>> dg = cugraph.DiGraph()
-    >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
-                                   edge_attr='value')
-    >>> pr = dcg.pagerank(dg)
+    >>> # import cugraph.dask as dcg
+    >>> # ... Init a DASK Cluster
+    >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
+    >>> # chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
+    >>> # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize)
+    >>> # dg = cugraph.Graph(directed=True)
+    >>> # dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
+    >>> #                            edge_attr='value')
+    >>> # pr = dcg.pagerank(dg)
+
     """
     nstart = None
 
@@ -137,6 +144,9 @@ def pagerank(input_graph,
     num_verts = vertex_partition_offsets.iloc[-1]
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
+
+    src_col_name = input_graph.renumber_map.renumbered_src_col_name
+    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
     if personalization is not None:
         if input_graph.renumbered is True:
@@ -178,6 +188,8 @@ def pagerank(input_graph,
         result = [client.submit(call_pagerank,
                                 Comms.get_session_id(),
                                 wf[1],
+                                src_col_name,
+                                dst_col_name,
                                 num_verts,
                                 num_edges,
                                 vertex_partition_offsets,
@@ -193,6 +205,8 @@ def pagerank(input_graph,
         result = [client.submit(call_pagerank,
                                 Comms.get_session_id(),
                                 wf[1],
+                                src_col_name,
+                                dst_col_name,
                                 num_verts,
                                 num_edges,
                                 vertex_partition_offsets,

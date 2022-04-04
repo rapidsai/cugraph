@@ -43,12 +43,11 @@ class Leiden : public Louvain<graph_type> {
     this->timer_start("update_clustering_constrained");
 
     rmm::device_uvector<vertex_t> next_cluster_v(this->dendrogram_->current_level_size(),
-                                                 this->handle_.get_stream_view());
-    rmm::device_uvector<weight_t> delta_Q_v(graph.number_of_edges, this->handle_.get_stream_view());
-    rmm::device_uvector<vertex_t> cluster_hash_v(graph.number_of_edges,
-                                                 this->handle_.get_stream_view());
+                                                 this->handle_.get_stream());
+    rmm::device_uvector<weight_t> delta_Q_v(graph.number_of_edges, this->handle_.get_stream());
+    rmm::device_uvector<vertex_t> cluster_hash_v(graph.number_of_edges, this->handle_.get_stream());
     rmm::device_uvector<weight_t> old_cluster_sum_v(graph.number_of_vertices,
-                                                    this->handle_.get_stream_view());
+                                                    this->handle_.get_stream());
 
     vertex_t const* d_src_indices    = this->src_indices_v_.data();
     vertex_t const* d_dst_indices    = graph.indices;
@@ -105,7 +104,7 @@ class Leiden : public Louvain<graph_type> {
       }
     }
 
-    this->timer_stop(this->handle_.get_stream_view());
+    this->timer_stop(this->handle_.get_stream());
     return cur_Q;
   }
 
@@ -134,8 +133,7 @@ class Leiden : public Louvain<graph_type> {
       //
       //  Initialize every cluster to reference each vertex to itself
       //
-      this->dendrogram_->add_level(
-        0, current_graph.number_of_vertices, this->handle_.get_stream_view());
+      this->dendrogram_->add_level(0, current_graph.number_of_vertices, this->handle_.get_stream());
 
       thrust::sequence(this->handle_.get_thrust_policy(),
                        this->dendrogram_->current_level_begin(),

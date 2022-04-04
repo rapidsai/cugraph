@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
                       graph_view.get_matrix_partition_view().get_indices(),
                       graph_view.get_number_of_edges(),
                       handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    handle.sync_stream();
 
     std::vector<edge_t> h_reference_in_degrees(graph_view.get_number_of_vertices());
     std::vector<edge_t> h_reference_out_degrees(graph_view.get_number_of_vertices());
@@ -116,12 +116,12 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
                      graph_view.get_number_of_vertices(),
                      !store_transposed);
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     auto d_in_degrees  = graph_view.compute_in_degrees(handle);
     auto d_out_degrees = graph_view.compute_out_degrees(handle);
 
-    CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     std::vector<edge_t> h_cugraph_in_degrees(graph_view.get_number_of_vertices());
     std::vector<edge_t> h_cugraph_out_degrees(graph_view.get_number_of_vertices());
@@ -132,7 +132,7 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
                       d_out_degrees.data(),
                       d_out_degrees.size(),
                       handle.get_stream());
-    CUDA_TRY(cudaStreamSynchronize(handle.get_stream()));
+    handle.sync_stream();
 
     ASSERT_TRUE(std::equal(
       h_reference_in_degrees.begin(), h_reference_in_degrees.end(), h_cugraph_in_degrees.begin()))
@@ -146,14 +146,14 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
 
 // FIXME: add tests for type combinations
 
-TEST_P(Tests_Degree, CheckInt32Int32FloatTransposed)
-{
-  run_current_test<int32_t, int32_t, float, true>(GetParam());
-}
-
-TEST_P(Tests_Degree, CheckInt32Int32FloatUntransposed)
+TEST_P(Tests_Degree, CheckInt32Int32FloatTransposeFalse)
 {
   run_current_test<int32_t, int32_t, float, false>(GetParam());
+}
+
+TEST_P(Tests_Degree, CheckInt32Int32FloatTransposeTrue)
+{
+  run_current_test<int32_t, int32_t, float, true>(GetParam());
 }
 
 INSTANTIATE_TEST_SUITE_P(simple_test,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -112,7 +112,7 @@ void apply_attraction(const vertex_t* restrict row,
                                        edge_weight_influence,
                                        coef);
 
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 }
 
 template <typename vertex_t>
@@ -183,7 +183,7 @@ void apply_gravity(const float* restrict x_pos,
     linear_gravity_kernel<vertex_t>
       <<<nblocks, nthreads, 0, stream>>>(x_pos, y_pos, attract_x, attract_y, mass, gravity, n);
   }
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 }
 
 template <typename vertex_t>
@@ -232,7 +232,7 @@ void compute_local_speed(const float* restrict repel_x,
 
   local_speed_kernel<<<nblocks, nthreads, 0, stream>>>(
     repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, mass, swinging, traction, n);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 }
 
 template <typename vertex_t>
@@ -321,7 +321,7 @@ void apply_forces(float* restrict x_pos,
 
   update_positions_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
     x_pos, y_pos, repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, swinging, speed, n);
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 }
 
 }  // namespace detail

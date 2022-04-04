@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ import numpy as np
 
 
 def mg_pagerank(input_df,
+                src_col_name,
+                dst_col_name,
                 num_global_verts,
                 num_global_edges,
                 vertex_partition_offsets,
@@ -42,8 +44,8 @@ def mg_pagerank(input_df,
     cdef size_t handle_size_t = <size_t>handle.getHandle()
     handle_ = <c_pagerank.handle_t*>handle_size_t
 
-    src = input_df['src']
-    dst = input_df['dst']
+    src = input_df[src_col_name]
+    dst = input_df[dst_col_name]
     vertex_t = src.dtype
     if num_global_edges > (2**31 - 1):
         edge_t = np.dtype("int64")
@@ -74,7 +76,7 @@ def mg_pagerank(input_df,
     cdef uintptr_t c_edge_weights = <uintptr_t>NULL
     if weights is not None:
       c_edge_weights = weights.__cuda_array_interface__['data'][0]
-    
+
     # FIXME: data is on device, move to host (to_pandas()), convert to np array and access pointer to pass to C
     vertex_partition_offsets_host = vertex_partition_offsets.values_host
     cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets_host.__array_interface__['data'][0]
@@ -104,7 +106,7 @@ def mg_pagerank(input_df,
                              num_global_verts, num_global_edges,
                              is_weighted,
                              False,
-                             True, True) 
+                             True, True)
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(vertex_partition_offsets.iloc[rank], vertex_partition_offsets.iloc[rank+1]), dtype=vertex_t)

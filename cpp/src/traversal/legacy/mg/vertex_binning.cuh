@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include <rmm/device_vector.hpp>
 #include "common_utils.cuh"
 #include "vertex_binning_kernels.cuh"
+#include <rmm/device_vector.hpp>
 
 #include <thrust/host_vector.h>
 

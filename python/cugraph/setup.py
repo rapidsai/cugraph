@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2021, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -33,7 +33,7 @@ import setuptools.command.build_ext
 from setuptools import find_packages, setup, Command
 from setuptools.extension import Extension
 
-from setuputils import use_raft_package, get_environment_option
+from setuputils import get_environment_option
 
 import versioneer
 
@@ -79,13 +79,6 @@ cuda_lib_dir = os.path.join(CUDA_HOME, "lib64")
 
 # Optional location of C++ build folder that can be configured by the user
 libcugraph_path = get_environment_option('CUGRAPH_BUILD_PATH')
-# Optional location of RAFT that can be confugred by the user
-raft_path = get_environment_option('RAFT_PATH')
-
-# FIXME: This could clone RAFT, even if it's not needed (eg. running --clean).
-# deprecated: This functionality will go away after
-# https://github.com/rapidsai/raft/issues/83
-raft_include_dir = use_raft_package(raft_path, libcugraph_path)
 
 if not libcugraph_path:
     libcugraph_path = conda_lib_dir
@@ -98,7 +91,6 @@ extensions = [
                   ucx_include_dir,
                   '../cpp/include',
                   "../thirdparty/cub",
-                  raft_include_dir,
                   os.path.join(conda_include_dir, "libcudacxx"),
                   cuda_include_dir,
                   os.path.dirname(sysconfig.get_path("include"))
@@ -133,7 +125,6 @@ class CleanCommand(Command):
         os.system('rm -rf build')
         os.system('rm -rf dist')
         os.system('rm -rf dask-worker-space')
-        os.system('rm -f cugraph/raft')
         os.system('find . -name "__pycache__" -type d -exec rm -rf {} +')
         os.system('rm -rf *.egg-info')
         os.system('find . -name "*.cpp" -type f -delete')

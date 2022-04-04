@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,12 +22,12 @@
 
 #pragma once
 
+#include <algorithm>
 #include <thrust/extrema.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/scan.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
-#include <algorithm>
 
 #include <cugraph/utilities/error.hpp>
 #include <rmm/exec_policy.hpp>
@@ -69,27 +69,27 @@ VT sort(legacy::GraphCOOView<VT, ET, WT>& graph, rmm::cuda_stream_view stream_vi
       graph.dst_indices,
       graph.dst_indices + graph.number_of_edges,
       thrust::make_zip_iterator(thrust::make_tuple(graph.src_indices, graph.edge_data)));
-    CUDA_TRY(cudaMemcpy(
+    RAFT_CUDA_TRY(cudaMemcpy(
       &max_dst_id, &(graph.dst_indices[graph.number_of_edges - 1]), sizeof(VT), cudaMemcpyDefault));
     thrust::stable_sort_by_key(
       rmm::exec_policy(stream_view),
       graph.src_indices,
       graph.src_indices + graph.number_of_edges,
       thrust::make_zip_iterator(thrust::make_tuple(graph.dst_indices, graph.edge_data)));
-    CUDA_TRY(cudaMemcpy(
+    RAFT_CUDA_TRY(cudaMemcpy(
       &max_src_id, &(graph.src_indices[graph.number_of_edges - 1]), sizeof(VT), cudaMemcpyDefault));
   } else {
     thrust::stable_sort_by_key(rmm::exec_policy(stream_view),
                                graph.dst_indices,
                                graph.dst_indices + graph.number_of_edges,
                                graph.src_indices);
-    CUDA_TRY(cudaMemcpy(
+    RAFT_CUDA_TRY(cudaMemcpy(
       &max_dst_id, &(graph.dst_indices[graph.number_of_edges - 1]), sizeof(VT), cudaMemcpyDefault));
     thrust::stable_sort_by_key(rmm::exec_policy(stream_view),
                                graph.src_indices,
                                graph.src_indices + graph.number_of_edges,
                                graph.dst_indices);
-    CUDA_TRY(cudaMemcpy(
+    RAFT_CUDA_TRY(cudaMemcpy(
       &max_src_id, &(graph.src_indices[graph.number_of_edges - 1]), sizeof(VT), cudaMemcpyDefault));
   }
   return std::max(max_src_id, max_dst_id) + 1;
@@ -177,10 +177,10 @@ void coo_to_csr_inplace(legacy::GraphCOOView<VT, ET, WT>& graph,
                       graph.number_of_edges,
                       stream_view);
 
-  CUDA_TRY(cudaMemcpy(
+  RAFT_CUDA_TRY(cudaMemcpy(
     result.indices, graph.dst_indices, sizeof(VT) * graph.number_of_edges, cudaMemcpyDefault));
   if (graph.has_data())
-    CUDA_TRY(cudaMemcpy(
+    RAFT_CUDA_TRY(cudaMemcpy(
       result.edge_data, graph.edge_data, sizeof(WT) * graph.number_of_edges, cudaMemcpyDefault));
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <cugraph/legacy/graph.hpp>
 #include "vertex_binning.cuh"
+#include <cugraph/legacy/graph.hpp>
 
 namespace cugraph {
 
@@ -191,7 +191,7 @@ void large_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> c
                                                output_vertex_ids,
                                                output_vertex_ids_offset,
                                                op);
-    CHECK_CUDA(stream);
+    RAFT_CHECK_CUDA(stream);
   }
 }
 
@@ -218,7 +218,7 @@ void medium_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> 
                                                output_vertex_ids,
                                                output_vertex_ids_offset,
                                                op);
-    CHECK_CUDA(stream);
+    RAFT_CHECK_CUDA(stream);
   }
 }
 
@@ -290,7 +290,7 @@ void small_vertex_lb(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> c
                                                                      output_vertex_ids_offset,
                                                                      op);
   }
-  CHECK_CUDA(stream);
+  RAFT_CHECK_CUDA(stream);
 }
 
 }  // namespace detail

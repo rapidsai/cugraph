@@ -87,9 +87,9 @@ def cugraph_call(benchamrk_callable, cu_M, edgevals=False):
     df = df.sort_values(["source", "destination"]).reset_index(drop=True)
 
     return (
-        df["source"].to_array(),
-        df["destination"].to_array(),
-        df["sorensen_coeff"].to_array(),
+        df["source"].to_numpy(),
+        df["destination"].to_numpy(),
+        df["sorensen_coeff"].to_numpy(),
     )
 
 

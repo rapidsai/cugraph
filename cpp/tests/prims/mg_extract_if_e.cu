@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -26,17 +26,17 @@
 
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/extract_if_e.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 
-#include <thrust/equal.h>
-#include <thrust/reduce.h>
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <thrust/equal.h>
+#include <thrust/reduce.h>
 
 #include <gtest/gtest.h>
 
@@ -49,6 +49,19 @@ __device__ auto make_type_casted_tuple_from_scalar(T val, std::index_sequence<Is
     static_cast<typename thrust::tuple_element<Is, TupleType>::type>(val)...);
 }
 
+template <typename property_t, typename T>
+__device__ __host__ auto make_property_value(T val)
+{
+  property_t ret{};
+  if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
+    ret = make_type_casted_tuple_from_scalar<property_t>(
+      val, std::make_index_sequence<thrust::tuple_size<property_t>::value>{});
+  } else {
+    ret = static_cast<property_t>(val);
+  }
+  return ret;
+}
+
 template <typename vertex_t, typename property_t>
 struct property_transform_t {
   int mod{};
@@ -58,14 +71,7 @@ struct property_transform_t {
     static_assert(cugraph::is_thrust_tuple_of_arithmetic<property_t>::value ||
                   std::is_arithmetic_v<property_t>);
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    property_t ret{};
-    if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
-      ret = make_type_casted_tuple_from_scalar<property_t>(
-        hash_func(v) % mod, std::make_index_sequence<thrust::tuple_size<property_t>::value>{});
-    } else {
-      ret = static_cast<property_t>(hash_func(v) % mod);
-    }
-    return ret;
+    return make_property_value<property_t>(hash_func(v) % mod);
   }
 };
 
@@ -153,7 +159,7 @@ class Tests_MG_ExtractIfE
     // 2. create MG graph
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -163,7 +169,7 @@ class Tests_MG_ExtractIfE
         handle, input_usecase, true, true);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -185,22 +191,22 @@ class Tests_MG_ExtractIfE
                       cugraph::get_dataframe_buffer_begin(mg_property_buffer),
                       property_transform_t<vertex_t, property_t>{hash_bin_count});
 
-    cugraph::row_properties_t<decltype(mg_graph_view), property_t> mg_src_properties(handle,
-                                                                                     mg_graph_view);
-    cugraph::col_properties_t<decltype(mg_graph_view), property_t> mg_dst_properties(handle,
-                                                                                     mg_graph_view);
+    cugraph::edge_partition_src_property_t<decltype(mg_graph_view), property_t> mg_src_properties(
+      handle, mg_graph_view);
+    cugraph::edge_partition_dst_property_t<decltype(mg_graph_view), property_t> mg_dst_properties(
+      handle, mg_graph_view);
 
-    copy_to_adj_matrix_row(handle,
-                           mg_graph_view,
-                           cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                           mg_src_properties);
-    copy_to_adj_matrix_col(handle,
-                           mg_graph_view,
-                           cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                           mg_dst_properties);
+    update_edge_partition_src_property(handle,
+                                       mg_graph_view,
+                                       cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
+                                       mg_src_properties);
+    update_edge_partition_dst_property(handle,
+                                       mg_graph_view,
+                                       cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
+                                       mg_dst_properties);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -215,7 +221,7 @@ class Tests_MG_ExtractIfE
                    });
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -274,19 +280,19 @@ class Tests_MG_ExtractIfE
                           cugraph::get_dataframe_buffer_begin(sg_property_buffer),
                           property_transform_t<vertex_t, property_t>{hash_bin_count});
 
-        cugraph::row_properties_t<decltype(sg_graph_view), property_t> sg_src_properties(
-          handle, sg_graph_view);
-        cugraph::col_properties_t<decltype(sg_graph_view), property_t> sg_dst_properties(
-          handle, sg_graph_view);
+        cugraph::edge_partition_src_property_t<decltype(sg_graph_view), property_t>
+          sg_src_properties(handle, sg_graph_view);
+        cugraph::edge_partition_dst_property_t<decltype(sg_graph_view), property_t>
+          sg_dst_properties(handle, sg_graph_view);
 
-        copy_to_adj_matrix_row(handle,
-                               sg_graph_view,
-                               cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                               sg_src_properties);
-        copy_to_adj_matrix_col(handle,
-                               sg_graph_view,
-                               cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                               sg_dst_properties);
+        update_edge_partition_src_property(handle,
+                                           sg_graph_view,
+                                           cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
+                                           sg_src_properties);
+        update_edge_partition_dst_property(handle,
+                                           sg_graph_view,
+                                           cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
+                                           sg_dst_properties);
 
         auto [sg_edgelist_srcs, sg_edgelist_dsts, sg_edgelist_weights] =
           extract_if_e(handle,
@@ -311,12 +317,13 @@ class Tests_MG_ExtractIfE
                        mg_edge_first + mg_aggregate_edgelist_srcs.size());
           thrust::sort(
             handle.get_thrust_policy(), sg_edge_first, sg_edge_first + sg_edgelist_srcs.size());
-          thrust::equal(handle.get_thrust_policy(),
-                        mg_edge_first,
-                        mg_edge_first + mg_aggregate_edgelist_srcs.size(),
-                        sg_edge_first,
-                        compare_equal_t<
-                          typename thrust::iterator_traits<decltype(mg_edge_first)>::value_type>{});
+          ASSERT_TRUE(thrust::equal(
+            handle.get_thrust_policy(),
+            mg_edge_first,
+            mg_edge_first + mg_aggregate_edgelist_srcs.size(),
+            sg_edge_first,
+            compare_equal_t<
+              typename thrust::iterator_traits<decltype(mg_edge_first)>::value_type>{}));
         } else {
           auto mg_edge_first = thrust::make_zip_iterator(thrust::make_tuple(
             mg_aggregate_edgelist_srcs.begin(), mg_aggregate_edgelist_dsts.begin()));
@@ -327,12 +334,13 @@ class Tests_MG_ExtractIfE
                        mg_edge_first + mg_aggregate_edgelist_srcs.size());
           thrust::sort(
             handle.get_thrust_policy(), sg_edge_first, sg_edge_first + sg_edgelist_srcs.size());
-          thrust::equal(handle.get_thrust_policy(),
-                        mg_edge_first,
-                        mg_edge_first + mg_aggregate_edgelist_srcs.size(),
-                        sg_edge_first,
-                        compare_equal_t<
-                          typename thrust::iterator_traits<decltype(mg_edge_first)>::value_type>{});
+          ASSERT_TRUE(thrust::equal(
+            handle.get_thrust_policy(),
+            mg_edge_first,
+            mg_edge_first + mg_aggregate_edgelist_srcs.size(),
+            sg_edge_first,
+            compare_equal_t<
+              typename thrust::iterator_traits<decltype(mg_edge_first)>::value_type>{}));
         }
       }
     }

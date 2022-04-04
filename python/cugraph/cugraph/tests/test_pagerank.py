@@ -66,7 +66,7 @@ def cugraph_call(G, max_iter, tol, alpha, personalization, nstart):
 
     df = df.sort_values("vertex").reset_index(drop=True)
 
-    pr_scores = df["pagerank"].to_array()
+    pr_scores = df["pagerank"].to_numpy()
     for i, rank in enumerate(pr_scores):
         sorted_pr.append((i, rank))
 
@@ -310,7 +310,7 @@ def test_pagerank_multi_column(
 
     df = df.sort_values("0_vertex").reset_index(drop=True)
 
-    pr_scores = df["pagerank"].to_array()
+    pr_scores = df["pagerank"].to_numpy()
     for i, rank in enumerate(pr_scores):
         cugraph_pr.append((i, rank))
 

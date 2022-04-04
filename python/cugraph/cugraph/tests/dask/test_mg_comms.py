@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -48,7 +48,7 @@ def test_dask_pagerank(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    dg1 = cugraph.DiGraph()
+    dg1 = cugraph.Graph(directed=True)
     dg1.from_dask_cudf_edgelist(ddf1, "src", "dst")
 
     result_pr1 = dcg.pagerank(dg1).compute()
@@ -61,7 +61,7 @@ def test_dask_pagerank(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    dg2 = cugraph.DiGraph()
+    dg2 = cugraph.Graph(directed=True)
     dg2.from_dask_cudf_edgelist(ddf2, "src", "dst")
 
     result_pr2 = dcg.pagerank(dg2).compute()
@@ -74,7 +74,7 @@ def test_dask_pagerank(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    g1 = cugraph.DiGraph()
+    g1 = cugraph.Graph(directed=True)
     g1.from_cudf_edgelist(df1, "src", "dst")
     expected_pr1 = cugraph.pagerank(g1)
 
@@ -85,7 +85,7 @@ def test_dask_pagerank(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    g2 = cugraph.DiGraph()
+    g2 = cugraph.Graph(directed=True)
     g2.from_cudf_edgelist(df2, "src", "dst")
     expected_pr2 = cugraph.pagerank(g2)
 

@@ -6,16 +6,20 @@ channels:
 - conda-forge
 dependencies:
 - cudatoolkit=11.4
-- cudf=21.12.*
-- libcudf=21.12.*
-- rmm=21.12.*
-- librmm=21.12.*
-- dask>=2021.09.1,<=2021.11.2
-- distributed>=2021.09.1,<=2021.11.2
-- dask-cuda=21.12.*
-- dask-cudf=21.12.*
+- libcugraphops=22.06.*
+- cudf=22.06.*
+- libcudf=22.06.*
+- rmm=22.06.*
+- librmm=22.06.*
+- libraft-headers=22.06.*
+- pyraft=22.06.*
+- cuda-python>=11.5,<12.0
+- dask==2022.03.0
+- distributed==2022.03.0
+- dask-cuda=22.06.*
+- dask-cudf=22.06.*
 - nccl>=2.9.9
-- ucx-py=0.23.*
+- ucx-py=0.26.*
 - ucx-proc=*=gpu
 - scipy
 - networkx>=2.5.1
@@ -27,8 +31,6 @@ dependencies:
 - boost
 - cython>=0.29,<0.30
 - pytest
-- libfaiss=1.7.0
-- faiss-proc=*=cuda
 - scikit-learn>=0.23.1
 - sphinx
 - pydata-sphinx-theme
@@ -43,5 +45,5 @@ dependencies:
 - rapids-pytest-benchmark
 - doxygen
 - pytest-cov
-- gtest
-- gmock
+- gtest=1.10.0
+- gmock=1.10.0

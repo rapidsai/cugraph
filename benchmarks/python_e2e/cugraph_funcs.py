@@ -43,9 +43,9 @@ def generate_edgelist(scale,
     df = rmat(
         scale,
         (2**scale)*edgefactor,
-        0.1,
-        0.2,
-        0.3,
+        0.57,  # from Graph500
+        0.19,  # from Graph500
+        0.19,  # from Graph500
         seed or 42,
         clip_and_flip=False,
         scramble_vertex_ids=True,

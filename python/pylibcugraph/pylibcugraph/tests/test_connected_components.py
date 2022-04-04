@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,6 +21,10 @@ from scipy.sparse import coo_matrix, csr_matrix
 
 from . import utils
 
+
+# =============================================================================
+# Test data
+# =============================================================================
 _test_data = {
     "graph1":  # asymmetric
     {
@@ -96,6 +100,9 @@ _test_data = {
 }
 
 
+# =============================================================================
+# Pytest fixtures
+# =============================================================================
 @pytest.fixture(scope="module",
                 params=[pytest.param(value, id=key)
                         for (key, value) in _test_data.items()])
@@ -132,12 +139,15 @@ def input_and_expected_output(request):
 
     offsets = cp.asarray(csr.indptr, dtype=np.int32)
     indices = cp.asarray(csr.indices, dtype=np.int32)
-    labels_to_populate = cp.asarray(np.zeros(num_verts, dtype=np.int32))
+    labels_to_populate = cp.zeros(num_verts, dtype=np.int32)
 
     return ((offsets, indices, labels_to_populate, num_verts, num_edges),
             expected_output_dict)
 
 
+# =============================================================================
+# Helper functions
+# =============================================================================
 def _check_labels(vertex_ordered_labels, expected_vertex_comps):
     """
     vertex_ordered_labels is a list of labels, ordered by the position of the
@@ -172,8 +182,9 @@ def _check_labels(vertex_ordered_labels, expected_vertex_comps):
     assert actual_vertex_comps == sorted(expected_vertex_comps)
 
 
-###############################################################################
+# =============================================================================
 # Tests
+# =============================================================================
 def test_import():
     """
     Ensure pylibcugraph is importable.
@@ -182,11 +193,11 @@ def test_import():
     import pylibcugraph  # noqa: F401
 
 
-def test_scc(package_under_test, input_and_expected_output):
+def test_scc(input_and_expected_output):
     """
     Tests strongly_connected_components()
     """
-    pylibcugraph = package_under_test
+    import pylibcugraph
     ((cupy_offsets, cupy_indices, cupy_labels_to_populate,
       num_verts, num_edges),
      expected_output_dict) = input_and_expected_output
@@ -204,11 +215,11 @@ def test_scc(package_under_test, input_and_expected_output):
                   expected_output_dict["scc_comp_vertices"])
 
 
-def test_wcc(package_under_test, input_and_expected_output):
+def test_wcc(input_and_expected_output):
     """
     Tests weakly_connected_components()
     """
-    pylibcugraph = package_under_test
+    import pylibcugraph
     ((cupy_offsets, cupy_indices, cupy_labels_to_populate,
       num_verts, num_edges),
      expected_output_dict) = input_and_expected_output
@@ -228,12 +239,12 @@ def test_wcc(package_under_test, input_and_expected_output):
 
 @pytest.mark.parametrize("api_name", ["strongly_connected_components",
                                       "weakly_connected_components"])
-def test_non_CAI_input(package_under_test, api_name):
+def test_non_CAI_input(api_name):
     """
     Ensures that the *_connected_components() APIs only accepts instances of
     objects that have a __cuda_array_interface__
     """
-    pylibcugraph = package_under_test
+    import pylibcugraph
     cupy_array = cp.ndarray(range(8))
     python_list = list(range(8))
     api = getattr(pylibcugraph, api_name)
@@ -270,10 +281,11 @@ def test_non_CAI_input(package_under_test, api_name):
 
 @pytest.mark.parametrize("api_name", ["strongly_connected_components",
                                       "weakly_connected_components"])
-def test_bad_dtypes(package_under_test, api_name):
+def test_bad_dtypes(api_name):
     """
     Ensures that only supported dtypes are accepted.
     """
+    import pylibcugraph
     graph = [
         [0, 1, 1, 0, 0],
         [0, 0, 1, 0, 0],
@@ -285,13 +297,11 @@ def test_bad_dtypes(package_under_test, api_name):
     num_verts = scipy_csr.get_shape()[0]
     num_edges = scipy_csr.nnz
 
-    pylibcugraph = package_under_test
     api = getattr(pylibcugraph, api_name)
 
     cp_offsets = cp.asarray(scipy_csr.indptr)
     cp_indices = cp.asarray(scipy_csr.indices)
-    cp_labels = cp.asarray(np.zeros(num_verts,
-                                    dtype=np.int64))  # unsupported
+    cp_labels = cp.zeros(num_verts, dtype=np.int64)  # unsupported
     with pytest.raises(TypeError):
         api(offsets=cp_offsets,
             indices=cp_indices,
@@ -303,8 +313,7 @@ def test_bad_dtypes(package_under_test, api_name):
     cp_offsets = cp.asarray(scipy_csr.indptr,
                             dtype=np.int64)  # unsupported
     cp_indices = cp.asarray(scipy_csr.indices)
-    cp_labels = cp.asarray(np.zeros(num_verts),
-                           dtype=np.int32)
+    cp_labels = cp.zeros(num_verts, dtype=np.int32)
     with pytest.raises(TypeError):
         api(offsets=cp_offsets,
             indices=cp_indices,
@@ -316,8 +325,7 @@ def test_bad_dtypes(package_under_test, api_name):
     cp_offsets = cp.asarray(scipy_csr.indptr)
     cp_indices = cp.asarray(scipy_csr.indices,
                             dtype=np.float32)  # unsupported
-    cp_labels = cp.asarray(np.zeros(num_verts),
-                           dtype=np.int32)
+    cp_labels = cp.zeros(num_verts, dtype=np.int32)
     with pytest.raises(TypeError):
         api(offsets=cp_offsets,
             indices=cp_indices,

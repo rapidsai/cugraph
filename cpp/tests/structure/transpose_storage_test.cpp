@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/graph.hpp>
@@ -57,7 +57,7 @@ class Tests_TransposeStorage
     HighResClock hr_clock{};
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -66,7 +66,7 @@ class Tests_TransposeStorage
         handle, input_usecase, transpose_storage_usecase.test_weighted, renumber);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -81,7 +81,7 @@ class Tests_TransposeStorage
     }
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -91,7 +91,7 @@ class Tests_TransposeStorage
       graph.transpose_storage(handle, std::move(d_renumber_map_labels));
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "Transpose storage took " << elapsed_time * 1e-6 << " s.\n";
@@ -149,10 +149,9 @@ class Tests_TransposeStorage
         std::vector<std::tuple<vertex_t, vertex_t, weight_t>> storage_transposed_edges(
           h_storage_transposed_rows.size());
         for (size_t i = 0; i < storage_transposed_edges.size(); ++i) {
-          storage_transposed_edges[i] =
-            std::make_tuple(h_storage_transposed_cols[i],
-                            h_storage_transposed_rows[i],
-                            (*h_storage_transposed_weights)[i]);  // flip rows and cols
+          storage_transposed_edges[i] = std::make_tuple(h_storage_transposed_rows[i],
+                                                        h_storage_transposed_cols[i],
+                                                        (*h_storage_transposed_weights)[i]);
         }
         std::sort(storage_transposed_edges.begin(), storage_transposed_edges.end());
 
@@ -168,8 +167,8 @@ class Tests_TransposeStorage
         std::vector<std::tuple<vertex_t, vertex_t>> storage_transposed_edges(
           h_storage_transposed_rows.size());
         for (size_t i = 0; i < storage_transposed_edges.size(); ++i) {
-          storage_transposed_edges[i] = std::make_tuple(
-            h_storage_transposed_cols[i], h_storage_transposed_rows[i]);  // flip rows and cols
+          storage_transposed_edges[i] =
+            std::make_tuple(h_storage_transposed_rows[i], h_storage_transposed_cols[i]);
         }
         std::sort(storage_transposed_edges.begin(), storage_transposed_edges.end());
 

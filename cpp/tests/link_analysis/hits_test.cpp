@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -32,15 +32,15 @@
 
 #include <gtest/gtest.h>
 
-#include <thrust/execution_policy.h>
-#include <thrust/host_vector.h>
-#include <thrust/iterator/constant_iterator.h>
-#include <thrust/sort.h>
 #include <algorithm>
 #include <iterator>
 #include <limits>
 #include <numeric>
 #include <random>
+#include <thrust/execution_policy.h>
+#include <thrust/host_vector.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/sort.h>
 #include <vector>
 
 template <typename result_t, typename vertex_t, typename edge_t>
@@ -142,9 +142,10 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(Hits_Usecase const& hits_usecase, input_usecase_t const& input_usecase)
+  void run_current_test(std::tuple<Hits_Usecase const&, input_usecase_t const&> const& param)
   {
-    constexpr bool renumber = true;
+    constexpr bool renumber            = true;
+    auto [hits_usecase, input_usecase] = param;
 
     // 1. initialize handle
 
@@ -154,7 +155,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
     // 2. create SG graph
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -163,7 +164,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
         handle, input_usecase, false, renumber);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -190,7 +191,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
     }
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
@@ -205,7 +206,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
                                 hits_usecase.check_initial_input);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "HITS took " << elapsed_time * 1e-6 << " s.\n";
@@ -248,7 +249,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       } else {
         raft::update_host(h_cugraph_hits.data(), d_hubs.data(), d_hubs.size(), handle.get_stream());
       }
-      handle.get_stream_view().synchronize();
+      handle.sync_stream();
       auto threshold_ratio = 1e-3;
       auto threshold_magnitude =
         (1.0 / static_cast<weight_t>(graph_view.get_number_of_vertices())) *
@@ -270,31 +271,28 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
 using Tests_Hits_File = Tests_Hits<cugraph::test::File_Usecase>;
 using Tests_Hits_Rmat = Tests_Hits<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_Hits_File, CheckInt32Int32FloatFloat)
+TEST_P(Tests_Hits_File, CheckInt32Int32Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
-}
-
-TEST_P(Tests_Hits_Rmat, CheckInt32Int32FloatFloat)
-{
-  auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Hits_Rmat, CheckInt32Int64FloatFloat)
+TEST_P(Tests_Hits_Rmat, CheckInt32Int32Float)
 {
-  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_Hits_Rmat, CheckInt32Int64Float)
+{
   run_current_test<int32_t, int64_t, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Hits_Rmat, CheckInt64Int64FloatFloat)
+TEST_P(Tests_Hits_Rmat, CheckInt64Int64Float)
 {
-  auto param = GetParam();
   run_current_test<int64_t, int64_t, float>(
-    std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -304,9 +302,7 @@ INSTANTIATE_TEST_SUITE_P(
     // enable correctness checks
     ::testing::Values(Hits_Usecase{true, false}, Hits_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_Hits_Rmat,
@@ -315,6 +311,18 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                                                               Hits_Usecase{true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Hits_File,
+  ::testing::Combine(
+    // disable correctness checks
+    ::testing::Values(Hits_Usecase{false, false}, Hits_Usecase{false, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -326,6 +334,6 @@ INSTANTIATE_TEST_SUITE_P(
   // disable correctness checks for large graphs
   ::testing::Combine(
     ::testing::Values(Hits_Usecase{false, false}, Hits_Usecase{false, true}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

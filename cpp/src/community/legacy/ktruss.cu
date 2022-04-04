@@ -23,10 +23,10 @@
 
 #include <cugraph/utilities/error.hpp>
 
+#include "Static/KTruss/KTruss.cuh"
 #include <Hornet.hpp>
 #include <StandardAPI.hpp>
 #include <cugraph/algorithms.hpp>
-#include "Static/KTruss/KTruss.cuh"
 
 using namespace hornets_nest;
 

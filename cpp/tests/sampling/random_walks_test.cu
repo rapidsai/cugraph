@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,14 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <thrust/random.h>
 #include <rmm/exec_policy.hpp>
+#include <thrust/random.h>
 
 #include <cugraph/algorithms.hpp>
 #include <sampling/random_walks.cuh>
 
 #include <raft/handle.hpp>
-#include <raft/random/rng.hpp>
+#include <raft/random/rng.cuh>
 
 #include "random_walks_utils.cuh"
 

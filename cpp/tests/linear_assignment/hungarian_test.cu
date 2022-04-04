@@ -75,11 +75,11 @@ TEST_F(HungarianTest, Bipartite4x4)
   int32_t num_vertices   = 1 + std::max(*std::max_element(src_data, src_data + length),
                                       *std::max_element(dst_data, dst_data + length));
 
-  rmm::device_uvector<int32_t> src_v(length, handle.get_stream_view());
-  rmm::device_uvector<int32_t> dst_v(length, handle.get_stream_view());
-  rmm::device_uvector<float> cost_v(length, handle.get_stream_view());
-  rmm::device_uvector<int32_t> workers_v(length_workers, handle.get_stream_view());
-  rmm::device_uvector<int32_t> assignment_v(length_workers, handle.get_stream_view());
+  rmm::device_uvector<int32_t> src_v(length, handle.get_stream());
+  rmm::device_uvector<int32_t> dst_v(length, handle.get_stream());
+  rmm::device_uvector<float> cost_v(length, handle.get_stream());
+  rmm::device_uvector<int32_t> workers_v(length_workers, handle.get_stream());
+  rmm::device_uvector<int32_t> assignment_v(length_workers, handle.get_stream());
 
   raft::update_device(src_v.begin(), src_data, length, handle.get_stream());
   raft::update_device(dst_v.begin(), dst_data, length, handle.get_stream());
@@ -117,11 +117,11 @@ TEST_F(HungarianTest, Bipartite5x5)
   int32_t num_vertices   = 1 + std::max(*std::max_element(src_data, src_data + length),
                                       *std::max_element(dst_data, dst_data + length));
 
-  rmm::device_uvector<int32_t> src_v(length, handle.get_stream_view());
-  rmm::device_uvector<int32_t> dst_v(length, handle.get_stream_view());
-  rmm::device_uvector<float> cost_v(length, handle.get_stream_view());
-  rmm::device_uvector<int32_t> workers_v(length_workers, handle.get_stream_view());
-  rmm::device_uvector<int32_t> assignment_v(length_workers, handle.get_stream_view());
+  rmm::device_uvector<int32_t> src_v(length, handle.get_stream());
+  rmm::device_uvector<int32_t> dst_v(length, handle.get_stream());
+  rmm::device_uvector<float> cost_v(length, handle.get_stream());
+  rmm::device_uvector<int32_t> workers_v(length_workers, handle.get_stream());
+  rmm::device_uvector<int32_t> assignment_v(length_workers, handle.get_stream());
 
   raft::update_device(src_v.begin(), src_data, length, handle.get_stream());
   raft::update_device(dst_v.begin(), dst_data, length, handle.get_stream());
@@ -163,11 +163,11 @@ TEST_F(HungarianTest, Bipartite4x4_multiple_answers)
   int32_t num_vertices   = 1 + std::max(*std::max_element(src_data, src_data + length),
                                       *std::max_element(dst_data, dst_data + length));
 
-  rmm::device_uvector<int32_t> src_v(length, handle.get_stream_view());
-  rmm::device_uvector<int32_t> dst_v(length, handle.get_stream_view());
-  rmm::device_uvector<float> cost_v(length, handle.get_stream_view());
-  rmm::device_uvector<int32_t> workers_v(length_workers, handle.get_stream_view());
-  rmm::device_uvector<int32_t> assignment_v(length_workers, handle.get_stream_view());
+  rmm::device_uvector<int32_t> src_v(length, handle.get_stream());
+  rmm::device_uvector<int32_t> dst_v(length, handle.get_stream());
+  rmm::device_uvector<float> cost_v(length, handle.get_stream());
+  rmm::device_uvector<int32_t> workers_v(length_workers, handle.get_stream());
+  rmm::device_uvector<int32_t> assignment_v(length_workers, handle.get_stream());
 
   raft::update_device(src_v.begin(), src_data, length, handle.get_stream());
   raft::update_device(dst_v.begin(), dst_data, length, handle.get_stream());
@@ -203,8 +203,8 @@ TEST_F(HungarianTest, May29InfLoop)
   std::vector<int32_t> expected({3, 2, 1, 0});
   std::vector<int32_t> assignment({0, 0, 0, 0});
 
-  rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream_view());
-  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream_view());
+  rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream());
+  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream());
 
   raft::update_device(cost_v.begin(), cost, num_rows * num_cols, handle.get_stream());
 
@@ -232,8 +232,8 @@ TEST_F(HungarianTest, Dense4x6)
   std::vector<int32_t> expected({3, 2, 1, 0});
   std::vector<int32_t> assignment({0, 0, 0, 0});
 
-  rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream_view());
-  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream_view());
+  rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream());
+  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream());
 
   raft::update_device(cost_v.begin(), cost, num_rows * num_cols, handle.get_stream());
 
@@ -262,8 +262,8 @@ TEST_F(HungarianTest, Dense6x4)
   std::vector<int32_t> expected2({3, 2, 5, 1, 4, 0});
   std::vector<int32_t> assignment({0, 0, 0, 0, 0, 0});
 
-  rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream_view());
-  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream_view());
+  rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream());
+  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream());
 
   raft::update_device(cost_v.begin(), cost, num_rows * num_cols, handle.get_stream());
 
@@ -320,8 +320,8 @@ TEST_F(HungarianTest, PythonTestFailure)
   std::vector<int32_t> expected({0, 2, 1, 4, 3});
   std::vector<int32_t> assignment({0, 0, 0, 0, 0});
 
-  rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream_view());
-  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream_view());
+  rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream());
+  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream());
 
   raft::update_device(cost_v.begin(), cost, num_rows * num_cols, handle.get_stream());
 
@@ -346,9 +346,9 @@ void random_test(int32_t num_rows, int32_t num_cols, int32_t upper_bound, int re
 
   HighResTimer hr_timer;
 
-  rmm::device_uvector<int32_t>  data_v(num_rows * num_cols, handle.get_stream_view());
-  rmm::device_uvector<curandState> state_vals_v(num_threads, handle.get_stream_view());
-  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream_view());
+  rmm::device_uvector<int32_t>  data_v(num_rows * num_cols, handle.get_stream());
+  rmm::device_uvector<curandState> state_vals_v(num_threads, handle.get_stream());
+  rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream());
 
   std::vector<int32_t> validate(num_cols);
 

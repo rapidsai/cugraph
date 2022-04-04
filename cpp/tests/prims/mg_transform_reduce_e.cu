@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <utilities/high_res_clock.h>
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
+#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -28,16 +28,16 @@
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/matrix_partition_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 
-#include <thrust/count.h>
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <thrust/count.h>
 
 #include <gtest/gtest.h>
 
@@ -130,8 +130,9 @@ struct generate_impl {
                               graph_view_type const& graph_view,
                               property_buffer_type& property)
   {
-    auto output_property = cugraph::col_properties_t<graph_view_type, type>(handle, graph_view);
-    copy_to_adj_matrix_col(
+    auto output_property =
+      cugraph::edge_partition_dst_property_t<graph_view_type, type>(handle, graph_view);
+    update_edge_partition_dst_property(
       handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
     return output_property;
   }
@@ -141,8 +142,9 @@ struct generate_impl {
                            graph_view_type const& graph_view,
                            property_buffer_type& property)
   {
-    auto output_property = cugraph::row_properties_t<graph_view_type, type>(handle, graph_view);
-    copy_to_adj_matrix_row(
+    auto output_property =
+      cugraph::edge_partition_src_property_t<graph_view_type, type>(handle, graph_view);
+    update_edge_partition_src_property(
       handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
     return output_property;
   }
@@ -238,7 +240,7 @@ class Tests_MG_TransformReduceE
     // 2. create MG graph
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -247,7 +249,7 @@ class Tests_MG_TransformReduceE
         handle, input_usecase, prims_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
@@ -270,7 +272,7 @@ class Tests_MG_TransformReduceE
     auto row_prop = generate<result_t>::row_property(handle, mg_graph_view, vertex_property_data);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       hr_clock.start();
     }
@@ -290,7 +292,7 @@ class Tests_MG_TransformReduceE
       property_initial_value);
 
     if (cugraph::test::g_perf) {
-      CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);

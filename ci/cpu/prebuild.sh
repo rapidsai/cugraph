@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2018-2021, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,8 +18,4 @@ if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     export BUILD_LIBCUGRAPH=1
 fi
 
-if [[ "$PYTHON" == "3.7" ]]; then
-    export UPLOAD_LIBCUGRAPH=1
-else
-    export UPLOAD_LIBCUGRAPH=0
-fi
+export UPLOAD_LIBCUGRAPH=1

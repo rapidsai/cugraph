@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2018-2021, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 ##########################################
 # cuGraph GPU build & testscript for CI  #
 ##########################################
@@ -39,6 +39,13 @@ cd $WORKSPACE
 export GIT_DESCRIBE_TAG=`git describe --tags`
 export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 
+# ucx-py version
+export UCX_PY_VERSION='0.26.*'
+
+export CMAKE_CUDA_COMPILER_LAUNCHER="sccache"
+export CMAKE_CXX_COMPILER_LAUNCHER="sccache"
+export CMAKE_C_COMPILER_LAUNCHER="sccache"
+
 ################################################################################
 # SETUP - Check environment
 ################################################################################
@@ -55,15 +62,23 @@ conda activate rapids
 export PATH=$(conda info --base)/envs/rapids/bin:$PATH
 
 gpuci_logger "Install dependencies"
-gpuci_mamba_retry install -y \
-      "libcudf=${MINOR_VERSION}" \
+# Assume libcudf and librmm will be installed via cudf and rmm respectively.
+# This is done to prevent the following install scenario:
+# libcudf = 22.04.00a220315, cudf = 22.04.00a220308
+# where cudf 220308 was chosen possibly because it has fewer/different
+# dependencies and the corresponding recipes have specified these combinations
+# should work when sometimes they do not.
+# FIXME: remove testing label when gpuCI has the ability to move the pyraft
+# label from testing to main.
+gpuci_mamba_retry install -c rapidsai-nightly/label/testing -y \
       "cudf=${MINOR_VERSION}" \
-      "librmm=${MINOR_VERSION}" \
       "rmm=${MINOR_VERSION}" \
+      "libraft-headers=${MINOR_VERSION}" \
+      "pyraft=${MINOR_VERSION}" \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
-      "ucx-py=0.23.*" \
+      "ucx-py=${UCX_PY_VERSION}" \
       "ucx-proc=*=gpu" \
       "rapids-build-env=$MINOR_VERSION.*" \
       "rapids-notebook-env=$MINOR_VERSION.*" \
@@ -91,17 +106,6 @@ if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_logger "Build from source"
     $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph
 else
-    # ...cugraph/cpu/conda_work/... is the dir name when only 1 lib* library is
-    # present. For multiple libs (ie. libcugraph and libcugraph_etl), the
-    # "_work" dir is prefixed with the lib name.
-    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/libcugraph_work/cpp/build"
-
-    # Faiss patch
-    echo "Update libcugraph.so"
-    cd $LIBCUGRAPH_BUILD_DIR
-    chrpath -d libcugraph.so
-    patchelf --replace-needed `patchelf --print-needed libcugraph.so | grep faiss` libfaiss.so libcugraph.so
-
     CONDA_FILE=`find ${CONDA_ARTIFACT_PATH} -name "libcugraph*.tar.bz2"`
     CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
     CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install

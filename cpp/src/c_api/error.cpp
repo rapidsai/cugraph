@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/error.h>
 #include <c_api/error.hpp>
+#include <cugraph_c/error.h>
 
 extern "C" const char* cugraph_error_message(const cugraph_error_t* error)
 {

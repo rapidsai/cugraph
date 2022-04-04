@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <cugraph/functions.hpp>
 #include "COOtoCSR.cuh"
+#include <cugraph/functions.hpp>
 
 namespace cugraph {
 

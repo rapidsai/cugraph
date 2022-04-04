@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2018-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
  */
 #include <iostream>
 
-#include <raft/cudart_utils.h>
 #include <cub/cub.cuh>
+#include <raft/cudart_utils.h>
 
-#include <cugraph/legacy/graph.hpp>
 #include "traversal_common.cuh"
+#include <cugraph/legacy/graph.hpp>
 
 namespace cugraph {
 namespace detail {
@@ -168,7 +168,7 @@ void fill_unvisited_queue(int* visited_bmap,
 
   fill_unvisited_queue_kernel<<<grid, block, 0, m_stream>>>(
     visited_bmap, visited_bmap_nints, n, unvisited, unvisited_cnt);
-  CHECK_CUDA(m_stream);
+  RAFT_CHECK_CUDA(m_stream);
 }
 
 //
@@ -228,7 +228,7 @@ void count_unvisited_edges(const IndexType* potentially_unvisited,
 
   count_unvisited_edges_kernel<<<grid, block, 0, m_stream>>>(
     potentially_unvisited, potentially_unvisited_size, visited_bmap, node_degree, mu);
-  CHECK_CUDA(m_stream);
+  RAFT_CHECK_CUDA(m_stream);
 }
 
 //
@@ -522,7 +522,7 @@ void bottom_up_main(IndexType* unvisited,
                                                      distances,
                                                      predecessors,
                                                      edge_mask);
-  CHECK_CUDA(m_stream);
+  RAFT_CHECK_CUDA(m_stream);
 }
 
 //
@@ -642,7 +642,7 @@ void bottom_up_large(IndexType* left_unvisited,
                                                               distances,
                                                               predecessors,
                                                               edge_mask);
-  CHECK_CUDA(m_stream);
+  RAFT_CHECK_CUDA(m_stream);
 }
 
 //
@@ -1155,7 +1155,7 @@ void frontier_expand(const IndexType* row_ptr,
     edge_mask,
     isolated_bmap,
     directed);
-  CHECK_CUDA(m_stream);
+  RAFT_CHECK_CUDA(m_stream);
 }
 
 }  // namespace bfs_kernels

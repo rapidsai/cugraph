@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,7 +41,7 @@ def test_dask_katz_centrality(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    dg = cugraph.DiGraph()
+    dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
     largest_out_degree = dg.out_degree().compute().\
