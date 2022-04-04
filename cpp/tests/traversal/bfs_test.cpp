@@ -124,8 +124,7 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
                 static_cast<vertex_t>(bfs_usecase.source) < graph_view.number_of_vertices())
       << "Invalid starting source.";
 
-    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(),
-                                              handle.get_stream());
+    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
     rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
                                                  handle.get_stream());
 
@@ -188,8 +187,7 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
       }
 
       std::vector<vertex_t> h_reference_distances(unrenumbered_graph_view.number_of_vertices());
-      std::vector<vertex_t> h_reference_predecessors(
-        unrenumbered_graph_view.number_of_vertices());
+      std::vector<vertex_t> h_reference_predecessors(unrenumbered_graph_view.number_of_vertices());
 
       bfs_reference(h_offsets.data(),
                     h_indices.data(),

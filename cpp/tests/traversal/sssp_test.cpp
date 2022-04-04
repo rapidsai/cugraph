@@ -126,8 +126,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     ASSERT_TRUE(static_cast<vertex_t>(sssp_usecase.source) >= 0 &&
                 static_cast<vertex_t>(sssp_usecase.source) < graph_view.number_of_vertices());
 
-    rmm::device_uvector<weight_t> d_distances(graph_view.number_of_vertices(),
-                                              handle.get_stream());
+    rmm::device_uvector<weight_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
     rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
                                                  handle.get_stream());
 
@@ -192,8 +191,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
       }
 
       std::vector<weight_t> h_reference_distances(unrenumbered_graph_view.number_of_vertices());
-      std::vector<vertex_t> h_reference_predecessors(
-        unrenumbered_graph_view.number_of_vertices());
+      std::vector<vertex_t> h_reference_predecessors(unrenumbered_graph_view.number_of_vertices());
 
       sssp_reference(h_offsets.data(),
                      h_indices.data(),

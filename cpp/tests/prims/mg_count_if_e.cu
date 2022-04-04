@@ -26,8 +26,8 @@
 #include <cugraph/utilities/dataframe_buffer.cuh>
 
 #include <cuco/detail/hash_functions.cuh>
-#include <cugraph/graph_view.hpp>
 #include <cugraph/edge_partition_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/count_if_e.cuh>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>

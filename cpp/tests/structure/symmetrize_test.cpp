@@ -31,7 +31,8 @@
 #include <numeric>
 #include <vector>
 
-// partition the edges to lower-triangular, diagonal, upper-triangular edges; flip sources and destinations of the upper triangular edges, and sort within each partition
+// partition the edges to lower-triangular, diagonal, upper-triangular edges; flip sources and
+// destinations of the upper triangular edges, and sort within each partition
 template <typename EdgeIterator>
 std::tuple<EdgeIterator, EdgeIterator> partition_and_sort_edges(
   EdgeIterator edge_first, EdgeIterator edge_last, bool flip_upper_triangular_before_sort)

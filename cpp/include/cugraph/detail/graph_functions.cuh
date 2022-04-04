@@ -163,9 +163,9 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_major_global_d
  */
 template <typename GraphViewType>
 std::tuple<rmm::device_uvector<edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                                                              typename GraphViewType::edge_type,
-                                                              typename GraphViewType::weight_type,
-                                                              GraphViewType::is_multi_gpu>>,
+                                                            typename GraphViewType::edge_type,
+                                                            typename GraphViewType::weight_type,
+                                                            GraphViewType::is_multi_gpu>>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,

@@ -72,8 +72,10 @@ compressed_sparse_to_edgelist(edge_t const* compressed_sparse_offsets,
                               cudaStream_t stream)
 {
   edge_t number_of_edges{0};
-  raft::update_host(
-    &number_of_edges, compressed_sparse_offsets + (major_range_last - major_range_first), 1, stream);
+  raft::update_host(&number_of_edges,
+                    compressed_sparse_offsets + (major_range_last - major_range_first),
+                    1,
+                    stream);
   RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
   rmm::device_uvector<vertex_t> edgelist_major_vertices(number_of_edges, stream);
   rmm::device_uvector<vertex_t> edgelist_minor_vertices(number_of_edges, stream);

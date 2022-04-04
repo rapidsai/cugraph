@@ -96,8 +96,8 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
     rmm::device_uvector<weight_t> d_mg_hubs(mg_graph_view.local_vertex_partition_range_size(),
                                             handle.get_stream());
 
-    rmm::device_uvector<weight_t> d_mg_authorities(mg_graph_view.local_vertex_partition_range_size(),
-                                                   handle.get_stream());
+    rmm::device_uvector<weight_t> d_mg_authorities(
+      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
     std::vector<weight_t> initial_random_hubs =
       (hits_usecase.check_initial_input)
@@ -177,8 +177,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
 
         auto sg_graph_view = sg_graph.view();
 
-        ASSERT_TRUE(mg_graph_view.number_of_vertices() ==
-                    sg_graph_view.number_of_vertices());
+        ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
         // 4-4. run SG Hits
 

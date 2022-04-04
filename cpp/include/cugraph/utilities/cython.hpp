@@ -291,7 +291,10 @@ struct renum_tuple_t {
     return std::make_pair(std::get<0>(tpl_v), std::get<1>(tpl_v));
   }
 
-  vertex_t get_part_local_vertex_first() const { return part_.local_vertex_partition_range_first(); }
+  vertex_t get_part_local_vertex_first() const
+  {
+    return part_.local_vertex_partition_range_first();
+  }
 
   vertex_t get_part_local_vertex_last() const { return part_.local_vertex_partition_range_last(); }
 

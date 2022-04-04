@@ -102,8 +102,8 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
 
     rmm::device_uvector<weight_t> d_mg_distances(mg_graph_view.local_vertex_partition_range_size(),
                                                  handle.get_stream());
-    rmm::device_uvector<vertex_t> d_mg_predecessors(mg_graph_view.local_vertex_partition_range_size(),
-                                                    handle.get_stream());
+    rmm::device_uvector<vertex_t> d_mg_predecessors(
+      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -162,13 +162,12 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
 
         auto sg_graph_view = sg_graph.view();
 
-        ASSERT_TRUE(mg_graph_view.number_of_vertices() ==
-                    sg_graph_view.number_of_vertices());
+        ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
         // 4-4. run SG SSSP
 
-        rmm::device_uvector<weight_t> d_sg_distances(sg_graph_view.local_vertex_partition_range_size(),
-                                                     handle.get_stream());
+        rmm::device_uvector<weight_t> d_sg_distances(
+          sg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
         rmm::device_uvector<vertex_t> d_sg_predecessors(
           sg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
         vertex_t unrenumbered_source{};

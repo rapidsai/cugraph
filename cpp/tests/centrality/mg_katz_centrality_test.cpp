@@ -156,8 +156,7 @@ class Tests_MGKatzCentrality
 
         auto sg_graph_view = sg_graph.view();
 
-        ASSERT_TRUE(mg_graph_view.number_of_vertices() ==
-                    sg_graph_view.number_of_vertices());
+        ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
         // 5-4. run SG Katz Centrality
 
@@ -176,8 +175,7 @@ class Tests_MGKatzCentrality
 
         // 5-5. compare
 
-        std::vector<result_t> h_mg_aggregate_katz_centralities(
-          mg_graph_view.number_of_vertices());
+        std::vector<result_t> h_mg_aggregate_katz_centralities(mg_graph_view.number_of_vertices());
         raft::update_host(h_mg_aggregate_katz_centralities.data(),
                           d_mg_aggregate_katz_centralities.data(),
                           d_mg_aggregate_katz_centralities.size(),

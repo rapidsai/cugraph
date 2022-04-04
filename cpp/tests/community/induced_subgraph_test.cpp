@@ -150,8 +150,7 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
     std::vector<vertex_t> h_subgraph_vertices(h_subgraph_offsets.back(),
                                               cugraph::invalid_vertex_id<vertex_t>::value);
     std::default_random_engine generator{};
-    std::uniform_int_distribution<vertex_t> distribution{0,
-                                                         graph_view.number_of_vertices() - 1};
+    std::uniform_int_distribution<vertex_t> distribution{0, graph_view.number_of_vertices() - 1};
 
     for (size_t i = 0; i < configuration.subgraph_sizes.size(); ++i) {
       auto start = h_subgraph_offsets[i];

@@ -136,12 +136,12 @@ class Tests_MG_CountIfV
       std::tie(sg_graph, std::ignore) =
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
           handle, input_usecase, true, false);
-      auto sg_graph_view = sg_graph.view();
-      auto expected_vertex_count =
-        thrust::count_if(handle.get_thrust_policy(),
-                         thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-                         thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-                         test_predicate<vertex_t>(hash_bin_count));
+      auto sg_graph_view         = sg_graph.view();
+      auto expected_vertex_count = thrust::count_if(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+        test_predicate<vertex_t>(hash_bin_count));
       ASSERT_TRUE(expected_vertex_count == vertex_count);
     }
   }

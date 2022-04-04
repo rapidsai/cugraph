@@ -46,9 +46,10 @@ __global__ void decompress_to_edgelist_mid_degree(
 {
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(decompress_edge_partition_block_size % raft::warp_size() == 0);
-  auto const lane_id      = tid % raft::warp_size();
-  auto major_start_offset = static_cast<size_t>(major_range_first - edge_partition.major_range_first());
-  size_t idx              = static_cast<size_t>(tid / raft::warp_size());
+  auto const lane_id = tid % raft::warp_size();
+  auto major_start_offset =
+    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
+  size_t idx = static_cast<size_t>(tid / raft::warp_size());
 
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = major_start_offset + idx;
@@ -73,8 +74,9 @@ __global__ void decompress_to_edgelist_high_degree(
   vertex_t major_range_last,
   vertex_t* majors)
 {
-  auto major_start_offset = static_cast<size_t>(major_range_first - edge_partition.major_range_first());
-  size_t idx              = static_cast<size_t>(blockIdx.x);
+  auto major_start_offset =
+    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
+  size_t idx = static_cast<size_t>(blockIdx.x);
 
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = major_start_offset + idx;
@@ -147,14 +149,12 @@ void decompress_edge_partition_to_fill_edgelist_majors(
             thrust::seq, majors + local_offset, majors + local_offset + local_degree, major);
         });
     }
-    if (edge_partition.dcs_nzd_vertex_count() &&
-        (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
+    if (edge_partition.dcs_nzd_vertex_count() && (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
       thrust::for_each(
         execution_policy,
         thrust::make_counting_iterator(vertex_t{0}),
         thrust::make_counting_iterator(*(edge_partition.dcs_nzd_vertex_count())),
-        [edge_partition, major_start_offset = (*segment_offsets)[3], majors] __device__(
-          auto idx) {
+        [edge_partition, major_start_offset = (*segment_offsets)[3], majors] __device__(auto idx) {
           auto major = *(edge_partition.major_from_major_hypersparse_idx_nocheck(idx));
           auto major_idx =
             major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
@@ -368,8 +368,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
         }
       });
   }
-  if (edge_partition.dcs_nzd_vertex_count() &&
-      (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
+  if (edge_partition.dcs_nzd_vertex_count() && (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
     thrust::for_each(
       execution_policy,
       thrust::make_counting_iterator(vertex_t{0}),
@@ -392,8 +391,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
           vertex_t const* indices{nullptr};
           thrust::optional<weight_t const*> weights{thrust::nullopt};
           edge_t local_degree{};
-          thrust::tie(indices, weights, local_degree) =
-            edge_partition.local_edges(*major_idx);
+          thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(*major_idx);
           thrust::fill(
             thrust::seq, majors + major_offset, majors + major_offset + local_degree, major);
           thrust::copy(thrust::seq, indices, indices + local_degree, minors + major_offset);

@@ -90,8 +90,7 @@ class Tests_RWSegSort : public ::testing::TestWithParam<RandomWalks_Usecase> {
     edge_t* offsets = const_cast<edge_t*>(graph_view.local_edge_partition_view().offsets());
 
     vertex_t* indices = const_cast<vertex_t*>(graph_view.local_edge_partition_view().indices());
-    weight_t* values =
-      const_cast<weight_t*>(*(graph_view.local_edge_partition_view().weights()));
+    weight_t* values  = const_cast<weight_t*>(*(graph_view.local_edge_partition_view().weights()));
 
     HighResTimer hr_timer;
     std::string label{};

@@ -145,9 +145,10 @@ class Tests_Transpose
         std::vector<std::tuple<vertex_t, vertex_t, weight_t>> transposed_edges(
           h_transposed_srcs.size());
         for (size_t i = 0; i < transposed_edges.size(); ++i) {
-          transposed_edges[i] = std::make_tuple(h_transposed_dsts[i],
-                                                h_transposed_srcs[i],
-                                                (*h_transposed_weights)[i]);  // flip sources and destinations
+          transposed_edges[i] =
+            std::make_tuple(h_transposed_dsts[i],
+                            h_transposed_srcs[i],
+                            (*h_transposed_weights)[i]);  // flip sources and destinations
         }
         std::sort(transposed_edges.begin(), transposed_edges.end());
 
@@ -161,8 +162,8 @@ class Tests_Transpose
 
         std::vector<std::tuple<vertex_t, vertex_t>> transposed_edges(h_transposed_srcs.size());
         for (size_t i = 0; i < transposed_edges.size(); ++i) {
-          transposed_edges[i] =
-            std::make_tuple(h_transposed_dsts[i], h_transposed_srcs[i]);  // flip sources and destinations
+          transposed_edges[i] = std::make_tuple(
+            h_transposed_dsts[i], h_transposed_srcs[i]);  // flip sources and destinations
         }
         std::sort(transposed_edges.begin(), transposed_edges.end());
 

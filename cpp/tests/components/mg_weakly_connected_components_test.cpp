@@ -144,8 +144,7 @@ class Tests_MGWeaklyConnectedComponents
 
         auto sg_graph_view = sg_graph.view();
 
-        ASSERT_TRUE(mg_graph_view.number_of_vertices() ==
-                    sg_graph_view.number_of_vertices());
+        ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
         // 4-4. run SG weakly connected components
 

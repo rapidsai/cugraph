@@ -165,8 +165,7 @@ class Tests_WeaklyConnectedComponent
 
       handle.sync_stream();
 
-      std::vector<vertex_t> h_reference_components(
-        unrenumbered_graph_view.number_of_vertices());
+      std::vector<vertex_t> h_reference_components(unrenumbered_graph_view.number_of_vertices());
 
       weakly_connected_components_reference(h_offsets.data(),
                                             h_indices.data(),

@@ -267,7 +267,7 @@ collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
 
   // 1: Compute bounds of values
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
-                                                         stream_view);
+                                                               stream_view);
   rmm::device_uvector<size_t> d_local_counts(vertex_partition_range_lasts.size(), stream_view);
 
   raft::copy(d_vertex_partition_range_lasts.data(),
@@ -299,17 +299,17 @@ collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
   auto value_buffer = allocate_dataframe_buffer<value_t>(shuffled_vertices.size(), stream_view);
 
   // 3: Lookup return values
-  thrust::transform(
-    rmm::exec_policy(stream_view),
-    shuffled_vertices.begin(),
-    shuffled_vertices.end(),
-    value_buffer.begin(),
-    [local_value_first,
-     vertex_local_first =
-       (comm.get_rank() == 0 ? vertex_t{0}
-                             : vertex_partition_range_lasts[comm.get_rank() - 1])] __device__(auto v) {
-      return local_value_first[v - vertex_local_first];
-    });
+  thrust::transform(rmm::exec_policy(stream_view),
+                    shuffled_vertices.begin(),
+                    shuffled_vertices.end(),
+                    value_buffer.begin(),
+                    [local_value_first,
+                     vertex_local_first =
+                       (comm.get_rank() == 0
+                          ? vertex_t{0}
+                          : vertex_partition_range_lasts[comm.get_rank() - 1])] __device__(auto v) {
+                      return local_value_first[v - vertex_local_first];
+                    });
 
   // 4: Shuffle results back to original GPU
   std::tie(value_buffer, std::ignore) =

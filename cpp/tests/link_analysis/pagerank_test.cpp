@@ -178,7 +178,8 @@ class Tests_PageRank
     if (pagerank_usecase.personalization_ratio > 0.0) {
       std::default_random_engine generator{};
       std::uniform_real_distribution<double> distribution{0.0, 1.0};
-      h_personalization_vertices = std::vector<vertex_t>(graph_view.local_vertex_partition_range_size());
+      h_personalization_vertices =
+        std::vector<vertex_t>(graph_view.local_vertex_partition_range_size());
       std::iota((*h_personalization_vertices).begin(),
                 (*h_personalization_vertices).end(),
                 graph_view.local_vertex_partition_range_first());
@@ -226,8 +227,7 @@ class Tests_PageRank
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
 
-    rmm::device_uvector<result_t> d_pageranks(graph_view.number_of_vertices(),
-                                              handle.get_stream());
+    rmm::device_uvector<result_t> d_pageranks(graph_view.number_of_vertices(), handle.get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

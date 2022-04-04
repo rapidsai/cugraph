@@ -274,11 +274,12 @@ class Tests_MG_ExtractIfE
         auto sg_property_buffer = cugraph::allocate_dataframe_buffer<property_t>(
           sg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
-        thrust::transform(handle.get_thrust_policy(),
-                          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-                          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-                          cugraph::get_dataframe_buffer_begin(sg_property_buffer),
-                          property_transform_t<vertex_t, property_t>{hash_bin_count});
+        thrust::transform(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+          cugraph::get_dataframe_buffer_begin(sg_property_buffer),
+          property_transform_t<vertex_t, property_t>{hash_bin_count});
 
         cugraph::edge_partition_src_property_t<decltype(sg_graph_view), property_t>
           sg_src_properties(handle, sg_graph_view);

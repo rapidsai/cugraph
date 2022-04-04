@@ -40,8 +40,8 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/graph_functions.cuh>
-#include <cugraph/graph_view.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
@@ -447,9 +447,8 @@ sg_gather_edges(raft::handle_t const& handle,
   auto edge_count   = source_count * indices_per_source;
   rmm::device_uvector<vertex_t> sources(edge_count, handle.get_stream());
   rmm::device_uvector<vertex_t> destinations(edge_count, handle.get_stream());
-  auto edge_partition =
-    cugraph::edge_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
-      graph_view.local_edge_partition_view());
+  auto edge_partition = cugraph::edge_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+    graph_view.local_edge_partition_view());
   thrust::for_each(handle.get_thrust_policy(),
                    thrust::make_counting_iterator<size_t>(0),
                    thrust::make_counting_iterator<size_t>(edge_count),
@@ -501,9 +500,8 @@ sg_gather_edges(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto edge_partition =
-    cugraph::edge_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
-      graph_view.local_edge_partition_view());
+  auto edge_partition = cugraph::edge_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+    graph_view.local_edge_partition_view());
 
   rmm::device_uvector<vertex_t> sources_out_degrees(sources.size(), handle.get_stream());
   thrust::transform(handle.get_thrust_policy(),

@@ -26,8 +26,8 @@
 #include <cugraph/utilities/dataframe_buffer.cuh>
 
 #include <cuco/detail/hash_functions.cuh>
-#include <cugraph/graph_view.hpp>
 #include <cugraph/edge_partition_view.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
@@ -155,8 +155,7 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
                       (*mg_renumber_map_labels).end(),
                       cugraph::get_dataframe_buffer_begin(mg_property_buffer),
                       property_transform_t<vertex_t, property_t>{hash_bin_count});
-    rmm::device_uvector<vertex_t> sources(mg_graph_view.number_of_vertices(),
-                                          handle.get_stream());
+    rmm::device_uvector<vertex_t> sources(mg_graph_view.number_of_vertices(), handle.get_stream());
     thrust::sequence(handle.get_thrust_policy(),
                      sources.begin(),
                      sources.end(),
