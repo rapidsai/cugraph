@@ -25,7 +25,7 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-int generic_wcc_test(vertex_t* h_src,
+int generic_scc_test(vertex_t* h_src,
                      vertex_t* h_dst,
                      weight_t* h_wgt,
                      vertex_t* h_result,
@@ -46,15 +46,19 @@ int generic_wcc_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
-    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, TRUE, &p_graph, &ret_error);
+    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code = cugraph_weakly_connected_components(p_handle, p_graph, FALSE, &p_result, &ret_error);
+  ret_code = cugraph_strongly_connected_components(p_handle, p_graph, FALSE, &p_result, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_NOT_IMPLEMENTED, "SCC should not be implemented, but is");
+
+#if 0
+  // FIXME: Actual implementation will be something like this
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(
-    test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_weakly_connected_components failed.");
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_strongly_connected_components failed.");
 
   cugraph_type_erased_device_array_view_t* vertices;
   cugraph_type_erased_device_array_view_t* components;
@@ -87,11 +91,13 @@ int generic_wcc_test(vertex_t* h_src,
     }
   }
 
-  TEST_ASSERT(test_ret_value, num_errors == 0, "weakly connected components results don't match");
+  TEST_ASSERT(test_ret_value, num_errors == 0, "strongly connected components results don't match");
 
   cugraph_type_erased_device_array_view_free(components);
   cugraph_type_erased_device_array_view_free(vertices);
   cugraph_labeling_result_free(p_result);
+#endif
+
   cugraph_sg_graph_free(p_graph);
   cugraph_free_resource_handle(p_handle);
   cugraph_error_free(ret_error);
@@ -99,22 +105,20 @@ int generic_wcc_test(vertex_t* h_src,
   return test_ret_value;
 }
 
-int test_weakly_connected_components()
+int test_strongly_connected_components()
 {
-  size_t num_edges    = 32;
+  size_t num_edges    = 16;
   size_t num_vertices = 12;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7,  8, 8, 8, 9,  10,
-                      1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11,
-                      0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7,  8, 8, 8, 9,  10};
-  weight_t h_wgt[]    = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7, 8, 8, 8, 9, 10};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11};
+  weight_t h_wgt[] = {
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+
   vertex_t h_result[] = {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
 
-  // WCC wants store_transposed = FALSE
-  return generic_wcc_test(h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE);
+  // SCC wants store_transposed = FALSE
+  return generic_scc_test(h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE);
 }
 
 /******************************************************************************/
@@ -122,6 +126,6 @@ int test_weakly_connected_components()
 int main(int argc, char** argv)
 {
   int result = 0;
-  result |= RUN_TEST(test_weakly_connected_components);
+  result |= RUN_TEST(test_strongly_connected_components);
   return result;
 }
