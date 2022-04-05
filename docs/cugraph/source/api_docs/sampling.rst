@@ -11,3 +11,10 @@ Random Walks
    :toctree: api/
 
    cugraph.random_walks
+
+Node2Vec
+---------
+.. autosummary::
+   :toctree: api/
+
+   cugraph.node2vec

@@ -20,6 +20,5 @@ Connected Components (MG)
 .. autosummary::
    :toctree: api/
 
-   cugraph.dask.components.connectivity.call_wcc
    cugraph.dask.components.connectivity.weakly_connected_components
 
