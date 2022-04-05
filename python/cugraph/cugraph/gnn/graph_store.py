@@ -94,7 +94,8 @@ class CuGraphStore:
             positive (though they don't have to sum up to one). Otherwise,
             the result will be undefined. If not specified, sample uniformly.
         replace : bool
-            If True, sample with replacement. 
+            If True, sample with replacement.
+
         Returns
         -------
         CuPy array
@@ -104,7 +105,8 @@ class CuGraphStore:
         _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
                                        allow_multi_edges=True)
         ego_edge_list, seeds_offsets = batched_ego_graphs(_g,
-                                    current_seeds, radius = 1)
+                                                          current_seeds,
+                                                          radius=1)
         all_parents = cupy.ndarray(0)
         all_children = cupy.ndarray(0)
         # filter and get a certain size neighborhood
