@@ -15,7 +15,8 @@ import cudf
 import cugraph
 from cugraph.experimental import EXPERIMENTAL__PropertyGraph as PropertyGraph
 from cugraph.community.egonet import batched_ego_graphs
-
+import cupy
+import random
 
 class CuGraphStore:
     """
@@ -104,7 +105,9 @@ class CuGraphStore:
             The sampled arrays for bipartite graph.
         """
         current_seeds = cudf.Series(nodes.to_array())
-        ego_edge_list, seeds_offsets = cugraph.community.egonet.batched_ego_graphs(self.__G, current_seeds, radius = 1)
+        _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
+                                       allow_multi_edges=True)
+        ego_edge_list, seeds_offsets = cugraph.community.egonet.batched_ego_graphs(_g, current_seeds, radius = 1)
         all_parents = cupy.ndarray(0)
         all_children = cupy.ndarray(0)
         # filter and get a certain size neighborhood
