@@ -46,7 +46,7 @@ cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_vertices(
  * @param [in]   result   The result from a centrality algorithm
  * @return type erased array view of centrality values
  */
-cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_centralities(
+cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_values(
   cugraph_centrality_result_t* result);
 
 /**

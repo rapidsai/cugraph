@@ -62,7 +62,7 @@ int generic_eigenvector_centrality_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_t* centralities;
 
   vertices  = cugraph_centrality_result_get_vertices(p_result);
-  centralities = cugraph_centrality_result_get_centralities(p_result);
+  centralities = cugraph_centrality_result_get_values(p_result);
 
   vertex_t h_vertices[num_vertices];
   weight_t h_centralities[num_vertices];

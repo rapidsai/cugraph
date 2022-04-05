@@ -32,16 +32,16 @@ namespace {
 
 struct pagerank_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
-  cugraph::c_api::cugraph_graph_t* graph_;
+  cugraph::c_api::cugraph_graph_t* graph_{};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const*
-    precomputed_vertex_out_weight_sums_;
-  cugraph::c_api::cugraph_type_erased_device_array_view_t* personalization_vertices_;
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* personalization_values_;
-  double alpha_;
-  double epsilon_;
-  size_t max_iterations_;
-  bool has_initial_guess_;
-  bool do_expensive_check_;
+    precomputed_vertex_out_weight_sums_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t* personalization_vertices_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* personalization_values_{};
+  double alpha_{};
+  double epsilon_{};
+  size_t max_iterations_{};
+  bool has_initial_guess_{};
+  bool do_expensive_check_{};
   cugraph::c_api::cugraph_centrality_result_t* result_{};
 
   pagerank_functor(

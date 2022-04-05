@@ -62,7 +62,7 @@ int generic_pagerank_test(vertex_t* h_src,
   cugraph_type_erased_device_array_view_t* pageranks;
 
   vertices  = cugraph_centrality_result_get_vertices(p_result);
-  pageranks = cugraph_centrality_result_get_centralities(p_result);
+  pageranks = cugraph_centrality_result_get_values(p_result);
 
   vertex_t h_vertices[num_vertices];
   weight_t h_pageranks[num_vertices];

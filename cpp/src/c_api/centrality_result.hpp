@@ -22,8 +22,8 @@ namespace cugraph {
 namespace c_api {
 
 struct cugraph_centrality_result_t {
-  cugraph_type_erased_device_array_t* vertex_ids_;
-  cugraph_type_erased_device_array_t* centralities_;
+  cugraph_type_erased_device_array_t* vertex_ids_{};
+  cugraph_type_erased_device_array_t* values_{};
 };
 
 }  // namespace c_api

@@ -32,10 +32,10 @@ namespace {
 
 struct eigenvector_centrality_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
-  cugraph::c_api::cugraph_graph_t* graph_;
-  double epsilon_;
-  size_t max_iterations_;
-  bool do_expensive_check_;
+  cugraph::c_api::cugraph_graph_t* graph_{};
+  double epsilon_{};
+  size_t max_iterations_{};
+  bool do_expensive_check_{};
   cugraph::c_api::cugraph_centrality_result_t* result_{};
 
   eigenvector_centrality_functor(cugraph_resource_handle_t const* handle,
