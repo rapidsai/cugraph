@@ -34,12 +34,10 @@ class CuGraphStore:
 
     @property
     def ndata(self):
-       #raise NotImplementedError("not yet implemented")
         return self.__G._vertex_prop_dataframe
 
     @property
     def edata(self):
-        #raise NotImplementedError("not yet implemented")
         return self.__G._edge_prop_dataframe
 
 
@@ -107,7 +105,7 @@ class CuGraphStore:
         current_seeds = cudf.Series(nodes.to_array())
         _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
                                        allow_multi_edges=True)
-        ego_edge_list, seeds_offsets = cugraph.community.egonet.batched_ego_graphs(_g, current_seeds, radius = 1)
+        ego_edge_list, seeds_offsets = batched_ego_graphs(_g, current_seeds, radius = 1)
         all_parents = cupy.ndarray(0)
         all_children = cupy.ndarray(0)
         # filter and get a certain size neighborhood
@@ -116,7 +114,7 @@ class CuGraphStore:
             pos1 = seeds_offsets[i]
             edge_list = ego_edge_list[pos0:pos1]
             # get randomness fanout
-            filtered_list = edge_list[edge_list ['dst']== current_seeds[i-1]]
+            filtered_list = edge_list[edge_list['dst'] == current_seeds[i-1]]
              
             # get sampled_list
             if len(filtered_list) > fanout:
@@ -128,7 +126,6 @@ class CuGraphStore:
             all_parents = cupy.append(all_parents, parents)
             all_children = cupy.append(all_children, children)
         return all_parents, all_children
-
 
     def node_subgraph(self,
                       nodes=None,
