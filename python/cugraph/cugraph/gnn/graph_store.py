@@ -40,8 +40,6 @@ class CuGraphStore:
     def edata(self):
         return self.__G._edge_prop_dataframe
 
-
-
     @property
     def gdata(self):
         return self.__G
@@ -105,7 +103,8 @@ class CuGraphStore:
         current_seeds = cudf.Series(nodes.to_array())
         _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
                                        allow_multi_edges=True)
-        ego_edge_list, seeds_offsets = batched_ego_graphs(_g, current_seeds, radius = 1)
+        ego_edge_list, seeds_offsets = batched_ego_graphs(_g,
+                                    current_seeds, radius = 1)
         all_parents = cupy.ndarray(0)
         all_children = cupy.ndarray(0)
         # filter and get a certain size neighborhood
@@ -118,8 +117,9 @@ class CuGraphStore:
              
             # get sampled_list
             if len(filtered_list) > fanout:
-                sampled_indices = random.sample(filtered_list.index.to_arrow().to_pylist(), fanout)
-                filtered_list = filtered_list.reindex(index = sampled_indices)
+                sampled_indices = random.sample(
+                        filtered_list.index.to_arrow().to_pylist(), fanout)
+                filtered_list = filtered_list.reindex(index=sampled_indices)
 
             children = cupy.asarray(filtered_list['src'])
             parents = cupy.asarray(filtered_list['dst'])
