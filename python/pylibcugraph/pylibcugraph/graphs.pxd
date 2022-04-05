@@ -27,6 +27,5 @@ cdef class _GPUGraph:
 cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
     pass
 
-# Not yet supported
-# cdef class EXPERIMENTAL__MGGraph(_GPUGraph):
-#     pass
+cdef class EXPERIMENTAL__MGGraph(_GPUGraph):
+     pass

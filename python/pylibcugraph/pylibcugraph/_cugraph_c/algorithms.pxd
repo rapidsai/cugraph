@@ -24,6 +24,7 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
+    cugraph_type_erased_host_array_view_t,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -201,5 +202,92 @@ cdef extern from "cugraph_c/algorithms.h":
             double p,
             double q,
             cugraph_random_walk_result_t** result,
+            cugraph_error_t** error
+        )
+    ###########################################################################
+    # hits
+    ctypedef struct cugraph_hits_result_t:
+        pass
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_hits_result_get_vertices(
+            cugraph_hits_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_hits_result_get_hubs(
+            cugraph_hits_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_hits_result_get_authorities(
+            cugraph_hits_result_t* result
+        )
+    
+    cdef void \
+        cugraph_hits_result_free(
+            cugraph_hits_result_t* result
+        )
+
+    cdef cugraph_error_code_t \
+        cugraph_hits(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            double tol,
+            size_t max_iter,
+            const cugraph_type_erased_device_array_view_t* initial_hubs_guess_vertices,
+            const cugraph_type_erased_device_array_view_t* initial_hubs_guess_values,
+            bool_t normalized,
+            bool_t do_expensive_check,
+            cugraph_hits_result_t** result,
+            cugraph_error_t** error
+        )
+
+    ###########################################################################
+    # sampling
+    ctypedef struct cugraph_sample_result_t:
+        pass
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_sources(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_destinations(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_start_labels(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_index(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_host_array_view_t* \
+        cugraph_sample_result_get_counts(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef void \
+        cugraph_sample_result_free(
+            cugraph_sample_result_t* result
+        )
+    
+    # uniform neighborhood sampling
+    cdef cugraph_error_code_t \
+        cugraph_uniform_neighbor_sample(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* start,
+            const cugraph_type_erased_device_array_view_t* start_labels,
+            const cugraph_type_erased_host_array_view_t* fan_out,
+            bool_t without_replacement,
+            bool_t do_expensive_check,
+            cugraph_sample_result_t** result,
             cugraph_error_t** error
         )
