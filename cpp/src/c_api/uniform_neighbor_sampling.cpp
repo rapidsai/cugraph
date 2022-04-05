@@ -18,6 +18,7 @@
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
 
 #include <cugraph/algorithms.hpp>
@@ -43,24 +44,21 @@ struct cugraph_sample_result_t {
 
 namespace {
 
-#if 0
-// FIXME: ifdef this out for now.  Can't be implemented until PR 2073 is merged
-
-  struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
+struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
-  cugraph_graph_t* graph_{nullptr};
-  cugraph_type_erased_device_array_view_t const* start_{nullptr};
-  cugraph_type_erased_device_array_view_t const* start_label_{nullptr};
-  cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
+  cugraph::c_api::cugraph_graph_t* graph_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_label_{nullptr};
+  cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
   bool with_replacement_{false};
   bool do_expensive_check_{false};
-  cugraph_sample_result_t* result_{nullptr};
+  cugraph::c_api::cugraph_sample_result_t* result_{nullptr};
 
-  uniform_neighbor_sampling_functor(::cugraph_resource_handle_t const* handle,
-                                    ::cugraph_graph_t* graph,
-                                    ::cugraph_type_erased_device_array_view_t const* start,
-                                    ::cugraph_type_erased_device_array_view_t const* start_label,
-                                    ::cugraph_type_erased_host_array_view_t const* fan_out,
+  uniform_neighbor_sampling_functor(cugraph_resource_handle_t const* handle,
+                                    cugraph_graph_t* graph,
+                                    cugraph_type_erased_device_array_view_t const* start,
+                                    cugraph_type_erased_device_array_view_t const* start_label,
+                                    cugraph_type_erased_host_array_view_t const* fan_out,
                                     bool with_replacement,
                                     bool do_expensive_check)
     : abstract_functor(),
@@ -70,8 +68,8 @@ namespace {
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(start)),
       start_label_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
         start_label)),
-      fan_out_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(
-                                                                                              fan_out)),
+      fan_out_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)),
       with_replacement_(with_replacement),
       do_expensive_check_(do_expensive_check)
   {
@@ -86,6 +84,8 @@ namespace {
   {
     // FIXME: Think about how to handle SG vice MG
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
+      unsupported();
+    } else if constexpr (!multi_gpu) {
       unsupported();
     } else {
       // uniform_nbr_sample expects store_transposed == false
@@ -110,55 +110,57 @@ namespace {
       //
       // Need to renumber sources
       //
-      renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
-                                                 start.data(),
-                                                 start.size(),
-                                                 number_map->data(),
-                                                 graph_view.get_local_vertex_first(),
-                                                 graph_view.get_local_vertex_last(),
-                                                 false);
+      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
+                                                          start.data(),
+                                                          start.size(),
+                                                          number_map->data(),
+                                                          graph_view.get_local_vertex_first(),
+                                                          graph_view.get_local_vertex_last(),
+                                                          false);
 
-      // TODO:  How can I do this?
-      auto [(srcs, dsts, labels, indices), counts] = cugraph::uniform_nbr_sample(
-        handle_,
-        graph_view,
-        start.data(),
-        start_label_.as_type<label_t>(),
-        start.size(),
-        fanout_,
-        with_replacement_);
+      // C++ API wants an std::vector
+      std::vector<int> fan_out(fan_out_->size_);
+      std::copy_n(fan_out_->as_type<int>(), fan_out_->size_, fan_out.data());
 
-      result_ = new cugraph_sample_result_t{
-        new cugraph_type_erased_device_array_t(srcs, graph_->vertex_type_),
-        new cugraph_type_erased_device_array_t(dsts, graph_->weight_type_),
-        new cugraph_type_erased_device_array_t(labels,  label_type),
-        new cugraph_type_erased_device_array_t(indices, graph_->edge_type_),
-        new cugraph_type_erased_host_array_t(counts, graph_->vertex_type_)};
+      auto&& [tmp_tuple, counts] = cugraph::uniform_nbr_sample(handle_,
+                                                               graph_view,
+                                                               start.data(),
+                                                               start_label_->as_type<int32_t>(),
+                                                               start.size(),
+                                                               fan_out,
+                                                               with_replacement_);
+
+      auto&& [srcs, dsts, labels, indices] = tmp_tuple;
+
+      std::vector<vertex_t> vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
+                                                            srcs.data(),
+                                                            srcs.size(),
+                                                            number_map->data(),
+                                                            vertex_partition_lasts,
+                                                            do_expensive_check_);
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
+                                                            dsts.data(),
+                                                            dsts.size(),
+                                                            number_map->data(),
+                                                            vertex_partition_lasts,
+                                                            do_expensive_check_);
+
+      result_ = new cugraph::c_api::cugraph_sample_result_t{
+        new cugraph::c_api::cugraph_type_erased_device_array_t(srcs, graph_->vertex_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(dsts, graph_->vertex_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(labels, start_label_->type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(indices, graph_->edge_type_),
+        new cugraph::c_api::cugraph_type_erased_host_array_t(counts, graph_->vertex_type_)};
     }
   }
 };
-#else
-
-struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
-  cugraph::c_api::cugraph_sample_result_t* result_{nullptr};
-
-  uniform_neighbor_sampling_functor() : abstract_functor() {}
-
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            bool store_transposed,
-            bool multi_gpu>
-  void operator()()
-  {
-    unsupported();
-  }
-};
-#endif
 
 }  // namespace
 
-extern "C" cugraph_error_code_t uniform_nbr_sample(
+extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start,
@@ -169,8 +171,8 @@ extern "C" cugraph_error_code_t uniform_nbr_sample(
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
 {
-  uniform_neighbor_sampling_functor functor;
-
+  uniform_neighbor_sampling_functor functor{
+    handle, graph, start, start_labels, fan_out, with_replacement, do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 

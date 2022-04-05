@@ -28,7 +28,7 @@ from pylibcugraph._cugraph_c.error cimport (
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_device_array_view_create,
-    cugraph_type_erased_device_array_free,
+    cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -81,8 +81,9 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
         Maximum number of vertices in generated path
 
     compress_result : bool_t
-        If true, the third return device array contains the sizes for each path,
-        otherwise outputs empty device array.
+        If true, the paths are unpadded and a third return device array contains
+        the sizes for each path, otherwise the paths are padded and the third
+        return device array is empty.
 
     p : double
         The return factor p represents the likelihood of backtracking to a node
@@ -109,7 +110,7 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     >>> import pylibcugraph, cupy, numpy
     >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
     >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
-    >>> seeds = cupy.asarrray([0, 0, 1], dtype=numpy.int32)
+    >>> seeds = cupy.asarray([0, 0, 1], dtype=numpy.int32)
     >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
     >>> resource_handle = pylibcugraph.experimental.ResourceHandle()
     >>> graph_props = pylibcugraph.experimental.GraphProperties(
@@ -172,7 +173,8 @@ def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
     cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
     cupy_path_sizes = copy_to_cupy_array(c_resource_handle_ptr,
                                            path_sizes_ptr)
-
+    
     cugraph_random_walk_result_free(result_ptr)
+    cugraph_type_erased_device_array_view_free(seed_view_ptr)
 
     return (cupy_paths, cupy_weights, cupy_path_sizes)

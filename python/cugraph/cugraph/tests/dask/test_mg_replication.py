@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,16 +24,13 @@ import cugraph.tests.utils as utils
 
 DATASETS_OPTIONS = utils.DATASETS_SMALL
 DIRECTED_GRAPH_OPTIONS = [False, True]
-# FIXME: The "preset_gpu_count" from 21.08 and below are not supported and have
-# been removed
 
 
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("input_data_path", DATASETS_OPTIONS,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in DATASETS_OPTIONS])
+                         ids=[f"dataset={d}" for d in DATASETS_OPTIONS])
 def test_replicate_cudf_dataframe_with_weights(
     input_data_path, dask_client
 ):
@@ -54,8 +51,7 @@ def test_replicate_cudf_dataframe_with_weights(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("input_data_path", DATASETS_OPTIONS,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in DATASETS_OPTIONS])
+                         ids=[f"dataset={d}" for d in DATASETS_OPTIONS])
 def test_replicate_cudf_dataframe_no_weights(input_data_path, dask_client):
     gc.collect()
     df = cudf.read_csv(
@@ -74,8 +70,7 @@ def test_replicate_cudf_dataframe_no_weights(input_data_path, dask_client):
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("input_data_path", DATASETS_OPTIONS,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in DATASETS_OPTIONS])
+                         ids=[f"dataset={d}" for d in DATASETS_OPTIONS])
 def test_replicate_cudf_series(input_data_path, dask_client):
     gc.collect()
     df = cudf.read_csv(
@@ -98,8 +93,7 @@ def test_replicate_cudf_series(input_data_path, dask_client):
 
 @pytest.mark.skip(reason="no way of currently testing this")
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in DATASETS_OPTIONS])
+                         ids=[f"dataset={d}" for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_no_context(graph_file, directed):
     gc.collect()
@@ -113,8 +107,7 @@ def test_enable_batch_no_context(graph_file, directed):
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in DATASETS_OPTIONS])
+                         ids=[f"dataset={d}" for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_no_context_view_adj(
     graph_file, directed, dask_client
@@ -129,8 +122,7 @@ def test_enable_batch_no_context_view_adj(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in DATASETS_OPTIONS])
+                         ids=[f"dataset={d}" for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_context_then_views(
     graph_file, directed, dask_client
@@ -156,8 +148,7 @@ def test_enable_batch_context_then_views(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in DATASETS_OPTIONS])
+                         ids=[f"dataset={d}" for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_view_then_context(graph_file, directed, dask_client):
     gc.collect()
@@ -185,8 +176,7 @@ def test_enable_batch_view_then_context(graph_file, directed, dask_client):
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in DATASETS_OPTIONS])
+                         ids=[f"dataset={d}" for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_context_no_context_views(
     graph_file, directed, dask_client
@@ -208,8 +198,7 @@ def test_enable_batch_context_no_context_views(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in DATASETS_OPTIONS])
+                         ids=[f"dataset={d}" for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_edgelist_replication(
     graph_file, directed, dask_client
@@ -227,8 +216,7 @@ def test_enable_batch_edgelist_replication(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in DATASETS_OPTIONS])
+                         ids=[f"dataset={d}" for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_adjlist_replication_weights(
     graph_file, directed, dask_client
@@ -240,7 +228,7 @@ def test_enable_batch_adjlist_replication_weights(
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
     )
-    G = cugraph.DiGraph() if directed else cugraph.Graph()
+    G = cugraph.Graph(directed=directed)
     G.from_cudf_edgelist(
         df, source="src", destination="dst", edge_attr="value"
     )
@@ -261,8 +249,7 @@ def test_enable_batch_adjlist_replication_weights(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("graph_file", DATASETS_OPTIONS,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in DATASETS_OPTIONS])
+                         ids=[f"dataset={d}" for d in DATASETS_OPTIONS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_adjlist_replication_no_weights(
     graph_file, directed, dask_client
@@ -274,7 +261,7 @@ def test_enable_batch_adjlist_replication_no_weights(
         names=["src", "dst"],
         dtype=["int32", "int32"],
     )
-    G = cugraph.DiGraph() if directed else cugraph.Graph()
+    G = cugraph.Graph(directed=directed)
     G.from_cudf_edgelist(df, source="src", destination="dst")
     G.enable_batch()
     G.view_adj_list()
