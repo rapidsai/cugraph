@@ -18,6 +18,7 @@ from cugraph.community.egonet import batched_ego_graphs
 import cupy
 import random
 
+
 class CuGraphStore:
     """
     A wrapper around a cuGraph Property Graph that
@@ -116,7 +117,7 @@ class CuGraphStore:
             edge_list = ego_edge_list[pos0:pos1]
             # get randomness fanout
             filtered_list = edge_list[edge_list['dst'] == current_seeds[i-1]]
-             
+            
             # get sampled_list
             if len(filtered_list) > fanout:
                 sampled_indices = random.sample(
