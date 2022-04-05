@@ -33,22 +33,22 @@ from pylibcugraph._cugraph_c.graph cimport (
 cdef extern from "cugraph_c/algorithms.h":
     ###########################################################################
     # pagerank
-    ctypedef struct cugraph_pagerank_result_t:
+    ctypedef struct cugraph_centrality_result_t:
         pass
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_pagerank_result_get_vertices(
-            cugraph_pagerank_result_t* result
+        cugraph_centrality_result_get_vertices(
+            cugraph_centrality_result_t* result
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_pagerank_result_get_pageranks(
-            cugraph_pagerank_result_t* result
+        cugraph_centrality_result_get_values(
+            cugraph_centrality_result_t* result
         )
 
     cdef void \
-        cugraph_pagerank_result_free(
-            cugraph_pagerank_result_t* result
+        cugraph_centrality_result_free(
+            cugraph_centrality_result_t* result
         )
 
     cdef cugraph_error_code_t \
@@ -61,7 +61,7 @@ cdef extern from "cugraph_c/algorithms.h":
             size_t max_iterations,
             bool_t has_initial_guess,
             bool_t do_expensive_check,
-            cugraph_pagerank_result_t** result,
+            cugraph_centrality_result_t** result,
             cugraph_error_t** error
         )
 
@@ -77,7 +77,7 @@ cdef extern from "cugraph_c/algorithms.h":
             size_t max_iterations,
             bool_t has_initial_guess,
             bool_t do_expensive_check,
-            cugraph_pagerank_result_t** result,
+            cugraph_centrality_result_t** result,
             cugraph_error_t** error
         )
 
