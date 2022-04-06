@@ -43,7 +43,7 @@ int generic_pagerank_test(const cugraph_resource_handle_t* handle,
   cugraph_error_t* ret_error;
 
   cugraph_graph_t* p_graph            = NULL;
-  cugraph_pagerank_result_t* p_result = NULL;
+  cugraph_centrality_result_t* p_result = NULL;
 
   ret_code = create_mg_test_graph(
     handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
@@ -61,8 +61,8 @@ int generic_pagerank_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_t* vertices;
   cugraph_type_erased_device_array_view_t* pageranks;
 
-  vertices  = cugraph_pagerank_result_get_vertices(p_result);
-  pageranks = cugraph_pagerank_result_get_pageranks(p_result);
+  vertices  = cugraph_centrality_result_get_vertices(p_result);
+  pageranks = cugraph_centrality_result_get_values(p_result);
 
   size_t num_local_vertices = cugraph_type_erased_device_array_view_size(vertices);
 
@@ -83,9 +83,7 @@ int generic_pagerank_test(const cugraph_resource_handle_t* handle,
                 "pagerank results don't match");
   }
 
-  cugraph_type_erased_device_array_view_free(pageranks);
-  cugraph_type_erased_device_array_view_free(vertices);
-  cugraph_pagerank_result_free(p_result);
+  cugraph_centrality_result_free(p_result);
   cugraph_mg_graph_free(p_graph);
   cugraph_error_free(ret_error);
 

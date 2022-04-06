@@ -67,3 +67,8 @@ documentation we will mostly use the terms __Node__ and __Edge__ to better
 match NetworkX preferred term use, as well as other Python-based tools.  At
 the CUDA/C layer, we favor the mathematical terms of __Vertex__ and __Edge__.  
 
+# Roadmap
+GitHub does not provide a robust project management interface, and so a roadmap turns into simply a projection of when work will be completed and not a complete picture of everything that needs to be done.  To capture the work that requires multiple steps, issues are labels as “EPIC” and include multiple subtasks that could span multiple releases.   The EPIC will be in the release where work in expected to be completed. A better roadmap is being worked an image of the roadmap will be posted when ready.
+
+ * GitHub Project Board:  https://github.com/rapidsai/cugraph/projects/28
+ 

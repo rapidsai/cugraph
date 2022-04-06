@@ -41,6 +41,9 @@ from pylibcugraph.utilities.api_tools import experimental_warning_wrapper
 from pylibcugraph.graphs import EXPERIMENTAL__SGGraph
 SGGraph = experimental_warning_wrapper(EXPERIMENTAL__SGGraph)
 
+from pylibcugraph.graphs import EXPERIMENTAL__MGGraph
+MGGraph = experimental_warning_wrapper(EXPERIMENTAL__MGGraph)
+
 from pylibcugraph.resource_handle import EXPERIMENTAL__ResourceHandle
 ResourceHandle = experimental_warning_wrapper(EXPERIMENTAL__ResourceHandle)
 
@@ -53,5 +56,11 @@ pagerank = experimental_warning_wrapper(EXPERIMENTAL__pagerank)
 from pylibcugraph.sssp import EXPERIMENTAL__sssp
 sssp = experimental_warning_wrapper(EXPERIMENTAL__sssp)
 
+from pylibcugraph.hits import EXPERIMENTAL__hits
+hits = experimental_warning_wrapper(EXPERIMENTAL__hits)
+
 from pylibcugraph.node2vec import EXPERIMENTAL__node2vec
 node2vec = experimental_warning_wrapper(EXPERIMENTAL__node2vec)
+
+from pylibcugraph.uniform_neighborhood_sampling import EXPERIMENTAL__uniform_neighborhood_sampling
+uniform_neighborhood_sampling = experimental_warning_wrapper(EXPERIMENTAL__uniform_neighborhood_sampling)
