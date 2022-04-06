@@ -102,7 +102,8 @@ class CuGraphStore:
         CuPy array
             The sampled arrays for bipartite graph.
         """
-        current_seeds = cudf.Series(nodes.to_array())
+        num_nodes = len(nodes)
+        current_seeds = nodes.reindex(index = np.arange(0, num_nodes))
         _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
                                        allow_multi_edges=True)
         ego_edge_list, seeds_offsets = batched_ego_graphs(_g,
