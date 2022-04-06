@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-int generic_pagerank_test(vertex_t* h_src,
+int generic_eigenvector_centrality_test(vertex_t* h_src,
                           vertex_t* h_dst,
                           weight_t* h_wgt,
                           weight_t* h_result,
@@ -54,31 +54,31 @@ int generic_pagerank_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code = cugraph_pagerank(
-    p_handle, p_graph, NULL, alpha, epsilon, max_iterations, FALSE, FALSE, &p_result, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_pagerank failed.");
+  ret_code = cugraph_eigenvector_centrality(
+    p_handle, p_graph, epsilon, max_iterations, FALSE, &p_result, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_eigenvector_centrality failed.");
 
   cugraph_type_erased_device_array_view_t* vertices;
-  cugraph_type_erased_device_array_view_t* pageranks;
+  cugraph_type_erased_device_array_view_t* centralities;
 
   vertices  = cugraph_centrality_result_get_vertices(p_result);
-  pageranks = cugraph_centrality_result_get_values(p_result);
+  centralities = cugraph_centrality_result_get_values(p_result);
 
   vertex_t h_vertices[num_vertices];
-  weight_t h_pageranks[num_vertices];
+  weight_t h_centralities[num_vertices];
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     p_handle, (byte_t*)h_vertices, vertices, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    p_handle, (byte_t*)h_pageranks, pageranks, &ret_error);
+    p_handle, (byte_t*)h_centralities, centralities, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
-                nearlyEqual(h_result[h_vertices[i]], h_pageranks[i], 0.001),
-                "pagerank results don't match");
+                nearlyEqual(h_result[h_vertices[i]], h_centralities[i], 0.001),
+                "centralities results don't match");
   }
 
   cugraph_centrality_result_free(p_result);
@@ -89,7 +89,7 @@ int generic_pagerank_test(vertex_t* h_src,
   return test_ret_value;
 }
 
-int test_pagerank()
+int test_eigenvector_centrality()
 {
   size_t num_edges    = 8;
   size_t num_vertices = 6;
@@ -104,64 +104,7 @@ int test_pagerank()
   size_t max_iterations = 20;
 
   // Pagerank wants store_transposed = TRUE
-  return generic_pagerank_test(
-    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, alpha, epsilon, max_iterations);
-}
-
-int test_pagerank_with_transpose()
-{
-  size_t num_edges    = 8;
-  size_t num_vertices = 6;
-
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = {0.0915528, 0.168382, 0.0656831, 0.191468, 0.120677, 0.362237};
-
-  double alpha          = 0.95;
-  double epsilon        = 0.0001;
-  size_t max_iterations = 20;
-
-  // Pagerank wants store_transposed = TRUE
-  //    This call will force cugraph_pagerank to transpose the graph
-  //    But we're passing src/dst backwards so the results will be the same
-  return generic_pagerank_test(
-    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, alpha, epsilon, max_iterations);
-}
-
-int test_pagerank_4()
-{
-  size_t num_edges    = 3;
-  size_t num_vertices = 4;
-
-  vertex_t h_src[]    = {0, 1, 2};
-  vertex_t h_dst[]    = {1, 2, 3};
-  weight_t h_wgt[]    = {1.f, 1.f, 1.f};
-  weight_t h_result[] = {0.11615584790706635f, 0.21488840878009796f, 0.29881080985069275f, 0.37014490365982056f};
-
-  double alpha          = 0.85;
-  double epsilon        = 1.0e-6;
-  size_t max_iterations = 500;
-
-  return generic_pagerank_test(
-    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, alpha, epsilon, max_iterations);
-}
-
-int test_pagerank_4_with_transpose()
-{
-  size_t num_edges    = 3;
-  size_t num_vertices = 4;
-
-  vertex_t h_src[]    = {0, 1, 2};
-  vertex_t h_dst[]    = {1, 2, 3};
-  weight_t h_wgt[]    = {1.f, 1.f, 1.f};
-  weight_t h_result[] = {0.11615584790706635f, 0.21488840878009796f, 0.29881080985069275f, 0.37014490365982056f};
-
-  double alpha          = 0.85;
-  double epsilon        = 1.0e-6;
-  size_t max_iterations = 500;
-
-  return generic_pagerank_test(
+  return generic_eigenvector_centrality_test(
     h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, alpha, epsilon, max_iterations);
 }
 
@@ -170,9 +113,6 @@ int test_pagerank_4_with_transpose()
 int main(int argc, char** argv)
 {
   int result = 0;
-  result |= RUN_TEST(test_pagerank);
-  result |= RUN_TEST(test_pagerank_with_transpose);
-  result |= RUN_TEST(test_pagerank_4);
-  result |= RUN_TEST(test_pagerank_4_with_transpose);
+  result |= RUN_TEST(test_eigenvector_centrality);
   return result;
 }
