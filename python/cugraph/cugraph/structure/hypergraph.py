@@ -185,7 +185,7 @@ def hypergraph(
         else _str_scalar_to_category(len(events), "event")
 
     if not dropna:
-        for key, col in events[columns].iteritems():
+        for key, col in events[columns].items():
             if cudf.api.types.is_string_dtype(col.dtype):
                 events[key].fillna("null", inplace=True)
 
@@ -297,10 +297,10 @@ def _create_entity_nodes(
         ))
     ] + [
         (key, cudf.core.column.column_empty(0, col.dtype))
-        for key, col in events[columns].iteritems()
+        for key, col in events[columns].items()
     ]))]
 
-    for key, col in events[columns].iteritems():
+    for key, col in events[columns].items():
         cat = categories.get(key, key)
         col = col.unique()
         col = col.nans_to_nulls().dropna() if dropna else col
@@ -378,11 +378,11 @@ def _create_hyper_edges(
         ]) +
         ([] if drop_edge_attrs else [
             (key, cudf.core.column.column_empty(0, col.dtype))
-            for key, col in events[edge_attrs].iteritems()
+            for key, col in events[edge_attrs].items()
         ])
     ))]
 
-    for key, col in events[columns].iteritems():
+    for key, col in events[columns].items():
         cat = categories.get(key, key)
         fs = [EVENTID] + ([key] if drop_edge_attrs else edge_attrs)
         df = events[fs].dropna(subset=[key]) if dropna else events[fs]
@@ -448,11 +448,11 @@ def _create_direct_edges(
         ]) +
         ([] if drop_edge_attrs else [
             (key, cudf.core.column.column_empty(0, col.dtype))
-            for key, col in events[edge_attrs].iteritems()
+            for key, col in events[edge_attrs].items()
         ])
     ))]
 
-    for key1, col1 in events[sorted(edge_shape.keys())].iteritems():
+    for key1, col1 in events[sorted(edge_shape.keys())].items():
         cat1 = categories.get(key1, key1)
 
         if isinstance(edge_shape[key1], str):
@@ -462,7 +462,7 @@ def _create_direct_edges(
         elif not isinstance(edge_shape[key1], (set, list, tuple)):
             raise ValueError("EDGES must be a dict of column name(s)")
 
-        for key2, col2 in events[sorted(edge_shape[key1])].iteritems():
+        for key2, col2 in events[sorted(edge_shape[key1])].items():
             cat2 = categories.get(key2, key2)
             fs = [EVENTID] + ([key1, key2] if drop_edge_attrs else edge_attrs)
             df = (
