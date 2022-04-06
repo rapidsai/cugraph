@@ -22,6 +22,18 @@ cdef class EXPERIMENTAL__GraphProperties:
         self.c_graph_properties.is_symmetric = is_symmetric
         self.c_graph_properties.is_multigraph = is_multigraph
 
+    # Pickle support methods: get args for __new__ (__cinit__), get/set state
+    def __getnewargs_ex__(self):
+        is_symmetric = self.c_graph_properties.is_symmetric
+        is_multigraph = self.c_graph_properties.is_multigraph
+        return ((),{"is_symmetric":is_symmetric, "is_multigraph":is_multigraph})
+
+    def __getstate__(self):
+        return ()
+
+    def __setstate__(self, state):
+        pass
+
     @property
     def is_symmetric(self):
         return bool(self.c_graph_properties.is_symmetric)

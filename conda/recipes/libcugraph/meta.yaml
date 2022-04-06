@@ -34,7 +34,7 @@ build:
 
 requirements:
   build:
-    - cmake>=3.20.1
+    - cmake>=3.20.1,<3.23
     - doxygen>=1.8.11
     - cudatoolkit {{ cuda_version }}.*
     - libraft-headers {{ minor_version }}

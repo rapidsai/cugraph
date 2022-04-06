@@ -224,6 +224,22 @@ data_type_id_t cugraph_type_erased_host_array_type(const cugraph_type_erased_hos
 void* cugraph_type_erased_host_array_pointer(const cugraph_type_erased_host_array_view_t* p);
 
 /**
+ * @brief    Copy data between two type erased device array views
+ *
+ * @param [in]  handle      Handle for accessing resources
+ * @param [out] dst         Pointer to type erased host array view destination
+ * @param [in]  src         Pointer to type erased host array view source
+ * @param [out] error       Pointer to an error object storing details of any error.  Will
+ *                          be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_type_erased_host_array_view_copy(
+  const cugraph_resource_handle_t* handle,
+  cugraph_type_erased_host_array_view_t* dst,
+  const cugraph_type_erased_host_array_view_t* src,
+  cugraph_error_t** error);
+
+/**
  * @brief    Copy data from host to a type erased device array view
  *
  * @param [in]  handle      Handle for accessing resources
