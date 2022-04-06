@@ -33,8 +33,8 @@ namespace {
 
 struct scc_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
-  cugraph::c_api::cugraph_graph_t* graph_;
-  bool do_expensive_check_;
+  cugraph::c_api::cugraph_graph_t* graph_{};
+  bool do_expensive_check_{};
   cugraph::c_api::cugraph_labeling_result_t* result_{};
 
   scc_functor(::cugraph_resource_handle_t const* handle,
@@ -54,11 +54,10 @@ struct scc_functor : public cugraph::c_api::abstract_functor {
             bool multi_gpu>
   void operator()()
   {
-    // FIXME: Think about how to handle SG vice MG
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-      // WCC expects store_transposed == false
+      // SCC expects store_transposed == false
       if constexpr (store_transposed) {
         error_code_ = cugraph::c_api::
           transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
