@@ -514,20 +514,21 @@ typedef struct {
  *                           replacement.  If false selection is done without replacement.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
- * @param [in]  result       Output from the uniform_nbr_sample call
+ * @param [in]  result       Output from the uniform_neighbor_sample call
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t uniform_nbr_sample(const cugraph_resource_handle_t* handle,
-                                        cugraph_graph_t* graph,
-                                        const cugraph_type_erased_device_array_view_t* start,
-                                        const cugraph_type_erased_device_array_view_t* start_label,
-                                        const cugraph_type_erased_host_array_view_t* fan_out,
-                                        bool_t without_replacement,
-                                        bool_t do_expensive_check,
-                                        cugraph_sample_result_t** result,
-                                        cugraph_error_t** error);
+cugraph_error_code_t cugraph_uniform_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* start,
+  const cugraph_type_erased_device_array_view_t* start_label,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  bool_t with_replacement,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
 
 /**
  * @brief     Get the source vertices from the sampling algorithm result

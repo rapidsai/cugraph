@@ -51,7 +51,6 @@ struct cugraph_type_erased_device_array_view_t {
 struct cugraph_type_erased_device_array_t {
   // NOTE: size must be first here because the device buffer is released
   size_t size_;
-  //  Why doesn't rmm::device_buffer support release?
   rmm::device_buffer data_;
   data_type_id_t type_;
 
@@ -87,14 +86,36 @@ struct cugraph_type_erased_host_array_view_t {
     return reinterpret_cast<T*>(data_);
   }
 
+  template <typename T>
+  T const* as_type() const
+  {
+    return reinterpret_cast<T const*>(data_);
+  }
+
   size_t num_bytes() const { return num_bytes_; }
 };
 
 struct cugraph_type_erased_host_array_t {
-  std::unique_ptr<std::byte[]> data_;
-  size_t size_;
-  size_t num_bytes_;
+  std::unique_ptr<std::byte[]> data_{nullptr};
+  size_t size_{0};
+  size_t num_bytes_{0};
   data_type_id_t type_;
+
+  cugraph_type_erased_host_array_t(size_t size, size_t num_bytes, data_type_id_t type)
+    : data_(std::make_unique<std::byte[]>(num_bytes)),
+      size_(size),
+      num_bytes_(num_bytes),
+      type_(type)
+  {
+  }
+
+  template <typename T>
+  cugraph_type_erased_host_array_t(std::vector<T>& vec, data_type_id_t type)
+    : size_(vec.size()), num_bytes_(vec.size() * sizeof(T)), type_(type)
+  {
+    data_ = std::make_unique<std::byte[]>(num_bytes_);
+    std::copy(vec.begin(), vec.end(), reinterpret_cast<T*>(data_.get()));
+  }
 
   auto view()
   {

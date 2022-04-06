@@ -231,6 +231,9 @@ shuffle_to_target_gpu_ids(raft::handle_t const& handle,
         thrust::upper_bound(thrust::seq, gpu_id_first, gpu_id_last, static_cast<gpu_t>(i))));
     });
 
+  thrust::adjacent_difference(
+    handle.get_thrust_policy(), tx_counts.begin(), tx_counts.end(), tx_counts.begin());
+
   std::vector<size_t> h_tx_counts(tx_counts.size());
   raft::update_host(h_tx_counts.data(), tx_counts.data(), tx_counts.size(), handle.get_stream());
 
@@ -332,8 +335,6 @@ uniform_nbr_sample_impl(
 
   if constexpr (graph_view_t::is_multi_gpu) {
     size_t num_starting_vs = d_in.size();
-    CUGRAPH_EXPECTS(num_starting_vs > 0,
-                    "Invalid input argument: starting vertex set cannot be null.");
 
     CUGRAPH_EXPECTS(num_starting_vs == d_ranks.size(),
                     "Sets of input vertices and ranks must have same sizes.");
@@ -360,112 +361,107 @@ uniform_nbr_sample_impl(
 
     size_t level{0l};
     for (auto&& k_level : h_fan_out) {
-      // main body:
-      //{
       // prep step for extracting out-degs(sources):
       //
       auto&& [d_new_in, d_new_rank] =
         gather_active_majors(handle, graph_view, d_in.cbegin(), d_in.cend(), d_ranks.cbegin());
 
-      auto in_sz = d_in.size();
-      if (in_sz > 0) {
-        rmm::device_uvector<vertex_t> d_out_src(0, handle.get_stream());
-        rmm::device_uvector<vertex_t> d_out_dst(0, handle.get_stream());
-        rmm::device_uvector<gpu_t> d_out_ranks(0, handle.get_stream());
-        rmm::device_uvector<edge_t> d_indices(0, handle.get_stream());
-        if (k_level != 0) {
-          // extract out-degs(sources):
-          //
-          auto&& d_out_degs =
-            get_active_major_global_degrees(handle, graph_view, d_new_in, global_out_degrees);
+      rmm::device_uvector<vertex_t> d_out_src(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> d_out_dst(0, handle.get_stream());
+      rmm::device_uvector<gpu_t> d_out_ranks(0, handle.get_stream());
+      rmm::device_uvector<edge_t> d_indices(0, handle.get_stream());
 
-          // segemented-random-generation of indices:
-          //
-          device_vec_t<edge_t> d_rnd_indices(d_new_in.size() * k_level, handle.get_stream());
-
-          cugraph_ops::Rng rng(row_rank + level);
-          cugraph_ops::get_sampling_index(detail::raw_ptr(d_rnd_indices),
-                                          rng,
-                                          detail::raw_const_ptr(d_out_degs),
-                                          static_cast<edge_t>(d_out_degs.size()),
-                                          static_cast<int32_t>(k_level),
-                                          flag_replacement,
-                                          handle.get_stream());
-
-          // gather edges step:
-          // invalid entries (not found, etc.) filtered out in result;
-          // d_indices[] filtered out in-place (to avoid copies+moves);
-          //
-          auto&& [temp_d_out_src, temp_d_out_dst, temp_d_out_ranks, temp_d_indices] =
-            gather_local_edges(handle,
-                               graph_view,
-                               d_new_in,
-                               d_new_rank,
-                               std::move(d_rnd_indices),
-                               static_cast<edge_t>(k_level),
-                               global_degree_offsets,
-                               global_adjacency_list_offsets);
-          d_out_src   = std::move(temp_d_out_src);
-          d_out_dst   = std::move(temp_d_out_dst);
-          d_out_ranks = std::move(temp_d_out_ranks);
-          d_indices   = std::move(temp_d_indices);
-        } else {
-          auto&& [temp_d_out_src, temp_d_out_dst, temp_d_out_ranks, temp_d_indices] =
-            gather_one_hop_edgelist(
-              handle, graph_view, d_new_in, d_new_rank, global_adjacency_list_offsets);
-          d_out_src   = std::move(temp_d_out_src);
-          d_out_dst   = std::move(temp_d_out_dst);
-          d_out_ranks = std::move(temp_d_out_ranks);
-          d_indices   = std::move(temp_d_indices);
-        }
-
-        // resize accumulators:
+      if (k_level != 0) {
+        // extract out-degs(sources):
         //
-        auto old_sz = d_acc_dst.size();
-        auto add_sz = d_out_dst.size();
-        auto new_sz = old_sz + add_sz;
+        auto&& d_out_degs =
+          get_active_major_global_degrees(handle, graph_view, d_new_in, global_out_degrees);
 
-        d_acc_src.resize(new_sz, handle.get_stream());
-        d_acc_dst.resize(new_sz, handle.get_stream());
-        d_acc_ranks.resize(new_sz, handle.get_stream());
-        d_acc_indices.resize(new_sz, handle.get_stream());
-
-        // zip quad; must be done after resizing,
-        // because they grow from one iteration to another,
-        // so iterators could be invalidated:
+        // segemented-random-generation of indices:
         //
-        auto acc_zip_it =
-          thrust::make_zip_iterator(thrust::make_tuple(d_acc_src.begin() + old_sz,
-                                                       d_acc_dst.begin() + old_sz,
-                                                       d_acc_ranks.begin() + old_sz,
-                                                       d_acc_indices.begin() + old_sz));
+        device_vec_t<edge_t> d_rnd_indices(d_new_in.size() * k_level, handle.get_stream());
 
-        // union step:
+        cugraph_ops::Rng rng(row_rank + level);
+        cugraph_ops::get_sampling_index(detail::raw_ptr(d_rnd_indices),
+                                        rng,
+                                        detail::raw_const_ptr(d_out_degs),
+                                        static_cast<edge_t>(d_out_degs.size()),
+                                        static_cast<int32_t>(k_level),
+                                        flag_replacement,
+                                        handle.get_stream());
+
+        // gather edges step:
+        // invalid entries (not found, etc.) filtered out in result;
+        // d_indices[] filtered out in-place (to avoid copies+moves);
         //
-        auto out_zip_it = thrust::make_zip_iterator(thrust::make_tuple(
-          d_out_src.begin(), d_out_dst.begin(), d_out_ranks.begin(), d_indices.begin()));
-
-        thrust::copy_n(handle.get_thrust_policy(), out_zip_it, add_sz, acc_zip_it);
-
-        // shuffle step: update input for self_rank
-        // zipping is necessary to preserve rank info during shuffle!
-        //
-        auto next_in_zip_begin =
-          thrust::make_zip_iterator(thrust::make_tuple(d_out_dst.begin(), d_out_ranks.begin()));
-        auto next_in_zip_end =
-          thrust::make_zip_iterator(thrust::make_tuple(d_out_dst.end(), d_out_ranks.end()));
-
-        update_input_by_rank(handle,
+        auto&& [temp_d_out_src, temp_d_out_dst, temp_d_out_ranks, temp_d_indices] =
+          gather_local_edges(handle,
                              graph_view,
-                             next_in_zip_begin,
-                             next_in_zip_end,
-                             static_cast<size_t>(self_rank),
-                             d_in,
-                             d_ranks,
-                             gpu_t{});
+                             d_new_in,
+                             d_new_rank,
+                             std::move(d_rnd_indices),
+                             static_cast<edge_t>(k_level),
+                             global_degree_offsets,
+                             global_adjacency_list_offsets);
+        d_out_src   = std::move(temp_d_out_src);
+        d_out_dst   = std::move(temp_d_out_dst);
+        d_out_ranks = std::move(temp_d_out_ranks);
+        d_indices   = std::move(temp_d_indices);
+      } else {
+        auto&& [temp_d_out_src, temp_d_out_dst, temp_d_out_ranks, temp_d_indices] =
+          gather_one_hop_edgelist(
+            handle, graph_view, d_new_in, d_new_rank, global_adjacency_list_offsets);
+        d_out_src   = std::move(temp_d_out_src);
+        d_out_dst   = std::move(temp_d_out_dst);
+        d_out_ranks = std::move(temp_d_out_ranks);
+        d_indices   = std::move(temp_d_indices);
       }
 
-      //}
+      // resize accumulators:
+      //
+      auto old_sz = d_acc_dst.size();
+      auto add_sz = d_out_dst.size();
+      auto new_sz = old_sz + add_sz;
+
+      d_acc_src.resize(new_sz, handle.get_stream());
+      d_acc_dst.resize(new_sz, handle.get_stream());
+      d_acc_ranks.resize(new_sz, handle.get_stream());
+      d_acc_indices.resize(new_sz, handle.get_stream());
+
+      // zip quad; must be done after resizing,
+      // because they grow from one iteration to another,
+      // so iterators could be invalidated:
+      //
+      auto acc_zip_it =
+        thrust::make_zip_iterator(thrust::make_tuple(d_acc_src.begin() + old_sz,
+                                                     d_acc_dst.begin() + old_sz,
+                                                     d_acc_ranks.begin() + old_sz,
+                                                     d_acc_indices.begin() + old_sz));
+
+      // union step:
+      //
+      auto out_zip_it = thrust::make_zip_iterator(thrust::make_tuple(
+        d_out_src.begin(), d_out_dst.begin(), d_out_ranks.begin(), d_indices.begin()));
+
+      thrust::copy_n(handle.get_thrust_policy(), out_zip_it, add_sz, acc_zip_it);
+
+      // shuffle step: update input for self_rank
+      // zipping is necessary to preserve rank info during shuffle!
+      //
+      auto next_in_zip_begin =
+        thrust::make_zip_iterator(thrust::make_tuple(d_out_dst.begin(), d_out_ranks.begin()));
+      auto next_in_zip_end =
+        thrust::make_zip_iterator(thrust::make_tuple(d_out_dst.end(), d_out_ranks.end()));
+
+      update_input_by_rank(handle,
+                           graph_view,
+                           next_in_zip_begin,
+                           next_in_zip_end,
+                           static_cast<size_t>(self_rank),
+                           d_in,
+                           d_ranks,
+                           gpu_t{});
+
       ++level;
     }
 
