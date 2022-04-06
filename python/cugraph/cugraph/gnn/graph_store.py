@@ -17,6 +17,7 @@ from cugraph.experimental import EXPERIMENTAL__PropertyGraph as PropertyGraph
 from cugraph.community.egonet import batched_ego_graphs
 import cupy
 import random
+import numpy as np
 
 
 class CuGraphStore:
@@ -103,7 +104,7 @@ class CuGraphStore:
             The sampled arrays for bipartite graph.
         """
         num_nodes = len(nodes)
-        current_seeds = nodes.reindex(index = np.arange(0, num_nodes))
+        current_seeds = nodes.reindex(index=np.arange(0, num_nodes))
         _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
                                        allow_multi_edges=True)
         ego_edge_list, seeds_offsets = batched_ego_graphs(_g,
