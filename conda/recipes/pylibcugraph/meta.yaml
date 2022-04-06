@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 
 # Usage:
 #   conda build -c nvidia -c rapidsai -c conda-forge  .
@@ -33,8 +33,10 @@ requirements:
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
     - rmm {{ minor_version }}.*
+    - libraft-headers {{ minor_version }}
   run:
     - python x.x
+    - libraft-headers {{ minor_version }}
     - libcugraph={{ version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
 

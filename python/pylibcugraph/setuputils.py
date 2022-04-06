@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2018-2021, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -67,72 +67,6 @@ def clean_folder(path):
         cython_exts.extend(glob.glob(folder + '/*.cpython*'))
         for file in cython_exts:
             os.remove(file)
-
-
-def use_raft_package(raft_path, cpp_build_path,
-                     git_info_file=None):
-    """
-    Function to use the python code in RAFT in package.raft
-
-    - If RAFT symlink already exists, don't change anything. Use setup.py clean
-        if you want to change RAFT location.
-    - Uses RAFT located in $RAFT_PATH if $RAFT_PATH exists.
-    - Otherwise it will look for RAFT in the libcugraph build folder,
-        located either in the default locations ../cpp/build/raft,
-        ../cpp/build/_deps/raft-src, or in $CUGRAPH_BUILD_PATH.
-    -Otherwise it will clone RAFT into _external_repositories.
-        - Branch/git tag cloned is located in git_info_file in this case.
-
-    Returns
-     -------
-     raft_include_path: Str
-         Path to the C++ include folder of RAFT
-
-    """
-    if os.path.isdir('pylibcugraph/raft'):
-        raft_path = os.path.realpath('pylibcugraph/raft')
-        # walk up two dirs from `python/raft`
-        raft_path = os.path.join(raft_path, '..', '..')
-        print("-- Using existing RAFT folder")
-    elif cpp_build_path and os.path.isdir(os.path.join(cpp_build_path,
-                                                       '_deps/raft-src')):
-        raft_path = os.path.join(cpp_build_path, '_deps/raft-src')
-        raft_path = os.path.realpath(raft_path)
-        print("-- Using existing RAFT folder in CPP build dir from cmake "
-              "FetchContent")
-    elif cpp_build_path and os.path.isdir(os.path.join(cpp_build_path,
-                                                       'raft/src/raft')):
-        raft_path = os.path.join(cpp_build_path, 'raft/src/raft')
-        raft_path = os.path.realpath(raft_path)
-        print("-- Using existing RAFT folder in CPP build dir from cmake "
-              "ExternalProject")
-    elif isinstance(raft_path, (str, os.PathLike)):
-        print('-- Using RAFT_PATH argument')
-    elif os.environ.get('RAFT_PATH', False) is not False:
-        raft_path = str(os.environ['RAFT_PATH'])
-        print('-- Using RAFT_PATH environment variable')
-    else:
-        raft_path, raft_cloned = \
-            clone_repo_if_needed('raft', cpp_build_path,
-                                 git_info_file=git_info_file)
-        raft_path = os.path.join('../../', raft_path)
-
-    raft_path = os.path.realpath(raft_path)
-    print('-- RAFT found at: ' + str(raft_path))
-
-    try:
-        os.symlink(
-            os.path.join(raft_path, 'python/raft'),
-            os.path.join('pylibcugraph/raft')
-        )
-    except FileExistsError:
-        os.remove(os.path.join('pylibcugraph/raft'))
-        os.symlink(
-            os.path.join(raft_path, 'python/raft'),
-            os.path.join('pylibcugraph/raft')
-        )
-
-    return os.path.join(raft_path, 'cpp/include')
 
 
 def clone_repo_if_needed(name, cpp_build_path=None,

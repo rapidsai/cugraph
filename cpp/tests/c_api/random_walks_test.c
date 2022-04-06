@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ int test_random_walks_1()
   cugraph_unique_ptr_t* p_sampling_strategy = NULL;
   vertex_t h_start[]                        = {0, 2};
 
-  p_handle = cugraph_create_resource_handle();
+  p_handle = cugraph_create_resource_handle(NULL);
   runtime_assert(p_handle != NULL, "resource handle creation failed.");
 
   ret_code = cugraph_make_device_buffer(p_handle, vertex_tid, num_edges, &dbuf_src);
@@ -224,7 +224,7 @@ int test_random_walks_2()
   edge_t h_sizes[NUM_PATHS];
   vertex_t h_paths[NUM_PATHS * MAX_DEPTH];
 
-  p_handle = cugraph_create_resource_handle();
+  p_handle = cugraph_create_resource_handle(NULL);
   runtime_assert(p_handle != NULL, "resource handle creation failed.");
 
   ret_code = cugraph_make_device_buffer(p_handle, vertex_tid, num_edges, &dbuf_src);
@@ -349,7 +349,7 @@ int test_random_walks_3()
   dbuf_start.data_ = NULL;
   dbuf_start.size_ = 0;
 
-  p_handle = cugraph_create_resource_handle();
+  p_handle = cugraph_create_resource_handle(NULL);
   runtime_assert(p_handle != NULL, "resource handle creation failed.");
 
   ret_code = cugraph_make_device_buffer(p_handle, vertex_tid, num_edges, &dbuf_src);

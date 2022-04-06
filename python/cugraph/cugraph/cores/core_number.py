@@ -50,7 +50,7 @@ def core_number(G):
     ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> cn = cugraph.core_number(G)
+    >>> df = cugraph.core_number(G)
 
     """
 

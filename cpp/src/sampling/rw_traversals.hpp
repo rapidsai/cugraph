@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@
 
 #include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
-#include <raft/random/rng.hpp>
+#include <raft/random/rng.cuh>
 
 #include <rmm/device_uvector.hpp>
 
@@ -38,6 +38,7 @@
 #include <thrust/reduce.h>
 
 #include <algorithm>
+#include <ctime>
 #include <future>
 #include <thread>
 
@@ -102,6 +103,29 @@ value_t const* raw_const_ptr(device_const_vector_view<value_t>& dv)
   return dv.begin();
 }
 
+// seeding policy: time (clock) dependent,
+// to avoid RW calls repeating same random data:
+//
+template <typename seed_t>
+struct clock_seeding_t {
+  clock_seeding_t(void) = default;
+
+  seed_t operator()(void) { return static_cast<seed_t>(std::time(nullptr)); }
+};
+
+// seeding policy: fixed for debug/testing repro
+//
+template <typename seed_t>
+struct fixed_seeding_t {
+  // purposely no default cnstr.
+
+  fixed_seeding_t(seed_t seed) : seed_(seed) {}
+  seed_t operator()(void) { return seed_; }
+
+ private:
+  seed_t seed_;
+};
+
 // Uniform RW selector logic:
 //
 template <typename graph_type, typename real_t>
@@ -129,10 +153,8 @@ struct uniform_selector_t {
       auto crt_out_deg = ptr_d_cache_out_degs_[src_v];
       if (crt_out_deg == 0) return thrust::nullopt;  // src_v is a sink
 
-      real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
-      auto interp_vindx = rnd_val * max_ub;
-      vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
-
+      vertex_t v_indx =
+        static_cast<vertex_t>(rnd_val >= 1.0 ? crt_out_deg - 1 : rnd_val * crt_out_deg);
       auto col_indx  = v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx;
       auto start_row = row_offsets_[src_v];
 

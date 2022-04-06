@@ -24,6 +24,8 @@ import dask_cudf
 
 def call_katz_centrality(sID,
                          data,
+                         src_col_name,
+                         dst_col_name,
                          num_verts,
                          num_edges,
                          vertex_partition_offsets,
@@ -40,6 +42,8 @@ def call_katz_centrality(sID,
     segment_offsets = \
         aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
     return mg_katz_centrality.mg_katz_centrality(data[0],
+                                                 src_col_name,
+                                                 dst_col_name,
                                                  num_verts,
                                                  num_edges,
                                                  vertex_partition_offsets,
@@ -153,9 +157,14 @@ def katz_centrality(input_graph,
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
+    src_col_name = input_graph.renumber_map.renumbered_src_col_name
+    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+
     result = [client.submit(call_katz_centrality,
                             Comms.get_session_id(),
                             wf[1],
+                            src_col_name,
+                            dst_col_name,
                             num_verts,
                             num_edges,
                             vertex_partition_offsets,

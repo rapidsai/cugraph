@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -48,7 +48,6 @@ print("Networkx version : {} ".format(nx.__version__))
 # connected_components calls.
 cuGraph_input_output_map = {
     cugraph.Graph: cudf.DataFrame,
-    cugraph.DiGraph: cudf.DataFrame,
     nx.Graph: pd.DataFrame,
     nx.DiGraph: pd.DataFrame,
     cp_coo_matrix: tuple,
@@ -296,7 +295,7 @@ def test_sssp_data_type_conversion(graph_file, source):
 
     # cugraph call with int32 weights
     cu_M["2"] = cu_M["2"].astype(np.int32)
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
     # assert cugraph weights is int32
     assert G.edgelist.edgelist_df["weights"].dtype == np.int32

@@ -1,5 +1,5 @@
 
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -43,7 +43,7 @@ def topKVertices(katz, col, k):
 
 def calc_katz(graph_file):
     cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     largest_out_degree = G.degrees().nlargest(n=1, columns="out_degree")

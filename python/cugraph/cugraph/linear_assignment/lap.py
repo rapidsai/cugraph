@@ -55,6 +55,7 @@ def hungarian(G, workers, epsilon=None):
     -------
     cost : matches costs.dtype
         The cost of the overall assignment
+
     df : cudf.DataFrame
       df['vertex'][i] gives the vertex id of the i'th vertex.  Only vertices
                       in the workers list are defined in this column.
@@ -63,12 +64,9 @@ def hungarian(G, workers, epsilon=None):
 
     Examples
     --------
-    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
-    >>> #  M = cudf.read_csv(datasets_path / 'bipartite.csv', delimiter=' ',
-    >>> #                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> # G = cugraph.Graph()
-    >>> # G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
-    >>> # cost, df = cugraph.hungarian(G, workers)
+    >>> workers, G, costs = cugraph.utils.create_random_bipartite(5, 5,
+    ...                                                           100, float)
+    >>> cost, df = cugraph.hungarian(G, workers)
 
     """
     # FIXME: Create bipartite.csv and uncomment out the above example
@@ -108,10 +106,13 @@ def dense_hungarian(costs, num_rows, num_columns, epsilon=None):
         graph.  Each row represents a worker, each column represents
         a task, cost[i][j] represents the cost of worker i performing
         task j.
+
     num_rows : int
         Number of rows in the matrix
+
     num_columns : int
         Number of columns in the matrix
+
     epsilon : float or double (matching weight type in graph)
         Used for determining when value is close enough to zero to consider 0.
         Defaults (if not specified) to 1e-6 in the C++ code.  Unused for
@@ -121,11 +122,17 @@ def dense_hungarian(costs, num_rows, num_columns, epsilon=None):
     -------
     cost : matches costs.dtype
         The cost of the overall assignment
+
     assignment : cudf.Series
-      assignment[i] gives the vertex id of the task assigned to the
+        assignment[i] gives the vertex id of the task assigned to the
                     worker i
 
-    FIXME: Update this with a real example...
+    Examples
+    --------
+    >>> workers, G, costs = cugraph.utils.create_random_bipartite(5, 5,
+    ...                                                           100, float)
+    >>> costs_flattened = cudf.Series(costs.flatten())
+    >>> cost, assignment = cugraph.dense_hungarian(costs_flattened, 5, 5)
 
     """
 

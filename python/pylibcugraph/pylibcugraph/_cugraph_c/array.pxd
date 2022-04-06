@@ -18,7 +18,7 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
 )
-from pylibcugraph._cugraph_c.cugraph_api cimport (
+from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
     data_type_id_t,
     byte_t,
@@ -140,6 +140,14 @@ cdef extern from "cugraph_c/array.h":
         cugraph_type_erased_host_array_pointer(
             const cugraph_type_erased_host_array_view_t* p
         )
+    
+    # cdef void* \
+    #    cugraph_type_erased_host_array_view_copy(
+    #        const cugraph_resource_handle_t* handle,
+    #        cugraph_type_erased_host_array_view_t* dst,
+    #        const cugraph_type_erased_host_array_view_t* src,
+    #        cugraph_error_t** error
+    #    )
 
     cdef cugraph_error_code_t \
         cugraph_type_erased_device_array_view_copy_from_host(

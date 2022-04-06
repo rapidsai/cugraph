@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -33,6 +33,8 @@ numberTypeMap = {np.dtype("int32") : <int>numberTypeEnum.int32Type,
 
 
 def louvain(input_df,
+            src_col_name,
+            dst_col_name,
             num_global_verts,
             num_global_edges,
             vertex_partition_offsets,
@@ -55,8 +57,8 @@ def louvain(input_df,
     # FIXME: much of this code is common to other algo wrappers, consider adding
     #        this to a shared utility as well
 
-    src = input_df['src']
-    dst = input_df['dst']
+    src = input_df[src_col_name]
+    dst = input_df[dst_col_name]
     num_local_edges = len(src)
 
     if "value" in input_df.columns:

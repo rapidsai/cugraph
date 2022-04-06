@@ -109,8 +109,8 @@ def bfs(G,
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True, then convert the input matrix to a cugraph.DiGraph,
-        otherwise a cugraph.Graph object will be used.
+        If True, then convert the input matrix to a directed cugraph.Graph,
+        otherwise an undirected cugraph.Graph object will be used.
 
     return_predecessors :
 
@@ -165,7 +165,7 @@ def bfs(G,
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight",
-        matrix_graph_type=DiGraph if directed else Graph)
+        matrix_graph_type=Graph(directed=directed))
 
     # The BFS C++ extension assumes the start vertex is a cudf.Series object,
     # and operates on internal vertex IDs if renumbered.

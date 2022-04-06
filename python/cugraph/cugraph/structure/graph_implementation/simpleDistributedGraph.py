@@ -63,9 +63,9 @@ class simpleDistributedGraphImpl:
         store_transposed=False,
     ):
         if not isinstance(input_ddf, dask_cudf.DataFrame):
-            raise Exception("input should be a dask_cudf dataFrame")
+            raise TypeError("input should be a dask_cudf dataFrame")
         if self.properties.directed is False:
-            raise Exception("Undirected distributed graph not supported")
+            raise TypeError("Undirected distributed graph not supported")
 
         s_col = source
         d_col = destination
@@ -77,7 +77,7 @@ class simpleDistributedGraphImpl:
             set(s_col).issubset(set(input_ddf.columns))
             and set(d_col).issubset(set(input_ddf.columns))
         ):
-            raise Exception(
+            raise ValueError(
                 "source column names and/or destination column "
                 "names not found in input. Recheck the source "
                 "and destination parameters"
@@ -85,7 +85,7 @@ class simpleDistributedGraphImpl:
         ddf_columns = s_col + d_col
         if edge_attr is not None:
             if not (set([edge_attr]).issubset(set(input_ddf.columns))):
-                raise Exception(
+                raise ValueError(
                     "edge_attr column name not found in input."
                     "Recheck the edge_attr parameter")
             self.properties.weighted = True
@@ -137,20 +137,18 @@ class simpleDistributedGraphImpl:
                 then containing the weight value for each edge
         """
         if self.edgelist is None:
-            raise Exception("Graph has no Edgelist.")
+            raise RuntimeError("Graph has no Edgelist.")
         return self.edgelist.edgelist_df
 
     def delete_edge_list(self):
         """
         Delete the edge list.
         """
-        # decrease reference count to free memory if the referenced objects are
-        # no longer used.
         self.edgelist = None
 
     def clear(self):
         """
-        Empty this graph. This function is added for NetworkX compatibility.
+        Empty this graph.
         """
         self.edgelist = None
 
@@ -163,13 +161,12 @@ class simpleDistributedGraphImpl:
                 ddf = self.edgelist.edgelist_df[["src", "dst"]]
                 self.properties.node_count = ddf.max().max().compute() + 1
             else:
-                raise Exception("Graph is Empty")
+                raise RuntimeError("Graph is Empty")
         return self.properties.node_count
 
     def number_of_nodes(self):
         """
-        An alias of number_of_vertices(). This function is added for NetworkX
-        compatibility.
+        An alias of number_of_vertices().
         """
         return self.number_of_vertices()
 
@@ -180,7 +177,7 @@ class simpleDistributedGraphImpl:
         if self.edgelist is not None:
             return len(self.edgelist.edgelist_df)
         else:
-            raise Exception("Graph is Empty")
+            raise RuntimeError("Graph is Empty")
 
     def in_degree(self, vertex_subset=None):
         """
@@ -290,7 +287,7 @@ class simpleDistributedGraphImpl:
         >>> subset_df = G.degree([0,9,12])
 
         """
-        raise Exception("Not supported for distributed graph")
+        raise NotImplementedError("Not supported for distributed graph")
 
     # FIXME:  vertex_subset could be a DataFrame for multi-column vertices
     def degrees(self, vertex_subset=None):
@@ -330,7 +327,7 @@ class simpleDistributedGraphImpl:
         >>> df = G.degrees([0,9,12])
 
         """
-        raise Exception("Not supported for distributed graph")
+        raise NotImplementedError("Not supported for distributed graph")
 
     def _degree(self, vertex_subset, direction=Direction.ALL):
         vertex_col, degree_col = graph_primtypes_wrapper._mg_degree(self,
@@ -369,7 +366,7 @@ class simpleDistributedGraphImpl:
 
         """
         # TODO: Add support
-        raise Exception("Not supported for distributed graph")
+        raise NotImplementedError("Not supported for distributed graph")
 
     def to_undirected(self, G):
         """
@@ -391,14 +388,14 @@ class simpleDistributedGraphImpl:
         """
 
         # TODO: Add support
-        raise Exception("Not supported for distributed graph")
+        raise NotImplementedError("Not supported for distributed graph")
 
     def has_node(self, n):
         """
         Returns True if the graph contains the node n.
         """
         if self.edgelist is None:
-            raise Exception("Graph has no Edgelist.")
+            raise RuntimeError("Graph has no Edgelist.")
         # FIXME: Check renumber map
         ddf = self.edgelist.edgelist_df[["src", "dst"]]
         return (ddf == n).any().any().compute()
@@ -409,10 +406,12 @@ class simpleDistributedGraphImpl:
         """
         # TODO: Verify Correctness
         if self.properties.renumbered:
-            tmp = cudf.DataFrame({"src": [u, v]})
-            tmp = tmp.astype({"src": "int"})
+            src_col_name = self.renumber_map.renumbered_src_col_name
+
+            tmp = cudf.DataFrame({src_col_name: [u, v]})
+            tmp = tmp.astype({src_col_name: "int"})
             tmp = self.add_internal_vertex_id(
-                tmp, "id", "src", preserve_order=True
+                tmp, "id", src_col_name, preserve_order=True
             )
 
             u = tmp["id"][0]
@@ -434,11 +433,11 @@ class simpleDistributedGraphImpl:
         Returns all the nodes in the graph as a cudf.Series
         """
         # FIXME: Return renumber map nodes
-        raise Exception("Not supported for distributed graph")
+        raise NotImplementedError("Not supported for distributed graph")
 
     def neighbors(self, n):
         if self.edgelist is None:
-            raise Exception("Graph has no Edgelist.")
+            raise RuntimeError("Graph has no Edgelist.")
         # FIXME: Add renumbering of node n
         ddf = self.edgelist.edgelist_df
         return ddf[ddf["src"] == n]["dst"].reset_index(drop=True)
@@ -469,6 +468,9 @@ class simpleDistributedGraphImpl:
         # FIXME:  What to do about edge_attr???
         #         currently ignored for MNMG
 
+        # FIXME: this is confusing - in the code below,
+        # self.properties.renumbered needs to be interpreted as "needs to be
+        # renumbered", everywhere else it means "has been renumbered".
         if not self.properties.renumbered:
             self.edgelist = self.EdgeList(self.input_df)
             self.renumber_map = None

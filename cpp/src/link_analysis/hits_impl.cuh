@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_to_adj_matrix_row_col.cuh>
 #include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/count_if_v.cuh>
+#include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/reduce_v.cuh>
-#include <cugraph/prims/row_col_properties.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 
 #include <thrust/fill.h>
 #include <thrust/transform.h>
@@ -90,8 +90,8 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   }
 
   // Property wrappers
-  row_properties_t<GraphViewType, result_t> prev_src_hubs(handle, graph_view);
-  col_properties_t<GraphViewType, result_t> curr_dst_auth(handle, graph_view);
+  edge_partition_src_property_t<GraphViewType, result_t> prev_src_hubs(handle, graph_view);
+  edge_partition_dst_property_t<GraphViewType, result_t> curr_dst_auth(handle, graph_view);
   rmm::device_uvector<result_t> temp_hubs(graph_view.get_number_of_local_vertices(),
                                           handle.get_stream());
 
@@ -100,7 +100,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
 
   // Initialize hubs from user input if provided
   if (has_initial_hubs_guess) {
-    copy_to_adj_matrix_row(handle, graph_view, prev_hubs, prev_src_hubs);
+    update_edge_partition_src_property(handle, graph_view, prev_hubs, prev_src_hubs);
   } else {
     prev_src_hubs.fill(result_t{1.0} / num_vertices, handle.get_stream());
     thrust::fill(handle.get_thrust_policy(),
@@ -114,18 +114,18 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       handle,
       graph_view,
       prev_src_hubs.device_view(),
-      dummy_properties_t<result_t>{}.device_view(),
+      dummy_property_t<result_t>{}.device_view(),
       [] __device__(auto, auto, auto, auto prev_src_hub_value, auto) { return prev_src_hub_value; },
       result_t{0},
       authorities);
 
-    copy_to_adj_matrix_col(handle, graph_view, authorities, curr_dst_auth);
+    update_edge_partition_dst_property(handle, graph_view, authorities, curr_dst_auth);
 
     // Update current source hubs property
     copy_v_transform_reduce_out_nbr(
       handle,
       graph_view,
-      dummy_properties_t<result_t>{}.device_view(),
+      dummy_property_t<result_t>{}.device_view(),
       curr_dst_auth.device_view(),
       [] __device__(auto src, auto dst, auto, auto, auto curr_dst_auth_value) {
         return curr_dst_auth_value;
@@ -152,7 +152,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       break;
     }
 
-    copy_to_adj_matrix_row(handle, graph_view, curr_hubs, prev_src_hubs);
+    update_edge_partition_src_property(handle, graph_view, curr_hubs, prev_src_hubs);
 
     // Swap pointers for the next iteration
     // After this swap call, prev_hubs has the latest value of hubs

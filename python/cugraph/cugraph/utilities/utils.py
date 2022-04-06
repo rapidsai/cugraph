@@ -262,7 +262,7 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
     cugraph Graph-type obj to create when converting from a matrix type.
     """
     # FIXME: importing here to avoid circular import
-    from cugraph.structure import Graph, DiGraph
+    from cugraph.structure import Graph
     from cugraph.utilities.nx_factory import convert_from_nx
 
     input_type = type(obj)
@@ -276,12 +276,12 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
          (input_type in __sp_matrix_types):
         if matrix_graph_type is None:
             matrix_graph_type = Graph
-        elif matrix_graph_type not in [Graph, DiGraph]:
-            raise TypeError(
-                f"matrix_graph_type must be either a cugraph "
-                f"Graph or DiGraph, got: {matrix_graph_type}"
-            )
-
+        elif matrix_graph_type not in [Graph]:
+            if not isinstance(matrix_graph_type, Graph):
+                raise TypeError(
+                    f"matrix_graph_type must be either a cugraph "
+                    f"Graph, got: {matrix_graph_type}"
+                )
         if input_type in (
             __cp_compressed_matrix_types + __sp_compressed_matrix_types
         ):
@@ -306,7 +306,10 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
         #   data for sym matrices (ie. for each uv, check vu is there)
         # * populate the cugraph graph with directed data and set renumbering
         #   to false in from edge list call.
-        G = matrix_graph_type()
+        if isinstance(matrix_graph_type, Graph):
+            G = matrix_graph_type
+        else:
+            G = matrix_graph_type()
         G.from_cudf_edgelist(df, edge_attr="weight", renumber=True)
 
         return (G, input_type)
@@ -357,7 +360,7 @@ def is_nx_graph_type(g):
 def is_cugraph_graph_type(g):
     # FIXME: importing here to avoid circular import
     from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
-
+    # FIXME: Remove DiGraph when support is dropped
     return g in [Graph, DiGraph, MultiGraph, MultiDiGraph]
 
 
@@ -443,3 +446,33 @@ def import_optional(mod, default_mod_class=MissingModule):
         return importlib.import_module(mod)
     except ModuleNotFoundError:
         return default_mod_class(mod_name=mod)
+
+
+def create_random_bipartite(v1, v2, size, dtype):
+    # Creates a full bipartite graph
+    import numpy as np
+    from cugraph.structure import Graph
+
+    df1 = cudf.DataFrame()
+    df1['src'] = cudf.Series(range(0, v1, 1))
+    df1['key'] = 1
+
+    df2 = cudf.DataFrame()
+    df2['dst'] = cudf.Series(range(v1, v1+v2, 1))
+    df2['key'] = 1
+
+    edges = df1.merge(df2, on='key')[['src', 'dst']]
+    edges = edges.sort_values(['src', 'dst']).reset_index()
+
+    # Generate edge weights
+    a = np.random.randint(1, high=size, size=(v1, v2)).astype(dtype)
+    edges['weight'] = a.flatten()
+
+    g = Graph()
+    g.from_cudf_edgelist(edges,
+                         source='src',
+                         destination='dst',
+                         edge_attr='weight',
+                         renumber=False)
+
+    return df1['src'], g, a

@@ -29,6 +29,53 @@ namespace test {
 
 namespace detail {
 
+template <typename T>
+std::optional<rmm::device_uvector<T>> try_allocate(raft::handle_t const& handle, size_t size)
+{
+  try {
+    return std::make_optional<rmm::device_uvector<T>>(size, handle.get_stream());
+  } catch (std::exception const& e) {
+    return std::nullopt;
+  }
+}
+
+// use host memory as temporary buffer if memroy allocation on device fails
+template <typename T>
+rmm::device_uvector<T> concatenate(raft::handle_t const& handle,
+                                   std::vector<rmm::device_uvector<T>>&& inputs)
+{
+  size_t tot_count{0};
+  for (size_t i = 0; i < inputs.size(); ++i) {
+    tot_count += inputs[i].size();
+  }
+
+  auto output = try_allocate<T>(handle, tot_count);
+  if (output) {
+    size_t offset{0};
+    for (size_t i = 0; i < inputs.size(); ++i) {
+      raft::copy(
+        (*output).data() + offset, inputs[i].data(), inputs[i].size(), handle.get_stream());
+      offset += inputs[i].size();
+    }
+    inputs.clear();
+    inputs.shrink_to_fit();
+  } else {
+    std::vector<T> h_buffer(tot_count);
+    size_t offset{0};
+    for (size_t i = 0; i < inputs.size(); ++i) {
+      raft::update_host(
+        h_buffer.data() + offset, inputs[i].data(), inputs[i].size(), handle.get_stream());
+      offset += inputs[i].size();
+    }
+    inputs.clear();
+    inputs.shrink_to_fit();
+    output = rmm::device_uvector<T>(tot_count, handle.get_stream());
+    raft::update_device((*output).data(), h_buffer.data(), h_buffer.size(), handle.get_stream());
+  }
+
+  return std::move(*output);
+}
+
 class TranslateGraph_Usecase {
  public:
   TranslateGraph_Usecase() = delete;
@@ -146,23 +193,33 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     CUGRAPH_EXPECTS(((size_t{1} << scale_) * edge_factor_) <=
                       static_cast<size_t>(std::numeric_limits<edge_t>::max()),
                     "Invalid template parameter: (scale_, edge_factor_) too large for edge_t");
+    // generate in multi-partitions to limit peak memory usage (thrust::sort &
+    // shuffle_edgelist_by_gpu_id requires a temporary buffer with the size of the original data)
+    // With the current implementation, the temporary memory requirement is roughly 50% of the
+    // original data with num_partitions_per_gpu = 2. If we use cuMemAddressReserve
+    // (https://developer.nvidia.com/blog/introducing-low-level-gpu-virtual-memory-management), we
+    // can reduce the temporary memory requirement to (1 / num_partitions) * (original data size)
+    size_t constexpr num_partitions_per_gpu = 2;
 
-    std::vector<size_t> partition_ids(1);
-    size_t num_partitions;
+    // 1. calculate # partitions, # edges to generate in each partition, and partition vertex ranges
+
+    std::vector<size_t> partition_ids{};
+    size_t num_partitions{};
 
     if (multi_gpu_usecase_) {
       auto& comm           = handle.get_comms();
-      num_partitions       = comm.get_size();
+      num_partitions       = comm.get_size() * num_partitions_per_gpu;
       auto const comm_rank = comm.get_rank();
 
-      partition_ids.resize(multi_gpu ? size_t{1} : static_cast<size_t>(num_partitions));
+      partition_ids.resize(multi_gpu ? num_partitions_per_gpu : num_partitions);
 
       std::iota(partition_ids.begin(),
                 partition_ids.end(),
-                multi_gpu ? static_cast<size_t>(comm_rank) : size_t{0});
+                multi_gpu ? static_cast<size_t>(comm_rank) * num_partitions_per_gpu : size_t{0});
     } else {
-      num_partitions   = 1;
-      partition_ids[0] = size_t{0};
+      num_partitions = num_partitions_per_gpu;
+      partition_ids.resize(num_partitions);
+      std::iota(partition_ids.begin(), partition_ids.end(), size_t{0});
     }
 
     vertex_t number_of_vertices = static_cast<vertex_t>(size_t{1} << scale_);
@@ -191,17 +248,20 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       }
     }
 
-    rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
-    auto weights_v = test_weighted
-                       ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
-                       : std::nullopt;
+    // 2. generate edges
+
+    std::vector<rmm::device_uvector<vertex_t>> src_partitions{};
+    std::vector<rmm::device_uvector<vertex_t>> dst_partitions{};
+    auto weight_partitions = test_weighted
+                               ? std::make_optional<std::vector<rmm::device_uvector<weight_t>>>()
+                               : std::nullopt;
+    src_partitions.reserve(partition_ids.size());
+    dst_partitions.reserve(partition_ids.size());
+    if (weight_partitions) { (*weight_partitions).reserve(partition_ids.size()); }
     for (size_t i = 0; i < partition_ids.size(); ++i) {
       auto id = partition_ids[i];
 
-      rmm::device_uvector<vertex_t> tmp_src_v(0, handle.get_stream());
-      rmm::device_uvector<vertex_t> tmp_dst_v(0, handle.get_stream());
-      std::tie(i == 0 ? src_v : tmp_src_v, i == 0 ? dst_v : tmp_dst_v) =
+      auto [tmp_src_v, tmp_dst_v] =
         cugraph::generate_rmat_edgelist<vertex_t>(handle,
                                                   scale_,
                                                   partition_edge_counts[i],
@@ -212,79 +272,85 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                                                   undirected_ ? true : false);
 
       std::optional<rmm::device_uvector<weight_t>> tmp_weights_v{std::nullopt};
-      if (weights_v) {
-        if (i == 0) {
-          weights_v->resize(src_v.size(), handle.get_stream());
-        } else {
-          tmp_weights_v = std::make_optional<rmm::device_uvector<weight_t>>(tmp_src_v.size(),
-                                                                            handle.get_stream());
-        }
+      if (weight_partitions) {
+        tmp_weights_v =
+          std::make_optional<rmm::device_uvector<weight_t>>(tmp_src_v.size(), handle.get_stream());
 
         cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                             i == 0 ? weights_v->data() : tmp_weights_v->data(),
-                                             i == 0 ? weights_v->size() : tmp_weights_v->size(),
+                                             tmp_weights_v->data(),
+                                             tmp_weights_v->size(),
                                              weight_t{0.0},
                                              weight_t{1.0},
                                              seed_ + num_partitions + id);
       }
 
-      if (i > 0) {
-        auto start_offset = src_v.size();
-        src_v.resize(start_offset + tmp_src_v.size(), handle.get_stream());
-        dst_v.resize(start_offset + tmp_dst_v.size(), handle.get_stream());
-        raft::copy(
-          src_v.begin() + start_offset, tmp_src_v.begin(), tmp_src_v.size(), handle.get_stream());
-        raft::copy(
-          dst_v.begin() + start_offset, tmp_dst_v.begin(), tmp_dst_v.size(), handle.get_stream());
+      translate(handle, tmp_src_v, tmp_dst_v);
 
-        if (weights_v) {
-          weights_v->resize(start_offset + tmp_weights_v->size(), handle.get_stream());
-          raft::copy(weights_v->begin() + start_offset,
-                     tmp_weights_v->begin(),
-                     tmp_weights_v->size(),
-                     handle.get_stream());
-        }
+      if (undirected_) {
+        std::tie(tmp_src_v, tmp_dst_v, tmp_weights_v) =
+          cugraph::symmetrize_edgelist_from_triangular<vertex_t, weight_t>(
+            handle, std::move(tmp_src_v), std::move(tmp_dst_v), std::move(tmp_weights_v));
       }
+
+      if (multi_gpu) {
+        std::tie(store_transposed ? tmp_dst_v : tmp_src_v,
+                 store_transposed ? tmp_src_v : tmp_dst_v,
+                 tmp_weights_v) =
+          cugraph::detail::shuffle_edgelist_by_gpu_id(
+            handle,
+            store_transposed ? std::move(tmp_dst_v) : std::move(tmp_src_v),
+            store_transposed ? std::move(tmp_src_v) : std::move(tmp_dst_v),
+            std::move(tmp_weights_v));
+      }
+
+      src_partitions.push_back(std::move(tmp_src_v));
+      dst_partitions.push_back(std::move(tmp_dst_v));
+      if (weight_partitions) { (*weight_partitions).push_back(std::move(*tmp_weights_v)); }
     }
 
-    translate(handle, src_v, dst_v);
-
-    if (undirected_)
-      std::tie(src_v, dst_v, weights_v) =
-        cugraph::symmetrize_edgelist_from_triangular<vertex_t, weight_t>(
-          handle, std::move(src_v), std::move(dst_v), std::move(weights_v));
-
-    if (multi_gpu) {
-      std::tie(store_transposed ? dst_v : src_v, store_transposed ? src_v : dst_v, weights_v) =
-        cugraph::detail::shuffle_edgelist_by_gpu_id(
-          handle,
-          store_transposed ? std::move(dst_v) : std::move(src_v),
-          store_transposed ? std::move(src_v) : std::move(dst_v),
-          std::move(weights_v));
+    size_t tot_edge_counts{0};
+    for (size_t i = 0; i < src_partitions.size(); ++i) {
+      tot_edge_counts += src_partitions[i].size();
     }
 
-    rmm::device_uvector<vertex_t> vertices_v(0, handle.get_stream());
-    for (size_t i = 0; i < partition_ids.size(); ++i) {
-      auto id = partition_ids[i];
+    // detail::concatenate uses a host buffer to store input vectors if initial device memory
+    // allocation for the return vector fails. This does not improve peak memory usage and is not
+    // helpful with the rmm_mode = cuda. However, if rmm_mode = pool, memory allocation can fail
+    // even when the aggregate free memory size far exceeds the requested size. This heuristic is
+    // helpful in this case.
 
-      auto start_offset = vertices_v.size();
-      vertices_v.resize(start_offset + (partition_vertex_lasts[i] - partition_vertex_firsts[i]),
-                        handle.get_stream());
+    auto src_v = detail::concatenate(handle, std::move(src_partitions));
+    auto dst_v = detail::concatenate(handle, std::move(dst_partitions));
+    std::optional<rmm::device_uvector<weight_t>> weight_v{std::nullopt};
+    if (weight_partitions) {
+      weight_v = detail::concatenate(handle, std::move(*weight_partitions));
+    }
+
+    // 3. generate vertices
+
+    size_t tot_vertex_counts{0};
+    for (size_t i = 0; i < partition_vertex_firsts.size(); ++i) {
+      tot_vertex_counts += partition_vertex_lasts[i] - partition_vertex_firsts[i];
+    }
+    rmm::device_uvector<vertex_t> vertex_v(tot_vertex_counts, handle.get_stream());
+    size_t v_offset{0};
+    for (size_t i = 0; i < partition_vertex_firsts.size(); ++i) {
       cugraph::detail::sequence_fill(handle.get_stream(),
-                                     vertices_v.begin() + start_offset,
-                                     vertices_v.size() - start_offset,
+                                     vertex_v.begin() + v_offset,
+                                     partition_vertex_lasts[i] - partition_vertex_firsts[i],
                                      partition_vertex_firsts[i]);
+      v_offset += partition_vertex_lasts[i] - partition_vertex_firsts[i];
     }
 
     if constexpr (multi_gpu) {
-      vertices_v = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(vertices_v));
+      vertex_v = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(vertex_v));
     }
 
     return std::make_tuple(
       std::move(src_v),
       std::move(dst_v),
-      std::move(weights_v),
-      std::move(vertices_v),
+      std::move(weight_v),
+      std::move(vertex_v),
       static_cast<vertex_t>(detail::TranslateGraph_Usecase::base_vertex_id_) + number_of_vertices,
       undirected_);
   }

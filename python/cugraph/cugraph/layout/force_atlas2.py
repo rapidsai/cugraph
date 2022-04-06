@@ -120,6 +120,16 @@ def force_atlas2(
         pos : cudf.DataFrame
             GPU data frame of size V containing three columns:
             the vertex identifiers and the x and y positions.
+
+        Examples
+        --------
+        >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                     dtype=['int32', 'int32', 'float32'],
+        ...                     header=None)
+        >>> G = cugraph.Graph()
+        >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+        >>> pos = cugraph.force_atlas2(G)
+
     """
     input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph)
 
