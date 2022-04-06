@@ -39,6 +39,23 @@ There are 3 ways to get cuGraph :
 <br/><br/>
 
 ---
+# cuGraph News
+
+### Scaling to 1 Trillion Edges
+cuGraph was recently tested on the Selene supercomputer using 2,048 GPUs and processing a graph with `1.1 Trillion edges`. 
+
+<div align="left"><img src="img/Scaling.png" width="500px" style="background-color: white;"/>&nbsp;</br>cuGraph Scaling</div>
+</br></br>
+
+### cuGraph Software Stack
+cuGraph has a new multi-layer software stack that allows users and system integrators to access cuGraph at different layers.  
+
+<div align="left"><img src="img/cugraph-stack.png" width="500px" style="background-color: white;"/>&nbsp;</br>cuGraph Software Stack</div>
+</br></br>
+
+
+
+
 # Currently Supported Features
 As of Release 21.08 - including 21.08 nightly
 
@@ -50,24 +67,24 @@ _Italic_ algorithms are planned for future releases.
 | ------------ | -------------------------------------- | ------------ | ------------------- |
 | Centrality   |                                        |              |                     |
 |              | Katz                                   | Multi-GPU    |                     |
-|              | Betweenness Centrality                 | Single-GPU   |                     |
+|              | Betweenness Centrality                 | Single-GPU   | MG planned for 22.08                    |
 |              | Edge Betweenness Centrality            | Single-GPU   |                     |
+|              | _Eigenvector Centrality_               |              | _MG planned for 22.06_ |
 | Community    |                                        |              |                     |
-|              | EgoNet                                 | Single-GPU   |                     |
 |              | Leiden                                 | Single-GPU   |                     |
 |              | Louvain                                | Multi-GPU    |  [C++ README](cpp/src/community/README.md#Louvain) |
 |              | Ensemble Clustering for Graphs         | Single-GPU   |                     |
 |              | Spectral-Clustering - Balanced Cut     | Single-GPU   |                     |
 |              | Spectral-Clustering - Modularity       | Single-GPU   |                     |
 |              | Subgraph Extraction                    | Single-GPU   |                     |
-|              | Triangle Counting                      | Single-GPU   |                     |
-|              | K-Truss                                | Single-GPU   |                     |
+|              | Triangle Counting                      | Single-GPU   | MG planned for 22.06                    |
+|              | K-Truss                                | Single-GPU   | MG planned for 22.10                    |
 | Components   |                                        |              |                     |
 |              | Weakly Connected Components            | Multi-GPU    |                     |
-|              | Strongly Connected Components          | Single-GPU   |                     |
+|              | Strongly Connected Components          | Single-GPU   | MG planned for 22.06      |
 | Core         |                                        |              |                     |
-|              | K-Core                                 | Single-GPU   |                     |
-|              | Core Number                            | Single-GPU   |                     |
+|              | K-Core                                 | Single-GPU   | MG planned for 22.10                    |
+|              | Core Number                            | Single-GPU   | MG planned for 22.08                    |
 | _Flow_       |                                        |              |                     |
 |              | _MaxFlow_                              | ---          |                     |
 | _Influence_  |                                        |              |                     |
@@ -79,7 +96,7 @@ _Italic_ algorithms are planned for future releases.
 | Link Analysis|                                        |              |                     |
 |              | Pagerank                               | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Pagerank) |
 |              | Personal Pagerank                      | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank) |
-|              | HITS                                   | Single-GPU   | Multi-GPU C code is ready, Python wrapper in 22.04                    |
+|              | HITS                                   | Multi-GPU    |                     |
 | Link Prediction |                                     |              |                     |
 |              | Jaccard Similarity                     | Single-GPU   |                     |
 |              | Weighted Jaccard Similarity            | Single-GPU   |                     |
@@ -89,10 +106,12 @@ _Italic_ algorithms are planned for future releases.
 | Sampling     |                                        |              |                     |
 |              | Random Walks (RW)                      | Single-GPU   | Biased and Uniform  |
 |              | Egonet                                 | Single-GPU   | multi-seed          |
-|              | _node2vec_                             |   ---        | C code is ready, Python wrapper coming in 22.04                    |
+|              | Node2Vec                               | Single-GPU   |                     |
+|              | Neighborhood sampling                  | Multi-GPU    |                     |
 | Traversal    |                                        |              |                     |
 |              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
 |              | Single Source Shortest Path (SSSP)     | Multi-GPU    | [C++ README](cpp/src/traversal/README.md#SSSP) |
+|              | _ASSP / APSP_                          |              |                     |
 | Tree         |                                        |              |                     |
 |              | Minimum Spanning Tree                  | Single-GPU   |                     |
 |              | Maximum Spanning Tree                  | Single-GPU   |                     |
@@ -164,20 +183,20 @@ Install and update cuGraph using the conda command:
 
 ```bash
 
-# CUDA 11.0
-conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.0
 
-# CUDA 11.2
-conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.2
+
+
 
 # CUDA 11.4
 conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.4
 
 # CUDA 11.5
 conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.5
+
+For CUDA > 11.5, please use the 11.5 environment
 ```
 
-Note: This conda installation only applies to Linux and Python versions 3.7/3.8.
+Note: This conda installation only applies to Linux and Python versions 3.8/3.9.
 
 
 ## Build from Source and Contributing <a name="source"></a>
