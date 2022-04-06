@@ -123,10 +123,8 @@ target_compile_options(cugraph_etl
             PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_ETL_CXX_FLAGS}>"
 )
 
-target_compile_options(cugraph_etl PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
-                       --expt-relaxed-constexpr
-                       --expt-extended-lambda
-                       >)
+target_compile_options(cugraph_etl
+            PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_ETL_CUDA_FLAGS}>")
 ################################################################################
 # - ETL include paths --------------------------------------------------------
 target_include_directories(cugraph_etl
