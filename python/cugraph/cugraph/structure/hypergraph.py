@@ -169,7 +169,7 @@ def hypergraph(
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets_path / karate.csv', delimiter=' ',
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                   names=['src', 'dst', 'weights'],
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> nodes, edges, G, events, entities = cugraph.hypergraph(M)
