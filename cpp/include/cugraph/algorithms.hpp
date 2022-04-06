@@ -1324,7 +1324,7 @@ std::tuple<weight_t, size_t> hits(
  * maximum eigenvalue of the adjacency matrix of @p graph.
  * @param beta Constant value to be added to each vertex's new Katz Centrality score in every
  * iteration. Relevant only when @p betas is `nullptr`.
- * @param epsilon Error tolerance to check convergence. Convergence is assuemd if the sum of the
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
  * differences in Katz Centrality values between two consecutive iterations is less than the number
  * of vertices in the graph multiplied by @p epsilon.
  * @param max_iterations Maximum number of Katz Centrality iterations.

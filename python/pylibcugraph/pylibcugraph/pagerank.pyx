@@ -30,11 +30,11 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
-    cugraph_pagerank_result_t,
+    cugraph_centrality_result_t,
     cugraph_pagerank,
-    cugraph_pagerank_result_get_vertices,
-    cugraph_pagerank_result_get_pageranks,
-    cugraph_pagerank_result_free,
+    cugraph_centrality_result_get_vertices,
+    cugraph_centrality_result_get_values,
+    cugraph_centrality_result_free,
 )
 from pylibcugraph.resource_handle cimport (
     EXPERIMENTAL__ResourceHandle,
@@ -169,7 +169,7 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
         raise NotImplementedError("None is temporarily the only supported "
                                   "value for precomputed_vertex_out_weight_sums")
 
-    cdef cugraph_pagerank_result_t* result_ptr
+    cdef cugraph_centrality_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
@@ -188,13 +188,13 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
     # Extract individual device array pointers from result and copy to cupy
     # arrays for returning.
     cdef cugraph_type_erased_device_array_view_t* vertices_ptr = \
-        cugraph_pagerank_result_get_vertices(result_ptr)
+        cugraph_centrality_result_get_vertices(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* pageranks_ptr = \
-        cugraph_pagerank_result_get_pageranks(result_ptr)
+        cugraph_centrality_result_get_values(result_ptr)
 
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
     cupy_pageranks = copy_to_cupy_array(c_resource_handle_ptr, pageranks_ptr)
 
-    cugraph_pagerank_result_free(result_ptr)
+    cugraph_centrality_result_free(result_ptr)
 
     return (cupy_vertices, cupy_pageranks)
