@@ -47,7 +47,7 @@ void unrenumber_local_int_edges(
   std::vector<vertex_t*> const& edgelist_minors /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   vertex_t const* renumber_map_labels,
-  std::vector<vertex_t> const& vertex_partition_lasts,
+  std::vector<vertex_t> const& vertex_partition_range_lasts,
   std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check)
 {
@@ -69,8 +69,9 @@ void unrenumber_local_int_edges(
                   "Invalid input arguments: erroneous edgelist_minors.size().");
   CUGRAPH_EXPECTS(edgelist_edge_counts.size() == static_cast<size_t>(col_comm_size),
                   "Invalid input arguments: erroneous edgelist_edge_counts.size().");
-  CUGRAPH_EXPECTS(std::is_sorted(vertex_partition_lasts.begin(), vertex_partition_lasts.end()),
-                  "Invalid input arguments: vertex_partition_lasts is not sorted.");
+  CUGRAPH_EXPECTS(
+    std::is_sorted(vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.end()),
+    "Invalid input arguments: vertex_partition_range_lasts is not sorted.");
   if (edgelist_intra_partition_segment_offsets) {
     CUGRAPH_EXPECTS(
       (*edgelist_intra_partition_segment_offsets).size() == static_cast<size_t>(col_comm_size),
@@ -95,19 +96,19 @@ void unrenumber_local_int_edges(
 
   if (do_expensive_check) {
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-      auto vertex_partition_rank        = static_cast<int>(i) * row_comm_size + row_comm_rank;
-      auto matrix_partition_major_first = vertex_partition_rank == 0
-                                            ? vertex_t{0}
-                                            : vertex_partition_lasts[vertex_partition_rank - 1];
-      auto matrix_partition_major_last  = vertex_partition_lasts[vertex_partition_rank];
+      auto vertex_partition_rank = static_cast<int>(i) * row_comm_size + row_comm_rank;
+      auto edge_partition_major_range_first =
+        vertex_partition_rank == 0 ? vertex_t{0}
+                                   : vertex_partition_range_lasts[vertex_partition_rank - 1];
+      auto edge_partition_major_range_last = vertex_partition_range_lasts[vertex_partition_rank];
       CUGRAPH_EXPECTS(
         thrust::count_if(
           handle.get_thrust_policy(),
           edgelist_majors[i],
           edgelist_majors[i] + edgelist_edge_counts[i],
-          [matrix_partition_major_first, matrix_partition_major_last] __device__(auto v) {
+          [edge_partition_major_range_first, edge_partition_major_range_last] __device__(auto v) {
             return v != invalid_vertex_id<vertex_t>::value &&
-                   (v < matrix_partition_major_first || v >= matrix_partition_major_last);
+                   (v < edge_partition_major_range_first || v >= edge_partition_major_range_last);
           }) == 0,
         "Invalid input arguments: there are out-of-range vertices in [edgelist_majors[], "
         "edgelist_majors[] + edgelist_edge_counts[]).");
@@ -117,8 +118,8 @@ void unrenumber_local_int_edges(
           auto vertex_partition_rank = col_comm_rank * row_comm_size + j;
           auto valid_first           = vertex_partition_rank == 0
                                          ? vertex_t{0}
-                                         : vertex_partition_lasts[vertex_partition_rank - 1];
-          auto valid_last            = vertex_partition_lasts[vertex_partition_rank];
+                                         : vertex_partition_range_lasts[vertex_partition_rank - 1];
+          auto valid_last            = vertex_partition_range_lasts[vertex_partition_rank];
           CUGRAPH_EXPECTS(
             thrust::count_if(
               handle.get_thrust_policy(),
@@ -132,20 +133,20 @@ void unrenumber_local_int_edges(
             "edgelist_minors[] + edgelist_edge_counts[]).");
         }
       } else {
-        auto matrix_partition_minor_first =
+        auto edge_partition_minor_range_first =
           (col_comm_rank * row_comm_size) == 0
             ? vertex_t{0}
-            : vertex_partition_lasts[col_comm_rank * row_comm_size - 1];
-        auto matrix_partition_minor_last =
-          vertex_partition_lasts[col_comm_rank * row_comm_size + row_comm_size - 1];
+            : vertex_partition_range_lasts[col_comm_rank * row_comm_size - 1];
+        auto edge_partition_minor_range_last =
+          vertex_partition_range_lasts[col_comm_rank * row_comm_size + row_comm_size - 1];
         CUGRAPH_EXPECTS(
           thrust::count_if(
             handle.get_thrust_policy(),
             edgelist_minors[i],
             edgelist_minors[i] + edgelist_edge_counts[i],
-            [matrix_partition_minor_first, matrix_partition_minor_last] __device__(auto v) {
+            [edge_partition_minor_range_first, edge_partition_minor_range_last] __device__(auto v) {
               return v != invalid_vertex_id<vertex_t>::value &&
-                     (v < matrix_partition_minor_first || v >= matrix_partition_minor_last);
+                     (v < edge_partition_minor_range_first || v >= edge_partition_minor_range_last);
             }) == 0,
           "Invalid input arguments: there are out-of-range vertices in [edgelist_minors[], "
           "edgelist_minors[] + edgelist_edge_counts[]).");
@@ -163,29 +164,30 @@ void unrenumber_local_int_edges(
   // footprint and execution time
 
   {
-    vertex_t max_matrix_partition_major_size{0};
+    vertex_t max_edge_partition_major_range_size{0};
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
       auto vertex_partition_rank = static_cast<int>(i) * row_comm_size + row_comm_rank;
-      auto matrix_partition_major_size =
-        vertex_partition_lasts[vertex_partition_rank] -
+      auto edge_partition_major_range_size =
+        vertex_partition_range_lasts[vertex_partition_rank] -
         (vertex_partition_rank == 0 ? vertex_t{0}
-                                    : vertex_partition_lasts[vertex_partition_rank - 1]);
-      max_matrix_partition_major_size =
-        std::max(max_matrix_partition_major_size, matrix_partition_major_size);
+                                    : vertex_partition_range_lasts[vertex_partition_rank - 1]);
+      max_edge_partition_major_range_size =
+        std::max(max_edge_partition_major_range_size, edge_partition_major_range_size);
     }
-    rmm::device_uvector<vertex_t> renumber_map_major_labels(max_matrix_partition_major_size,
+    rmm::device_uvector<vertex_t> renumber_map_major_labels(max_edge_partition_major_range_size,
                                                             handle.get_stream());
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-      auto vertex_partition_rank        = static_cast<int>(i) * row_comm_size + row_comm_rank;
-      auto matrix_partition_major_first = vertex_partition_rank == 0
-                                            ? vertex_t{0}
-                                            : vertex_partition_lasts[vertex_partition_rank - 1];
-      auto matrix_partition_major_last  = vertex_partition_lasts[vertex_partition_rank];
-      auto matrix_partition_major_size = matrix_partition_major_last - matrix_partition_major_first;
+      auto vertex_partition_rank = static_cast<int>(i) * row_comm_size + row_comm_rank;
+      auto edge_partition_major_range_first =
+        vertex_partition_rank == 0 ? vertex_t{0}
+                                   : vertex_partition_range_lasts[vertex_partition_rank - 1];
+      auto edge_partition_major_range_last = vertex_partition_range_lasts[vertex_partition_rank];
+      auto edge_partition_major_range_size =
+        edge_partition_major_range_last - edge_partition_major_range_first;
       device_bcast(col_comm,
                    renumber_map_labels,
                    renumber_map_major_labels.data(),
-                   matrix_partition_major_size,
+                   edge_partition_major_range_size,
                    i,
                    handle.get_stream());
 
@@ -194,18 +196,18 @@ void unrenumber_local_int_edges(
       auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
       cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
         renumber_map{// cuco::static_map requires at least one empty slot
-                     std::max(static_cast<size_t>(static_cast<double>(matrix_partition_major_size) /
-                                                  load_factor),
-                              static_cast<size_t>(matrix_partition_major_size) + 1),
+                     std::max(static_cast<size_t>(
+                                static_cast<double>(edge_partition_major_range_size) / load_factor),
+                              static_cast<size_t>(edge_partition_major_range_size) + 1),
                      invalid_vertex_id<vertex_t>::value,
                      invalid_vertex_id<vertex_t>::value,
                      stream_adapter,
                      handle.get_stream()};
       auto pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(thrust::make_counting_iterator(matrix_partition_major_first),
+        thrust::make_tuple(thrust::make_counting_iterator(edge_partition_major_range_first),
                            renumber_map_major_labels.begin()));
       renumber_map.insert(pair_first,
-                          pair_first + matrix_partition_major_size,
+                          pair_first + edge_partition_major_range_size,
                           cuco::detail::MurmurHash3_32<vertex_t>{},
                           thrust::equal_to<vertex_t>{},
                           handle.get_stream());
@@ -218,15 +220,15 @@ void unrenumber_local_int_edges(
     }
   }
 
-  vertex_t matrix_partition_minor_size{0};
+  vertex_t edge_partition_minor_range_size{0};
   for (int i = 0; i < row_comm_size; ++i) {
     auto vertex_partition_rank = col_comm_rank * row_comm_size + i;
-    matrix_partition_minor_size +=
-      vertex_partition_lasts[vertex_partition_rank] -
+    edge_partition_minor_range_size +=
+      vertex_partition_range_lasts[vertex_partition_rank] -
       (vertex_partition_rank == 0 ? vertex_t{0}
-                                  : vertex_partition_lasts[vertex_partition_rank - 1]);
+                                  : vertex_partition_range_lasts[vertex_partition_rank - 1]);
   }
-  if ((matrix_partition_minor_size >= static_cast<vertex_t>(number_of_edges / comm_size)) &&
+  if ((edge_partition_minor_range_size >= static_cast<vertex_t>(number_of_edges / comm_size)) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
     vertex_t max_segment_size{0};
@@ -234,18 +236,18 @@ void unrenumber_local_int_edges(
       auto vertex_partition_rank = col_comm_rank * row_comm_size + i;
       max_segment_size           = std::max(
         max_segment_size,
-        vertex_partition_lasts[vertex_partition_rank] -
+        vertex_partition_range_lasts[vertex_partition_rank] -
           (vertex_partition_rank == 0 ? vertex_t{0}
-                                                : vertex_partition_lasts[vertex_partition_rank - 1]));
+                                                : vertex_partition_range_lasts[vertex_partition_rank - 1]));
     }
     rmm::device_uvector<vertex_t> renumber_map_minor_labels(max_segment_size, handle.get_stream());
     for (int i = 0; i < row_comm_size; ++i) {
-      auto vertex_partition_rank        = col_comm_rank * row_comm_size + i;
-      auto vertex_partition_minor_first = vertex_partition_rank == 0
-                                            ? vertex_t{0}
-                                            : vertex_partition_lasts[vertex_partition_rank - 1];
-      auto vertex_partition_minor_last  = vertex_partition_lasts[vertex_partition_rank];
-      auto segment_size = vertex_partition_minor_last - vertex_partition_minor_first;
+      auto vertex_partition_rank = col_comm_rank * row_comm_size + i;
+      auto vertex_partition_minor_range_first =
+        vertex_partition_rank == 0 ? vertex_t{0}
+                                   : vertex_partition_range_lasts[vertex_partition_rank - 1];
+      auto vertex_partition_minor_range_last = vertex_partition_range_lasts[vertex_partition_rank];
+      auto segment_size = vertex_partition_minor_range_last - vertex_partition_minor_range_first;
       device_bcast(row_comm,
                    renumber_map_labels,
                    renumber_map_minor_labels.data(),
@@ -265,7 +267,7 @@ void unrenumber_local_int_edges(
                      stream_adapter,
                      handle.get_stream()};
       auto pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(thrust::make_counting_iterator(vertex_partition_minor_first),
+        thrust::make_tuple(thrust::make_counting_iterator(vertex_partition_minor_range_first),
                            renumber_map_minor_labels.begin()));
       renumber_map.insert(pair_first,
                           pair_first + segment_size,
@@ -283,19 +285,19 @@ void unrenumber_local_int_edges(
       }
     }
   } else {
-    auto matrix_partition_minor_first =
+    auto edge_partition_minor_range_first =
       col_comm_rank * row_comm_size == 0
         ? vertex_t{0}
-        : vertex_partition_lasts[col_comm_rank * row_comm_size - 1];
-    rmm::device_uvector<vertex_t> renumber_map_minor_labels(matrix_partition_minor_size,
+        : vertex_partition_range_lasts[col_comm_rank * row_comm_size - 1];
+    rmm::device_uvector<vertex_t> renumber_map_minor_labels(edge_partition_minor_range_size,
                                                             handle.get_stream());
     std::vector<size_t> recvcounts(row_comm_size);
     for (int i = 0; i < row_comm_size; ++i) {
       auto vertex_partition_rank = col_comm_rank * row_comm_size + i;
       recvcounts[i] =
-        vertex_partition_lasts[vertex_partition_rank] -
+        vertex_partition_range_lasts[vertex_partition_rank] -
         (vertex_partition_rank == 0 ? vertex_t{0}
-                                    : vertex_partition_lasts[vertex_partition_rank - 1]);
+                                    : vertex_partition_range_lasts[vertex_partition_rank - 1]);
     }
     std::vector<size_t> displacements(recvcounts.size(), 0);
     std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
@@ -318,7 +320,7 @@ void unrenumber_local_int_edges(
                    stream_adapter,
                    handle.get_stream()};
     auto pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(thrust::make_counting_iterator(matrix_partition_minor_first),
+      thrust::make_tuple(thrust::make_counting_iterator(edge_partition_minor_range_first),
                          renumber_map_minor_labels.begin()));
     renumber_map.insert(pair_first,
                         pair_first + renumber_map_minor_labels.size(),
@@ -575,7 +577,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                              vertex_t* vertices /* [INOUT] */,
                              size_t num_vertices,
                              vertex_t const* renumber_map_labels,
-                             std::vector<vertex_t> const& vertex_partition_lasts,
+                             std::vector<vertex_t> const& vertex_partition_range_lasts,
                              bool do_expensive_check)
 {
   double constexpr load_factor = 0.7;
@@ -585,7 +587,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
       thrust::count_if(handle.get_thrust_policy(),
                        vertices,
                        vertices + num_vertices,
-                       [int_vertex_last = vertex_partition_lasts.back()] __device__(auto v) {
+                       [int_vertex_last = vertex_partition_range_lasts.back()] __device__(auto v) {
                          return v != invalid_vertex_id<vertex_t>::value &&
                                 !is_valid_vertex(int_vertex_last, v);
                        }) == 0,
@@ -599,8 +601,8 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
     auto const comm_rank = comm.get_rank();
 
     auto local_int_vertex_first =
-      comm_rank == 0 ? vertex_t{0} : vertex_partition_lasts[comm_rank - 1];
-    auto local_int_vertex_last = vertex_partition_lasts[comm_rank];
+      comm_rank == 0 ? vertex_t{0} : vertex_partition_range_lasts[comm_rank - 1];
+    auto local_int_vertex_last = vertex_partition_range_lasts[comm_rank];
 
     rmm::device_uvector<vertex_t> sorted_unique_int_vertices(num_vertices, handle.get_stream());
     sorted_unique_int_vertices.resize(
@@ -622,19 +624,19 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                                       sorted_unique_int_vertices.end())),
       handle.get_stream());
 
-    rmm::device_uvector<vertex_t> d_vertex_partition_lasts(vertex_partition_lasts.size(),
-                                                           handle.get_stream());
-    raft::update_device(d_vertex_partition_lasts.data(),
-                        vertex_partition_lasts.data(),
-                        vertex_partition_lasts.size(),
+    rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
+      vertex_partition_range_lasts.size(), handle.get_stream());
+    raft::update_device(d_vertex_partition_range_lasts.data(),
+                        vertex_partition_range_lasts.data(),
+                        vertex_partition_range_lasts.size(),
                         handle.get_stream());
-    rmm::device_uvector<size_t> d_tx_int_vertex_offsets(d_vertex_partition_lasts.size(),
+    rmm::device_uvector<size_t> d_tx_int_vertex_offsets(d_vertex_partition_range_lasts.size(),
                                                         handle.get_stream());
     thrust::lower_bound(handle.get_thrust_policy(),
                         sorted_unique_int_vertices.begin(),
                         sorted_unique_int_vertices.end(),
-                        d_vertex_partition_lasts.begin(),
-                        d_vertex_partition_lasts.end(),
+                        d_vertex_partition_range_lasts.begin(),
+                        d_vertex_partition_range_lasts.end(),
                         d_tx_int_vertex_offsets.begin());
     std::vector<size_t> h_tx_int_vertex_counts(d_tx_int_vertex_offsets.size());
     raft::update_host(h_tx_int_vertex_counts.data(),
@@ -695,7 +697,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                                   num_vertices,
                                   renumber_map_labels,
                                   vertex_t{0},
-                                  vertex_partition_lasts[0],
+                                  vertex_partition_range_lasts[0],
                                   do_expensive_check);
   }
 }
@@ -703,42 +705,42 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
 template <typename vertex_t, bool store_transposed, bool multi_gpu>
 std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
   raft::handle_t const& handle,
-  std::vector<vertex_t*> const& edgelist_rows /* [INOUT] */,
-  std::vector<vertex_t*> const& edgelist_cols /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   vertex_t const* renumber_map_labels,
-  std::vector<vertex_t> const& vertex_partition_lasts,
+  std::vector<vertex_t> const& vertex_partition_range_lasts,
   std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check)
 {
   return detail::unrenumber_local_int_edges(handle,
-                                            store_transposed ? edgelist_cols : edgelist_rows,
-                                            store_transposed ? edgelist_rows : edgelist_cols,
+                                            store_transposed ? edgelist_dsts : edgelist_srcs,
+                                            store_transposed ? edgelist_srcs : edgelist_dsts,
                                             edgelist_edge_counts,
                                             renumber_map_labels,
-                                            vertex_partition_lasts,
+                                            vertex_partition_range_lasts,
                                             edgelist_intra_partition_segment_offsets,
                                             do_expensive_check);
 }
 
 template <typename vertex_t, bool store_transposed, bool multi_gpu>
 std::enable_if_t<!multi_gpu, void> unrenumber_local_int_edges(raft::handle_t const& handle,
-                                                              vertex_t* edgelist_rows /* [INOUT] */,
-                                                              vertex_t* edgelist_cols /* [INOUT] */,
+                                                              vertex_t* edgelist_srcs /* [INOUT] */,
+                                                              vertex_t* edgelist_dsts /* [INOUT] */,
                                                               size_t num_edgelist_edges,
                                                               vertex_t const* renumber_map_labels,
                                                               vertex_t num_vertices,
                                                               bool do_expensive_check)
 {
   unrenumber_local_int_vertices(handle,
-                                edgelist_rows,
+                                edgelist_srcs,
                                 num_edgelist_edges,
                                 renumber_map_labels,
                                 vertex_t{0},
                                 num_vertices,
                                 do_expensive_check);
   unrenumber_local_int_vertices(handle,
-                                edgelist_cols,
+                                edgelist_dsts,
                                 num_edgelist_edges,
                                 renumber_map_labels,
                                 vertex_t{0},

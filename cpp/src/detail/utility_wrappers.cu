@@ -70,11 +70,11 @@ template void sequence_fill(rmm::cuda_stream_view const& stream_view,
 
 template <typename vertex_t>
 vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
-                                   vertex_t const* d_edgelist_rows,
-                                   vertex_t const* d_edgelist_cols,
+                                   vertex_t const* d_edgelist_srcs,
+                                   vertex_t const* d_edgelist_dsts,
                                    size_t num_edges)
 {
-  auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(d_edgelist_rows, d_edgelist_cols));
+  auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(d_edgelist_srcs, d_edgelist_dsts));
 
   return thrust::transform_reduce(
     rmm::exec_policy(stream_view),
@@ -86,13 +86,13 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
 }
 
 template int32_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
-                                           int32_t const* d_edgelist_rows,
-                                           int32_t const* d_edgelist_cols,
+                                           int32_t const* d_edgelist_srcs,
+                                           int32_t const* d_edgelist_dsts,
                                            size_t num_edges);
 
 template int64_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
-                                           int64_t const* d_edgelist_rows,
-                                           int64_t const* d_edgelist_cols,
+                                           int64_t const* d_edgelist_srcs,
+                                           int64_t const* d_edgelist_dsts,
                                            size_t num_edges);
 
 template <typename value_t>
