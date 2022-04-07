@@ -159,3 +159,54 @@ def test_sample_neighbors(graph_file):
     parents_list, children_list = gstore.sample_neighbors(sampled_nodes)
 
     assert len(parents_list) > 0
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_n_data(graph_file):
+    cu_M = utils.read_csv_file(graph_file)
+
+    g = cugraph.Graph(directed=True)
+    g.from_cudf_edgelist(cu_M, source='0', destination='1', renumber=True)
+
+    pg = PropertyGraph()
+    pg.add_edge_data(cu_M,
+                     type_name="edge",
+                     vertex_col_names=("0", "1"),
+                     property_columns=["2"])
+
+    num_nodes = g.number_of_nodes()
+    df_feat = cudf.DataFrame()
+    df_feat['node_id'] = np.arange(num_nodes)
+    df_feat['val0'] = [float(i+1) for i in range (num_nodes)]
+    df_feat['val1'] = [float(i+2) for i in range (num_nodes)]
+    pg.add_vertex_data(df_feat,
+                       type_name="test_feat",
+                       vertex_col_name="node_id",
+                       property_columns=None)
+    gstore = cugraph.gnn.CuGraphStore(graph=pg)
+
+    ndata = gstore.ndata
+
+    assert ndata.shape[0] > 0
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_e_data(graph_file):
+    cu_M = utils.read_csv_file(graph_file)
+
+    g = cugraph.Graph(directed=True)
+    g.from_cudf_edgelist(cu_M, source='0', destination='1', renumber=True)
+
+    pg = PropertyGraph()
+    pg.add_edge_data(cu_M,
+                     type_name="edge",
+                     vertex_col_names=("0", "1"),
+                     property_columns=["2"])
+
+    gstore = cugraph.gnn.CuGraphStore(graph=pg)
+
+    edata = gstore.edata
+
+    assert edata.shape[0] > 0
+
+
