@@ -25,36 +25,36 @@ extern "C" {
 #endif
 
 /**
- * @brief     Opaque pagerank result type
+ * @brief     Opaque centrality result type
  */
 typedef struct {
   int32_t align_;
-} cugraph_pagerank_result_t;
+} cugraph_centrality_result_t;
 
 /**
- * @brief     Get the vertex ids from the pagerank result
+ * @brief     Get the vertex ids from the centrality result
  *
- * @param [in]   result   The result from pagerank
+ * @param [in]   result   The result from a centrality algorithm
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_pagerank_result_get_vertices(
-  cugraph_pagerank_result_t* result);
+cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_vertices(
+  cugraph_centrality_result_t* result);
 
 /**
- * @brief     Get the pagerank values from the pagerank result
+ * @brief     Get the centrality values from a centrality algorithm result
  *
- * @param [in]   result   The result from pagerank
- * @return type erased array of pagerank values
+ * @param [in]   result   The result from a centrality algorithm
+ * @return type erased array view of centrality values
  */
-cugraph_type_erased_device_array_view_t* cugraph_pagerank_result_get_pageranks(
-  cugraph_pagerank_result_t* result);
+cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_values(
+  cugraph_centrality_result_t* result);
 
 /**
- * @brief     Free pagerank result
+ * @brief     Free centrality result
  *
- * @param [in]   result   The result from pagerank
+ * @param [in]   result   The result from a centrality algorithm
  */
-void cugraph_pagerank_result_free(cugraph_pagerank_result_t* result);
+void cugraph_centrality_result_free(cugraph_centrality_result_t* result);
 
 /**
  * @brief     Compute pagerank
@@ -90,7 +90,7 @@ cugraph_error_code_t cugraph_pagerank(
   size_t max_iterations,
   bool_t has_initial_guess,
   bool_t do_expensive_check,
-  cugraph_pagerank_result_t** result,
+  cugraph_centrality_result_t** result,
   cugraph_error_t** error);
 
 /**
@@ -136,8 +136,34 @@ cugraph_error_code_t cugraph_personalized_pagerank(
   size_t max_iterations,
   bool_t has_initial_guess,
   bool_t do_expensive_check,
-  cugraph_pagerank_result_t** result,
+  cugraph_centrality_result_t** result,
   cugraph_error_t** error);
+
+/**
+ * @brief     Compute eigenvector centrality
+ *
+ * Computed using the power method.
+ *
+ * @param [in]  handle      Handle for accessing resources
+ * @param [in]  graph       Pointer to graph
+ * @param [in]  epsilon     Error tolerance to check convergence. Convergence is measured
+ *                          comparing the L1 norm until it is less than epsilon
+ * @param [in]  max_iterations Maximum number of power iterations, will not exceed this number
+ *                          of iterations even if we haven't converged
+ * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
+ * @param [out] result      Opaque pointer to eigenvector centrality results
+ * @param [out] error       Pointer to an error object storing details of any error.  Will
+ *                          be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_eigenvector_centrality(const cugraph_resource_handle_t* handle,
+                                                    cugraph_graph_t* graph,
+                                                    double epsilon,
+                                                    size_t max_iterations,
+                                                    bool_t do_expensive_check,
+                                                    cugraph_centrality_result_t** result,
+                                                    cugraph_error_t** error);
 
 /**
  * @brief     Opaque hits result type
