@@ -16,6 +16,8 @@ import pytest
 import cugraph
 from cugraph.tests import utils
 from cugraph.experimental import PropertyGraph
+import numpy as np
+import cudf
 
 
 # Test
@@ -177,8 +179,8 @@ def test_n_data(graph_file):
     num_nodes = g.number_of_nodes()
     df_feat = cudf.DataFrame()
     df_feat['node_id'] = np.arange(num_nodes)
-    df_feat['val0'] = [float(i+1) for i in range (num_nodes)]
-    df_feat['val1'] = [float(i+2) for i in range (num_nodes)]
+    df_feat['val0'] = [float(i+1) for i in range(num_nodes)]
+    df_feat['val1'] = [float(i+2) for i in range(num_nodes)]
     pg.add_vertex_data(df_feat,
                        type_name="test_feat",
                        vertex_col_name="node_id",
@@ -208,5 +210,3 @@ def test_e_data(graph_file):
     edata = gstore.edata
 
     assert edata.shape[0] > 0
-
-
