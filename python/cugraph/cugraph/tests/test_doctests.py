@@ -24,6 +24,7 @@ import scipy
 import pytest
 
 import cugraph
+import pylibcugraph
 import cudf
 from numba import cuda
 
@@ -40,24 +41,26 @@ def _is_python_module(member):
     return os.path.splitext(member.__file__)[1] == '.py'
 
 
-def _module_from_cugraph(member):
-    return 'cugraph' in member.__module__
+def _module_from_library(member, libname):
+    # return 'cugraph' in member.__module__
+    return libname in member.__module__
 
 
-def _file_from_cugraph(member):
-    return 'cugraph' in member.__file__
+def _file_from_library(member, libname):
+    # return 'cugraph' in member.__file__
+    return libname in member.__file__
 
 
-def _find_modules_in_obj(finder, obj, criteria=None):
+def _find_modules_in_obj(finder, obj, obj_name, criteria=None):
     for name, member in inspect.getmembers(obj):
         if criteria is not None and not criteria(name):
             continue
         if inspect.ismodule(member) and (member not in modules_to_skip):
-            yield from _find_doctests_in_obj(finder,
-                                             member, _is_public_name)
+            yield from _find_doctests_in_obj(finder, member, obj_name,
+                                             _is_public_name)
 
 
-def _find_doctests_in_obj(finder, obj, criteria=None):
+def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
     """Find all doctests in a module or class.
     Parameters
     ----------
@@ -79,12 +82,13 @@ def _find_doctests_in_obj(finder, obj, criteria=None):
             continue
 
         if inspect.ismodule(member):
-            if _file_from_cugraph(member) and _is_python_module(member):
-                _find_doctests_in_obj(finder, member, criteria)
+            if _file_from_library(member, obj_name) and \
+               _is_python_module(member):
+                _find_doctests_in_obj(finder, member, obj_name, criteria)
         if inspect.isfunction(member):
             yield from _find_doctests_in_docstring(finder, member)
         if inspect.isclass(member):
-            if _module_from_cugraph(member):
+            if _module_from_library(member, obj_name):
                 yield from _find_doctests_in_docstring(finder, member)
 
 
@@ -96,7 +100,10 @@ def _find_doctests_in_docstring(finder, member):
 
 def _fetch_doctests():
     finder = doctest.DocTestFinder()
-    yield from _find_modules_in_obj(finder, cugraph, _is_public_name)
+    yield from _find_modules_in_obj(finder, cugraph, 'cugraph',
+                                    _is_public_name)
+    yield from _find_modules_in_obj(finder, pylibcugraph, 'pylibcugraph',
+                                    _is_public_name)
 
 
 class TestDoctests:
