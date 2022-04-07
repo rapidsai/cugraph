@@ -55,7 +55,7 @@ namespace cugraph {
 
 namespace detail {
 
-int32_t constexpr update_frontier_v_push_if_out_nbr_for_all_block_size = 512;
+int32_t constexpr update_frontier_v_push_if_out_nbr_kernel_block_size = 512;
 
 // we cannot use std::iterator_traits<Iterator>::value_type if Iterator is void* (reference to void
 // is not allowed)
@@ -216,7 +216,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void for_all_frontier_src_for_all_nbr_hypersparse(
+__global__ void update_frontier_v_push_if_out_nbr_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -256,14 +256,14 @@ __global__ void for_all_frontier_src_for_all_nbr_hypersparse(
   auto idx = static_cast<size_t>(tid);
 
   __shared__ edge_t
-    warp_local_degree_inclusive_sums[update_frontier_v_push_if_out_nbr_for_all_block_size];
+    warp_local_degree_inclusive_sums[update_frontier_v_push_if_out_nbr_kernel_block_size];
   __shared__ edge_t
-    warp_key_local_edge_offsets[update_frontier_v_push_if_out_nbr_for_all_block_size];
+    warp_key_local_edge_offsets[update_frontier_v_push_if_out_nbr_kernel_block_size];
 
   using WarpScan = cub::WarpScan<edge_t, raft::warp_size()>;
   __shared__ typename WarpScan::TempStorage temp_storage;
 
-  __shared__ size_t buffer_warp_start_indices[update_frontier_v_push_if_out_nbr_for_all_block_size /
+  __shared__ size_t buffer_warp_start_indices[update_frontier_v_push_if_out_nbr_kernel_block_size /
                                               raft::warp_size()];
 
   auto indices = edge_partition.indices();
@@ -386,7 +386,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void for_all_frontier_src_for_all_nbr_low_degree(
+__global__ void update_frontier_v_push_if_out_nbr_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -423,14 +423,14 @@ __global__ void for_all_frontier_src_for_all_nbr_low_degree(
   auto idx           = static_cast<size_t>(tid);
 
   __shared__ edge_t
-    warp_local_degree_inclusive_sums[update_frontier_v_push_if_out_nbr_for_all_block_size];
+    warp_local_degree_inclusive_sums[update_frontier_v_push_if_out_nbr_kernel_block_size];
   __shared__ edge_t
-    warp_key_local_edge_offsets[update_frontier_v_push_if_out_nbr_for_all_block_size];
+    warp_key_local_edge_offsets[update_frontier_v_push_if_out_nbr_kernel_block_size];
 
   using WarpScan = cub::WarpScan<edge_t, raft::warp_size()>;
   __shared__ typename WarpScan::TempStorage temp_storage;
 
-  __shared__ size_t buffer_warp_start_indices[update_frontier_v_push_if_out_nbr_for_all_block_size /
+  __shared__ size_t buffer_warp_start_indices[update_frontier_v_push_if_out_nbr_kernel_block_size /
                                               raft::warp_size()];
 
   auto indices = edge_partition.indices();
@@ -546,7 +546,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void for_all_frontier_src_for_all_nbr_mid_degree(
+__global__ void update_frontier_v_push_if_out_nbr_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -578,12 +578,12 @@ __global__ void for_all_frontier_src_for_all_nbr_mid_degree(
                 "GraphViewType should support the push model.");
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  static_assert(update_frontier_v_push_if_out_nbr_for_all_block_size % raft::warp_size() == 0);
+  static_assert(update_frontier_v_push_if_out_nbr_kernel_block_size % raft::warp_size() == 0);
   auto const warp_id = threadIdx.x / raft::warp_size();
   auto const lane_id = tid % raft::warp_size();
   auto idx           = static_cast<size_t>(tid / raft::warp_size());
 
-  __shared__ size_t buffer_warp_start_indices[update_frontier_v_push_if_out_nbr_for_all_block_size /
+  __shared__ size_t buffer_warp_start_indices[update_frontier_v_push_if_out_nbr_kernel_block_size /
                                               raft::warp_size()];
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
     auto key = *(key_first + idx);
@@ -653,7 +653,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void for_all_frontier_src_for_all_nbr_high_degree(
+__global__ void update_frontier_v_push_if_out_nbr_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -686,7 +686,7 @@ __global__ void for_all_frontier_src_for_all_nbr_high_degree(
 
   auto idx = static_cast<size_t>(blockIdx.x);
 
-  using BlockScan = cub::BlockScan<edge_t, update_frontier_v_push_if_out_nbr_for_all_block_size>;
+  using BlockScan = cub::BlockScan<edge_t, update_frontier_v_push_if_out_nbr_kernel_block_size>;
   __shared__ typename BlockScan::TempStorage temp_storage;
   __shared__ size_t buffer_block_start_idx;
 
@@ -705,9 +705,9 @@ __global__ void for_all_frontier_src_for_all_nbr_high_degree(
     thrust::tie(indices, weights, local_out_degree) = edge_partition.local_edges(src_offset);
     auto rounded_up_local_out_degree =
       ((static_cast<size_t>(local_out_degree) +
-        (update_frontier_v_push_if_out_nbr_for_all_block_size - 1)) /
-       update_frontier_v_push_if_out_nbr_for_all_block_size) *
-      update_frontier_v_push_if_out_nbr_for_all_block_size;
+        (update_frontier_v_push_if_out_nbr_kernel_block_size - 1)) /
+       update_frontier_v_push_if_out_nbr_kernel_block_size) *
+      update_frontier_v_push_if_out_nbr_kernel_block_size;
     for (size_t i = threadIdx.x; i < rounded_up_local_out_degree; i += blockDim.x) {
       e_op_result_t e_op_result{};
       vertex_t dst{};
@@ -1175,9 +1175,9 @@ void update_frontier_v_push_if_out_nbr(
       if (h_offsets[0] > 0) {
         raft::grid_1d_block_t update_grid(
           h_offsets[0],
-          detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
+          detail::update_frontier_v_push_if_out_nbr_kernel_block_size,
           handle.get_device_properties().maxGridSize[0]);
-        detail::for_all_frontier_src_for_all_nbr_high_degree<GraphViewType>
+        detail::update_frontier_v_push_if_out_nbr_high_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
@@ -1192,9 +1192,9 @@ void update_frontier_v_push_if_out_nbr(
       if (h_offsets[1] - h_offsets[0] > 0) {
         raft::grid_1d_warp_t update_grid(
           h_offsets[1] - h_offsets[0],
-          detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
+          detail::update_frontier_v_push_if_out_nbr_kernel_block_size,
           handle.get_device_properties().maxGridSize[0]);
-        detail::for_all_frontier_src_for_all_nbr_mid_degree<GraphViewType>
+        detail::update_frontier_v_push_if_out_nbr_mid_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[0],
@@ -1209,9 +1209,9 @@ void update_frontier_v_push_if_out_nbr(
       if (h_offsets[2] - h_offsets[1] > 0) {
         raft::grid_1d_thread_t update_grid(
           h_offsets[2] - h_offsets[1],
-          detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
+          detail::update_frontier_v_push_if_out_nbr_kernel_block_size,
           handle.get_device_properties().maxGridSize[0]);
-        detail::for_all_frontier_src_for_all_nbr_low_degree<GraphViewType>
+        detail::update_frontier_v_push_if_out_nbr_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[1],
@@ -1226,9 +1226,9 @@ void update_frontier_v_push_if_out_nbr(
       if (edge_partition.dcs_nzd_vertex_count() && (h_offsets[3] - h_offsets[2] > 0)) {
         raft::grid_1d_thread_t update_grid(
           h_offsets[3] - h_offsets[2],
-          detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
+          detail::update_frontier_v_push_if_out_nbr_kernel_block_size,
           handle.get_device_properties().maxGridSize[0]);
-        detail::for_all_frontier_src_for_all_nbr_hypersparse<GraphViewType>
+        detail::update_frontier_v_push_if_out_nbr_hypersparse<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[3],
@@ -1245,10 +1245,10 @@ void update_frontier_v_push_if_out_nbr(
       if (edge_partition_frontier_size > 0) {
         raft::grid_1d_thread_t update_grid(
           edge_partition_frontier_size,
-          detail::update_frontier_v_push_if_out_nbr_for_all_block_size,
+          detail::update_frontier_v_push_if_out_nbr_kernel_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
-        detail::for_all_frontier_src_for_all_nbr_low_degree<GraphViewType>
+        detail::update_frontier_v_push_if_out_nbr_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
