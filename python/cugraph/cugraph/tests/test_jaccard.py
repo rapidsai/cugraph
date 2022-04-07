@@ -170,8 +170,9 @@ def test_directed_graph_check(read_csv):
     vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
     vertex_pair = vertex_pair[:5]
     with pytest.raises(TypeError):
-        df_res = cugraph.jaccard(G1,vertex_pair)
+        df_res = cugraph.jaccard(G1, vertex_pair)
         print(df_res)
+
 
 def test_nx_jaccard_time(read_csv, gpubenchmark):
 

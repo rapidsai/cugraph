@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import cudf
-from cugraph.structure.graph_classes import Graph
 from cugraph.link_prediction import jaccard_wrapper
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_edge_score_to_dictionary,
