@@ -108,9 +108,8 @@ def jaccard(input_graph, vertex_pair=None):
     >>> df = cugraph.jaccard(G)
 
     """
-    if type(input_graph) is not Graph:
-        raise TypeError("input graph must a Graph")
-
+    if input_graph.is_directed():
+        raise TypeError("Input graph must a non-directed Graph.")
     if type(vertex_pair) == cudf.DataFrame:
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
     elif vertex_pair is not None:
