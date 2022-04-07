@@ -37,12 +37,7 @@ if [[ "$BUILD_LIBCUGRAPH" == "1" && "$UPLOAD_LIBCUGRAPH" == "1" ]]; then
 fi
 
 if [[ "$BUILD_CUGRAPH" == "1" ]]; then
-  PYLIBCUGRAPH_FILE=$(conda build --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON --output)
-  test -e ${PYLIBCUGRAPH_FILE}
-  echo "Upload pylibcugraph file: ${PYLIBCUGRAPH_FILE}"
-  gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${PYLIBCUGRAPH_FILE} --no-progress
-  CUGRAPH_FILE=$(conda build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON --output)
-  test -e ${CUGRAPH_FILE}
-  echo "Upload cugraph file: ${CUGRAPH_FILE}"
-  gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${CUGRAPH_FILE} --no-progress
+  CUGRAPH_FILES=$(conda build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON --output)
+  echo "Upload cugraph and pylibcugraph"
+  gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing --no-progress ${CUGRAPH_FILES}
 fi

@@ -1,0 +1,11 @@
+cuda_python_version:
+  - ">=11.5,<12.0"
+
+cython_version:
+  - ">=0.29,<0.30"
+
+dask_version:
+  - "2022.03.0"
+
+distributed_version:
+  - "2022.03.0"

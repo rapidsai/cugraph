@@ -3,63 +3,96 @@
 # Usage:
 #   conda build -c nvidia -c rapidsai -c conda-forge  .
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
-{% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
-{% set cuda_version='.'.join(environ.get('CUDA', 'unknown').split('.')[:2]) %}
-{% set cuda_major=cuda_version.split('.')[0] %}
-{% set py_version=environ.get('CONDA_PY', 36) %}
-{% set ucx_py_version=environ.get('UCX_PY_VERSION') %}
+{% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set cuda_version = '.'.join(environ.get('CUDA', 'unknown').split('.')[:2]) %}
+{% set cuda_major = cuda_version.split('.')[0] %}
+{% set py_version = environ.get('CONDA_PY', 36) %}
+{% set ucx_py_version = environ.get('UCX_PY_VERSION') %}
+
 package:
-  name: cugraph
-  version: {{ version }}
+  name: cugraph-split
 
 source:
   git_url: ../../..
 
-build:
-  number: {{ GIT_DESCRIBE_NUMBER }}
-  string: cuda{{ cuda_major }}_py{{ py_version }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
-  script_env:
-    - CC
-    - CXX
-    - CUDAHOSTCXX
-    - PARALLEL_LEVEL
-
-requirements:
-  build:
-    - python x.x
-    - cython>=0.29,<0.30
-    - libcugraph={{ version }}
-    - libraft-headers {{ minor_version }}
-    - pyraft {{ minor_version }}
-    - cudf={{ minor_version }}
-    - ucx-py {{ ucx_py_version }}
-    - ucx-proc=*=gpu
-    - cudatoolkit {{ cuda_version }}.*
-    - libraft-headers {{ minor_version }}
-  run:
-    - python x.x
-    - pylibcugraph={{ version }}
-    - libcugraph={{ version }}
-    - libraft-headers {{ minor_version }}
-    - pyraft {{ minor_version }}
-    - cudf={{ minor_version }}
-    - dask-cudf {{ minor_version }}
-    - dask-cuda {{ minor_version }}
-    - dask==2022.03.0
-    - distributed==2022.03.0
-    - ucx-py {{ ucx_py_version }}
-    - ucx-proc=*=gpu
-    - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
-    - cuda-python >=11.5,<12.0
-
-tests:                                 # [linux64]
-  requirements:                        # [linux64]
-    - cudatoolkit {{ cuda_version }}.* # [linux64]
-  imports:                             # [linux64]
-    - cugraph                          # [linux64]
-
-about:
-  home: http://rapids.ai/
-  license: Apache-2.0
-  license_file: ../../../LICENSE
-  summary: cuGraph library
+outputs:
+  - name: cugraph
+    version: {{ version }}
+    script: build_cugraph.sh
+    build:
+      number: {{ GIT_DESCRIBE_NUMBER }}
+      string: cuda{{ cuda_major }}_py{{ py_version }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      script_env: &script_env
+        - CC
+        - CUDAHOSTCXX
+        - CXX
+        - PARALLEL_LEVEL
+    requirements:
+      build:
+        - cudatoolkit {{ cuda_version }}.*
+        - cudf={{ minor_version }}
+        - cython {{ cython_version }}
+        - libcugraph {{ version }}
+        - libraft-headers {{ minor_version }}
+        - libraft-headers {{ minor_version }}
+        - pyraft {{ minor_version }}
+        - python
+        - ucx-proc=*=gpu
+        - ucx-py {{ ucx_py_version }}
+      run:
+        - cuda-python {{ cuda_python_version }}
+        - cudf={{ minor_version }}
+        - dask {{ dask_version }}
+        - dask-cuda {{ minor_version }}
+        - dask-cudf {{ minor_version }}
+        - distributed {{ distributed_version }}
+        - libcugraph {{ version }}
+        - libraft-headers {{ minor_version }}
+        - pylibcugraph {{ version }}
+        - pyraft {{ minor_version }}
+        - python
+        - ucx-proc=*=gpu
+        - ucx-py {{ ucx_py_version }}
+        - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
+    tests:                                 # [linux64]
+      requirements:                        # [linux64]
+        - cudatoolkit {{ cuda_version }}.* # [linux64]
+      imports:                             # [linux64]
+        - cugraph                          # [linux64]
+    about:
+      home: http://rapids.ai/
+      license: Apache-2.0
+      license_file: ../../../LICENSE
+      summary: cuGraph library
+  - name: pylibcugraph
+    version: {{ version }}
+    script: build_pylibcugraph.sh
+    build:
+      number: {{ GIT_DESCRIBE_NUMBER }}
+      string: cuda{{ cuda_major }}_py{{ py_version }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      script_env: *script_env
+    requirements:
+      build:
+        - cudatoolkit {{ cuda_version }}.*
+        - cython {{ cython_version }}
+        - libcugraph {{ version }}
+        - libraft-headers {{ minor_version }}
+        - python
+        - rmm {{ minor_version }}.*
+        - ucx-proc=*=gpu
+        - ucx-py {{ ucx_py_version }}
+      run:
+        - libcugraph {{ version }}
+        - libraft-headers {{ minor_version }}
+        - python
+        - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
+    tests:                                 # [linux64]
+      requirements:                        # [linux64]
+        - cudatoolkit {{ cuda_version }}.* # [linux64]
+      imports:                             # [linux64]
+        - pylibcugraph                     # [linux64]
+    about:
+      home: http://rapids.ai/
+      license: Apache-2.0
+      license_file: ../../../LICENSE
+      summary: pylibcugraph library
