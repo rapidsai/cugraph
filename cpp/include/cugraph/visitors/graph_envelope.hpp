@@ -211,7 +211,7 @@ std::unique_ptr<visitor_t> make_visitor(
   using vertex_t    = typename graph_type::vertex_type;
   using edge_t      = typename graph_type::edge_type;
   using weight_t    = typename graph_type::weight_type;
-  constexpr bool st = graph_type::is_adj_matrix_transposed;
+  constexpr bool st = graph_type::is_storage_transposed;
   constexpr bool mg = graph_type::is_multi_gpu;
 
   dependent_factory_t<vertex_t, edge_t, weight_t, st, mg> factory;

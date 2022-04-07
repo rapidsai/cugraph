@@ -153,10 +153,8 @@ struct uniform_selector_t {
       auto crt_out_deg = ptr_d_cache_out_degs_[src_v];
       if (crt_out_deg == 0) return thrust::nullopt;  // src_v is a sink
 
-      real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
-      auto interp_vindx = rnd_val * max_ub;
-      vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
-
+      vertex_t v_indx =
+        static_cast<vertex_t>(rnd_val >= 1.0 ? crt_out_deg - 1 : rnd_val * crt_out_deg);
       auto col_indx  = v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx;
       auto start_row = row_offsets_[src_v];
 
@@ -178,10 +176,10 @@ struct uniform_selector_t {
 
   uniform_selector_t(raft::handle_t const& handle, graph_type const& graph, real_t tag)
     : d_cache_out_degs_(graph.compute_out_degrees(handle)),
-      sampler_{graph.get_matrix_partition_view().get_offsets(),
-               graph.get_matrix_partition_view().get_indices(),
-               graph.get_matrix_partition_view().get_weights()
-                 ? *(graph.get_matrix_partition_view().get_weights())
+      sampler_{graph.local_edge_partition_view().offsets(),
+               graph.local_edge_partition_view().indices(),
+               graph.local_edge_partition_view().weights()
+                 ? *(graph.local_edge_partition_view().weights())
                  : static_cast<weight_t*>(nullptr),
                d_cache_out_degs_.data()}
   {
@@ -220,12 +218,12 @@ struct visitor_aggregate_weights_t : visitors::visitor_t {
     auto const& graph_view =
       static_cast<graph_view_t<vertex_t, edge_t, weight_t, false, false> const&>(graph_v);
 
-    auto opt_weights = graph_view.get_matrix_partition_view().get_weights();
+    auto opt_weights = graph_view.local_edge_partition_view().weights();
     CUGRAPH_EXPECTS(opt_weights.has_value(), "Cannot aggregate weights of un-weighted graph.");
 
     size_t num_vertices = d_aggregate_weights_.size();
 
-    edge_t const* offsets = graph_view.get_matrix_partition_view().get_offsets();
+    edge_t const* offsets = graph_view.local_edge_partition_view().offsets();
 
     weight_t const* values = *opt_weights;
 
@@ -346,11 +344,11 @@ struct biased_selector_t {
   using sampler_type = sampler_t;
 
   biased_selector_t(raft::handle_t const& handle, graph_type const& graph, real_t tag)
-    : sum_calculator_(handle, graph.get_number_of_vertices()),
-      sampler_{graph.get_matrix_partition_view().get_offsets(),
-               graph.get_matrix_partition_view().get_indices(),
-               graph.get_matrix_partition_view().get_weights()
-                 ? *(graph.get_matrix_partition_view().get_weights())
+    : sum_calculator_(handle, graph.number_of_vertices()),
+      sampler_{graph.local_edge_partition_view().offsets(),
+               graph.local_edge_partition_view().indices(),
+               graph.local_edge_partition_view().weights()
+                 ? *(graph.local_edge_partition_view().weights())
                  : static_cast<weight_t*>(nullptr),
                sum_calculator_.get_aggregated_weights().data()}
   {
@@ -578,10 +576,10 @@ struct node2vec_selector_t {
                       edge_t num_paths = 0)
     : max_out_degree_(num_paths > 0 ? graph.compute_max_out_degree(handle) : 0),
       d_coalesced_alpha_{max_out_degree_ * num_paths, handle.get_stream()},
-      sampler_{graph.get_matrix_partition_view().get_offsets(),
-               graph.get_matrix_partition_view().get_indices(),
-               graph.get_matrix_partition_view().get_weights()
-                 ? *(graph.get_matrix_partition_view().get_weights())
+      sampler_{graph.local_edge_partition_view().offsets(),
+               graph.local_edge_partition_view().indices(),
+               graph.local_edge_partition_view().weights()
+                 ? *(graph.local_edge_partition_view().weights())
                  : static_cast<weight_t*>(nullptr),
                p,
                q,

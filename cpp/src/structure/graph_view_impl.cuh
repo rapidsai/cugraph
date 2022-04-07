@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <cugraph/detail/decompress_matrix_partition.cuh>
+#include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -57,42 +57,41 @@ struct out_of_range_t {
 };
 
 template <typename vertex_t, typename edge_t>
-std::vector<edge_t> update_adj_matrix_partition_edge_counts(
-  std::vector<edge_t const*> const& adj_matrix_partition_offsets,
-  std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
+std::vector<edge_t> update_edge_partition_edge_counts(
+  std::vector<edge_t const*> const& edge_partition_offsets,
+  std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
   partition_t<vertex_t> const& partition,
-  std::optional<std::vector<vertex_t>> const& adj_matrix_partition_segment_offsets,
+  std::optional<std::vector<vertex_t>> const& edge_partition_segment_offsets,
   cudaStream_t stream)
 {
-  std::vector<edge_t> adj_matrix_partition_edge_counts(partition.get_number_of_matrix_partitions(),
-                                                       0);
-  auto use_dcs = adj_matrix_partition_dcs_nzd_vertex_counts.has_value();
-  for (size_t i = 0; i < adj_matrix_partition_offsets.size(); ++i) {
-    auto [major_first, major_last] = partition.get_matrix_partition_major_range(i);
-    raft::update_host(&(adj_matrix_partition_edge_counts[i]),
-                      adj_matrix_partition_offsets[i] +
-                        (use_dcs ? ((*adj_matrix_partition_segment_offsets)
+  std::vector<edge_t> edge_partition_edge_counts(partition.number_of_local_edge_partitions(), 0);
+  auto use_dcs = edge_partition_dcs_nzd_vertex_counts.has_value();
+  for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
+    auto [major_range_first, major_range_last] = partition.local_edge_partition_major_range(i);
+    raft::update_host(&(edge_partition_edge_counts[i]),
+                      edge_partition_offsets[i] +
+                        (use_dcs ? ((*edge_partition_segment_offsets)
                                       [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
                                        detail::num_sparse_segments_per_vertex_partition] +
-                                    (*adj_matrix_partition_dcs_nzd_vertex_counts)[i])
-                                 : (major_last - major_first)),
+                                    (*edge_partition_dcs_nzd_vertex_counts)[i])
+                                 : (major_range_last - major_range_first)),
                       1,
                       stream);
   }
   RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
-  return adj_matrix_partition_edge_counts;
+  return edge_partition_edge_counts;
 }
 
-// compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
-// false) or columns (of the graph adjacency matrix, if store_transposed = true)
+// compute out-degrees (if we are internally storing edges in the sparse 2D matrix using sources as
+// major indices) or in-degrees (otherwise)
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_major_degrees(
   raft::handle_t const& handle,
-  std::vector<edge_t const*> const& adj_matrix_partition_offsets,
-  std::optional<std::vector<vertex_t const*>> const& adj_matrix_partition_dcs_nzd_vertices,
-  std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
+  std::vector<edge_t const*> const& edge_partition_offsets,
+  std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
+  std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
   partition_t<vertex_t> const& partition,
-  std::optional<std::vector<vertex_t>> const& adj_matrix_partition_segment_offsets)
+  std::optional<std::vector<vertex_t>> const& edge_partition_segment_offsets)
 {
   auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_rank = row_comm.get_rank();
@@ -101,7 +100,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
   auto const col_comm_rank = col_comm.get_rank();
   auto const col_comm_size = col_comm.get_size();
 
-  auto use_dcs = adj_matrix_partition_dcs_nzd_vertices.has_value();
+  auto use_dcs = edge_partition_dcs_nzd_vertices.has_value();
 
   rmm::device_uvector<edge_t> local_degrees(0, handle.get_stream());
   rmm::device_uvector<edge_t> degrees(0, handle.get_stream());
@@ -109,52 +108,53 @@ rmm::device_uvector<edge_t> compute_major_degrees(
   vertex_t max_num_local_degrees{0};
   for (int i = 0; i < col_comm_size; ++i) {
     auto vertex_partition_idx  = static_cast<size_t>(i * row_comm_size + row_comm_rank);
-    auto vertex_partition_size = partition.get_vertex_partition_size(vertex_partition_idx);
+    auto vertex_partition_size = partition.vertex_partition_range_size(vertex_partition_idx);
     max_num_local_degrees      = std::max(max_num_local_degrees, vertex_partition_size);
     if (i == col_comm_rank) { degrees.resize(vertex_partition_size, handle.get_stream()); }
   }
   local_degrees.resize(max_num_local_degrees, handle.get_stream());
   for (int i = 0; i < col_comm_size; ++i) {
     auto vertex_partition_idx = static_cast<size_t>(i * row_comm_size + row_comm_rank);
-    vertex_t major_first{};
-    vertex_t major_last{};
-    std::tie(major_first, major_last) = partition.get_vertex_partition_range(vertex_partition_idx);
-    auto p_offsets                    = adj_matrix_partition_offsets[i];
+    vertex_t major_range_first{};
+    vertex_t major_range_last{};
+    std::tie(major_range_first, major_range_last) =
+      partition.vertex_partition_range(vertex_partition_idx);
+    auto p_offsets = edge_partition_offsets[i];
     auto major_hypersparse_first =
-      use_dcs ? major_first + (*adj_matrix_partition_segment_offsets)
-                                [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
-                                 detail::num_sparse_segments_per_vertex_partition]
-              : major_last;
+      use_dcs ? major_range_first + (*edge_partition_segment_offsets)
+                                      [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
+                                       detail::num_sparse_segments_per_vertex_partition]
+              : major_range_last;
     auto execution_policy = handle.get_thrust_policy();
     thrust::transform(execution_policy,
                       thrust::make_counting_iterator(vertex_t{0}),
-                      thrust::make_counting_iterator(major_hypersparse_first - major_first),
+                      thrust::make_counting_iterator(major_hypersparse_first - major_range_first),
                       local_degrees.begin(),
                       [p_offsets] __device__(auto i) { return p_offsets[i + 1] - p_offsets[i]; });
     if (use_dcs) {
-      auto p_dcs_nzd_vertices   = (*adj_matrix_partition_dcs_nzd_vertices)[i];
-      auto dcs_nzd_vertex_count = (*adj_matrix_partition_dcs_nzd_vertex_counts)[i];
+      auto p_dcs_nzd_vertices   = (*edge_partition_dcs_nzd_vertices)[i];
+      auto dcs_nzd_vertex_count = (*edge_partition_dcs_nzd_vertex_counts)[i];
       thrust::fill(execution_policy,
-                   local_degrees.begin() + (major_hypersparse_first - major_first),
-                   local_degrees.begin() + (major_last - major_first),
+                   local_degrees.begin() + (major_hypersparse_first - major_range_first),
+                   local_degrees.begin() + (major_range_last - major_range_first),
                    edge_t{0});
       thrust::for_each(execution_policy,
                        thrust::make_counting_iterator(vertex_t{0}),
                        thrust::make_counting_iterator(dcs_nzd_vertex_count),
                        [p_offsets,
                         p_dcs_nzd_vertices,
-                        major_first,
+                        major_range_first,
                         major_hypersparse_first,
                         local_degrees = local_degrees.data()] __device__(auto i) {
-                         auto d = p_offsets[(major_hypersparse_first - major_first) + i + 1] -
-                                  p_offsets[(major_hypersparse_first - major_first) + i];
-                         auto v                         = p_dcs_nzd_vertices[i];
-                         local_degrees[v - major_first] = d;
+                         auto d = p_offsets[(major_hypersparse_first - major_range_first) + i + 1] -
+                                  p_offsets[(major_hypersparse_first - major_range_first) + i];
+                         auto v                               = p_dcs_nzd_vertices[i];
+                         local_degrees[v - major_range_first] = d;
                        });
     }
     col_comm.reduce(local_degrees.data(),
                     i == col_comm_rank ? degrees.data() : static_cast<edge_t*>(nullptr),
-                    static_cast<size_t>(major_last - major_first),
+                    static_cast<size_t>(major_range_last - major_range_first),
                     raft::comms::op_t::SUM,
                     i,
                     handle.get_stream());
@@ -163,8 +163,8 @@ rmm::device_uvector<edge_t> compute_major_degrees(
   return degrees;
 }
 
-// compute the numbers of nonzeros in rows (of the graph adjacency matrix, if store_transposed =
-// false) or columns (of the graph adjacency matrix, if store_transposed = true)
+// compute out-degrees (if we are internally storing edges in the sparse 2D matrix using sources as
+// major indices) or in-degrees (otherwise)
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_major_degrees(raft::handle_t const& handle,
                                                   edge_t const* offsets,
@@ -187,7 +187,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view)
 {
-  rmm::device_uvector<edge_t> minor_degrees(graph_view.get_number_of_local_vertices(),
+  rmm::device_uvector<edge_t> minor_degrees(graph_view.local_vertex_partition_range_size(),
                                             handle.get_stream());
   if (store_transposed) {
     copy_v_transform_reduce_out_nbr(
@@ -222,7 +222,7 @@ rmm::device_uvector<weight_t> compute_weight_sums(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view)
 {
-  rmm::device_uvector<weight_t> weight_sums(graph_view.get_number_of_local_vertices(),
+  rmm::device_uvector<weight_t> weight_sums(graph_view.local_vertex_partition_range_size(),
                                             handle.get_stream());
   if (major == store_transposed) {
     copy_v_transform_reduce_in_nbr(
@@ -248,31 +248,32 @@ rmm::device_uvector<weight_t> compute_weight_sums(
 }
 
 // FIXME: block size requires tuning
-int32_t constexpr count_matrix_partition_multi_edges_block_size = 1024;
+int32_t constexpr count_edge_partition_multi_edges_block_size = 1024;
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 __global__ void for_all_major_for_all_nbr_mid_degree(
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,
-  vertex_t major_first,
-  vertex_t major_last,
+  edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition,
+  vertex_t major_range_first,
+  vertex_t major_range_last,
   edge_t* count)
 {
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  static_assert(count_matrix_partition_multi_edges_block_size % raft::warp_size() == 0);
-  auto const lane_id      = tid % raft::warp_size();
-  auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
-  size_t idx              = static_cast<size_t>(tid / raft::warp_size());
+  static_assert(count_edge_partition_multi_edges_block_size % raft::warp_size() == 0);
+  auto const lane_id = tid % raft::warp_size();
+  auto major_start_offset =
+    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
+  size_t idx = static_cast<size_t>(tid / raft::warp_size());
 
-  using BlockReduce = cub::BlockReduce<edge_t, count_matrix_partition_multi_edges_block_size>;
+  using BlockReduce = cub::BlockReduce<edge_t, count_edge_partition_multi_edges_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
   property_op<edge_t, thrust::plus> edge_property_add{};
   edge_t count_sum{0};
-  while (idx < static_cast<size_t>(major_last - major_first)) {
+  while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = static_cast<vertex_t>(major_start_offset + idx);
     vertex_t const* indices{nullptr};
     [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
-    thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_offset);
+    thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
     for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
       if ((i != 0) && (indices[i - 1] == indices[i])) { ++count_sum; }
     }
@@ -285,25 +286,26 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 __global__ void for_all_major_for_all_nbr_high_degree(
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,
-  vertex_t major_first,
-  vertex_t major_last,
+  edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition,
+  vertex_t major_range_first,
+  vertex_t major_range_last,
   edge_t* count)
 {
-  auto major_start_offset = static_cast<size_t>(major_first - matrix_partition.get_major_first());
-  size_t idx              = static_cast<size_t>(blockIdx.x);
+  auto major_start_offset =
+    static_cast<size_t>(major_range_first - edge_partition.major_range_first());
+  size_t idx = static_cast<size_t>(blockIdx.x);
 
-  using BlockReduce = cub::BlockReduce<edge_t, count_matrix_partition_multi_edges_block_size>;
+  using BlockReduce = cub::BlockReduce<edge_t, count_edge_partition_multi_edges_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
   property_op<edge_t, thrust::plus> edge_property_add{};
   edge_t count_sum{0};
-  while (idx < static_cast<size_t>(major_last - major_first)) {
+  while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
     [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
     thrust::tie(indices, weights, local_degree) =
-      matrix_partition.get_local_edges(static_cast<vertex_t>(major_offset));
+      edge_partition.local_edges(static_cast<vertex_t>(major_offset));
     for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
       if ((i != 0) && (indices[i - 1] == indices[i])) { ++count_sum; }
     }
@@ -315,9 +317,9 @@ __global__ void for_all_major_for_all_nbr_high_degree(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-edge_t count_matrix_partition_multi_edges(
+edge_t count_edge_partition_multi_edges(
   raft::handle_t const& handle,
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> matrix_partition,
+  edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition,
   std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
   auto execution_policy = handle.get_thrust_policy();
@@ -329,45 +331,44 @@ edge_t count_matrix_partition_multi_edges(
     static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
     if ((*segment_offsets)[1] > 0) {
       raft::grid_1d_block_t update_grid((*segment_offsets)[1],
-                                        count_matrix_partition_multi_edges_block_size,
+                                        count_edge_partition_multi_edges_block_size,
                                         handle.get_device_properties().maxGridSize[0]);
 
       cugraph::for_all_major_for_all_nbr_high_degree<<<update_grid.num_blocks,
                                                        update_grid.block_size,
                                                        0,
                                                        handle.get_stream()>>>(
-        matrix_partition,
-        matrix_partition.get_major_first(),
-        matrix_partition.get_major_first() + (*segment_offsets)[1],
+        edge_partition,
+        edge_partition.major_range_first(),
+        edge_partition.major_range_first() + (*segment_offsets)[1],
         count.data());
     }
     if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
       raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
-                                       count_matrix_partition_multi_edges_block_size,
+                                       count_edge_partition_multi_edges_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
 
       cugraph::for_all_major_for_all_nbr_mid_degree<<<update_grid.num_blocks,
                                                       update_grid.block_size,
                                                       0,
                                                       handle.get_stream()>>>(
-        matrix_partition,
-        matrix_partition.get_major_first() + (*segment_offsets)[1],
-        matrix_partition.get_major_first() + (*segment_offsets)[2],
+        edge_partition,
+        edge_partition.major_range_first() + (*segment_offsets)[1],
+        edge_partition.major_range_first() + (*segment_offsets)[2],
         count.data());
     }
     auto ret = count.value(handle.get_stream());
     if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
       ret += thrust::transform_reduce(
         execution_policy,
-        thrust::make_counting_iterator(matrix_partition.get_major_first()) + (*segment_offsets)[2],
-        thrust::make_counting_iterator(matrix_partition.get_major_first()) + (*segment_offsets)[3],
-        [matrix_partition] __device__(auto major) {
-          auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
+        thrust::make_counting_iterator(edge_partition.major_range_first()) + (*segment_offsets)[2],
+        thrust::make_counting_iterator(edge_partition.major_range_first()) + (*segment_offsets)[3],
+        [edge_partition] __device__(auto major) {
+          auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
           vertex_t const* indices{nullptr};
           [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
           edge_t local_degree{};
-          thrust::tie(indices, weights, local_degree) =
-            matrix_partition.get_local_edges(major_offset);
+          thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
           edge_t count{0};
           for (edge_t i = 1; i < local_degree; ++i) {  // assumes neighbors are sorted
             if (indices[i - 1] == indices[i]) { ++count; }
@@ -377,19 +378,18 @@ edge_t count_matrix_partition_multi_edges(
         edge_t{0},
         thrust::plus<edge_t>{});
     }
-    if (matrix_partition.get_dcs_nzd_vertex_count() &&
-        (*(matrix_partition.get_dcs_nzd_vertex_count()) > 0)) {
+    if (edge_partition.dcs_nzd_vertex_count() && (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
       ret += thrust::transform_reduce(
         execution_policy,
         thrust::make_counting_iterator(vertex_t{0}),
-        thrust::make_counting_iterator(*(matrix_partition.get_dcs_nzd_vertex_count())),
-        [matrix_partition, major_start_offset = (*segment_offsets)[3]] __device__(auto idx) {
+        thrust::make_counting_iterator(*(edge_partition.dcs_nzd_vertex_count())),
+        [edge_partition, major_start_offset = (*segment_offsets)[3]] __device__(auto idx) {
           auto major_idx =
             major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
           vertex_t const* indices{nullptr};
           [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
           edge_t local_degree{};
-          thrust::tie(indices, weights, local_degree) = matrix_partition.get_local_edges(major_idx);
+          thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_idx);
           edge_t count{0};
           for (edge_t i = 1; i < local_degree; ++i) {  // assumes neighbors are sorted
             if (indices[i - 1] == indices[i]) { ++count; }
@@ -404,16 +404,15 @@ edge_t count_matrix_partition_multi_edges(
   } else {
     return thrust::transform_reduce(
       execution_policy,
-      thrust::make_counting_iterator(matrix_partition.get_major_first()),
-      thrust::make_counting_iterator(matrix_partition.get_major_first()) +
-        matrix_partition.get_major_size(),
-      [matrix_partition] __device__(auto major) {
-        auto major_offset = matrix_partition.get_major_offset_from_major_nocheck(major);
+      thrust::make_counting_iterator(edge_partition.major_range_first()),
+      thrust::make_counting_iterator(edge_partition.major_range_first()) +
+        edge_partition.major_range_size(),
+      [edge_partition] __device__(auto major) {
+        auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
         vertex_t const* indices{nullptr};
         [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
         edge_t local_degree{};
-        thrust::tie(indices, weights, local_degree) =
-          matrix_partition.get_local_edges(major_offset);
+        thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
         edge_t count{0};
         for (edge_t i = 1; i < local_degree; ++i) {  // assumes neighbors are sorted
           if (indices[i - 1] == indices[i]) { ++count; }
@@ -433,72 +432,70 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  graph_view_t(
-    raft::handle_t const& handle,
-    std::vector<edge_t const*> const& adj_matrix_partition_offsets,
-    std::vector<vertex_t const*> const& adj_matrix_partition_indices,
-    std::optional<std::vector<weight_t const*>> const& adj_matrix_partition_weights,
-    std::optional<std::vector<vertex_t const*>> const& adj_matrix_partition_dcs_nzd_vertices,
-    std::optional<std::vector<vertex_t>> const& adj_matrix_partition_dcs_nzd_vertex_counts,
-    graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta)
+  graph_view_t(raft::handle_t const& handle,
+               std::vector<edge_t const*> const& edge_partition_offsets,
+               std::vector<vertex_t const*> const& edge_partition_indices,
+               std::optional<std::vector<weight_t const*>> const& edge_partition_weights,
+               std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
+               std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
+               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
-    adj_matrix_partition_offsets_(adj_matrix_partition_offsets),
-    adj_matrix_partition_indices_(adj_matrix_partition_indices),
-    adj_matrix_partition_weights_(adj_matrix_partition_weights),
-    adj_matrix_partition_dcs_nzd_vertices_(adj_matrix_partition_dcs_nzd_vertices),
-    adj_matrix_partition_dcs_nzd_vertex_counts_(adj_matrix_partition_dcs_nzd_vertex_counts),
-    adj_matrix_partition_number_of_edges_(
-      update_adj_matrix_partition_edge_counts(adj_matrix_partition_offsets,
-                                              adj_matrix_partition_dcs_nzd_vertex_counts,
-                                              meta.partition,
-                                              meta.adj_matrix_partition_segment_offsets,
-                                              handle.get_stream())),
+    edge_partition_offsets_(edge_partition_offsets),
+    edge_partition_indices_(edge_partition_indices),
+    edge_partition_weights_(edge_partition_weights),
+    edge_partition_dcs_nzd_vertices_(edge_partition_dcs_nzd_vertices),
+    edge_partition_dcs_nzd_vertex_counts_(edge_partition_dcs_nzd_vertex_counts),
+    edge_partition_number_of_edges_(
+      update_edge_partition_edge_counts(edge_partition_offsets,
+                                        edge_partition_dcs_nzd_vertex_counts,
+                                        meta.partition,
+                                        meta.edge_partition_segment_offsets,
+                                        handle.get_stream())),
     partition_(meta.partition),
-    adj_matrix_partition_segment_offsets_(meta.adj_matrix_partition_segment_offsets),
-    local_sorted_unique_edge_row_first_(meta.local_sorted_unique_edge_row_first),
-    local_sorted_unique_edge_row_last_(meta.local_sorted_unique_edge_row_last),
-    local_sorted_unique_edge_row_offsets_(meta.local_sorted_unique_edge_row_offsets),
-    local_sorted_unique_edge_col_first_(meta.local_sorted_unique_edge_col_first),
-    local_sorted_unique_edge_col_last_(meta.local_sorted_unique_edge_col_last),
-    local_sorted_unique_edge_col_offsets_(meta.local_sorted_unique_edge_col_offsets)
+    edge_partition_segment_offsets_(meta.edge_partition_segment_offsets),
+    local_sorted_unique_edge_src_first_(meta.local_sorted_unique_edge_src_first),
+    local_sorted_unique_edge_src_last_(meta.local_sorted_unique_edge_src_last),
+    local_sorted_unique_edge_src_offsets_(meta.local_sorted_unique_edge_src_offsets),
+    local_sorted_unique_edge_dst_first_(meta.local_sorted_unique_edge_dst_first),
+    local_sorted_unique_edge_dst_last_(meta.local_sorted_unique_edge_dst_last),
+    local_sorted_unique_edge_dst_offsets_(meta.local_sorted_unique_edge_dst_offsets)
 {
   // cheap error checks
 
-  auto const col_comm_size = this->get_handle_ptr()
-                               ->get_subcomm(cugraph::partition_2d::key_naming_t().col_name())
-                               .get_size();
+  auto const col_comm_size =
+    this->handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name()).get_size();
 
-  auto is_weighted = adj_matrix_partition_weights.has_value();
-  auto use_dcs     = adj_matrix_partition_dcs_nzd_vertices.has_value();
+  auto is_weighted = edge_partition_weights.has_value();
+  auto use_dcs     = edge_partition_dcs_nzd_vertices.has_value();
 
-  CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == adj_matrix_partition_indices.size(),
-                  "Internal Error: adj_matrix_partition_offsets.size() and "
-                  "adj_matrix_partition_indices.size() should coincide.");
+  CUGRAPH_EXPECTS(edge_partition_offsets.size() == edge_partition_indices.size(),
+                  "Internal Error: edge_partition_offsets.size() and "
+                  "edge_partition_indices.size() should coincide.");
   CUGRAPH_EXPECTS(
-    !is_weighted || ((*adj_matrix_partition_weights).size() == adj_matrix_partition_offsets.size()),
-    "Internal Error: adj_matrix_partition_weights.size() should coincide with "
-    "adj_matrix_partition_offsets.size() (if weighted).");
-  CUGRAPH_EXPECTS(adj_matrix_partition_dcs_nzd_vertex_counts.has_value() == use_dcs,
-                  "adj_matrix_partition_dcs_nzd_vertices.has_value() and "
-                  "adj_matrix_partition_dcs_nzd_vertex_counts.has_value() should coincide");
-  CUGRAPH_EXPECTS(!use_dcs || ((*adj_matrix_partition_dcs_nzd_vertices).size() ==
-                               (*adj_matrix_partition_dcs_nzd_vertex_counts).size()),
-                  "Internal Error: adj_matrix_partition_dcs_nzd_vertices.size() and "
-                  "adj_matrix_partition_dcs_nzd_vertex_counts.size() should coincide (if used).");
-  CUGRAPH_EXPECTS(!use_dcs || ((*adj_matrix_partition_dcs_nzd_vertices).size() ==
-                               adj_matrix_partition_offsets.size()),
-                  "Internal Error: adj_matrix_partition_dcs_nzd_vertices.size() should coincide "
-                  "with adj_matrix_partition_offsets.size() (if used).");
+    !is_weighted || ((*edge_partition_weights).size() == edge_partition_offsets.size()),
+    "Internal Error: edge_partition_weights.size() should coincide with "
+    "edge_partition_offsets.size() (if weighted).");
+  CUGRAPH_EXPECTS(edge_partition_dcs_nzd_vertex_counts.has_value() == use_dcs,
+                  "edge_partition_dcs_nzd_vertices.has_value() and "
+                  "edge_partition_dcs_nzd_vertex_counts.has_value() should coincide");
+  CUGRAPH_EXPECTS(!use_dcs || ((*edge_partition_dcs_nzd_vertices).size() ==
+                               (*edge_partition_dcs_nzd_vertex_counts).size()),
+                  "Internal Error: edge_partition_dcs_nzd_vertices.size() and "
+                  "edge_partition_dcs_nzd_vertex_counts.size() should coincide (if used).");
+  CUGRAPH_EXPECTS(
+    !use_dcs || ((*edge_partition_dcs_nzd_vertices).size() == edge_partition_offsets.size()),
+    "Internal Error: edge_partition_dcs_nzd_vertices.size() should coincide "
+    "with edge_partition_offsets.size() (if used).");
 
-  CUGRAPH_EXPECTS(adj_matrix_partition_offsets.size() == static_cast<size_t>(col_comm_size),
-                  "Internal Error: erroneous adj_matrix_partition_offsets.size().");
+  CUGRAPH_EXPECTS(edge_partition_offsets.size() == static_cast<size_t>(col_comm_size),
+                  "Internal Error: erroneous edge_partition_offsets.size().");
 
   CUGRAPH_EXPECTS(
-    !(meta.adj_matrix_partition_segment_offsets.has_value()) ||
-      ((*(meta.adj_matrix_partition_segment_offsets)).size() ==
+    !(meta.edge_partition_segment_offsets.has_value()) ||
+      ((*(meta.edge_partition_segment_offsets)).size() ==
        col_comm_size * (detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 2 : 1))),
-    "Internal Error: invalid adj_matrix_partition_segment_offsets.size().");
+    "Internal Error: invalid edge_partition_segment_offsets.size().");
 
   // skip expensive error checks as this function is only called by graph_t
 }
@@ -547,11 +544,11 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 {
   if (store_transposed) {
     return compute_major_degrees(handle,
-                                 this->adj_matrix_partition_offsets_,
-                                 this->adj_matrix_partition_dcs_nzd_vertices_,
-                                 this->adj_matrix_partition_dcs_nzd_vertex_counts_,
+                                 this->edge_partition_offsets_,
+                                 this->edge_partition_dcs_nzd_vertices_,
+                                 this->edge_partition_dcs_nzd_vertex_counts_,
                                  this->partition_,
-                                 this->adj_matrix_partition_segment_offsets_);
+                                 this->edge_partition_segment_offsets_);
   } else {
     return compute_minor_degrees(handle, *this);
   }
@@ -571,7 +568,7 @@ graph_view_t<vertex_t,
              std::enable_if_t<!multi_gpu>>::compute_in_degrees(raft::handle_t const& handle) const
 {
   if (store_transposed) {
-    return compute_major_degrees(handle, this->offsets_, this->get_number_of_local_vertices());
+    return compute_major_degrees(handle, this->offsets_, this->local_vertex_partition_range_size());
   } else {
     return compute_minor_degrees(handle, *this);
   }
@@ -590,11 +587,11 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
     return compute_minor_degrees(handle, *this);
   } else {
     return compute_major_degrees(handle,
-                                 this->adj_matrix_partition_offsets_,
-                                 this->adj_matrix_partition_dcs_nzd_vertices_,
-                                 this->adj_matrix_partition_dcs_nzd_vertex_counts_,
+                                 this->edge_partition_offsets_,
+                                 this->edge_partition_dcs_nzd_vertices_,
+                                 this->edge_partition_dcs_nzd_vertex_counts_,
                                  this->partition_,
-                                 this->adj_matrix_partition_segment_offsets_);
+                                 this->edge_partition_segment_offsets_);
   }
 }
 
@@ -614,7 +611,7 @@ graph_view_t<vertex_t,
   if (store_transposed) {
     return compute_minor_degrees(handle, *this);
   } else {
-    return compute_major_degrees(handle, this->offsets_, this->get_number_of_local_vertices());
+    return compute_major_degrees(handle, this->offsets_, this->local_vertex_partition_range_size());
   }
 }
 
@@ -918,12 +915,12 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   if (!this->is_multigraph()) { return edge_t{0}; }
 
   edge_t count{0};
-  for (size_t i = 0; i < this->get_number_of_local_adj_matrix_partitions(); ++i) {
-    count += count_matrix_partition_multi_edges(
+  for (size_t i = 0; i < this->number_of_local_edge_partitions(); ++i) {
+    count += count_edge_partition_multi_edges(
       handle,
-      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-        this->get_matrix_partition_view(i)),
-      this->get_local_adj_matrix_partition_segment_offsets(i));
+      edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+        this->local_edge_partition_view(i)),
+      this->local_edge_partition_segment_offsets(i));
   }
 
   return host_scalar_allreduce(
@@ -945,11 +942,11 @@ edge_t graph_view_t<vertex_t,
 {
   if (!this->is_multigraph()) { return edge_t{0}; }
 
-  return count_matrix_partition_multi_edges(
+  return count_edge_partition_multi_edges(
     handle,
-    matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-      this->get_matrix_partition_view()),
-    this->get_local_adj_matrix_partition_segment_offsets());
+    edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+      this->local_edge_partition_view()),
+    this->local_edge_partition_segment_offsets());
 }
 
 template <typename vertex_t,
@@ -967,20 +964,18 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   auto& comm           = handle.get_comms();
   auto const comm_size = comm.get_size();
   auto& row_comm =
-    this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    this->handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_size = row_comm.get_size();
   auto& col_comm =
-    this->get_handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    this->handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_rank = col_comm.get_rank();
 
-  std::vector<size_t> edgelist_edge_counts(get_number_of_local_adj_matrix_partitions(), size_t{0});
+  std::vector<size_t> edgelist_edge_counts(number_of_local_edge_partitions(), size_t{0});
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    edgelist_edge_counts[i] =
-      static_cast<size_t>(get_number_of_local_adj_matrix_partition_edges(i));
+    edgelist_edge_counts[i] = static_cast<size_t>(number_of_local_edge_partition_edges(i));
   }
   auto number_of_local_edges =
     std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
-  auto vertex_partition_lasts = get_vertex_partition_lasts();
 
   rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
@@ -990,25 +985,25 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
 
   size_t cur_size{0};
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    detail::decompress_matrix_partition_to_edgelist(
+    detail::decompress_edge_partition_to_edgelist(
       handle,
-      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-        get_matrix_partition_view(i)),
+      edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+        local_edge_partition_view(i)),
       edgelist_majors.data() + cur_size,
       edgelist_minors.data() + cur_size,
       edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data() + cur_size}
                        : std::nullopt,
-      get_local_adj_matrix_partition_segment_offsets(i));
+      local_edge_partition_segment_offsets(i));
     cur_size += edgelist_edge_counts[i];
   }
 
-  auto local_vertex_first = get_local_vertex_first();
-  auto local_vertex_last  = get_local_vertex_last();
+  auto local_vertex_first = local_vertex_partition_range_first();
+  auto local_vertex_last  = local_vertex_partition_range_last();
 
   if (renumber_map) {
     std::vector<vertex_t> h_thresholds(row_comm_size - 1, vertex_t{0});
     for (int i = 0; i < row_comm_size - 1; ++i) {
-      h_thresholds[i] = get_vertex_partition_last(col_comm_rank * row_comm_size + i);
+      h_thresholds[i] = vertex_partition_range_last(col_comm_rank * row_comm_size + i);
     }
     rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), handle.get_stream());
     raft::update_device(
@@ -1020,7 +1015,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
       std::make_optional<std::vector<std::vector<size_t>>>(
         major_ptrs.size(), std::vector<size_t>(row_comm_size + 1, size_t{0}));
     size_t cur_size{0};
-    for (size_t i = 0; i < get_number_of_local_adj_matrix_partitions(); ++i) {
+    for (size_t i = 0; i < number_of_local_edge_partitions(); ++i) {
       major_ptrs[i] = edgelist_majors.data() + cur_size;
       minor_ptrs[i] = edgelist_minors.data() + cur_size;
       if (edgelist_weights) {
@@ -1059,7 +1054,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
       store_transposed ? major_ptrs : minor_ptrs,
       edgelist_edge_counts,
       (*renumber_map).data(),
-      vertex_partition_lasts,
+      vertex_partition_range_lasts(),
       edgelist_intra_partition_segment_offsets);
   }
 
@@ -1085,20 +1080,20 @@ graph_view_t<vertex_t,
   decompress_to_edgelist(raft::handle_t const& handle,
                          std::optional<rmm::device_uvector<vertex_t>> const& renumber_map) const
 {
-  rmm::device_uvector<vertex_t> edgelist_majors(get_number_of_local_adj_matrix_partition_edges(),
+  rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edge_partition_edges(),
                                                 handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
   auto edgelist_weights = this->is_weighted() ? std::make_optional<rmm::device_uvector<weight_t>>(
                                                   edgelist_majors.size(), handle.get_stream())
                                               : std::nullopt;
-  detail::decompress_matrix_partition_to_edgelist(
+  detail::decompress_edge_partition_to_edgelist(
     handle,
-    matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-      get_matrix_partition_view()),
+    edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+      local_edge_partition_view()),
     edgelist_majors.data(),
     edgelist_minors.data(),
     edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
-    get_local_adj_matrix_partition_segment_offsets());
+    local_edge_partition_segment_offsets());
 
   if (renumber_map) {
     unrenumber_local_int_edges<vertex_t, store_transposed, multi_gpu>(

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -383,12 +383,12 @@ symmetrize_edgelist(raft::handle_t const& handle,
       .resize(merged_lower_triangular_majors.size(), handle.get_stream());
     (*merged_lower_triangular_weights).shrink_to_fit(handle.get_stream());
 
-    auto merged_major_minor_first = thrust::make_zip_iterator(thrust::make_tuple(
+    auto merged_major_minor_range_first = thrust::make_zip_iterator(thrust::make_tuple(
       merged_lower_triangular_majors.begin(), merged_lower_triangular_minors.begin()));
     thrust::transform(handle.get_thrust_policy(),
-                      merged_major_minor_first,
-                      merged_major_minor_first + merged_lower_triangular_majors.size(),
-                      merged_major_minor_first,
+                      merged_major_minor_range_first,
+                      merged_major_minor_range_first + merged_lower_triangular_majors.size(),
+                      merged_major_minor_range_first,
                       to_lower_triangular_t<vertex_t>{});
   } else {
     auto lower_triangular_edge_first = thrust::make_zip_iterator(
@@ -532,8 +532,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 symmetrize_edgelist(raft::handle_t const& handle,
-                    rmm::device_uvector<vertex_t>&& edgelist_rows,
-                    rmm::device_uvector<vertex_t>&& edgelist_cols,
+                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
                     std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                     bool reciprocal)
 {
@@ -542,8 +542,8 @@ symmetrize_edgelist(raft::handle_t const& handle,
   std::tie(edgelist_majors, edgelist_minors, edgelist_weights) =
     detail::symmetrize_edgelist<vertex_t, weight_t, multi_gpu>(
       handle,
-      store_transposed ? std::move(edgelist_cols) : std::move(edgelist_rows),
-      store_transposed ? std::move(edgelist_rows) : std::move(edgelist_cols),
+      store_transposed ? std::move(edgelist_dsts) : std::move(edgelist_srcs),
+      store_transposed ? std::move(edgelist_srcs) : std::move(edgelist_dsts),
       std::move(edgelist_weights),
       reciprocal);
 

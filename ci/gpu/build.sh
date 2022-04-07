@@ -42,10 +42,6 @@ export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 # ucx-py version
 export UCX_PY_VERSION='0.26.*'
 
-export CMAKE_CUDA_COMPILER_LAUNCHER="sccache"
-export CMAKE_CXX_COMPILER_LAUNCHER="sccache"
-export CMAKE_C_COMPILER_LAUNCHER="sccache"
-
 ################################################################################
 # SETUP - Check environment
 ################################################################################
@@ -106,11 +102,8 @@ if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_logger "Build from source"
     $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph
 else
-    CONDA_FILE=`find ${CONDA_ARTIFACT_PATH} -name "libcugraph*.tar.bz2"`
-    CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
-    CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
-    echo "Installing $CONDA_FILE"
-    gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
+    echo "Installing libcugraph-tests"
+    gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} libcugraph libcugraph_etl libcugraph-tests
 
     gpuci_logger "Install the master version of dask and distributed"
     pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps

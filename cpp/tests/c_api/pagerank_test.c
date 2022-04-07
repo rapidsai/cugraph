@@ -43,13 +43,13 @@ int generic_pagerank_test(vertex_t* h_src,
 
   cugraph_resource_handle_t* p_handle = NULL;
   cugraph_graph_t* p_graph            = NULL;
-  cugraph_pagerank_result_t* p_result = NULL;
+  cugraph_centrality_result_t* p_result = NULL;
 
   p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
-    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
+    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
@@ -61,8 +61,8 @@ int generic_pagerank_test(vertex_t* h_src,
   cugraph_type_erased_device_array_view_t* vertices;
   cugraph_type_erased_device_array_view_t* pageranks;
 
-  vertices  = cugraph_pagerank_result_get_vertices(p_result);
-  pageranks = cugraph_pagerank_result_get_pageranks(p_result);
+  vertices  = cugraph_centrality_result_get_vertices(p_result);
+  pageranks = cugraph_centrality_result_get_values(p_result);
 
   vertex_t h_vertices[num_vertices];
   weight_t h_pageranks[num_vertices];
@@ -81,9 +81,7 @@ int generic_pagerank_test(vertex_t* h_src,
                 "pagerank results don't match");
   }
 
-  cugraph_type_erased_device_array_view_free(pageranks);
-  cugraph_type_erased_device_array_view_free(vertices);
-  cugraph_pagerank_result_free(p_result);
+  cugraph_centrality_result_free(p_result);
   cugraph_sg_graph_free(p_graph);
   cugraph_free_resource_handle(p_handle);
   cugraph_error_free(ret_error);

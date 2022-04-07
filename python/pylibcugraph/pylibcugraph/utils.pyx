@@ -63,6 +63,18 @@ cdef assert_CAI_type(obj, var_name, allow_None=False):
         raise TypeError(msg)
 
 
+cdef assert_AI_type(obj, var_name, allow_None=False):
+    if allow_None:
+        if obj is None:
+            return
+        msg = f"{var_name} must be None or support __array_interface__"
+    else:
+        msg = f"{var_name} does not support __array_interface__"
+
+    if not(hasattr(obj, "__array_interface__")):
+        raise TypeError(msg)
+
+
 cdef get_numpy_type_from_c_type(data_type_id_t c_type):
     if c_type == data_type_id_t.INT32:
         return numpy.int32

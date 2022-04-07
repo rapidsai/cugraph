@@ -125,10 +125,9 @@ struct rrandom_gen_t {
       d_ptr_out_degs,              // input2
       d_ptr_out_degs,              // also stencil
       d_col_indx.begin(),
-      [] __device__(real_t rnd_vindx, edge_t crt_out_deg) {
-        real_t max_ub     = static_cast<real_t>(crt_out_deg - 1);
-        auto interp_vindx = rnd_vindx * max_ub;
-        vertex_t v_indx   = static_cast<vertex_t>(interp_vindx);
+      [] __device__(real_t rnd_val, edge_t crt_out_deg) {
+        vertex_t v_indx =
+          static_cast<vertex_t>(rnd_val >= 1.0 ? crt_out_deg - 1 : rnd_val * crt_out_deg);
         return (v_indx >= crt_out_deg ? crt_out_deg - 1 : v_indx);
       },
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
@@ -172,9 +171,9 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
                      index_t num_paths,
                      index_t max_depth)
     : handle_(handle),
-      col_indices_(graph.get_matrix_partition_view().get_indices()),
-      row_offsets_(graph.get_matrix_partition_view().get_offsets()),
-      values_(graph.get_matrix_partition_view().get_weights()),
+      col_indices_(graph.local_edge_partition_view().indices()),
+      row_offsets_(graph.local_edge_partition_view().offsets()),
+      values_(graph.local_edge_partition_view().weights()),
       out_degs_(p_d_crt_out_degs),
       sizes_(p_d_sizes),
       num_paths_(num_paths),
@@ -730,7 +729,7 @@ random_walks_impl(raft::handle_t const& handle,
   using seed_t   = typename random_engine_t::seed_type;
   using real_t   = typename random_engine_t::real_type;
 
-  vertex_t num_vertices = graph.get_number_of_vertices();
+  vertex_t num_vertices = graph.number_of_vertices();
 
   auto how_many_valid = thrust::count_if(handle.get_thrust_policy(),
                                          d_v_start.begin(),
@@ -746,7 +745,7 @@ random_walks_impl(raft::handle_t const& handle,
   auto stream    = handle.get_stream();
 
   random_walker_t<graph_t, random_engine_t> rand_walker{handle,
-                                                        graph.get_number_of_vertices(),
+                                                        graph.number_of_vertices(),
                                                         static_cast<index_t>(num_paths),
                                                         static_cast<index_t>(max_depth)};
 

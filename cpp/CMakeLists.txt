@@ -76,6 +76,7 @@ rapids_cmake_build_type(Release)
 ################################################################################
 # - User Options  --------------------------------------------------------------
 
+option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
@@ -160,7 +161,7 @@ endif()
 ################################################################################
 # - libcugraph library target --------------------------------------------------
 
-add_library(cugraph SHARED
+add_library(cugraph
     src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
     src/utilities/cython.cu
@@ -249,6 +250,7 @@ set_target_properties(cugraph
                CXX_STANDARD_REQUIRED               ON
                CUDA_STANDARD                       17
                CUDA_STANDARD_REQUIRED              ON
+               POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
 )
 
@@ -289,7 +291,7 @@ target_include_directories(cugraph
 # - link libraries -------------------------------------------------------------
 target_link_libraries(cugraph
     PUBLIC
-        cugraphops::cugraphops
+        cugraph-ops::cugraph-ops++
         raft::raft
         cuco::cuco
     PRIVATE
@@ -351,7 +353,7 @@ endif()
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
-add_library(cugraph_c SHARED
+add_library(cugraph_c
         src/c_api/cugraph_api.cpp
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
@@ -359,6 +361,8 @@ add_library(cugraph_c SHARED
         src/c_api/graph_sg.cpp
         src/c_api/graph_mg.cpp
         src/c_api/pagerank.cpp
+        src/c_api/centrality_result.cpp
+        src/c_api/eigenvector_centrality.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
         src/c_api/sssp.cpp

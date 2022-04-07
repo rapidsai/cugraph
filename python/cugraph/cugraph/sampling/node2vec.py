@@ -11,15 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pylibcugraph
-import cudf
+from pylibcugraph.experimental import (ResourceHandle,
+                                       GraphProperties,
+                                       SGGraph,
+                                       node2vec as pylibcugraph_node2vec,
+                                       )
 from cugraph.utilities import ensure_cugraph_obj_for_nx
+
+import cudf
 
 
 def node2vec(G,
              start_vertices,
              max_depth=None,
-             use_padding=False,
+             compress_result=True,
              p=1.0,
              q=1.0):
     """
@@ -42,13 +47,14 @@ def node2vec(G,
     start_vertices: int or list or cudf.Series or cudf.DataFrame
         A single node or a list or a cudf.Series of nodes from which to run
         the random walks. In case of multi-column vertices it should be
-        a cudf.DataFrame
+        a cudf.DataFrame. Only supports int32 currently.
 
     max_depth: int
         The maximum depth of the random walks
 
-    use_padding: bool, optional (default=False)
-        If True, padded paths are returned else coalesced paths are returned
+    compress_result: bool, optional (default=True)
+        If True, coalesced paths are returned with a sizes array with offsets.
+        Otherwise padded paths are returned with an empty sizes array.
 
     p: float, optional (default=1.0, [0 < p])
         Return factor, which represents the likelihood of backtracking to
@@ -81,7 +87,7 @@ def node2vec(G,
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
-    >>> start_vertices = cudf.Series([0, 2])
+    >>> start_vertices = cudf.Series([0, 2], dtype=np.int32)
     >>> paths, weights, path_sizes = cugraph.node2vec(G, start_vertices, 3,
     ...                                               True, 0.8, 0.5)
 
@@ -89,8 +95,9 @@ def node2vec(G,
     if (not isinstance(max_depth, int)) or (max_depth < 1):
         raise ValueError(f"'max_depth' must be a positive integer, \
                         got: {max_depth}")
-    if (not isinstance(use_padding, bool)):
-        raise ValueError(f"'use_padding' must be a bool, got: {use_padding}")
+    if (not isinstance(compress_result, bool)):
+        raise ValueError(f"'compress_result' must be a bool, \
+                        got: {compress_result}")
     if (not isinstance(p, float)) or (p <= 0.0):
         raise ValueError(f"'p' must be a positive float, got: {p}")
     if (not isinstance(q, float)) or (q <= 0.0):
@@ -103,6 +110,9 @@ def node2vec(G,
 
     if isinstance(start_vertices, list):
         start_vertices = cudf.Series(start_vertices)
+        if start_vertices.dtype != 'int32':
+            raise ValueError(f"'start_vertices' must have int32 values, \
+                            got: {start_vertices.dtype}")
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
@@ -115,24 +125,23 @@ def node2vec(G,
     dsts = G.edgelist.edgelist_df['dst']
     weights = G.edgelist.edgelist_df['weights']
 
-    resource_handle = pylibcugraph.experimental.ResourceHandle()
-    graph_props = pylibcugraph.experimental.GraphProperties(
-                    is_multigraph=G.is_multigraph())
+    if srcs.dtype != 'int32':
+        raise ValueError(f"Graph vertices must have int32 values, \
+                        got: {srcs.dtype}")
+
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_multigraph=G.is_multigraph())
     store_transposed = False
     renumber = False
     do_expensive_check = False
 
-    # FIXME: If input graph is not renumbered, then SGGraph creation
-    # causes incorrect vertices to be returned when computing pylib
-    # version of node2vec
-    sg = pylibcugraph.experimental.SGGraph(resource_handle, graph_props,
-                                           srcs, dsts, weights,
-                                           store_transposed, renumber,
-                                           do_expensive_check)
+    sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
+                 store_transposed, renumber, do_expensive_check)
 
-    vertex_set, edge_set, sizes = pylibcugraph.experimental.node2vec(
-                                    resource_handle, sg, start_vertices,
-                                    max_depth, use_padding, p, q)
+    vertex_set, edge_set, sizes = \
+        pylibcugraph_node2vec(resource_handle, sg, start_vertices,
+                              max_depth, compress_result, p, q)
+
     vertex_set = cudf.Series(vertex_set)
     edge_set = cudf.Series(edge_set)
     sizes = cudf.Series(sizes)
@@ -142,11 +151,4 @@ def node2vec(G,
         df_['vertex_set'] = vertex_set
         df_ = G.unrenumber(df_, 'vertex_set', preserve_order=True)
         vertex_set = cudf.Series(df_['vertex_set'])
-
-    if use_padding:
-        edge_set_sz = (max_depth - 1) * len(start_vertices)
-        return vertex_set, edge_set[:edge_set_sz], sizes
-
-    vertex_set_sz = vertex_set.sum()
-    edge_set_sz = vertex_set_sz - len(start_vertices)
-    return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], sizes
+    return vertex_set, edge_set, sizes
