@@ -147,7 +147,7 @@ def test_dask_bfs_undirected(dask_client):
         ):
             err = err + 1
     assert err == 0
-    assert dg.is_directed() == False
+    assert dg.is_directed()
 
 
 @pytest.mark.skipif(
