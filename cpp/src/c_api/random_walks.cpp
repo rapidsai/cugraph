@@ -106,8 +106,8 @@ struct node2vec_functor : public abstract_functor {
                                                  sources.data(),
                                                  sources.size(),
                                                  number_map->data(),
-                                                 graph_view.get_local_vertex_first(),
-                                                 graph_view.get_local_vertex_last(),
+                                                 graph_view.local_vertex_partition_range_first(),
+                                                 graph_view.local_vertex_partition_range_last(),
                                                  false);
 
       // FIXME:  Forcing this to edge_t for now.  What should it really be?

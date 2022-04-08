@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,9 +41,9 @@ namespace cugraph {
  * @param graph_view Non-owning graph object.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
+ * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
  * @param v_op Unary operator takes *(@p vertex_value_input_first + i) (where i is [0, @p
- * graph_view.get_number_of_local_vertices())) and returns true if this vertex should be
+ * graph_view.local_vertex_partition_range_size())) and returns true if this vertex should be
  * included in the returned count.
  * @return GraphViewType::vertex_type Number of times @p v_op returned true.
  */
@@ -56,7 +56,7 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
   auto count =
     thrust::count_if(handle.get_thrust_policy(),
                      vertex_value_input_first,
-                     vertex_value_input_first + graph_view.get_number_of_local_vertices(),
+                     vertex_value_input_first + graph_view.local_vertex_partition_range_size(),
                      v_op);
   if (GraphViewType::is_multi_gpu) {
     count =

@@ -1,0 +1,17 @@
+cmake_version:
+  - ">=3.20.1,<3.23"
+
+doxygen_version:
+  - ">=1.8.11"
+
+boost_cpp_version:
+  - ">=1.66"
+
+nccl_version:
+  - ">=2.9.9"
+
+gtest_version:
+  - "=1.10.0"
+
+libcusolver_version:
+  - ">=11.2.1"

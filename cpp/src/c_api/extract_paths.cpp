@@ -106,16 +106,16 @@ struct extract_paths_functor : public abstract_functor {
                                                  destinations.data(),
                                                  destinations.size(),
                                                  number_map->data(),
-                                                 graph_view.get_local_vertex_first(),
-                                                 graph_view.get_local_vertex_last(),
+                                                 graph_view.local_vertex_partition_range_first(),
+                                                 graph_view.local_vertex_partition_range_last(),
                                                  false);
 
       renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
                                                  predecessors.data(),
                                                  predecessors.size(),
                                                  number_map->data(),
-                                                 graph_view.get_local_vertex_first(),
-                                                 graph_view.get_local_vertex_last(),
+                                                 graph_view.local_vertex_partition_range_first(),
+                                                 graph_view.local_vertex_partition_range_last(),
                                                  false);
 
       auto [result, max_path_length] =
@@ -127,10 +127,15 @@ struct extract_paths_functor : public abstract_functor {
           destinations.data(),
           destinations.size());
 
-      std::vector<vertex_t> vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
+      std::vector<vertex_t> vertex_partition_range_lasts =
+        graph_view.vertex_partition_range_lasts();
 
-      unrenumber_int_vertices<vertex_t, multi_gpu>(
-        handle_, result.data(), result.size(), number_map->data(), vertex_partition_lasts, false);
+      unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
+                                                   result.data(),
+                                                   result.size(),
+                                                   number_map->data(),
+                                                   vertex_partition_range_lasts,
+                                                   false);
 
       result_ = new cugraph_extract_paths_result_t{
         static_cast<size_t>(max_path_length),
