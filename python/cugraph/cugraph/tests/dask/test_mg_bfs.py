@@ -83,6 +83,71 @@ def test_dask_bfs(dask_client):
         ):
             err = err + 1
     assert err == 0
+    print(dg)
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+def test_dask_bfs_undirected(dask_client):
+    gc.collect()
+
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "netscience.csv").as_posix()
+
+    print(f"dataset={input_data_path}")
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    def modify_dataset(df):
+        temp_df = cudf.DataFrame()
+        temp_df['src'] = df['src']+1000
+        temp_df['dst'] = df['dst']+1000
+        temp_df['value'] = df['value']
+        return cudf.concat([df, temp_df])
+
+    meta = ddf._meta
+    ddf = ddf.map_partitions(modify_dataset, meta=meta)
+
+    df = cudf.read_csv(
+        input_data_path,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    df = modify_dataset(df)
+
+    g = cugraph.Graph(directed=False)
+    g.from_cudf_edgelist(df, "src", "dst")
+
+    dg = cugraph.Graph(directed=False)
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    expected_dist = cugraph.bfs(g, [0, 1000])
+    result_dist = dcg.bfs(dg, [0, 1000])
+    result_dist = result_dist.compute()
+
+    compare_dist = expected_dist.merge(
+        result_dist, on="vertex", suffixes=["_local", "_dask"]
+    )
+
+    err = 0
+
+    for i in range(len(compare_dist)):
+        if (
+            compare_dist["distance_local"].iloc[i]
+            != compare_dist["distance_dask"].iloc[i]
+        ):
+            err = err + 1
+    assert err == 0
+    assert dg.is_directed() == False
 
 
 @pytest.mark.skipif(
