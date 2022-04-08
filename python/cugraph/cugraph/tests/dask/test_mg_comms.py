@@ -21,9 +21,9 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+#@pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+#)
 def test_dask_pagerank(dask_client):
     gc.collect()
 

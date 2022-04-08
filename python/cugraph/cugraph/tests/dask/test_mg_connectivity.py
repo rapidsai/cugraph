@@ -21,9 +21,9 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+#@pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+#)
 def test_dask_wcc(dask_client):
     gc.collect()
 
@@ -47,10 +47,10 @@ def test_dask_wcc(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    g = cugraph.DiGraph()
+    g = cugraph.Graph(directed=True)
     g.from_cudf_edgelist(df, "src", "dst", renumber=True)
 
-    dg = cugraph.DiGraph()
+    dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
     expected_dist = cugraph.weakly_connected_components(g)

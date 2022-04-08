@@ -39,9 +39,9 @@ except ImportError:
 
 ###############################################################################
 # Fixtures
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+#@pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+#)
 @pytest.fixture(scope="module",
                 params=utils.DATASETS_UNDIRECTED,
                 ids=[f"dataset={d.as_posix()}"
@@ -64,16 +64,16 @@ def daskGraphFromDataset(request, dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    dg = cugraph.DiGraph()
+    dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
     return dg
 
 
 ###############################################################################
 # Tests
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+#@pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+#)
 def test_mg_louvain_with_edgevals(daskGraphFromDataset):
     # FIXME: daskGraphFromDataset returns a DiGraph, which Louvain is currently
     # accepting. In the future, an MNMG symmeterize will need to be called to

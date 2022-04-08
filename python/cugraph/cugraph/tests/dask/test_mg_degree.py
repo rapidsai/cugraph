@@ -49,10 +49,10 @@ def test_dask_mg_degree(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    dg = cugraph.DiGraph()
+    dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
-    g = cugraph.DiGraph()
+    g = cugraph.Graph(directed=True)
     g.from_cudf_edgelist(df, "src", "dst")
 
     merge_df_in = (
