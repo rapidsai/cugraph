@@ -14,10 +14,10 @@
 import pytest
 import cupy as cp
 import numpy as np
-# from pylibcugraph.experimental import (ResourceHandle,
-#                                        GraphProperties,
-#                                        SGGraph,
-#                                        node2vec)
+from pylibcugraph.experimental import (ResourceHandle,
+                                       GraphProperties,
+                                       SGGraph,
+                                       katz_centrality)
 # from cugraph.tests import utils
 # import cugraph
 
@@ -50,21 +50,24 @@ def _generic_katz_test(src_arr,
     Builds a graph from the input arrays and runs katz using the other args,
     similar to how katz is tested in libcugraph.
     """
-    # resource_handle = ResourceHandle()
-    # graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
-    # G = SGGraph(resource_handle, graph_props, src_arr, dst_arr, wgt_arr,
-    #             store_transposed=False, renumber=False,
-    #             do_expensive_check=True)
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
+    G = SGGraph(resource_handle, graph_props, src_arr, dst_arr, wgt_arr,
+                store_transposed=False, renumber=False,
+                do_expensive_check=True)
 
-    # (vertices, centralities) = katz_centrality(resource_handle, G, alpha,
-    # beta, epsilon, max_iter, do_expensive_check)
+    # FIXME: None has no attribute '__cuda_array_interface'..., this should be
+    # the remaining step before test passes, though
+    (vertices, centralities) = katz_centrality(resource_handle, G, None, alpha,
+                                               beta, epsilon, max_iterations,
+                                               do_expensive_check=False)
 
     result_arr = result_arr.get()
-    dud_result = [0, 0, 0, 0, 0, 0]
+    centralities = centralities.get()
 
     for idx in range(num_vertices):
         expected_result = result_arr[idx]
-        actual_result = dud_result[idx]
+        actual_result = centralities[idx]
         if pytest.approx(expected_result, 1e-4) != actual_result:
             raise ValueError(f"Vertex {idx} has centrality {actual_result}"
                              f", should have been {expected_result}")
