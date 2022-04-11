@@ -952,11 +952,11 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param frontier VertexFrontier class object for vertex frontier managements. This object includes
- * multiple bucket objects.
- * @param cur_frontier_bucket_idx Index of the VertexFrontier bucket holding vertices for the
+ * @param frontier VertexFrontierType class object for vertex frontier managements. This object
+ * includes multiple bucket objects.
+ * @param cur_frontier_bucket_idx Index of the vertex frontier bucket holding vertices for the
  * current iteration.
- * @param next_frontier_bucket_indices Indices of the VertexFrontier buckets to store new frontier
+ * @param next_frontier_bucket_indices Indices of the vertex frontier buckets to store new frontier
  * vertices for the next iteration.
  * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
  * property values (for the edge sources assigned to this process in multi-GPU). Use either

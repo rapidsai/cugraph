@@ -144,7 +144,7 @@ void core_number(raft::handle_t const& handle,
   // start iteration
 
   enum class Bucket { cur, next, num_buckets };
-  VertexFrontier<vertex_t, void, multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
+  vertex_frontier_t<vertex_t, void, multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle);
 
   edge_partition_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, edge_t>

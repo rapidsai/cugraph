@@ -40,7 +40,7 @@ namespace cugraph {
 // stores unique key objects in the sorted (non-descending) order; key type is either vertex_t
 // (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
 template <typename vertex_t, typename tag_t = void, bool is_multi_gpu = false>
-class SortedUniqueKeyBucket {
+class sorted_unique_key_bucket_t {
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
 
   using optional_buffer_type = std::
@@ -48,13 +48,13 @@ class SortedUniqueKeyBucket {
 
  public:
   template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
-  SortedUniqueKeyBucket(raft::handle_t const& handle)
+  sorted_unique_key_bucket_t(raft::handle_t const& handle)
     : handle_ptr_(&handle), vertices_(0, handle.get_stream()), tags_(std::byte{0})
   {
   }
 
   template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
-  SortedUniqueKeyBucket(raft::handle_t const& handle)
+  sorted_unique_key_bucket_t(raft::handle_t const& handle)
     : handle_ptr_(&handle), vertices_(0, handle.get_stream()), tags_(0, handle.get_stream())
   {
   }
@@ -281,7 +281,7 @@ template <typename vertex_t,
           typename tag_t     = void,
           bool is_multi_gpu  = false,
           size_t num_buckets = 1>
-class VertexFrontier {
+class vertex_frontier_t {
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
 
  public:
@@ -290,19 +290,20 @@ class VertexFrontier {
   static size_t constexpr kNumBuckets = num_buckets;
   static size_t constexpr kInvalidBucketIdx{std::numeric_limits<size_t>::max()};
 
-  VertexFrontier(raft::handle_t const& handle) : handle_ptr_(&handle)
+  vertex_frontier_t(raft::handle_t const& handle) : handle_ptr_(&handle)
   {
     for (size_t i = 0; i < num_buckets; ++i) {
       buckets_.emplace_back(handle);
     }
   }
 
-  SortedUniqueKeyBucket<vertex_t, tag_t, is_multi_gpu>& get_bucket(size_t bucket_idx)
+  sorted_unique_key_bucket_t<vertex_t, tag_t, is_multi_gpu>& get_bucket(size_t bucket_idx)
   {
     return buckets_[bucket_idx];
   }
 
-  SortedUniqueKeyBucket<vertex_t, tag_t, is_multi_gpu> const& get_bucket(size_t bucket_idx) const
+  sorted_unique_key_bucket_t<vertex_t, tag_t, is_multi_gpu> const& get_bucket(
+    size_t bucket_idx) const
   {
     return buckets_[bucket_idx];
   }
@@ -454,7 +455,7 @@ class VertexFrontier {
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
-  std::vector<SortedUniqueKeyBucket<vertex_t, tag_t, is_multi_gpu>> buckets_{};
+  std::vector<sorted_unique_key_bucket_t<vertex_t, tag_t, is_multi_gpu>> buckets_{};
 };
 
 }  // namespace cugraph

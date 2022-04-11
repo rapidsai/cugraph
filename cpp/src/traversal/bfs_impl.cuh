@@ -167,10 +167,10 @@ void bfs(raft::handle_t const& handle,
 
   // 3. initialize BFS frontier
   enum class Bucket { cur, next, num_buckets };
-  VertexFrontier<vertex_t,
-                 void,
-                 GraphViewType::is_multi_gpu,
-                 static_cast<size_t>(Bucket::num_buckets)>
+  vertex_frontier_t<vertex_t,
+                    void,
+                    GraphViewType::is_multi_gpu,
+                    static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle);
 
   vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).insert(sources, sources + n_sources);
@@ -271,11 +271,6 @@ void bfs(raft::handle_t const& handle,
     depth++;
     if (depth >= depth_limit) { break; }
   }
-
-  RAFT_CUDA_TRY(cudaStreamSynchronize(
-    handle.get_stream()));  // this is as necessary vertex_frontier will become out-of-scope once
-                            // this function returns (FIXME: should I stream sync in VertexFrontier
-                            // destructor?)
 }
 
 }  // namespace detail

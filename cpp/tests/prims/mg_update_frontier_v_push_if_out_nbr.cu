@@ -176,8 +176,9 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
                                        mg_dst_properties);
 
     enum class Bucket { cur, next, num_buckets };
-    cugraph::VertexFrontier<vertex_t, void, is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
-      mg_vertex_frontier(handle);
+    cugraph::
+      vertex_frontier_t<vertex_t, void, is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
+        mg_vertex_frontier(handle);
     mg_vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
       .insert(sources.begin(), sources.end());
 
@@ -267,7 +268,7 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
                                            cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
                                            sg_dst_properties);
         cugraph::
-          VertexFrontier<vertex_t, void, !is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
+          vertex_frontier_t<vertex_t, void, !is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
             sg_vertex_frontier(handle);
         sg_vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
           .insert(sources.begin(), sources.end());

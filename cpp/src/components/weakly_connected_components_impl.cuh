@@ -449,10 +449,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     // 2-3. initialize vertex frontier, edge_buffer, and edge_partition_dst_components (if
     // multi-gpu)
 
-    VertexFrontier<vertex_t,
-                   vertex_t,
-                   GraphViewType::is_multi_gpu,
-                   static_cast<size_t>(Bucket::num_buckets)>
+    vertex_frontier_t<vertex_t,
+                      vertex_t,
+                      GraphViewType::is_multi_gpu,
+                      static_cast<size_t>(Bucket::num_buckets)>
       vertex_frontier(handle);
     vertex_t next_candidate_offset{0};
     edge_t edge_count{0};

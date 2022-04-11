@@ -126,10 +126,10 @@ void sssp(raft::handle_t const& handle,
   // 4. initialize SSSP frontier
 
   enum class Bucket { cur_near, next_near, far, num_buckets };
-  VertexFrontier<vertex_t,
-                 void,
-                 GraphViewType::is_multi_gpu,
-                 static_cast<size_t>(Bucket::num_buckets)>
+  vertex_frontier_t<vertex_t,
+                    void,
+                    GraphViewType::is_multi_gpu,
+                    static_cast<size_t>(Bucket::num_buckets)>
     vertex_frontier(handle);
 
   // 5. SSSP iteration
@@ -195,7 +195,7 @@ void sssp(raft::handle_t const& handle,
         auto idx      = new_dist < v_val
                           ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::next_near)
                                                            : static_cast<size_t>(Bucket::far))
-                          : VertexFrontier<vertex_t>::kInvalidBucketIdx;
+                          : vertex_frontier_t<vertex_t>::kInvalidBucketIdx;
         return new_dist < v_val
                  ? thrust::optional<thrust::tuple<size_t, decltype(pushed_val)>>{thrust::make_tuple(
                      static_cast<size_t>(new_dist < near_far_threshold ? Bucket::next_near
@@ -243,11 +243,6 @@ void sssp(raft::handle_t const& handle,
       break;
     }
   }
-
-  RAFT_CUDA_TRY(cudaStreamSynchronize(
-    handle.get_stream()));  // this is as necessary vertex_frontier will become out-of-scope once
-                            // this function returns (FIXME: should I stream sync in VertexFrontier
-                            // destructor?)
 }
 
 }  // namespace detail
