@@ -277,33 +277,31 @@ class sorted_unique_key_bucket_t {
   optional_buffer_type tags_;
 };
 
-template <typename vertex_t,
-          typename tag_t     = void,
-          bool is_multi_gpu  = false,
-          size_t num_buckets = 1>
+template <typename vertex_t, typename tag_t = void, bool is_multi_gpu = false>
 class vertex_frontier_t {
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
 
  public:
   using key_type =
     std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
-  static size_t constexpr kNumBuckets = num_buckets;
   static size_t constexpr kInvalidBucketIdx{std::numeric_limits<size_t>::max()};
 
-  vertex_frontier_t(raft::handle_t const& handle) : handle_ptr_(&handle)
+  vertex_frontier_t(raft::handle_t const& handle, size_t num_buckets) : handle_ptr_(&handle)
   {
+    buckets_.reserve(num_buckets);
     for (size_t i = 0; i < num_buckets; ++i) {
       buckets_.emplace_back(handle);
     }
   }
 
-  sorted_unique_key_bucket_t<vertex_t, tag_t, is_multi_gpu>& get_bucket(size_t bucket_idx)
+  size_t num_buckets() const { return buckets_.size(); }
+
+  sorted_unique_key_bucket_t<vertex_t, tag_t, is_multi_gpu>& bucket(size_t bucket_idx)
   {
     return buckets_[bucket_idx];
   }
 
-  sorted_unique_key_bucket_t<vertex_t, tag_t, is_multi_gpu> const& get_bucket(
-    size_t bucket_idx) const
+  sorted_unique_key_bucket_t<vertex_t, tag_t, is_multi_gpu> const& bucket(size_t bucket_idx) const
   {
     return buckets_[bucket_idx];
   }
@@ -318,12 +316,12 @@ class vertex_frontier_t {
                     std::vector<size_t> const& move_to_bucket_indices,
                     SplitOp split_op)
   {
-    auto& this_bucket = get_bucket(this_bucket_idx);
+    auto& this_bucket = bucket(this_bucket_idx);
     if (this_bucket.size() == 0) { return; }
 
     // 1. apply split_op to each bucket element
 
-    static_assert(kNumBuckets <= std::numeric_limits<uint8_t>::max());
+    assert(buckets_.size() <= std::numeric_limits<uint8_t>::max());
     rmm::device_uvector<uint8_t> bucket_indices(this_bucket.size(), handle_ptr_->get_stream());
     thrust::transform(
       handle_ptr_->get_thrust_policy(),
@@ -448,7 +446,7 @@ class vertex_frontier_t {
     // 2. insert to the target buckets
 
     for (size_t i = 0; i < insert_offsets.size(); ++i) {
-      get_bucket(insert_bucket_indices[i])
+      bucket(insert_bucket_indices[i])
         .insert(key_first + insert_offsets[i], key_first + (insert_offsets[i] + insert_sizes[i]));
     }
   }

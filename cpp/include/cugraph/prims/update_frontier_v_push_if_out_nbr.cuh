@@ -835,7 +835,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
 
   edge_t ret{0};
 
-  auto const& cur_frontier_bucket = frontier.get_bucket(cur_frontier_bucket_idx);
+  auto const& cur_frontier_bucket = frontier.bucket(cur_frontier_bucket_idx);
   vertex_t const* local_frontier_vertex_first{nullptr};
   vertex_t const* local_frontier_vertex_last{nullptr};
   if constexpr (std::is_same_v<key_t, vertex_t>) {
@@ -1031,8 +1031,8 @@ void update_frontier_v_push_if_out_nbr(
   using key_t     = typename VertexFrontierType::key_type;
   using payload_t = typename ReduceOp::type;
 
-  auto frontier_key_first = frontier.get_bucket(cur_frontier_bucket_idx).begin();
-  auto frontier_key_last  = frontier.get_bucket(cur_frontier_bucket_idx).end();
+  auto frontier_key_first = frontier.bucket(cur_frontier_bucket_idx).begin();
+  auto frontier_key_last  = frontier.bucket(cur_frontier_bucket_idx).end();
 
   // 1. fill the buffer
 
@@ -1334,7 +1334,7 @@ void update_frontier_v_push_if_out_nbr(
   // 3. update vertex properties and frontier
 
   if (num_buffer_elements > 0) {
-    static_assert(VertexFrontierType::kNumBuckets <= std::numeric_limits<uint8_t>::max());
+    assert(frontier.num_buckets() <= std::numeric_limits<uint8_t>::max());
     rmm::device_uvector<uint8_t> bucket_indices(num_buffer_elements, handle.get_stream());
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(

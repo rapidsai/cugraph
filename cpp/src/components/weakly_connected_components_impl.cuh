@@ -179,8 +179,8 @@ struct v_op_t {
   // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this requires
   // placing the atomic barrier on managed memory and this adds additional complication.
   size_t* num_edge_inserts{};
-  size_t next_bucket_idx{};
-  size_t conflict_bucket_idx{};  // relevant only if GraphViewType::is_multi_gpu is true
+  size_t bucket_idx_next{};
+  size_t bucket_idx_conflict{};  // relevant only if GraphViewType::is_multi_gpu is true
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
   __device__ std::enable_if_t<multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
@@ -195,11 +195,11 @@ struct v_op_t {
       atomicCAS(level_components + v_offset, invalid_component_id<vertex_type>::value, tag);
     if (old != invalid_component_id<vertex_type>::value && old != tag) {  // conflict
       return thrust::optional<thrust::tuple<size_t, std::byte>>{
-        thrust::make_tuple(conflict_bucket_idx, std::byte{0} /* dummy */)};
+        thrust::make_tuple(bucket_idx_conflict, std::byte{0} /* dummy */)};
     } else {
       return (old == invalid_component_id<vertex_type>::value)
                ? thrust::optional<thrust::tuple<size_t, std::byte>>{thrust::make_tuple(
-                   next_bucket_idx, std::byte{0} /* dummy */)}
+                   bucket_idx_next, std::byte{0} /* dummy */)}
                : thrust::nullopt;
     }
   }
@@ -209,7 +209,7 @@ struct v_op_t {
   operator()(thrust::tuple<vertex_type, vertex_type> /* tagged_v */, int /* v_val */) const
   {
     return thrust::optional<thrust::tuple<size_t, std::byte>>{
-      thrust::make_tuple(next_bucket_idx, std::byte{0} /* dummy */)};
+      thrust::make_tuple(bucket_idx_next, std::byte{0} /* dummy */)};
   }
 };
 
@@ -243,12 +243,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
   // 2. recursively run multi-root frontier expansion
 
-  enum class Bucket {
-    cur,
-    next,
-    conflict /* relevant only if GraphViewType::is_multi_gpu is true */,
-    num_buckets
-  };
+  constexpr size_t bucket_idx_cur      = 0;
+  constexpr size_t bucket_idx_next     = 1;
+  constexpr size_t bucket_idx_conflict = 2;
+  constexpr size_t num_buckets         = 4;
+
   // tuning parameter to balance work per iteration (should be large enough to be throughput
   // bounded) vs # conflicts between frontiers with different roots (# conflicts == # edges for the
   // next level)
@@ -449,11 +448,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     // 2-3. initialize vertex frontier, edge_buffer, and edge_partition_dst_components (if
     // multi-gpu)
 
-    vertex_frontier_t<vertex_t,
-                      vertex_t,
-                      GraphViewType::is_multi_gpu,
-                      static_cast<size_t>(Bucket::num_buckets)>
-      vertex_frontier(handle);
+    vertex_frontier_t<vertex_t, vertex_t, GraphViewType::is_multi_gpu> vertex_frontier(handle,
+                                                                                       num_buckets);
     vertex_t next_candidate_offset{0};
     edge_t edge_count{0};
 
@@ -502,33 +498,25 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
         auto pair_first =
           thrust::make_zip_iterator(thrust::make_tuple(new_roots.begin(), new_roots.begin()));
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
-          .insert(pair_first, pair_first + new_roots.size());
+        vertex_frontier.bucket(bucket_idx_cur).insert(pair_first, pair_first + new_roots.size());
       }
 
-      if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() == 0) {
-        break;
-      }
+      if (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() == 0) { break; }
 
       if constexpr (GraphViewType::is_multi_gpu) {
         update_edge_partition_dst_property(
           handle,
           level_graph_view,
-          thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
-                           .begin()
-                           .get_iterator_tuple()),
-          thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
-                           .end()
-                           .get_iterator_tuple()),
+          thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
+          thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
           level_components,
           edge_partition_dst_components);
       }
 
-      auto max_pushes =
-        GraphViewType::is_multi_gpu
-          ? compute_num_out_nbrs_from_frontier(
-              handle, level_graph_view, vertex_frontier, static_cast<size_t>(Bucket::cur))
-          : edge_count;
+      auto max_pushes = GraphViewType::is_multi_gpu
+                          ? compute_num_out_nbrs_from_frontier(
+                              handle, level_graph_view, vertex_frontier, bucket_idx_cur)
+                          : edge_count;
 
       // FIXME: if we use cuco::static_map (no duplicates, ideally we need static_set), edge_buffer
       // size cannot exceed (# roots)^2 and we can avoid additional sort & unique (but resizing the
@@ -540,10 +528,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         handle,
         level_graph_view,
         vertex_frontier,
-        static_cast<size_t>(Bucket::cur),
-        GraphViewType::is_multi_gpu ? std::vector<size_t>{static_cast<size_t>(Bucket::next),
-                                                          static_cast<size_t>(Bucket::conflict)}
-                                    : std::vector<size_t>{static_cast<size_t>(Bucket::next)},
+        bucket_idx_cur,
+        GraphViewType::is_multi_gpu ? std::vector<size_t>{bucket_idx_next, bucket_idx_conflict}
+                                    : std::vector<size_t>{bucket_idx_next},
         dummy_property_t<vertex_t>{}.device_view(),
         dummy_property_t<vertex_t>{}.device_view(),
         [col_components =
@@ -579,12 +566,12 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                               level_components,
                               get_dataframe_buffer_begin(edge_buffer),
                               num_edge_inserts.data(),
-                              static_cast<size_t>(Bucket::next),
-                              static_cast<size_t>(Bucket::conflict)});
+                              bucket_idx_next,
+                              bucket_idx_conflict});
 
       if (GraphViewType::is_multi_gpu) {
         auto cur_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
-        auto& conflict_bucket = vertex_frontier.get_bucket(static_cast<size_t>(Bucket::conflict));
+        auto& conflict_bucket     = vertex_frontier.bucket(bucket_idx_conflict);
         resize_dataframe_buffer(
           edge_buffer, cur_num_edge_inserts + conflict_bucket.size(), handle.get_stream());
         thrust::for_each(
@@ -636,17 +623,13 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         num_edge_inserts.set_value_async(num_unique_edges, handle.get_stream());
       }
 
-      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).clear();
-      vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).shrink_to_fit();
-      vertex_frontier.swap_buckets(static_cast<size_t>(Bucket::cur),
-                                   static_cast<size_t>(Bucket::next));
+      vertex_frontier.bucket(bucket_idx_cur).clear();
+      vertex_frontier.bucket(bucket_idx_cur).shrink_to_fit();
+      vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
       edge_count = thrust::transform_reduce(
         handle.get_thrust_policy(),
-        thrust::get<0>(vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
-                         .begin()
-                         .get_iterator_tuple()),
-        thrust::get<0>(
-          vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).end().get_iterator_tuple()),
+        thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
+        thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
         [vertex_partition, degrees = degrees.data()] __device__(auto v) {
           return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
         },
