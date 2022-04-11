@@ -32,7 +32,7 @@ namespace cugraph {
 namespace detail {
 
 // FIXME: block size requires tuning
-int32_t constexpr transform_reduce_by_src_dst_key_e_for_all_block_size = 128;
+int32_t constexpr transform_reduce_by_src_dst_key_e_kernel_block_size = 128;
 
 template <bool edge_partition_src_key,
           typename GraphViewType,
@@ -88,7 +88,7 @@ template <bool edge_partition_src_key,
           typename EdgePartitionSrcDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
-__global__ void for_all_major_for_all_nbr_hypersparse(
+__global__ void transform_reduce_by_src_dst_key_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -148,7 +148,7 @@ template <bool edge_partition_src_key,
           typename EdgePartitionSrcDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
-__global__ void for_all_major_for_all_nbr_low_degree(
+__global__ void transform_reduce_by_src_dst_key_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -206,7 +206,7 @@ template <bool edge_partition_src_key,
           typename EdgePartitionSrcDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
-__global__ void for_all_major_for_all_nbr_mid_degree(
+__global__ void transform_reduce_by_src_dst_key_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -225,7 +225,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   using weight_t = typename GraphViewType::weight_type;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  static_assert(transform_reduce_by_src_dst_key_e_for_all_block_size % raft::warp_size() == 0);
+  static_assert(transform_reduce_by_src_dst_key_e_kernel_block_size % raft::warp_size() == 0);
   auto const lane_id = tid % raft::warp_size();
   auto major_start_offset =
     static_cast<size_t>(major_range_first - edge_partition.major_range_first());
@@ -266,7 +266,7 @@ template <bool edge_partition_src_key,
           typename EdgePartitionSrcDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
-__global__ void for_all_major_for_all_nbr_high_degree(
+__global__ void transform_reduce_by_src_dst_key_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -414,9 +414,9 @@ transform_reduce_by_src_dst_key_e(
         if ((*segment_offsets)[1] > 0) {
           raft::grid_1d_block_t update_grid(
             (*segment_offsets)[1],
-            detail::transform_reduce_by_src_dst_key_e_for_all_block_size,
+            detail::transform_reduce_by_src_dst_key_e_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
-          detail::for_all_major_for_all_nbr_high_degree<edge_partition_src_key, GraphViewType>
+          detail::transform_reduce_by_src_dst_key_high_degree<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               edge_partition,
               edge_partition.major_range_first(),
@@ -431,9 +431,9 @@ transform_reduce_by_src_dst_key_e(
         if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
           raft::grid_1d_warp_t update_grid(
             (*segment_offsets)[2] - (*segment_offsets)[1],
-            detail::transform_reduce_by_src_dst_key_e_for_all_block_size,
+            detail::transform_reduce_by_src_dst_key_e_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
-          detail::for_all_major_for_all_nbr_mid_degree<edge_partition_src_key, GraphViewType>
+          detail::transform_reduce_by_src_dst_key_mid_degree<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               edge_partition,
               edge_partition.major_range_first() + (*segment_offsets)[1],
@@ -448,9 +448,9 @@ transform_reduce_by_src_dst_key_e(
         if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
           raft::grid_1d_thread_t update_grid(
             (*segment_offsets)[3] - (*segment_offsets)[2],
-            detail::transform_reduce_by_src_dst_key_e_for_all_block_size,
+            detail::transform_reduce_by_src_dst_key_e_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
-          detail::for_all_major_for_all_nbr_low_degree<edge_partition_src_key, GraphViewType>
+          detail::transform_reduce_by_src_dst_key_low_degree<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               edge_partition,
               edge_partition.major_range_first() + (*segment_offsets)[2],
@@ -466,9 +466,9 @@ transform_reduce_by_src_dst_key_e(
             (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
           raft::grid_1d_thread_t update_grid(
             *(edge_partition.dcs_nzd_vertex_count()),
-            detail::transform_reduce_by_src_dst_key_e_for_all_block_size,
+            detail::transform_reduce_by_src_dst_key_e_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
-          detail::for_all_major_for_all_nbr_hypersparse<edge_partition_src_key, GraphViewType>
+          detail::transform_reduce_by_src_dst_key_hypersparse<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               edge_partition,
               edge_partition.major_range_first() + (*segment_offsets)[3],
@@ -482,10 +482,10 @@ transform_reduce_by_src_dst_key_e(
       } else {
         raft::grid_1d_thread_t update_grid(
           edge_partition.major_range_size(),
-          detail::transform_reduce_by_src_dst_key_e_for_all_block_size,
+          detail::transform_reduce_by_src_dst_key_e_kernel_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
-        detail::for_all_major_for_all_nbr_low_degree<edge_partition_src_key, GraphViewType>
+        detail::transform_reduce_by_src_dst_key_low_degree<edge_partition_src_key, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first(),
