@@ -102,7 +102,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   if (has_initial_hubs_guess) {
     update_edge_partition_src_property(handle, graph_view, prev_hubs, prev_src_hubs);
   } else {
-    prev_src_hubs.fill(result_t{1.0} / num_vertices, handle.get_stream());
+    prev_src_hubs.fill(handle, result_t{1.0} / num_vertices);
     thrust::fill(handle.get_thrust_policy(),
                  prev_hubs,
                  prev_hubs + graph_view.local_vertex_partition_range_size(),

@@ -189,9 +189,7 @@ void bfs(raft::handle_t const& handle,
       : edge_partition_dst_property_t<GraphViewType,
                                       uint8_t>(
           handle);  // relevant only if GraphViewType::is_multi_gpu is true
-  if constexpr (GraphViewType::is_multi_gpu) {
-    dst_visited_flags.fill(uint8_t{0}, handle.get_stream());
-  }
+  if constexpr (GraphViewType::is_multi_gpu) { dst_visited_flags.fill(handle, uint8_t{0}); }
 
   // 4. BFS iteration
   vertex_t depth{0};

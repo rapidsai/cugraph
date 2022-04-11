@@ -464,8 +464,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         ? edge_partition_dst_property_t<GraphViewType, vertex_t>(handle, level_graph_view)
         : edge_partition_dst_property_t<GraphViewType, vertex_t>(handle);
     if constexpr (GraphViewType::is_multi_gpu) {
-      edge_partition_dst_components.fill(invalid_component_id<vertex_t>::value,
-                                         handle.get_stream());
+      edge_partition_dst_components.fill(handle, invalid_component_id<vertex_t>::value);
     }
 
     // 2.4 iterate till every vertex gets visited
