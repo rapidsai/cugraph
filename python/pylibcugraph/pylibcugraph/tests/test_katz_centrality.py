@@ -56,8 +56,6 @@ def _generic_katz_test(src_arr,
                 store_transposed=False, renumber=False,
                 do_expensive_check=True)
 
-    # FIXME: None has no attribute '__cuda_array_interface'..., this should be
-    # the remaining step before test passes, though
     (vertices, centralities) = katz_centrality(resource_handle, G, None, alpha,
                                                beta, epsilon, max_iterations,
                                                do_expensive_check=False)

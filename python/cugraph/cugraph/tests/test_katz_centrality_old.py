@@ -1,4 +1,5 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -63,6 +64,14 @@ def calc_katz(graph_file):
     return k_df
 
 
+# FIXME: the default set of datasets includes an asymmetric directed graph
+# (email-EU-core.csv), which currently produces different results between
+# cugraph and Nx and fails that test. Investigate, resolve, and use
+# utils.DATASETS instead.
+#
+# https://github.com/rapidsai/cugraph/issues/1042
+#
+# @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_katz_centrality(graph_file):
     gc.collect()

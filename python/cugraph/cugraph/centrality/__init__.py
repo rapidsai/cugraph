@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from cugraph.centrality.katz_centrality import katz_centrality
+from cugraph.centrality.katz_centrality_new import katz_centrality_2
 from cugraph.centrality.betweenness_centrality import (
     betweenness_centrality,
     edge_betweenness_centrality,
