@@ -40,8 +40,8 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/graph_functions.cuh>
+#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
@@ -439,7 +439,7 @@ sg_gather_edges(raft::handle_t const& handle,
                 typename GraphViewType::vertex_type invalid_vertex_id,
                 typename GraphViewType::edge_type indices_per_source)
 {
-  static_assert(GraphViewType::is_adj_matrix_transposed == false);
+  static_assert(GraphViewType::is_storage_transposed == false);
   using vertex_t    = typename GraphViewType::vertex_type;
   using edge_t      = typename GraphViewType::edge_type;
   using weight_t    = typename GraphViewType::weight_type;
@@ -447,9 +447,8 @@ sg_gather_edges(raft::handle_t const& handle,
   auto edge_count   = source_count * indices_per_source;
   rmm::device_uvector<vertex_t> sources(edge_count, handle.get_stream());
   rmm::device_uvector<vertex_t> destinations(edge_count, handle.get_stream());
-  auto matrix_partition =
-    cugraph::matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
-      graph_view.get_matrix_partition_view());
+  auto edge_partition = cugraph::edge_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+    graph_view.local_edge_partition_view());
   thrust::for_each(handle.get_thrust_policy(),
                    thrust::make_counting_iterator<size_t>(0),
                    thrust::make_counting_iterator<size_t>(edge_count),
@@ -458,8 +457,8 @@ sg_gather_edges(raft::handle_t const& handle,
                     edge_index_first,
                     sources      = sources.data(),
                     destinations = destinations.data(),
-                    offsets      = matrix_partition.get_offsets(),
-                    indices      = matrix_partition.get_indices(),
+                    offsets      = edge_partition.offsets(),
+                    indices      = edge_partition.indices(),
                     invalid_vertex_id] __device__(auto index) {
                      auto source        = vertex_input_first[index / indices_per_source];
                      sources[index]     = source;
@@ -496,21 +495,20 @@ sg_gather_edges(raft::handle_t const& handle,
                 const rmm::device_uvector<typename GraphViewType::vertex_type>& sources,
                 const rmm::device_uvector<prop_t>& properties)
 {
-  static_assert(GraphViewType::is_adj_matrix_transposed == false);
+  static_assert(GraphViewType::is_storage_transposed == false);
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto matrix_partition =
-    cugraph::matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
-      graph_view.get_matrix_partition_view());
+  auto edge_partition = cugraph::edge_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+    graph_view.local_edge_partition_view());
 
   rmm::device_uvector<vertex_t> sources_out_degrees(sources.size(), handle.get_stream());
   thrust::transform(handle.get_thrust_policy(),
                     sources.cbegin(),
                     sources.cend(),
                     sources_out_degrees.begin(),
-                    [offsets = matrix_partition.get_offsets()] __device__(auto s) {
+                    [offsets = edge_partition.offsets()] __device__(auto s) {
                       return offsets[s + 1] - offsets[s];
                     });
   auto [sources_out_offsets, segmented_source_indices, segmented_sequence] =
@@ -524,7 +522,7 @@ sg_gather_edges(raft::handle_t const& handle,
   thrust::for_each(handle.get_thrust_policy(),
                    thrust::make_counting_iterator<size_t>(0),
                    thrust::make_counting_iterator<size_t>(edge_count),
-                   [partition                = matrix_partition,
+                   [partition                = edge_partition,
                     srcs                     = srcs.data(),
                     dsts                     = dsts.data(),
                     src_prop                 = src_prop.data(),
@@ -535,8 +533,8 @@ sg_gather_edges(raft::handle_t const& handle,
                     segmented_sequence       = segmented_sequence.data()] __device__(auto index) {
                      auto src_index  = segmented_source_indices[index];
                      auto src        = sources[src_index];
-                     auto offsets    = partition.get_offsets();
-                     auto indices    = partition.get_indices();
+                     auto offsets    = partition.offsets();
+                     auto indices    = partition.indices();
                      auto dst        = indices[offsets[src] + segmented_sequence[index]];
                      srcs[index]     = src;
                      dsts[index]     = dst;
