@@ -13,7 +13,7 @@
 
 import cudf
 import cugraph
-from cugraph.experimental import EXPERIMENTAL__PropertyGraph as PropertyGraph
+from cugraph.experimental import PropertyGraph
 from cugraph.community.egonet import batched_ego_graphs
 import cupy
 import random
