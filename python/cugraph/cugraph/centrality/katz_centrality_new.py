@@ -73,7 +73,7 @@ def katz_centrality_2(
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
     weights = G.edgelist.edgelist_df['weights']
-    #breakpoint()
+    # breakpoint()
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_multigraph=G.is_multigraph())
     store_transposed = False
