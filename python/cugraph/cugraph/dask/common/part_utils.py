@@ -88,9 +88,24 @@ async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
         if batch_enabled:
             persisted = client.persist(dask_obj, workers=worker_list[0])
         else:
+            # Have the first n workers persisting the n partitions
+            # Ideally, there should be as many partition as there are workers
             persisted = [client.persist(
                 dask_obj.get_partition(p), workers=w) for p, w in enumerate(
-                    worker_list)]
+                    worker_list[:dask_obj.npartitions])]
+            
+            # Persist empty dataframe to the remaining workers if there are
+            # less partition than workers 
+            if dask_obj.npartitions < len(worker_list):
+                # The empty df should have the same column names and dtypes as
+                # dask_obj
+                empty_df = cudf.DataFrame(columns = list(dask_obj.columns))
+                empty_df = empty_df.astype(dict(zip(
+                    dask_obj.columns, dask_obj.dtypes)))
+                for p, w in enumerate(worker_list[dask_obj.npartitions:]):
+                    empty_ddf = dask_cudf.from_cudf(empty_df, npartitions=1)
+                    persisted.append(client.persist(empty_ddf, workers=w))
+
         parts = futures_of(persisted)
     # iterable of dask collections (need to colocate them)
     elif isinstance(dask_obj, collections.abc.Sequence):
