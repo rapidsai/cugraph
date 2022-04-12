@@ -279,12 +279,15 @@ void core_number(raft::handle_t const& handle,
         v_to_core_number_t<vertex_t, edge_t>{core_numbers,
                                              graph_view.local_vertex_partition_range_first()});
       auto min_core_number =
-        reduce_v(handle,
-                 graph_view,
-                 remaining_vertex_core_number_first,
-                 remaining_vertex_core_number_first + remaining_vertices.size(),
-                 std::numeric_limits<edge_t>::max(),
-                 raft::comms::op_t::MIN);
+        thrust::reduce(handle.get_thrust_policy(),
+                       remaining_vertex_core_number_first,
+                       remaining_vertex_core_number_first + remaining_vertices.size(),
+                       std::numeric_limits<edge_t>::max(),
+                       thrust::minimum<edge_t>{});
+      if constexpr (multi_gpu) {
+        min_core_number = host_scalar_allreduce(
+          handle.get_comms(), min_core_number, raft::comms::op_t::MIN, handle.get_stream());
+      }
       k = std::max(k + delta, static_cast<size_t>(min_core_number + edge_t{delta}));
     }
   }

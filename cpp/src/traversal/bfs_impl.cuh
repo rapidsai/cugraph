@@ -17,7 +17,6 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
@@ -127,14 +126,17 @@ void bfs(raft::handle_t const& handle,
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
       push_graph_view.local_vertex_partition_view());
     auto num_invalid_vertices =
-      count_if_v(handle,
-                 push_graph_view,
-                 sources,
-                 sources + n_sources,
-                 [vertex_partition] __device__(auto val) {
-                   return !(vertex_partition.is_valid_vertex(val) &&
-                            vertex_partition.in_local_vertex_partition_range_nocheck(val));
-                 });
+      thrust::count_if(handle.get_thrust_policy(),
+                       sources,
+                       sources + n_sources,
+                       [vertex_partition] __device__(auto val) {
+                         return !(vertex_partition.is_valid_vertex(val) &&
+                                  vertex_partition.in_local_vertex_partition_range_nocheck(val));
+                       });
+    if constexpr (GraphViewType::is_multi_gpu) {
+      num_invalid_vertices = host_scalar_allreduce(
+        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
+    }
     CUGRAPH_EXPECTS(num_invalid_vertices == 0,
                     "Invalid input argument: sources have invalid vertex IDs.");
   }

@@ -65,40 +65,4 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
   return count;
 }
 
-/**
- * @brief Count the number of vertices that satisfies the given predicate.
- *
- * This version (conceptually) iterates over only a subset of the graph vertices. This function
- * actually works as thrust::count_if() on [@p input_first, @p input_last) (followed by
- * inter-process reduction in multi-GPU). @p input_last - @p input_first (or the sum of @p
- * input_last - @p input_first values in multi-GPU) should not overflow GraphViewType::vertex_type.
- *
- * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam InputIterator Type of the iterator for input values.
- * @tparam VertexOp VertexOp Type of the unary predicate operator.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Non-owning graph object.
- * @param input_first Iterator pointing to the beginning (inclusive) of the values to be passed to
- * @p v_op.
- * @param input_last Iterator pointing to the end (exclusive) of the values to be passed to @p v_op.
- * @param v_op Unary operator takes *(@p input_first + i) (where i is [0, @p input_last - @p
- * input_first)) and returns true if this vertex should be included in the returned count.
- * @return GraphViewType::vertex_type Number of times @p v_op returned true.
- */
-template <typename GraphViewType, typename InputIterator, typename VertexOp>
-typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
-                                               GraphViewType const& graph_view,
-                                               InputIterator input_first,
-                                               InputIterator input_last,
-                                               VertexOp v_op)
-{
-  auto count = thrust::count_if(handle.get_thrust_policy(), input_first, input_last, v_op);
-  if (GraphViewType::is_multi_gpu) {
-    count =
-      host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());
-  }
-  return count;
-}
-
 }  // namespace cugraph
