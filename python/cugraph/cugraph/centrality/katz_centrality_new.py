@@ -89,7 +89,16 @@ def katz_centrality_2(
 
     vertices = cudf.Series(vertices)
     values = cudf.Series(values)
-
-    df = cudf.DataFrame(values, vertices)
-
-    return df
+    # breakpoint()
+    df = cudf.DataFrame()
+    df["vertex"] = vertices
+    df["katz_centrality"] = values
+    if G.renumbered:
+        df = G.unrenumber(df, "vertex")
+        df.sort_values("vertex")
+    
+    if isNx is True:
+        dict = df_score_to_dictionary(df, "katz_centrality")
+        return dict
+    else:
+        return df
