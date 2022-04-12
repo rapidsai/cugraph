@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/detail/decompress_matrix_partition.cuh>
+#include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
@@ -129,9 +129,9 @@ template <typename vertex_t,
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   raft::handle_t const& handle,
-  matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const matrix_partition,
+  edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const edge_partition,
   vertex_t const* major_label_first,
   AdjMatrixMinorLabelInputWrapper const minor_label_input,
   std::optional<std::vector<vertex_t>> const& segment_offsets,
@@ -142,16 +142,16 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
   // compressed sparse format to save memory
 
-  rmm::device_uvector<vertex_t> edgelist_majors(matrix_partition.get_number_of_edges(),
+  rmm::device_uvector<vertex_t> edgelist_majors(edge_partition.number_of_edges(),
                                                 handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-  auto edgelist_weights = matrix_partition.get_weights()
+  auto edgelist_weights = edge_partition.weights()
                             ? std::make_optional<rmm::device_uvector<weight_t>>(
                                 edgelist_majors.size(), handle.get_stream())
                             : std::nullopt;
-  detail::decompress_matrix_partition_to_edgelist(
+  detail::decompress_edge_partition_to_edgelist(
     handle,
-    matrix_partition,
+    edge_partition,
     edgelist_majors.data(),
     edgelist_minors.data(),
     edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
@@ -165,11 +165,11 @@ decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                     pair_first,
                     [major_label_first,
                      minor_label_input,
-                     major_first = matrix_partition.get_major_first(),
-                     minor_first = matrix_partition.get_minor_first()] __device__(auto val) {
+                     major_range_first = edge_partition.major_range_first(),
+                     minor_range_first = edge_partition.minor_range_first()] __device__(auto val) {
                       return thrust::make_tuple(
-                        *(major_label_first + (thrust::get<0>(val) - major_first)),
-                        minor_label_input.get(thrust::get<1>(val) - minor_first));
+                        *(major_label_first + (thrust::get<0>(val) - major_range_first)),
+                        minor_label_input.get(thrust::get<1>(val) - minor_range_first));
                     });
 
   if (lower_triangular_only) {
@@ -259,11 +259,11 @@ coarsen_graph(
                      edge_partition_dst_property_t<
                        graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
                        vertex_t>>
-    adj_matrix_minor_labels(handle, graph_view);
+    edge_partition_minor_labels(handle, graph_view);
   if constexpr (store_transposed) {
-    update_edge_partition_src_property(handle, graph_view, labels, adj_matrix_minor_labels);
+    update_edge_partition_src_property(handle, graph_view, labels, edge_partition_minor_labels);
   } else {
-    update_edge_partition_dst_property(handle, graph_view, labels, adj_matrix_minor_labels);
+    update_edge_partition_dst_property(handle, graph_view, labels, edge_partition_minor_labels);
   }
 
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_majors{};
@@ -271,17 +271,17 @@ coarsen_graph(
   auto coarsened_edgelist_weights =
     graph_view.is_weighted() ? std::make_optional<std::vector<rmm::device_uvector<weight_t>>>({})
                              : std::nullopt;
-  coarsened_edgelist_majors.reserve(graph_view.get_number_of_local_adj_matrix_partitions());
+  coarsened_edgelist_majors.reserve(graph_view.number_of_local_edge_partitions());
   coarsened_edgelist_minors.reserve(coarsened_edgelist_majors.size());
   if (coarsened_edgelist_weights) {
     (*coarsened_edgelist_weights).reserve(coarsened_edgelist_majors.size());
   }
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     // 1-1. locally construct coarsened edge list
 
     rmm::device_uvector<vertex_t> major_labels(
-      store_transposed ? graph_view.get_number_of_local_adj_matrix_partition_cols(i)
-                       : graph_view.get_number_of_local_adj_matrix_partition_rows(i),
+      store_transposed ? graph_view.local_edge_partition_dst_range_size(i)
+                       : graph_view.local_edge_partition_src_range_size(i),
       handle.get_stream());
     device_bcast(col_comm,
                  labels,
@@ -291,13 +291,13 @@ coarsen_graph(
                  handle.get_stream());
 
     auto [edgelist_majors, edgelist_minors, edgelist_weights] =
-      decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+      decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
         handle,
-        matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-          graph_view.get_matrix_partition_view(i)),
+        edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+          graph_view.local_edge_partition_view(i)),
         major_labels.data(),
-        adj_matrix_minor_labels.device_view(),
-        graph_view.get_local_adj_matrix_partition_segment_offsets(i),
+        edge_partition_minor_labels.device_view(),
+        graph_view.local_edge_partition_segment_offsets(i),
         lower_triangular_only);
 
     // 1-2. globally shuffle
@@ -320,7 +320,7 @@ coarsen_graph(
     coarsened_edgelist_minors.push_back(std::move(edgelist_minors));
     if (edgelist_weights) { (*coarsened_edgelist_weights).push_back(std::move(*edgelist_weights)); }
   }
-  adj_matrix_minor_labels.clear(handle);
+  edge_partition_minor_labels.clear(handle);
 
   // 2. concatenate and groupby and coarsen again (and if the input graph is symmetric, 1) create a
   // copy excluding self loops, 2) globally shuffle, and 3) concatenate again)
@@ -457,7 +457,7 @@ coarsen_graph(
 
   // 3. find unique labels for this GPU
 
-  rmm::device_uvector<vertex_t> unique_labels(graph_view.get_number_of_local_vertices(),
+  rmm::device_uvector<vertex_t> unique_labels(graph_view.local_vertex_partition_range_size(),
                                               handle.get_stream());
   thrust::copy(
     handle.get_thrust_policy(), labels, labels + unique_labels.size(), unique_labels.begin());
@@ -517,13 +517,13 @@ coarsen_graph(
   bool lower_triangular_only = graph_view.is_symmetric();
 
   auto [coarsened_edgelist_majors, coarsened_edgelist_minors, coarsened_edgelist_weights] =
-    decompress_matrix_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
+    decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
       handle,
-      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-        graph_view.get_matrix_partition_view()),
+      edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+        graph_view.local_edge_partition_view()),
       labels,
       detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(labels),
-      graph_view.get_local_adj_matrix_partition_segment_offsets(0),
+      graph_view.local_edge_partition_segment_offsets(0),
       lower_triangular_only);
 
   if (lower_triangular_only) {
@@ -582,8 +582,7 @@ coarsen_graph(
     }
   }
 
-  rmm::device_uvector<vertex_t> unique_labels(graph_view.get_number_of_vertices(),
-                                              handle.get_stream());
+  rmm::device_uvector<vertex_t> unique_labels(graph_view.number_of_vertices(), handle.get_stream());
   thrust::copy(
     handle.get_thrust_policy(), labels, labels + unique_labels.size(), unique_labels.begin());
   thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());

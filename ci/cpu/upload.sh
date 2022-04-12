@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2018-2021, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 #
 # Adopted from https://github.com/tmcdonell/travis-scripts/blob/dfaac280ac2082cd6bcaba3217428347899f2975/update-accelerate-buildbot.sh
 
@@ -25,40 +25,24 @@ if [ -z "$MY_UPLOAD_KEY" ]; then
 fi
 
 ################################################################################
-# SETUP - Get conda file output locations
-################################################################################
-
-gpuci_logger "Get conda file output locations"
-
-export LIBCUGRAPH_FILE=`conda build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph --output`
-export LIBCUGRAPH_ETL_FILE=`conda build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph_etl --output`
-export PYLIBCUGRAPH_FILE=`conda build --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON --output`
-export CUGRAPH_FILE=`conda build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON --output`
-
-################################################################################
 # UPLOAD - Conda packages
 ################################################################################
 
 gpuci_logger "Starting conda uploads"
 
 if [[ "$BUILD_LIBCUGRAPH" == "1" && "$UPLOAD_LIBCUGRAPH" == "1" ]]; then
-  test -e ${LIBCUGRAPH_FILE}
+  LIBCUGRAPH_FILES=$(conda build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph --output)
   echo "Upload libcugraph"
-  echo ${LIBCUGRAPH_FILE}
-  gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${LIBCUGRAPH_FILE} --no-progress
-  test -e ${LIBCUGRAPH_ETL_FILE}
-  echo "Upload libcugraph_etl"
-  echo ${LIBCUGRAPH_ETL_FILE}
-  gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${LIBCUGRAPH_ETL_FILE} --no-progress
+  gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing --no-progress ${LIBCUGRAPH_FILES}
 fi
 
 if [[ "$BUILD_CUGRAPH" == "1" ]]; then
+  PYLIBCUGRAPH_FILE=$(conda build --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON --output)
   test -e ${PYLIBCUGRAPH_FILE}
-  echo "Upload pylibcugraph"
-  echo ${PYLIBCUGRAPH_FILE}
+  echo "Upload pylibcugraph file: ${PYLIBCUGRAPH_FILE}"
   gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${PYLIBCUGRAPH_FILE} --no-progress
+  CUGRAPH_FILE=$(conda build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON --output)
   test -e ${CUGRAPH_FILE}
-  echo "Upload cugraph"
-  echo ${CUGRAPH_FILE}
+  echo "Upload cugraph file: ${CUGRAPH_FILE}"
   gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${CUGRAPH_FILE} --no-progress
 fi

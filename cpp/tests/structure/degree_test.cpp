@@ -89,31 +89,31 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
         handle, configuration.graph_file_full_path, false, false);
     auto graph_view = graph.view();
 
-    std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
-    std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
+    std::vector<edge_t> h_offsets(graph_view.number_of_vertices() + 1);
+    std::vector<vertex_t> h_indices(graph_view.number_of_edges());
     raft::update_host(h_offsets.data(),
-                      graph_view.get_matrix_partition_view().get_offsets(),
-                      graph_view.get_number_of_vertices() + 1,
+                      graph_view.local_edge_partition_view().offsets(),
+                      graph_view.number_of_vertices() + 1,
                       handle.get_stream());
     raft::update_host(h_indices.data(),
-                      graph_view.get_matrix_partition_view().get_indices(),
-                      graph_view.get_number_of_edges(),
+                      graph_view.local_edge_partition_view().indices(),
+                      graph_view.number_of_edges(),
                       handle.get_stream());
     handle.sync_stream();
 
-    std::vector<edge_t> h_reference_in_degrees(graph_view.get_number_of_vertices());
-    std::vector<edge_t> h_reference_out_degrees(graph_view.get_number_of_vertices());
+    std::vector<edge_t> h_reference_in_degrees(graph_view.number_of_vertices());
+    std::vector<edge_t> h_reference_out_degrees(graph_view.number_of_vertices());
 
     degree_reference(h_offsets.data(),
                      h_indices.data(),
                      h_reference_in_degrees.data(),
-                     graph_view.get_number_of_vertices(),
+                     graph_view.number_of_vertices(),
                      store_transposed);
 
     degree_reference(h_offsets.data(),
                      h_indices.data(),
                      h_reference_out_degrees.data(),
-                     graph_view.get_number_of_vertices(),
+                     graph_view.number_of_vertices(),
                      !store_transposed);
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -123,8 +123,8 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    std::vector<edge_t> h_cugraph_in_degrees(graph_view.get_number_of_vertices());
-    std::vector<edge_t> h_cugraph_out_degrees(graph_view.get_number_of_vertices());
+    std::vector<edge_t> h_cugraph_in_degrees(graph_view.number_of_vertices());
+    std::vector<edge_t> h_cugraph_out_degrees(graph_view.number_of_vertices());
 
     raft::update_host(
       h_cugraph_in_degrees.data(), d_in_degrees.data(), d_in_degrees.size(), handle.get_stream());

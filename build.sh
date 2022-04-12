@@ -218,6 +218,7 @@ if buildAll || hasArg libcugraph_etl; then
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DBUILD_TESTS=${BUILD_CPP_TESTS} \
           -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
+          -DCMAKE_PREFIX_PATH=${LIBCUGRAPH_BUILD_DIR} \
           ${CMAKE_VERBOSE_OPTION} \
           ${REPODIR}/cpp/libcugraph_etl
     cmake --build "${LIBCUGRAPH_ETL_BUILD_DIR}" -j${PARALLEL_LEVEL} ${INSTALL_TARGET} ${VERBOSE_FLAG}

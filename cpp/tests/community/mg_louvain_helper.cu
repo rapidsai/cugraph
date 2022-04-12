@@ -67,13 +67,15 @@ std::tuple<rmm::device_uvector<vertex_t>,
 compressed_sparse_to_edgelist(edge_t const* compressed_sparse_offsets,
                               vertex_t const* compressed_sparse_indices,
                               std::optional<weight_t const*> compressed_sparse_weights,
-                              vertex_t major_first,
-                              vertex_t major_last,
+                              vertex_t major_range_first,
+                              vertex_t major_range_last,
                               cudaStream_t stream)
 {
   edge_t number_of_edges{0};
-  raft::update_host(
-    &number_of_edges, compressed_sparse_offsets + (major_last - major_first), 1, stream);
+  raft::update_host(&number_of_edges,
+                    compressed_sparse_offsets + (major_range_last - major_range_first),
+                    1,
+                    stream);
   RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
   rmm::device_uvector<vertex_t> edgelist_major_vertices(number_of_edges, stream);
   rmm::device_uvector<vertex_t> edgelist_minor_vertices(number_of_edges, stream);
@@ -86,13 +88,13 @@ compressed_sparse_to_edgelist(edge_t const* compressed_sparse_offsets,
   // fill high-degree vertices using one CUDA block per vertex, mid-degree vertices using one CUDA
   // warp per vertex, and low-degree vertices using one CUDA thread per block
   thrust::for_each(rmm::exec_policy(stream),
-                   thrust::make_counting_iterator(major_first),
-                   thrust::make_counting_iterator(major_last),
+                   thrust::make_counting_iterator(major_range_first),
+                   thrust::make_counting_iterator(major_range_last),
                    [compressed_sparse_offsets,
-                    major_first,
+                    major_range_first,
                     p_majors = edgelist_major_vertices.begin()] __device__(auto v) {
-                     auto first = compressed_sparse_offsets[v - major_first];
-                     auto last  = compressed_sparse_offsets[v - major_first + 1];
+                     auto first = compressed_sparse_offsets[v - major_range_first];
+                     auto last  = compressed_sparse_offsets[v - major_range_first + 1];
                      thrust::fill(thrust::seq, p_majors + first, p_majors + last, v);
                    });
   thrust::copy(rmm::exec_policy(stream),
@@ -174,10 +176,10 @@ compressed_sparse_to_relabeled_and_sorted_and_coarsened_edgelist(
   std::optional<weight_t const*> compressed_sparse_weights,
   vertex_t const* p_major_labels,
   vertex_t const* p_minor_labels,
-  vertex_t major_first,
-  vertex_t major_last,
-  vertex_t minor_first,
-  vertex_t minor_last,
+  vertex_t major_range_first,
+  vertex_t major_range_last,
+  vertex_t minor_range_first,
+  vertex_t minor_range_last,
   cudaStream_t stream)
 {
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
@@ -187,8 +189,8 @@ compressed_sparse_to_relabeled_and_sorted_and_coarsened_edgelist(
     compressed_sparse_to_edgelist(compressed_sparse_offsets,
                                   compressed_sparse_indices,
                                   compressed_sparse_weights,
-                                  major_first,
-                                  major_last,
+                                  major_range_first,
+                                  major_range_last,
                                   stream);
 
   auto pair_first = thrust::make_zip_iterator(
@@ -198,9 +200,9 @@ compressed_sparse_to_relabeled_and_sorted_and_coarsened_edgelist(
     pair_first,
     pair_first + edgelist_major_vertices.size(),
     pair_first,
-    [p_major_labels, p_minor_labels, major_first, minor_first] __device__(auto val) {
-      return thrust::make_tuple(p_major_labels[thrust::get<0>(val) - major_first],
-                                p_minor_labels[thrust::get<1>(val) - minor_first]);
+    [p_major_labels, p_minor_labels, major_range_first, minor_range_first] __device__(auto val) {
+      return thrust::make_tuple(p_major_labels[thrust::get<0>(val) - major_range_first],
+                                p_minor_labels[thrust::get<1>(val) - minor_range_first]);
     });
 
   sort_and_coarsen_edgelist(
@@ -224,15 +226,15 @@ coarsen_graph(
         coarsened_edgelist_minor_vertices,
         coarsened_edgelist_weights] =
     compressed_sparse_to_relabeled_and_sorted_and_coarsened_edgelist(
-      graph_view.get_matrix_partition_view().get_offsets(),
-      graph_view.get_matrix_partition_view().get_indices(),
-      graph_view.get_matrix_partition_view().get_weights(),
+      graph_view.local_edge_partition_view().offsets(),
+      graph_view.local_edge_partition_view().indices(),
+      graph_view.local_edge_partition_view().weights(),
       labels,
       labels,
       vertex_t{0},
-      graph_view.get_number_of_vertices(),
+      graph_view.number_of_vertices(),
       vertex_t{0},
-      graph_view.get_number_of_vertices(),
+      graph_view.number_of_vertices(),
       handle.get_stream());
 
   cugraph::edgelist_t<vertex_t, edge_t, weight_t> edgelist{};
@@ -247,7 +249,7 @@ coarsen_graph(
 
   vertex_t new_number_of_vertices = 1 + thrust::reduce(handle.get_thrust_policy(),
                                                        labels,
-                                                       labels + graph_view.get_number_of_vertices(),
+                                                       labels + graph_view.number_of_vertices(),
                                                        vertex_t{0},
                                                        thrust::maximum<vertex_t>());
 

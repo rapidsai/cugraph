@@ -242,7 +242,7 @@ class Tests_CoreNumber
     ASSERT_TRUE(core_number_usecase.k_first <= core_number_usecase.k_last)
       << "Invalid pair of (k_first, k_last).";
 
-    rmm::device_uvector<edge_t> d_core_numbers(graph_view.get_number_of_vertices(),
+    rmm::device_uvector<edge_t> d_core_numbers(graph_view.number_of_vertices(),
                                                handle.get_stream());
 
     if (cugraph::test::g_perf) {
@@ -273,27 +273,27 @@ class Tests_CoreNumber
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-      std::vector<edge_t> h_offsets(unrenumbered_graph_view.get_number_of_vertices() + 1);
-      std::vector<vertex_t> h_indices(unrenumbered_graph_view.get_number_of_edges());
+      std::vector<edge_t> h_offsets(unrenumbered_graph_view.number_of_vertices() + 1);
+      std::vector<vertex_t> h_indices(unrenumbered_graph_view.number_of_edges());
       raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.get_matrix_partition_view().get_offsets(),
-                        unrenumbered_graph_view.get_number_of_vertices() + 1,
+                        unrenumbered_graph_view.local_edge_partition_view().offsets(),
+                        unrenumbered_graph_view.number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.get_matrix_partition_view().get_indices(),
-                        unrenumbered_graph_view.get_number_of_edges(),
+                        unrenumbered_graph_view.local_edge_partition_view().indices(),
+                        unrenumbered_graph_view.number_of_edges(),
                         handle.get_stream());
 
       handle.sync_stream();
 
       auto h_reference_core_numbers = core_number_reference(h_offsets.data(),
                                                             h_indices.data(),
-                                                            graph_view.get_number_of_vertices(),
+                                                            graph_view.number_of_vertices(),
                                                             core_number_usecase.degree_type,
                                                             core_number_usecase.k_first,
                                                             core_number_usecase.k_last);
 
-      std::vector<edge_t> h_cugraph_core_numbers(graph_view.get_number_of_vertices());
+      std::vector<edge_t> h_cugraph_core_numbers(graph_view.number_of_vertices());
       if (renumber) {
         rmm::device_uvector<edge_t> d_unrenumbered_core_numbers(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_core_numbers) =
