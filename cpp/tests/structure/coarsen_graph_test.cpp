@@ -271,9 +271,9 @@ class Tests_CoarsenGraph
 
     auto graph_view = graph.view();
 
-    if (graph_view.number_of_vertices() == 0) { return; }
+    if (graph_view.get_number_of_vertices() == 0) { return; }
 
-    std::vector<vertex_t> h_labels(graph_view.number_of_vertices());
+    std::vector<vertex_t> h_labels(graph_view.get_number_of_vertices());
     auto num_labels = std::max(
       static_cast<vertex_t>(h_labels.size() * coarsen_graph_usecase.coarsen_ratio), vertex_t{1});
 
@@ -305,43 +305,43 @@ class Tests_CoarsenGraph
     }
 
     if (coarsen_graph_usecase.check_correctness) {
-      std::vector<edge_t> h_org_offsets(graph_view.number_of_vertices() + 1);
-      std::vector<vertex_t> h_org_indices(graph_view.number_of_edges());
+      std::vector<edge_t> h_org_offsets(graph_view.get_number_of_vertices() + 1);
+      std::vector<vertex_t> h_org_indices(graph_view.get_number_of_edges());
       std::vector<weight_t> h_org_weights{};
       raft::update_host(h_org_offsets.data(),
-                        graph_view.local_edge_partition_view().offsets(),
-                        graph_view.number_of_vertices() + 1,
+                        graph_view.get_matrix_partition_view().get_offsets(),
+                        graph_view.get_number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_org_indices.data(),
-                        graph_view.local_edge_partition_view().indices(),
-                        graph_view.number_of_edges(),
+                        graph_view.get_matrix_partition_view().get_indices(),
+                        graph_view.get_number_of_edges(),
                         handle.get_stream());
       if (graph_view.is_weighted()) {
-        h_org_weights.assign(graph_view.number_of_edges(), weight_t{0.0});
+        h_org_weights.assign(graph_view.get_number_of_edges(), weight_t{0.0});
         raft::update_host(h_org_weights.data(),
-                          *(graph_view.local_edge_partition_view().weights()),
-                          graph_view.number_of_edges(),
+                          *(graph_view.get_matrix_partition_view().get_weights()),
+                          graph_view.get_number_of_edges(),
                           handle.get_stream());
       }
 
       auto coarse_graph_view = coarse_graph.view();
 
-      std::vector<edge_t> h_coarse_offsets(coarse_graph_view.number_of_vertices() + 1);
-      std::vector<vertex_t> h_coarse_indices(coarse_graph_view.number_of_edges());
+      std::vector<edge_t> h_coarse_offsets(coarse_graph_view.get_number_of_vertices() + 1);
+      std::vector<vertex_t> h_coarse_indices(coarse_graph_view.get_number_of_edges());
       std::vector<weight_t> h_coarse_weights{};
       raft::update_host(h_coarse_offsets.data(),
-                        coarse_graph_view.local_edge_partition_view().offsets(),
-                        coarse_graph_view.number_of_vertices() + 1,
+                        coarse_graph_view.get_matrix_partition_view().get_offsets(),
+                        coarse_graph_view.get_number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_coarse_indices.data(),
-                        coarse_graph_view.local_edge_partition_view().indices(),
-                        coarse_graph_view.number_of_edges(),
+                        coarse_graph_view.get_matrix_partition_view().get_indices(),
+                        coarse_graph_view.get_number_of_edges(),
                         handle.get_stream());
       if (graph_view.is_weighted()) {
-        h_coarse_weights.resize(coarse_graph_view.number_of_edges());
+        h_coarse_weights.resize(coarse_graph_view.get_number_of_edges());
         raft::update_host(h_coarse_weights.data(),
-                          *(coarse_graph_view.local_edge_partition_view().weights()),
-                          coarse_graph_view.number_of_edges(),
+                          *(coarse_graph_view.get_matrix_partition_view().get_weights()),
+                          coarse_graph_view.get_number_of_edges(),
                           handle.get_stream());
       }
 
@@ -361,8 +361,8 @@ class Tests_CoarsenGraph
                                     h_coarse_indices.data(),
                                     h_coarse_weights.data(),
                                     h_coarse_vertices_to_labels.data(),
-                                    graph_view.number_of_vertices(),
-                                    coarse_graph_view.number_of_vertices());
+                                    graph_view.get_number_of_vertices(),
+                                    coarse_graph_view.get_number_of_vertices());
     }
   }
 };

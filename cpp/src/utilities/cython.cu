@@ -513,8 +513,8 @@ class louvain_functor {
                                          graph_view_t const& graph_view)
   {
     thrust::copy(handle.get_thrust_policy(),
-                 thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-                 thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
+                 thrust::make_counting_iterator(graph_view.get_local_vertex_first()),
+                 thrust::make_counting_iterator(graph_view.get_local_vertex_last()),
                  reinterpret_cast<typename graph_view_t::vertex_type*>(identifiers_));
 
     return cugraph::louvain(handle,

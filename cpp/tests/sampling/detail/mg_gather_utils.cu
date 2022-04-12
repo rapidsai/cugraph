@@ -90,8 +90,8 @@ class Tests_MG_GatherEdges
 
     // Generate random sources to gather on
     auto random_sources = random_vertex_ids(handle,
-                                            mg_graph_view.local_vertex_partition_range_first(),
-                                            mg_graph_view.local_vertex_partition_range_last(),
+                                            mg_graph_view.get_local_vertex_first(),
+                                            mg_graph_view.get_local_vertex_last(),
                                             source_sample_count,
                                             repetitions_per_vertex);
     rmm::device_uvector<int> random_source_gpu_ids(random_sources.size(), handle.get_stream());
@@ -114,8 +114,8 @@ class Tests_MG_GatherEdges
     auto random_destination_indices =
       generate_random_destination_indices(handle,
                                           active_source_degrees,
-                                          mg_graph_view.number_of_vertices(),
-                                          mg_graph_view.number_of_edges(),
+                                          mg_graph_view.get_number_of_vertices(),
+                                          mg_graph_view.get_number_of_edges(),
                                           indices_per_source);
     rmm::device_uvector<edge_t> input_destination_indices(random_destination_indices.size(),
                                                           handle.get_stream());
@@ -186,7 +186,7 @@ class Tests_MG_GatherEdges
                                                           sg_random_srcs.begin(),
                                                           sg_random_srcs.end(),
                                                           sg_random_dst_indices.begin(),
-                                                          sg_graph_view.number_of_vertices(),
+                                                          sg_graph_view.get_number_of_vertices(),
                                                           indices_per_source);
         sort_coo(handle, sg_out_srcs, sg_out_dsts);
 

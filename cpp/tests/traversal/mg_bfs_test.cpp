@@ -98,15 +98,15 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
     auto mg_graph_view = mg_graph.view();
 
     ASSERT_TRUE(static_cast<vertex_t>(bfs_usecase.source) >= 0 &&
-                static_cast<vertex_t>(bfs_usecase.source) < mg_graph_view.number_of_vertices())
+                static_cast<vertex_t>(bfs_usecase.source) < mg_graph_view.get_number_of_vertices())
       << "Invalid starting source.";
 
     // 3. run MG BFS
 
-    rmm::device_uvector<vertex_t> d_mg_distances(mg_graph_view.local_vertex_partition_range_size(),
+    rmm::device_uvector<vertex_t> d_mg_distances(mg_graph_view.get_number_of_local_vertices(),
                                                  handle.get_stream());
-    rmm::device_uvector<vertex_t> d_mg_predecessors(
-      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+    rmm::device_uvector<vertex_t> d_mg_predecessors(mg_graph_view.get_number_of_local_vertices(),
+                                                    handle.get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -115,7 +115,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
     }
 
     auto const d_mg_source =
-      mg_graph_view.in_local_vertex_partition_range_nocheck(bfs_usecase.source)
+      mg_graph_view.is_local_vertex_nocheck(bfs_usecase.source)
         ? std::make_optional<rmm::device_scalar<vertex_t>>(bfs_usecase.source, handle.get_stream())
         : std::nullopt;
 
@@ -156,7 +156,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
           d_mg_aggregate_predecessors.data(),
           d_mg_aggregate_predecessors.size(),
           d_mg_aggregate_renumber_map_labels.data(),
-          std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
+          std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
 
         std::tie(std::ignore, d_mg_aggregate_distances) = cugraph::test::sort_by_key(
           handle, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_distances);
@@ -172,14 +172,15 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
 
         auto sg_graph_view = sg_graph.view();
 
-        ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
+        ASSERT_TRUE(mg_graph_view.get_number_of_vertices() ==
+                    sg_graph_view.get_number_of_vertices());
 
         // 4-4. run SG BFS
 
-        rmm::device_uvector<vertex_t> d_sg_distances(sg_graph_view.number_of_vertices(),
+        rmm::device_uvector<vertex_t> d_sg_distances(sg_graph_view.get_number_of_vertices(),
                                                      handle.get_stream());
         rmm::device_uvector<vertex_t> d_sg_predecessors(
-          sg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+          sg_graph_view.get_number_of_local_vertices(), handle.get_stream());
 
         vertex_t unrenumbered_source{};
         raft::update_host(&unrenumbered_source,
@@ -199,19 +200,19 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                      std::numeric_limits<vertex_t>::max());
         // 4-5. compare
 
-        std::vector<edge_t> h_sg_offsets(sg_graph_view.number_of_vertices() + 1);
-        std::vector<vertex_t> h_sg_indices(sg_graph_view.number_of_edges());
+        std::vector<edge_t> h_sg_offsets(sg_graph_view.get_number_of_vertices() + 1);
+        std::vector<vertex_t> h_sg_indices(sg_graph_view.get_number_of_edges());
         raft::update_host(h_sg_offsets.data(),
-                          sg_graph_view.local_edge_partition_view().offsets(),
-                          sg_graph_view.number_of_vertices() + 1,
+                          sg_graph_view.get_matrix_partition_view().get_offsets(),
+                          sg_graph_view.get_number_of_vertices() + 1,
                           handle.get_stream());
         raft::update_host(h_sg_indices.data(),
-                          sg_graph_view.local_edge_partition_view().indices(),
-                          sg_graph_view.number_of_edges(),
+                          sg_graph_view.get_matrix_partition_view().get_indices(),
+                          sg_graph_view.get_number_of_edges(),
                           handle.get_stream());
 
-        std::vector<vertex_t> h_mg_aggregate_distances(mg_graph_view.number_of_vertices());
-        std::vector<vertex_t> h_mg_aggregate_predecessors(mg_graph_view.number_of_vertices());
+        std::vector<vertex_t> h_mg_aggregate_distances(mg_graph_view.get_number_of_vertices());
+        std::vector<vertex_t> h_mg_aggregate_predecessors(mg_graph_view.get_number_of_vertices());
 
         raft::update_host(h_mg_aggregate_distances.data(),
                           d_mg_aggregate_distances.data(),
@@ -222,8 +223,8 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                           d_mg_aggregate_predecessors.size(),
                           handle.get_stream());
 
-        std::vector<vertex_t> h_sg_distances(sg_graph_view.number_of_vertices());
-        std::vector<vertex_t> h_sg_predecessors(sg_graph_view.number_of_vertices());
+        std::vector<vertex_t> h_sg_distances(sg_graph_view.get_number_of_vertices());
+        std::vector<vertex_t> h_sg_predecessors(sg_graph_view.get_number_of_vertices());
 
         raft::update_host(
           h_sg_distances.data(), d_sg_distances.data(), d_sg_distances.size(), handle.get_stream());

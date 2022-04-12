@@ -38,13 +38,13 @@ void normalize(raft::handle_t const& handle,
   auto hubs_norm = reduce_v(handle,
                             graph_view,
                             hubs,
-                            hubs + graph_view.local_vertex_partition_range_size(),
+                            hubs + graph_view.get_number_of_local_vertices(),
                             identity_element<result_t>(op),
                             op);
   CUGRAPH_EXPECTS(hubs_norm > 0, "Norm is required to be a positive value.");
   thrust::transform(handle.get_thrust_policy(),
                     hubs,
-                    hubs + graph_view.local_vertex_partition_range_size(),
+                    hubs + graph_view.get_number_of_local_vertices(),
                     thrust::make_constant_iterator(hubs_norm),
                     hubs,
                     thrust::divides<result_t>());
@@ -66,10 +66,10 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                 "GraphViewType::vertex_type should be integral.");
   static_assert(std::is_floating_point<result_t>::value,
                 "result_t should be a floating-point type.");
-  static_assert(GraphViewType::is_storage_transposed,
+  static_assert(GraphViewType::is_adj_matrix_transposed,
                 "GraphViewType should support the pull model.");
 
-  auto const num_vertices = graph_view.number_of_vertices();
+  auto const num_vertices = graph_view.get_number_of_vertices();
   result_t diff_sum{std::numeric_limits<result_t>::max()};
   size_t final_iteration_count{max_iterations};
 
@@ -92,7 +92,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   // Property wrappers
   edge_partition_src_property_t<GraphViewType, result_t> prev_src_hubs(handle, graph_view);
   edge_partition_dst_property_t<GraphViewType, result_t> curr_dst_auth(handle, graph_view);
-  rmm::device_uvector<result_t> temp_hubs(graph_view.local_vertex_partition_range_size(),
+  rmm::device_uvector<result_t> temp_hubs(graph_view.get_number_of_local_vertices(),
                                           handle.get_stream());
 
   result_t* prev_hubs = hubs;
@@ -105,7 +105,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     prev_src_hubs.fill(result_t{1.0} / num_vertices, handle.get_stream());
     thrust::fill(handle.get_thrust_policy(),
                  prev_hubs,
-                 prev_hubs + graph_view.local_vertex_partition_range_size(),
+                 prev_hubs + graph_view.get_number_of_local_vertices(),
                  result_t{1.0} / num_vertices);
   }
   for (size_t iter = 0; iter < max_iterations; ++iter) {
@@ -168,7 +168,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   if (hubs != prev_hubs) {
     thrust::copy(handle.get_thrust_policy(),
                  prev_hubs,
-                 prev_hubs + graph_view.local_vertex_partition_range_size(),
+                 prev_hubs + graph_view.get_number_of_local_vertices(),
                  hubs);
   }
 

@@ -72,11 +72,11 @@ class Tests_Transpose
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    rmm::device_uvector<vertex_t> d_org_srcs(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> d_org_dsts(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_org_rows(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_org_cols(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> d_org_weights{std::nullopt};
     if (transpose_usecase.check_correctness) {
-      std::tie(d_org_srcs, d_org_dsts, d_org_weights) =
+      std::tie(d_org_rows, d_org_cols, d_org_weights) =
         graph.decompress_to_edgelist(handle, d_renumber_map_labels, false);
     }
 
@@ -95,24 +95,24 @@ class Tests_Transpose
     }
 
     if (transpose_usecase.check_correctness) {
-      auto [d_transposed_srcs, d_transposed_dsts, d_transposed_weights] =
+      auto [d_transposed_rows, d_transposed_cols, d_transposed_weights] =
         graph.decompress_to_edgelist(handle, d_renumber_map_labels, false);
 
-      std::vector<vertex_t> h_org_srcs(d_org_srcs.size());
-      std::vector<vertex_t> h_org_dsts(h_org_srcs.size());
+      std::vector<vertex_t> h_org_rows(d_org_rows.size());
+      std::vector<vertex_t> h_org_cols(h_org_rows.size());
       auto h_org_weights =
-        d_org_weights ? std::make_optional<std::vector<weight_t>>(h_org_srcs.size()) : std::nullopt;
+        d_org_weights ? std::make_optional<std::vector<weight_t>>(h_org_rows.size()) : std::nullopt;
 
-      std::vector<vertex_t> h_transposed_srcs(d_transposed_srcs.size());
-      std::vector<vertex_t> h_transposed_dsts(h_transposed_srcs.size());
+      std::vector<vertex_t> h_transposed_rows(d_transposed_rows.size());
+      std::vector<vertex_t> h_transposed_cols(h_transposed_rows.size());
       auto h_transposed_weights =
-        d_transposed_weights ? std::make_optional<std::vector<weight_t>>(h_transposed_srcs.size())
+        d_transposed_weights ? std::make_optional<std::vector<weight_t>>(h_transposed_rows.size())
                              : std::nullopt;
 
       raft::update_host(
-        h_org_srcs.data(), d_org_srcs.data(), d_org_srcs.size(), handle.get_stream());
+        h_org_rows.data(), d_org_rows.data(), d_org_rows.size(), handle.get_stream());
       raft::update_host(
-        h_org_dsts.data(), d_org_dsts.data(), d_org_dsts.size(), handle.get_stream());
+        h_org_cols.data(), d_org_cols.data(), d_org_cols.size(), handle.get_stream());
       if (h_org_weights) {
         raft::update_host((*h_org_weights).data(),
                           (*d_org_weights).data(),
@@ -120,13 +120,13 @@ class Tests_Transpose
                           handle.get_stream());
       }
 
-      raft::update_host(h_transposed_srcs.data(),
-                        d_transposed_srcs.data(),
-                        d_transposed_srcs.size(),
+      raft::update_host(h_transposed_rows.data(),
+                        d_transposed_rows.data(),
+                        d_transposed_rows.size(),
                         handle.get_stream());
-      raft::update_host(h_transposed_dsts.data(),
-                        d_transposed_dsts.data(),
-                        d_transposed_dsts.size(),
+      raft::update_host(h_transposed_cols.data(),
+                        d_transposed_cols.data(),
+                        d_transposed_cols.size(),
                         handle.get_stream());
       if (h_transposed_weights) {
         raft::update_host((*h_transposed_weights).data(),
@@ -136,34 +136,33 @@ class Tests_Transpose
       }
 
       if (transpose_usecase.test_weighted) {
-        std::vector<std::tuple<vertex_t, vertex_t, weight_t>> org_edges(h_org_srcs.size());
+        std::vector<std::tuple<vertex_t, vertex_t, weight_t>> org_edges(h_org_rows.size());
         for (size_t i = 0; i < org_edges.size(); ++i) {
-          org_edges[i] = std::make_tuple(h_org_srcs[i], h_org_dsts[i], (*h_org_weights)[i]);
+          org_edges[i] = std::make_tuple(h_org_rows[i], h_org_cols[i], (*h_org_weights)[i]);
         }
         std::sort(org_edges.begin(), org_edges.end());
 
         std::vector<std::tuple<vertex_t, vertex_t, weight_t>> transposed_edges(
-          h_transposed_srcs.size());
+          h_transposed_rows.size());
         for (size_t i = 0; i < transposed_edges.size(); ++i) {
-          transposed_edges[i] =
-            std::make_tuple(h_transposed_dsts[i],
-                            h_transposed_srcs[i],
-                            (*h_transposed_weights)[i]);  // flip sources and destinations
+          transposed_edges[i] = std::make_tuple(h_transposed_cols[i],
+                                                h_transposed_rows[i],
+                                                (*h_transposed_weights)[i]);  // flip rows and cols
         }
         std::sort(transposed_edges.begin(), transposed_edges.end());
 
         ASSERT_TRUE(std::equal(org_edges.begin(), org_edges.end(), transposed_edges.begin()));
       } else {
-        std::vector<std::tuple<vertex_t, vertex_t>> org_edges(h_org_srcs.size());
+        std::vector<std::tuple<vertex_t, vertex_t>> org_edges(h_org_rows.size());
         for (size_t i = 0; i < org_edges.size(); ++i) {
-          org_edges[i] = std::make_tuple(h_org_srcs[i], h_org_dsts[i]);
+          org_edges[i] = std::make_tuple(h_org_rows[i], h_org_cols[i]);
         }
         std::sort(org_edges.begin(), org_edges.end());
 
-        std::vector<std::tuple<vertex_t, vertex_t>> transposed_edges(h_transposed_srcs.size());
+        std::vector<std::tuple<vertex_t, vertex_t>> transposed_edges(h_transposed_rows.size());
         for (size_t i = 0; i < transposed_edges.size(); ++i) {
-          transposed_edges[i] = std::make_tuple(
-            h_transposed_dsts[i], h_transposed_srcs[i]);  // flip sources and destinations
+          transposed_edges[i] =
+            std::make_tuple(h_transposed_cols[i], h_transposed_rows[i]);  // flip rows and cols
         }
         std::sort(transposed_edges.begin(), transposed_edges.end());
 

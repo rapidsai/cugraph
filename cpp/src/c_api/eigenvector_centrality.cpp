@@ -78,7 +78,7 @@ struct eigenvector_centrality_functor : public cugraph::c_api::abstract_functor 
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
+      rmm::device_uvector<weight_t> centralities(graph_view.get_number_of_local_vertices(),
                                                  handle_.get_stream());
 
       // FIXME:  For now we'll call pagerank which returns a similarly formatted thing
@@ -96,7 +96,7 @@ struct eigenvector_centrality_functor : public cugraph::c_api::abstract_functor 
         false,
         do_expensive_check_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
+      rmm::device_uvector<vertex_t> vertex_ids(graph_view.get_number_of_local_vertices(),
                                                handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 

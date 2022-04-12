@@ -122,23 +122,23 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);
     auto graph_view = graph.view();
 
-    std::vector<edge_t> h_offsets(graph_view.number_of_vertices() + 1);
-    std::vector<vertex_t> h_indices(graph_view.number_of_edges());
+    std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
+    std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
     auto h_weights = graph_view.is_weighted() ? std::make_optional<std::vector<weight_t>>(
-                                                  graph_view.number_of_edges(), weight_t{0.0})
+                                                  graph_view.get_number_of_edges(), weight_t{0.0})
                                               : std::nullopt;
     raft::update_host(h_offsets.data(),
-                      graph_view.local_edge_partition_view().offsets(),
-                      graph_view.number_of_vertices() + 1,
+                      graph_view.get_matrix_partition_view().get_offsets(),
+                      graph_view.get_number_of_vertices() + 1,
                       handle.get_stream());
     raft::update_host(h_indices.data(),
-                      graph_view.local_edge_partition_view().indices(),
-                      graph_view.number_of_edges(),
+                      graph_view.get_matrix_partition_view().get_indices(),
+                      graph_view.get_number_of_edges(),
                       handle.get_stream());
     if (h_weights) {
       raft::update_host((*h_weights).data(),
-                        *(graph_view.local_edge_partition_view().weights()),
-                        graph_view.number_of_edges(),
+                        *(graph_view.get_matrix_partition_view().get_weights()),
+                        graph_view.get_number_of_edges(),
                         handle.get_stream());
     }
     handle.sync_stream();
@@ -150,16 +150,17 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
     std::vector<vertex_t> h_subgraph_vertices(h_subgraph_offsets.back(),
                                               cugraph::invalid_vertex_id<vertex_t>::value);
     std::default_random_engine generator{};
-    std::uniform_int_distribution<vertex_t> distribution{0, graph_view.number_of_vertices() - 1};
+    std::uniform_int_distribution<vertex_t> distribution{0,
+                                                         graph_view.get_number_of_vertices() - 1};
 
     for (size_t i = 0; i < configuration.subgraph_sizes.size(); ++i) {
       auto start = h_subgraph_offsets[i];
       auto last  = h_subgraph_offsets[i + 1];
-      ASSERT_TRUE(last - start <= graph_view.number_of_vertices()) << "Invalid subgraph size.";
-      // this is inefficient if last - start << graph_view.number_of_vertices() but this is for
+      ASSERT_TRUE(last - start <= graph_view.get_number_of_vertices()) << "Invalid subgraph size.";
+      // this is inefficient if last - start << graph_view.get_number_of_vertices() but this is for
       // the test puspose only and the time & memory cost is only linear to
-      // graph_view.number_of_vertices(), so this may not matter.
-      std::vector<vertex_t> vertices(graph_view.number_of_vertices());
+      // graph_view.get_number_of_vertices(), so this may not matter.
+      std::vector<vertex_t> vertices(graph_view.get_number_of_vertices());
       std::iota(vertices.begin(), vertices.end(), vertex_t{0});
       std::random_shuffle(vertices.begin(), vertices.end());
       std::copy(
@@ -189,7 +190,7 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
         h_weights ? std::optional<weight_t const*>{(*h_weights).data()} : std::nullopt,
         h_subgraph_offsets.data(),
         h_subgraph_vertices.data(),
-        graph_view.number_of_vertices(),
+        graph_view.get_number_of_vertices(),
         configuration.subgraph_sizes.size());
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

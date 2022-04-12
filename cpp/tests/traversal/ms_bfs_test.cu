@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -172,9 +172,9 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     d_distances_ref.reserve(h_sources.size());
     d_predecessors_ref.reserve(h_sources.size());
     for (size_t i = 0; i < h_sources.size(); i++) {
-      rmm::device_uvector<vertex_t> tmp_distances(graph_view.number_of_vertices(),
+      rmm::device_uvector<vertex_t> tmp_distances(graph_view.get_number_of_vertices(),
                                                   handle.get_next_usable_stream(i));
-      rmm::device_uvector<vertex_t> tmp_predecessors(graph_view.number_of_vertices(),
+      rmm::device_uvector<vertex_t> tmp_predecessors(graph_view.get_number_of_vertices(),
                                                      handle.get_next_usable_stream(i));
 
       d_distances_ref.push_back(std::move(tmp_distances));
@@ -215,8 +215,9 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     hr_timer.stop();
 
     // ms
-    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
-    rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
+    rmm::device_uvector<vertex_t> d_distances(graph_view.get_number_of_vertices(),
+                                              handle.get_stream());
+    rmm::device_uvector<vertex_t> d_predecessors(graph_view.get_number_of_vertices(),
                                                  handle.get_stream());
 
     hr_timer.start("msbfs");

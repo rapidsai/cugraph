@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,11 +71,11 @@ class serializer_t {
     graph_meta_t(void) {}
 
     explicit graph_meta_t(graph_t const& graph)
-      : num_vertices_(graph.number_of_vertices()),
-        num_edges_(graph.number_of_edges()),
-        properties_(graph.graph_properties()),
+      : num_vertices_(graph.get_number_of_vertices()),
+        num_edges_(graph.get_number_of_edges()),
+        properties_(graph.get_graph_properties()),
         is_weighted_(graph.is_weighted()),
-        segment_offsets_(graph.view().local_edge_partition_segment_offsets(0))
+        segment_offsets_(graph.view().get_local_adj_matrix_partition_segment_offsets(0))
     {
     }
 

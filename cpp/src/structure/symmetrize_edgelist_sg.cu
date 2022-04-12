@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
 symmetrize_edgelist<int32_t, float, false, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& edgelist_srcs,
-  rmm::device_uvector<int32_t>&& edgelist_dsts,
+  rmm::device_uvector<int32_t>&& edgelist_rows,
+  rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
   bool reciprocal);
 
@@ -34,8 +34,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
 symmetrize_edgelist<int32_t, float, true, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& edgelist_srcs,
-  rmm::device_uvector<int32_t>&& edgelist_dsts,
+  rmm::device_uvector<int32_t>&& edgelist_rows,
+  rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
   bool reciprocal);
 
@@ -44,8 +44,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
 symmetrize_edgelist<int32_t, double, false, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& edgelist_srcs,
-  rmm::device_uvector<int32_t>&& edgelist_dsts,
+  rmm::device_uvector<int32_t>&& edgelist_rows,
+  rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
   bool reciprocal);
 
@@ -54,8 +54,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
 symmetrize_edgelist<int32_t, double, true, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& edgelist_srcs,
-  rmm::device_uvector<int32_t>&& edgelist_dsts,
+  rmm::device_uvector<int32_t>&& edgelist_rows,
+  rmm::device_uvector<int32_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
   bool reciprocal);
 
@@ -64,8 +64,8 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
 symmetrize_edgelist<int64_t, float, false, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& edgelist_srcs,
-  rmm::device_uvector<int64_t>&& edgelist_dsts,
+  rmm::device_uvector<int64_t>&& edgelist_rows,
+  rmm::device_uvector<int64_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
   bool reciprocal);
 
@@ -74,8 +74,8 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
 symmetrize_edgelist<int64_t, float, true, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& edgelist_srcs,
-  rmm::device_uvector<int64_t>&& edgelist_dsts,
+  rmm::device_uvector<int64_t>&& edgelist_rows,
+  rmm::device_uvector<int64_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<float>>&& edgelist_weights,
   bool reciprocal);
 
@@ -84,8 +84,8 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
 symmetrize_edgelist<int64_t, double, false, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& edgelist_srcs,
-  rmm::device_uvector<int64_t>&& edgelist_dsts,
+  rmm::device_uvector<int64_t>&& edgelist_rows,
+  rmm::device_uvector<int64_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
   bool reciprocal);
 
@@ -94,8 +94,8 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
 symmetrize_edgelist<int64_t, double, true, false>(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& edgelist_srcs,
-  rmm::device_uvector<int64_t>&& edgelist_dsts,
+  rmm::device_uvector<int64_t>&& edgelist_rows,
+  rmm::device_uvector<int64_t>&& edgelist_cols,
   std::optional<rmm::device_uvector<double>>&& edgelist_weights,
   bool reciprocal);
 

@@ -26,8 +26,8 @@
 #include <cugraph/utilities/dataframe_buffer.cuh>
 
 #include <cuco/detail/hash_functions.cuh>
-#include <cugraph/edge_partition_view.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/matrix_partition_view.hpp>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
@@ -309,8 +309,8 @@ class Tests_MG_TransformReduceE
       auto sg_graph_view = sg_graph.view();
 
       auto sg_vertex_property_data = generate<result_t>::vertex_property(
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
+        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
         hash_bin_count,
         handle);
       auto sg_col_prop =

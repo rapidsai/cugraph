@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,7 +140,7 @@ TEST(SerializationTest, UnweightedGraphDecoupledSerUnser)
   auto graph = cugraph::test::make_graph<vertex_t, edge_t, weight_t>(
     handle, v_src, v_dst, std::nullopt, num_vertices, num_edges);
 
-  ASSERT_TRUE(graph.view().local_edge_partition_view().weights().has_value() == false);
+  ASSERT_TRUE(graph.view().get_matrix_partition_view().get_weights().has_value() == false);
 
   auto pair_sz      = serializer_t::get_device_graph_sz_bytes(graph);
   auto total_ser_sz = pair_sz.first + pair_sz.second;
@@ -169,7 +169,7 @@ TEST(SerializationTest, UnweightedGraphDecoupledSerUnser)
 
     auto graph_copy = ser.unserialize<decltype(graph)>(pair_sz.first, pair_sz.second);
 
-    ASSERT_TRUE(graph_copy.view().local_edge_partition_view().weights().has_value() == false);
+    ASSERT_TRUE(graph_copy.view().get_matrix_partition_view().get_weights().has_value() == false);
 
     auto pair = cugraph::test::compare_graphs(handle, graph, graph_copy);
     if (pair.first == false) std::cerr << "Test failed with " << pair.second << ".\n";

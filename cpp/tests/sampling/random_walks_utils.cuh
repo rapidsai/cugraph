@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -96,12 +96,12 @@ bool host_check_rw_paths(
   size_t path_sizes,
   index_t num_paths)
 {
-  vertex_t num_vertices = graph_view.number_of_vertices();
-  edge_t num_edges      = graph_view.number_of_edges();
+  edge_t num_edges      = graph_view.get_number_of_edges();
+  vertex_t num_vertices = graph_view.get_number_of_vertices();
 
-  auto offsets = graph_view.local_edge_partition_view().offsets();
-  auto indices = graph_view.local_edge_partition_view().indices();
-  auto values  = graph_view.local_edge_partition_view().weights();
+  auto offsets = graph_view.get_matrix_partition_view().get_offsets();
+  auto indices = graph_view.get_matrix_partition_view().get_indices();
+  auto values  = graph_view.get_matrix_partition_view().get_weights();
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);

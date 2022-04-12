@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -122,7 +122,7 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
                 d_ego_edgelist_src.size());
     for (size_t i = 0; i < configuration.ego_sources.size(); i++)
       ASSERT_TRUE(h_cugraph_ego_edge_offsets[i] <= h_cugraph_ego_edge_offsets[i + 1]);
-    auto n_vertices = graph_view.number_of_vertices();
+    auto n_vertices = graph_view.get_number_of_vertices();
     for (size_t i = 0; i < d_ego_edgelist_src.size(); i++) {
       ASSERT_TRUE(cugraph::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_src[i]));
       ASSERT_TRUE(cugraph::is_valid_vertex(n_vertices, h_cugraph_ego_edgelist_dst[i]));
