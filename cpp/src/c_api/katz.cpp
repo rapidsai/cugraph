@@ -88,19 +88,19 @@ struct katz_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<weight_t> centralities(graph_view.get_number_of_local_vertices(),
+      rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
                                                  handle_.get_stream());
       rmm::device_uvector<weight_t> betas(0, handle_.get_stream());
 
       if (betas_ != nullptr) {
-        rmm::device_uvector<vertex_t> betas_vertex_ids(graph_view.get_number_of_local_vertices(),
-                                                       handle_.get_stream());
+        rmm::device_uvector<vertex_t> betas_vertex_ids(
+          graph_view.local_vertex_partition_range_size(), handle_.get_stream());
         cugraph::detail::sequence_fill(handle_.get_stream(),
                                        betas_vertex_ids.data(),
                                        betas_vertex_ids.size(),
-                                       graph_view.get_local_vertex_first());
+                                       graph_view.local_vertex_partition_range_size());
 
-        betas.resize(graph_view.get_number_of_local_vertices(), handle_.get_stream());
+        betas.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
 
         raft::copy(betas.data(), betas_->as_type<weight_t>(), betas.size(), handle_.get_stream());
 
@@ -110,8 +110,8 @@ struct katz_functor : public cugraph::c_api::abstract_functor {
             std::move(betas_vertex_ids),
             std::move(betas),
             *number_map,
-            graph_view.get_local_vertex_first(),
-            graph_view.get_local_vertex_last(),
+            graph_view.local_vertex_partition_range_first(),
+            graph_view.local_vertex_partition_range_last(),
             weight_t{0},
             do_expensive_check_);
       }
@@ -129,7 +129,7 @@ struct katz_functor : public cugraph::c_api::abstract_functor {
         true,
         do_expensive_check_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph_view.get_number_of_local_vertices(),
+      rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
