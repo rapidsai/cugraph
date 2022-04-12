@@ -27,6 +27,24 @@
 
 namespace cugraph {
 
+namespace detail {
+
+template <typename vertex_t, typename VertexValueInputIterator, typename VertexOp>
+struct count_if_call_v_op_t {
+  vertex_t local_vertex_partition_range_first{};
+  VertexValueInputIterator vertex_value_input_first{};
+  VertexOp v_op{};
+
+  __device__ bool operator()(vertex_t i)
+  {
+    return v_op(local_vertex_partition_range_first + i, *(vertex_value_input_first + i))
+             ? vertex_t{1}
+             : vertex_t{0};
+  }
+};
+
+}  // namespace detail
+
 /**
  * @brief Count the number of vertices that satisfies the given predicate.
  *
@@ -42,8 +60,8 @@ namespace cugraph {
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
- * @param v_op Unary operator takes *(@p vertex_value_input_first + i) (where i is [0, @p
- * graph_view.local_vertex_partition_range_size())) and returns true if this vertex should be
+ * @param v_op Binary operator takes vertex ID and *(@p vertex_value_input_first + i) (where i is
+ * [0, @p graph_view.local_vertex_partition_range_size())) and returns true if this vertex should be
  * included in the returned count.
  * @return GraphViewType::vertex_type Number of times @p v_op returned true.
  */
@@ -53,11 +71,16 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
                                                VertexValueInputIterator vertex_value_input_first,
                                                VertexOp v_op)
 {
-  auto count =
-    thrust::count_if(handle.get_thrust_policy(),
-                     vertex_value_input_first,
-                     vertex_value_input_first + graph_view.local_vertex_partition_range_size(),
-                     v_op);
+  using vertex_t = typename GraphViewType::vertex_type;
+
+  auto it = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(vertex_t{0}),
+    detail::count_if_call_v_op_t<vertex_t, VertexValueInputIterator, VertexOp>{
+      graph_view.local_vertex_partition_range_first(), vertex_value_input_first, v_op});
+  auto count = thrust::reduce(handle.get_thrust_policy(),
+                              it,
+                              it + graph_view.local_vertex_partition_range_size(),
+                              vertex_t{0});
   if (GraphViewType::is_multi_gpu) {
     count =
       host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());

@@ -90,10 +90,11 @@ void pagerank(
 
   if (do_expensive_check) {
     if (precomputed_vertex_out_weight_sums) {
-      auto num_negative_precomputed_vertex_out_weight_sums = count_if_v(
-        handle, pull_graph_view, *precomputed_vertex_out_weight_sums, [] __device__(auto val) {
-          return val < result_t{0.0};
-        });
+      auto num_negative_precomputed_vertex_out_weight_sums =
+        count_if_v(handle,
+                   pull_graph_view,
+                   *precomputed_vertex_out_weight_sums,
+                   [] __device__(auto, auto val) { return val < result_t{0.0}; });
       CUGRAPH_EXPECTS(
         num_negative_precomputed_vertex_out_weight_sums == 0,
         "Invalid input argument: outgoing edge weight sum values should be non-negative.");
@@ -112,7 +113,7 @@ void pagerank(
 
     if (has_initial_guess) {
       auto num_negative_values = count_if_v(
-        handle, pull_graph_view, pageranks, [] __device__(auto val) { return val < 0.0; });
+        handle, pull_graph_view, pageranks, [] __device__(auto, auto val) { return val < 0.0; });
       CUGRAPH_EXPECTS(num_negative_values == 0,
                       "Invalid input argument: initial guess values should be non-negative.");
     }
@@ -215,7 +216,7 @@ void pagerank(
       handle,
       pull_graph_view,
       vertex_val_first,
-      [] __device__(auto val) {
+      [] __device__(auto, auto val) {
         auto const pagerank       = thrust::get<0>(val);
         auto const out_weight_sum = thrust::get<1>(val);
         return out_weight_sum == result_t{0.0} ? pagerank : result_t{0.0};
@@ -276,7 +277,7 @@ void pagerank(
       handle,
       pull_graph_view,
       thrust::make_zip_iterator(thrust::make_tuple(pageranks, old_pageranks.data())),
-      [] __device__(auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0.0});
 
     iter++;

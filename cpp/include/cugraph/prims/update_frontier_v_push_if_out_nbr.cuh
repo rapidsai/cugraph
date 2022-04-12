@@ -131,7 +131,7 @@ template <typename vertex_t,
           typename VertexOp,
           typename key_t,
           bool multi_gpu>
-struct call_v_op_t {
+struct update_frontier_call_v_op_t {
   VertexValueInputIterator vertex_value_input_first{};
   VertexValueOutputIterator vertex_value_output_first{};
   VertexOp v_op{};
@@ -1376,21 +1376,21 @@ void update_frontier_v_push_if_out_nbr(
       resize_dataframe_buffer(payload_buffer, size_t{0}, handle.get_stream());
       shrink_to_fit_dataframe_buffer(payload_buffer, handle.get_stream());
     } else {
-      thrust::transform(
-        handle.get_thrust_policy(),
-        get_dataframe_buffer_begin(key_buffer),
-        get_dataframe_buffer_begin(key_buffer) + num_buffer_elements,
-        bucket_indices.begin(),
-        detail::call_v_op_t<vertex_t,
-                            VertexValueInputIterator,
-                            VertexValueOutputIterator,
-                            VertexOp,
-                            key_t,
-                            GraphViewType::is_multi_gpu>{vertex_value_input_first,
-                                                         vertex_value_output_first,
-                                                         v_op,
-                                                         vertex_partition,
-                                                         VertexFrontierType::kInvalidBucketIdx});
+      thrust::transform(handle.get_thrust_policy(),
+                        get_dataframe_buffer_begin(key_buffer),
+                        get_dataframe_buffer_begin(key_buffer) + num_buffer_elements,
+                        bucket_indices.begin(),
+                        detail::update_frontier_call_v_op_t<vertex_t,
+                                                            VertexValueInputIterator,
+                                                            VertexValueOutputIterator,
+                                                            VertexOp,
+                                                            key_t,
+                                                            GraphViewType::is_multi_gpu>{
+                          vertex_value_input_first,
+                          vertex_value_output_first,
+                          v_op,
+                          vertex_partition,
+                          VertexFrontierType::kInvalidBucketIdx});
     }
 
     auto bucket_key_pair_first = thrust::make_zip_iterator(

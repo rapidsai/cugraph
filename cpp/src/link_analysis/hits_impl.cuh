@@ -75,7 +75,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   // Check validity of initial guess if supplied
   if (has_initial_hubs_guess && do_expensive_check) {
     auto num_negative_values =
-      count_if_v(handle, graph_view, hubs, [] __device__(auto val) { return val < 0.0; });
+      count_if_v(handle, graph_view, hubs, [] __device__(auto, auto val) { return val < 0.0; });
     CUGRAPH_EXPECTS(num_negative_values == 0,
                     "Invalid input argument: initial guess values should be non-negative.");
   }
@@ -139,7 +139,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       handle,
       graph_view,
       thrust::make_zip_iterator(thrust::make_tuple(curr_hubs, prev_hubs)),
-      [] __device__(auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0});
     if (diff_sum < epsilon) {
       final_iteration_count = iter;

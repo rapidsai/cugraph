@@ -27,6 +27,22 @@
 
 namespace cugraph {
 
+namespace detail {
+
+template <typename vertex_t, typename VertexValueInputIterator, typename VertexOp, typename T>
+struct transform_reduce_call_v_op_t {
+  vertex_t local_vertex_partition_range_first{};
+  VertexValueInputIterator vertex_value_input_first{};
+  VertexOp v_op{};
+
+  __device__ T operator()(vertex_t i)
+  {
+    return v_op(local_vertex_partition_range_first + i, *(vertex_value_input_first + i));
+  }
+};
+
+}  // namespace detail
+
 /**
  * @brief Apply an operator to the vertex properties and reduce.
  *
@@ -43,8 +59,9 @@ namespace cugraph {
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
- * @param v_op Unary operator takes *(@p vertex_value_input_first + i) (where i is [0, @p
- * graph_view.local_vertex_partition_range_size())) and returns a transformed value to be reduced.
+ * @param v_op Binary operator takes vertex ID and *(@p vertex_value_input_first + i) (where i is
+ * [0, @p graph_view.local_vertex_partition_range_size())) and returns a transformed value to be
+ * reduced.
  * @param init Initial value to be added to the transform-reduced input vertex properties.
  * @return T Reduction of the @p v_op outputs.
  */
@@ -56,17 +73,21 @@ T transform_reduce_v(raft::handle_t const& handle,
                      T init,
                      raft::comms::op_t op = raft::comms::op_t::SUM)
 {
+  using vertex_t = typename GraphViewType::vertex_type;
+
   auto id = identity_element<T>(op);
-  auto ret =
-    op_dispatch<T>(op, [&handle, &graph_view, vertex_value_input_first, v_op, id, init](auto op) {
-      return thrust::transform_reduce(
-        handle.get_thrust_policy(),
-        vertex_value_input_first,
-        vertex_value_input_first + graph_view.local_vertex_partition_range_size(),
-        v_op,
-        ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? id : init,
-        op);
-    });
+  auto it = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(vertex_t{0}),
+    detail::transform_reduce_call_v_op_t<vertex_t, VertexValueInputIterator, VertexOp, T>{
+      graph_view.local_vertex_partition_range_first(), vertex_value_input_first, v_op});
+  auto ret = op_dispatch<T>(op, [&handle, &graph_view, it, id, init](auto op) {
+    return thrust::reduce(
+      handle.get_thrust_policy(),
+      it,
+      it + graph_view.local_vertex_partition_range_size(),
+      ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? id : init,
+      op);
+  });
   if (GraphViewType::is_multi_gpu) {
     ret = host_scalar_allreduce(handle.get_comms(), ret, op, handle.get_stream());
   }
