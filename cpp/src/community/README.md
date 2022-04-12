@@ -41,7 +41,7 @@ auto graph_view = graph.view(); // assumes you have created a graph somehow
 size_t level;
 weight_t modularity;
 
-rmm::device_uvector<vertex_t> clustering_v(graph_view.get_number_of_vertices(), handle.get_stream());
+rmm::device_uvector<vertex_t> clustering_v(graph_view.number_of_vertices(), handle.get_stream());
 
 // louvain optionally supports two additional parameters:
 //     max_level - maximum level of the Dendrogram
@@ -70,7 +70,7 @@ weight_t modularity;
 std::tie(dendrogram, modularity) = cugraph::louvain(handle, graph_view);
 
 //  This will get the equivalent result to the earlier example
-rmm::device_uvector<vertex_t> clustering_v(graph_view.get_number_of_vertices(), handle.get_stream());
+rmm::device_uvector<vertex_t> clustering_v(graph_view.number_of_vertices(), handle.get_stream());
 cugraph::flatten_dendrogram(handle, graph_view, dendrogram, clustering.data());
 ```
 

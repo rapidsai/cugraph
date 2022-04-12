@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -142,7 +142,7 @@ class Tests_RW_Visitor : public ::testing::TestWithParam<RandomWalks_Usecase> {
     index_t max_depth{10};
     rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
 
-    fill_start(handle, d_start, graph_view.get_number_of_vertices());
+    fill_start(handle, d_start, graph_view.number_of_vertices());
 
     // visitors machinery:
     //
