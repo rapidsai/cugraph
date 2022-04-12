@@ -17,7 +17,7 @@ import gc
 import cugraph
 import dask_cudf
 import cudf
-from cugraph.dask.common.mg_utils import is_single_gpu
+# from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
@@ -50,9 +50,9 @@ def personalize(vertices, personalization_perc):
 PERSONALIZATION_PERC = [0, 10, 50]
 
 
-#@pytest.mark.skipif(
+# @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-#)
+# )
 @pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
 def test_dask_pagerank(dask_client, personalization_perc):
     gc.collect()

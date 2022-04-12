@@ -13,17 +13,17 @@
 
 import cugraph.dask as dcg
 import gc
-import pytest
+# import pytest
 import cugraph
 import dask_cudf
 import cudf
-from cugraph.dask.common.mg_utils import is_single_gpu
+# from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
-#@pytest.mark.skipif(
+# @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-#)
+# )
 def test_dask_bfs(dask_client):
     gc.collect()
 
@@ -85,9 +85,9 @@ def test_dask_bfs(dask_client):
     assert err == 0
 
 
-#@pytest.mark.skipif(
+# @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-#)
+# )
 def test_dask_bfs_multi_column_depthlimit(dask_client):
     gc.collect()
 

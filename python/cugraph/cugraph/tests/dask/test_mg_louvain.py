@@ -17,7 +17,7 @@ import cugraph.dask as dcg
 import cugraph
 import dask_cudf
 from cugraph.tests import utils
-from cugraph.dask.common.mg_utils import is_single_gpu
+# from cugraph.dask.common.mg_utils import is_single_gpu
 
 try:
     from rapids_pytest_benchmark import setFixtureParamNames
@@ -39,9 +39,9 @@ except ImportError:
 
 ###############################################################################
 # Fixtures
-#@pytest.mark.skipif(
+# @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-#)
+# )
 @pytest.fixture(scope="module",
                 params=utils.DATASETS_UNDIRECTED,
                 ids=[f"dataset={d.as_posix()}"
@@ -71,9 +71,9 @@ def daskGraphFromDataset(request, dask_client):
 
 ###############################################################################
 # Tests
-#@pytest.mark.skipif(
+# @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-#)
+# )
 def test_mg_louvain_with_edgevals(daskGraphFromDataset):
     # FIXME: daskGraphFromDataset returns a DiGraph, which Louvain is currently
     # accepting. In the future, an MNMG symmeterize will need to be called to
