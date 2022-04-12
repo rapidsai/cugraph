@@ -33,7 +33,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void check_clustering(graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
                       vertex_t* clustering)
 {
-  if (graph_view.get_number_of_local_vertices() > 0)
+  if (graph_view.local_vertex_partition_range_size() > 0)
     CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 }
 
@@ -58,13 +58,12 @@ void flatten_dendrogram(
   Dendrogram<vertex_t> const& dendrogram,
   vertex_t* clustering)
 {
-  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.get_number_of_vertices(),
-                                             handle.get_stream());
+  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices(), handle.get_stream());
 
   thrust::sequence(handle.get_thrust_policy(),
                    vertex_ids_v.begin(),
                    vertex_ids_v.end(),
-                   graph_view.get_local_vertex_first());
+                   graph_view.local_vertex_partition_range_first());
 
   partition_at_level<vertex_t, multi_gpu>(
     handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());

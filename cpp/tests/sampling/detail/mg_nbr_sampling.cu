@@ -89,8 +89,8 @@ class Tests_MG_Nbr_Sampling
 
     // Generate random sources to gather on
     auto random_sources = random_vertex_ids(handle,
-                                            mg_graph_view.get_local_vertex_first(),
-                                            mg_graph_view.get_local_vertex_last(),
+                                            mg_graph_view.local_vertex_partition_range_first(),
+                                            mg_graph_view.local_vertex_partition_range_last(),
                                             source_sample_count,
                                             repetitions_per_vertex);
     rmm::device_uvector<gpu_t> random_source_gpu_ids(random_sources.size(), handle.get_stream());
