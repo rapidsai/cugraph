@@ -281,8 +281,8 @@ class Tests_MG_ReduceV
       auto sg_graph_view = sg_graph.view();
 
       auto sg_property_data = generate<result_t>::property(
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
+        thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
         hash_bin_count,
         handle);
       auto sg_property_iter = get_property_iterator(sg_property_data);
@@ -290,12 +290,11 @@ class Tests_MG_ReduceV
       for (auto op : ops) {
         auto expected_result = cugraph::op_dispatch<property_t>(
           op, [&handle, &sg_graph_view, sg_property_iter, property_initial_value](auto op) {
-            return thrust::reduce(
-              handle.get_thrust_policy(),
-              sg_property_iter,
-              sg_property_iter + sg_graph_view.local_vertex_partition_range_size(),
-              property_initial_value,
-              op);
+            return thrust::reduce(handle.get_thrust_policy(),
+                                  sg_property_iter,
+                                  sg_property_iter + sg_graph_view.get_number_of_local_vertices(),
+                                  property_initial_value,
+                                  op);
           });
         result_compare<property_t> compare{};
         ASSERT_TRUE(compare(expected_result, results[op]));

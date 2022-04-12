@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -175,15 +175,15 @@ void serializer_t::serialize(graph_t const& graph, serializer_t::graph_meta_t<gr
   using weight_t = typename graph_t::weight_type;
 
   if constexpr (!graph_t::is_multi_gpu) {
-    size_t num_vertices = graph.number_of_vertices();
-    size_t num_edges    = graph.number_of_edges();
+    size_t num_vertices = graph.get_number_of_vertices();
+    size_t num_edges    = graph.get_number_of_edges();
     auto&& gview        = graph.view();
 
     gvmeta = graph_meta_t<graph_t>{graph};
 
-    auto offsets = gview.local_edge_partition_view().offsets();
-    auto indices = gview.local_edge_partition_view().indices();
-    auto weights = gview.local_edge_partition_view().weights();
+    auto offsets = gview.get_matrix_partition_view().get_offsets();
+    auto indices = gview.get_matrix_partition_view().get_indices();
+    auto weights = gview.get_matrix_partition_view().get_weights();
 
     // FIXME: remove when host_bcast() becomes available for vectors;
     //

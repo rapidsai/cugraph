@@ -100,7 +100,7 @@ class Tests_MGWeaklyConnectedComponents
 
     // 3. run MG weakly connected components
 
-    rmm::device_uvector<vertex_t> d_mg_components(mg_graph_view.local_vertex_partition_range_size(),
+    rmm::device_uvector<vertex_t> d_mg_components(mg_graph_view.get_number_of_local_vertices(),
                                                   handle.get_stream());
 
     if (cugraph::test::g_perf) {
@@ -144,24 +144,25 @@ class Tests_MGWeaklyConnectedComponents
 
         auto sg_graph_view = sg_graph.view();
 
-        ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
+        ASSERT_TRUE(mg_graph_view.get_number_of_vertices() ==
+                    sg_graph_view.get_number_of_vertices());
 
         // 4-4. run SG weakly connected components
 
-        rmm::device_uvector<vertex_t> d_sg_components(sg_graph_view.number_of_vertices(),
+        rmm::device_uvector<vertex_t> d_sg_components(sg_graph_view.get_number_of_vertices(),
                                                       handle.get_stream());
 
         cugraph::weakly_connected_components(handle, sg_graph_view, d_sg_components.data());
 
         // 4-5. compare
 
-        std::vector<vertex_t> h_mg_aggregate_components(mg_graph_view.number_of_vertices());
+        std::vector<vertex_t> h_mg_aggregate_components(mg_graph_view.get_number_of_vertices());
         raft::update_host(h_mg_aggregate_components.data(),
                           d_mg_aggregate_components.data(),
                           d_mg_aggregate_components.size(),
                           handle.get_stream());
 
-        std::vector<vertex_t> h_sg_components(sg_graph_view.number_of_vertices());
+        std::vector<vertex_t> h_sg_components(sg_graph_view.get_number_of_vertices());
         raft::update_host(h_sg_components.data(),
                           d_sg_components.data(),
                           d_sg_components.size(),

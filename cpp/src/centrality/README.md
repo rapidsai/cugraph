@@ -24,7 +24,7 @@ auto graph_view = graph.view(); // assumes you have created a graph somehow
 result_t constexpr alpha{0.85};
 result_t constexpr epsilon{1e-6};
 
-rmm::device_uvector<result_t> pageranks_v(graph_view.number_of_vertices(), handle.get_stream());
+rmm::device_uvector<result_t> pageranks_v(graph_view.get_number_of_vertices(), handle.get_stream());
 
 // pagerank optionally supports three additional parameters:
 //     max_iterations     - maximum number of iterations, if pagerank doesn't coverge by
@@ -58,7 +58,7 @@ vertex_t number_of_personalization_vertices; // Provided by caller
 result_t constexpr alpha{0.85};
 result_t constexpr epsilon{1e-6};
 
-rmm::device_uvector<result_t> pageranks_v(graph_view.number_of_vertices(), handle.get_stream());
+rmm::device_uvector<result_t> pageranks_v(graph_view.get_number_of_vertices(), handle.get_stream());
 rmm::device_uvector<vertex_t> personalization_vertices(number_of_personalization_vertices, handle.get_stream());
 rmm::device_uvector<result_t> personalization_values(number_of_personalization_vertices, handle.get_stream());
 

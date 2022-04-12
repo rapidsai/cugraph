@@ -51,7 +51,6 @@ rapids_cmake_build_type(Release)
 ################################################################################
 # - User Options  --------------------------------------------------------------
 
-option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_ETL_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
@@ -102,7 +101,7 @@ include(cmake/thirdparty/get_cudf.cmake)
 ################################################################################
 # - ETL library --------------------------------------------------------------
 
-add_library(cugraph_etl
+add_library(cugraph_etl SHARED
             src/renumbering.cu
            )
 add_library(cugraph::cugraph_etl ALIAS cugraph_etl)
@@ -113,9 +112,6 @@ set_target_properties(cugraph_etl
                # set target compile options
                CXX_STANDARD                        17
                CXX_STANDARD_REQUIRED               ON
-               CUDA_STANDARD                       17
-               CUDA_STANDARD_REQUIRED              ON
-               POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
 )
 
@@ -123,8 +119,10 @@ target_compile_options(cugraph_etl
             PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_ETL_CXX_FLAGS}>"
 )
 
-target_compile_options(cugraph_etl
-            PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_ETL_CUDA_FLAGS}>")
+target_compile_options(cugraph_etl PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+                       --expt-relaxed-constexpr
+                       --expt-extended-lambda
+                       >)
 ################################################################################
 # - ETL include paths --------------------------------------------------------
 target_include_directories(cugraph_etl

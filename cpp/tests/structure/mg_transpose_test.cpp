@@ -114,15 +114,15 @@ class Tests_MGTranspose
     if (transpose_usecase.check_correctness) {
       // 4-1. decompress MG results
 
-      auto [d_mg_srcs, d_mg_dsts, d_mg_weights] =
+      auto [d_mg_rows, d_mg_cols, d_mg_weights] =
         mg_graph.decompress_to_edgelist(handle, d_mg_renumber_map_labels, false);
 
       // 4-2. aggregate MG results
 
-      auto d_mg_aggregate_srcs =
-        cugraph::test::device_gatherv(handle, d_mg_srcs.data(), d_mg_srcs.size());
-      auto d_mg_aggregate_dsts =
-        cugraph::test::device_gatherv(handle, d_mg_dsts.data(), d_mg_dsts.size());
+      auto d_mg_aggregate_rows =
+        cugraph::test::device_gatherv(handle, d_mg_rows.data(), d_mg_rows.size());
+      auto d_mg_aggregate_cols =
+        cugraph::test::device_gatherv(handle, d_mg_cols.data(), d_mg_cols.size());
       std::optional<rmm::device_uvector<weight_t>> d_mg_aggregate_weights{std::nullopt};
       if (d_mg_weights) {
         d_mg_aggregate_weights =
@@ -144,27 +144,27 @@ class Tests_MGTranspose
 
         // 4-5. decompress SG results
 
-        auto [d_sg_srcs, d_sg_dsts, d_sg_weights] =
+        auto [d_sg_rows, d_sg_cols, d_sg_weights] =
           sg_graph.decompress_to_edgelist(handle, std::nullopt, false);
 
         // 4-6. compare
 
-        ASSERT_TRUE(mg_graph.number_of_vertices() == sg_graph.number_of_vertices());
-        ASSERT_TRUE(mg_graph.number_of_edges() == sg_graph.number_of_edges());
+        ASSERT_TRUE(mg_graph.get_number_of_vertices() == sg_graph.get_number_of_vertices());
+        ASSERT_TRUE(mg_graph.get_number_of_edges() == sg_graph.get_number_of_edges());
 
-        std::vector<vertex_t> h_mg_aggregate_srcs(d_mg_aggregate_srcs.size());
-        std::vector<vertex_t> h_mg_aggregate_dsts(d_mg_aggregate_srcs.size());
+        std::vector<vertex_t> h_mg_aggregate_rows(d_mg_aggregate_rows.size());
+        std::vector<vertex_t> h_mg_aggregate_cols(d_mg_aggregate_rows.size());
         auto h_mg_aggregate_weights =
           d_mg_aggregate_weights
-            ? std::make_optional<std::vector<weight_t>>(d_mg_aggregate_srcs.size())
+            ? std::make_optional<std::vector<weight_t>>(d_mg_aggregate_rows.size())
             : std::nullopt;
-        raft::update_host(h_mg_aggregate_srcs.data(),
-                          d_mg_aggregate_srcs.data(),
-                          d_mg_aggregate_srcs.size(),
+        raft::update_host(h_mg_aggregate_rows.data(),
+                          d_mg_aggregate_rows.data(),
+                          d_mg_aggregate_rows.size(),
                           handle.get_stream());
-        raft::update_host(h_mg_aggregate_dsts.data(),
-                          d_mg_aggregate_dsts.data(),
-                          d_mg_aggregate_dsts.size(),
+        raft::update_host(h_mg_aggregate_cols.data(),
+                          d_mg_aggregate_cols.data(),
+                          d_mg_aggregate_cols.size(),
                           handle.get_stream());
         if (h_mg_aggregate_weights) {
           raft::update_host((*h_mg_aggregate_weights).data(),
@@ -173,14 +173,14 @@ class Tests_MGTranspose
                             handle.get_stream());
         }
 
-        std::vector<vertex_t> h_sg_srcs(d_sg_srcs.size());
-        std::vector<vertex_t> h_sg_dsts(d_sg_srcs.size());
+        std::vector<vertex_t> h_sg_rows(d_sg_rows.size());
+        std::vector<vertex_t> h_sg_cols(d_sg_rows.size());
         auto h_sg_weights =
-          d_sg_weights ? std::make_optional<std::vector<weight_t>>(d_sg_srcs.size()) : std::nullopt;
+          d_sg_weights ? std::make_optional<std::vector<weight_t>>(d_sg_rows.size()) : std::nullopt;
         raft::update_host(
-          h_sg_srcs.data(), d_sg_srcs.data(), d_sg_srcs.size(), handle.get_stream());
+          h_sg_rows.data(), d_sg_rows.data(), d_sg_rows.size(), handle.get_stream());
         raft::update_host(
-          h_sg_dsts.data(), d_sg_dsts.data(), d_sg_dsts.size(), handle.get_stream());
+          h_sg_cols.data(), d_sg_cols.data(), d_sg_cols.size(), handle.get_stream());
         if (h_sg_weights) {
           raft::update_host((*h_sg_weights).data(),
                             (*d_sg_weights).data(),
@@ -190,14 +190,14 @@ class Tests_MGTranspose
 
         if (transpose_usecase.test_weighted) {
           std::vector<std::tuple<vertex_t, vertex_t, weight_t>> mg_aggregate_edges(
-            h_mg_aggregate_srcs.size());
+            h_mg_aggregate_rows.size());
           for (size_t i = 0; i < mg_aggregate_edges.size(); ++i) {
             mg_aggregate_edges[i] = std::make_tuple(
-              h_mg_aggregate_srcs[i], h_mg_aggregate_dsts[i], (*h_mg_aggregate_weights)[i]);
+              h_mg_aggregate_rows[i], h_mg_aggregate_cols[i], (*h_mg_aggregate_weights)[i]);
           }
-          std::vector<std::tuple<vertex_t, vertex_t, weight_t>> sg_edges(h_sg_srcs.size());
+          std::vector<std::tuple<vertex_t, vertex_t, weight_t>> sg_edges(h_sg_rows.size());
           for (size_t i = 0; i < sg_edges.size(); ++i) {
-            sg_edges[i] = std::make_tuple(h_sg_srcs[i], h_sg_dsts[i], (*h_sg_weights)[i]);
+            sg_edges[i] = std::make_tuple(h_sg_rows[i], h_sg_cols[i], (*h_sg_weights)[i]);
           }
           std::sort(mg_aggregate_edges.begin(), mg_aggregate_edges.end());
           std::sort(sg_edges.begin(), sg_edges.end());
@@ -205,13 +205,13 @@ class Tests_MGTranspose
             std::equal(mg_aggregate_edges.begin(), mg_aggregate_edges.end(), sg_edges.begin()));
         } else {
           std::vector<std::tuple<vertex_t, vertex_t>> mg_aggregate_edges(
-            h_mg_aggregate_srcs.size());
+            h_mg_aggregate_rows.size());
           for (size_t i = 0; i < mg_aggregate_edges.size(); ++i) {
-            mg_aggregate_edges[i] = std::make_tuple(h_mg_aggregate_srcs[i], h_mg_aggregate_dsts[i]);
+            mg_aggregate_edges[i] = std::make_tuple(h_mg_aggregate_rows[i], h_mg_aggregate_cols[i]);
           }
-          std::vector<std::tuple<vertex_t, vertex_t>> sg_edges(h_sg_srcs.size());
+          std::vector<std::tuple<vertex_t, vertex_t>> sg_edges(h_sg_rows.size());
           for (size_t i = 0; i < sg_edges.size(); ++i) {
-            sg_edges[i] = std::make_tuple(h_sg_srcs[i], h_sg_dsts[i]);
+            sg_edges[i] = std::make_tuple(h_sg_rows[i], h_sg_cols[i]);
           }
           std::sort(mg_aggregate_edges.begin(), mg_aggregate_edges.end());
           std::sort(sg_edges.begin(), sg_edges.end());

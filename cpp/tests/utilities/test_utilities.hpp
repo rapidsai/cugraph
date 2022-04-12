@@ -201,12 +201,12 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     using edge_t   = typename graph_t::edge_type;
     using weight_t = typename graph_t::weight_type;
 
-    size_t num_vertices = lgraph.number_of_vertices();
-    size_t num_edges    = lgraph.number_of_edges();
+    size_t num_vertices = lgraph.get_number_of_vertices();
+    size_t num_edges    = lgraph.get_number_of_edges();
 
     {
-      size_t r_num_vertices = rgraph.number_of_vertices();
-      size_t r_num_edges    = rgraph.number_of_edges();
+      size_t r_num_vertices = rgraph.get_number_of_vertices();
+      size_t r_num_edges    = rgraph.get_number_of_edges();
 
       if (num_vertices != r_num_vertices) return std::make_pair(false, std::string("num_vertices"));
 
@@ -229,11 +229,11 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<vertex_t> lv_ci(num_edges);
 
     raft::update_host(lv_ro.data(),
-                      lgraph_view.local_edge_partition_view().offsets(),
+                      lgraph_view.get_matrix_partition_view().get_offsets(),
                       num_vertices + 1,
                       handle.get_stream());
     raft::update_host(lv_ci.data(),
-                      lgraph_view.local_edge_partition_view().indices(),
+                      lgraph_view.get_matrix_partition_view().get_indices(),
                       num_edges,
                       handle.get_stream());
 
@@ -241,11 +241,11 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<vertex_t> rv_ci(num_edges);
 
     raft::update_host(rv_ro.data(),
-                      rgraph_view.local_edge_partition_view().offsets(),
+                      rgraph_view.get_matrix_partition_view().get_offsets(),
                       num_vertices + 1,
                       handle.get_stream());
     raft::update_host(rv_ci.data(),
-                      rgraph_view.local_edge_partition_view().indices(),
+                      rgraph_view.get_matrix_partition_view().get_indices(),
                       num_edges,
                       handle.get_stream());
 
@@ -253,12 +253,12 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     auto rv_vs = is_weighted ? std::make_optional<std::vector<weight_t>>(num_edges) : std::nullopt;
     if (is_weighted) {
       raft::update_host((*lv_vs).data(),
-                        *(lgraph_view.local_edge_partition_view().weights()),
+                        *(lgraph_view.get_matrix_partition_view().get_weights()),
                         num_edges,
                         handle.get_stream());
 
       raft::update_host((*rv_vs).data(),
-                        *(rgraph_view.local_edge_partition_view().weights()),
+                        *(rgraph_view.get_matrix_partition_view().get_weights()),
                         num_edges,
                         handle.get_stream());
     }
@@ -295,8 +295,8 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
       }
     }
 
-    if (lgraph_view.local_edge_partition_segment_offsets(0) !=
-        rgraph_view.local_edge_partition_segment_offsets(0))
+    if (lgraph_view.get_local_adj_matrix_partition_segment_offsets(0) !=
+        rgraph_view.get_local_adj_matrix_partition_segment_offsets(0))
       return std::make_pair(false, std::string("segment offsets"));
 
     return std::make_pair(true, std::string{});

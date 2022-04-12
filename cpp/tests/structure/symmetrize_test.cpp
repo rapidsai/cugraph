@@ -31,8 +31,8 @@
 #include <numeric>
 #include <vector>
 
-// partition the edges to lower-triangular, diagonal, upper-triangular edges; flip sources and
-// destinations of the upper triangular edges, and sort within each partition
+// partition the edges to lower-triangular, diagonal, upper-triangular edges; flip rows and columns
+// of the upper triangular edges, and sort within each partition
 template <typename EdgeIterator>
 std::tuple<EdgeIterator, EdgeIterator> partition_and_sort_edges(
   EdgeIterator edge_first, EdgeIterator edge_last, bool flip_upper_triangular_before_sort)
@@ -207,11 +207,11 @@ class Tests_Symmetrize
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    rmm::device_uvector<vertex_t> d_org_srcs(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> d_org_dsts(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_org_rows(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_org_cols(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> d_org_weights{std::nullopt};
     if (symmetrize_usecase.check_correctness) {
-      std::tie(d_org_srcs, d_org_dsts, d_org_weights) =
+      std::tie(d_org_rows, d_org_cols, d_org_weights) =
         graph.decompress_to_edgelist(handle, d_renumber_map_labels, false);
     }
 
@@ -231,24 +231,24 @@ class Tests_Symmetrize
     }
 
     if (symmetrize_usecase.check_correctness) {
-      auto [d_symm_srcs, d_symm_dsts, d_symm_weights] =
+      auto [d_symm_rows, d_symm_cols, d_symm_weights] =
         graph.decompress_to_edgelist(handle, d_renumber_map_labels, false);
 
-      std::vector<vertex_t> h_org_srcs(d_org_srcs.size());
-      std::vector<vertex_t> h_org_dsts(h_org_srcs.size());
+      std::vector<vertex_t> h_org_rows(d_org_rows.size());
+      std::vector<vertex_t> h_org_cols(h_org_rows.size());
       auto h_org_weights =
-        d_org_weights ? std::make_optional<std::vector<weight_t>>(h_org_srcs.size()) : std::nullopt;
+        d_org_weights ? std::make_optional<std::vector<weight_t>>(h_org_rows.size()) : std::nullopt;
 
-      std::vector<vertex_t> h_symm_srcs(d_symm_srcs.size());
-      std::vector<vertex_t> h_symm_dsts(h_symm_srcs.size());
+      std::vector<vertex_t> h_symm_rows(d_symm_rows.size());
+      std::vector<vertex_t> h_symm_cols(h_symm_rows.size());
       auto h_symm_weights = d_symm_weights
-                              ? std::make_optional<std::vector<weight_t>>(h_symm_srcs.size())
+                              ? std::make_optional<std::vector<weight_t>>(h_symm_rows.size())
                               : std::nullopt;
 
       raft::update_host(
-        h_org_srcs.data(), d_org_srcs.data(), d_org_srcs.size(), handle.get_stream());
+        h_org_rows.data(), d_org_rows.data(), d_org_rows.size(), handle.get_stream());
       raft::update_host(
-        h_org_dsts.data(), d_org_dsts.data(), d_org_dsts.size(), handle.get_stream());
+        h_org_cols.data(), d_org_cols.data(), d_org_cols.size(), handle.get_stream());
       if (h_org_weights) {
         raft::update_host((*h_org_weights).data(),
                           (*d_org_weights).data(),
@@ -257,9 +257,9 @@ class Tests_Symmetrize
       }
 
       raft::update_host(
-        h_symm_srcs.data(), d_symm_srcs.data(), d_symm_srcs.size(), handle.get_stream());
+        h_symm_rows.data(), d_symm_rows.data(), d_symm_rows.size(), handle.get_stream());
       raft::update_host(
-        h_symm_dsts.data(), d_symm_dsts.data(), d_symm_dsts.size(), handle.get_stream());
+        h_symm_cols.data(), d_symm_cols.data(), d_symm_cols.size(), handle.get_stream());
       if (h_symm_weights) {
         raft::update_host((*h_symm_weights).data(),
                           (*d_symm_weights).data(),
@@ -268,9 +268,9 @@ class Tests_Symmetrize
       }
 
       if (symmetrize_usecase.test_weighted) {
-        std::vector<std::tuple<vertex_t, vertex_t, weight_t>> org_edges(h_org_srcs.size());
+        std::vector<std::tuple<vertex_t, vertex_t, weight_t>> org_edges(h_org_rows.size());
         for (size_t i = 0; i < org_edges.size(); ++i) {
-          org_edges[i] = std::make_tuple(h_org_srcs[i], h_org_dsts[i], (*h_org_weights)[i]);
+          org_edges[i] = std::make_tuple(h_org_rows[i], h_org_cols[i], (*h_org_weights)[i]);
         }
 
         auto [org_lower_triangular_last, org_diagonal_last] =
@@ -336,9 +336,9 @@ class Tests_Symmetrize
         tmp_edges.insert(tmp_edges.end(), org_lower_triangular_last, org_diagonal_last);
         org_edges = std::move(tmp_edges);
 
-        std::vector<std::tuple<vertex_t, vertex_t, weight_t>> symm_edges(h_symm_srcs.size());
+        std::vector<std::tuple<vertex_t, vertex_t, weight_t>> symm_edges(h_symm_rows.size());
         for (size_t i = 0; i < symm_edges.size(); ++i) {
-          symm_edges[i] = std::make_tuple(h_symm_srcs[i], h_symm_dsts[i], (*h_symm_weights)[i]);
+          symm_edges[i] = std::make_tuple(h_symm_rows[i], h_symm_cols[i], (*h_symm_weights)[i]);
         }
 
         auto [symm_lower_triangular_last, symm_diagonal_last] =
@@ -351,9 +351,9 @@ class Tests_Symmetrize
 
         ASSERT_TRUE(std::equal(org_edges.begin(), org_edges.end(), symm_edges.begin()));
       } else {
-        std::vector<std::tuple<vertex_t, vertex_t>> org_edges(h_org_srcs.size());
+        std::vector<std::tuple<vertex_t, vertex_t>> org_edges(h_org_rows.size());
         for (size_t i = 0; i < org_edges.size(); ++i) {
-          org_edges[i] = std::make_tuple(h_org_srcs[i], h_org_dsts[i]);
+          org_edges[i] = std::make_tuple(h_org_rows[i], h_org_cols[i]);
         }
 
         auto [org_lower_triangular_last, org_diagonal_last] =
@@ -383,9 +383,9 @@ class Tests_Symmetrize
         tmp_edges.insert(tmp_edges.end(), org_lower_triangular_last, org_diagonal_last);
         org_edges = std::move(tmp_edges);
 
-        std::vector<std::tuple<vertex_t, vertex_t>> symm_edges(h_symm_srcs.size());
+        std::vector<std::tuple<vertex_t, vertex_t>> symm_edges(h_symm_rows.size());
         for (size_t i = 0; i < symm_edges.size(); ++i) {
-          symm_edges[i] = std::make_tuple(h_symm_srcs[i], h_symm_dsts[i]);
+          symm_edges[i] = std::make_tuple(h_symm_rows[i], h_symm_cols[i]);
         }
 
         auto [symm_lower_triangular_last, symm_diagonal_last] =

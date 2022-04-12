@@ -110,14 +110,13 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       //
       // Need to renumber sources
       //
-      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
-        handle_,
-        start.data(),
-        start.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
-        false);
+      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
+                                                          start.data(),
+                                                          start.size(),
+                                                          number_map->data(),
+                                                          graph_view.get_local_vertex_first(),
+                                                          graph_view.get_local_vertex_last(),
+                                                          false);
 
       // C++ API wants an std::vector
       std::vector<int> fan_out(fan_out_->size_);
@@ -133,7 +132,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
 
       auto&& [srcs, dsts, labels, indices] = tmp_tuple;
 
-      std::vector<vertex_t> vertex_partition_lasts = graph_view.vertex_partition_range_lasts();
+      std::vector<vertex_t> vertex_partition_lasts = graph_view.get_vertex_partition_lasts();
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
                                                             srcs.data(),

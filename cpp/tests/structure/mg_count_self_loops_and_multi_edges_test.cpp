@@ -145,7 +145,7 @@ class Tests_MGCountSelfLoopsAndMultiEdges
 
       auto sg_graph_view = sg_graph.view();
 
-      ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
+      ASSERT_EQ(mg_graph_view.get_number_of_vertices(), sg_graph_view.get_number_of_vertices());
 
       // 4-2. run SG count_self_loops & count_multi_edges
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,27 +61,27 @@ class vertex_partition_device_view_t<vertex_t, multi_gpu, std::enable_if_t<multi
   : public detail::vertex_partition_device_view_base_t<vertex_t> {
  public:
   vertex_partition_device_view_t(vertex_partition_view_t<vertex_t, multi_gpu> view)
-    : detail::vertex_partition_device_view_base_t<vertex_t>(view.number_of_vertices()),
-      local_vertex_partition_range_first_(view.local_vertex_partition_range_first()),
-      local_vertex_partition_range_last_(view.local_vertex_partition_range_last())
+    : detail::vertex_partition_device_view_base_t<vertex_t>(view.get_number_of_vertices()),
+      local_vertex_first_(view.get_local_vertex_first()),
+      local_vertex_last_(view.get_local_vertex_last())
   {
   }
 
-  __host__ __device__ bool in_local_vertex_partition_range_nocheck(vertex_t v) const noexcept
+  __host__ __device__ bool is_local_vertex_nocheck(vertex_t v) const noexcept
   {
-    return (v >= local_vertex_partition_range_first_) && (v < local_vertex_partition_range_last_);
+    return (v >= local_vertex_first_) && (v < local_vertex_last_);
   }
 
   __host__ __device__ vertex_t
-  local_vertex_partition_offset_from_vertex_nocheck(vertex_t v) const noexcept
+  get_local_vertex_offset_from_vertex_nocheck(vertex_t v) const noexcept
   {
-    return v - local_vertex_partition_range_first_;
+    return v - local_vertex_first_;
   }
 
  private:
   // should be trivially copyable to device
-  vertex_t local_vertex_partition_range_first_{0};
-  vertex_t local_vertex_partition_range_last_{0};
+  vertex_t local_vertex_first_{0};
+  vertex_t local_vertex_last_{0};
 };
 
 // single-GPU version
@@ -90,17 +90,16 @@ class vertex_partition_device_view_t<vertex_t, multi_gpu, std::enable_if_t<!mult
   : public detail::vertex_partition_device_view_base_t<vertex_t> {
  public:
   vertex_partition_device_view_t(vertex_partition_view_t<vertex_t, multi_gpu> view)
-    : detail::vertex_partition_device_view_base_t<vertex_t>(view.number_of_vertices())
+    : detail::vertex_partition_device_view_base_t<vertex_t>(view.get_number_of_vertices())
   {
   }
 
-  __host__ __device__ constexpr bool in_local_vertex_partition_range_nocheck(
-    vertex_t v) const noexcept
+  __host__ __device__ constexpr bool is_local_vertex_nocheck(vertex_t v) const noexcept
   {
     return true;
   }
 
-  __host__ __device__ constexpr vertex_t local_vertex_partition_offset_from_vertex_nocheck(
+  __host__ __device__ constexpr vertex_t get_local_vertex_offset_from_vertex_nocheck(
     vertex_t v) const noexcept
   {
     return v;

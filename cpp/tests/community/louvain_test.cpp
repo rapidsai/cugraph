@@ -130,14 +130,14 @@ class Tests_Louvain
 
     if (device_prop.major < 7) {
       EXPECT_THROW(louvain(graph_view,
-                           graph_view.local_vertex_partition_range_size(),
+                           graph_view.get_number_of_local_vertices(),
                            louvain_usecase.check_correctness_,
                            louvain_usecase.expected_level_,
                            louvain_usecase.expected_modularity_),
                    cugraph::logic_error);
     } else {
       louvain(graph_view,
-              graph_view.local_vertex_partition_range_size(),
+              graph_view.get_number_of_local_vertices(),
               louvain_usecase.check_correctness_,
               louvain_usecase.expected_level_,
               louvain_usecase.expected_modularity_);

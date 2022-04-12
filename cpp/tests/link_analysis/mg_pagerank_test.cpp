@@ -110,10 +110,10 @@ class Tests_MGPageRank
         static_cast<long unsigned int>(comm.get_rank()) /* seed */};
       std::uniform_real_distribution<double> distribution{0.0, 1.0};
       h_mg_personalization_vertices =
-        std::vector<vertex_t>(mg_graph_view.local_vertex_partition_range_size());
+        std::vector<vertex_t>(mg_graph_view.get_number_of_local_vertices());
       std::iota((*h_mg_personalization_vertices).begin(),
                 (*h_mg_personalization_vertices).end(),
-                mg_graph_view.local_vertex_partition_range_first());
+                mg_graph_view.get_local_vertex_first());
       (*h_mg_personalization_vertices)
         .erase(std::remove_if((*h_mg_personalization_vertices).begin(),
                               (*h_mg_personalization_vertices).end(),
@@ -153,7 +153,7 @@ class Tests_MGPageRank
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
 
-    rmm::device_uvector<result_t> d_mg_pageranks(mg_graph_view.local_vertex_partition_range_size(),
+    rmm::device_uvector<result_t> d_mg_pageranks(mg_graph_view.get_number_of_local_vertices(),
                                                  handle.get_stream());
 
     if (cugraph::test::g_perf) {
@@ -220,7 +220,7 @@ class Tests_MGPageRank
             (*d_mg_aggregate_personalization_vertices).data(),
             (*d_mg_aggregate_personalization_vertices).size(),
             d_mg_aggregate_renumber_map_labels.data(),
-            std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
+            std::vector<vertex_t>{mg_graph_view.get_number_of_vertices()});
           std::tie(d_mg_aggregate_personalization_vertices, d_mg_aggregate_personalization_values) =
             cugraph::test::sort_by_key(handle,
                                        *d_mg_aggregate_personalization_vertices,
@@ -238,11 +238,11 @@ class Tests_MGPageRank
 
         auto sg_graph_view = sg_graph.view();
 
-        ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
+        ASSERT_EQ(mg_graph_view.get_number_of_vertices(), sg_graph_view.get_number_of_vertices());
 
         // 5-4. run SG PageRank
 
-        rmm::device_uvector<result_t> d_sg_pageranks(sg_graph_view.number_of_vertices(),
+        rmm::device_uvector<result_t> d_sg_pageranks(sg_graph_view.get_number_of_vertices(),
                                                      handle.get_stream());
 
         cugraph::pagerank<vertex_t, edge_t, weight_t>(
@@ -267,13 +267,13 @@ class Tests_MGPageRank
 
         // 5-4. compare
 
-        std::vector<result_t> h_mg_aggregate_pageranks(mg_graph_view.number_of_vertices());
+        std::vector<result_t> h_mg_aggregate_pageranks(mg_graph_view.get_number_of_vertices());
         raft::update_host(h_mg_aggregate_pageranks.data(),
                           d_mg_aggregate_pageranks.data(),
                           d_mg_aggregate_pageranks.size(),
                           handle.get_stream());
 
-        std::vector<result_t> h_sg_pageranks(sg_graph_view.number_of_vertices());
+        std::vector<result_t> h_sg_pageranks(sg_graph_view.get_number_of_vertices());
         raft::update_host(
           h_sg_pageranks.data(), d_sg_pageranks.data(), d_sg_pageranks.size(), handle.get_stream());
 
@@ -281,7 +281,7 @@ class Tests_MGPageRank
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =
-          (1.0 / static_cast<result_t>(mg_graph_view.number_of_vertices())) *
+          (1.0 / static_cast<result_t>(mg_graph_view.get_number_of_vertices())) *
           threshold_ratio;  // skip comparison for low PageRank verties (lowly ranked vertices)
         auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
           return std::abs(lhs - rhs) <

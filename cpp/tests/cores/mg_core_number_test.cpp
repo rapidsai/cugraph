@@ -105,7 +105,7 @@ class Tests_MGCoreNumber
 
     // 3. run MG CoreNumber
 
-    rmm::device_uvector<edge_t> d_mg_core_numbers(mg_graph_view.local_vertex_partition_range_size(),
+    rmm::device_uvector<edge_t> d_mg_core_numbers(mg_graph_view.get_number_of_local_vertices(),
                                                   handle.get_stream());
 
     if (cugraph::test::g_perf) {
@@ -154,11 +154,11 @@ class Tests_MGCoreNumber
 
         auto sg_graph_view = sg_graph.view();
 
-        ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
+        ASSERT_EQ(mg_graph_view.get_number_of_vertices(), sg_graph_view.get_number_of_vertices());
 
         // 5-4. run SG CoreNumber
 
-        rmm::device_uvector<edge_t> d_sg_core_numbers(sg_graph_view.number_of_vertices(),
+        rmm::device_uvector<edge_t> d_sg_core_numbers(sg_graph_view.get_number_of_vertices(),
                                                       handle.get_stream());
 
         cugraph::core_number(handle,
@@ -170,13 +170,13 @@ class Tests_MGCoreNumber
 
         // 5-4. compare
 
-        std::vector<edge_t> h_mg_aggregate_core_numbers(mg_graph_view.number_of_vertices());
+        std::vector<edge_t> h_mg_aggregate_core_numbers(mg_graph_view.get_number_of_vertices());
         raft::update_host(h_mg_aggregate_core_numbers.data(),
                           d_mg_aggregate_core_numbers.data(),
                           d_mg_aggregate_core_numbers.size(),
                           handle.get_stream());
 
-        std::vector<edge_t> h_sg_core_numbers(sg_graph_view.number_of_vertices());
+        std::vector<edge_t> h_sg_core_numbers(sg_graph_view.get_number_of_vertices());
         raft::update_host(h_sg_core_numbers.data(),
                           d_sg_core_numbers.data(),
                           d_sg_core_numbers.size(),

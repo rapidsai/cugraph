@@ -52,8 +52,8 @@ struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>> {
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
 
-  vertex_t num_local_unique_edge_srcs{};
-  vertex_t num_local_unique_edge_dsts{};
+  vertex_t num_local_unique_edge_rows{};
+  vertex_t num_local_unique_edge_cols{};
 };
 
 // single-GPU version
@@ -84,11 +84,11 @@ template <typename vertex_t,
 class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>
   : public detail::graph_base_t<vertex_t, edge_t, weight_t> {
  public:
-  using vertex_type                           = vertex_t;
-  using edge_type                             = edge_t;
-  using weight_type                           = weight_t;
-  static constexpr bool is_storage_transposed = store_transposed;
-  static constexpr bool is_multi_gpu          = multi_gpu;
+  using vertex_type                              = vertex_t;
+  using edge_type                                = edge_t;
+  using weight_type                              = weight_t;
+  static constexpr bool is_adj_matrix_transposed = store_transposed;
+  static constexpr bool is_multi_gpu             = multi_gpu;
 
   graph_t(raft::handle_t const& handle) : detail::graph_base_t<vertex_t, edge_t, weight_t>() {}
 
@@ -154,62 +154,64 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
                     rmm::device_uvector<vertex_t>&& renumber_map,
                     bool destroy = false);
 
-  bool is_weighted() const { return edge_partition_weights_.has_value(); }
+  bool is_weighted() const { return adj_matrix_partition_weights_.has_value(); }
 
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
   {
-    std::vector<edge_t const*> offsets(edge_partition_offsets_.size(), nullptr);
-    std::vector<vertex_t const*> indices(edge_partition_indices_.size(), nullptr);
-    auto weights = edge_partition_weights_ ? std::make_optional<std::vector<weight_t const*>>(
-                                               (*edge_partition_weights_).size(), nullptr)
-                                           : std::nullopt;
-    auto dcs_nzd_vertices      = edge_partition_dcs_nzd_vertices_
-                                   ? std::make_optional<std::vector<vertex_t const*>>(
-                                  (*edge_partition_dcs_nzd_vertices_).size(), nullptr)
-                                   : std::nullopt;
-    auto dcs_nzd_vertex_counts = edge_partition_dcs_nzd_vertex_counts_
-                                   ? std::make_optional<std::vector<vertex_t>>(
-                                       (*edge_partition_dcs_nzd_vertex_counts_).size(), vertex_t{0})
-                                   : std::nullopt;
+    std::vector<edge_t const*> offsets(adj_matrix_partition_offsets_.size(), nullptr);
+    std::vector<vertex_t const*> indices(adj_matrix_partition_indices_.size(), nullptr);
+    auto weights          = adj_matrix_partition_weights_
+                              ? std::make_optional<std::vector<weight_t const*>>(
+                         (*adj_matrix_partition_weights_).size(), nullptr)
+                              : std::nullopt;
+    auto dcs_nzd_vertices = adj_matrix_partition_dcs_nzd_vertices_
+                              ? std::make_optional<std::vector<vertex_t const*>>(
+                                  (*adj_matrix_partition_dcs_nzd_vertices_).size(), nullptr)
+                              : std::nullopt;
+    auto dcs_nzd_vertex_counts =
+      adj_matrix_partition_dcs_nzd_vertex_counts_
+        ? std::make_optional<std::vector<vertex_t>>(
+            (*adj_matrix_partition_dcs_nzd_vertex_counts_).size(), vertex_t{0})
+        : std::nullopt;
     for (size_t i = 0; i < offsets.size(); ++i) {
-      offsets[i] = edge_partition_offsets_[i].data();
-      indices[i] = edge_partition_indices_[i].data();
-      if (weights) { (*weights)[i] = (*edge_partition_weights_)[i].data(); }
+      offsets[i] = adj_matrix_partition_offsets_[i].data();
+      indices[i] = adj_matrix_partition_indices_[i].data();
+      if (weights) { (*weights)[i] = (*adj_matrix_partition_weights_)[i].data(); }
       if (dcs_nzd_vertices) {
-        (*dcs_nzd_vertices)[i]      = (*edge_partition_dcs_nzd_vertices_)[i].data();
-        (*dcs_nzd_vertex_counts)[i] = (*edge_partition_dcs_nzd_vertex_counts_)[i];
+        (*dcs_nzd_vertices)[i]      = (*adj_matrix_partition_dcs_nzd_vertices_)[i].data();
+        (*dcs_nzd_vertex_counts)[i] = (*adj_matrix_partition_dcs_nzd_vertex_counts_)[i];
       }
     }
 
     return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-      *(this->handle_ptr()),
+      *(this->get_handle_ptr()),
       offsets,
       indices,
       weights,
       dcs_nzd_vertices,
       dcs_nzd_vertex_counts,
       graph_view_meta_t<vertex_t, edge_t, multi_gpu>{
-        this->number_of_vertices(),
-        this->number_of_edges(),
-        this->graph_properties(),
+        this->get_number_of_vertices(),
+        this->get_number_of_edges(),
+        this->get_graph_properties(),
         partition_,
-        edge_partition_segment_offsets_,
-        local_sorted_unique_edge_srcs_
-          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_srcs_).data()}
+        adj_matrix_partition_segment_offsets_,
+        local_sorted_unique_edge_rows_
+          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_rows_).data()}
           : std::nullopt,
-        local_sorted_unique_edge_srcs_
-          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_srcs_).data() +
-                                           (*local_sorted_unique_edge_srcs_).size()}
+        local_sorted_unique_edge_rows_
+          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_rows_).data() +
+                                           (*local_sorted_unique_edge_rows_).size()}
           : std::nullopt,
-        local_sorted_unique_edge_src_offsets_,
-        local_sorted_unique_edge_dsts_
-          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_dsts_).data()}
+        local_sorted_unique_edge_row_offsets_,
+        local_sorted_unique_edge_cols_
+          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_cols_).data()}
           : std::nullopt,
-        local_sorted_unique_edge_dsts_
-          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_dsts_).data() +
-                                           (*local_sorted_unique_edge_dsts_).size()}
+        local_sorted_unique_edge_cols_
+          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_cols_).data() +
+                                           (*local_sorted_unique_edge_cols_).size()}
           : std::nullopt,
-        local_sorted_unique_edge_dst_offsets_,
+        local_sorted_unique_edge_col_offsets_,
       });
   }
 
@@ -221,26 +223,27 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
                          bool destroy = false);
 
  private:
-  std::vector<rmm::device_uvector<edge_t>> edge_partition_offsets_{};
-  std::vector<rmm::device_uvector<vertex_t>> edge_partition_indices_{};
-  std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_partition_weights_{std::nullopt};
+  std::vector<rmm::device_uvector<edge_t>> adj_matrix_partition_offsets_{};
+  std::vector<rmm::device_uvector<vertex_t>> adj_matrix_partition_indices_{};
+  std::optional<std::vector<rmm::device_uvector<weight_t>>> adj_matrix_partition_weights_{
+    std::nullopt};
 
   // nzd: nonzero (local) degree, relevant only if segment_offsets.size() > 0
-  std::optional<std::vector<rmm::device_uvector<vertex_t>>> edge_partition_dcs_nzd_vertices_{
+  std::optional<std::vector<rmm::device_uvector<vertex_t>>> adj_matrix_partition_dcs_nzd_vertices_{
     std::nullopt};
-  std::optional<std::vector<vertex_t>> edge_partition_dcs_nzd_vertex_counts_{std::nullopt};
+  std::optional<std::vector<vertex_t>> adj_matrix_partition_dcs_nzd_vertex_counts_{std::nullopt};
   partition_t<vertex_t> partition_{};
 
   // segment offsets within the vertex partition based on vertex degree, relevant only if
   // segment_offsets.size() > 0
-  std::optional<std::vector<vertex_t>> edge_partition_segment_offsets_{std::nullopt};
+  std::optional<std::vector<vertex_t>> adj_matrix_partition_segment_offsets_{std::nullopt};
 
   // if valid, store row/column properties in key/value pairs (this saves memory if # unique edge
   // rows/cols << V / row_comm_size|col_comm_size).
-  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_srcs_{std::nullopt};
-  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_dsts_{std::nullopt};
-  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_src_offsets_{std::nullopt};
-  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_dst_offsets_{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_rows_{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_cols_{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_row_offsets_{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_col_offsets_{std::nullopt};
 };
 
 // single-GPU version
@@ -252,11 +255,11 @@ template <typename vertex_t,
 class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>
   : public detail::graph_base_t<vertex_t, edge_t, weight_t> {
  public:
-  using vertex_type                           = vertex_t;
-  using edge_type                             = edge_t;
-  using weight_type                           = weight_t;
-  static constexpr bool is_storage_transposed = store_transposed;
-  static constexpr bool is_multi_gpu          = multi_gpu;
+  using vertex_type                              = vertex_t;
+  using edge_type                                = edge_t;
+  using weight_type                              = weight_t;
+  static constexpr bool is_adj_matrix_transposed = store_transposed;
+  static constexpr bool is_multi_gpu             = multi_gpu;
 
   graph_t(raft::handle_t const& handle)
     : detail::graph_base_t<vertex_t, edge_t, weight_t>(),
@@ -335,13 +338,13 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
   {
     return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-      *(this->handle_ptr()),
+      *(this->get_handle_ptr()),
       offsets_.data(),
       indices_.data(),
       weights_ ? std::optional<weight_t const*>{(*weights_).data()} : std::nullopt,
-      graph_view_meta_t<vertex_t, edge_t, multi_gpu>{this->number_of_vertices(),
-                                                     this->number_of_edges(),
-                                                     this->graph_properties(),
+      graph_view_meta_t<vertex_t, edge_t, multi_gpu>{this->get_number_of_vertices(),
+                                                     this->get_number_of_edges(),
+                                                     this->get_graph_properties(),
                                                      segment_offsets_});
   }
 

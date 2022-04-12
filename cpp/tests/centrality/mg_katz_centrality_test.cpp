@@ -105,7 +105,7 @@ class Tests_MGKatzCentrality
     result_t constexpr epsilon{1e-6};
 
     rmm::device_uvector<result_t> d_mg_katz_centralities(
-      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+      mg_graph_view.get_number_of_local_vertices(), handle.get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -156,11 +156,12 @@ class Tests_MGKatzCentrality
 
         auto sg_graph_view = sg_graph.view();
 
-        ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
+        ASSERT_TRUE(mg_graph_view.get_number_of_vertices() ==
+                    sg_graph_view.get_number_of_vertices());
 
         // 5-4. run SG Katz Centrality
 
-        rmm::device_uvector<result_t> d_sg_katz_centralities(sg_graph_view.number_of_vertices(),
+        rmm::device_uvector<result_t> d_sg_katz_centralities(sg_graph_view.get_number_of_vertices(),
                                                              handle.get_stream());
 
         cugraph::katz_centrality(handle,
@@ -175,13 +176,14 @@ class Tests_MGKatzCentrality
 
         // 5-5. compare
 
-        std::vector<result_t> h_mg_aggregate_katz_centralities(mg_graph_view.number_of_vertices());
+        std::vector<result_t> h_mg_aggregate_katz_centralities(
+          mg_graph_view.get_number_of_vertices());
         raft::update_host(h_mg_aggregate_katz_centralities.data(),
                           d_mg_aggregate_katz_centralities.data(),
                           d_mg_aggregate_katz_centralities.size(),
                           handle.get_stream());
 
-        std::vector<result_t> h_sg_katz_centralities(sg_graph_view.number_of_vertices());
+        std::vector<result_t> h_sg_katz_centralities(sg_graph_view.get_number_of_vertices());
         raft::update_host(h_sg_katz_centralities.data(),
                           d_sg_katz_centralities.data(),
                           d_sg_katz_centralities.size(),
@@ -191,7 +193,7 @@ class Tests_MGKatzCentrality
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =
-          (1.0 / static_cast<result_t>(mg_graph_view.number_of_vertices())) *
+          (1.0 / static_cast<result_t>(mg_graph_view.get_number_of_vertices())) *
           threshold_ratio;  // skip comparison for low KatzCentrality verties (lowly ranked
                             // vertices)
         auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2021, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ class vertex_partition_view_base_t {
   {
   }
 
-  vertex_t number_of_vertices() const { return number_of_vertices_; }
+  vertex_t get_number_of_vertices() const { return number_of_vertices_; }
 
  private:
   vertex_t number_of_vertices_{0};
@@ -46,23 +46,20 @@ class vertex_partition_view_t<vertex_t, multi_gpu, std::enable_if_t<multi_gpu>>
   : public detail::vertex_partition_view_base_t<vertex_t> {
  public:
   vertex_partition_view_t(vertex_t number_of_vertices,
-                          vertex_t local_vertex_partition_range_first,
-                          vertex_t local_vertex_partition_range_last)
+                          vertex_t local_vertex_first,
+                          vertex_t local_vertex_last)
     : detail::vertex_partition_view_base_t<vertex_t>(number_of_vertices),
-      local_vertex_partition_range_first_(local_vertex_partition_range_first),
-      local_vertex_partition_range_last_(local_vertex_partition_range_last)
+      local_vertex_first_(local_vertex_first),
+      local_vertex_last_(local_vertex_last)
   {
   }
 
-  vertex_t local_vertex_partition_range_first() const
-  {
-    return local_vertex_partition_range_first_;
-  }
-  vertex_t local_vertex_partition_range_last() const { return local_vertex_partition_range_last_; }
+  vertex_t get_local_vertex_first() const { return local_vertex_first_; }
+  vertex_t get_local_vertex_last() const { return local_vertex_last_; }
 
  private:
-  vertex_t local_vertex_partition_range_first_{0};
-  vertex_t local_vertex_partition_range_last_{0};
+  vertex_t local_vertex_first_{0};
+  vertex_t local_vertex_last_{0};
 };
 
 // single-GPU version
@@ -75,8 +72,8 @@ class vertex_partition_view_t<vertex_t, multi_gpu, std::enable_if_t<!multi_gpu>>
   {
   }
 
-  vertex_t local_vertex_partition_range_first() const { return vertex_t{0}; }
-  vertex_t local_vertex_partition_range_last() const { return this->number_of_vertices(); }
+  vertex_t get_local_vertex_first() const { return vertex_t{0}; }
+  vertex_t get_local_vertex_last() const { return this->get_number_of_vertices(); }
 };
 
 }  // namespace cugraph
