@@ -93,8 +93,8 @@ struct katz_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<weight_t> betas(0, handle_.get_stream());
 
       if (betas_ != nullptr) {
-        rmm::device_uvector<vertex_t> betas_vertex_ids(graph_view.local_vertex_partition_range_size(),
-                                                       handle_.get_stream());
+        rmm::device_uvector<vertex_t> betas_vertex_ids(
+          graph_view.local_vertex_partition_range_size(), handle_.get_stream());
         cugraph::detail::sequence_fill(handle_.get_stream(),
                                        betas_vertex_ids.data(),
                                        betas_vertex_ids.size(),
