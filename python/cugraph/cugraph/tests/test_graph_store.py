@@ -65,19 +65,20 @@ def test_using_pgraph(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_node_data_pg(graph_file):
-    with pytest.raises(NotImplementedError):
 
-        cu_M = utils.read_csv_file(graph_file)
+    cu_M = utils.read_csv_file(graph_file)
 
-        pG = PropertyGraph()
-        pG.add_edge_data(cu_M,
-                         type_name="edge",
-                         vertex_col_names=("0", "1"),
-                         property_columns=None)
+    pG = PropertyGraph()
+    pG.add_edge_data(cu_M,
+                     type_name="edge",
+                     vertex_col_names=("0", "1"),
+                     property_columns=None)
 
-        gstore = cugraph.gnn.CuGraphStore(graph=pG)
+    gstore = cugraph.gnn.CuGraphStore(graph=pG)
 
-        gstore.ndata
+    ndata = gstore.ndata
+
+    assert ndata.shape[0] > 0
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
