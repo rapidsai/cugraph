@@ -16,7 +16,9 @@ from pylibcugraph.experimental import (ResourceHandle,
                                        SGGraph,
                                        katz_centrality
                                        )
-from cugraph.utilities import ensure_cugraph_obj_for_nx
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               )
 import cudf
 
 
@@ -96,7 +98,7 @@ def katz_centrality_2(
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
         df.sort_values("vertex")
-    
+
     if isNx is True:
         dict = df_score_to_dictionary(df, "katz_centrality")
         return dict
