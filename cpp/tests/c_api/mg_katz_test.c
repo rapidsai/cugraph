@@ -48,7 +48,7 @@ int generic_katz_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_t* betas_view = NULL;
 
   ret_code = create_mg_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
+    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
