@@ -114,8 +114,8 @@ class CuGraphStore:
         all_children = cupy.ndarray(0)
         # filter and get a certain size neighborhood
         for i in range(1, len(seeds_offsets)):
-            pos0 = seeds_offsets[i-1]
-            pos1 = seeds_offsets[i]
+            pos0 = seeds_offsets.values_host[i-1]
+            pos1 = seeds_offsets.values_host[i]
             edge_list = ego_edge_list[pos0:pos1]
             # get randomness fanout
             filtered_list = edge_list[edge_list['dst'] == current_seeds[i-1]]
