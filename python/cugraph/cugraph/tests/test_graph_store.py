@@ -76,9 +76,9 @@ def test_node_data_pg(graph_file):
 
     gstore = cugraph.gnn.CuGraphStore(graph=pG)
 
-    ndata = gstore.ndata
+    edata = gstore.edata
 
-    assert ndata.shape[0] > 0
+    assert edata.shape[0] > 0
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
