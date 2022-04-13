@@ -65,7 +65,8 @@ cdef renumber_helper(shuffled_vertices_t* ptr_maj_min_w, vertex_t, weights):
             move(pair_s_weights.first), weight_t, "shuffled_weights")
         if shuffled_weights_series is None:
             shuffled_df['value']= cudf.Series(dtype=weight_t)
-        shuffled_df['value']= shuffled_weights_series
+        else:
+            shuffled_df['value']= shuffled_weights_series
 
     return shuffled_df
 
@@ -176,7 +177,8 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                            <int*>c_major_vertices,
                                                                            <int*>c_minor_vertices,
                                                                            <float*>c_edge_weights,
-                                                                           num_local_edges).release())
+                                                                           num_local_edges,
+                                                                           weights is not None).release())
                     shuffled_df = renumber_helper(ptr_shuffled_32_32_32.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
                     minor_vertices = shuffled_df['minor_vertices']
@@ -245,7 +247,8 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                             <int*>c_major_vertices,
                                                                             <int*>c_minor_vertices,
                                                                             <double*>c_edge_weights,
-                                                                            num_local_edges).release())
+                                                                            num_local_edges,
+                                                                            weights is not None).release())
 
                     shuffled_df = renumber_helper(ptr_shuffled_32_32_64.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
@@ -317,7 +320,8 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                             <int*>c_major_vertices,
                                                                             <int*>c_minor_vertices,
                                                                             <float*>c_edge_weights,
-                                                                            num_local_edges).release())
+                                                                            num_local_edges,
+                                                                            weights is not None).release())
 
                     shuffled_df = renumber_helper(ptr_shuffled_32_64_32.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
@@ -387,7 +391,8 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                              <int*>c_major_vertices,
                                                                              <int*>c_minor_vertices,
                                                                              <double*>c_edge_weights,
-                                                                             num_local_edges).release())
+                                                                             num_local_edges,
+                                                                             weights is not None).release())
 
                     shuffled_df = renumber_helper(ptr_shuffled_32_64_64.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
@@ -459,7 +464,8 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                             <long*>c_major_vertices,
                                                                             <long*>c_minor_vertices,
                                                                             <float*>c_edge_weights,
-                                                                            num_local_edges).release())
+                                                                            num_local_edges,
+                                                                            weights is not None).release())
 
                     shuffled_df = renumber_helper(ptr_shuffled_64_64_32.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
@@ -530,7 +536,8 @@ def renumber(input_df,           # maybe use cpdef ?
                                                                               <long*>c_major_vertices,
                                                                               <long*>c_minor_vertices,
                                                                               <double*>c_edge_weights,
-                                                                              num_local_edges).release())
+                                                                              num_local_edges,
+                                                                              weights is not None).release())
 
                     shuffled_df = renumber_helper(ptr_shuffled_64_64_64.get(), vertex_t, weights)
                     major_vertices = shuffled_df['major_vertices']
