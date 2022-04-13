@@ -88,3 +88,14 @@ def experimental_warning_wrapper(obj):
     warning_wrapper_function.__name__ = obj_name
 
     return warning_wrapper_function
+
+
+def deprecation_warning(obj):
+    obj_type = type(obj)
+    if obj_type not in [type, types.FunctionType, types.BuiltinFunctionType]:
+        raise TypeError("obj must be a class or a function type, got "
+                        f"{obj_type}")
+
+    obj_name = obj.__name__
+    obj_name = obj_name.lstrip(experimental_prefix)
+    obj_name = obj_name.lstrip("__")

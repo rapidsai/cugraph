@@ -17,3 +17,7 @@ from .components._connectivity import (
 )
 
 from . import experimental
+
+from .hits import (
+    EXPERIMENTAL__hits as hits
+)
