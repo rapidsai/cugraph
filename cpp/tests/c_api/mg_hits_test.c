@@ -50,14 +50,22 @@ int generic_hits_test(const cugraph_resource_handle_t* p_handle,
   cugraph_hits_result_t* p_result = NULL;
 
   ret_code = create_mg_test_graph(
-    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
+    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   if (h_initial_vertices == NULL) {
-    ret_code = cugraph_hits(
-      p_handle, p_graph, epsilon, max_iterations, NULL, NULL, normalize, FALSE, &p_result, &ret_error);
+    ret_code = cugraph_hits(p_handle,
+                            p_graph,
+                            epsilon,
+                            max_iterations,
+                            NULL,
+                            NULL,
+                            normalize,
+                            FALSE,
+                            &p_result,
+                            &ret_error);
   } else {
     int rank = cugraph_resource_handle_get_rank(p_handle);
 
@@ -90,8 +98,16 @@ int generic_hits_test(const cugraph_resource_handle_t* p_handle,
       p_handle, initial_hubs_view, (byte_t*)h_initial_hubs, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
 
-    ret_code = cugraph_hits(
-      p_handle, p_graph, epsilon, max_iterations, initial_vertices_view, initial_hubs_view, normalize, FALSE, &p_result, &ret_error);
+    ret_code = cugraph_hits(p_handle,
+                            p_graph,
+                            epsilon,
+                            max_iterations,
+                            initial_vertices_view,
+                            initial_hubs_view,
+                            normalize,
+                            FALSE,
+                            &p_result,
+                            &ret_error);
   }
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_hits failed.");
@@ -212,17 +228,17 @@ int test_hits_with_transpose(const cugraph_resource_handle_t* handle)
 
 int test_hits_with_initial(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 8;
-  size_t num_vertices = 6;
+  size_t num_edges        = 8;
+  size_t num_vertices     = 6;
   size_t num_initial_hubs = 5;
 
-  vertex_t h_src[]         = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_dst[]         = {1, 3, 4, 0, 1, 3, 5, 5};
-  weight_t h_wgt[]         = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_hubs[]        = {0.347296, 0.532089, 1, 0.00000959, 0.00000959, 0};
-  weight_t h_authorities[] = {0.652704, 0.879385, 0, 1, 0.347296, 0.00002428};
-  vertex_t h_initial_vertices[] = { 0, 1, 2, 3, 4 };
-  weight_t h_initial_hubs[]        = {0.347296, 0.532089, 1, 0.00003608, 0.00003608};
+  vertex_t h_src[]              = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]              = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]              = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  weight_t h_hubs[]             = {0.347296, 0.532089, 1, 0.00000959, 0.00000959, 0};
+  weight_t h_authorities[]      = {0.652704, 0.879385, 0, 1, 0.347296, 0.00002428};
+  vertex_t h_initial_vertices[] = {0, 1, 2, 3, 4};
+  weight_t h_initial_hubs[]     = {0.347296, 0.532089, 1, 0.00003608, 0.00003608};
 
   double epsilon        = 0.0001;
   size_t max_iterations = 20;

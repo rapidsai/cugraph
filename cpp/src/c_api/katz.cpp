@@ -98,7 +98,7 @@ struct katz_functor : public cugraph::c_api::abstract_functor {
         cugraph::detail::sequence_fill(handle_.get_stream(),
                                        betas_vertex_ids.data(),
                                        betas_vertex_ids.size(),
-                                       graph_view.local_vertex_partition_range_size());
+                                       graph_view.local_vertex_partition_range_first());
 
         betas.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
 

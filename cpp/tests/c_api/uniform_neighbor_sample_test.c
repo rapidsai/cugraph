@@ -58,7 +58,7 @@ int generic_uniform_neighbor_sample_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, renumber, &graph, &ret_error);
+    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, renumber, FALSE, &graph, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   ret_code =

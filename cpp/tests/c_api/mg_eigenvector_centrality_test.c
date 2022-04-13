@@ -26,33 +26,34 @@ typedef int32_t edge_t;
 typedef float weight_t;
 
 int generic_eigenvector_centrality_test(const cugraph_resource_handle_t* handle,
-                          vertex_t* h_src,
-                          vertex_t* h_dst,
-                          weight_t* h_wgt,
-                          weight_t* h_result,
-                          size_t num_vertices,
-                          size_t num_edges,
-                          bool_t store_transposed,
-                          double alpha,
-                          double epsilon,
-                          size_t max_iterations)
+                                        vertex_t* h_src,
+                                        vertex_t* h_dst,
+                                        weight_t* h_wgt,
+                                        weight_t* h_result,
+                                        size_t num_vertices,
+                                        size_t num_edges,
+                                        bool_t store_transposed,
+                                        double alpha,
+                                        double epsilon,
+                                        size_t max_iterations)
 {
   int test_ret_value = 0;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_graph_t* p_graph            = NULL;
+  cugraph_graph_t* p_graph              = NULL;
   cugraph_centrality_result_t* p_result = NULL;
 
   ret_code = create_mg_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, &p_graph, &ret_error);
+    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
   ret_code = cugraph_eigenvector_centrality(
     handle, p_graph, epsilon, max_iterations, FALSE, &p_result, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_eigenvector_centrality failed.");
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_eigenvector_centrality failed.");
 
   // NOTE: Because we get back vertex ids and centralities, we can simply compare
   //       the returned values with the expected results for the entire
@@ -61,7 +62,7 @@ int generic_eigenvector_centrality_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_t* vertices;
   cugraph_type_erased_device_array_view_t* centralities;
 
-  vertices  = cugraph_centrality_result_get_vertices(p_result);
+  vertices     = cugraph_centrality_result_get_vertices(p_result);
   centralities = cugraph_centrality_result_get_values(p_result);
 
   vertex_t h_vertices[num_vertices];
@@ -106,16 +107,16 @@ int test_eigenvector_centrality(const cugraph_resource_handle_t* handle)
 
   // Pagerank wants store_transposed = TRUE
   return generic_eigenvector_centrality_test(handle,
-                               h_src,
-                               h_dst,
-                               h_wgt,
-                               h_result,
-                               num_vertices,
-                               num_edges,
-                               TRUE,
-                               alpha,
-                               epsilon,
-                               max_iterations);
+                                             h_src,
+                                             h_dst,
+                                             h_wgt,
+                                             h_result,
+                                             num_vertices,
+                                             num_edges,
+                                             TRUE,
+                                             alpha,
+                                             epsilon,
+                                             max_iterations);
 }
 
 /******************************************************************************/

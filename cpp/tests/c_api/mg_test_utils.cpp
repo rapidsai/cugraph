@@ -103,6 +103,7 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
                                     float* h_wgt,
                                     size_t num_edges,
                                     bool_t store_transposed,
+                                    bool_t is_symmetric,
                                     cugraph_graph_t** p_graph,
                                     cugraph_error_t** ret_error)
 {
@@ -110,7 +111,7 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
   cugraph_error_code_t ret_code;
   cugraph_graph_properties_t properties;
 
-  properties.is_symmetric  = FALSE;
+  properties.is_symmetric  = is_symmetric;
   properties.is_multigraph = FALSE;
 
   data_type_id_t vertex_tid = INT32;
