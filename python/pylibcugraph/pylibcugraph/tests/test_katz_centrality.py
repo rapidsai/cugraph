@@ -61,10 +61,12 @@ def _generic_katz_test(src_arr,
                                                do_expensive_check=False)
 
     result_arr = result_arr.get()
+    vertices = vertices.get()
     centralities = centralities.get()
 
     for idx in range(num_vertices):
-        expected_result = result_arr[idx]
+        vertex_id = vertices[idx]
+        expected_result = result_arr[vertex_id]
         actual_result = centralities[idx]
         if pytest.approx(expected_result, 1e-4) != actual_result:
             raise ValueError(f"Vertex {idx} has centrality {actual_result}"

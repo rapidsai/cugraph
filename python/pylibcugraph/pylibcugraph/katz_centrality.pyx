@@ -97,7 +97,7 @@ def EXPERIMENTAL__katz_centrality(EXPERIMENTAL__ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* betas_ptr
     
     if betas is not None:
-        cai_betas_ptr = betas.__cuda_array_interface_["data"][0]
+        cai_betas_ptr = betas.__cuda_array_interface__["data"][0]
         betas_ptr = \
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_betas_ptr,

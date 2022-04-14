@@ -23,7 +23,7 @@ import cudf
 
 
 def katz_centrality_2(
-    G, alpha=0.1, beta=1.0, max_iter=1000, tol=1.0e-6,
+    G, alpha=None, beta=1.0, max_iter=1000, tol=1.0e-6,
     nstart=None, normalized=True
 ):
     """
@@ -42,11 +42,31 @@ def katz_centrality_2(
     ----------
     G : cuGraph.Graph or networkx.Graph
 
-    alpha : float, optional (default=0.1)
+    alpha : float, optional (default=None)
+        Attenuation factor defaulted to None. If alpha is not specified then
+        it is internally calculated as 1/(degree_max) where degree_max is the
+        maximum out degree.
+
+        NOTE:
+            The maximum acceptable value of alpha for convergence
+            alpha_max = 1/(lambda_max) where lambda_max is the largest
+            eigenvalue of the graph.
+            Since lambda_max is always lesser than or equal to degree_max for a
+            graph, alpha_max will always be greater than or equal to
+            (1/degree_max). Therefore, setting alpha to (1/degree_max) will
+            guarantee that it will never exceed alpha_max thus in turn
+            fulfilling the requirement for convergence.
 
     beta : float, optional (default=1.0)
+        Weight scalar added to each vertex's new Katz Centrality score in every
+        iteration
 
     max_iter : int, optional (default=1000)
+        The maximum number of iterations before an answer is returned. This can
+        be used to limit the execution time and do an early exit before the
+        solver reaches the convergence tolerance.
+        If this value is lower or equal to 0 cuGraph will use the default
+        value, which is 1000.
 
     tol : float, optional (default=1e-6)
 
@@ -72,10 +92,28 @@ def katz_centrality_2(
     """
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
+    # breakpoint()
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
-    weights = G.edgelist.edgelist_df['weights']
-    # breakpoint()
+    if 'weights' in G.edgelist.edgelist_df.columns:
+        weights = G.edgelist.edgelist_df['weights']
+    else:
+        weights = cudf.Series((srcs + 1) / (srcs + 1), dtype=srcs.dtype)
+
+    if alpha is None or alpha <= 0.0:
+        largest_out_degree = G.degrees().nlargest(n=1, columns="out_degree")
+        largest_out_degree = largest_out_degree["out_degree"].iloc[0]
+        alpha = 1 / (largest_out_degree + 1)
+
+    if nstart is not None:
+        if G.renumbered is True:
+            if len(G.renumber_map.implementation.col_names) > 1:
+                cols = nstart.columns[:-1].to_list()
+            else:
+                cols = 'vertex'
+            nstart = G.add_internal_vertex_id(nstart, 'vertex', cols)
+            nstart = nstart[nstart.columns[0]]
+
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_multigraph=G.is_multigraph())
     store_transposed = False
@@ -91,13 +129,13 @@ def katz_centrality_2(
 
     vertices = cudf.Series(vertices)
     values = cudf.Series(values)
-    # breakpoint()
+
     df = cudf.DataFrame()
     df["vertex"] = vertices
     df["katz_centrality"] = values
+
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
-        df.sort_values("vertex")
 
     if isNx is True:
         dict = df_score_to_dictionary(df, "katz_centrality")
