@@ -12,4 +12,4 @@ Random Walks
 
    cugraph.random_walks
    cugraph.ego_graph
-   cugraph.dask.sampling.neighborhood_sampling.EXPERIMENTAL__uniform_neighborhood
+   cugraph.experimental.dask.uniform_neighborhood_sampling
