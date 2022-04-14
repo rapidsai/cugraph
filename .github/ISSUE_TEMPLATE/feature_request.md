@@ -24,5 +24,5 @@ _For Developers below this line_
   - [] Code in pylibcugraph Python layer
   - [] Code in cugraph Python layer
   - [] Documentation
-  - [] Test cases at each layer
+  - [] Test cases at each layer (for MG tests, a note in the PR description indicating the new/existing MG tests were run and passed)
 
