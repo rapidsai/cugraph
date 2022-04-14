@@ -159,7 +159,7 @@ def test_sample_neighbors(graph_file):
 
     sampled_nodes = nodes[:5]
 
-    parents_list, children_list = gstore.sample_neighbors(sampled_nodes)
+    parents_list, children_list = gstore.sample_neighbors(sampled_nodes, 2)
 
     assert len(parents_list) > 0
 
