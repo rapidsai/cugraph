@@ -18,8 +18,6 @@ from pylibcugraph.experimental import (ResourceHandle,
                                        GraphProperties,
                                        SGGraph,
                                        katz_centrality)
-# from cugraph.tests import utils
-# import cugraph
 
 
 # =============================================================================
@@ -29,7 +27,7 @@ def _get_param_args(param_name, param_values):
     """
     Returns a tuple of (<param_name>, <pytest.param list>) which can be applied
     as the args to pytest.mark.parametrize(). The pytest.param list also
-    contains param id string formed from teh param name and values.
+    contains param id string formed from the param name and values.
     """
     return (param_name,
             [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
