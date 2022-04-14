@@ -27,7 +27,14 @@ def katz_centrality(
     nstart=None, normalized=True
 ):
     """
-    Compute the Katz centrality for the nodes of the graph G.
+    Compute the Katz centrality for the nodes of the graph G. This
+    implementation is based on a relaxed version of Katz defined by Foster
+    with a reduced computational complexity of O(n+m)
+
+    On a directed graph, cuGraph computes the out-edge Katz centrality score.
+    This is opposite of NetworkX which compute the in-edge Katz centrality
+    score by default.  You can flip the NetworkX edges, using G.reverse,
+    so that the results match cuGraph.
 
     References
     ----------
@@ -41,6 +48,8 @@ def katz_centrality(
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
+        cuGraph graph descriptor with connectivity information. The graph can
+        contain either directed or undirected edges.
 
     alpha : float, optional (default=None)
         Attenuation factor defaulted to None. If alpha is not specified then
@@ -69,6 +78,13 @@ def katz_centrality(
         value, which is 1000.
 
     tol : float, optional (default=1e-6)
+        Set the tolerance the approximation, this parameter should be a small
+        magnitude value.
+        The lower the tolerance the better the approximation. If this value is
+        0.0f, cuGraph will use the default value which is 1.0e-6.
+        Setting too small a tolerance can lead to non-convergence due to
+        numerical roundoff. Usually values between 1e-2 and 1e-6 are
+        acceptable.
 
     nstart : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the initial guess for katz centrality.
@@ -80,6 +96,16 @@ def katz_centrality(
 
     normalized : bool, optional, default=True
         If True normalize the resulting katz centrality values
+
+    Returns
+    -------
+    df : cudf.DataFrame or Dictionary if using NetworkX
+        GPU data frame containing two cudf.Series of size V: the vertex
+        identifiers and the corresponding katz centrality values.
+        df['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        df['katz_centrality'] : cudf.Series
+            Contains the katz centrality of vertices
 
     Examples
     --------
