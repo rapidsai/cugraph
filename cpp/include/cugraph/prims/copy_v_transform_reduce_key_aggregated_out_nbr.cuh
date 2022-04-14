@@ -191,7 +191,7 @@ struct reduce_with_init_t {
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
  * @param init Initial value to be added to the reduced @p reduce_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
- * first (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
+ * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
  * graph_view.local_vertex_partition_range_size().
  */

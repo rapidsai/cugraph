@@ -976,12 +976,12 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
- * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
+ * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
  * graph_view.local_vertex_partition_range_size().
  * @param v_op Ternary operator takes (tagged-)vertex ID, *(@p vertex_value_input_first + i) (where
  * i is [0, @p graph_view.local_vertex_partition_range_size())) and reduced value of the @p e_op
- * outputs for this vertex and returns the target bucket index (for frontier update) and new verrtex
+ * outputs for this vertex and returns the target bucket index (for frontier update) and new vertex
  * property values (to update *(@p vertex_value_output_first + i)). The target bucket index should
  * either be VertexFrontierType::kInvalidBucketIdx or an index in @p next_frontier_bucket_indices.
  */

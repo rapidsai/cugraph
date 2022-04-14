@@ -42,17 +42,17 @@ int generic_bfs_test(vertex_t* h_src,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error    = NULL;
 
-  cugraph_resource_handle_t* p_handle           = NULL;
-  cugraph_graph_t* p_graph                      = NULL;
-  cugraph_paths_result_t* p_result              = NULL;
-  cugraph_type_erased_device_array_t* p_sources = NULL;
+  cugraph_resource_handle_t* p_handle                    = NULL;
+  cugraph_graph_t* p_graph                               = NULL;
+  cugraph_paths_result_t* p_result                       = NULL;
+  cugraph_type_erased_device_array_t* p_sources          = NULL;
   cugraph_type_erased_device_array_view_t* p_source_view = NULL;
 
   p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
-                               p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
+    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &p_graph, &ret_error);
 
   /*
    * FIXME: in create_graph_test.c, variables are defined but then hard-coded to
