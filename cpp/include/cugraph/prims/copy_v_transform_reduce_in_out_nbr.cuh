@@ -44,7 +44,7 @@ namespace cugraph {
 
 namespace detail {
 
-int32_t constexpr copy_v_transform_reduce_nbr_for_all_block_size = 512;
+int32_t constexpr copy_v_transform_reduce_nbr_kernel_block_size = 512;
 
 template <bool update_major,
           typename GraphViewType,
@@ -56,7 +56,7 @@ template <bool update_major,
           ,
           typename EdgeOp,
           typename T>
-__global__ void for_all_major_for_all_nbr_hypersparse(
+__global__ void copy_v_transform_reduce_nbr_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -169,7 +169,7 @@ template <bool update_major,
           ,
           typename EdgeOp,
           typename T>
-__global__ void for_all_major_for_all_nbr_low_degree(
+__global__ void copy_v_transform_reduce_nbr_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -281,7 +281,7 @@ template <bool update_major,
           ,
           typename EdgeOp,
           typename T>
-__global__ void for_all_major_for_all_nbr_mid_degree(
+__global__ void copy_v_transform_reduce_nbr_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -300,7 +300,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   using e_op_result_t = T;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  static_assert(copy_v_transform_reduce_nbr_for_all_block_size % raft::warp_size() == 0);
+  static_assert(copy_v_transform_reduce_nbr_kernel_block_size % raft::warp_size() == 0);
   auto const lane_id = tid % raft::warp_size();
   auto major_start_offset =
     static_cast<size_t>(major_range_first - edge_partition.major_range_first());
@@ -308,7 +308,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
 
   using WarpReduce = cub::WarpReduce<e_op_result_t>;
   [[maybe_unused]] __shared__ typename WarpReduce::TempStorage
-    temp_storage[copy_v_transform_reduce_nbr_for_all_block_size /
+    temp_storage[copy_v_transform_reduce_nbr_kernel_block_size /
                  raft::warp_size()];  // relevant only if update_major == true
 
   [[maybe_unused]] property_op<e_op_result_t, thrust::plus>
@@ -376,7 +376,7 @@ template <bool update_major,
           ,
           typename EdgeOp,
           typename T>
-__global__ void for_all_major_for_all_nbr_high_degree(
+__global__ void copy_v_transform_reduce_nbr_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -399,7 +399,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   auto idx = static_cast<size_t>(blockIdx.x);
 
   using BlockReduce =
-    cub::BlockReduce<e_op_result_t, copy_v_transform_reduce_nbr_for_all_block_size>;
+    cub::BlockReduce<e_op_result_t, copy_v_transform_reduce_nbr_kernel_block_size>;
   [[maybe_unused]] __shared__
     typename BlockReduce::TempStorage temp_storage;  // relevant only if update_major == true
 
@@ -650,7 +650,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
             : handle.get_stream();
         if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the
                                        // hypersparse segment in
-                                       // for_all_major_for_all_nbr_hypersparse
+                                       // copy_v_transform_reduce_nbr_hypersparse
           thrust::fill(rmm::exec_policy(exec_stream),
                        output_buffer + (*segment_offsets)[3],
                        output_buffer + (*segment_offsets)[4],
@@ -658,11 +658,11 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
         }
         if (*(edge_partition.dcs_nzd_vertex_count()) > 0) {
           raft::grid_1d_thread_t update_grid(*(edge_partition.dcs_nzd_vertex_count()),
-                                             detail::copy_v_transform_reduce_nbr_for_all_block_size,
+                                             detail::copy_v_transform_reduce_nbr_kernel_block_size,
                                              handle.get_device_properties().maxGridSize[0]);
           auto segment_output_buffer = output_buffer;
           if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[3]; }
-          detail::for_all_major_for_all_nbr_hypersparse<update_major, GraphViewType>
+          detail::copy_v_transform_reduce_nbr_hypersparse<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
               edge_partition,
               edge_partition.major_range_first() + (*segment_offsets)[3],
@@ -679,11 +679,11 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                                                                   (*stream_pool_indices).size())
                              : handle.get_stream();
         raft::grid_1d_thread_t update_grid((*segment_offsets)[3] - (*segment_offsets)[2],
-                                           detail::copy_v_transform_reduce_nbr_for_all_block_size,
+                                           detail::copy_v_transform_reduce_nbr_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
         auto segment_output_buffer = output_buffer;
         if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[2]; }
-        detail::for_all_major_for_all_nbr_low_degree<update_major, GraphViewType>
+        detail::copy_v_transform_reduce_nbr_low_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[2],
@@ -700,11 +700,11 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                                                                   (*stream_pool_indices).size())
                              : handle.get_stream();
         raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
-                                         detail::copy_v_transform_reduce_nbr_for_all_block_size,
+                                         detail::copy_v_transform_reduce_nbr_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
         auto segment_output_buffer = output_buffer;
         if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[1]; }
-        detail::for_all_major_for_all_nbr_mid_degree<update_major, GraphViewType>
+        detail::copy_v_transform_reduce_nbr_mid_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[1],
@@ -721,9 +721,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
                                                                   (*stream_pool_indices).size())
                              : handle.get_stream();
         raft::grid_1d_block_t update_grid((*segment_offsets)[1],
-                                          detail::copy_v_transform_reduce_nbr_for_all_block_size,
+                                          detail::copy_v_transform_reduce_nbr_kernel_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
-        detail::for_all_major_for_all_nbr_high_degree<update_major, GraphViewType>
+        detail::copy_v_transform_reduce_nbr_high_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             edge_partition,
             edge_partition.major_range_first(),
@@ -737,9 +737,9 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
     } else {
       if (edge_partition.major_range_size() > 0) {
         raft::grid_1d_thread_t update_grid(edge_partition.major_range_size(),
-                                           detail::copy_v_transform_reduce_nbr_for_all_block_size,
+                                           detail::copy_v_transform_reduce_nbr_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-        detail::for_all_major_for_all_nbr_low_degree<update_major, GraphViewType>
+        detail::copy_v_transform_reduce_nbr_low_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first(),
@@ -914,7 +914,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
  * value to be reduced.
  * @param init Initial value to be added to the reduced @p e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
- * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
+ * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
  * graph_view.local_vertex_partition_range_size().
  */
@@ -975,7 +975,7 @@ void copy_v_transform_reduce_in_nbr(
  * value to be reduced.
  * @param init Initial value to be added to the reduced @p e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
- * first (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
+ * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
  * graph_view.local_vertex_partition_range_size().
  */

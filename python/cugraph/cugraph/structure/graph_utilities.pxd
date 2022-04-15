@@ -182,7 +182,8 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
         vertex_t *edgelist_major_vertices,
         vertex_t *edgelist_minor_vertices,
         weight_t* edgelist_weights,
-        edge_t num_edges) except +
+        edge_t num_edges,
+        bool is_weighted) except +
 
 # 5. `renumber_edgelist()` wrapper
 #

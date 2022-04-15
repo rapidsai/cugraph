@@ -25,35 +25,44 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-int generic_eigenvector_centrality_test(const cugraph_resource_handle_t* handle,
-                                        vertex_t* h_src,
-                                        vertex_t* h_dst,
-                                        weight_t* h_wgt,
-                                        weight_t* h_result,
-                                        size_t num_vertices,
-                                        size_t num_edges,
-                                        bool_t store_transposed,
-                                        double alpha,
-                                        double epsilon,
-                                        size_t max_iterations)
+int generic_katz_test(const cugraph_resource_handle_t* handle,
+                      vertex_t* h_src,
+                      vertex_t* h_dst,
+                      weight_t* h_wgt,
+                      weight_t* h_result,
+                      size_t num_vertices,
+                      size_t num_edges,
+                      bool_t store_transposed,
+                      double alpha,
+                      double beta,
+                      double epsilon,
+                      size_t max_iterations)
 {
   int test_ret_value = 0;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_graph_t* p_graph              = NULL;
+  cugraph_graph_t* p_graph            = NULL;
   cugraph_centrality_result_t* p_result = NULL;
+  cugraph_type_erased_device_array_view_t* betas_view = NULL;
 
   ret_code = create_mg_test_graph(
     handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
-  ret_code = cugraph_eigenvector_centrality(
-    handle, p_graph, epsilon, max_iterations, FALSE, &p_result, &ret_error);
-  TEST_ASSERT(
-    test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_eigenvector_centrality failed.");
+  ret_code = cugraph_katz_centrality(handle,
+                                     p_graph,
+                                     betas_view,
+                                     alpha,
+                                     beta,
+                                     epsilon,
+                                     max_iterations,
+                                     FALSE,
+                                     &p_result,
+                                     &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_katz_centrality failed.");
 
   // NOTE: Because we get back vertex ids and centralities, we can simply compare
   //       the returned values with the expected results for the entire
@@ -62,7 +71,7 @@ int generic_eigenvector_centrality_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_t* vertices;
   cugraph_type_erased_device_array_view_t* centralities;
 
-  vertices     = cugraph_centrality_result_get_vertices(p_result);
+  vertices  = cugraph_centrality_result_get_vertices(p_result);
   centralities = cugraph_centrality_result_get_values(p_result);
 
   vertex_t h_vertices[num_vertices];
@@ -81,7 +90,7 @@ int generic_eigenvector_centrality_test(const cugraph_resource_handle_t* handle,
   for (int i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(h_result[h_vertices[i]], h_centralities[i], 0.001),
-                "eigenvector centrality results don't match");
+                "katz centrality results don't match");
   }
 
   cugraph_centrality_result_free(p_result);
@@ -91,7 +100,7 @@ int generic_eigenvector_centrality_test(const cugraph_resource_handle_t* handle,
   return test_ret_value;
 }
 
-int test_eigenvector_centrality(const cugraph_resource_handle_t* handle)
+int test_katz(const cugraph_resource_handle_t* handle)
 {
   size_t num_edges    = 8;
   size_t num_vertices = 6;
@@ -99,24 +108,26 @@ int test_eigenvector_centrality(const cugraph_resource_handle_t* handle)
   vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5};
   weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = {0.0915528, 0.168382, 0.0656831, 0.191468, 0.120677, 0.362237};
+  weight_t h_result[] = {0.410614, 0.403211, 0.390689, 0.415175, 0.395125, 0.433226};
 
-  double alpha          = 0.95;
-  double epsilon        = 0.0001;
-  size_t max_iterations = 20;
+  double alpha          = 0.01;
+  double beta           = 1.0;
+  double epsilon        = 0.000001;
+  size_t max_iterations = 1000;
 
-  // Pagerank wants store_transposed = TRUE
-  return generic_eigenvector_centrality_test(handle,
-                                             h_src,
-                                             h_dst,
-                                             h_wgt,
-                                             h_result,
-                                             num_vertices,
-                                             num_edges,
-                                             TRUE,
-                                             alpha,
-                                             epsilon,
-                                             max_iterations);
+  // Katz wants store_transposed = TRUE
+  return generic_katz_test(handle,
+                           h_src,
+                           h_dst,
+                           h_wgt,
+                           h_result,
+                           num_vertices,
+                           num_edges,
+                           TRUE,
+                           alpha,
+                           beta,
+                           epsilon,
+                           max_iterations);
 }
 
 /******************************************************************************/
@@ -141,23 +152,11 @@ int main(int argc, char** argv)
   C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
   C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
 
-#if 0
-  // TODO:  Need something a bit more sophisticated for bigger systems
-  prows = (int)sqrt((double)comm_size);
-  while (comm_size % prows != 0) {
-    --prows;
-  }
-
-  ret_code = cugraph_resource_handle_init_comms(handle, prows, &ret_error);
-  TEST_ASSERT(result, ret_code == CUGRAPH_SUCCESS, "handle create failed.");
-  TEST_ASSERT(result, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-#endif
-
   void* raft_handle = create_raft_handle(prows);
   handle            = cugraph_create_resource_handle(raft_handle);
 
   if (result == 0) {
-    result |= RUN_MG_TEST(test_eigenvector_centrality, handle);
+    result |= RUN_MG_TEST(test_katz, handle);
 
     cugraph_free_resource_handle(handle);
   }
