@@ -19,7 +19,7 @@ import pandas as pd
 import cupy as cp
 from scipy.sparse import coo_matrix, csr_matrix
 
-from . import utils
+from pylibcugraph.testing import utils
 
 
 # =============================================================================

@@ -17,7 +17,7 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from

@@ -18,7 +18,7 @@ from pylibcugraph import (ResourceHandle,
                           GraphProperties,
                           SGGraph,
                           node2vec)
-from cugraph.tests import utils
+from cugraph.testing import utils
 import cugraph
 
 
