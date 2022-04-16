@@ -13,8 +13,11 @@
 
 import cudf
 import cugraph
-from cugraph.experimental import EXPERIMENTAL__PropertyGraph as PropertyGraph
+from cugraph.experimental import PropertyGraph
 from cugraph.community.egonet import batched_ego_graphs
+import cupy
+import random
+import numpy as np
 
 
 class CuGraphStore:
@@ -33,11 +36,11 @@ class CuGraphStore:
 
     @property
     def ndata(self):
-        raise NotImplementedError("not yet implemented")
+        return self.__G._vertex_prop_dataframe
 
     @property
     def edata(self):
-        raise NotImplementedError("not yet implemented")
+        return self.__G._edge_prop_dataframe
 
     @property
     def gdata(self):
@@ -97,11 +100,37 @@ class CuGraphStore:
 
         Returns
         -------
-        DGLGraph
-            The sampled subgraph with the same node ID space with the original
-            graph.
+        CuPy array
+            The sampled arrays for bipartite graph.
         """
-        pass
+        num_nodes = len(nodes)
+        current_seeds = nodes.reindex(index=np.arange(0, num_nodes))
+        _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
+                                       allow_multi_edges=True)
+        ego_edge_list, seeds_offsets = batched_ego_graphs(_g,
+                                                          current_seeds,
+                                                          radius=1)
+        all_parents = cupy.ndarray(0)
+        all_children = cupy.ndarray(0)
+        # filter and get a certain size neighborhood
+        for i in range(1, len(seeds_offsets)):
+            pos0 = seeds_offsets.values_host[i-1]
+            pos1 = seeds_offsets.values_host[i]
+            edge_list = ego_edge_list[pos0:pos1]
+            # get randomness fanout
+            filtered_list = edge_list[edge_list['dst'] == current_seeds[i-1]]
+
+            # get sampled_list
+            if len(filtered_list) > fanout:
+                sampled_indices = random.sample(
+                        filtered_list.index.to_arrow().to_pylist(), fanout)
+                filtered_list = filtered_list.reindex(index=sampled_indices)
+
+            children = cupy.asarray(filtered_list['src'])
+            parents = cupy.asarray(filtered_list['dst'])
+            all_parents = cupy.append(all_parents, parents)
+            all_children = cupy.append(all_children, children)
+        return all_parents, all_children
 
     def node_subgraph(self,
                       nodes=None,
