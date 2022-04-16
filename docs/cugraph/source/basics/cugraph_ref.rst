@@ -28,6 +28,13 @@ Betweenness Centrality
 
 Katz
 
+- Katz, L. (1953). *A new status index derived from sociometric analysis*. Psychometrika, 18(1), 39-43.
+- Foster, K.C., Muth, S.Q., Potterat, J.J. et al. *A faster Katz status score algorithm*. Computational & Mathematical Organization Theory (2001) 7: 275.
+
+
+
+K-Truss
+
 - J. Cohen, *Trusses: Cohesive subgraphs for social network analysis* National security agency technical report, 2008
 - O. Green, J. Fox, E. Kim, F. Busato, et al. *Quickly Finding a Truss in a Haystack* IEEE High Performance Extreme Computing Conference (HPEC), 2017 https://doi.org/10.1109/HPEC.2017.8091038
 - O. Green, P. Yalamanchili, L.M. Munguia, *Fast Triangle Counting on GPU* Irregular Applications: Architectures and Algorithms (IA3), 2014
@@ -35,6 +42,18 @@ Katz
 Hungarian Algorithm
 
 - Date, K., & Nagi, R. (2016). GPU-accelerated Hungarian algorithms for the Linear Assignment Problem. Parallel Computing, 57, 52-72.
+
+
+Leiden
+
+- Traag, V. A., Waltman, L., & Van Eck, N. J. (2019). *From Louvain to Leiden: guaranteeing well-connected communities*. Scientific reports, 9(1), 1-12.
+
+Louvain
+
+- VD Blondel, J-L Guillaume, R Lambiotte and E Lefebvre.  *Fast unfolding of community hierarchies in large networks*. J Stat Mech P10008 (2008)
+
+
+
 
 | 
 

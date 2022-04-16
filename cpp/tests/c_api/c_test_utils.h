@@ -50,6 +50,7 @@ int create_test_graph(const cugraph_resource_handle_t* p_handle,
                       size_t num_edges,
                       bool_t store_transposed,
                       bool_t renumber,
+                      bool_t is_symmetric,
                       cugraph_graph_t** p_graph,
                       cugraph_error_t** ret_error);
 

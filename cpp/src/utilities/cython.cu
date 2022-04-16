@@ -1185,7 +1185,8 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
     edgelist_major_vertices,  // [IN / OUT]: groupby_gpu_id_and_shuffle_values() sorts in-place
   vertex_t* edgelist_minor_vertices,  // [IN / OUT]
   weight_t* edgelist_weights,         // [IN / OUT]
-  edge_t num_edgelist_edges)
+  edge_t num_edgelist_edges,
+  bool is_weighted)
 {
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
@@ -1197,7 +1198,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
   std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> ptr_ret =
     std::make_unique<major_minor_weights_t<vertex_t, edge_t, weight_t>>(handle);
 
-  if (edgelist_weights != nullptr) {
+  if (is_weighted) {
     auto zip_edge = thrust::make_zip_iterator(
       thrust::make_tuple(edgelist_major_vertices, edgelist_minor_vertices, edgelist_weights));
 
@@ -1242,7 +1243,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(ptr_ret->get_major().data(), ptr_ret->get_minor().data()));
 
-  auto edge_counts = (edgelist_weights != nullptr)
+  auto edge_counts = (is_weighted)
                        ? cugraph::groupby_and_count(pair_first,
                                                     pair_first + ptr_ret->get_major().size(),
                                                     ptr_ret->get_weights().data(),
@@ -1639,42 +1640,48 @@ template std::unique_ptr<major_minor_weights_t<int32_t, int32_t, float>> call_sh
   int32_t* edgelist_major_vertices,
   int32_t* edgelist_minor_vertices,
   float* edgelist_weights,
-  int32_t num_edgelist_edges);
+  int32_t num_edgelist_edges,
+  bool is_weighted);
 
 template std::unique_ptr<major_minor_weights_t<int32_t, int64_t, float>> call_shuffle(
   raft::handle_t const& handle,
   int32_t* edgelist_major_vertices,
   int32_t* edgelist_minor_vertices,
   float* edgelist_weights,
-  int64_t num_edgelist_edges);
+  int64_t num_edgelist_edges,
+  bool is_weighted);
 
 template std::unique_ptr<major_minor_weights_t<int32_t, int32_t, double>> call_shuffle(
   raft::handle_t const& handle,
   int32_t* edgelist_major_vertices,
   int32_t* edgelist_minor_vertices,
   double* edgelist_weights,
-  int32_t num_edgelist_edges);
+  int32_t num_edgelist_edges,
+  bool is_weighted);
 
 template std::unique_ptr<major_minor_weights_t<int32_t, int64_t, double>> call_shuffle(
   raft::handle_t const& handle,
   int32_t* edgelist_major_vertices,
   int32_t* edgelist_minor_vertices,
   double* edgelist_weights,
-  int64_t num_edgelist_edges);
+  int64_t num_edgelist_edges,
+  bool is_weighted);
 
 template std::unique_ptr<major_minor_weights_t<int64_t, int64_t, float>> call_shuffle(
   raft::handle_t const& handle,
   int64_t* edgelist_major_vertices,
   int64_t* edgelist_minor_vertices,
   float* edgelist_weights,
-  int64_t num_edgelist_edges);
+  int64_t num_edgelist_edges,
+  bool is_weighted);
 
 template std::unique_ptr<major_minor_weights_t<int64_t, int64_t, double>> call_shuffle(
   raft::handle_t const& handle,
   int64_t* edgelist_major_vertices,
   int64_t* edgelist_minor_vertices,
   double* edgelist_weights,
-  int64_t num_edgelist_edges);
+  int64_t num_edgelist_edges,
+  bool is_weighted);
 
 // TODO: add the remaining relevant EIDIr's:
 //

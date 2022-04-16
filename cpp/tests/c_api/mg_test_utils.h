@@ -63,5 +63,6 @@ int create_mg_test_graph(const cugraph_resource_handle_t* p_handle,
                          float* h_wgt,
                          size_t num_edges,
                          bool_t store_transposed,
+                         bool_t is_symmetric,
                          cugraph_graph_t** p_graph,
                          cugraph_error_t** ret_error);
