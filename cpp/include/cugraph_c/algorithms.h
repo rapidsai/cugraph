@@ -373,3 +373,5 @@ void cugraph_sample_result_free(cugraph_sample_result_t* result);
 #ifdef __cplusplus
 }
 #endif
+
+#include <cugraph_c/labeling_algorithms.h>

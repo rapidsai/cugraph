@@ -914,7 +914,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
  * value to be reduced.
  * @param init Initial value to be added to the reduced @p e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
- * (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
+ * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
  * graph_view.local_vertex_partition_range_size().
  */
@@ -975,7 +975,7 @@ void copy_v_transform_reduce_in_nbr(
  * value to be reduced.
  * @param init Initial value to be added to the reduced @p e_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
- * first (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
+ * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
  * graph_view.local_vertex_partition_range_size().
  */
