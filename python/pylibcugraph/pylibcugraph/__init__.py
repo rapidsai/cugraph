@@ -18,6 +18,21 @@ from .components._connectivity import (
 
 from . import experimental
 
-from .hits import (
-    EXPERIMENTAL__hits as hits
+from .graphs import (
+    EXPERIMENTAL__SGGraph as SGGraph,
+    EXPERIMENTAL__MGGraph as MGGraph
 )
+
+from .resource_handle import EXPERIMENTAL__ResourceHandle as ResourceHandle
+
+from .graph_properties import EXPERIMENTAL__GraphProperties as GraphProperties
+
+from .pagerank import EXPERIMENTAL__pagerank as pagerank
+
+from .sssp import EXPERIMENTAL__sssp as sssp
+
+from .hits import EXPERIMENTAL__hits as hits
+
+from .node2vec import EXPERIMENTAL__node2vec as node2vec
+
+from .uniform_neighborhood_sampling import EXPERIMENTAL__uniform_neighborhood_sampling as uniform_neighborhood_sampling

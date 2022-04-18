@@ -28,10 +28,14 @@ API has been promoted and will no longer be importable from experimental much
 longer.
 """
 
-from pylibcugraph.utilities.api_tools import experimental_warning_wrapper
+from pylibcugraph.utilities.api_tools import (experimental_warning_wrapper,
+                                             promoted_experimental_warning_wrapper)
 
 # experimental_warning_wrapper() wraps the object in a function that provides
 # the appropriate warning about using experimental code.
+
+# promoted_experimental_warning_wrapper() is used instead when an object is present
+# in both the experimental namespace and its final, public namespace.
 
 # The convention of naming functions with the "EXPERIMENTAL__" prefix
 # discourages users from directly importing experimental objects that don't have
@@ -39,28 +43,28 @@ from pylibcugraph.utilities.api_tools import experimental_warning_wrapper
 # namespace name provides.
 
 from pylibcugraph.graphs import EXPERIMENTAL__SGGraph
-SGGraph = experimental_warning_wrapper(EXPERIMENTAL__SGGraph)
+SGGraph = promoted_experimental_warning_wrapper(EXPERIMENTAL__SGGraph)
 
 from pylibcugraph.graphs import EXPERIMENTAL__MGGraph
-MGGraph = experimental_warning_wrapper(EXPERIMENTAL__MGGraph)
+MGGraph = promoted_experimental_warning_wrapper(EXPERIMENTAL__MGGraph)
 
 from pylibcugraph.resource_handle import EXPERIMENTAL__ResourceHandle
-ResourceHandle = experimental_warning_wrapper(EXPERIMENTAL__ResourceHandle)
+ResourceHandle = promoted_experimental_warning_wrapper(EXPERIMENTAL__ResourceHandle)
 
 from pylibcugraph.graph_properties import EXPERIMENTAL__GraphProperties
-GraphProperties = experimental_warning_wrapper(EXPERIMENTAL__GraphProperties)
+GraphProperties = promoted_experimental_warning_wrapper(EXPERIMENTAL__GraphProperties)
 
 from pylibcugraph.pagerank import EXPERIMENTAL__pagerank
-pagerank = experimental_warning_wrapper(EXPERIMENTAL__pagerank)
+pagerank = promoted_experimental_warning_wrapper(EXPERIMENTAL__pagerank)
 
 from pylibcugraph.sssp import EXPERIMENTAL__sssp
-sssp = experimental_warning_wrapper(EXPERIMENTAL__sssp)
+sssp = promoted_experimental_warning_wrapper(EXPERIMENTAL__sssp)
 
 from pylibcugraph.hits import EXPERIMENTAL__hits
-hits = experimental_warning_wrapper(EXPERIMENTAL__hits)
+hits = promoted_experimental_warning_wrapper(EXPERIMENTAL__hits)
 
 from pylibcugraph.node2vec import EXPERIMENTAL__node2vec
-node2vec = experimental_warning_wrapper(EXPERIMENTAL__node2vec)
+node2vec = promoted_experimental_warning_wrapper(EXPERIMENTAL__node2vec)
 
 from pylibcugraph.uniform_neighborhood_sampling import EXPERIMENTAL__uniform_neighborhood_sampling
-uniform_neighborhood_sampling = experimental_warning_wrapper(EXPERIMENTAL__uniform_neighborhood_sampling)
+uniform_neighborhood_sampling = promoted_experimental_warning_wrapper(EXPERIMENTAL__uniform_neighborhood_sampling)
