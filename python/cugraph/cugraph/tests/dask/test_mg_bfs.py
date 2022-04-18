@@ -25,7 +25,6 @@ from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 def test_dask_bfs(dask_client):
-    gc.collect()
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "netscience.csv").as_posix()
