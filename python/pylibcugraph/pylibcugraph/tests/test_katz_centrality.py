@@ -18,6 +18,11 @@ from pylibcugraph.experimental import (ResourceHandle,
                                        GraphProperties,
                                        SGGraph,
                                        katz_centrality)
+import pathlib
+import pylibcugraph
+
+
+datasets = pathlib.Path(pylibcugraph.__path__[0]).parent.parent.parent
 
 
 # =============================================================================
@@ -74,13 +79,13 @@ def _generic_katz_test(src_arr,
 def test_katz():
     num_edges = 8
     num_vertices = 6
-    src = cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32)
-    dst = cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32)
-    wgt = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
-                     dtype=np.float32)
+    graph_data = np.genfromtxt(datasets / 'datasets/toy_graph.csv',
+                               delimiter=' ')
+    src = cp.asarray(graph_data[:, 0], dtype=np.int32)
+    dst = cp.asarray(graph_data[:, 1], dtype=np.int32)
+    wgt = cp.asarray(graph_data[:, 2], dtype=np.float32)
     result = cp.asarray([0.410614, 0.403211, 0.390689, 0.415175, 0.395125,
                         0.433226], dtype=np.float32)
-
     alpha = 0.01
     beta = 1.0
     epsilon = 0.000001

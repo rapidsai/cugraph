@@ -116,6 +116,18 @@ def katz_centrality(
     >>> kc = cugraph.katz_centrality(G)
 
     """
+    if (alpha is not None) and (alpha <= 0.0):
+        raise ValueError(f"'alpha' must be a positive float or None, "
+                         f"got: {alpha}")
+    if (not isinstance(beta, float)) or (beta <= 0.0):
+        raise ValueError(f"'beta' must be a positive float, got: {beta}")
+    if (not isinstance(max_iter, int)):
+        raise ValueError(f"'max_iter' must be an integer, got: {max_iter}")
+    elif max_iter <= 0:
+        max_iter = 1000
+    if (not isinstance(tol, float)) or (tol <= 0.0):
+        raise ValueError(f"'tol' must be a positive float, got: {tol}")
+
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     srcs = G.edgelist.edgelist_df['src']
@@ -127,7 +139,7 @@ def katz_centrality(
         # with type hardcoded to float32 is passed into wrapper
         weights = cudf.Series((srcs + 1) / (srcs + 1), dtype="float32")
 
-    if alpha is None or alpha <= 0.0:
+    if alpha is None:
         largest_out_degree = G.degrees().nlargest(n=1, columns="out_degree")
         largest_out_degree = largest_out_degree["out_degree"].iloc[0]
         alpha = 1 / (largest_out_degree + 1)
