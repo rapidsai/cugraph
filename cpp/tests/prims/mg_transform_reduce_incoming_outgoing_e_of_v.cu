@@ -319,7 +319,7 @@ class Tests_MG_TransformReduceIncomingOutgoingEOfV
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG copy v transform reduce in took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG transform_reduce_incoming_e_of_v took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     if (cugraph::test::g_perf) {
@@ -348,7 +348,7 @@ class Tests_MG_TransformReduceIncomingOutgoingEOfV
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG copy v transform reduce out took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG transform_reduce_outgoing_e_of_v took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     //// 4. compare SG & MG results
