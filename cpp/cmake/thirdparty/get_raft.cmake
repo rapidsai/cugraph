@@ -32,6 +32,7 @@ function(find_and_configure_raft)
       BUILD_EXPORT_SET    cugraph-exports
       INSTALL_EXPORT_SET  cugraph-exports
         CPM_ARGS
+            EXCLUDE_FROM_ALL TRUE
             GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
@@ -39,6 +40,7 @@ function(find_and_configure_raft)
                 "RAFT_COMPILE_LIBRARIES OFF"
                 "BUILD_TESTS OFF"
                 "BUILD_BENCH OFF"
+                "RAFT_ENABLE_cuco_DEPENDENCY OFF"
     )
 
     if(raft_ADDED)
@@ -53,8 +55,8 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
-                        FORK       rapidsai
-                        PINNED_TAG branch-${CUGRAPH_BRANCH_VERSION_raft}
+                        FORK       cjnolet
+                        PINNED_TAG build_2206_cuco_distance_component
 
                         # When PINNED_TAG above doesn't match cugraph,
                         # force local raft clone in build directory
