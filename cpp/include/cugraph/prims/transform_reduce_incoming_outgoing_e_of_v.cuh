@@ -44,7 +44,7 @@ namespace cugraph {
 
 namespace detail {
 
-int32_t constexpr transform_reduce_incoming_outgoing_e_of_v_kernel_block_size = 512;
+int32_t constexpr transform_reduce_e_of_v_kernel_block_size = 512;
 
 template <bool update_major,
           typename GraphViewType,
@@ -300,8 +300,7 @@ __global__ void transform_reduce_e_of_v_mid_degree(
   using e_op_result_t = T;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  static_assert(transform_reduce_incoming_outgoing_e_of_v_kernel_block_size % raft::warp_size() ==
-                0);
+  static_assert(transform_reduce_e_of_v_kernel_block_size % raft::warp_size() == 0);
   auto const lane_id = tid % raft::warp_size();
   auto major_start_offset =
     static_cast<size_t>(major_range_first - edge_partition.major_range_first());
@@ -309,7 +308,7 @@ __global__ void transform_reduce_e_of_v_mid_degree(
 
   using WarpReduce = cub::WarpReduce<e_op_result_t>;
   [[maybe_unused]] __shared__ typename WarpReduce::TempStorage
-    temp_storage[transform_reduce_incoming_outgoing_e_of_v_kernel_block_size /
+    temp_storage[transform_reduce_e_of_v_kernel_block_size /
                  raft::warp_size()];  // relevant only if update_major == true
 
   [[maybe_unused]] property_op<e_op_result_t, thrust::plus>
@@ -399,8 +398,7 @@ __global__ void transform_reduce_e_of_v_high_degree(
     static_cast<size_t>(major_range_first - edge_partition.major_range_first());
   auto idx = static_cast<size_t>(blockIdx.x);
 
-  using BlockReduce =
-    cub::BlockReduce<e_op_result_t, transform_reduce_incoming_outgoing_e_of_v_kernel_block_size>;
+  using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_of_v_kernel_block_size>;
   [[maybe_unused]] __shared__
     typename BlockReduce::TempStorage temp_storage;  // relevant only if update_major == true
 
@@ -659,10 +657,9 @@ void transform_reduce_e_of_v(raft::handle_t const& handle,
                        major_init);
         }
         if (*(edge_partition.dcs_nzd_vertex_count()) > 0) {
-          raft::grid_1d_thread_t update_grid(
-            *(edge_partition.dcs_nzd_vertex_count()),
-            detail::transform_reduce_incoming_outgoing_e_of_v_kernel_block_size,
-            handle.get_device_properties().maxGridSize[0]);
+          raft::grid_1d_thread_t update_grid(*(edge_partition.dcs_nzd_vertex_count()),
+                                             detail::transform_reduce_e_of_v_kernel_block_size,
+                                             handle.get_device_properties().maxGridSize[0]);
           auto segment_output_buffer = output_buffer;
           if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[3]; }
           detail::transform_reduce_e_of_v_hypersparse<update_major, GraphViewType>
@@ -681,10 +678,9 @@ void transform_reduce_e_of_v(raft::handle_t const& handle,
                              ? handle.get_stream_from_stream_pool((i * max_segments + 1) %
                                                                   (*stream_pool_indices).size())
                              : handle.get_stream();
-        raft::grid_1d_thread_t update_grid(
-          (*segment_offsets)[3] - (*segment_offsets)[2],
-          detail::transform_reduce_incoming_outgoing_e_of_v_kernel_block_size,
-          handle.get_device_properties().maxGridSize[0]);
+        raft::grid_1d_thread_t update_grid((*segment_offsets)[3] - (*segment_offsets)[2],
+                                           detail::transform_reduce_e_of_v_kernel_block_size,
+                                           handle.get_device_properties().maxGridSize[0]);
         auto segment_output_buffer = output_buffer;
         if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[2]; }
         detail::transform_reduce_e_of_v_low_degree<update_major, GraphViewType>
@@ -703,10 +699,9 @@ void transform_reduce_e_of_v(raft::handle_t const& handle,
                              ? handle.get_stream_from_stream_pool((i * max_segments + 2) %
                                                                   (*stream_pool_indices).size())
                              : handle.get_stream();
-        raft::grid_1d_warp_t update_grid(
-          (*segment_offsets)[2] - (*segment_offsets)[1],
-          detail::transform_reduce_incoming_outgoing_e_of_v_kernel_block_size,
-          handle.get_device_properties().maxGridSize[0]);
+        raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
+                                         detail::transform_reduce_e_of_v_kernel_block_size,
+                                         handle.get_device_properties().maxGridSize[0]);
         auto segment_output_buffer = output_buffer;
         if constexpr (update_major) { segment_output_buffer += (*segment_offsets)[1]; }
         detail::transform_reduce_e_of_v_mid_degree<update_major, GraphViewType>
@@ -725,10 +720,9 @@ void transform_reduce_e_of_v(raft::handle_t const& handle,
                              ? handle.get_stream_from_stream_pool((i * max_segments + 3) %
                                                                   (*stream_pool_indices).size())
                              : handle.get_stream();
-        raft::grid_1d_block_t update_grid(
-          (*segment_offsets)[1],
-          detail::transform_reduce_incoming_outgoing_e_of_v_kernel_block_size,
-          handle.get_device_properties().maxGridSize[0]);
+        raft::grid_1d_block_t update_grid((*segment_offsets)[1],
+                                          detail::transform_reduce_e_of_v_kernel_block_size,
+                                          handle.get_device_properties().maxGridSize[0]);
         detail::transform_reduce_e_of_v_high_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
             edge_partition,
@@ -742,10 +736,9 @@ void transform_reduce_e_of_v(raft::handle_t const& handle,
       }
     } else {
       if (edge_partition.major_range_size() > 0) {
-        raft::grid_1d_thread_t update_grid(
-          edge_partition.major_range_size(),
-          detail::transform_reduce_incoming_outgoing_e_of_v_kernel_block_size,
-          handle.get_device_properties().maxGridSize[0]);
+        raft::grid_1d_thread_t update_grid(edge_partition.major_range_size(),
+                                           detail::transform_reduce_e_of_v_kernel_block_size,
+                                           handle.get_device_properties().maxGridSize[0]);
         detail::transform_reduce_e_of_v_low_degree<update_major, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
