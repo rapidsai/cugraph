@@ -30,7 +30,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
+#include <cugraph/prims/update_frontier_from_outgoing_e_of_v.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 
 #include <raft/comms/comms.hpp>
@@ -86,17 +86,17 @@ struct Prims_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_MG_UpdateFrontierVPushIfOutNbr
+class Tests_MG_UpdateFrontierFromOutgoingEOfV
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
-  Tests_MG_UpdateFrontierVPushIfOutNbr() {}
+  Tests_MG_UpdateFrontierFromOutgoingEOfV() {}
   static void SetupTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of update_frontier_v_push_if_out_nbr primitive
+  // Compare the results of update_frontier_from_outgoing_e_of_v primitive
   template <typename vertex_t, typename edge_t, typename weight_t, typename property_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
@@ -122,7 +122,7 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
     constexpr bool is_multi_gpu = true;
     constexpr bool renumber     = true;  // needs to be true for multi gpu case
     constexpr bool store_transposed =
-      false;  // needs to be false for using update_frontier_v_push_if_out_nbr
+      false;  // needs to be false for using update_frontier_from_outgoing_e_of_v
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle.get_comms().barrier();
@@ -190,7 +190,7 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
     }
 
     // prims call
-    update_frontier_v_push_if_out_nbr(
+    update_frontier_from_outgoing_e_of_v(
       handle,
       mg_graph_view,
       mg_vertex_frontier,
@@ -216,7 +216,8 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG update_frontier_v_push_if_out_nbr took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG update_frontier_from_outgoing_e_of_v took " << elapsed_time * 1e-6
+                << " s.\n";
     }
 
     //// 4. compare SG & MG results
@@ -272,7 +273,7 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
                                                                                      num_buckets);
         sg_vertex_frontier.bucket(bucket_idx_cur).insert(sources.begin(), sources.end());
 
-        update_frontier_v_push_if_out_nbr(
+        update_frontier_from_outgoing_e_of_v(
           handle,
           sg_graph_view,
           sg_vertex_frontier,
@@ -306,19 +307,19 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
   }
 };
 
-using Tests_MG_update_frontier_v_push_if_out_nbr_File =
-  Tests_MG_UpdateFrontierVPushIfOutNbr<cugraph::test::File_Usecase>;
-using Tests_MG_update_frontier_v_push_if_out_nbr_Rmat =
-  Tests_MG_UpdateFrontierVPushIfOutNbr<cugraph::test::Rmat_Usecase>;
+using Tests_MG_UpdateFrontierFromOutgoingEOfV_File =
+  Tests_MG_UpdateFrontierFromOutgoingEOfV<cugraph::test::File_Usecase>;
+using Tests_MG_UpdateFrontierFromOutgoingEOfV_Rmat =
+  Tests_MG_UpdateFrontierFromOutgoingEOfV<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_File, CheckInt32Int32FloatTupleIntFloat)
+TEST_P(Tests_MG_UpdateFrontierFromOutgoingEOfV_File, CheckInt32Int32FloatTupleIntFloat)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(std::get<0>(param),
                                                                        std::get<1>(param));
 }
 
-TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt32Int32FloatTupleIntFloat)
+TEST_P(Tests_MG_UpdateFrontierFromOutgoingEOfV_Rmat, CheckInt32Int32FloatTupleIntFloat)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(
@@ -326,13 +327,13 @@ TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt32Int32FloatTupl
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_File, CheckInt32Int32Float)
+TEST_P(Tests_MG_UpdateFrontierFromOutgoingEOfV_File, CheckInt32Int32Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt32Int32Float)
+TEST_P(Tests_MG_UpdateFrontierFromOutgoingEOfV_Rmat, CheckInt32Int32Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int>(
@@ -340,13 +341,13 @@ TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt32Int32Float)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_File, CheckInt32Int64Float)
+TEST_P(Tests_MG_UpdateFrontierFromOutgoingEOfV_File, CheckInt32Int64Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float, int>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt32Int64Float)
+TEST_P(Tests_MG_UpdateFrontierFromOutgoingEOfV_Rmat, CheckInt32Int64Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float, int>(
@@ -354,13 +355,13 @@ TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt32Int64Float)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_File, CheckInt64Int64Float)
+TEST_P(Tests_MG_UpdateFrontierFromOutgoingEOfV_File, CheckInt64Int64Float)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, int>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt64Int64Float)
+TEST_P(Tests_MG_UpdateFrontierFromOutgoingEOfV_Rmat, CheckInt64Int64Float)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, int>(
@@ -370,7 +371,7 @@ TEST_P(Tests_MG_update_frontier_v_push_if_out_nbr_Rmat, CheckInt64Int64Float)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MG_update_frontier_v_push_if_out_nbr_File,
+  Tests_MG_UpdateFrontierFromOutgoingEOfV_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
@@ -380,7 +381,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_MG_update_frontier_v_push_if_out_nbr_Rmat,
+  Tests_MG_UpdateFrontierFromOutgoingEOfV_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
@@ -391,7 +392,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MG_update_frontier_v_push_if_out_nbr_Rmat,
+  Tests_MG_UpdateFrontierFromOutgoingEOfV_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
