@@ -237,6 +237,8 @@ add_library(cugraph
     src/visitors/bfs_visitor.cpp
     src/visitors/rw_visitor.cpp
     src/visitors/graph_make_visitor.cpp
+    src/community/triangle_counts_sg.cu
+    src/community/triangle_counts_mg.cu
 )
 
 set_target_properties(cugraph
