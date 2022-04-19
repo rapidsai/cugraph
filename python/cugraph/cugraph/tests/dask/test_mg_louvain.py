@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +17,7 @@ import cugraph.dask as dcg
 import cugraph
 import dask_cudf
 from cugraph.tests import utils
-from cugraph.dask.common.mg_utils import is_single_gpu
+# from cugraph.dask.common.mg_utils import is_single_gpu
 
 try:
     from rapids_pytest_benchmark import setFixtureParamNames
@@ -39,9 +39,9 @@ except ImportError:
 
 ###############################################################################
 # Fixtures
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+# @pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+# )
 @pytest.fixture(scope="module",
                 params=utils.DATASETS_UNDIRECTED,
                 ids=[f"dataset={d.as_posix()}"
@@ -64,16 +64,16 @@ def daskGraphFromDataset(request, dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    dg = cugraph.DiGraph()
+    dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
     return dg
 
 
 ###############################################################################
 # Tests
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+# @pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+# )
 def test_mg_louvain_with_edgevals(daskGraphFromDataset):
     # FIXME: daskGraphFromDataset returns a DiGraph, which Louvain is currently
     # accepting. In the future, an MNMG symmeterize will need to be called to

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ namespace cugraph {
  * @param graph_view Non-owning graph object.
  * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
+ * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
  * @param init Initial value to be added to the reduced input vertex properties.
  * @return T Reduction of the input vertex properties.
  */
@@ -58,50 +58,10 @@ T reduce_v(raft::handle_t const& handle,
       return thrust::reduce(
         handle.get_thrust_policy(),
         vertex_value_input_first,
-        vertex_value_input_first + graph_view.get_number_of_local_vertices(),
+        vertex_value_input_first + graph_view.local_vertex_partition_range_size(),
         ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? id : init,
         op);
     });
-  if constexpr (GraphViewType::is_multi_gpu) {
-    ret = host_scalar_allreduce(handle.get_comms(), ret, op, handle.get_stream());
-  }
-  return ret;
-}
-
-/**
- * @brief Reduce the vertex properties.
- *
- * This version (conceptually) iterates over only a subset of the graph vertices. This function
- * actually works as thrust::reduce() on [@p input_first, @p input_last) (followed by
- * inter-process reduction in multi-GPU).
- *
- * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam InputIterator Type of the iterator for input values.
- * @tparam T Type of the initial value.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Non-owning graph object.
- * @param input_first Iterator pointing to the beginning (inclusive) of the values to be reduced.
- * @param input_last Iterator pointing to the end (exclusive) of the values to be reduced.
- * @param init Initial value to be added to the reduced input vertex properties.
- * @return T Reduction of the input vertex properties.
- */
-template <typename GraphViewType, typename InputIterator, typename T>
-T reduce_v(raft::handle_t const& handle,
-           GraphViewType const& graph_view,
-           InputIterator input_first,
-           InputIterator input_last,
-           T init               = T{},
-           raft::comms::op_t op = raft::comms::op_t::SUM)
-{
-  auto ret = op_dispatch<T>(op, [&handle, &graph_view, input_first, input_last, init](auto op) {
-    return thrust::reduce(
-      handle.get_thrust_policy(),
-      input_first,
-      input_last,
-      ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? T{} : init,
-      op);
-  });
   if constexpr (GraphViewType::is_multi_gpu) {
     ret = host_scalar_allreduce(handle.get_comms(), ret, op, handle.get_stream());
   }

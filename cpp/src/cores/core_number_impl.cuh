@@ -116,17 +116,18 @@ void core_number(raft::handle_t const& handle,
   // remove 0 degree vertices (as they already belong to 0-core and they don't affect core numbers)
   // and clip core numbers of the "less than k_first degree" vertices to 0
 
-  rmm::device_uvector<vertex_t> remaining_vertices(graph_view.get_number_of_local_vertices(),
+  rmm::device_uvector<vertex_t> remaining_vertices(graph_view.local_vertex_partition_range_size(),
                                                    handle.get_stream());
   remaining_vertices.resize(
     thrust::distance(
       remaining_vertices.begin(),
-      thrust::copy_if(handle.get_thrust_policy(),
-                      thrust::make_counting_iterator(graph_view.get_local_vertex_first()),
-                      thrust::make_counting_iterator(graph_view.get_local_vertex_last()),
-                      remaining_vertices.begin(),
-                      [core_numbers, v_first = graph_view.get_local_vertex_first()] __device__(
-                        auto v) { return core_numbers[v - v_first] > edge_t{0}; })),
+      thrust::copy_if(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
+        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
+        remaining_vertices.begin(),
+        [core_numbers, v_first = graph_view.local_vertex_partition_range_first()] __device__(
+          auto v) { return core_numbers[v - v_first] > edge_t{0}; })),
     handle.get_stream());
 
   if (k_first > 1) {
@@ -134,16 +135,19 @@ void core_number(raft::handle_t const& handle,
       handle.get_thrust_policy(),
       remaining_vertices.begin(),
       remaining_vertices.end(),
-      [k_first, core_numbers, v_first = graph_view.get_local_vertex_first()] __device__(auto v) {
+      [k_first, core_numbers, v_first = graph_view.local_vertex_partition_range_first()] __device__(
+        auto v) {
         if (core_numbers[v - v_first] < k_first) { core_numbers[v - v_first] = edge_t{0}; }
       });
   }
 
   // start iteration
 
-  enum class Bucket { cur, next, num_buckets };
-  VertexFrontier<vertex_t, void, multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
-    vertex_frontier(handle);
+  constexpr size_t bucket_idx_cur  = 0;
+  constexpr size_t bucket_idx_next = 1;
+  constexpr size_t num_buckets     = 2;
+
+  vertex_frontier_t<vertex_t, void, multi_gpu> vertex_frontier(handle, num_buckets);
 
   edge_partition_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, edge_t>
     dst_core_numbers(handle, graph_view);
@@ -173,18 +177,16 @@ void core_number(raft::handle_t const& handle,
       handle.get_thrust_policy(),
       remaining_vertices.begin(),
       remaining_vertices.end(),
-      [core_numbers, k, v_first = graph_view.get_local_vertex_first()] __device__(auto v) {
-        return core_numbers[v - v_first] >= k;
-      });
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
-      .insert(less_than_k_first, remaining_vertices.end());
+      [core_numbers, k, v_first = graph_view.local_vertex_partition_range_first()] __device__(
+        auto v) { return core_numbers[v - v_first] >= k; });
+    vertex_frontier.bucket(bucket_idx_cur).insert(less_than_k_first, remaining_vertices.end());
     remaining_vertices.resize(thrust::distance(remaining_vertices.begin(), less_than_k_first),
                               handle.get_stream());
 
     auto delta = (graph_view.is_symmetric() && (degree_type == k_core_degree_type_t::INOUT))
                    ? edge_t{2}
                    : edge_t{1};
-    if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() > 0) {
+    if (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() > 0) {
       do {
         // FIXME: If most vertices have core numbers less than k, (dst_val >= k) will be mostly
         // false leading to too many unnecessary edge traversals (this is especially problematic if
@@ -197,8 +199,8 @@ void core_number(raft::handle_t const& handle,
             handle,
             graph_view,
             vertex_frontier,
-            static_cast<size_t>(Bucket::cur),
-            std::vector<size_t>{static_cast<size_t>(Bucket::next)},
+            bucket_idx_cur,
+            std::vector<size_t>{bucket_idx_next},
             dummy_property_t<vertex_t>{}.device_view(),
             dst_core_numbers.device_view(),
             [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {
@@ -207,13 +209,18 @@ void core_number(raft::handle_t const& handle,
             reduce_op::plus<edge_t>(),
             core_numbers,
             core_numbers,
-            [k_first, k, delta, v_first = graph_view.get_local_vertex_first()] __device__(
-              auto v, auto v_val, auto pushed_val) {
+            [k_first,
+             k,
+             delta,
+             v_first =
+               graph_view.local_vertex_partition_range_first()] __device__(auto v,
+                                                                           auto v_val,
+                                                                           auto pushed_val) {
               auto new_core_number = v_val >= pushed_val ? v_val - pushed_val : edge_t{0};
               new_core_number      = new_core_number < (k - delta) ? (k - delta) : new_core_number;
               new_core_number      = new_core_number < k_first ? edge_t{0} : new_core_number;
               return thrust::optional<thrust::tuple<size_t, edge_t>>{
-                thrust::make_tuple(static_cast<size_t>(Bucket::next), new_core_number)};
+                thrust::make_tuple(bucket_idx_next, new_core_number)};
             });
         }
 
@@ -224,31 +231,31 @@ void core_number(raft::handle_t const& handle,
           CUGRAPH_FAIL("unimplemented.");
         }
 
-        update_edge_partition_dst_property(
-          handle,
-          graph_view,
-          vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).begin(),
-          vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).end(),
-          core_numbers,
-          dst_core_numbers);
+        update_edge_partition_dst_property(handle,
+                                           graph_view,
+                                           vertex_frontier.bucket(bucket_idx_next).begin(),
+                                           vertex_frontier.bucket(bucket_idx_next).end(),
+                                           core_numbers,
+                                           dst_core_numbers);
 
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next))
+        vertex_frontier.bucket(bucket_idx_next)
           .resize(static_cast<size_t>(thrust::distance(
-            vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).begin(),
+            vertex_frontier.bucket(bucket_idx_next).begin(),
             thrust::remove_if(
               handle.get_thrust_policy(),
-              vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).begin(),
-              vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).end(),
-              [core_numbers, k, v_first = graph_view.get_local_vertex_first()] __device__(auto v) {
+              vertex_frontier.bucket(bucket_idx_next).begin(),
+              vertex_frontier.bucket(bucket_idx_next).end(),
+              [core_numbers,
+               k,
+               v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
                 return core_numbers[v - v_first] >= k;
               }))));
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).shrink_to_fit();
+        vertex_frontier.bucket(bucket_idx_next).shrink_to_fit();
 
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).clear();
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).shrink_to_fit();
-        vertex_frontier.swap_buckets(static_cast<size_t>(Bucket::cur),
-                                     static_cast<size_t>(Bucket::next));
-      } while (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur)).aggregate_size() > 0);
+        vertex_frontier.bucket(bucket_idx_cur).clear();
+        vertex_frontier.bucket(bucket_idx_cur).shrink_to_fit();
+        vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
+      } while (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() > 0);
 
       // FIXME: scanning the remaining vertices can add significant overhead if the number of
       // distinct core numbers in [k_first, std::min(max_degree, k_last)] is large and there are
@@ -262,22 +269,25 @@ void core_number(raft::handle_t const& handle,
             handle.get_thrust_policy(),
             remaining_vertices.begin(),
             remaining_vertices.end(),
-            [core_numbers, k, v_first = graph_view.get_local_vertex_first()] __device__(auto v) {
-              return core_numbers[v - v_first] < k;
-            })),
+            [core_numbers, k, v_first = graph_view.local_vertex_partition_range_first()] __device__(
+              auto v) { return core_numbers[v - v_first] < k; })),
         handle.get_stream());
       k += delta;
     } else {
       auto remaining_vertex_core_number_first = thrust::make_transform_iterator(
         remaining_vertices.begin(),
-        v_to_core_number_t<vertex_t, edge_t>{core_numbers, graph_view.get_local_vertex_first()});
+        v_to_core_number_t<vertex_t, edge_t>{core_numbers,
+                                             graph_view.local_vertex_partition_range_first()});
       auto min_core_number =
-        reduce_v(handle,
-                 graph_view,
-                 remaining_vertex_core_number_first,
-                 remaining_vertex_core_number_first + remaining_vertices.size(),
-                 std::numeric_limits<edge_t>::max(),
-                 raft::comms::op_t::MIN);
+        thrust::reduce(handle.get_thrust_policy(),
+                       remaining_vertex_core_number_first,
+                       remaining_vertex_core_number_first + remaining_vertices.size(),
+                       std::numeric_limits<edge_t>::max(),
+                       thrust::minimum<edge_t>{});
+      if constexpr (multi_gpu) {
+        min_core_number = host_scalar_allreduce(
+          handle.get_comms(), min_core_number, raft::comms::op_t::MIN, handle.get_stream());
+      }
       k = std::max(k + delta, static_cast<size_t>(min_core_number + edge_t{delta}));
     }
   }

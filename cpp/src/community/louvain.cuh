@@ -25,7 +25,6 @@
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/transform_reduce_by_src_dst_key_e.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
-#include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 
@@ -125,10 +124,10 @@ class Louvain {
   using graph_t      = graph_t<vertex_t,
                           edge_t,
                           weight_t,
-                          graph_view_t::is_adj_matrix_transposed,
+                          graph_view_t::is_storage_transposed,
                           graph_view_t::is_multi_gpu>;
 
-  static_assert(!graph_view_t::is_adj_matrix_transposed);
+  static_assert(!graph_view_t::is_storage_transposed);
 
   Louvain(raft::handle_t const& handle, graph_view_t const& graph_view)
     :
@@ -230,14 +229,14 @@ class Louvain {
  protected:
   void initialize_dendrogram_level()
   {
-    dendrogram_->add_level(current_graph_view_.get_local_vertex_first(),
-                           current_graph_view_.get_number_of_local_vertices(),
+    dendrogram_->add_level(current_graph_view_.local_vertex_partition_range_first(),
+                           current_graph_view_.local_vertex_partition_range_size(),
                            handle_.get_stream());
 
     thrust::sequence(handle_.get_thrust_policy(),
                      dendrogram_->current_level_begin(),
                      dendrogram_->current_level_end(),
-                     current_graph_view_.get_local_vertex_first());
+                     current_graph_view_.local_vertex_partition_range_first());
   }
 
  public:
@@ -293,7 +292,7 @@ class Louvain {
     thrust::sequence(handle_.get_thrust_policy(),
                      cluster_keys_v_.begin(),
                      cluster_keys_v_.end(),
-                     current_graph_view_.get_local_vertex_first());
+                     current_graph_view_.local_vertex_partition_range_first());
 
     raft::copy(cluster_weights_v_.begin(),
                vertex_weights_v_.begin(),
@@ -312,7 +311,7 @@ class Louvain {
         groupby_gpu_id_and_shuffle_values(
           handle_.get_comms(),
           pair_first,
-          pair_first + current_graph_view_.get_number_of_local_vertices(),
+          pair_first + current_graph_view_.local_vertex_partition_range_size(),
           [key_func =
              cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{
                comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
@@ -390,9 +389,9 @@ class Louvain {
   compute_cluster_sum_and_subtract() const
   {
     rmm::device_uvector<weight_t> old_cluster_sum_v(
-      current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
+      current_graph_view_.local_vertex_partition_range_size(), handle_.get_stream());
     rmm::device_uvector<weight_t> cluster_subtract_v(
-      current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
+      current_graph_view_.local_vertex_partition_range_size(), handle_.get_stream());
 
     copy_v_transform_reduce_out_nbr(
       handle_,
@@ -489,7 +488,7 @@ class Louvain {
     }
 
     auto output_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
-      current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
+      current_graph_view_.local_vertex_partition_range_size(), handle_.get_stream());
 
     auto cluster_old_sum_subtract_pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(old_cluster_sum_v.cbegin(), cluster_subtract_v.cbegin()));
@@ -580,13 +579,13 @@ class Louvain {
     thrust::sequence(handle_.get_thrust_policy(),
                      numbering_indices.begin(),
                      numbering_indices.end(),
-                     current_graph_view_.get_local_vertex_first());
+                     current_graph_view_.local_vertex_partition_range_first());
 
     relabel<vertex_t, graph_view_t::is_multi_gpu>(
       handle_,
       std::make_tuple(static_cast<vertex_t const*>(numbering_map.begin()),
                       static_cast<vertex_t const*>(numbering_indices.begin())),
-      current_graph_view_.get_number_of_local_vertices(),
+      current_graph_view_.local_vertex_partition_range_size(),
       dendrogram_->current_level_begin(),
       dendrogram_->current_level_size(),
       false);

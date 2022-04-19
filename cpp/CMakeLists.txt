@@ -76,6 +76,7 @@ rapids_cmake_build_type(Release)
 ################################################################################
 # - User Options  --------------------------------------------------------------
 
+option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
@@ -134,9 +135,7 @@ rapids_cpm_init()
 # following public header-only  raft dependencies:
 # * RMM
 # * Thrust
-# * libcu++
 # * GTest/GMock
-# * cuCollections
 #
 # The CMakeLists.txt for each of these projects are properly configured
 # to generate a build and install export-set, so reimplementing finding or
@@ -144,6 +143,11 @@ rapids_cpm_init()
 # error-prone if something about those targets change and our implementation
 # lags behind.
 ###
+
+# Putting this before raft to override RAFT from pulling them in.
+include(cmake/thirdparty/get_libcudacxx.cmake)
+include(cmake/thirdparty/get_cuco.cmake)
+
 include(cmake/thirdparty/get_raft.cmake)
 include(cmake/thirdparty/get_libcugraphops.cmake)
 
@@ -157,7 +161,7 @@ endif()
 ################################################################################
 # - libcugraph library target --------------------------------------------------
 
-add_library(cugraph SHARED
+add_library(cugraph
     src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
     src/utilities/cython.cu
@@ -246,6 +250,7 @@ set_target_properties(cugraph
                CXX_STANDARD_REQUIRED               ON
                CUDA_STANDARD                       17
                CUDA_STANDARD_REQUIRED              ON
+               POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
 )
 
@@ -288,6 +293,7 @@ target_link_libraries(cugraph
     PUBLIC
         cugraph-ops::cugraph-ops++
         raft::raft
+        cuco::cuco
     PRIVATE
         cugraph::cuHornet
         NCCL::NCCL
@@ -347,7 +353,7 @@ endif()
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
-add_library(cugraph_c SHARED
+add_library(cugraph_c
         src/c_api/cugraph_api.cpp
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
@@ -355,6 +361,7 @@ add_library(cugraph_c SHARED
         src/c_api/graph_sg.cpp
         src/c_api/graph_mg.cpp
         src/c_api/pagerank.cpp
+        src/c_api/katz.cpp
         src/c_api/centrality_result.cpp
         src/c_api/eigenvector_centrality.cpp
         src/c_api/hits.cpp
@@ -363,6 +370,9 @@ add_library(cugraph_c SHARED
         src/c_api/extract_paths.cpp
         src/c_api/random_walks.cpp
         src/c_api/uniform_neighbor_sampling.cpp
+        src/c_api/labeling_result.cpp
+        src/c_api/weakly_connected_components.cpp
+        src/c_api/strongly_connected_components.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 
@@ -399,6 +409,8 @@ target_link_libraries(cugraph_c
                 CUDA::curand
                 CUDA::cusolver
                 CUDA::cusparse
+                raft::raft
+                cuco::cuco
         PRIVATE
                 cugraph::cugraph
 )

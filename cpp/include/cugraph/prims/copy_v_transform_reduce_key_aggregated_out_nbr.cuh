@@ -15,10 +15,10 @@
  */
 #pragma once
 
-#include <cugraph/detail/decompress_matrix_partition.cuh>
+#include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/graph_utils.cuh>
+#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/matrix_partition_device_view.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -43,10 +43,10 @@ template <typename EdgePartitionDstKeyInputWrapper>
 struct minor_to_key_t {
   using vertex_t = typename EdgePartitionDstKeyInputWrapper::value_type;
   EdgePartitionDstKeyInputWrapper edge_partition_dst_key_input{};
-  vertex_t minor_first{};
+  vertex_t minor_range_first{};
   __device__ vertex_t operator()(vertex_t minor) const
   {
-    return edge_partition_dst_key_input.get(minor - minor_first);
+    return edge_partition_dst_key_input.get(minor - minor_range_first);
   }
 };
 
@@ -83,12 +83,12 @@ template <typename vertex_t,
           typename weight_t,
           typename EdgePartitionSrcValueInputWrapper,
           typename KeyAggregatedEdgeOp,
-          typename MatrixPartitionDeviceView,
+          typename EdgePartitionDeviceView,
           typename StaticMapDeviceView>
 struct call_key_aggregated_e_op_t {
-  EdgePartitionSrcValueInputWrapper matrix_partition_src_value_input{};
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input{};
   KeyAggregatedEdgeOp key_aggregated_e_op{};
-  MatrixPartitionDeviceView matrix_partition{};
+  EdgePartitionDeviceView edge_partition{};
   StaticMapDeviceView kv_map{};
   __device__ auto operator()(
     thrust::tuple<vertex_t, vertex_t, weight_t> val /* major, minor key, weight */) const
@@ -96,12 +96,12 @@ struct call_key_aggregated_e_op_t {
     auto major = thrust::get<0>(val);
     auto key   = thrust::get<1>(val);
     auto w     = thrust::get<2>(val);
-    return key_aggregated_e_op(major,
-                               key,
-                               w,
-                               matrix_partition_src_value_input.get(
-                                 matrix_partition.get_major_offset_from_major_nocheck(major)),
-                               kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
+    return key_aggregated_e_op(
+      major,
+      key,
+      w,
+      edge_partition_src_value_input.get(edge_partition.major_offset_from_major_nocheck(major)),
+      kv_map.find(key)->second.load(cuda::std::memory_order_relaxed));
   }
 };
 
@@ -128,7 +128,7 @@ struct vertex_local_offset_t {
   vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition{};
   __device__ vertex_t operator()(vertex_t v) const
   {
-    return vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v);
+    return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
   }
 };
 
@@ -191,9 +191,9 @@ struct reduce_with_init_t {
  * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
  * @param init Initial value to be added to the reduced @p reduce_op return values for each vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
- * first (inclusive) vertex (assigned to tihs process in multi-GPU). `vertex_value_output_last`
+ * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.get_number_of_local_vertices().
+ * graph_view.local_vertex_partition_range_size().
  */
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
@@ -217,7 +217,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
   T init,
   VertexValueOutputIterator vertex_value_output_first)
 {
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
+  static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
   static_assert(std::is_same<typename std::iterator_traits<VertexIterator>::value_type,
                              typename GraphViewType::vertex_type>::value);
@@ -267,39 +267,38 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   auto e_op_result_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
-  for (size_t i = 0; i < graph_view.get_number_of_local_adj_matrix_partitions(); ++i) {
-    auto matrix_partition =
-      matrix_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.get_matrix_partition_view(i));
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+    auto edge_partition =
+      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+        graph_view.local_edge_partition_view(i));
 
-    rmm::device_uvector<vertex_t> tmp_majors(matrix_partition.get_number_of_edges(),
-                                             handle.get_stream());
+    rmm::device_uvector<vertex_t> tmp_majors(edge_partition.number_of_edges(), handle.get_stream());
     rmm::device_uvector<vertex_t> tmp_minor_keys(tmp_majors.size(), handle.get_stream());
     rmm::device_uvector<weight_t> tmp_key_aggregated_edge_weights(tmp_majors.size(),
                                                                   handle.get_stream());
 
-    if (matrix_partition.get_number_of_edges() > 0) {
-      auto segment_offsets = graph_view.get_local_adj_matrix_partition_segment_offsets(i);
+    if (edge_partition.number_of_edges() > 0) {
+      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
 
-      detail::decompress_matrix_partition_to_fill_edgelist_majors(
-        handle, matrix_partition, tmp_majors.data(), segment_offsets);
+      detail::decompress_edge_partition_to_fill_edgelist_majors(
+        handle, edge_partition, tmp_majors.data(), segment_offsets);
 
       auto minor_key_first = thrust::make_transform_iterator(
-        matrix_partition.get_indices(),
+        edge_partition.indices(),
         detail::minor_to_key_t<EdgePartitionDstKeyInputWrapper>{
-          edge_partition_dst_key_input, matrix_partition.get_minor_first()});
+          edge_partition_dst_key_input, edge_partition.minor_range_first()});
 
       // to limit memory footprint ((1 << 20) is a tuning parameter)
       auto approx_edges_to_sort_per_iteration =
         static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
       auto [h_vertex_offsets, h_edge_offsets] = detail::compute_offset_aligned_edge_chunks(
         handle,
-        matrix_partition.get_offsets(),
-        matrix_partition.get_dcs_nzd_vertices()
+        edge_partition.offsets(),
+        edge_partition.dcs_nzd_vertices()
           ? (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition] +
-              *(matrix_partition.get_dcs_nzd_vertex_count())
-          : matrix_partition.get_major_size(),
-        matrix_partition.get_number_of_edges(),
+              *(edge_partition.dcs_nzd_vertex_count())
+          : edge_partition.major_range_size(),
+        edge_partition.number_of_edges(),
         approx_edges_to_sort_per_iteration);
       auto num_chunks = h_vertex_offsets.size() - 1;
 
@@ -324,14 +323,14 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
         size_t tmp_storage_bytes{0};
         auto offset_first =
-          thrust::make_transform_iterator(matrix_partition.get_offsets() + h_vertex_offsets[j],
+          thrust::make_transform_iterator(edge_partition.offsets() + h_vertex_offsets[j],
                                           detail::rebase_offset_t<edge_t>{h_edge_offsets[j]});
         if (graph_view.is_weighted()) {
           cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
                                               tmp_storage_bytes,
                                               tmp_minor_keys.begin() + h_edge_offsets[j],
                                               unreduced_minor_keys.begin(),
-                                              *(matrix_partition.get_weights()) + h_edge_offsets[j],
+                                              *(edge_partition.weights()) + h_edge_offsets[j],
                                               unreduced_key_aggregated_edge_weights.begin(),
                                               h_edge_offsets[j + 1] - h_edge_offsets[j],
                                               h_vertex_offsets[j + 1] - h_vertex_offsets[j],
@@ -357,7 +356,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                                               tmp_storage_bytes,
                                               tmp_minor_keys.begin() + h_edge_offsets[j],
                                               unreduced_minor_keys.begin(),
-                                              *(matrix_partition.get_weights()) + h_edge_offsets[j],
+                                              *(edge_partition.weights()) + h_edge_offsets[j],
                                               unreduced_key_aggregated_edge_weights.begin(),
                                               h_edge_offsets[j + 1] - h_edge_offsets[j],
                                               h_vertex_offsets[j + 1] - h_vertex_offsets[j],
@@ -579,8 +578,8 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
     auto tmp_e_op_result_buffer =
       allocate_dataframe_buffer<T>(tmp_majors.size(), handle.get_stream());
 
-    auto matrix_partition_src_value_input = edge_partition_src_value_input;
-    matrix_partition_src_value_input.set_local_adj_matrix_partition_idx(i);
+    auto edge_partition_src_value_input_copy = edge_partition_src_value_input;
+    edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
 
     auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
       tmp_majors.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
@@ -592,11 +591,11 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                                                          weight_t,
                                                          EdgePartitionSrcValueInputWrapper,
                                                          KeyAggregatedEdgeOp,
-                                                         decltype(matrix_partition),
+                                                         decltype(edge_partition),
                                                          decltype(kv_map.get_device_view())>{
-                        matrix_partition_src_value_input,
+                        edge_partition_src_value_input_copy,
                         key_aggregated_e_op,
-                        matrix_partition,
+                        edge_partition,
                         GraphViewType::is_multi_gpu ? multi_gpu_kv_map_ptr->get_device_view()
                                                     : kv_map.get_device_view()});
 
@@ -698,7 +697,7 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
 
   thrust::fill(handle.get_thrust_policy(),
                vertex_value_output_first,
-               vertex_value_output_first + graph_view.get_number_of_local_vertices(),
+               vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
                T{});
 
   thrust::scatter(handle.get_thrust_policy(),
@@ -707,12 +706,12 @@ void copy_v_transform_reduce_key_aggregated_out_nbr(
                   thrust::make_transform_iterator(
                     majors.begin(),
                     detail::vertex_local_offset_t<vertex_t, GraphViewType::is_multi_gpu>{
-                      graph_view.get_vertex_partition_view()}),
+                      graph_view.local_vertex_partition_view()}),
                   vertex_value_output_first);
 
   thrust::transform(handle.get_thrust_policy(),
                     vertex_value_output_first,
-                    vertex_value_output_first + graph_view.get_number_of_local_vertices(),
+                    vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
                     vertex_value_output_first,
                     detail::reduce_with_init_t<ReduceOp, T>{reduce_op, init});
 }

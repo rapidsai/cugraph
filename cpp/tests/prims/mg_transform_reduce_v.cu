@@ -43,7 +43,7 @@ template <typename vertex_t, typename T>
 struct property_transform : public thrust::unary_function<vertex_t, T> {
   int mod{};
   property_transform(int mod_count) : mod(mod_count) {}
-  constexpr __device__ auto operator()(const vertex_t& val)
+  constexpr __device__ auto operator()(vertex_t, const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto value = hash_func(val) % mod;
@@ -56,7 +56,7 @@ struct property_transform<vertex_t, std::tuple<Args...>>
   : public thrust::unary_function<vertex_t, thrust::tuple<Args...>> {
   int mod{};
   property_transform(int mod_count) : mod(mod_count) {}
-  constexpr __device__ auto operator()(const vertex_t& val)
+  constexpr __device__ auto operator()(vertex_t, const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto value = hash_func(val) % mod;
@@ -213,7 +213,7 @@ class Tests_MG_TransformReduceV
       }
     }
 
-    //// 4. compare SG & MG results
+    // 4. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
       cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
@@ -223,16 +223,13 @@ class Tests_MG_TransformReduceV
       auto sg_graph_view = sg_graph.view();
 
       for (auto op : ops) {
-        auto expected_result = cugraph::op_dispatch<property_t>(
-          op, [&handle, &sg_graph_view, prop, property_initial_value](auto op) {
-            return thrust::transform_reduce(
-              handle.get_thrust_policy(),
-              thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
-              thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
-              prop,
-              property_initial_value,
-              op);
-          });
+        auto expected_result = transform_reduce_v(
+          handle,
+          sg_graph_view,
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+          prop,
+          property_initial_value,
+          op);
         result_compare<property_t> compare{};
         ASSERT_TRUE(compare(expected_result, results[op]));
       }

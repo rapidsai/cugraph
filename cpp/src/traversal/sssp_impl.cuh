@@ -56,11 +56,11 @@ void sssp(raft::handle_t const& handle,
 
   static_assert(std::is_integral<vertex_t>::value,
                 "GraphViewType::vertex_type should be integral.");
-  static_assert(!GraphViewType::is_adj_matrix_transposed,
+  static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
-  auto const num_vertices = push_graph_view.get_number_of_vertices();
-  auto const num_edges    = push_graph_view.get_number_of_edges();
+  auto const num_vertices = push_graph_view.number_of_vertices();
+  auto const num_edges    = push_graph_view.number_of_edges();
   if (num_vertices == 0) { return; }
 
   // implements the Near-Far Pile method in
@@ -92,15 +92,16 @@ void sssp(raft::handle_t const& handle,
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
   auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
-  thrust::transform(handle.get_thrust_policy(),
-                    thrust::make_counting_iterator(push_graph_view.get_local_vertex_first()),
-                    thrust::make_counting_iterator(push_graph_view.get_local_vertex_last()),
-                    val_first,
-                    [source_vertex] __device__(auto val) {
-                      auto distance = invalid_distance;
-                      if (val == source_vertex) { distance = weight_t{0.0}; }
-                      return thrust::make_tuple(distance, invalid_vertex);
-                    });
+  thrust::transform(
+    handle.get_thrust_policy(),
+    thrust::make_counting_iterator(push_graph_view.local_vertex_partition_range_first()),
+    thrust::make_counting_iterator(push_graph_view.local_vertex_partition_range_last()),
+    val_first,
+    [source_vertex] __device__(auto val) {
+      auto distance = invalid_distance;
+      if (val == source_vertex) { distance = weight_t{0.0}; }
+      return thrust::make_tuple(distance, invalid_vertex);
+    });
 
   if (num_edges == 0) { return; }
 
@@ -124,50 +125,50 @@ void sssp(raft::handle_t const& handle,
 
   // 4. initialize SSSP frontier
 
-  enum class Bucket { cur_near, next_near, far, num_buckets };
-  VertexFrontier<vertex_t,
-                 void,
-                 GraphViewType::is_multi_gpu,
-                 static_cast<size_t>(Bucket::num_buckets)>
-    vertex_frontier(handle);
+  constexpr size_t bucket_idx_cur_near  = 0;
+  constexpr size_t bucket_idx_next_near = 1;
+  constexpr size_t bucket_idx_far       = 2;
+  constexpr size_t num_buckets          = 3;
+
+  vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu> vertex_frontier(handle,
+                                                                                 num_buckets);
 
   // 5. SSSP iteration
 
-  auto adj_matrix_row_distances =
+  auto edge_partition_src_distances =
     GraphViewType::is_multi_gpu
       ? edge_partition_src_property_t<GraphViewType, weight_t>(handle, push_graph_view)
       : edge_partition_src_property_t<GraphViewType, weight_t>(handle);
   if (GraphViewType::is_multi_gpu) {
-    adj_matrix_row_distances.fill(std::numeric_limits<weight_t>::max(), handle.get_stream());
+    edge_partition_src_distances.fill(handle, std::numeric_limits<weight_t>::max());
   }
 
-  if (push_graph_view.is_local_vertex_nocheck(source_vertex)) {
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).insert(source_vertex);
+  if (push_graph_view.in_local_vertex_partition_range_nocheck(source_vertex)) {
+    vertex_frontier.bucket(bucket_idx_cur_near).insert(source_vertex);
   }
 
   auto near_far_threshold = delta;
   while (true) {
     if (GraphViewType::is_multi_gpu) {
-      update_edge_partition_src_property(
-        handle,
-        push_graph_view,
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).begin(),
-        vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).end(),
-        distances,
-        adj_matrix_row_distances);
+      update_edge_partition_src_property(handle,
+                                         push_graph_view,
+                                         vertex_frontier.bucket(bucket_idx_cur_near).begin(),
+                                         vertex_frontier.bucket(bucket_idx_cur_near).end(),
+                                         distances,
+                                         edge_partition_src_distances);
     }
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-      push_graph_view.get_vertex_partition_view());
+      push_graph_view.local_vertex_partition_view());
 
     update_frontier_v_push_if_out_nbr(
       handle,
       push_graph_view,
       vertex_frontier,
-      static_cast<size_t>(Bucket::cur_near),
-      std::vector<size_t>{static_cast<size_t>(Bucket::next_near), static_cast<size_t>(Bucket::far)},
+      bucket_idx_cur_near,
+      std::vector<size_t>{bucket_idx_next_near, bucket_idx_far},
       GraphViewType::is_multi_gpu
-        ? adj_matrix_row_distances.device_view()
+        ? edge_partition_src_distances.device_view()
         : detail::edge_partition_major_property_device_view_t<vertex_t, weight_t const*>(distances),
       dummy_property_t<vertex_t>{}.device_view(),
       [vertex_partition, distances, cutoff] __device__(
@@ -175,9 +176,9 @@ void sssp(raft::handle_t const& handle,
         auto push         = true;
         auto new_distance = src_val + w;
         auto threshold    = cutoff;
-        if (vertex_partition.is_local_vertex_nocheck(dst)) {
+        if (vertex_partition.in_local_vertex_partition_range_nocheck(dst)) {
           auto local_vertex_offset =
-            vertex_partition.get_local_vertex_offset_from_vertex_nocheck(dst);
+            vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst);
           auto old_distance = *(distances + local_vertex_offset);
           threshold         = old_distance < threshold ? old_distance : threshold;
         }
@@ -192,23 +193,20 @@ void sssp(raft::handle_t const& handle,
       [near_far_threshold] __device__(auto v, auto v_val, auto pushed_val) {
         auto new_dist = thrust::get<0>(pushed_val);
         auto idx      = new_dist < v_val
-                          ? (new_dist < near_far_threshold ? static_cast<size_t>(Bucket::next_near)
-                                                           : static_cast<size_t>(Bucket::far))
-                          : VertexFrontier<vertex_t>::kInvalidBucketIdx;
+                          ? (new_dist < near_far_threshold ? bucket_idx_next_near : bucket_idx_far)
+                          : vertex_frontier_t<vertex_t>::kInvalidBucketIdx;
         return new_dist < v_val
                  ? thrust::optional<thrust::tuple<size_t, decltype(pushed_val)>>{thrust::make_tuple(
-                     static_cast<size_t>(new_dist < near_far_threshold ? Bucket::next_near
-                                                                       : Bucket::far),
+                     new_dist < near_far_threshold ? bucket_idx_next_near : bucket_idx_far,
                      pushed_val)}
                  : thrust::nullopt;
       });
 
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).clear();
-    vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).shrink_to_fit();
-    if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next_near)).aggregate_size() > 0) {
-      vertex_frontier.swap_buckets(static_cast<size_t>(Bucket::cur_near),
-                                   static_cast<size_t>(Bucket::next_near));
-    } else if (vertex_frontier.get_bucket(static_cast<size_t>(Bucket::far)).aggregate_size() >
+    vertex_frontier.bucket(bucket_idx_cur_near).clear();
+    vertex_frontier.bucket(bucket_idx_cur_near).shrink_to_fit();
+    if (vertex_frontier.bucket(bucket_idx_next_near).aggregate_size() > 0) {
+      vertex_frontier.swap_buckets(bucket_idx_cur_near, bucket_idx_next_near);
+    } else if (vertex_frontier.bucket(bucket_idx_far).aggregate_size() >
                0) {  // near queue is empty, split the far queue
       auto old_near_far_threshold = near_far_threshold;
       near_far_threshold += delta;
@@ -217,20 +215,19 @@ void sssp(raft::handle_t const& handle,
       size_t far_size{0};
       while (true) {
         vertex_frontier.split_bucket(
-          static_cast<size_t>(Bucket::far),
-          std::vector<size_t>{static_cast<size_t>(Bucket::cur_near)},
+          bucket_idx_far,
+          std::vector<size_t>{bucket_idx_cur_near},
           [vertex_partition, distances, old_near_far_threshold, near_far_threshold] __device__(
             auto v) {
             auto dist =
-              *(distances + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v));
+              *(distances + vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v));
             return dist >= old_near_far_threshold
-                     ? thrust::optional<size_t>{static_cast<size_t>(
-                         dist < near_far_threshold ? Bucket::cur_near : Bucket::far)}
+                     ? thrust::optional<size_t>{dist < near_far_threshold ? bucket_idx_cur_near
+                                                                          : bucket_idx_far}
                      : thrust::nullopt;
           });
-        near_size =
-          vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur_near)).aggregate_size();
-        far_size = vertex_frontier.get_bucket(static_cast<size_t>(Bucket::far)).aggregate_size();
+        near_size = vertex_frontier.bucket(bucket_idx_cur_near).aggregate_size();
+        far_size  = vertex_frontier.bucket(bucket_idx_far).aggregate_size();
         if ((near_size > 0) || (far_size == 0)) {
           break;
         } else {
@@ -242,11 +239,6 @@ void sssp(raft::handle_t const& handle,
       break;
     }
   }
-
-  RAFT_CUDA_TRY(cudaStreamSynchronize(
-    handle.get_stream()));  // this is as necessary vertex_frontier will become out-of-scope once
-                            // this function returns (FIXME: should I stream sync in VertexFrontier
-                            // destructor?)
 }
 
 }  // namespace detail

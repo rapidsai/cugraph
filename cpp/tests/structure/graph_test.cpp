@@ -89,20 +89,20 @@ class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, in
     raft::handle_t handle{};
     auto [graph_usecase, input_usecase] = param;
 
-    auto [d_rows, d_cols, d_weights, d_vertices, number_of_vertices, is_symmetric] =
+    auto [d_srcs, d_dsts, d_weights, d_vertices, number_of_vertices, is_symmetric] =
       input_usecase
         .template construct_edgelist<vertex_t, edge_t, weight_t, store_transposed, false>(
           handle, graph_usecase.test_weighted);
 
-    edge_t number_of_edges = static_cast<edge_t>(d_rows.size());
+    edge_t number_of_edges = static_cast<edge_t>(d_srcs.size());
 
-    std::vector<vertex_t> h_rows(number_of_edges);
-    std::vector<vertex_t> h_cols(number_of_edges);
+    std::vector<vertex_t> h_srcs(number_of_edges);
+    std::vector<vertex_t> h_dsts(number_of_edges);
     auto h_weights =
       d_weights ? std::make_optional<std::vector<weight_t>>(number_of_edges) : std::nullopt;
 
-    raft::update_host(h_rows.data(), d_rows.data(), number_of_edges, handle.get_stream());
-    raft::update_host(h_cols.data(), d_cols.data(), number_of_edges, handle.get_stream());
+    raft::update_host(h_srcs.data(), d_srcs.data(), number_of_edges, handle.get_stream());
+    raft::update_host(h_dsts.data(), d_dsts.data(), number_of_edges, handle.get_stream());
     if (h_weights) {
       raft::update_host(
         (*h_weights).data(), (*d_weights).data(), number_of_edges, handle.get_stream());
@@ -111,15 +111,15 @@ class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, in
 
     auto [h_reference_offsets, h_reference_indices, h_reference_weights] =
       graph_reference<store_transposed>(
-        h_rows.data(),
-        h_cols.data(),
+        h_srcs.data(),
+        h_dsts.data(),
         h_weights ? std::optional<weight_t const*>{(*h_weights).data()} : std::nullopt,
         number_of_vertices,
         number_of_edges);
 
     cugraph::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-      d_rows.data(),
-      d_cols.data(),
+      d_srcs.data(),
+      d_dsts.data(),
       d_weights ? std::optional<weight_t const*>{(*d_weights).data()} : std::nullopt,
       number_of_edges};
 
@@ -138,28 +138,28 @@ class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, in
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    ASSERT_EQ(graph_view.get_number_of_vertices(), number_of_vertices);
-    ASSERT_EQ(graph_view.get_number_of_edges(), number_of_edges);
+    ASSERT_EQ(graph_view.number_of_vertices(), number_of_vertices);
+    ASSERT_EQ(graph_view.number_of_edges(), number_of_edges);
 
     if (graph_usecase.check_correctness) {
-      std::vector<edge_t> h_cugraph_offsets(graph_view.get_number_of_vertices() + 1);
-      std::vector<vertex_t> h_cugraph_indices(graph_view.get_number_of_edges());
+      std::vector<edge_t> h_cugraph_offsets(graph_view.number_of_vertices() + 1);
+      std::vector<vertex_t> h_cugraph_indices(graph_view.number_of_edges());
       auto h_cugraph_weights =
-        graph.is_weighted() ? std::optional<std::vector<weight_t>>(graph_view.get_number_of_edges())
+        graph.is_weighted() ? std::optional<std::vector<weight_t>>(graph_view.number_of_edges())
                             : std::nullopt;
 
       raft::update_host(h_cugraph_offsets.data(),
-                        graph_view.get_matrix_partition_view().get_offsets(),
-                        graph_view.get_number_of_vertices() + 1,
+                        graph_view.local_edge_partition_view().offsets(),
+                        graph_view.number_of_vertices() + 1,
                         handle.get_stream());
       raft::update_host(h_cugraph_indices.data(),
-                        graph_view.get_matrix_partition_view().get_indices(),
-                        graph_view.get_number_of_edges(),
+                        graph_view.local_edge_partition_view().indices(),
+                        graph_view.number_of_edges(),
                         handle.get_stream());
       if (h_cugraph_weights) {
         raft::update_host((*h_cugraph_weights).data(),
-                          *(graph_view.get_matrix_partition_view().get_weights()),
-                          graph_view.get_number_of_edges(),
+                          *(graph_view.local_edge_partition_view().weights()),
+                          graph_view.number_of_edges(),
                           handle.get_stream());
       }
 
