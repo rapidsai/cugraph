@@ -59,10 +59,10 @@ class serializer_t;  // forward...
  *
  * To be more specific, a GPU with (col_comm_rank, row_comm_rank) will be responsible for
  * col_comm_size rectangular partitions [a_i,b_i) by [c,d) where a_i =
- * vertex_partition_offsets[row_comm_size * i + row_comm_rank] and b_i =
- * vertex_partition_offsets[row_comm_size * i + row_comm_rank + 1]. c is
- * vertex_partition_offsets[row_comm_size * col_comm_rank] and d =
- * vertex_partition_offsests[row_comm_size * (col_comm_rank + 1)].
+ * vertex_partition_range_offsets[row_comm_size * i + row_comm_rank] and b_i =
+ * vertex_partition_range_offsets[row_comm_size * i + row_comm_rank + 1]. c is
+ * vertex_partition_range_offsets[row_comm_size * col_comm_rank] and d =
+ * vertex_partition_range_offsets[row_comm_size * (col_comm_rank + 1)].
  *
  * See E. G. Boman et. al., “Scalable matrix computations on large scale-free graphs using 2D graph
  * partitioning”, 2013 for additional detail.
@@ -74,27 +74,29 @@ class partition_t {
  public:
   partition_t() = default;
 
-  partition_t(std::vector<vertex_t> const& vertex_partition_offsets,
+  partition_t(std::vector<vertex_t> const& vertex_partition_range_offsets,
               int row_comm_size,
               int col_comm_size,
               int row_comm_rank,
               int col_comm_rank)
-    : vertex_partition_offsets_(vertex_partition_offsets),
+    : vertex_partition_range_offsets_(vertex_partition_range_offsets),
       comm_rank_(col_comm_rank * row_comm_size + row_comm_rank),
       row_comm_size_(row_comm_size),
       col_comm_size_(col_comm_size),
       row_comm_rank_(row_comm_rank),
       col_comm_rank_(col_comm_rank)
   {
-    CUGRAPH_EXPECTS(
-      vertex_partition_offsets.size() == static_cast<size_t>(row_comm_size * col_comm_size + 1),
-      "Invalid API parameter: erroneous vertex_partition_offsets.size().");
+    CUGRAPH_EXPECTS(vertex_partition_range_offsets.size() ==
+                      static_cast<size_t>(row_comm_size * col_comm_size + 1),
+                    "Invalid API parameter: erroneous vertex_partition_range_offsets.size().");
 
+    CUGRAPH_EXPECTS(std::is_sorted(vertex_partition_range_offsets_.begin(),
+                                   vertex_partition_range_offsets_.end()),
+                    "Invalid API parameter: partition.vertex_partition_range_offsets values should "
+                    "be non-descending.");
     CUGRAPH_EXPECTS(
-      std::is_sorted(vertex_partition_offsets_.begin(), vertex_partition_offsets_.end()),
-      "Invalid API parameter: partition.vertex_partition_offsets values should be non-descending.");
-    CUGRAPH_EXPECTS(vertex_partition_offsets_[0] == vertex_t{0},
-                    "Invalid API parameter: partition.vertex_partition_offsets[0] should be 0.");
+      vertex_partition_range_offsets_[0] == vertex_t{0},
+      "Invalid API parameter: partition.vertex_partition_range_offsets[0] should be 0.");
 
     vertex_t start_offset{0};
     edge_partition_major_value_start_offsets_.assign(number_of_local_edge_partitions(), 0);
@@ -111,31 +113,31 @@ class partition_t {
   int col_comm_size() const { return col_comm_size_; }
   int comm_rank() const { return comm_rank_; }
 
-  std::vector<vertex_t> const& vertex_partition_offsets() const
+  std::vector<vertex_t> const& vertex_partition_range_offsets() const
   {
-    return vertex_partition_offsets_;
+    return vertex_partition_range_offsets_;
   }
 
   std::vector<vertex_t> vertex_partition_range_lasts() const
   {
-    return std::vector<vertex_t>(vertex_partition_offsets_.begin() + 1,
-                                 vertex_partition_offsets_.end());
+    return std::vector<vertex_t>(vertex_partition_range_offsets_.begin() + 1,
+                                 vertex_partition_range_offsets_.end());
   }
 
   std::tuple<vertex_t, vertex_t> local_vertex_partition_range() const
   {
-    return std::make_tuple(vertex_partition_offsets_[comm_rank_],
-                           vertex_partition_offsets_[comm_rank_ + 1]);
+    return std::make_tuple(vertex_partition_range_offsets_[comm_rank_],
+                           vertex_partition_range_offsets_[comm_rank_ + 1]);
   }
 
   vertex_t local_vertex_partition_range_first() const
   {
-    return vertex_partition_offsets_[comm_rank_];
+    return vertex_partition_range_offsets_[comm_rank_];
   }
 
   vertex_t local_vertex_partition_range_last() const
   {
-    return vertex_partition_offsets_[comm_rank_ + 1];
+    return vertex_partition_range_offsets_[comm_rank_ + 1];
   }
 
   vertex_t local_vertex_partition_range_size() const
@@ -145,18 +147,18 @@ class partition_t {
 
   std::tuple<vertex_t, vertex_t> vertex_partition_range(size_t partition_idx) const
   {
-    return std::make_tuple(vertex_partition_offsets_[partition_idx],
-                           vertex_partition_offsets_[partition_idx + 1]);
+    return std::make_tuple(vertex_partition_range_offsets_[partition_idx],
+                           vertex_partition_range_offsets_[partition_idx + 1]);
   }
 
   vertex_t vertex_partition_range_first(size_t partition_idx) const
   {
-    return vertex_partition_offsets_[partition_idx];
+    return vertex_partition_range_offsets_[partition_idx];
   }
 
   vertex_t vertex_partition_range_last(size_t partition_idx) const
   {
-    return vertex_partition_offsets_[partition_idx + 1];
+    return vertex_partition_range_offsets_[partition_idx + 1];
   }
 
   vertex_t vertex_partition_range_size(size_t partition_idx) const
@@ -176,12 +178,12 @@ class partition_t {
 
   vertex_t local_edge_partition_major_range_first(size_t partition_idx) const
   {
-    return vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_];
+    return vertex_partition_range_offsets_[row_comm_size_ * partition_idx + row_comm_rank_];
   }
 
   vertex_t local_edge_partition_major_range_last(size_t partition_idx) const
   {
-    return vertex_partition_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1];
+    return vertex_partition_range_offsets_[row_comm_size_ * partition_idx + row_comm_rank_ + 1];
   }
 
   vertex_t local_edge_partition_major_range_size(size_t partition_idx) const
@@ -205,12 +207,12 @@ class partition_t {
 
   vertex_t local_edge_partition_minor_range_first() const
   {
-    return vertex_partition_offsets_[col_comm_rank_ * row_comm_size_];
+    return vertex_partition_range_offsets_[col_comm_rank_ * row_comm_size_];
   }
 
   vertex_t local_edge_partition_minor_range_last() const
   {
-    return vertex_partition_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
+    return vertex_partition_range_offsets_[(col_comm_rank_ + 1) * row_comm_size_];
   }
 
   vertex_t local_edge_partition_minor_range_size() const
@@ -219,7 +221,7 @@ class partition_t {
   }
 
  private:
-  std::vector<vertex_t> vertex_partition_offsets_{};  // size = P + 1
+  std::vector<vertex_t> vertex_partition_range_offsets_{};  // size = P + 1
 
   int comm_rank_{0};
   int row_comm_size_{0};
