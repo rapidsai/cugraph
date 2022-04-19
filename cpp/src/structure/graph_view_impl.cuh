@@ -21,9 +21,9 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
+#include <cugraph/prims/transform_reduce_incoming_outgoing_e_of_v.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
@@ -190,7 +190,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
   rmm::device_uvector<edge_t> minor_degrees(graph_view.local_vertex_partition_range_size(),
                                             handle.get_stream());
   if (store_transposed) {
-    copy_v_transform_reduce_out_nbr(
+    transform_reduce_outgoing_e_of_v(
       handle,
       graph_view,
       dummy_property_t<vertex_t>{}.device_view(),
@@ -199,7 +199,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
       edge_t{0},
       minor_degrees.data());
   } else {
-    copy_v_transform_reduce_in_nbr(
+    transform_reduce_incoming_e_of_v(
       handle,
       graph_view,
       dummy_property_t<vertex_t>{}.device_view(),
@@ -225,7 +225,7 @@ rmm::device_uvector<weight_t> compute_weight_sums(
   rmm::device_uvector<weight_t> weight_sums(graph_view.local_vertex_partition_range_size(),
                                             handle.get_stream());
   if (major == store_transposed) {
-    copy_v_transform_reduce_in_nbr(
+    transform_reduce_incoming_e_of_v(
       handle,
       graph_view,
       dummy_property_t<vertex_t>{}.device_view(),
@@ -234,7 +234,7 @@ rmm::device_uvector<weight_t> compute_weight_sums(
       weight_t{0.0},
       weight_sums.data());
   } else {
-    copy_v_transform_reduce_out_nbr(
+    transform_reduce_outgoing_e_of_v(
       handle,
       graph_view,
       dummy_property_t<vertex_t>{}.device_view(),

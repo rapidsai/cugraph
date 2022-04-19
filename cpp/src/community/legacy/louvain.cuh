@@ -230,7 +230,7 @@ class Louvain {
     weight_t* d_cluster_weights = cluster_weights_v_.data();
 
     //
-    // MNMG:  copy_v_transform_reduce_out_nbr, then copy
+    // MNMG:  transform_reduce_outgoing_e_of_v, then copy
     //
     thrust::for_each(
       handle_.get_thrust_policy(),

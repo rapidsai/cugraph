@@ -145,10 +145,8 @@ struct reduce_with_init_t {
 /**
  * @brief Iterate over every vertex's key-aggregated outgoing edges to update vertex properties.
  *
- * This function is inspired by thrust::transfrom_reduce() (iteration over the outgoing edges
- * part) and thrust::copy() (update vertex properties part, take transform_reduce output as copy
- * input).
- * Unlike copy_v_transform_reduce_out_nbr, this function first aggregates outgoing edges by key to
+ * This function is inspired by thrust::transfrom_reduce().
+ * Unlike transform_reduce_outgoing_e_of_v, this function first aggregates outgoing edges by key to
  * support two level reduction for every vertex.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
@@ -204,7 +202,7 @@ template <typename GraphViewType,
           typename ReduceOp,
           typename T,
           typename VertexValueOutputIterator>
-void copy_v_transform_reduce_key_aggregated_out_nbr(
+void transform_reduce_key_aggregated_outgoing_e_of_v(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
