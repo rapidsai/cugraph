@@ -108,7 +108,7 @@ def jaccard(input_graph, vertex_pair=None):
 
     """
     if input_graph.is_directed():
-        raise TypeError("Input must an undirected Graph.")
+        raise ValueError("Input must be an undirected Graph.")
     if type(vertex_pair) == cudf.DataFrame:
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
     elif vertex_pair is not None:
