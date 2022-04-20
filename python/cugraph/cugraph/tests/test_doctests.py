@@ -30,6 +30,8 @@ from numba import cuda
 
 
 modules_to_skip = ["dask", "proto", "raft"]
+# FIXME: utils.RAPIDS_DATASET_ROOT_DIR_PATH does not work as intended when
+# running doctest on these docstrings
 datasets = pathlib.Path(cugraph.__path__[0]).parent.parent.parent / "datasets"
 
 
@@ -42,12 +44,10 @@ def _is_python_module(member):
 
 
 def _module_from_library(member, libname):
-    # return 'cugraph' in member.__module__
     return libname in member.__module__
 
 
 def _file_from_library(member, libname):
-    # return 'cugraph' in member.__file__
     return libname in member.__file__
 
 

@@ -147,8 +147,6 @@ def katz_centrality(input_graph,
     >>> pr = dcg.katz_centrality(dg)
 
     """
-    # FIXME: Uncomment out the above (broken) example
-
     nstart = None
 
     client = default_client()

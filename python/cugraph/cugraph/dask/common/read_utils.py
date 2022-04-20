@@ -30,7 +30,6 @@ def get_chunksize(input_path):
     >>> chunksize = dcg.get_chunksize(datasets_path / 'netscience.csv')
 
     """
-    # FIXME: Uncomment out the above example
 
     import os
     from glob import glob

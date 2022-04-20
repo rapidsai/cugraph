@@ -30,6 +30,8 @@ from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
 import cugraph.comms as Comms
 
+# FIXME: utils.RAPIDS_DATASET_ROOT_DIR_PATH does not work as intended when
+# running doctest on these docstrings
 datasets = pathlib.Path(cugraph.__path__[0]).parent.parent.parent / "datasets"
 
 cluster = LocalCUDACluster()

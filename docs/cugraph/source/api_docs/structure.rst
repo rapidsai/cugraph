@@ -89,7 +89,6 @@ NumberMap
    cugraph.structure.NumberMap.compute_vals
    cugraph.structure.NumberMap.compute_vals_types
    cugraph.structure.NumberMap.generate_unused_column_name
-   cugraph.structure.NumberMap.mro
    cugraph.structure.NumberMap.renumber
    cugraph.structure.NumberMap.renumber_and_segment
    cugraph.structure.NumberMap.set_renumbered_col_names
