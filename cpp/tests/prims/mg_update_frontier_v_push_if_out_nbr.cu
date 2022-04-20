@@ -175,11 +175,13 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
                                        cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
                                        mg_dst_properties);
 
-    enum class Bucket { cur, next, num_buckets };
-    cugraph::VertexFrontier<vertex_t, void, is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
-      mg_vertex_frontier(handle);
-    mg_vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
-      .insert(sources.begin(), sources.end());
+    constexpr size_t bucket_idx_cur  = 0;
+    constexpr size_t bucket_idx_next = 1;
+    constexpr size_t num_buckets     = 2;
+
+    cugraph::vertex_frontier_t<vertex_t, void, is_multi_gpu> mg_vertex_frontier(handle,
+                                                                                num_buckets);
+    mg_vertex_frontier.bucket(bucket_idx_cur).insert(sources.begin(), sources.end());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -192,8 +194,8 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
       handle,
       mg_graph_view,
       mg_vertex_frontier,
-      static_cast<size_t>(Bucket::cur),
-      std::vector<size_t>{static_cast<size_t>(Bucket::next)},
+      bucket_idx_cur,
+      std::vector<size_t>{bucket_idx_next},
       mg_src_properties.device_view(),
       mg_dst_properties.device_view(),
       [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
@@ -206,7 +208,7 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
       thrust::make_discard_iterator() /* dummy */,
       [] __device__(auto v, auto v_val, auto pushed_val) {
         return thrust::optional<thrust::tuple<size_t, std::byte>>{
-          thrust::make_tuple(static_cast<size_t>(Bucket::next), std::byte{0} /* dummy */)};
+          thrust::make_tuple(bucket_idx_next, std::byte{0} /* dummy */)};
       });
 
     if (cugraph::test::g_perf) {
@@ -223,7 +225,7 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
       auto mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
         handle, (*mg_renumber_map_labels).data(), (*mg_renumber_map_labels).size());
 
-      auto& next_bucket = mg_vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next));
+      auto& next_bucket = mg_vertex_frontier.bucket(bucket_idx_next);
       auto mg_aggregate_frontier_dsts =
         cugraph::test::device_gatherv(handle, next_bucket.begin(), next_bucket.size());
 
@@ -266,18 +268,16 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
                                            sg_graph_view,
                                            cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
                                            sg_dst_properties);
-        cugraph::
-          VertexFrontier<vertex_t, void, !is_multi_gpu, static_cast<size_t>(Bucket::num_buckets)>
-            sg_vertex_frontier(handle);
-        sg_vertex_frontier.get_bucket(static_cast<size_t>(Bucket::cur))
-          .insert(sources.begin(), sources.end());
+        cugraph::vertex_frontier_t<vertex_t, void, !is_multi_gpu> sg_vertex_frontier(handle,
+                                                                                     num_buckets);
+        sg_vertex_frontier.bucket(bucket_idx_cur).insert(sources.begin(), sources.end());
 
         update_frontier_v_push_if_out_nbr(
           handle,
           sg_graph_view,
           sg_vertex_frontier,
-          static_cast<size_t>(Bucket::cur),
-          std::vector<size_t>{static_cast<size_t>(Bucket::next)},
+          bucket_idx_cur,
+          std::vector<size_t>{bucket_idx_next},
           sg_src_properties.device_view(),
           sg_dst_properties.device_view(),
           [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
@@ -290,17 +290,16 @@ class Tests_MG_UpdateFrontierVPushIfOutNbr
           thrust::make_discard_iterator() /* dummy */,
           [] __device__(auto v, auto v_val, auto pushed_val) {
             return thrust::optional<thrust::tuple<size_t, std::byte>>{
-              thrust::make_tuple(static_cast<size_t>(Bucket::next), std::byte{0} /* dummy */)};
+              thrust::make_tuple(bucket_idx_next, std::byte{0} /* dummy */)};
           });
 
         thrust::sort(handle.get_thrust_policy(),
-                     sg_vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).begin(),
-                     sg_vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).end());
-        bool passed =
-          thrust::equal(handle.get_thrust_policy(),
-                        sg_vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).begin(),
-                        sg_vertex_frontier.get_bucket(static_cast<size_t>(Bucket::next)).end(),
-                        mg_aggregate_frontier_dsts.begin());
+                     sg_vertex_frontier.bucket(bucket_idx_next).begin(),
+                     sg_vertex_frontier.bucket(bucket_idx_next).end());
+        bool passed = thrust::equal(handle.get_thrust_policy(),
+                                    sg_vertex_frontier.bucket(bucket_idx_next).begin(),
+                                    sg_vertex_frontier.bucket(bucket_idx_next).end(),
+                                    mg_aggregate_frontier_dsts.begin());
         ASSERT_TRUE(passed);
       }
     }

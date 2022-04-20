@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,17 +13,17 @@
 
 import cugraph.dask as dcg
 import gc
-import pytest
+# import pytest
 import cugraph
 import dask_cudf
 import cudf
-from cugraph.dask.common.mg_utils import is_single_gpu
+# from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+# @pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+# )
 def test_dask_sssp(dask_client):
     gc.collect()
 
@@ -47,10 +47,10 @@ def test_dask_sssp(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    g = cugraph.DiGraph()
+    g = cugraph.Graph(directed=True)
     g.from_cudf_edgelist(df, "src", "dst", "value", renumber=True)
 
-    dg = cugraph.DiGraph()
+    dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
 
     expected_dist = cugraph.sssp(g, 0)

@@ -7,14 +7,22 @@ assignees: ''
 
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I wish I could use cuGraph to do  [...]
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+**Describe the solution you'd like and any additional context**
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
 
-**Additional context**
-Add any other context, code examples, or references to existing implementations about the feature request here.
+
+
+
+---
+_For Developers below this line_
+
+  - [] Code passes CI
+  - [] Code uses Graph Primitives
+  - [] Code in C++/CUDA layer
+  - [] Code in C layer
+  - [] Code in pylibcugraph Python layer
+  - [] Code in cugraph Python layer
+  - [] Documentation
+  - [] Test cases at each layer (for MG tests, a note in the PR description indicating the new/existing MG tests were run and passed)
+

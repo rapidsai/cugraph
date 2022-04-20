@@ -7,4 +7,4 @@ assignees: ''
 
 ---
 
-Ask a question that could be converted into a feature or enhancement
+Ask a question
