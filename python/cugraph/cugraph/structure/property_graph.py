@@ -17,8 +17,11 @@ import cugraph
 from cugraph.utilities.utils import import_optional, MissingModule
 
 pd = import_optional("pandas")
+dask_cudf = import_optional("dask_cudf")
 
 _dataframe_types = [cudf.DataFrame]
+if not isinstance(dask_cudf, MissingModule):
+    _dataframe_types.append(dask_cudf.DataFrame)
 if not isinstance(pd, MissingModule):
     _dataframe_types.append(pd.DataFrame)
 
