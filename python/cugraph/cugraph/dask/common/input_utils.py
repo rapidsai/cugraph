@@ -20,6 +20,8 @@ from dask_cudf.core import DataFrame as dcDataFrame
 from dask_cudf.core import Series as daskSeries
 
 import cugraph.comms.comms as Comms
+# FIXME: this raft import breaks the library if ucx-py is
+# not available. They are necessary only when doing MG work.
 try:
     from raft.dask.common.utils import get_client
 except ModuleNotFoundError:

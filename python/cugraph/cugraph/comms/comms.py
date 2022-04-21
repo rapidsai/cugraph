@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# FIXME: these raft imports break the library if ucx-py is
+# not available. They are necessary only when doing MG work.
 try:
     from raft.dask.common.comms import Comms as raftComms
     from raft.dask.common.comms import get_raft_comm_state

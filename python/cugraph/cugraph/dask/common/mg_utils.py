@@ -18,6 +18,8 @@ import numba.cuda
 from dask_cuda import LocalCUDACluster
 from dask.distributed import Client
 
+# FIXME: this raft import breaks the library if ucx-py is
+# not available. They are necessary only when doing MG work.
 try:
     from raft.dask.common.utils import default_client
 except ModuleNotFoundError:
