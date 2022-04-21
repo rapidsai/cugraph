@@ -34,5 +34,3 @@ from .sssp import sssp
 from .hits import hits
 
 from .node2vec import node2vec
-
-from .uniform_neighborhood_sampling import uniform_neighborhood_sampling
