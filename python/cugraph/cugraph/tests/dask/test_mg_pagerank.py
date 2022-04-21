@@ -48,13 +48,15 @@ def personalize(vertices, personalization_perc):
 
 
 PERSONALIZATION_PERC = [0, 10, 50]
+IS_DIRECTED = [True, False]
 
 
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 @pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
-def test_dask_pagerank(dask_client, personalization_perc):
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+def test_dask_pagerank(dask_client, personalization_perc, directed):
     gc.collect()
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
@@ -77,10 +79,10 @@ def test_dask_pagerank(dask_client, personalization_perc):
         dtype=["int32", "int32", "float32"],
     )
 
-    g = cugraph.Graph(directed=True)
+    g = cugraph.Graph(directed=directed)
     g.from_cudf_edgelist(df, "src", "dst")
 
-    dg = cugraph.Graph(directed=True)
+    dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
     personalization = None
