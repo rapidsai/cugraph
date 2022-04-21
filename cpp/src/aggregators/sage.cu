@@ -18,6 +18,8 @@
 
 #include <cugraph-ops/aggregator.hpp>
 
+#include <cugraph-ops/agg_concat.hpp>
+
 #include <cugraph-ops/graph/format.hpp>
 
 #include <cugraph-ops/cuda/stream.h>
@@ -32,7 +34,7 @@ void aggregate_forward(raft::handle_t const& handle,
                        size_t dimension,
                        size_t leading_dimension,
                        bool ignore_self,
-                       ops::gnn::AggOpT& op,
+                       ops::gnn::AggOpT op,
                        float const* input_embeddings,
                        float* aggregated_embeddings,
                        std::optional<vertex_t*> embedding_index)
@@ -47,6 +49,26 @@ void aggregate_forward(raft::handle_t const& handle,
     message_flow_graph,
     op,
     ignore_self,
+    stream);
+}
+
+template <typename vertex_t>
+void aggregate_concatenate_forward(raft::handle_t const& handle,
+                                   ops::gnn::graph::mfg_csr<vertex_t> const& message_flow_graph,
+                                   size_t dimension,
+                                   ops::gnn::AggOpT op,
+                                   float const* input_embeddings,
+                                   float* aggregated_embeddings,
+                                   std::optional<vertex_t*> embedding_index)
+{
+  cugraph::ops::gnn::cuda::stream stream(handle.get_stream());
+  ops::gnn::agg_concat_fwd(
+    aggregated_embeddings,
+    ((op == ops::gnn::AggOpT::kMin) || (op == ops::gnn::AggOpT::kMax)) ? *embedding_index : nullptr,
+    input_embeddings,
+    dimension,
+    message_flow_graph,
+    op,
     stream);
 }
 
@@ -74,16 +96,65 @@ void aggregate_backward(raft::handle_t const& handle,
     stream);
 }
 
+template <typename vertex_t>
+void aggregate_concatenate_backward(raft::handle_t const& handle,
+                                    ops::gnn::graph::mfg_csr<vertex_t> const& message_flow_graph,
+                                    size_t dimension,
+                                    ops::gnn::AggOpT op,
+                                    float const* aggregated_embeddings,
+                                    std::optional<vertex_t const*> embedding_index,
+                                    float* embeddings_gradient)
+{
+  cugraph::ops::gnn::cuda::stream stream(handle.get_stream());
+  ops::gnn::agg_concat_bwd(
+    embeddings_gradient,
+    aggregated_embeddings,
+    ((op == ops::gnn::AggOpT::kMin) || (op == ops::gnn::AggOpT::kMax)) ? *embedding_index : nullptr,
+    dimension,
+    message_flow_graph,
+    op,
+    stream);
+}
+
 template void aggregate_forward<int32_t>(
   raft::handle_t const& handle,
   ops::gnn::graph::mfg_csr<int32_t> const& message_flow_graph,
   size_t dimension,
   size_t leading_dimension,
   bool ignore_self,
-  ops::gnn::AggOpT& op,
+  ops::gnn::AggOpT op,
   float const* input_embeddings,
   float* aggregated_embeddings,
   std::optional<int32_t*> embedding_index);
+
+template void aggregate_forward<int64_t>(
+  raft::handle_t const& handle,
+  ops::gnn::graph::mfg_csr<int64_t> const& message_flow_graph,
+  size_t dimension,
+  size_t leading_dimension,
+  bool ignore_self,
+  ops::gnn::AggOpT op,
+  float const* input_embeddings,
+  float* aggregated_embeddings,
+  std::optional<int64_t*> embedding_index);
+
+template void aggregate_concatenate_forward<int32_t>(
+  raft::handle_t const& handle,
+  ops::gnn::graph::mfg_csr<int32_t> const& message_flow_graph,
+  size_t dimension,
+  ops::gnn::AggOpT op,
+  float const* input_embeddings,
+  float* aggregated_embeddings,
+  std::optional<int32_t*> embedding_index);
+
+template void aggregate_concatenate_forward<int64_t>(
+  raft::handle_t const& handle,
+  ops::gnn::graph::mfg_csr<int64_t> const& message_flow_graph,
+  size_t dimension,
+  ops::gnn::AggOpT op,
+  float const* input_embeddings,
+  float* aggregated_embeddings,
+  std::optional<int64_t*> embedding_index);
 
 template void aggregate_backward(raft::handle_t const& handle,
                                  ops::gnn::graph::mfg_csr<int32_t> const& message_flow_graph,
@@ -95,17 +166,6 @@ template void aggregate_backward(raft::handle_t const& handle,
                                  std::optional<int32_t const*> embedding_index,
                                  float* embeddings_gradient);
 
-template void aggregate_forward<int64_t>(
-  raft::handle_t const& handle,
-  ops::gnn::graph::mfg_csr<int64_t> const& message_flow_graph,
-  size_t dimension,
-  size_t leading_dimension,
-  bool ignore_self,
-  ops::gnn::AggOpT& op,
-  float const* input_embeddings,
-  float* aggregated_embeddings,
-  std::optional<int64_t*> embedding_index);
-
 template void aggregate_backward(raft::handle_t const& handle,
                                  ops::gnn::graph::mfg_csr<int64_t> const& message_flow_graph,
                                  size_t dimension,
@@ -115,5 +175,23 @@ template void aggregate_backward(raft::handle_t const& handle,
                                  float const* aggregated_embeddings,
                                  std::optional<int64_t const*> embedding_index,
                                  float* embeddings_gradient);
+
+template void aggregate_concatenate_backward(
+  raft::handle_t const& handle,
+  ops::gnn::graph::mfg_csr<int32_t> const& message_flow_graph,
+  size_t dimension,
+  ops::gnn::AggOpT op,
+  float const* aggregated_embeddings,
+  std::optional<int32_t const*> embedding_index,
+  float* embeddings_gradient);
+
+template void aggregate_concatenate_backward(
+  raft::handle_t const& handle,
+  ops::gnn::graph::mfg_csr<int64_t> const& message_flow_graph,
+  size_t dimension,
+  ops::gnn::AggOpT op,
+  float const* aggregated_embeddings,
+  std::optional<int64_t const*> embedding_index,
+  float* embeddings_gradient);
 
 }  // namespace cugraph
