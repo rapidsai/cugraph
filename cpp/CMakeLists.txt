@@ -162,6 +162,7 @@ endif()
 # - libcugraph library target --------------------------------------------------
 
 add_library(cugraph
+    src/aggregators/sage.cu
     src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
     src/utilities/cython.cu

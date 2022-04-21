@@ -24,11 +24,79 @@
 #include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
 
+#include <cugraph-ops/aggregator.hpp>
 #include <cugraph-ops/graph/sampling.hpp>
 
 #include <raft/handle.hpp>
 
 namespace cugraph {
+
+/**
+ * @brief Computes the forward pass for aggregation layer
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ *
+ * @param handle                     RAFT handle object to encapsulate resources (e.g. CUDA stream,
+ * communicator, and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] message_flow_graph     input message flow graph.
+ * @param[in] dimension              dimensionality of the embeddings
+ * @param[in] leading_dimension      leading dimension for `aggregated_embeddings` array.
+ *                                   It must be at least `dimension`.
+ * @param[in] ignore_self            ignore the self node in the aggregation
+ * @param[in] op                     aggregation operation
+ * @param[in] input_embeddings       the input embeddings. [on device]
+ *                                   [dim = `*mfg.n_in_nodes x dim`]
+ * @param[out] aggregated_embeddings the output aggregated embeddings. [on device]
+ *                                   [dim = `mfg.n_out_nodes x ld`]
+ * @param[out] embedding_index       (optional) location of the max/min embeddings. This will be
+ *                                   written to only for kMin/kMax aggregations and
+ *                                   when this pointer is NOT a `nullptr`. [on device]
+ *                                   [dim = `mfg.n_out_nodes x dim`]
+ */
+
+template <typename vertex_t>
+void aggregate_forward(raft::handle_t const& handle,
+                       ops::gnn::graph::mfg_csr<vertex_t> const& message_flow_graph,
+                       size_t dimension,
+                       size_t leading_dimension,
+                       bool ignore_self,
+                       ops::gnn::AggOpT op,
+                       float const* input_embeddings,
+                       float* aggregated_embeddings,
+                       std::optional<vertex_t*> embedding_index);
+
+/**
+ * @brief Computes the backward pass for aggregation layer
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ *
+ * @param handle                    RAFT handle object to encapsulate resources (e.g. CUDA stream,
+ * communicator, and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] message_flow_graph    input message flow graph.
+ * @param[in] dimension             dimensionality of the embeddings
+ * @param[in] leading_dimension     leading dimension for `aggregated_embeddings` and
+ * `input_embeddings` array. It must be at least `dimension`.
+ * @param[in] ignore_self           ignore the self node in the aggregation
+ * @param[in] op                    aggregation operation
+ * @param[in] aggregated_embeddings the output aggregated embeddings. [on device]
+ *                                  [dim = `mfg.n_out_nodes x ld`]
+ * @param[in] embedding_index       (optional) location of the max/min embeddings. This will be
+ *                                  written to only for kMin/kMax aggregations and
+ *                                  when this pointer is NOT a `nullptr`. [on device]
+ *                                  [dim = `mfg.n_out_nodes x dim`]
+ * @param[out] input_embeddings     the input embeddings. [on device]
+ *                                  [dim = `*mfg.n_in_nodes x dim`]
+ */
+template <typename vertex_t>
+void aggregate_backward(raft::handle_t const& handle,
+                        ops::gnn::graph::mfg_csr<vertex_t> const& message_flow_graph,
+                        size_t dimension,
+                        size_t leading_dimension,
+                        bool ignore_self,
+                        ops::gnn::AggOpT op,
+                        float const* aggregated_embeddings,
+                        std::optional<vertex_t const*> embedding_index,
+                        float* embeddings_gradient);
 
 /**
  * @brief     Compute jaccard similarity coefficient for all vertices
