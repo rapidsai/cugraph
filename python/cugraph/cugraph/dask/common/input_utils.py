@@ -20,7 +20,10 @@ from dask_cudf.core import DataFrame as dcDataFrame
 from dask_cudf.core import Series as daskSeries
 
 import cugraph.comms.comms as Comms
-from raft.dask.common.utils import get_client
+try:
+    from raft.dask.common.utils import get_client
+except ModuleNotFoundError:
+    get_client = None
 from cugraph.dask.common.part_utils import _extract_partitions
 from dask.distributed import default_client
 from toolz import first

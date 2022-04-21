@@ -21,7 +21,10 @@ import numpy as np
 import cudf
 
 from cugraph.dask.common.input_utils import get_distributed_data
-from cugraph.structure import renumber_wrapper as c_renumber
+try:
+    from cugraph.structure import renumber_wrapper as c_renumber
+except ImportError:
+    c_renumber = None
 import cugraph.comms.comms as Comms
 
 
