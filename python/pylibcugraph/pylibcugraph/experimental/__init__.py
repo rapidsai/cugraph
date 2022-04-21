@@ -68,3 +68,6 @@ node2vec = promoted_experimental_warning_wrapper(node2vec)
 
 from pylibcugraph.uniform_neighborhood_sampling import uniform_neighborhood_sampling
 uniform_neighborhood_sampling = promoted_experimental_warning_wrapper(uniform_neighborhood_sampling)
+
+from pylibcugraph.katz_centrality import EXPERIMENTAL__katz_centrality
+katz_centrality = experimental_warning_wrapper(EXPERIMENTAL__katz_centrality)

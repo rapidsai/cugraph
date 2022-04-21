@@ -33,7 +33,7 @@ from pylibcugraph._cugraph_c.array cimport (
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
-from pylibcugraph._cugraph_c.algorithms cimport (
+from pylibcugraph._cugraph_c.centrality_algorithms cimport (
     cugraph_hits,
     cugraph_hits_result_t,
     cugraph_hits_result_get_vertices,

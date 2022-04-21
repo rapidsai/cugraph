@@ -191,7 +191,7 @@ struct property_op<thrust::tuple<Args...>, Op>
 
  private:
   template <typename T, std::size_t... Is>
-  __host__ __device__ constexpr auto sum_impl(T& t1, T& t2, std::index_sequence<Is...>)
+  __host__ __device__ constexpr auto binary_op_impl(T& t1, T& t2, std::index_sequence<Is...>)
   {
     return thrust::make_tuple((Op<typename thrust::tuple_element<Is, Type>::type>()(
       thrust::get<Is>(t1), thrust::get<Is>(t2)))...);
@@ -200,7 +200,7 @@ struct property_op<thrust::tuple<Args...>, Op>
  public:
   __host__ __device__ constexpr auto operator()(const Type& t1, const Type& t2)
   {
-    return sum_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
+    return binary_op_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
   }
 };
 

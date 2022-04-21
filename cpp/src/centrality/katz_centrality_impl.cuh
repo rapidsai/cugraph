@@ -72,8 +72,10 @@ void katz_centrality(raft::handle_t const& handle,
     // FIXME: should I check for betas?
 
     if (has_initial_guess) {
-      auto num_negative_values = count_if_v(
-        handle, pull_graph_view, katz_centralities, [] __device__(auto val) { return val < 0.0; });
+      auto num_negative_values =
+        count_if_v(handle, pull_graph_view, katz_centralities, [] __device__(auto, auto val) {
+          return val < 0.0;
+        });
       CUGRAPH_EXPECTS(num_negative_values == 0,
                       "Invalid input argument: initial guess values should be non-negative.");
     }
@@ -132,7 +134,7 @@ void katz_centrality(raft::handle_t const& handle,
       handle,
       pull_graph_view,
       thrust::make_zip_iterator(thrust::make_tuple(new_katz_centralities, old_katz_centralities)),
-      [] __device__(auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0.0});
 
     iter++;
@@ -156,7 +158,7 @@ void katz_centrality(raft::handle_t const& handle,
       handle,
       pull_graph_view,
       katz_centralities,
-      [] __device__(auto val) { return val * val; },
+      [] __device__(auto, auto val) { return val * val; },
       result_t{0.0});
     l2_norm = std::sqrt(l2_norm);
     CUGRAPH_EXPECTS(l2_norm > 0.0,

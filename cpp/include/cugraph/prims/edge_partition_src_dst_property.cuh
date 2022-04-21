@@ -254,10 +254,12 @@ class edge_partition_major_property_t {
     edge_partition_major_value_start_offsets_ = std::nullopt;
   }
 
-  void fill(T value, rmm::cuda_stream_view stream)
+  void fill(raft::handle_t const& handle, T value)
   {
-    thrust::fill(
-      rmm::exec_policy(stream), value_data(), value_data() + size_dataframe_buffer(buffer_), value);
+    thrust::fill(handle.get_thrust_policy(),
+                 value_data(),
+                 value_data() + size_dataframe_buffer(buffer_),
+                 value);
   }
 
   auto key_first() { return key_first_; }
@@ -267,6 +269,7 @@ class edge_partition_major_property_t {
                                                             (*edge_partition_key_offsets_).back())
                       : std::nullopt;
   }
+
   auto value_data() { return get_dataframe_buffer_begin(buffer_); }
 
   auto device_view() const
@@ -351,14 +354,17 @@ class edge_partition_minor_property_t {
     shrink_to_fit_dataframe_buffer(buffer_, handle.get_stream());
   }
 
-  void fill(T value, rmm::cuda_stream_view stream)
+  void fill(raft::handle_t const& handle, T value)
   {
-    thrust::fill(
-      rmm::exec_policy(stream), value_data(), value_data() + size_dataframe_buffer(buffer_), value);
+    thrust::fill(handle.get_thrust_policy(),
+                 value_data(),
+                 value_data() + size_dataframe_buffer(buffer_),
+                 value);
   }
 
   auto key_first() { return key_first_; }
   auto key_last() { return key_last_; }
+
   auto value_data() { return get_dataframe_buffer_begin(buffer_); }
 
   auto device_view() const
@@ -480,7 +486,7 @@ class edge_partition_src_property_t {
 
   void clear(raft::handle_t const& handle) { property_.clear(handle); }
 
-  void fill(T value, rmm::cuda_stream_view stream) { property_.fill(value, stream); }
+  void fill(raft::handle_t const& handle, T value) { property_.fill(handle, value); }
 
   auto key_first() { return property_.key_first(); }
   auto key_last() { return property_.key_last(); }
@@ -561,7 +567,7 @@ class edge_partition_dst_property_t {
 
   void clear(raft::handle_t const& handle) { property_.clear(handle); }
 
-  void fill(T value, rmm::cuda_stream_view stream) { property_.fill(value, stream); }
+  void fill(raft::handle_t const& handle, T value) { property_.fill(handle, value); }
 
   auto key_first() { return property_.key_first(); }
   auto key_last() { return property_.key_last(); }
