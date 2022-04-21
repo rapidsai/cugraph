@@ -307,11 +307,40 @@ typedef struct {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
+// FIXME: This older API will be phased out this release in favor of the experimental one below
 cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start,
   const cugraph_type_erased_device_array_view_t* start_label,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  bool_t with_replacement,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Uniform Neighborhood Sampling
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  start        Device array of start vertices for the sampling
+ * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm
+ * @param [in]  with_replacement
+ *                           Boolean value.  If true selection of edges is done with
+ *                           replacement.  If false selection is done without replacement.
+ * @param [in]  do_expensive_check
+ *                           A flag to run expensive checks for input arguments (if set to true)
+ * @param [in]  result       Output from the uniform_neighbor_sample call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_experimental_uniform_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* start,
   const cugraph_type_erased_host_array_view_t* fan_out,
   bool_t with_replacement,
   bool_t do_expensive_check,
@@ -342,6 +371,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_destinations(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the start labels
  */
+// FIXME:  This will be obsolete when the older mechanism is removed
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_start_labels(
   const cugraph_sample_result_t* result);
 
@@ -360,6 +390,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased host array pointing to the counts
  */
+// FIXME:  This will be obsolete when the older mechanism is removed
 cugraph_type_erased_host_array_view_t* cugraph_sample_result_get_counts(
   const cugraph_sample_result_t* result);
 
