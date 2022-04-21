@@ -11,22 +11,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.centrality import katz_centrality_wrapper
+from pylibcugraph.experimental import (ResourceHandle,
+                                       GraphProperties,
+                                       SGGraph,
+                                       katz_centrality as pylibcugraph_katz
+                                       )
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
+import cudf
 
 
 def katz_centrality(
-    G, alpha=None, beta=None, max_iter=100, tol=1.0e-6,
+    G, alpha=None, beta=1.0, max_iter=1000, tol=1.0e-6,
     nstart=None, normalized=True
 ):
     """
-    Compute the Katz centrality for the nodes of the graph G. cuGraph does not
-    currently support the 'beta' and 'weight' parameters as seen in the
-    corresponding networkX call. This implementation is based on a relaxed
-    version of Katz defined by Foster with a reduced computational complexity
-    of O(n+m)
+    Compute the Katz centrality for the nodes of the graph G. This
+    implementation is based on a relaxed version of Katz defined by Foster
+    with a reduced computational complexity of O(n+m)
 
     On a directed graph, cuGraph computes the out-edge Katz centrality score.
     This is opposite of NetworkX which compute the in-edge Katz centrality
@@ -46,7 +49,7 @@ def katz_centrality(
     ----------
     G : cuGraph.Graph or networkx.Graph
         cuGraph graph descriptor with connectivity information. The graph can
-        contain either directed (DiGraph) or undirected edges (Graph).
+        contain either directed or undirected edges.
 
     alpha : float, optional (default=None)
         Attenuation factor defaulted to None. If alpha is not specified then
@@ -63,17 +66,18 @@ def katz_centrality(
             guarantee that it will never exceed alpha_max thus in turn
             fulfilling the requirement for convergence.
 
-    beta : float, optional (default=None)
-        A weight scalar - currently Not Supported
+    beta : float, optional (default=1.0)
+        Weight scalar added to each vertex's new Katz Centrality score in every
+        iteration
 
-    max_iter : int, optional (default=100)
+    max_iter : int, optional (default=1000)
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.
         If this value is lower or equal to 0 cuGraph will use the default
-        value, which is 100.
+        value, which is 1000.
 
-    tol : float, optional (default=1.0e-6)
+    tol : float, optional (default=1e-6)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -98,7 +102,6 @@ def katz_centrality(
     df : cudf.DataFrame or Dictionary if using NetworkX
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding katz centrality values.
-
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
         df['katz_centrality'] : cudf.Series
@@ -113,14 +116,33 @@ def katz_centrality(
     >>> kc = cugraph.katz_centrality(G)
 
     """
-
-    if beta is not None:
-        raise NotImplementedError(
-                "The beta argument is "
-                "currently not supported"
-        )
+    if (alpha is not None) and (alpha <= 0.0):
+        raise ValueError(f"'alpha' must be a positive float or None, "
+                         f"got: {alpha}")
+    if (not isinstance(beta, float)) or (beta <= 0.0):
+        raise ValueError(f"'beta' must be a positive float, got: {beta}")
+    if (not isinstance(max_iter, int)):
+        raise ValueError(f"'max_iter' must be an integer, got: {max_iter}")
+    elif max_iter <= 0:
+        max_iter = 1000
+    if (not isinstance(tol, float)) or (tol <= 0.0):
+        raise ValueError(f"'tol' must be a positive float, got: {tol}")
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
+
+    srcs = G.edgelist.edgelist_df['src']
+    dsts = G.edgelist.edgelist_df['dst']
+    if 'weights' in G.edgelist.edgelist_df.columns:
+        weights = G.edgelist.edgelist_df['weights']
+    else:
+        # FIXME: If weights column is not imported, a weights column of 1s
+        # with type hardcoded to float32 is passed into wrapper
+        weights = cudf.Series((srcs + 1) / (srcs + 1), dtype="float32")
+
+    if alpha is None:
+        largest_out_degree = G.degrees().nlargest(n=1, columns="out_degree")
+        largest_out_degree = largest_out_degree["out_degree"].iloc[0]
+        alpha = 1 / (largest_out_degree + 1)
 
     if nstart is not None:
         if G.renumbered is True:
@@ -129,16 +151,33 @@ def katz_centrality(
             else:
                 cols = 'vertex'
             nstart = G.add_internal_vertex_id(nstart, 'vertex', cols)
+            nstart = nstart[nstart.columns[0]]
 
-    df = katz_centrality_wrapper.katz_centrality(
-        G, alpha, max_iter, tol, nstart, normalized
-    )
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_multigraph=G.is_multigraph())
+    store_transposed = False
+    renumber = False
+    do_expensive_check = False
+
+    sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
+                 store_transposed, renumber, do_expensive_check)
+
+    vertices, values = pylibcugraph_katz(resource_handle, sg, nstart, alpha,
+                                         beta, tol, max_iter,
+                                         do_expensive_check)
+
+    vertices = cudf.Series(vertices)
+    values = cudf.Series(values)
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertices
+    df["katz_centrality"] = values
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
     if isNx is True:
-        dict = df_score_to_dictionary(df, 'katz_centrality')
+        dict = df_score_to_dictionary(df, "katz_centrality")
         return dict
     else:
         return df
