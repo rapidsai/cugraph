@@ -42,29 +42,29 @@ from pylibcugraph.utilities.api_tools import (experimental_warning_wrapper,
 # the appropriate warnings, such as what the wrapper and the "experimental"
 # namespace name provides.
 
-from pylibcugraph.graphs import EXPERIMENTAL__SGGraph
-SGGraph = promoted_experimental_warning_wrapper(EXPERIMENTAL__SGGraph)
+from pylibcugraph.graphs import SGGraph
+SGGraph = promoted_experimental_warning_wrapper(SGGraph)
 
-from pylibcugraph.graphs import EXPERIMENTAL__MGGraph
-MGGraph = promoted_experimental_warning_wrapper(EXPERIMENTAL__MGGraph)
+from pylibcugraph.graphs import MGGraph
+MGGraph = promoted_experimental_warning_wrapper(MGGraph)
 
-from pylibcugraph.resource_handle import EXPERIMENTAL__ResourceHandle
-ResourceHandle = promoted_experimental_warning_wrapper(EXPERIMENTAL__ResourceHandle)
+from pylibcugraph.resource_handle import ResourceHandle
+ResourceHandle = promoted_experimental_warning_wrapper(ResourceHandle)
 
-from pylibcugraph.graph_properties import EXPERIMENTAL__GraphProperties
-GraphProperties = promoted_experimental_warning_wrapper(EXPERIMENTAL__GraphProperties)
+from pylibcugraph.graph_properties import GraphProperties
+GraphProperties = promoted_experimental_warning_wrapper(GraphProperties)
 
-from pylibcugraph.pagerank import EXPERIMENTAL__pagerank
-pagerank = promoted_experimental_warning_wrapper(EXPERIMENTAL__pagerank)
+from pylibcugraph.pagerank import pagerank
+pagerank = promoted_experimental_warning_wrapper(pagerank)
 
-from pylibcugraph.sssp import EXPERIMENTAL__sssp
-sssp = promoted_experimental_warning_wrapper(EXPERIMENTAL__sssp)
+from pylibcugraph.sssp import sssp
+sssp = promoted_experimental_warning_wrapper(sssp)
 
-from pylibcugraph.hits import EXPERIMENTAL__hits
-hits = promoted_experimental_warning_wrapper(EXPERIMENTAL__hits)
+from pylibcugraph.hits import hits
+hits = promoted_experimental_warning_wrapper(hits)
 
-from pylibcugraph.node2vec import EXPERIMENTAL__node2vec
-node2vec = promoted_experimental_warning_wrapper(EXPERIMENTAL__node2vec)
+from pylibcugraph.node2vec import node2vec
+node2vec = promoted_experimental_warning_wrapper(node2vec)
 
-from pylibcugraph.uniform_neighborhood_sampling import EXPERIMENTAL__uniform_neighborhood_sampling
-uniform_neighborhood_sampling = promoted_experimental_warning_wrapper(EXPERIMENTAL__uniform_neighborhood_sampling)
+from pylibcugraph.uniform_neighborhood_sampling import uniform_neighborhood_sampling
+uniform_neighborhood_sampling = promoted_experimental_warning_wrapper(uniform_neighborhood_sampling)
