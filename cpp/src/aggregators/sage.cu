@@ -22,7 +22,7 @@
 
 #include <cugraph-ops/graph/format.hpp>
 
-#include <cugraph-ops/cuda/stream.h>
+#include <cugraph-ops/cuda/stream.hpp>
 
 #include <raft/handle.hpp>
 
