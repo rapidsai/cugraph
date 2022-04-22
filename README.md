@@ -13,8 +13,18 @@ otherwise be possible using the client resources.
 (description)
 ### Installing the `gaas-server` conda package
 ### Example
+Starting the server
+```
+/repos/GaaS$ PYTHONPATH=./python python ./python/gaas_server/server.py
+```
 
 ## Client
 (description)
 ### Installing the `gaas-client` conda package
 ### Example
+Creating a client
+```
+>>> import gaas_client
+>>> client = gaas_client.GaasClient()
+>>> client.load_csv_as_vertex_data(...)
+```
