@@ -20,8 +20,30 @@ from .gaas_thrift import create_client
 
 class GaasClient:
     """
+    Client object for GaaS, which defines the API that clients can use to access
+    the GaaS server.
     """
     def __init__(self, host=defaults.host, port=defaults.port):
+        """
+        Creates a connection to a GaaS server running on host/port.
+
+        Parameters
+        ----------
+        host : string, defaults to 127.0.0.1
+            Hostname where the GaaS server is running
+
+        port : int, defaults to 9090
+            Port number where the GaaS server is listening
+
+        Returns
+        -------
+        GaasClient object
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        """
         self.host = host
         self.port = port
         self.__client = None
@@ -58,18 +80,59 @@ class GaasClient:
         """
         Opens a connection to the server at self.host/self.port if one is not
         already established. close() must be called in order to allow other
-        connections from other clients to be made. All APIs that access the
-        server will call this method automatically, followed by a call to
-        close(). close() is not automatically called if self.hold_open is False.
+        connections from other clients to be made.
+
+        Note: all APIs that access the server will call this method
+        automatically, followed automatically by a call to close(), so calling
+        this method should not be necessary. close() is not automatically called
+        if self.hold_open is False.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> # Manually open a connection. The connection is held open and other
+        >>> # clients cannot connect until a client API call completes or
+        >>> # close() is manually called.
+        >>> client.open()
         """
         if self.__client is None:
             self.__client = create_client(self.host, self.port)
 
     def close(self):
-        """
-        Closes a connection to the server if one has been established, allowing
+        """Closes a connection to the server if one has been established, allowing
         other clients to access the server. This method is called automatically
         for all APIs that access the server if self.hold_open is False.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> # Have the client hold open the connect automatically opened as part
+        >>> # of a server API call until close() is called. This is normally not
+        >>> # necessary and shown here for demonstration purposes.
+        >>> client.hold_open = True
+        >>> client.node2vec([0,1], 2)
+        >>> # close the connection so other clients can connect
+        >>> client.close()
+        >>> # go back to automatic open/close mode (safer)
+        >>> client.hold_open = False
         """
         if self.__client is not None:
             self.__client.close()
@@ -82,6 +145,26 @@ class GaasClient:
         """
         Create a new graph associated with a new (non-default) unique graph ID,
         return the new graph ID.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        graph_id : int
+            unique graph ID
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> my_graph_id = client.create_graph()
+        >>> # Load a CSV to the new graph
+        >>> client.load_csv_as_edge_data(
+        ... "edges.csv", ["int32", "int32", "float32"],
+        ... vertex_col_names=["src", "dst"], graph_id=my_graph_id)
+        >>>
         """
         return self.__client.create_graph()
 
@@ -89,6 +172,28 @@ class GaasClient:
     def delete_graph(self, graph_id):
         """
         Deletes the graph referenced by graph_id.
+
+        Parameters
+        ----------
+        graph_id : int
+            The graph ID to delete. If the ID passed is not valid on the server,
+            GaaSError is raised.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> my_graph_id = client.create_graph()
+        >>> # Load a CSV to the new graph
+        >>> client.load_csv_as_edge_data(
+        ... "edges.csv", ["int32", "int32", "float32"],
+        ... vertex_col_names=["src", "dst"], graph_id=my_graph_id)
+        >>> # Remove the graph instance on the server and reclaim the memory
+        >>> client.delete_graph(my_graph_id)
         """
         return self.__client.delete_graph(graph_id)
 
@@ -96,6 +201,23 @@ class GaasClient:
     def get_graph_ids(self):
         """
         Returns a list of all graph IDs the server is currently maintaining.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        graph_id_list : list of unique int graph IDs
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> # This server already has graphs loaded from other sessions
+        >>> client.get_graph_ids()
+        [0, 26]
+        >>>
         """
         return self.__client.get_graph_ids()
 
@@ -113,7 +235,57 @@ class GaasClient:
         """
         Reads csv_file_name and applies it as vertex data to the graph
         identified as graph_id (or the default graph if not specified).
+
+        Parameters
+        ----------
+        csv_file_name : string
+            Path to CSV file on the server
+
+        dtypes : list of strings
+            Types for the columns in the CSV file
+
+        vertex_col_name : string
+            Name of the column to use as the vertex ID
+
+        delimiter : string, default is " "
+            Character that serves as the delimiter between columns in the CSV
+
+        header : int, default is None
+            Row number to use as the column names. Default behavior is to assume
+            column names are explicitely provided (header=None). header="infer"
+            if the column names are to be inferred. If no names are passed,
+            header=0. See also cudf.read_csv
+
+        type_name : string, default is ""
+            The vertex property "type" the CSV data is describing. For instance,
+            CSV data describing properties for "users" might pass type_name as
+            "user". A vertex property type is optional.
+
+        property_columns : list of strings, default is None
+            The column names in the CSV to add as vertex properties. If None,
+            all columns will be added as properties.
+
+        graph_id : int, default is defaults.graph_id
+            The graph ID to apply the properties in the CSV to. If not provided,
+            the default graph ID is used.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> client.load_csv_as_vertex_data(
+        ... "/server/path/to/vertex_data.csv",
+        ... dtypes=["int32", "string", "int32"],
+        ... vertex_col_name="vertex_id",
+        ... header="infer")
+        >>>
         """
+        # Map all int arg types that also have string options to ints
+        # FIXME: check for invalid header arg values
         if header == "infer":
             header = -1
         elif header is None:
@@ -141,7 +313,58 @@ class GaasClient:
         """
         Reads csv_file_name and applies it as edge data to the graph identified
         as graph_id (or the default graph if not specified).
+
+        Parameters
+        ----------
+        csv_file_name : string
+            Path to CSV file on the server
+
+        dtypes : list of strings
+            Types for the columns in the CSV file
+
+        vertex_col_names : tuple of strings
+            Names of the columns to use as the source and destination vertex IDs
+            defining the edges
+
+        delimiter : string, default is " "
+            Character that serves as the delimiter between columns in the CSV
+
+        header : int, default is None
+            Row number to use as the column names. Default behavior is to assume
+            column names are explicitely provided (header=None). header="infer"
+            if the column names are to be inferred. If no names are passed,
+            header=0. See also cudf.read_csv
+
+        type_name : string, default is ""
+            The edge property "type" the CSV data is describing. For instance,
+            CSV data describing properties for "transactions" might pass
+            type_name as "transaction". An edge property type is optional.
+
+        property_columns : list of strings, default is None
+            The column names in the CSV to add as edge properties. If None, all
+            columns will be added as properties.
+
+        graph_id : int, default is defaults.graph_id
+            The graph ID to apply the properties in the CSV to. If not provided,
+            the default graph ID is used.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> client.load_csv_as_edge_data(
+        ... "/server/path/to/edge_data.csv",
+        ... dtypes=["int32", "int32", "string", "int32"],
+        ... vertex_col_names=("src", "dst"),
+        ... header="infer")
+        >>>
         """
+        # Map all int arg types that also have string options to ints
+        # FIXME: check for invalid header arg values
         if header == "infer":
             header = -1
         elif header is None:
@@ -160,6 +383,25 @@ class GaasClient:
         """
         Returns the number of edges for the graph identified as graph_id (or the
         default graph if not specified).
+
+        Parameters
+        ----------
+        graph_id : int, default is defaults.graph_id
+            The graph ID to query. If the ID passed is not valid on the server,
+            GaaSError is raised.
+
+        Returns
+        -------
+        num_edges : int
+            The number of edges in graph_id
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> # This server already has graphs loaded from other sessions
+        >>> client.get_num_edges()
+        10000
         """
         return self.__client.get_num_edges(graph_id)
 
@@ -173,7 +415,52 @@ class GaasClient:
                          graph_id=defaults.graph_id
                          ):
         """
-        Extract a subgraph, return a new graph ID.
+        Return a graph ID for a subgraph of the graph referenced by graph_id
+        that containing vertices and edges that match a selection.
+
+        Parameters
+        ----------
+        create_using : string, default is None
+            String describing the type of Graph object to create from the
+            selected subgraph of vertices and edges. The default (None) results
+            in a cugraph.Graph object.
+
+        selection : int, default is None
+            A PropertySelection ID returned from one or more calls to
+            select_vertices() and/or select_edges(), used for creating a Graph
+            with only the selected properties. If not speciied the resulting
+            Graph will have all properties. Note, this could result in a Graph
+            with multiple edges, which may not be supported based on the value
+            of create_using.
+
+        edge_weight_property : string, default is ""
+            The name of the property whose values will be used as weights on the
+            returned Graph. If not specified, the returned Graph will be
+            unweighted.
+
+        default_edge_weight : float, default is 1.0
+            The value to use when an edge property is specified but not present
+            on an edge.
+
+        allow_multi_edges : bool
+            If True, multiple edges should be used to create the resulting
+            Graph, otherwise multiple edges will be detected and an exception
+            raised.
+
+        graph_id : int, default is defaults.graph_id
+           The graph ID to extract the subgraph from. If the ID passed is not
+           valid on the server, GaaSError is raised.
+
+        Returns
+        -------
+        A graph ID for a new Graph instance of the same type as create_using
+        containing only the vertices and edges resulting from applying the
+        selection to the set of vertex and edge property data.
+
+        Examples
+        --------
+        >>>
+
         """
         # FIXME: convert defaults to type needed by the Thrift API. These will
         # be changing to different types.
@@ -193,6 +480,29 @@ class GaasClient:
     @__server_connection
     def node2vec(self, start_vertices, max_depth, graph_id=defaults.graph_id):
         """
+        Computes random walks for each node in 'start_vertices', under the
+        node2vec sampling framework.
+
+        Parameters
+        ----------
+        G : cuGraph.Graph or networkx.Graph
+            The graph can be either directed (DiGraph) or undirected (Graph).
+            Weights in the graph are ignored.
+
+        start_vertices: int or list or cudf.Series or cudf.DataFrame
+            A single node or a list or a cudf.Series of nodes from which to run
+            the random walks. In case of multi-column vertices it should be
+            a cudf.DataFrame. Only supports int32 currently.
+
+        max_depth: int
+            The maximum depth of the random walks
+
+        Returns
+        -------
+
+        Examples
+        --------
+        >>>
         """
         # start_vertices must be a list (cannot just be an iterable), and assume
         # return value is tuple of python lists on host.
@@ -212,5 +522,6 @@ class GaasClient:
     @__server_connection
     def pagerank(self, graph_id=defaults.graph_id):
         """
+        pagerank
         """
         raise NotImplementedError

@@ -16,6 +16,9 @@ from pathlib import Path
 
 from gaas_client import GaasClient
 
+# Use the location of this file for finding various data files
+this_dir = Path(__file__).parent
+
 # Use the defaults for host and port (localhost, 9090)
 # Assume the server is running and using the same defaults!
 client = GaasClient()
@@ -28,16 +31,16 @@ for gid in client.get_graph_ids():
 # not require a graph ID to access)
 # The file names specified must be visible to the server.
 
-client.load_csv_as_vertex_data(Path("vertex_data.csv").absolute().as_posix(),
-                               dtypes=["int32", "string", "int32"],
-                               vertex_col_name="vertex_id",
-                               header="infer"
-                               )
-client.load_csv_as_edge_data(Path("edge_data.csv").absolute().as_posix(),
-                             dtypes=["int32", "int32", "string", "int32"],
-                             vertex_col_names=("src", "dst"),
-                             header="infer"
-                             )
+client.load_csv_as_vertex_data(
+    (this_dir/"vertex_data.csv").absolute().as_posix(),
+    dtypes=["int32", "string", "int32"],
+    vertex_col_name="vertex_id",
+    header="infer")
+client.load_csv_as_edge_data(
+    (this_dir/"edge_data.csv").absolute().as_posix(),
+    dtypes=["int32", "int32", "string", "int32"],
+    vertex_col_names=("src", "dst"),
+    header="infer")
 
 # Verify the number of edges
 assert client.get_num_edges() == 10000
@@ -56,11 +59,12 @@ graph2 = client.create_graph()
 assert len(client.get_graph_ids()) == 3
 
 # Add edge data to the new graph
-client.load_csv_as_vertex_data(Path("vertex_data.csv").absolute().as_posix(),
-                               dtypes=["int32", "string", "int32"],
-                               vertex_col_name="vertex_id",
-                               header="infer",
-                               graph_id=graph2)
+client.load_csv_as_vertex_data(
+    (this_dir/"vertex_data.csv").absolute().as_posix(),
+    dtypes=["int32", "string", "int32"],
+    vertex_col_name="vertex_id",
+    header="infer",
+    graph_id=graph2)
 
 # Remove the new graph from the server and verify
 client.delete_graph(graph2)

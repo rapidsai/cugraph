@@ -23,6 +23,7 @@ from gaas_client.types import Node2vecResult
 
 class GaasHandler:
     """
+    Class which handles RPC requests for a GaasService.
     """
     def __init__(self):
         self.__next_graph_id = defaults.graph_id + 1

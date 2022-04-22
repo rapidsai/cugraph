@@ -17,7 +17,18 @@ import io
 import thriftpy2
 from thriftpy2.rpc import make_server, make_client
 
-
+# This is the Thrift input file as a string rather than a separate file. This
+# allows the Thrift input to be contained within the module that's responsible
+# for all Thrift-specific details rather than a separate .thrift file.
+#
+# thriftpy2 (https://github.com/Thriftpy/thriftpy2) is being used here instead
+# of Apache Thrift since it offers an easier-to-use API exclusively for Python
+# which is still compatible with servers/cleints using Apache Thrift (Apache
+# Thrift can be used from a variety of different languages) and offers roughly
+# the same performance.
+#
+# See the Apache Thrift tutorial for Python for examples:
+# https://thrift.apache.org/tutorial/py.html
 gaas_thrift_spec = """
 # FIXME: consider additional, more fine-grained exceptions
 exception GaasError {
@@ -76,15 +87,30 @@ service GaasService {
 }
 """
 
+# Load the GaaS Thrift specification on import. Syntax errors and other problems
+# will be apparent immediately on import, and it allows any other module to
+# import this and access the various types define in the Thrift specification
+# without being exposed to the thriftpy2 API.
 spec = thriftpy2.load_fp(io.StringIO(gaas_thrift_spec),
                          module_name="gaas_thrift")
 
 def create_server(handler, host, port):
     """
+    Return a server object configured to listen on host/port and use the handler
+    object to handle calls from clients. The handler object must have an
+    interface compatible with the GaasService service defined in the Thrift
+    specification.
+
+    Note: This function is defined here in order to allow it to have easy access
+    to the Thrift spec loaded here on import, and to keep all thriftpy2 calls in
+    this module. However, this function is likely only called from the
+    gaas_server package which depends on the code in this package.
     """
     return make_server(spec.GaasService, handler, host, port)
 
 def create_client(host, port):
     """
+    Return a client object that will make calls on a server listening on
+    host/port.
     """
     return make_client(spec.GaasService, host=host, port=port)
