@@ -127,7 +127,7 @@ def katz_centrality(
         max_iter = 1000
     if (not isinstance(tol, float)) or (tol <= 0.0):
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
-
+    
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     srcs = G.edgelist.edgelist_df['src']
