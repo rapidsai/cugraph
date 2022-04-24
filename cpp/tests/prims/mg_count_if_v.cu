@@ -43,7 +43,7 @@ template <typename vertex_t>
 struct test_predicate {
   int mod{};
   test_predicate(int mod_count) : mod(mod_count) {}
-  __device__ bool operator()(const vertex_t& val)
+  __device__ bool operator()(vertex_t, const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     return (0 == (hash_func(val) % mod));
@@ -137,10 +137,10 @@ class Tests_MG_CountIfV
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
           handle, input_usecase, true, false);
       auto sg_graph_view         = sg_graph.view();
-      auto expected_vertex_count = thrust::count_if(
-        handle.get_thrust_policy(),
+      auto expected_vertex_count = count_if_v(
+        handle,
+        sg_graph_view,
         thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
         test_predicate<vertex_t>(hash_bin_count));
       ASSERT_TRUE(expected_vertex_count == vertex_count);
     }

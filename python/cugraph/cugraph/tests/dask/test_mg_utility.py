@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2021, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -35,9 +35,9 @@ def setup_function():
     gc.collect()
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+# @pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+# )
 def test_from_edgelist(dask_client):
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate.csv").as_posix()
@@ -53,9 +53,9 @@ def test_from_edgelist(dask_client):
 
     dg1 = cugraph.from_edgelist(
         ddf, source="src", destination="dst", edge_attr="value",
-        create_using=cugraph.DiGraph)
+        create_using=cugraph.Graph(directed=True))
 
-    dg2 = cugraph.DiGraph()
+    dg2 = cugraph.Graph(directed=True)
     dg2.from_dask_cudf_edgelist(
         ddf, source="src", destination="dst", edge_attr="value"
     )

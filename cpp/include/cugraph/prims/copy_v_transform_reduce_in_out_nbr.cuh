@@ -503,7 +503,7 @@ void copy_v_transform_reduce_nbr(raft::handle_t const& handle,
 
     auto execution_policy = handle.get_thrust_policy();
     if constexpr (GraphViewType::is_multi_gpu) {
-      minor_tmp_buffer.fill(minor_init, handle.get_stream());
+      minor_tmp_buffer.fill(handle, minor_init);
     } else {
       thrust::fill(execution_policy,
                    vertex_value_output_first,

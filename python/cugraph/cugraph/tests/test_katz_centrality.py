@@ -30,7 +30,15 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
-LIBCUGRAPH_C_DATASET = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"toy_graph.csv"
+# This toy graph is used in multiple tests throughout libcugraph_c and pylib.
+TOY_DATASET = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"toy_graph.csv"
+
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
 
 def topKVertices(katz, col, k):
@@ -64,8 +72,6 @@ def calc_katz(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_katz_centrality(graph_file):
-    gc.collect()
-
     katz_scores = calc_katz(graph_file)
 
     topKNX = topKVertices(katz_scores, "nx_katz", 10)
@@ -76,8 +82,6 @@ def test_katz_centrality(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_katz_centrality_nx(graph_file):
-    gc.collect()
-
     NM = utils.read_csv_for_nx(graph_file)
 
     Gnx = nx.from_pandas_edgelist(
@@ -109,8 +113,6 @@ def test_katz_centrality_nx(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_katz_centrality_multi_column(graph_file):
-    gc.collect()
-
     cu_M = utils.read_csv_file(graph_file)
     cu_M.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
     cu_M['src_1'] = cu_M['src_0'] + 1000
@@ -142,12 +144,10 @@ def test_katz_centrality_multi_column(graph_file):
     assert top_res.equals(top_exp)
 
 
-@pytest.mark.parametrize("graph_file", [LIBCUGRAPH_C_DATASET])
+@pytest.mark.parametrize("graph_file", [TOY_DATASET])
 def test_katz_centrality_toy(graph_file):
     # This test is based off of libcugraph_c and pylibcugraph tests
-    gc.collect()
-
-    df = cudf.read_csv(LIBCUGRAPH_C_DATASET, delimiter=' ',
+    df = cudf.read_csv(TOY_DATASET, delimiter=' ',
                        dtype=['int32', 'int32', 'float32'], header=None)
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(df, source='0', destination='1', edge_attr='2')
@@ -166,6 +166,6 @@ def test_katz_centrality_toy(graph_file):
     for vertex in ck["vertex"].to_pandas():
         expected_score = centralities[vertex]
         actual_score = ck["katz_centrality"].iloc[vertex]
-        if pytest.approx(expected_score, abs=1e-2) != actual_score:
-            raise ValueError(f"Katz centrality score is {actual_score}"
-                             f", should have been {expected_score}")
+        assert pytest.approx(expected_score, abs=1e-2) == actual_score, \
+            f"Katz centrality score is {actual_score}, should have" \
+            f"been {expected_score}"

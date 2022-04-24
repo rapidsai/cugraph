@@ -255,12 +255,7 @@ class Tests_MG_ReduceV
         hr_clock.start();
       }
 
-      results[op] = reduce_v(handle,
-                             mg_graph_view,
-                             property_iter,
-                             property_iter + (*d_mg_renumber_map_labels).size(),
-                             property_initial_value,
-                             op);
+      results[op] = reduce_v(handle, mg_graph_view, property_iter, property_initial_value, op);
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

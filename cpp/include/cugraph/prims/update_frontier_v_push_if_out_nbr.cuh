@@ -131,7 +131,7 @@ template <typename vertex_t,
           typename VertexOp,
           typename key_t,
           bool multi_gpu>
-struct call_v_op_t {
+struct update_frontier_call_v_op_t {
   VertexValueInputIterator vertex_value_input_first{};
   VertexValueOutputIterator vertex_value_output_first{};
   VertexOp v_op{};
@@ -835,7 +835,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
 
   edge_t ret{0};
 
-  auto const& cur_frontier_bucket = frontier.get_bucket(cur_frontier_bucket_idx);
+  auto const& cur_frontier_bucket = frontier.bucket(cur_frontier_bucket_idx);
   vertex_t const* local_frontier_vertex_first{nullptr};
   vertex_t const* local_frontier_vertex_last{nullptr};
   if constexpr (std::is_same_v<key_t, vertex_t>) {
@@ -952,11 +952,11 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param frontier VertexFrontier class object for vertex frontier managements. This object includes
- * multiple bucket objects.
- * @param cur_frontier_bucket_idx Index of the VertexFrontier bucket holding vertices for the
+ * @param frontier VertexFrontierType class object for vertex frontier managements. This object
+ * includes multiple bucket objects.
+ * @param cur_frontier_bucket_idx Index of the vertex frontier bucket holding vertices for the
  * current iteration.
- * @param next_frontier_bucket_indices Indices of the VertexFrontier buckets to store new frontier
+ * @param next_frontier_bucket_indices Indices of the vertex frontier buckets to store new frontier
  * vertices for the next iteration.
  * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
  * property values (for the edge sources assigned to this process in multi-GPU). Use either
@@ -1031,8 +1031,8 @@ void update_frontier_v_push_if_out_nbr(
   using key_t     = typename VertexFrontierType::key_type;
   using payload_t = typename ReduceOp::type;
 
-  auto frontier_key_first = frontier.get_bucket(cur_frontier_bucket_idx).begin();
-  auto frontier_key_last  = frontier.get_bucket(cur_frontier_bucket_idx).end();
+  auto frontier_key_first = frontier.bucket(cur_frontier_bucket_idx).begin();
+  auto frontier_key_last  = frontier.bucket(cur_frontier_bucket_idx).end();
 
   // 1. fill the buffer
 
@@ -1334,7 +1334,7 @@ void update_frontier_v_push_if_out_nbr(
   // 3. update vertex properties and frontier
 
   if (num_buffer_elements > 0) {
-    static_assert(VertexFrontierType::kNumBuckets <= std::numeric_limits<uint8_t>::max());
+    assert(frontier.num_buckets() <= std::numeric_limits<uint8_t>::max());
     rmm::device_uvector<uint8_t> bucket_indices(num_buffer_elements, handle.get_stream());
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
@@ -1376,21 +1376,21 @@ void update_frontier_v_push_if_out_nbr(
       resize_dataframe_buffer(payload_buffer, size_t{0}, handle.get_stream());
       shrink_to_fit_dataframe_buffer(payload_buffer, handle.get_stream());
     } else {
-      thrust::transform(
-        handle.get_thrust_policy(),
-        get_dataframe_buffer_begin(key_buffer),
-        get_dataframe_buffer_begin(key_buffer) + num_buffer_elements,
-        bucket_indices.begin(),
-        detail::call_v_op_t<vertex_t,
-                            VertexValueInputIterator,
-                            VertexValueOutputIterator,
-                            VertexOp,
-                            key_t,
-                            GraphViewType::is_multi_gpu>{vertex_value_input_first,
-                                                         vertex_value_output_first,
-                                                         v_op,
-                                                         vertex_partition,
-                                                         VertexFrontierType::kInvalidBucketIdx});
+      thrust::transform(handle.get_thrust_policy(),
+                        get_dataframe_buffer_begin(key_buffer),
+                        get_dataframe_buffer_begin(key_buffer) + num_buffer_elements,
+                        bucket_indices.begin(),
+                        detail::update_frontier_call_v_op_t<vertex_t,
+                                                            VertexValueInputIterator,
+                                                            VertexValueOutputIterator,
+                                                            VertexOp,
+                                                            key_t,
+                                                            GraphViewType::is_multi_gpu>{
+                          vertex_value_input_first,
+                          vertex_value_output_first,
+                          v_op,
+                          vertex_partition,
+                          VertexFrontierType::kInvalidBucketIdx});
     }
 
     auto bucket_key_pair_first = thrust::make_zip_iterator(
