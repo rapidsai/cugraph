@@ -46,9 +46,9 @@ def _get_param_args(param_name, param_values):
             [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
 
 
-#@pytest.mark.skipif(
+# @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-#)
+# )
 @pytest.mark.skip(reason="Currently hangs, awaiting fix in algo")
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_mg_neighborhood_sampling_simple(dask_client, directed):
