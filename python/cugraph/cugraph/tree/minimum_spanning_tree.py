@@ -20,7 +20,7 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
 
 def _minimum_spanning_tree_subgraph(G):
     mst_subgraph = Graph()
-    if type(G) is not Graph:
+    if G.is_directed():
         raise Exception("input graph must be undirected")
     mst_df = minimum_spanning_tree_wrapper.minimum_spanning_tree(G)
     if G.renumbered:
@@ -35,7 +35,7 @@ def _minimum_spanning_tree_subgraph(G):
 
 def _maximum_spanning_tree_subgraph(G):
     mst_subgraph = Graph()
-    if type(G) is not Graph:
+    if G.is_directed():
         raise Exception("input graph must be undirected")
 
     if G.adjlist.weights is not None:
