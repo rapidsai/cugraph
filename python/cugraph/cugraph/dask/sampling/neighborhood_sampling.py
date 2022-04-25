@@ -95,7 +95,7 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
 
     Parameters
     ----------
-    input_graph : cugraph.DiGraph
+    input_graph : cugraph.Graph
         cuGraph graph, which contains connectivity information as dask cudf
         edge list dataframe
 
