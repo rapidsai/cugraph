@@ -35,12 +35,7 @@ void normalize(raft::handle_t const& handle,
                result_t* hubs,
                raft::comms::op_t op)
 {
-  auto hubs_norm = reduce_v(handle,
-                            graph_view,
-                            hubs,
-                            hubs + graph_view.local_vertex_partition_range_size(),
-                            identity_element<result_t>(op),
-                            op);
+  auto hubs_norm = reduce_v(handle, graph_view, hubs, identity_element<result_t>(op), op);
   CUGRAPH_EXPECTS(hubs_norm > 0, "Norm is required to be a positive value.");
   thrust::transform(handle.get_thrust_policy(),
                     hubs,
@@ -80,7 +75,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   // Check validity of initial guess if supplied
   if (has_initial_hubs_guess && do_expensive_check) {
     auto num_negative_values =
-      count_if_v(handle, graph_view, hubs, [] __device__(auto val) { return val < 0.0; });
+      count_if_v(handle, graph_view, hubs, [] __device__(auto, auto val) { return val < 0.0; });
     CUGRAPH_EXPECTS(num_negative_values == 0,
                     "Invalid input argument: initial guess values should be non-negative.");
   }
@@ -102,7 +97,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   if (has_initial_hubs_guess) {
     update_edge_partition_src_property(handle, graph_view, prev_hubs, prev_src_hubs);
   } else {
-    prev_src_hubs.fill(result_t{1.0} / num_vertices, handle.get_stream());
+    prev_src_hubs.fill(handle, result_t{1.0} / num_vertices);
     thrust::fill(handle.get_thrust_policy(),
                  prev_hubs,
                  prev_hubs + graph_view.local_vertex_partition_range_size(),
@@ -144,7 +139,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       handle,
       graph_view,
       thrust::make_zip_iterator(thrust::make_tuple(curr_hubs, prev_hubs)),
-      [] __device__(auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0});
     if (diff_sum < epsilon) {
       final_iteration_count = iter;

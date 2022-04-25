@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2021, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -49,10 +49,10 @@ def test_dask_mg_degree(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    dg = cugraph.DiGraph()
+    dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
-    g = cugraph.DiGraph()
+    g = cugraph.Graph(directed=True)
     g.from_cudf_edgelist(df, "src", "dst")
 
     merge_df_in = (

@@ -32,6 +32,7 @@ function(find_and_configure_raft)
       BUILD_EXPORT_SET    cugraph-exports
       INSTALL_EXPORT_SET  cugraph-exports
         CPM_ARGS
+            EXCLUDE_FROM_ALL TRUE
             GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
@@ -39,6 +40,7 @@ function(find_and_configure_raft)
                 "RAFT_COMPILE_LIBRARIES OFF"
                 "BUILD_TESTS OFF"
                 "BUILD_BENCH OFF"
+                "RAFT_ENABLE_cuco_DEPENDENCY OFF"
     )
 
     if(raft_ADDED)

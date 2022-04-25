@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,17 +13,17 @@
 
 import cugraph.dask as dcg
 import gc
-import pytest
+# import pytest
 import cugraph
 import dask_cudf
 import cudf
-from cugraph.dask.common.mg_utils import is_single_gpu
+# from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+# @pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+# )
 def test_dask_bfs(dask_client):
     gc.collect()
 
@@ -60,10 +60,10 @@ def test_dask_bfs(dask_client):
 
     df = modify_dataset(df)
 
-    g = cugraph.DiGraph()
+    g = cugraph.Graph(directed=True)
     g.from_cudf_edgelist(df, "src", "dst")
 
-    dg = cugraph.DiGraph()
+    dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
     expected_dist = cugraph.bfs(g, [0, 1000])
@@ -85,9 +85,9 @@ def test_dask_bfs(dask_client):
     assert err == 0
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+# @pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+# )
 def test_dask_bfs_multi_column_depthlimit(dask_client):
     gc.collect()
 
@@ -115,10 +115,10 @@ def test_dask_bfs_multi_column_depthlimit(dask_client):
     df['src_b'] = df['src_a'] + 1000
     df['dst_b'] = df['dst_a'] + 1000
 
-    g = cugraph.DiGraph()
+    g = cugraph.Graph(directed=True)
     g.from_cudf_edgelist(df, ["src_a", "src_b"], ["dst_a", "dst_b"])
 
-    dg = cugraph.DiGraph()
+    dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, ["src_a", "src_b"], ["dst_a", "dst_b"])
 
     start = cudf.DataFrame()
