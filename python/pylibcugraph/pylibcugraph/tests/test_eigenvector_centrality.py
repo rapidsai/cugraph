@@ -18,6 +18,11 @@ from pylibcugraph.experimental import (ResourceHandle,
                                        GraphProperties,
                                        SGGraph,
                                        eigenvector_centrality)
+import pathlib
+import pylibcugraph
+
+
+datasets = pathlib.Path(pylibcugraph.__path__[0]).parent.parent.parent
 
 
 # =============================================================================
@@ -72,15 +77,16 @@ def _generic_eigenvector_test(src_arr,
 def test_eigenvector():
     num_edges = 8
     num_vertices = 6
-    src = cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32)
-    dst = cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32)
-    wgt = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
-                     dtype=np.float32)
+    graph_data = np.genfromtxt(datasets / 'datasets/toy_graph.csv',
+                               delimiter=' ')
+    src = cp.asarray(graph_data[:, 0], dtype=np.int32)
+    dst = cp.asarray(graph_data[:, 1], dtype=np.int32)
+    wgt = cp.asarray(graph_data[:, 2], dtype=np.float32)
     result = cp.asarray([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
 
     epsilon = 0.000001
     max_iterations = 1000
 
-    # Eigenvector requires store_transposed to be True
+    # Eigenvector requires store_transposed to be True?
     _generic_eigenvector_test(src, dst, wgt, result, num_vertices, num_edges,
                               True, epsilon, max_iterations)
