@@ -157,20 +157,10 @@ class simpleGraphImpl:
             if type(source) is list and type(destination) is list:
                 raise ValueError("set renumber to True for multi column ids")
 
-        # Populate graph edgelist
-        source_col = elist[source]
-        dest_col = elist[destination]
-
-        if edge_attr is not None:
-            self.properties.weighted = True
-            value_col = elist[edge_attr]
-        else:
-            value_col = None
-
         # TODO: Update Symmetrize to work on Graph and/or DataFrame
-        if value_col is not None:
+        if edge_attr is not None:
             source_col, dest_col, value_col = symmetrize(
-                source_col, dest_col, value_col,
+                elist, source, destination, edge_attr,
                 multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed)
             if isinstance(value_col, cudf.DataFrame):
@@ -179,8 +169,9 @@ class simpleGraphImpl:
                     value_dict[i] = value_col[i]
                 value_col = value_dict
         else:
+            value_col = None
             source_col, dest_col = symmetrize(
-                source_col, dest_col, multi=self.properties.multi_edge,
+                elist, source, destination, multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed)
 
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
