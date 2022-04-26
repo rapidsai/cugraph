@@ -71,8 +71,6 @@ def df_type_id(dataframe_type):
 df_types_fixture_params = utils.genFixtureParamsProduct((df_types, df_type_id))
 
 
-
-
 @pytest.fixture(scope="module", params=df_types_fixture_params)
 def net_PropertyGraph(request):
     """
@@ -142,8 +140,7 @@ def net_Dask_PropertyGraph(dask_client):
     df = modify_dataset(df)
 
     dpG = PropertyGraph()
-    dpG.add_edge_data(df, ("src", "dst"))
-
+    dpG.add_edge_data(ddf, ("src", "dst"))
     return dpG
 
 
@@ -160,7 +157,7 @@ def test_extract_subgraph(net_Dask_PropertyGraph):
     Valid query that only matches a single vertex.
     """
     pG = net_Dask_PropertyGraph
-    assert pG.num_vertices > 0
+    print(pG.num_vertices)
 
 
 def test_extract_subgraph_no_query(net_Dask_PropertyGraph):
@@ -168,6 +165,9 @@ def test_extract_subgraph_no_query(net_Dask_PropertyGraph):
     Call extract with no args, should result in the entire property graph.
     """
     pG = net_Dask_PropertyGraph
+    print(pG.num_vertices)
+    print(pG.num_edges)
+    subGraph = pG.extract_subgraph()
     breakpoint()
-
-    assert len(pG.edgelist.edgelist_df) == 0
+    assert type(subGraph.edgelist.edgelist_df) == type(pG.edgelist.edgelist_df)
+    

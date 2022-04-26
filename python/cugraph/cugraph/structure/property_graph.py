@@ -368,6 +368,10 @@ class EXPERIMENTAL__PropertyGraph:
         --------
         >>>
         """
+        orig_dataframe = type(dataframe)
+        if type(dataframe) == dask_cudf.DataFrame:
+            dataframe = dataframe.compute()
+
         if type(dataframe) not in _dataframe_types:
             raise TypeError("dataframe must be one of the following types: "
                             f"{_dataframe_types}, got: {type(dataframe)}")
@@ -411,6 +415,7 @@ class EXPERIMENTAL__PropertyGraph:
                                 self.edge_id_col_name,
                                 self.type_col_name]
         if self.__edge_prop_dataframe is None:
+
             self.__edge_prop_dataframe = \
                 self.__dataframe_type(columns=default_edge_columns)
             # Initialize the new columns to the same dtype as the appropriate
