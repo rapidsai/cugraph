@@ -13,14 +13,18 @@
 
 # FIXME: these raft imports break the library if ucx-py is
 # not available. They are necessary only when doing MG work.
+from cugraph.dask.common.read_utils import MissingUCXPy
 try:
     from raft.dask.common.comms import Comms as raftComms
     from raft.dask.common.comms import get_raft_comm_state
-except ModuleNotFoundError:
-    raftComms = None
-    get_raft_comm_state = None
+except ModuleNotFoundError as err:
+    if err.name == "ucp":
+        raftComms = MissingUCXPy()
+        get_raft_comm_state = MissingUCXPy()
+    else:
+        raise ModuleNotFoundError
 from raft.common.handle import Handle
-from cugraph.comms.comms_wrapper import init_subcomms as c_init_subcomms
+from cugraph.dask.comms.comms_wrapper import init_subcomms as c_init_subcomms
 from dask.distributed import default_client
 from cugraph.dask.common import read_utils
 import math

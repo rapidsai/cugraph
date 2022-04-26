@@ -20,7 +20,7 @@ from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
 from dask_cuda.initialize import initialize
 
-from cugraph.comms import comms as Comms
+from cugraph.dask.comms import comms as Comms
 from cugraph.dask.common.mg_utils import get_visible_devices
 
 

@@ -19,13 +19,18 @@ from collections import OrderedDict
 from dask_cudf.core import DataFrame as dcDataFrame
 from dask_cudf.core import Series as daskSeries
 
-import cugraph.comms.comms as Comms
+# import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 # FIXME: this raft import breaks the library if ucx-py is
 # not available. They are necessary only when doing MG work.
+from cugraph.dask.common.read_utils import MissingUCXPy
 try:
     from raft.dask.common.utils import get_client
-except ModuleNotFoundError:
-    get_client = None
+except ModuleNotFoundError as err:
+    if err.name == "ucp":
+        get_client = MissingUCXPy()
+    else:
+        raise ModuleNotFoundError
 from cugraph.dask.common.part_utils import _extract_partitions
 from dask.distributed import default_client
 from toolz import first

@@ -24,7 +24,7 @@ from libcpp cimport bool
 import cudf
 import numpy as np
 from cugraph.dask.common.mg_utils import get_client
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import dask.distributed
 
 

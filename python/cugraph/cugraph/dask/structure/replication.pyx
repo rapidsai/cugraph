@@ -25,7 +25,7 @@ import cudf
 import dask.distributed as dd
 from cugraph.dask.common.input_utils import get_mg_batch_data
 import dask_cudf
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import cugraph.dask.common.mg_utils as mg_utils
 import numpy as np
 

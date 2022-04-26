@@ -10,7 +10,7 @@ Methods
 .. autosummary::
    :toctree: api/
 
-   cugraph.comms.comms.initialize
-   cugraph.comms.comms.destroy
+   cugraph.dask.comms.comms.initialize
+   cugraph.dask.comms.comms.destroy
    cugraph.dask.common.read_utils.get_chunksize
 

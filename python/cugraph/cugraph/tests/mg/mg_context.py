@@ -20,7 +20,7 @@ from dask.distributed import Client
 
 from cugraph.dask.common.mg_utils import get_visible_devices
 from dask_cuda import LocalCUDACluster as CUDACluster
-import cugraph.comms as Comms
+import cugraph.dask.comms as Comms
 
 
 # Maximal number of verifications of the number of workers

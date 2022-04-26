@@ -15,7 +15,7 @@ import operator as op
 
 from dask.distributed import wait, default_client
 
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
