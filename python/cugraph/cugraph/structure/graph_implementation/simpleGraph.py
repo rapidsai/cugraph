@@ -106,6 +106,17 @@ class simpleGraphImpl:
                 "names not found in input. Recheck the source and "
                 "destination parameters"
             )
+        df_columns = s_col + d_col
+
+        # Drop the edge column(s) if edge_attr=None
+        if edge_attr is None:
+            input_df = input_df[df_columns]
+        else:
+            if not (set([edge_attr]).issubset(set(input_df.columns))):
+                raise ValueError(
+                    "edge_attr column name not found in input."
+                    "Recheck the edge_attr parameter")
+                self.properties.weighted = True
 
         # FIXME: check if the consolidated graph fits on the
         # device before gathering all the edge lists
