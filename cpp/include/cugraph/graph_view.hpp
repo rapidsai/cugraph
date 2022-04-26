@@ -63,6 +63,10 @@ class serializer_t;  // forward...
  * vertex_partition_range_offsets[row_comm_size * i + row_comm_rank + 1]. c is
  * vertex_partition_range_offsets[row_comm_size * col_comm_rank] and d =
  * vertex_partition_range_offsets[row_comm_size * (col_comm_rank + 1)].
+ * Here, vertex_partition_range_offsets (size = P + 1) stores the 1D partitioning of the vertex ID
+ * range [0, # vertices). The first P values store the beginning (inclusive) of each GPU partition.
+ * The last value marks the end (exclusive) of the last GPU partition (which coincides with #
+ * vertices).
  *
  * See E. G. Boman et. al., “Scalable matrix computations on large scale-free graphs using 2D graph
  * partitioning”, 2013 for additional detail.
