@@ -1,0 +1,1004 @@
+/*
+ * Copyright (c) 2022, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+#pragma once
+
+#include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
+
+#include <thrust/count.h>
+#include <thrust/distance.h>
+#include <thrust/iterator/iterator_traits.h>
+#include <thrust/unique.h>
+
+#include <array>
+#include <type_traits>
+
+namespace cugraph {
+
+namespace detail {
+
+// check vertices in the pair are valid and first element of the pair is within the local vertex
+// partition range
+template <typename vertex_t>
+struct is_valid_input_pair_t {
+  vertex_t num_vertices{};
+  vertex_t local_vertex_partition_range_first{};
+  vertex_t local_vertex_partition_range_last{};
+
+  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> pair) const
+  {
+    return !is_valid_vertex(num_vertices, thrust::get<0>(pair)) ||
+           !is_valid_vertex(num_vertices, thrust::get<1>(pair)) ||
+           (thrust::get<0>(pair) < local_vertex_partition_range_first) ||
+           (thrust::get<0>(pair) >= local_vertex_partition_range_last);
+  }
+};
+
+template <typename vertex_t>
+struct second_element_of_pair_t {
+  __device__ vertex_t operator()(thrust::tuple<vertex_t, vertex_t> pair) const
+  {
+    return thrust::get<1>(pair);
+  }
+};
+
+// group index determined by row_comm_rank (primary key) and local edge partition index (secondary
+// key)
+template <typename vertex_t>
+struct major_to_group_idx_t {
+  vertex_t const* vertex_partition_lasts{nullptr};
+
+  __device__ int operator()(vertex_t major) const
+  {
+    auto it =
+      thrust::upper_bound(vertex_partition_lasts, vertex_partition_lasts + comm_size, major);
+    auto comm_rank = static_cast<int>(thrust::distance(vertex_partition_lasts, it));
+    return (comm_rank % row_comm_size) * col_comm_size + (comm_rank / row_comm_size);
+  }
+};
+
+// primary key: row_comm_rank secondary key: local partition index => primary key: local partition
+// index secondary key: row_comm_rank
+struct reorder_group_count_t {
+  int row_comm_size{};
+  int col_comm_size{};
+  size_t const* group_counts{nullptr};
+
+  __device__ size_t operator()(size_t i) const
+  {
+    return rx_group_counts[(static_cast<int>(i) % row_comm_size) * col_comm_size +
+                           static_cast<int>(i) / row_comm_size];
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+struct update_rx_major_local_degree_t {
+  int row_comm_size{};
+  int col_comm_size{};
+
+  edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition{};
+  thrust::optional<vertex_t> major_hypersparse_first{};
+
+  size_t reordered_idx_first{};
+  size_t local_partition_idx{};
+
+  size_t const* rx_reordered_group_lasts{nullptr};
+  size_t const* rx_group_firsts{nullptr};
+  vertex_t const* rx_majors{nullptr};
+
+  edge_t* local_degrees_for_rx_majors{nullptr};
+
+  __device__ edge_t operator()(size_t idx) const
+  {
+    auto it =
+      thrust::upper_bound(rx_reordered_group_lasts, rx_reordered_group_lasts + row_comm_size, idx);
+    auto row_comm_rank = static_cast<int>(thrust::distance(rx_reordered_group_lasts, it));
+    auto offset_in_local_edge_partition =
+      idx - (row_comm_rank == 0 ? reordered_idx_first
+                                : rx_reordered_gropu_count_lasts[row_comm_rank - 1]);
+    auto major = rx_majors[rx_group_firsts[row_comm_rank * col_comm_size + local_partition_idx] +
+                           offset_in_local_edge_partition];
+    edge_t local_degree{};
+    if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
+      auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
+      local_degree               = major_hypersparse_idx
+                                     ? edge_partition.local_degree(
+                           (*major_hypersparse_first - edge_partition.major_range_first()) +
+                           *major_hypersparse_idx)
+                                     : edge_t{0};
+    } else {
+      local_degree =
+        edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major));
+    }
+    local_degrees_for_rx_majors[rx_group_firsts[row_comm_rank * col_comm_size +
+                                                local_partition_idx] +
+                                offset_in_local_edge_partition] = local_degree;
+  }
+};
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+struct update_rx_major_local_nbrs_t {
+  int row_comm_size{};
+  int col_comm_size{};
+
+  edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition{};
+  thrust::optional<vertex_t> major_hypersparse_first{};
+
+  size_t reordered_idx_first{};
+  size_t local_partition_idx{};
+
+  size_t const* rx_reordered_group_lasts{nullptr};
+  size_t const* rx_group_firsts{nullptr};
+  vertex_t const* rx_majors{nullptr};
+  size_t const* local_offsets_for_rx_majors{nullptr};
+
+  vertex_t* local_nbrs_for_rx_majors{nullptr};
+
+  __device__ edge_t operator()(size_t idx) const
+  {
+    auto it =
+      thrust::upper_bound(rx_reordered_group_lasts, rx_reordered_group_lasts + row_comm_size, idx);
+    auto row_comm_rank = static_cast<int>(thrust::distance(rx_reordered_group_lasts, it));
+    auto offset_in_local_edge_partition =
+      idx - (row_comm_rank == 0 ? reordered_idx_first
+                                : rx_reordered_gropu_count_lasts[row_comm_rank - 1]);
+    auto major = rx_majors[rx_group_firsts[row_comm_rank * col_comm_size + local_partition_idx] +
+                           offset_in_local_edge_partition];
+    vertex_t const* indices{nullptr};
+    edge_t local_degree{0};
+    if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
+      auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
+      if (major_hypersparse_idx) {
+        thrust::tie(indices, thrust::ignore, local_degree) = edge_partition.local_edges(
+          (*major_hypersparse_first - edge_partition.major_range_first()) + *major_hypersparse_idx);
+      }
+    } else {
+      thurst::tie(indices, thrust::ignore, local_degree) =
+        edge_partition.local_edges(edge_partition.major_offset_from_major_nocheck(major));
+    }
+    // FIXME: this can lead to thread-divergence with a mix of high-degree and low-degree
+    // vertices in a single warp (better optimize if this becomes a performance
+    // bottleneck)
+    thrust::copy(
+      thrust::seq,
+      indices,
+      indices + local_degree,
+      local_nbrs_for_rx_majors +
+        local_offsets_for_rx_majors[row_comm_rank * col_comm_size + local_partition_idx]);
+  }
+};
+
+struct gather_and_adjacent_difference_t {
+  size_t const* rx_offsets{nullptr};
+  size_t const* local_offsets_for_rx_majors{nullptr};
+
+  __device__ size_t operator()(size_t i) const
+  {
+    return *(local_offsets_for_rx_majors + *(rx_offsets + (i + 1))) -
+           *(local_offsets_for_rx_majors + *(rx_offsets + i));
+  }
+};
+
+template <typename FirstElementToIdxMap,
+          typename SecondElementToIdxMap,
+          typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool multi_gpu>
+struct pick_min_degree_t {
+  FirstElementToIdxMap first_element_to_idx_map{};
+  size_t const* first_element_offsets{nullptr};
+
+  SecondElementToIdxMap second_element_to_idx_map{};
+  size_t const* second_element_offsets{nullptr};
+
+  edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition{};
+  thrust::optional<vertex_t> major_hypersparse_first{};
+
+  __device__ edge_t operator()(thrust::tuple<vertex_t, vertex_t> pair) const
+  {
+    edge_t local_degree0{0};
+    if constexpr (std::is_same_v<FirstElementToIdxMap, void*>) {
+      vertex_t major = thrust::get<0>(pair);
+      if constexpr (multi_gpu) {
+        if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
+          auto major_hypersparse_idx =
+            edge_partition.major_hypersparse_idx_from_major_nocheck(major);
+          assert(major_hyperhypersparse_idx);
+          local_degree0 = edge_partition.local_degree(
+            (*major_hypersparse_first - edge_partition.major_range_first()) +
+            *major_hypersparse_idx);
+        } else {
+          local_degree0 =
+            edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major));
+        }
+      } else {
+        local_degree0 =
+          edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major));
+      }
+    } else {
+      auto idx = *(first_element_to_idx_map.find(thrust::get<0>(pair),
+                                                 cuco::detail::MurmurHash3_32<vertex_t>{},
+                                                 thrust::equal_to<vertex_t>{}));
+      local_degree0 =
+        static_cast<edge_t>(first_element_offsets[idx + 1] - first_element_offsets[idx]);
+    }
+
+    edge_t local_degree1{0};
+    if constexpr (std::is_same_v<SecondElementToIdxMap, void*>) {
+      vertex_t major = thrust::get<1>(pair);
+      if constexpr (multi_gpu) {
+        if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
+          auto major_hypersparse_idx =
+            edge_partition.major_hypersparse_idx_from_major_nocheck(major);
+          assert(major_hyperhypersparse_idx);
+          local_degree1 = edge_partition.local_degree(
+            (*major_hypersparse_first - edge_partition.major_range_first()) +
+            *major_hypersparse_idx);
+        } else {
+          local_degree1 =
+            edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major));
+        }
+      } else {
+        local_degree1 =
+          edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major));
+      }
+    } else {
+      auto idx = *(second_element_to_idx_map.find(thrust::get<1>(pair),
+                                                  cuco::detail::MurmurHash3_32<vertex_t>{},
+                                                  thrust::equal_to<vertex_t>{}));
+      local_degree1 =
+        static_cast<edge_t>(second_element_offsets[idx + 1] - second_element_offsets[idx]);
+    }
+
+    return thrust::minimum<edge_t>{}(local_degree0, local_degree1);
+  }
+};
+
+template <typename FirstElementToIdxMap,
+          typename SecondElementToIdxMap,
+          typename VertexPairiterator,
+          typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool multi_gpu>
+struct copy_intersecting_nbrs_and_update_intersection_size_t {
+  FirstElementToIdxMap first_element_to_idx_map{};
+  size_t const* first_element_offsets{nullptr};
+
+  SecondElementToIdxMap second_element_to_idx_map{};
+  size_t const* second_element_offsets{nullptr};
+
+  edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition{};
+  thrust::optional<vertex_t> major_hypersparse_first{};
+
+  VertexPairIterator vertex_pair_first, size_t const *nbr_intersection_offsets{nullptr};
+  vertex_t* nbr_intersection_indices{nullptr};
+
+  __device__ edge_t operator()(size_t i) const
+  {
+    auto pair = *(vertex_pair_first + i);
+
+    vertex_t const* indices0{nullptr};
+    edge_t local_degree0{0};
+    if constexpr (std::is_same_v<FirstElementToIdxMap, void*>) {
+      vertex_t major = thrust::get<0>(pair);
+      if constexpr (multi_gpu) {
+        if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
+          auto major_hypersparse_idx =
+            edge_partition.major_hypersparse_idx_from_major_nocheck(major);
+          assert(major_hyperhypersparse_idx);
+          std::tie(indices0, std::ignore, local_degree0) = edge_partition.local_edges(
+            (*major_hypersparse_first - edge_partition.major_range_first()) +
+            *major_hypersparse_idx);
+        } else {
+          std::tie(indices0, std::ignore, local_degree0) =
+            edge_partition.local_edges(edge_partition.major_offset_from_major_nocheck(major));
+        }
+      } else {
+        std::tie(indices0, std::ignore, local_degree0) =
+          edge_partition.local_edges(edge_partition.major_offset_from_major_nocheck(major));
+      }
+    } else {
+      auto idx = *(first_element_to_idx_map.find(thrust::get<0>(pair),
+                                                 cuco::detail::MurmurHash3_32<vertex_t>{},
+                                                 thrust::equal_to<vertex_t>{}));
+      local_degree0 =
+        static_cast<edge_t>(first_element_offsets[idx + 1] - first_element_offsets[idx]);
+      indices0 = first_element_indices + first_elements_offsets[idx];
+    }
+
+    vertex_t const* indices1{nullptr};
+    edge_t local_degree1{0};
+    if constexpr (std::is_same_v<SecondElementToIdxMap, void*>) {
+      vertex_t major = thrust::get<1>(pair);
+      if constexpr (multi_gpu) {
+        if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
+          auto major_hypersparse_idx =
+            edge_partition.major_hypersparse_idx_from_major_nocheck(major);
+          assert(major_hyperhypersparse_idx);
+          std::tie(indices1, std::ignore, local_degree1) = edge_partition.local_edges(
+            (*major_hypersparse_first - edge_partition.major_range_first()) +
+            *major_hypersparse_idx);
+        } else {
+          std::tie(indices1, std::ignore, local_degree1) =
+            edge_partition.local_edges(edge_partition.major_offset_from_major_nocheck(major));
+        }
+      } else {
+        std::tie(indices1, std::ignore, local_degree1) =
+          edge_partition.local_edges(edge_partition.major_offset_from_major_nocheck(major));
+      }
+    } else {
+      auto idx = *(second_element_to_idx_map.find(thrust::get<1>(pair),
+                                                  cuco::detail::MurmurHash3_32<vertex_t>{},
+                                                  thrust::equal_to<vertex_t>{}));
+      local_degree1 =
+        static_cast<edge_t>(second_element_offsets[idx + 1] - second_element_offsets[idx]);
+      indices1 = second_element_indices + second_elements_offsets[idx];
+    }
+
+    // FIXME: this can lead to thread-divergence with a mix of high-degree and low-degree
+    // vertices in a single warp (better optimize if this becomes a performance
+    // bottleneck)
+
+    auto it = thrust::set_intersection(thrust::seq,
+                                       indices0,
+                                       indices0 + local_degree0,
+                                       indices1,
+                                       indices1 + local_degree1,
+                                       nbr_intersection_indices + nbr_intersection_offsets[i]);
+    thrust::fill(thrust::seq,
+                 it,
+                 nbr_intersection_indices + nbr_intersection_offsets[i + 1],
+                 invalid_vertex_id<vertex_t>::value);
+
+    return static_cast<size_t>(
+      thrust::distance(nbr_intersection_indices + nbr_intersection_offsets[i], it));
+  }
+};
+
+struct strided_accumulate_t {
+  size_t const* rx_nbr_intersection_sizes{nullptr};
+  size_t edge_partition_input_size{};
+  int col_comm_size{};
+
+  __device__ size_t operator()(size_t i) const
+  {
+    size_t accumulated_size{0};
+    for (int j = 0; j < col_comm_size; ++j) {
+      accumulated_size += *(rx_nbr_intersection_sizes + edge_partition_input_size * j + i);
+    }
+    return accumulated_size;
+  }
+};
+
+template <typename vertex_t>
+struct gatherv_indices_t {
+  size_t edge_partition_input_size{};
+  int col_comm_size{};
+
+  size_t const* rx_nbr_intersection_ofsets{nullptr};
+  vertex_t const* rx_nbr_intersection_indices{nullptr};
+  size_t const* nbr_intersection_ofsets{nullptr};
+
+  vertex_t* nbr_intersection_indices{nullptr};
+
+  __device__ void operator()(size_t i) const
+  {
+    auto output_offset = *(nbr_intersection_offsets + i);
+
+    // FIXME: this can lead to thread-divergence with a mix of high-degree and low-degree vertices
+    // in a single warp (better optimize if this becomes a performance bottleneck)
+
+    for (int j = 0; j < col_comm_size; ++j) {
+      thrust::copy(thrust::seq,
+                   rx_nbr_intersection_indices +
+                     rx_nbr_intersection_offsets[edge_partition_input_size * j + i],
+                   rx_nbr_intersection_indices +
+                     rx_nbr_intersection_offsets[edge_partition_input_size * j + i + 1],
+                   nbr_intersection_indices + output_offset);
+      output_offset += rx_nbr_intersection_offsets[edge_partition_input_size * j + i + 1] -
+                       rx_nbr_intersection_offsets[edge_partition_input_size * j + i];
+    }
+  }
+};
+
+// first element of every input vertex pair should be in [local_vertex_range_first,
+// local_vertex_range_last) In multi-GPU, second element of every input vertex pair is advised to be
+// within a limited range to be memory & communication efficient (when enumerating neighbor
+// intersections for a large number of pairs, one may better group local vertex pairs based on the
+// second element of a pair, and call this function once per each group).
+template <typename GraphViewType, typename VertexPairIterator>
+std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<typename GraphViewType::vertex_type>>
+neighbor_intersection(raft::handle_t const& handle,
+                      GraphViewType const& graph_view,
+                      VertexPairIterator vertex_pair_first,
+                      VertexPairIterator vertex_pair_last,
+                      std::array<bool, 2> intersect_dst_nbr,
+                      bool do_expensive_check = false)
+{
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+
+  static_assert(std::is_same_v(typename thrust::iterator_traits<VertexPairIterator>::value_type,
+                               thrust::tuple<vertex_t, vertex_t>));
+
+  size_t input_size = static_cast<size_t>(thrust::distance(vertex_pair_first, vertex_pair_last));
+
+  std::array<bool, 2> intersect_minor_nbr = {
+    intersect_dst_nbr[0] != GraphViewType::storage_transposed,
+    intersect_dst_nbr[1] != GraphViewType::storage_transposed};
+
+  // 1. Check input arguments
+
+  if (do_expensive_check) {
+    auto num_invalid_pairs = thrust::count_if(
+      handle.get_thrust_policy(),
+      vertex_pair_first,
+      vertex_pair_last,
+      is_valid_input_pair_t<vertex_t>{graqph_view.number_of_vertices(),
+                                      graph_view.local_vertex_partition_range_first(),
+                                      graph_view.local_vertex_partition_range_last()});
+    if constepxr (GraphViewType::is_multi_gpu) {
+      auto& comm = handle.get_comms();
+
+      num_invlaid_pairs =
+        host_scalar_allreduce(comm, num_invalid_pairs, raft::comms::op_t::SUM, handle.get_stream());
+    }
+
+    CUGRAPH_EXPECTS(num_invalid_pairs == 0,
+                    "Invalid input arguments: there are invalid input vertex pairs.");
+  }
+
+  // 2. Collect neighbor lists for second pair element majors (for the neighbors within the minor
+  // range for this GPU)
+
+  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
+  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
+  std::optional<std::unique_ptr<
+    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>>
+    major_to_idx_map_ptr{std::nullopt};
+  std::optional<rmm::device_uvector<size_t>> major_nbr_offsets{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> major_nbr_indices{std::nullopt};
+  if constexpr (GraphViewType::is_multi_gpu) {
+    if (intersect_minor_nbr[1]) {
+      auto& comm           = handle.get_comms();
+      auto const comm_size = comm.get_size();
+
+      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+      auto const row_comm_size = row_comm.get_size();
+      auto const row_comm_rank = row_comm.get_rank();
+
+      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_comm_size = col_comm.get_size();
+
+      // 2.1 Find unique second pair element majors
+
+      rmm::device_uvector<vertex_t> unique_majors(input_size, handle.get_stream());
+
+      auto second_element_first =
+        thrust::make_transform_iterator(vertex_pair_first, second_element_of_pair_t<vertex_t>{});
+      thrust::copy(handle.get_thrust_policy(),
+                   second_element_first,
+                   second_element_first + input_size,
+                   unique_majors.begin());
+
+      thrust::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
+      unique_majors.resize(
+        thrust::distance(
+          unique_majors.begin(),
+          thrust::unique(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end())),
+        handle.get_stream());
+
+      unique_majors.shrink_to_fit(handle.get_stream());
+
+      if (col_comm_size > 1) {
+        auto rx_counts = host_scalar_allgather(col_comm, unique_majors.size(), handle.get_stream());
+        std::vector<size_t> displacements(rx_counts.size());
+        std::exclusive_scan(rx_counts.begin(), rx_counts.end(), displacements.begin(), size_t{0});
+        rmm::device_uvector<vertex_t> rx_unique_majors(displacements.back() + rx_counts.back(),
+                                                       handle.get_stream());
+        devie_allgatherv(col_comm,
+                         unique_majors.begin(),
+                         rx_unique_majors.end(),
+                         rx_counts,
+                         displacements,
+                         handle.get_stream());
+        uqniue_majors = std::move(rx_unique_majors);
+
+        thrust::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
+        unique_majors.resize(
+          thrust::distance(
+            unique_majors.begin(),
+            thrust::unique(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end())),
+          handle.get_stream());
+
+        unique_majors.shrink_to_fit(handle.get_stream());
+      }
+
+      // 2.2 Send majors and group (row_comm_rank, edge_partition_idx) counts
+
+      rmm::device_uvector<vertex_t> rx_majors(0, handle.get_stream());
+      std::vector<size_t> rx_counts{};
+      rmm::device_uvector<size_t> rx_group_counts(size_t{0}, handle.get_stream());
+      {
+        auto d_tx_group_counts = group_by_and_count(unique_majors.begin(),
+                                                    unique_majors.end(),
+                                                    major_to_group_idx_t{},
+                                                    comm_size,
+                                                    std::numeric_limits<size_t>::max(),
+                                                    handle.get_stream());
+        std::vector<size_t> h_tx_group_counts(d_tx_group_counts.size(), handle.get_stream());
+        raft::update_host(h_tx_group_counts.data(),
+                          d_tx_group_counts.data(),
+                          d_tx_group_counts.size(),
+                          handle.get_stream());
+        handle.sync_stream();
+
+        std::vector<size_t> tx_counts(row_comm_size, size_t{0});
+        for (size_t i = 0; i < tx_counts.size(); ++i) {
+          tx_counts[i] = std::reduce(h_tx_group_counts.begin() + col_comm_size * i,
+                                     h_tx_group_counts.begin() + col_comm_size * (i + 1),
+                                     size_t{0});
+        }
+
+        std::tie(rx_majors, rx_counts) = shuffle_values(
+          row_comm, unique_majors.begin(), unique_majors.end(), tx_counts, handle.get_stream());
+
+        std::tie(rx_group_counts, std::ignore) =
+          shuffle_values(row_comm,
+                         d_tx_group_counts.begin(),
+                         d_tx_group_counts.end(),
+                         std::vector<size_t>(row_comm_size, col_comm_size),
+                         handle.get_stream());
+      }
+
+      // 2.3. Enumerate degrees and neighbors for the received majors
+
+      rmm::device_uvector<edge_t> local_degrees_for_rx_majors(size_t{0}, handle.get_stream());
+      rmm::device_uvector<vertex_t> local_nbrs_for_rx_majors(size_t{0}, handle.get_strream());
+      std::vector<size_t> local_nbr_counts{};
+      {
+        rmm::device_uvector<size_t> rx_reordered_group_counts(
+          rx_group_counts.size(),
+          handle.get_stream());  // reorder using local edge partition index as the primary key and
+                                 // row_comm_rank as the secondary key
+        thrust::tabulate(
+          handle.get_thrust_policy(),
+          rx_reordered_group_counts.begin(),
+          rx_reordered_group_counts.end(),
+          reorder_group_count_t{row_comm_size, col_comm_size, rx_group_counts.data()});
+
+        rmm::device_uvector<size_t> d_rx_reordered_group_lasts(rx_reordered_group_counts.size(),
+                                                               handle.get_stream());
+        thrust::inclusive_sum(handle.get_thrust_policy(),
+                              rx_reordered_group_counts.begin(),
+                              rx_reordered_group_counts.end(),
+                              d_rx_reordered_group_lasts.begin());
+        std::vector<size_t> h_rx_reordered_group_lasts(d_rx_reordered_group_lasts.size(),
+                                                       handle.get_thrust_policy());
+        raft::update_host(h_rx_reordered_group_lasts.data(),
+                          d_rx_reordered_group_lasts.data(),
+                          d_rx_reordered_group_lasts.size(),
+                          handle.get_stream());
+        handle.sync_stream();
+
+        rmm::device_uvector<size_t> rx_group_firsts(rx_group_counts.size(),
+                                                    handle.get_thrust_policy());
+        thrust::exclusive_sum(handle.get_thrust_policy(),
+                              rx_group_counts.begin(),
+                              rx_group_counts.end(),
+                              rx_group_firsts.begin());
+
+        local_degrees_for_rx_majors.resize(rx_majors.size(), handle.get_stream());
+        for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+          auto edge_partition =
+            edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+              graph_view.local_edge_partition_view(i));
+          auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+          auto reordered_idx_first =
+            (i == size_t{0}) ? size_t{0} : h_rx_reordered_group_lasts[i * row_comm_size - 1];
+          auto reordered_idx_last = h_rx_reordered_group_lasts[(i + 1) * row_comm_size - 1];
+          thrust::for_each(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(reordered_idx_first),
+            thrust::make_counting_iterator(reordered_idx_last),
+            update_rx_major_local_degree_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>{
+              row_comm_size,
+              col_comm_size,
+              edge_partition,
+              major_hypersparse_first =
+                edge_partition.dcs_nzd_vertex_count()
+                  ? thrust::optional<vertex_t>{edge_partition.major_range_first() +
+                                               (*segment_offsets)[3]}
+                  : thrust::nullopt,
+              reordered_idx_first,
+              i,
+              rx_reordered_group_lasts = d_rx_reordered_group_lasts.data() + i * row_comm_size,
+              rx_group_firsts.data(),
+              rx_majors.data(),
+              local_degrees_for_rx_majors.data()});
+        }
+
+        rmm::device_uvector<size_t> local_offsets_for_rx_majors(
+          local_degrees_for_rx_majors.size() + 1, handle.get_stream());
+        local_offsets_for_rx_majors.set_element_to_zero_async(size_t{0}, handle.get_stream());
+        thrust::inclusive_scan(handle.get_thrust_policy(),
+                               local_degrees_for_rx_majors.begin(),
+                               local_degrees_for_rx_majors.end(),
+                               local_offsets_for_rx_majors.begin() + 1);
+
+        local_nbrs_for_rx_majors.resize(
+          local_offsets_for_rx_majors.back_element(handle.get_stream()), handle.get_strream());
+        for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+          auto edge_partition =
+            edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+              graph_view.local_edge_partition_view(i));
+          auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+          auto reordered_idx_first =
+            (i == size_t{0}) ? size_t{0} : h_rx_reordered_group_lasts[i * row_comm_size - 1];
+          auto reordered_idx_last = h_rx_reordered_group_lasts[(i + 1) * row_comm_size - 1];
+
+          thrust::for_each(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(reordered_idx_first),
+            thrust::make_counting_iterator(reordered_idx_last),
+            update_rx_major_local_nbrs_t<vertex_t, edge_t, weight_t, multi_gpu>{
+              row_comm_size,
+              col_comm_size,
+              edge_partition,
+              major_hypersparse_first =
+                edge_partition.dcs_nzd_vertex_count()
+                  ? thrust::optional<vertex_t>{edge_partition.major_range_first() +
+                                               (*segment_offsets)[3]}
+                  : thrust::nullopt,
+              reordered_idx_first,
+              i,
+              rx_reordered_group_lasts = d_rx_reordered_group_lasts.data() + i * row_comm_size,
+              rx_group_firsts.data(),
+              rx_majors.data(),
+              local_offsets_for_rx_majors.data(),
+              local_nbrs_for_rx_majors.data()});
+        }
+
+        std::vector<size_t> h_rx_offsets(rx_counts.size() + 1, size_t{0});
+        std::inclusive_scan(rx_counts.begin(), rx_counts.end(), h_rx_offsets.begin() + 1);
+        rmm::device_uvector<size_t> d_rx_offsets(h_rx_offsets.size(), handle.get_stream());
+        raft::update_device(
+          d_rx_offsets.data(), h_rx_offsets.data(), h_rx_offsets.size(), handle.get_stream());
+        rmm::device_uvector<size_t> d_local_nbr_counts(rx_counts.size(), handle.get_stream());
+        thrust::tabulate(handle.get_thrust_policy(),
+                         d_local_nbr_counts.begin(),
+                         d_local_nbr_counts.end(),
+                         gather_and_adjacent_difference_t{d_rx_offsets.data(),
+                                                          local_offsets_for_rx_majors.data()});
+        raft::update_host(
+          local_nbr_counts.data(), d_local_nbr_counts.data(), d_local_nbr_counts.size());
+        handle.sync_stream();
+      }
+
+      // 2.4 Send the degrees and neighbors back
+
+      {
+        rmm::device_uvector<edge_t> local_degrees_for_unique_majors(size_t{0}, handle.get_stream());
+        std::tie(local_degrees_for_unique_majors, std::ignore) =
+          shuffle_values(row_comm,
+                         local_degrees_for_rx_majors.begin(),
+                         local_degrees_for_rx_majors.end(),
+                         rx_counts,
+                         handle.get_stream());
+        major_nbr_offsets = rmm::device_uvector<size_t>(local_degrees_for_unique_majors.size() + 1,
+                                                        handle.get_stream());
+        (*major_nbr_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
+        thrust::inclusive_scan(handle.get_thrust_policy(),
+                               local_degrees_for_unique_majors.begin(),
+                               local_degrees_for_unique_majors.end(),
+                               (*major_nbr_offsets).begin() + 1);
+      }
+
+      std::tie(*major_nbr_indices, std::ignore) = shuffle_values(row_comm,
+                                                                 local_nbrs_for_rx_majors.begin(),
+                                                                 local_nbrs_for_rx_majors.end(),
+                                                                 local_nbr_counts,
+                                                                 handle.get_stream());
+
+      major_to_idx_map_ptr = std::make_unique<
+        cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
+        // cuco::static_map requires at least one empty slot
+        std::max(static_cast<size_t>(static_cast<double>(unique_majors.size()) / load_factor),
+                 static_cast<size_t>(unique_majors.size()) + 1),
+        invalid_vertex_id<vertex_t>::value,
+        invalid_vertex_id<vertex_t>::value,
+        stream_adapter,
+        stream_view);
+      auto pair_first = thrust::make_zip_iterator(unique_majors.begin(),
+                                                  thrust::make_counting_iterator(vertex_t{0}));
+      (*major_to_idx_map_ptr)
+        ->insert(pair_first,
+                 pair_first + unique_majors.size(),
+                 cuco::detail::MurmurHash3_32<vertex_t>{},
+                 thrust::equal_to<vertex_t>{},
+                 handle.get_stream());
+      major_nbr_indices = std::move(local_nbrs_for_unique_majors);
+    }
+  }
+
+  // 3. Collect neighbor list for minors (for the neighbors within the minor range for this GPU)
+
+  if (!intersect_minor_nbr[0] || !intersect_minor_nbr[1]) {
+    // FIXME: currently no use case, but this can be necessary to supporting triangle counting for
+    // directed graphs
+    CUGRAPH_FAIL("unimplemented.");
+  }
+
+  // 4. Intersect
+
+  rmm::device_uvector<size_t> nbr_intersection_offsets(size_t{0}, handle.get_stream());
+  rmm::device_uvector<vertex_t> nbr_intersection_indices(size_t{0}, handle.get_stream());
+  if constexpr (GraphViewType::is_multi_gpu) {
+    auto& col_comm   = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto input_sizes = host_scalar_allgather(col_comm, input_size, handle.get_stream());
+
+    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+      auto edge_partition_input_size = input_sizes[i];
+
+      // 4.1. Broadcast vertex pairs to intersect & locally intersect
+
+      rmm::device_uvector<edge_t> edge_partition_nbr_intersection_sizes(size_t{0},
+                                                                        handle.get_stream());
+      rmm::device_uvector<vertex_t> edge_partition_nbr_intersection_indices(size_t{0},
+                                                                            handle.get_stream());
+      {
+        auto vertex_pair_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+          edge_partition_input_size, handle.get_stream());
+
+        if (col_comm_rank == static_cast<int>(i)) {
+          thrust::copy(handle.get_thrust_policy(),
+                       vertex_pair_first,
+                       vertex_pair_first + edge_partition_input_size,
+                       get_dataframe_buffer_begin(vertex_pair_buffer));
+        }
+        device_bcast(col_comm,
+                     get_dataframe_buffer_begin(vertex_pair_buffer),
+                     get_dataframe_buffer_begin(vertex_pair_buffer),
+                     edge_partition_input_size,
+                     static_cast<int>(i),
+                     handle.get_stream());
+
+        auto edge_partition =
+          edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+            graph_view.local_edge_partition_view(i));
+        auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+
+        edge_partition_nbr_intersection_sizes.resize(
+          edge_partition_input_size,
+          handle
+            .get_stream());  // initially store minimum degrees (upper bound for intersection sizes)
+        auto second_element_to_idx_map = (*major_to_idx_map_ptr)->device_view(),
+             thrust::transform(handle.get_thrust_policy(),
+                               get_dataframe_buffer_begin(vertex_pair_buffer),
+                               get_dataframe_buffer_end(vertex_pair_buffer),
+                               edge_partition_nbr_intersection_sizes.begin(),
+                               pick_min_degree_t<void*,
+                                                 decltype(second_element_to_idx_map),
+                                                 vertex_t,
+                                                 edge_t,
+                                                 weight_t,
+                                                 true>{
+                                 nullptr,
+                                 nullptr,
+                                 second_elment_to_idx_map,
+                                 nbr_intersection_offsets.data(),
+                                 edge_partition,
+                                 edge_partition.dcs_nzd_vertex_count()
+                                   ? thrust::optional<vertex_t>{edge_partition.major_range_first() +
+                                                                (*segment_offsets)[3]}
+                                   : thrust::nullopt});
+
+        rmm::device_uvector<size_t> edge_partition_nbr_intersection_offsets(
+          edge_partition_nbr_intersection_sizes.size() + 1, handle.get_stream());
+        edge_partition_nbr_intersection_offsets.set_element_to_zero_async(size_t{0},
+                                                                          handle.get_stream());
+        thrust::inclusive_scan(thrust::get_thrust_policy(),
+                               edge_partition_nbr_intersection_sizes.begin(),
+                               edge_partition_nbr_intersection_sizes.end(),
+                               edge_partition_nbr_intersection_offsets.begin() + 1);
+
+        edge_partition_nbr_intersection_indices.resize(
+          edge_partition_nbr_intersection_offsets.back_element(handle.get_stream()),
+          handle.get_stream());
+        thrust::tabulate(handle.get_thrust_policy(),
+                         edge_partition_nbr_intersection_sizes.begin(),
+                         edge_partition_nbr_intersection_sizes.end(),
+                         copy_intersecting_nbrs_and_update_intersection_size_t<
+                           void*,
+                           decltype(second_element_to_idx_map),
+                           decltype(get_dataframe_buffer_begin(vertex_pair_buffer)),
+                           vertex_t,
+                           edge_t,
+                           weight_t,
+                           true>{nullptr,
+                                 nullptr,
+                                 second_elment_to_idx_map,
+                                 nbr_intersection_offsets.data(),
+                                 edge_partition,
+                                 edge_partition.dcs_nzd_vertex_count()
+                                   ? thrust::optional<vertex_t>{edge_partition.major_range_first() +
+                                                                (*segment_offsets)[3]}
+                                   : thrust::nullopt,
+                                 get_dataframe_buffer_begin(vertex_pair_buffer),
+                                 edge_partition_nbr_intersection_offsets.data(),
+                                 edge_partition_nbr_intersection_indices.data()});
+
+        edge_partition_nbr_intersection_indices.resize(
+          thrust::distance(edge_partition_nbr_intersection_indices.begin(),
+                           thrust::remove(handle.get_thrust_policy(),
+                                          edge_partition_nbr_intersection_indices.begin(),
+                                          edge_partition_nbr_intersection_indices.end(),
+                                          invalid_vertex_id<vertex_t>::value)),
+          handle.get_stream());
+      }
+
+      // 4.2. Gather intersection outputs
+
+      rmm::device_uvector<size_t> rx_nbr_intersection_offsets(size_t{0}, handle.get_stream());
+      {
+        std::vector<size_t> dispacements(col_comm_size);
+        for (size_t j = 0; j < displacements.size(); ++j) {
+          displacements[j] = edge_partition_input_size * j;
+        }
+        rmm::device_uvector<size_t> rx_nbr_intersection_sizes(
+          edge_partition_input_size * col_comm_size, handle.get_stream());
+        device_gatherv(col_comm,
+                       edge_partition_nbr_intersection_sizes.begin(),
+                       rx_nbr_intersection_sizes.begin(),
+                       edge_partition_input_size,
+                       std::vector<size_t>(col_comm_size, edge_partition_input_size),
+                       displacements,
+                       static_cast<int>(i),
+                       handle.get_stream());
+
+        if (col_comm_rank == static_cast<int>(i)) {
+          rmm::device_uvector<size_t> nbr_intersection_sizes(edge_partition_input_size,
+                                                             handle.get_stream());
+
+          thrust::tabulate(
+            handle.get_thrust_policy(),
+            nbr_intersection_sizes.begin(),
+            nbr_intersection_sizes.end(),
+            strided_accumulate_t{rx_nbr_intersection_sizes = rx_nbr_intersection_sizes.data(),
+                                 edge_partition_input_size,
+                                 col_comm_size});
+
+          nbr_intersection_offsets.resize(edge_partition_input_size + 1, handle.get_stream());
+          nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
+          thrust::inclusive_scan(handle.get_thrust_policy(),
+                                 nbr_intersection_sizes.begin(),
+                                 nbr_intersection_sizes.end(),
+                                 nbr_intersection_offsets.begin() + 1);
+
+          rx_nbr_intersection_offsets.resize(rx_nbr_intersection_sizes.size() + 1,
+                                             handle.get_stream());
+          rx_nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
+          thrust::inclusive_scan(handle.get_thrust_policy(),
+                                 rx_nbr_intersection_sizes.begin(),
+                                 rx_nbr_intersection_sizes.end(),
+                                 rx_nbr_intersection_offsets.begin() + 1);
+        }
+      }
+
+      {
+        auto index_sizes = host_scalar_gather(col_comm,
+                                              edge_partition_nbr_intersection_indcies.size(),
+                                              static_cast<int>(i),
+                                              handle.get_stream());
+
+        std::vector<size_t> dispacements(col_comm_size);
+        std::exclusive_scan(
+          index_sizes.begin(), index_sizes.end(), displacements.begin(), size_t{0});
+        rmm::device_uvector<vertex_t> rx_nbr_intersection_indices(
+          displacements.back() + index_sizes.back(), handle.get_stream());
+        device_gatherv(col_comm,
+                       edge_partition_nbr_intersection_indcies.begin(),
+                       rx_nbr_intersection_indices.begin(),
+                       edge_partition_nbr_intersection_indcies.size(),
+                       index_sizes,
+                       displacements,
+                       static_cast<int>(i),
+                       handle.get_stream());
+
+        if (col_comm_rank == static_cast<int>(i)) {
+          nbr_intersection_indices.resize(rx_nbr_intersection_indices.size(), handle.get_stream());
+
+          thrust::for_each(handle.get_thrust_policy(),
+                           thrust::make_counting_iterator(size_t{0}),
+                           thrust::make_counting_iterator(edge_partition_input_size),
+                           gatherv_indices_t<vertex_t>{edge_partition_input_size,
+                                                       col_comm_size,
+                                                       rx_nbr_intersection_offsets.data(),
+                                                       rx_nbr_intersection_indices.data(),
+                                                       nbr_intersection_offsets.data(),
+                                                       nbr_intersection_indices.data()});
+        }
+      }
+    }
+  } else {
+    auto edge_partition =
+      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+        graph_view.local_edge_partition_view(i));
+
+    rmm::device_uvector<edge_t> nbr_intersection_sizes(
+      input_size,
+      handle.get_stream());  // initially store minimum degrees (upper bound for intersection sizes)
+    thrust::transform(handle.get_thrust_policy(),
+                      vertex_pair_first,
+                      vertex_pair_first + input_size,
+                      nbr_intersection_sizes.begin(),
+                      pick_min_degree_t<void*, void*, vertex_t, edge_t, weight_t, false>{
+                        nullptr, nullptr, nullptr, nullptr, edge_partition, thrust::nullopt});
+
+    nbr_intersection_offsets.resize(nbr_intersection_sizes.size() + 1, handle.get_stream());
+    nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
+    thrust::inclusive_scan(thrust::get_thrust_policy(),
+                           nbr_intersection_sizes.begin(),
+                           nbr_intersection_sizes.end(),
+                           nbr_intersection_offsets.begin() + 1);
+
+    nbr_intersection_indices.resize(nbr_intersection_offsets.back_element(handle.get_stream()),
+                                    handle.get_stream());
+    thrust::tabulate(
+      handle.get_thrust_policy(),
+      nbr_intersection_sizes.begin(),
+      nbr_intersection_sizes.end(),
+      copy_intersecting_nbrs_and_update_intersection_size_t<void*,
+                                                            void*,
+                                                            decltype(vertex_pair_first),
+                                                            vertex_t,
+                                                            edge_t,
+                                                            weight_t,
+                                                            false>{
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        edge_partition,
+        thrust::nullopt,
+        vertex_pair_first,
+        nbr_intersection_offsets.data(),
+        nbr_intersection_indices.data()});
+
+    nbr_intersection_indices.resize(
+      thrust::distance(nbr_intersection_indices.begin(),
+                       thrust::remove(handle.get_thrust_policy(),
+                                      nbr_intersection_indices.begin(),
+                                      nbr_intersection_indices.end(),
+                                      invalid_vertex_id<vertex_t>::value)),
+      handle.get_stream());
+
+    thrust::include_scan(thrust::get_thrust_policy(),
+                         nbr_intersection_sizes.begin(),
+                         nbr_intersection_sizes.end(),
+                         nbr_intersection_offsets.begin() + 1);
+  }
+
+  // 5. Return
+
+  return std::make_tuple(std::move(nbr_intersection_offsets), std::move(nbr_intersection_indices));
+}
+
+}  // namespace detail
+
+}  // namespace cugraph
