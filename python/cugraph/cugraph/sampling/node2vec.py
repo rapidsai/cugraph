@@ -50,7 +50,8 @@ def node2vec(G,
         a cudf.DataFrame. Only supports int32 currently.
 
     max_depth: int
-        The maximum depth of the random walks
+        The maximum depth of the random walks. If not specified, the maximum
+        depth is set to 1.
 
     compress_result: bool, optional (default=True)
         If True, coalesced paths are returned with a sizes array with offsets.
@@ -92,12 +93,14 @@ def node2vec(G,
     ...                                               True, 0.8, 0.5)
 
     """
-    if (not isinstance(max_depth, int)) or (max_depth < 1):
-        raise ValueError(f"'max_depth' must be a positive integer, \
-                        got: {max_depth}")
+    if (max_depth is None):
+        max_depth = 1
+    elif (not isinstance(max_depth, int)) or (max_depth < 1):
+        raise ValueError(f"'max_depth' must be a positive integer, "
+                         f"got: {max_depth}")
     if (not isinstance(compress_result, bool)):
-        raise ValueError(f"'compress_result' must be a bool, \
-                        got: {compress_result}")
+        raise ValueError(f"'compress_result' must be a bool, "
+                         f"got: {compress_result}")
     if (not isinstance(p, float)) or (p <= 0.0):
         raise ValueError(f"'p' must be a positive float, got: {p}")
     if (not isinstance(q, float)) or (q <= 0.0):
@@ -109,10 +112,11 @@ def node2vec(G,
         start_vertices = [start_vertices]
 
     if isinstance(start_vertices, list):
-        start_vertices = cudf.Series(start_vertices)
+        # start_vertices = cudf.Series(start_vertices)
+        start_vertices = cudf.Series(start_vertices, dtype='int32')
         if start_vertices.dtype != 'int32':
-            raise ValueError(f"'start_vertices' must have int32 values, \
-                            got: {start_vertices.dtype}")
+            raise ValueError(f"'start_vertices' must have int32 values, "
+                             f"got: {start_vertices.dtype}")
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
@@ -126,8 +130,8 @@ def node2vec(G,
     weights = G.edgelist.edgelist_df['weights']
 
     if srcs.dtype != 'int32':
-        raise ValueError(f"Graph vertices must have int32 values, \
-                        got: {srcs.dtype}")
+        raise ValueError(f"Graph vertices must have int32 values, "
+                         f"got: {srcs.dtype}")
 
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_multigraph=G.is_multigraph())
