@@ -577,7 +577,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS UPDATE_FRONTIER_FROM_OUTGOING_E_OF_V tests -----------------------------------
         ConfigureTestMG(MG_UPDATE_FRONTIER_FROM_OUTGOING_E_OF_V_TEST
-                        prims/mg_update_frontier_from_outgoing_e_of_v.cu)
+                        prims/mg_update_frontier_from_outgoing_e.cu)
 
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
