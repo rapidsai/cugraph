@@ -21,7 +21,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/update_frontier_from_outgoing_e_of_v.cuh>
+#include <cugraph/prims/update_frontier_from_outgoing_e.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -523,7 +523,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       auto old_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
       resize_dataframe_buffer(edge_buffer, old_num_edge_inserts + max_pushes, handle.get_stream());
 
-      update_frontier_from_outgoing_e_of_v(
+      update_frontier_from_outgoing_e(
         handle,
         level_graph_view,
         vertex_frontier,

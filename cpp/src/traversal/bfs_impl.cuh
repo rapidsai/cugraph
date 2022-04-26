@@ -20,7 +20,7 @@
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/update_frontier_from_outgoing_e_of_v.cuh>
+#include <cugraph/prims/update_frontier_from_outgoing_e.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
@@ -222,7 +222,7 @@ void bfs(raft::handle_t const& handle,
         e_op.prev_visited_flags = prev_visited_flags.data();
       }
 
-      update_frontier_from_outgoing_e_of_v(
+      update_frontier_from_outgoing_e(
         handle,
         push_graph_view,
         vertex_frontier,
