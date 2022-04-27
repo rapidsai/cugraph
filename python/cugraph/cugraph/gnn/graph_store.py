@@ -104,7 +104,13 @@ class CuGraphStore:
             The sampled arrays for bipartite graph.
         """
         num_nodes = len(nodes)
-        current_seeds = nodes.reindex(index=np.arange(0, num_nodes))
+
+        if torch.is_tensor(nodes):
+            current_seeds = cupy.asarray(nodes)
+            current_seeds = cudf.Series(current_seeds)
+        else:
+            current_seeds = nodes.reindex(index = np.arange(0, num_nodes))
+
         _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
                                        allow_multi_edges=True)
         ego_edge_list, seeds_offsets = batched_ego_graphs(_g,
