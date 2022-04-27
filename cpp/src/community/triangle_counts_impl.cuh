@@ -27,6 +27,37 @@ void triangle_counts(raft::handle_t const& handle,
                      bool do_expensive_check)
 {
   CUGRAPH_FAIL("unimplemented.");
+
+  // 1. Check input arguments.
+
+  CUGRAPH_EXPECTS(
+    graph_view.is_symmetric(),
+    "Invalid input arguments: triangle_counts currently supports undirected graphs only.");
+  if (vertices) {
+    CUGRAPH_EXPECTS(counts.size() == (*vertices).size(),
+                    "Invalid arguments: counts.size() does not coincide with (*vertices).size().");
+  } else {
+    CUGRAPH_EXPECTS(counts.size() == (*vertices).size(),
+                    "Invalid arguments: counts.size() does not coincide with (*vertices).size().");
+  }
+
+  if (do_expensive_check) {
+    if (vertices) {}
+  }
+
+  // 2. Mask-out self-loops (FIXME: this can be implemented much more efficiently once we support
+  // edge masking).
+
+  // 3. Find 2-core.
+
+  // 4. Keep only low-degree to high-degree edges.
+
+  // 5. Neighbor intersection in chunks
+
+  // 6. If vertices.has_value(), gather triangle counts (FIXME: This is inefficient if
+  // (*vertices).size() is small, we may better extract a subgraph including only the edges between
+  // *vertices and (*vertices)'s one-hop neighbors and count triangles using the subgraph).
+
   return;
 }
 
