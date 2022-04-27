@@ -596,9 +596,9 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
 
         ###########################################################################################
-        # - MG PRIMS TRANSFORM_REDUCE_INCOMING_OUTGOING_E_OF_V tests ------------------------------
-        ConfigureTestMG(MG_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_OF_V_TEST
-          prims/mg_transform_reduce_incoming_outgoing_e_of_v.cu)
+        # - MG PRIMS PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E tests -----------------------------
+        ConfigureTestMG(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST
+          prims/mg_per_v_transform_reduce_incoming_outgoing_e.cu)
 
         ###########################################################################################
         # - MG PRIMS EXTRACT_IF_E tests -----------------------------------------------------------
