@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,7 +14,7 @@
 from pylibcugraph.experimental import (ResourceHandle,
                                        GraphProperties,
                                        SGGraph,
-                                       eigenvector_centrality as pylibcugraph_eigenvector
+                                       eigenvector_centrality as pylib_eigen
                                        )
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
@@ -32,16 +32,21 @@ def eigenvector_centrality(
     ----------
     G : cuGraph.Graph or networkx.Graph
 
-    max_iter :
+    max_iter : int, optional (default=1000)
 
-    tol : float
+    tol : float, optional (default=1e-6)
 
-    nstart :
+    nstart : cudf.Dataframe, optional (default=None)
 
-    normalized :
+    normalized : bool, optional (default=True)
 
     """
-    # Checks
+    if (not isinstance(max_iter, int)):
+        raise ValueError(f"'max_iter' must be an integer, got: {max_iter}")
+    elif max_iter <= 0:
+        max_iter = 1000
+    if (not isinstance(tol, float)) or (tol <= 0.0):
+        raise ValueError(f"'tol' must be a positive float, got: {tol}")
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
@@ -72,9 +77,10 @@ def eigenvector_centrality(
     sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
                  store_transposed, renumber, do_expensive_check)
 
-    vertices, values = pylibcugraph_eigenvector(resource_handle, sg, nstart,
-                                                tol, max_iter,
-                                                do_expensive_check)
+    # vertices, values = pylibcugraph_eigenvector(resource_handle, sg, nstart,
+    vertices, values = pylib_eigen(resource_handle, sg, nstart,
+                                   tol, max_iter,
+                                   do_expensive_check)
 
     vertices = cudf.Series(vertices)
     values = cudf.Series(values)
