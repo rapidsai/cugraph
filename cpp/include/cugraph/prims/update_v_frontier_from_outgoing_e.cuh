@@ -55,7 +55,7 @@ namespace cugraph {
 
 namespace detail {
 
-int32_t constexpr update_frontier_from_outgoing_e_kernel_block_size = 512;
+int32_t constexpr update_v_frontier_from_outgoing_e_kernel_block_size = 512;
 
 // we cannot use std::iterator_traits<Iterator>::value_type if Iterator is void* (reference to void
 // is not allowed)
@@ -131,7 +131,7 @@ template <typename vertex_t,
           typename VertexOp,
           typename key_t,
           bool multi_gpu>
-struct update_frontier_call_v_op_t {
+struct update_v_frontier_call_v_op_t {
   VertexValueInputIterator vertex_value_input_first{};
   VertexValueOutputIterator vertex_value_output_first{};
   VertexOp v_op{};
@@ -216,7 +216,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void update_frontier_from_outgoing_e_hypersparse(
+__global__ void update_v_frontier_from_outgoing_e_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -256,13 +256,14 @@ __global__ void update_frontier_from_outgoing_e_hypersparse(
   auto idx = static_cast<size_t>(tid);
 
   __shared__ edge_t
-    warp_local_degree_inclusive_sums[update_frontier_from_outgoing_e_kernel_block_size];
-  __shared__ edge_t warp_key_local_edge_offsets[update_frontier_from_outgoing_e_kernel_block_size];
+    warp_local_degree_inclusive_sums[update_v_frontier_from_outgoing_e_kernel_block_size];
+  __shared__ edge_t
+    warp_key_local_edge_offsets[update_v_frontier_from_outgoing_e_kernel_block_size];
 
   using WarpScan = cub::WarpScan<edge_t, raft::warp_size()>;
   __shared__ typename WarpScan::TempStorage temp_storage;
 
-  __shared__ size_t buffer_warp_start_indices[update_frontier_from_outgoing_e_kernel_block_size /
+  __shared__ size_t buffer_warp_start_indices[update_v_frontier_from_outgoing_e_kernel_block_size /
                                               raft::warp_size()];
 
   auto indices = edge_partition.indices();
@@ -385,7 +386,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void update_frontier_from_outgoing_e_low_degree(
+__global__ void update_v_frontier_from_outgoing_e_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -422,13 +423,14 @@ __global__ void update_frontier_from_outgoing_e_low_degree(
   auto idx           = static_cast<size_t>(tid);
 
   __shared__ edge_t
-    warp_local_degree_inclusive_sums[update_frontier_from_outgoing_e_kernel_block_size];
-  __shared__ edge_t warp_key_local_edge_offsets[update_frontier_from_outgoing_e_kernel_block_size];
+    warp_local_degree_inclusive_sums[update_v_frontier_from_outgoing_e_kernel_block_size];
+  __shared__ edge_t
+    warp_key_local_edge_offsets[update_v_frontier_from_outgoing_e_kernel_block_size];
 
   using WarpScan = cub::WarpScan<edge_t, raft::warp_size()>;
   __shared__ typename WarpScan::TempStorage temp_storage;
 
-  __shared__ size_t buffer_warp_start_indices[update_frontier_from_outgoing_e_kernel_block_size /
+  __shared__ size_t buffer_warp_start_indices[update_v_frontier_from_outgoing_e_kernel_block_size /
                                               raft::warp_size()];
 
   auto indices = edge_partition.indices();
@@ -544,7 +546,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void update_frontier_from_outgoing_e_mid_degree(
+__global__ void update_v_frontier_from_outgoing_e_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -576,12 +578,12 @@ __global__ void update_frontier_from_outgoing_e_mid_degree(
                 "GraphViewType should support the push model.");
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  static_assert(update_frontier_from_outgoing_e_kernel_block_size % raft::warp_size() == 0);
+  static_assert(update_v_frontier_from_outgoing_e_kernel_block_size % raft::warp_size() == 0);
   auto const warp_id = threadIdx.x / raft::warp_size();
   auto const lane_id = tid % raft::warp_size();
   auto idx           = static_cast<size_t>(tid / raft::warp_size());
 
-  __shared__ size_t buffer_warp_start_indices[update_frontier_from_outgoing_e_kernel_block_size /
+  __shared__ size_t buffer_warp_start_indices[update_v_frontier_from_outgoing_e_kernel_block_size /
                                               raft::warp_size()];
   while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
     auto key = *(key_first + idx);
@@ -651,7 +653,7 @@ template <typename GraphViewType,
           typename BufferKeyOutputIterator,
           typename BufferPayloadOutputIterator,
           typename EdgeOp>
-__global__ void update_frontier_from_outgoing_e_high_degree(
+__global__ void update_v_frontier_from_outgoing_e_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -684,7 +686,7 @@ __global__ void update_frontier_from_outgoing_e_high_degree(
 
   auto idx = static_cast<size_t>(blockIdx.x);
 
-  using BlockScan = cub::BlockScan<edge_t, update_frontier_from_outgoing_e_kernel_block_size>;
+  using BlockScan = cub::BlockScan<edge_t, update_v_frontier_from_outgoing_e_kernel_block_size>;
   __shared__ typename BlockScan::TempStorage temp_storage;
   __shared__ size_t buffer_block_start_idx;
 
@@ -701,10 +703,11 @@ __global__ void update_frontier_from_outgoing_e_high_degree(
     thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_out_degree{};
     thrust::tie(indices, weights, local_out_degree) = edge_partition.local_edges(src_offset);
-    auto rounded_up_local_out_degree                = ((static_cast<size_t>(local_out_degree) +
-                                         (update_frontier_from_outgoing_e_kernel_block_size - 1)) /
-                                        update_frontier_from_outgoing_e_kernel_block_size) *
-                                       update_frontier_from_outgoing_e_kernel_block_size;
+    auto rounded_up_local_out_degree =
+      ((static_cast<size_t>(local_out_degree) +
+        (update_v_frontier_from_outgoing_e_kernel_block_size - 1)) /
+       update_v_frontier_from_outgoing_e_kernel_block_size) *
+      update_v_frontier_from_outgoing_e_kernel_block_size;
     for (size_t i = threadIdx.x; i < rounded_up_local_out_degree; i += blockDim.x) {
       e_op_result_t e_op_result{};
       vertex_t dst{};
@@ -991,7 +994,7 @@ template <typename GraphViewType,
           typename VertexValueInputIterator,
           typename VertexValueOutputIterator,
           typename VertexOp>
-void update_frontier_from_outgoing_e(
+void update_v_frontier_from_outgoing_e(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   VertexFrontierType& frontier,
@@ -1170,10 +1173,11 @@ void update_frontier_from_outgoing_e(
       // segments; 2) individually tuning block sizes for different segments; and 3) adding one more
       // segment for very high degree vertices and running segmented reduction
       if (h_offsets[0] > 0) {
-        raft::grid_1d_block_t update_grid(h_offsets[0],
-                                          detail::update_frontier_from_outgoing_e_kernel_block_size,
-                                          handle.get_device_properties().maxGridSize[0]);
-        detail::update_frontier_from_outgoing_e_high_degree<GraphViewType>
+        raft::grid_1d_block_t update_grid(
+          h_offsets[0],
+          detail::update_v_frontier_from_outgoing_e_kernel_block_size,
+          handle.get_device_properties().maxGridSize[0]);
+        detail::update_v_frontier_from_outgoing_e_high_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
@@ -1186,10 +1190,11 @@ void update_frontier_from_outgoing_e(
             e_op);
       }
       if (h_offsets[1] - h_offsets[0] > 0) {
-        raft::grid_1d_warp_t update_grid(h_offsets[1] - h_offsets[0],
-                                         detail::update_frontier_from_outgoing_e_kernel_block_size,
-                                         handle.get_device_properties().maxGridSize[0]);
-        detail::update_frontier_from_outgoing_e_mid_degree<GraphViewType>
+        raft::grid_1d_warp_t update_grid(
+          h_offsets[1] - h_offsets[0],
+          detail::update_v_frontier_from_outgoing_e_kernel_block_size,
+          handle.get_device_properties().maxGridSize[0]);
+        detail::update_v_frontier_from_outgoing_e_mid_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[0],
@@ -1204,9 +1209,9 @@ void update_frontier_from_outgoing_e(
       if (h_offsets[2] - h_offsets[1] > 0) {
         raft::grid_1d_thread_t update_grid(
           h_offsets[2] - h_offsets[1],
-          detail::update_frontier_from_outgoing_e_kernel_block_size,
+          detail::update_v_frontier_from_outgoing_e_kernel_block_size,
           handle.get_device_properties().maxGridSize[0]);
-        detail::update_frontier_from_outgoing_e_low_degree<GraphViewType>
+        detail::update_v_frontier_from_outgoing_e_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[1],
@@ -1221,9 +1226,9 @@ void update_frontier_from_outgoing_e(
       if (edge_partition.dcs_nzd_vertex_count() && (h_offsets[3] - h_offsets[2] > 0)) {
         raft::grid_1d_thread_t update_grid(
           h_offsets[3] - h_offsets[2],
-          detail::update_frontier_from_outgoing_e_kernel_block_size,
+          detail::update_v_frontier_from_outgoing_e_kernel_block_size,
           handle.get_device_properties().maxGridSize[0]);
-        detail::update_frontier_from_outgoing_e_hypersparse<GraphViewType>
+        detail::update_v_frontier_from_outgoing_e_hypersparse<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[3],
@@ -1240,10 +1245,10 @@ void update_frontier_from_outgoing_e(
       if (edge_partition_frontier_size > 0) {
         raft::grid_1d_thread_t update_grid(
           edge_partition_frontier_size,
-          detail::update_frontier_from_outgoing_e_kernel_block_size,
+          detail::update_v_frontier_from_outgoing_e_kernel_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
-        detail::update_frontier_from_outgoing_e_low_degree<GraphViewType>
+        detail::update_v_frontier_from_outgoing_e_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
@@ -1375,12 +1380,12 @@ void update_frontier_from_outgoing_e(
                         get_dataframe_buffer_begin(key_buffer),
                         get_dataframe_buffer_begin(key_buffer) + num_buffer_elements,
                         bucket_indices.begin(),
-                        detail::update_frontier_call_v_op_t<vertex_t,
-                                                            VertexValueInputIterator,
-                                                            VertexValueOutputIterator,
-                                                            VertexOp,
-                                                            key_t,
-                                                            GraphViewType::is_multi_gpu>{
+                        detail::update_v_frontier_call_v_op_t<vertex_t,
+                                                              VertexValueInputIterator,
+                                                              VertexValueOutputIterator,
+                                                              VertexOp,
+                                                              key_t,
+                                                              GraphViewType::is_multi_gpu>{
                           vertex_value_input_first,
                           vertex_value_output_first,
                           v_op,

@@ -21,10 +21,10 @@
 #include <cugraph/graph_functions.hpp>
 
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/transform_reduce_by_src_dst_key_e.cuh>
+#include <cugraph/prims/per_src_dst_key_transform_reduce_e.cuh>
+#include <cugraph/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
-#include <cugraph/prims/transform_reduce_incoming_outgoing_e_of_v.cuh>
-#include <cugraph/prims/transform_reduce_key_aggregated_outgoing_e_of_v.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 
@@ -393,7 +393,7 @@ class Louvain {
     rmm::device_uvector<weight_t> cluster_subtract_v(
       current_graph_view_.local_vertex_partition_range_size(), handle_.get_stream());
 
-    transform_reduce_outgoing_e_of_v(
+    per_v_transform_reduce_outgoing_e(
       handle_,
       current_graph_view_,
       graph_view_t::is_multi_gpu
@@ -509,7 +509,7 @@ class Louvain {
               vertex_t,
               decltype(cluster_old_sum_subtract_pair_first)>(cluster_old_sum_subtract_pair_first));
 
-    transform_reduce_key_aggregated_outgoing_e_of_v(
+    per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       handle_,
       current_graph_view_,
       zipped_src_device_view,
@@ -539,7 +539,7 @@ class Louvain {
         handle_, current_graph_view_, next_clusters_v_.begin(), dst_clusters_cache_);
     }
 
-    std::tie(cluster_keys_v_, cluster_weights_v_) = cugraph::transform_reduce_by_src_key_e(
+    std::tie(cluster_keys_v_, cluster_weights_v_) = cugraph::per_src_key_transform_reduce_e(
       handle_,
       current_graph_view_,
       dummy_property_t<vertex_t>{}.device_view(),

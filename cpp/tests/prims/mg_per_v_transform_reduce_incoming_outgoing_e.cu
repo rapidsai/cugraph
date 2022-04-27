@@ -29,7 +29,7 @@
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/transform_reduce_incoming_outgoing_e_of_v.cuh>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 
 #include <raft/comms/comms.hpp>
@@ -230,7 +230,7 @@ class Tests_MG_TransformReduceIncomingOutgoingEOfV
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of transform_reduce_incoming|outgoing_e_of_v primitive
+  // Compare the results of per_v_transform_reduce_incoming|outgoing_e primitive
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
@@ -299,7 +299,7 @@ class Tests_MG_TransformReduceIncomingOutgoingEOfV
       hr_clock.start();
     }
 
-    transform_reduce_incoming_e_of_v(
+    per_v_transform_reduce_incoming_e(
       handle,
       mg_graph_view,
       row_prop.device_view(),
@@ -319,7 +319,7 @@ class Tests_MG_TransformReduceIncomingOutgoingEOfV
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG transform_reduce_incoming_e_of_v took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG per_v_transform_reduce_incoming_e took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     if (cugraph::test::g_perf) {
@@ -328,7 +328,7 @@ class Tests_MG_TransformReduceIncomingOutgoingEOfV
       hr_clock.start();
     }
 
-    transform_reduce_outgoing_e_of_v(
+    per_v_transform_reduce_outgoing_e(
       handle,
       mg_graph_view,
       row_prop.device_view(),
@@ -348,7 +348,7 @@ class Tests_MG_TransformReduceIncomingOutgoingEOfV
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG transform_reduce_outgoing_e_of_v took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG per_v_transform_reduce_outgoing_e took " << elapsed_time * 1e-6 << " s.\n";
     }
 
     //// 4. compare SG & MG results
@@ -373,7 +373,7 @@ class Tests_MG_TransformReduceIncomingOutgoingEOfV
 
       auto global_out_result = cugraph::allocate_dataframe_buffer<property_t>(
         sg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-      transform_reduce_outgoing_e_of_v(
+      per_v_transform_reduce_outgoing_e(
         handle,
         sg_graph_view,
         sg_row_prop.device_view(),
@@ -390,7 +390,7 @@ class Tests_MG_TransformReduceIncomingOutgoingEOfV
 
       auto global_in_result = cugraph::allocate_dataframe_buffer<property_t>(
         sg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-      transform_reduce_incoming_e_of_v(
+      per_v_transform_reduce_incoming_e(
         handle,
         sg_graph_view,
         sg_row_prop.device_view(),
