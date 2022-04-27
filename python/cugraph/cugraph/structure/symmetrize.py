@@ -151,6 +151,9 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None, multi=False, symmet
 
     """
     # FIXME: Uncomment out the above (broken) example
+
+    worker_list = Comms.get_workers()
+    num_workers = len(worker_list)
     if symmetrize:
         if weight_name:
             ddf2 = df[[dst_name, src_name, weight_name]]
@@ -158,13 +161,11 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None, multi=False, symmet
         else:
             ddf2 = df[[dst_name, src_name]]
             ddf2.columns = [src_name, dst_name]
-        worker_list = Comms.get_workers()
-        num_workers = len(worker_list)
         result = df.append(ddf2).reset_index(drop=True)
     else:
         result = df
     if multi:
-        # FIXME: Repartition the the dask_cudf to n num_workers
+        # FIXME: Repartition the dask_cudf to n num_workers
         return result
     else:
         result = result.drop_duplicates(
@@ -249,6 +250,7 @@ def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
             input_df, "source", "destination", value_col_name, multi, symmetrize,
             )
     if value_col_name is not None:
+        value_col = output_df[value_col_name]
         if isinstance(value_col, (cudf.Series, dask_cudf.Series)):
             return (
                 output_df["source"],
@@ -262,5 +264,4 @@ def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
                 output_df["destination"],
                 output_df[value_col.columns],
             )
-    print("length of the source is ", len(output_df))
     return output_df["source"], output_df["destination"]

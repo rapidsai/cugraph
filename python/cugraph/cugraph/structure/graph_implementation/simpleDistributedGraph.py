@@ -14,6 +14,7 @@
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.number_map import NumberMap
+from cugraph.structure.symmetrize import symmetrize
 import cudf
 import dask_cudf
 
@@ -87,18 +88,35 @@ class simpleDistributedGraphImpl:
                 "and destination parameters"
             )
         ddf_columns = s_col + d_col
+        # The dataframe will be symmetrized iff the graph is undirected
+        # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
             if not (set([edge_attr]).issubset(set(input_ddf.columns))):
                 raise ValueError(
                     "edge_attr column name not found in input."
                     "Recheck the edge_attr parameter")
             self.properties.weighted = True
-            ddf_columns = ddf_columns + [edge_attr]
-        input_ddf = input_ddf[ddf_columns]
+            input_ddf = input_ddf.rename(columns={edge_attr: 'value'})
+            source_col, dest_col, value_col = symmetrize(
+                input_ddf, source, destination, 'value', 
+                multi=self.properties.multi_edge,
+                symmetrize=not self.properties.directed)
+        else:
+            input_ddf = input_ddf[ddf_columns]
+            source_col, dest_col = symmetrize(
+                input_ddf, source, destination, multi=self.properties.multi_edge,
+                symmetrize=not self.properties.directed)
+
+        # Create a dask_cudf dataframe from the cudf series obtained
+        # from symmetrization
+        input_ddf = source_col.to_frame()
+        input_ddf = input_ddf.rename(columns={source_col.name: "src"})
+        input_ddf["dst"] = dest_col
 
         if edge_attr is not None:
-            input_ddf = input_ddf.rename(columns={edge_attr: 'value'})
+            input_ddf["value"] = value_col
 
+        self.input_df = input_ddf
         #
         # Keep all of the original parameters so we can lazily
         # evaluate this function
@@ -106,7 +124,6 @@ class simpleDistributedGraphImpl:
 
         # FIXME: Edge Attribute not handled
         self.properties.renumbered = renumber
-        self.input_df = input_ddf
         self.source_columns = source
         self.destination_columns = destination
 

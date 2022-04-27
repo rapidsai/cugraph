@@ -157,6 +157,9 @@ class simpleGraphImpl:
             if type(source) is list and type(destination) is list:
                 raise ValueError("set renumber to True for multi column ids")
 
+        # The dataframe will be symmetrized iff the graph is undirected otherwise
+        # the inital dataframe will be returned. Duplicated edges will be dropped
+        # unless the graph is a MultiGraph(Not Implemented yet)
         # TODO: Update Symmetrize to work on Graph and/or DataFrame
         if edge_attr is not None:
             source_col, dest_col, value_col = symmetrize(
