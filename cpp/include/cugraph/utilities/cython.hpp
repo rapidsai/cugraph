@@ -282,7 +282,7 @@ struct renum_tuple_t {
   //
   std::unique_ptr<std::vector<vertex_t>> get_partition_offsets_wrap(void)  // const
   {
-    return std::make_unique<std::vector<vertex_t>>(part_.vertex_partition_offsets());
+    return std::make_unique<std::vector<vertex_t>>(part_.vertex_partition_range_offsets());
   }
 
   std::pair<vertex_t, vertex_t> get_part_local_vertex_range() const
