@@ -42,7 +42,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_random_walk_result_free,
 )
 from pylibcugraph.resource_handle cimport (
-    EXPERIMENTAL__ResourceHandle,
+    ResourceHandle,
 )
 from pylibcugraph.graphs cimport (
     _GPUGraph,
@@ -55,13 +55,13 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__node2vec(EXPERIMENTAL__ResourceHandle resource_handle,
-                           _GPUGraph graph,
-                           seed_array,
-                           size_t max_depth,
-                           bool_t compress_result,
-                           double p,
-                           double q):
+def node2vec(ResourceHandle resource_handle,
+            _GPUGraph graph,
+            seed_array,
+            size_t max_depth,
+            bool_t compress_result,
+            double p,
+            double q):
     """
     Computes random walks under node2vec sampling procedure.
 

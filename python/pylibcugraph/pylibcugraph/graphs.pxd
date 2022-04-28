@@ -24,8 +24,8 @@ from pylibcugraph._cugraph_c.graph cimport (
 cdef class _GPUGraph:
     cdef cugraph_graph_t* c_graph_ptr
 
-cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
+cdef class SGGraph(_GPUGraph):
     pass
 
-cdef class EXPERIMENTAL__MGGraph(_GPUGraph):
+cdef class MGGraph(_GPUGraph):
      pass
