@@ -88,9 +88,14 @@ class BenchmarkRun:
 
         #add starting node to algos: BFS and SSSP
         for i, algo in enumerate (algo_func_param_list):
-            if benchmark(algo).name in ["bfs", "sssp"]:
+            if benchmark(algo).name in ["bfs", "sssp", "neighborhood_sampling"]:
                 param={}
                 param["start"]=self.input_dataframe['src'].head()[0]
+                if benchmark(algo).name in ["neighborhood_sampling"]:
+                    start = [param.pop("start")]
+                    labels = [0]
+                    param["start_info_list"] = (start, labels)
+                    param["fanout_vals"] = [1]
                 algo_func_param_list[i]=(algo,)+(param,)
 
         self.algos = []

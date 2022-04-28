@@ -18,6 +18,8 @@ from dask_cuda import LocalCUDACluster
 from cugraph.structure.symmetrize import symmetrize_ddf
 from cugraph.dask.common.mg_utils import get_visible_devices
 from dask_cuda.initialize import initialize
+from cugraph.experimental.dask import uniform_neighborhood_sampling
+import cudf
 
 import cugraph
 from cugraph.comms import comms as Comms
@@ -151,6 +153,18 @@ def katz(G, alpha=None):
     print(alpha)
     return cugraph.dask.katz_centrality(G, alpha)
 
+def hits(G):
+    return cugraph.dask.hits(G)
+
+def neighborhood_sampling(G, start_info_list=None, fanout_vals=None):
+    # convert list to cudf.Series
+    start_info_list = (
+        cudf.Series(start_info_list[0], dtype="int32"),
+        cudf.Series(start_info_list[1], dtype="int32"),
+    )
+                        
+    return uniform_neighborhood_sampling(
+        G, start_info_list=start_info_list, fanout_vals=fanout_vals)
 
 ################################################################################
 # Session-wide setup and teardown
