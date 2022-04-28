@@ -27,6 +27,7 @@
 #include <cugraph-ops/graph/sampling.hpp>
 
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
 
 namespace cugraph {
 
@@ -1533,5 +1534,32 @@ uniform_nbr_sample(raft::handle_t const& handle,
                    size_t num_starting_vertices,
                    std::vector<int> const& h_fan_out,
                    bool with_replacement = true);
+
+/*
+ * @brief Compute triangle counts.
+ *
+ * Compute triangle counts for the entire set of vertices (if @p vertices is std::nullopt) or the
+ * given vertices (@p vertices.has_value() is true).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param vertices Vertices to compute triangle counts. If @p vertices.has_value() is false, compute
+ * triangle counts for the entire set of vertices.
+ * @param counts Output triangle count array. The size of the array should be the local vertex
+ * partition range size (if @p vertices is std::nullopt) or the size of @p vertices (if @p
+ * vertices.has_value() is true).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void triangle_counts(raft::handle_t const& handle,
+                     graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                     std::optional<raft::device_span<vertex_t>> vertices,
+                     raft::device_span<edge_t> counts,
+                     bool do_expensive_check = false);
 
 }  // namespace cugraph

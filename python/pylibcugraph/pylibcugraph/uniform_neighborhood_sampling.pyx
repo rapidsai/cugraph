@@ -46,11 +46,11 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_free,
 )
 from pylibcugraph.resource_handle cimport (
-    EXPERIMENTAL__ResourceHandle,
+    ResourceHandle,
 )
 from pylibcugraph.graphs cimport (
     _GPUGraph,
-    EXPERIMENTAL__MGGraph,
+    MGGraph,
 )
 from pylibcugraph.utils cimport (
     assert_success,
@@ -61,8 +61,8 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__uniform_neighborhood_sampling(EXPERIMENTAL__ResourceHandle resource_handle,
-                               EXPERIMENTAL__MGGraph input_graph,
+def EXPERIMENTAL__uniform_neighborhood_sampling(ResourceHandle resource_handle,
+                               MGGraph input_graph,
                                start_list,
                                labels_list,
                                h_fan_out,
