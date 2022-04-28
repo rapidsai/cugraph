@@ -17,3 +17,20 @@ from .components._connectivity import (
 )
 
 from . import experimental
+
+from .graphs import (
+    SGGraph,
+    MGGraph
+)
+
+from .resource_handle import ResourceHandle
+
+from .graph_properties import GraphProperties
+
+from .pagerank import pagerank
+
+from .sssp import sssp
+
+from .hits import hits
+
+from .node2vec import node2vec

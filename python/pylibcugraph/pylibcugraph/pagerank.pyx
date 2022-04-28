@@ -29,7 +29,7 @@ from pylibcugraph._cugraph_c.array cimport (
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
-from pylibcugraph._cugraph_c.algorithms cimport (
+from pylibcugraph._cugraph_c.centrality_algorithms cimport (
     cugraph_centrality_result_t,
     cugraph_pagerank,
     cugraph_centrality_result_get_vertices,
@@ -37,7 +37,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_centrality_result_free,
 )
 from pylibcugraph.resource_handle cimport (
-    EXPERIMENTAL__ResourceHandle,
+    ResourceHandle,
 )
 from pylibcugraph.graphs cimport (
     _GPUGraph,
@@ -49,14 +49,14 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
-                           _GPUGraph graph,
-                           precomputed_vertex_out_weight_sums,
-                           double alpha,
-                           double epsilon,
-                           size_t max_iterations,
-                           bool_t has_initial_guess,
-                           bool_t do_expensive_check):
+def pagerank(ResourceHandle resource_handle,
+            _GPUGraph graph,
+            precomputed_vertex_out_weight_sums,
+            double alpha,
+            double epsilon,
+            size_t max_iterations,
+            bool_t has_initial_guess,
+            bool_t do_expensive_check):
     """
     Find the PageRank score for every vertex in a graph by computing an
     approximation of the Pagerank eigenvector using the power method. The
