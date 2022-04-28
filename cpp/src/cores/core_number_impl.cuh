@@ -20,7 +20,7 @@
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/update_frontier_v_push_if_out_nbr.cuh>
+#include <cugraph/prims/update_v_frontier_from_outgoing_e.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 
@@ -195,7 +195,7 @@ void core_number(raft::handle_t const& handle,
         // mask-out/delete edges.
         if (graph_view.is_symmetric() || ((degree_type == k_core_degree_type_t::IN) ||
                                           (degree_type == k_core_degree_type_t::INOUT))) {
-          update_frontier_v_push_if_out_nbr(
+          update_v_frontier_from_outgoing_e(
             handle,
             graph_view,
             vertex_frontier,

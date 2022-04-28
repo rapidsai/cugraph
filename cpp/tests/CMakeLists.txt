@@ -575,9 +575,9 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
 
         ###########################################################################################
-        # - MG PRIMS UPDATE_FRONTIER_V_PUSH_IF_OUT_NBR tests --------------------------------------
-        ConfigureTestMG(MG_UPDATE_FRONTIER_V_PUSH_IF_OUT_NBR_TEST
-                        prims/mg_update_frontier_v_push_if_out_nbr.cu)
+        # - MG PRIMS UPDATE_V_FRONTIER_FROM_OUTGOING_E tests --------------------------------------
+        ConfigureTestMG(MG_UPDATE_V_FRONTIER_FROM_OUTGOING_E_TEST
+                        prims/mg_update_v_frontier_from_outgoing_e.cu)
 
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
@@ -596,9 +596,9 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
 
         ###########################################################################################
-        # - MG PRIMS COPY_V_TRANSFORM_REDUCE_OUT tests --------------------------------------------
-        ConfigureTestMG(MG_COPY_V_TRANSFORM_REDUCE_INOUT_NBR_TEST
-          prims/mg_copy_v_transform_reduce_inout_nbr.cu)
+        # - MG PRIMS PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E tests -----------------------------
+        ConfigureTestMG(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST
+          prims/mg_per_v_transform_reduce_incoming_outgoing_e.cu)
 
         ###########################################################################################
         # - MG PRIMS EXTRACT_IF_E tests -----------------------------------------------------------
