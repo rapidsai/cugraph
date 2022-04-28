@@ -52,7 +52,7 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-df_types = [dask_cudf.core.DataFrame]
+df_types = [cudf.DataFrame]
 
 
 def df_type_id(dataframe_type):
@@ -82,18 +82,17 @@ def net_PropertyGraph(request):
 
     dataframe_type = request.param[0]
     netscience_csv = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"netscience.csv"
-    source_col_name = "srcip"
-    dest_col_name = "dstip"
+    source_col_name = "src"
+    dest_col_name = "dst"
 
     if dataframe_type is pd.DataFrame:
         read_csv = pd.read_csv
     else:
         read_csv = cudf.read_csv
-    df = read_csv(netscience_csv, delimiter=",",
-                  dtype={"idx": "int32",
-                         source_col_name: "str",
-                         dest_col_name: "str"},
-                  header=0)
+    df = read_csv(netscience_csv,
+                  delimiter=" ",
+                  names=["src", "dst", "value"],
+                  dtype=["int32", "int32", "float32"])
 
     pG = PropertyGraph()
     pG.add_edge_data(df, (source_col_name, dest_col_name))
@@ -112,7 +111,6 @@ def net_Dask_PropertyGraph(dask_client):
                        "netscience.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
-
     ddf = dask_cudf.read_csv(
         input_data_path,
         chunksize=chunksize,
@@ -160,14 +158,15 @@ def test_extract_subgraph(net_Dask_PropertyGraph):
     print(pG.num_vertices)
 
 
-def test_extract_subgraph_no_query(net_Dask_PropertyGraph):
+def test_extract_subgraph_no_query(net_Dask_PropertyGraph, net_PropertyGraph):
     """
     Call extract with no args, should result in the entire property graph.
     """
-    pG = net_Dask_PropertyGraph
+    dpG = net_Dask_PropertyGraph
+    pG = net_PropertyGraph
     print(pG.num_vertices)
-    print(pG.num_edges)
-    subGraph = pG.extract_subgraph()
-    breakpoint()
-    assert type(subGraph.edgelist.edgelist_df) == type(pG.edgelist.edgelist_df)
+    assert pG.num_edges == dpG.num_edges
+    assert pG.num_vertices == dpG.num_vertices
+    subgraph = pG.extract_subgraph(allow_multi_edges=False)
+    assert type(pG.edges) == dask_cudf.DataFrame
     

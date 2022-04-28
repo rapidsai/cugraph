@@ -368,10 +368,7 @@ class EXPERIMENTAL__PropertyGraph:
         --------
         >>>
         """
-        orig_dataframe = type(dataframe)
-        if type(dataframe) == dask_cudf.DataFrame:
-            dataframe = dataframe.compute()
-
+        breakpoint()
         if type(dataframe) not in _dataframe_types:
             raise TypeError("dataframe must be one of the following types: "
                             f"{_dataframe_types}, got: {type(dataframe)}")
@@ -415,9 +412,14 @@ class EXPERIMENTAL__PropertyGraph:
                                 self.edge_id_col_name,
                                 self.type_col_name]
         if self.__edge_prop_dataframe is None:
-
-            self.__edge_prop_dataframe = \
-                self.__dataframe_type(columns=default_edge_columns)
+            if type(dataframe) == dask_cudf.DataFrame:
+                from dask.dataframe import from_pandas
+                dataframe_to_add = dataframe.compute()
+                self.__edge_prop_dataframe = from_pandas(dataframe_to_add, chunksize=10303)
+                breakpoint()
+            else:
+                self.__edge_prop_dataframe = \
+                    self.__dataframe_type(columns=default_edge_columns)
             # Initialize the new columns to the same dtype as the appropriate
             # column in the incoming dataframe, since the initial merge may not
             # result in the same dtype. (see
@@ -806,6 +808,13 @@ class EXPERIMENTAL__PropertyGraph:
         # FIXME: also add vertex_data
 
         return G
+    @classmethod
+    def modify_data(df):
+        temp_df = cudf.DataFrame()
+        temp_df['src'] = df['src']+1000
+        temp_df['dst'] = df['dst']+1000
+        temp_df['value'] = df['value']
+        return cudf.concat([df, temp_df])
 
     @classmethod
     def has_duplicate_edges(cls, df):
@@ -906,6 +915,7 @@ class EXPERIMENTAL__PropertyGraph:
             dtype_str = str(dtype)
             if dtype_str in ["int32", "int64"]:
                 dtype_str = dtype_str.title()
+#            breakpoint()
             if str(df[col].dtype) != dtype_str:
                 # Assigning to df[col] produces a (false?) warning with Pandas,
                 # but assigning to df.loc[:,col] does not update the df in
