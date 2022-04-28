@@ -81,7 +81,7 @@ struct low_to_high_degree_t {
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void triangle_counts(raft::handle_t const& handle,
                      graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-                     std::optional<raft::device_span<vertex_t>> vertices,
+                     std::optional<raft::device_span<vertex_t const>> vertices,
                      raft::device_span<edge_t> counts,
                      bool do_expensive_check)
 {
@@ -280,6 +280,8 @@ void triangle_counts(raft::handle_t const& handle,
    // for_each_nbr_intersection_of_v_pairs() for Jaccard & Overlap coefficients, and Node2Vec
 
   segmented_copy?
+  // delayed copy works only if memory assigned for intersection segments are still valid... This may not be a case here.
+  // Add for_each_triangle_of_e_endpoints?  ambiguous for asymmetric graphs.
   }
 
   // 6. Update triangle counts from neighbor intersections.

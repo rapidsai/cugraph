@@ -1558,7 +1558,7 @@ uniform_nbr_sample(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void triangle_counts(raft::handle_t const& handle,
                      graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-                     std::optional<raft::device_span<vertex_t>> vertices,
+                     std::optional<raft::device_span<vertex_t const>> vertices,
                      raft::device_span<edge_t> counts,
                      bool do_expensive_check = false);
 
