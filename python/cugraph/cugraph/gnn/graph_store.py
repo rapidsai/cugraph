@@ -18,6 +18,7 @@ from cugraph.community.egonet import batched_ego_graphs
 import cupy
 import random
 import numpy as np
+import torch
 
 
 class CuGraphStore:
@@ -109,7 +110,7 @@ class CuGraphStore:
             current_seeds = cupy.asarray(nodes)
             current_seeds = cudf.Series(current_seeds)
         else:
-            current_seeds = nodes.reindex(index = np.arange(0, num_nodes))
+            current_seeds = nodes.reindex(index=np.arange(0, num_nodes))
 
         _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
                                        allow_multi_edges=True)
