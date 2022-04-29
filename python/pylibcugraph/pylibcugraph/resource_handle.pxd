@@ -19,5 +19,5 @@ from pylibcugraph._cugraph_c.resource_handle cimport (
 )
 
 
-cdef class EXPERIMENTAL__ResourceHandle:
+cdef class ResourceHandle:
     cdef cugraph_resource_handle_t* c_resource_handle_ptr

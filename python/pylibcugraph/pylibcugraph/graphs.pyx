@@ -45,10 +45,10 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_mg_graph_free,
 )
 from pylibcugraph.resource_handle cimport (
-    EXPERIMENTAL__ResourceHandle,
+    ResourceHandle,
 )
 from pylibcugraph.graph_properties cimport (
-    EXPERIMENTAL__GraphProperties,
+    GraphProperties,
 )
 from pylibcugraph.utils cimport (
     assert_success,
@@ -57,7 +57,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
+cdef class SGGraph(_GPUGraph):
     """
     RAII-stye Graph class for use with single-GPU APIs that manages the
     individual create/free calls and the corresponding cugraph_graph_t pointer.
@@ -118,8 +118,8 @@ cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
 
     """
     def __cinit__(self,
-                  EXPERIMENTAL__ResourceHandle resource_handle,
-                  EXPERIMENTAL__GraphProperties graph_properties,
+                  ResourceHandle resource_handle,
+                  GraphProperties graph_properties,
                   src_array,
                   dst_array,
                   weight_array,
@@ -194,7 +194,7 @@ cdef class EXPERIMENTAL__SGGraph(_GPUGraph):
             cugraph_sg_graph_free(self.c_graph_ptr)
 
 
-cdef class EXPERIMENTAL__MGGraph(_GPUGraph):
+cdef class MGGraph(_GPUGraph):
     """
     RAII-stye Graph class for use with multi-GPU APIs that manages the
     individual create/free calls and the corresponding cugraph_graph_t pointer.
@@ -238,8 +238,8 @@ cdef class EXPERIMENTAL__MGGraph(_GPUGraph):
         validitity, at the expense of increased run time.
     """
     def __cinit__(self,
-                  EXPERIMENTAL__ResourceHandle resource_handle,
-                  EXPERIMENTAL__GraphProperties graph_properties,
+                  ResourceHandle resource_handle,
+                  GraphProperties graph_properties,
                   src_array,
                   dst_array,
                   weight_array,
