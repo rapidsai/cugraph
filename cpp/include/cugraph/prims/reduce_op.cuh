@@ -18,6 +18,8 @@
 
 #include <cugraph/prims/property_op_utils.cuh>
 
+#include <raft/comms/comms.hpp>
+
 namespace cugraph {
 namespace reduce_op {
 
@@ -26,52 +28,82 @@ struct null {
   using type = void;
 };
 
-// reducing N elements, any element can be a valid output.
+// Binary reduction operator selecting any of the two input arguments, T should be arithmetic types
+// or thrust tuple of arithmetic types.
 template <typename T>
 struct any {
   using type = T;
-  // FIXME: actually every reduction operation should be side-effect free if reduction is performed
-  // by thrust; thrust reduction call rounds up the number of invocations based on the block size
-  // and discards the values outside the valid range; this does not work if the reduction operation
-  // has side-effects.
+  // Note that every reduction function should be side-effect free (to work with thrust::reduce, the
+  // current (version 1.16)  implementation of thrust reduction call rounds up the number of
+  // invocations based on the block size and discards the values outside the valid range). Set
+  // pure_function to true if the reduction operator return value is solely determined by input
+  // argument values in addition.
   static constexpr bool pure_function = true;  // this can be called in any process
 
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs; }
 };
 
-// FIXME: thrust::minimum can replace this.
-// reducing N elements (operator < should be defined between any two elements), the minimum element
-// should be selected.
+// Binary reduction operator selecting the minimum element of the two input arguments (using
+// operator <), T should be arithmetic types or thrust tuple of arithmetic types.
 template <typename T>
-struct min {
+struct minimum {
   using type = T;
-  // FIXME: actually every reduction operation should be side-effect free if reduction is performed
-  // by thrust; thrust reduction call rounds up the number of invocations based on the block size
-  // and discards the values outside the valid range; this does not work if the reduction operation
-  // has side-effects.
+  // Note that every reduction function should be side-effect free (to work with thrust::reduce, the
+  // current (version 1.16)  implementation of thrust reduction call rounds up the number of
+  // invocations based on the block size and discards the values outside the valid range). Set
+  // pure_function to true if the reduction operator return value is solely determined by input
+  // argument values in addition.
   static constexpr bool pure_function = true;  // this can be called in any process
+  static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MIN;
 
-  __host__ __device__ T operator()(T const& lhs, T const& rhs) const
-  {
-    return lhs < rhs ? lhs : rhs;
-  }
+  __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs < rhs; }
 };
 
-// FIXME: thrust::plus can replace this.
-// reducing N elements (operator < should be defined between any two elements), the minimum element
-// should be selected.
+// Binary reduction operator selecting the maximum element of the two input arguments (using
+// operator <), T should be arithmetic types or thrust tuple of arithmetic types.
+template <typename T>
+struct maximum {
+  using type = T;
+  // Note that every reduction function should be side-effect free (to work with thrust::reduce, the
+  // current (version 1.16)  implementation of thrust reduction call rounds up the number of
+  // invocations based on the block size and discards the values outside the valid range). Set
+  // pure_function to true if the reduction operator return value is solely determined by input
+  // argument values in addition.
+  static constexpr bool pure_function = true;  // this can be called in any process
+  static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MAX;
+
+  __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return !(lhs < rhs); }
+};
+
+// Binary reduction operator summing the two input arguments, T should be arithmetic types or thrust
+// tuple of arithmetic types.
 template <typename T>
 struct plus {
   using type = T;
-  // FIXME: actually every reduction operation should be side-effect free if reduction is performed
-  // by thrust; thrust reduction call rounds up the number of invocations based on the block size
-  // and discards the values outside the valid range; this does not work if the reduction operation
-  // has side-effects.
+  // Note that every reduction function should be side-effect free (to work with thrust::reduce, the
+  // current (version 1.16)  implementation of thrust reduction call rounds up the number of
+  // invocations based on the block size and discards the values outside the valid range). Set
+  // pure_function to true if the reduction operator return value is solely determined by input
+  // argument values in addition.
   static constexpr bool pure_function = true;  // this can be called in any process
+  static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::SUM;
   property_op<T, thrust::plus> op{};
 
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return op(lhs, rhs); }
 };
+
+template <typename ReduceOp, typename = raft::comms::op_t>
+struct has_compatible_raft_comms_op : std::false_type {
+};
+
+template <typename ReduceOp>
+struct has_compatible_raft_comms_op<ReduceOp, decltype(ReduceOp::compatible_raft_comms_op)>
+  : std::true_type {
+};
+
+template <typename ReduceOp>
+inline constexpr bool has_compatible_raft_comms_op_v =
+  has_compatible_raft_comms_op<ReduceOp>::value;
 
 }  // namespace reduce_op
 }  // namespace cugraph

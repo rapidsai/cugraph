@@ -204,26 +204,6 @@ struct property_op<thrust::tuple<Args...>, Op>
   }
 };
 
-template <typename T, typename F>
-auto op_dispatch(raft::comms::op_t op, F&& f)
-{
-  switch (op) {
-    case raft::comms::op_t::SUM: {
-      return std::invoke(f, property_op<T, thrust::plus>());
-    } break;
-    case raft::comms::op_t::MIN: {
-      return std::invoke(f, property_op<T, thrust::minimum>());
-    } break;
-    case raft::comms::op_t::MAX: {
-      return std::invoke(f, property_op<T, thrust::maximum>());
-    } break;
-    default: {
-      CUGRAPH_FAIL("Unhandled raft::comms::op_t");
-      return std::invoke_result_t<F, property_op<T, thrust::plus>>{};
-    }
-  };
-}
-
 template <typename T>
 T identity_element(raft::comms::op_t op)
 {

@@ -521,8 +521,8 @@ class Louvain {
       cluster_keys_v_.end(),
       cluster_weights_v_.begin(),
       detail::key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
-      detail::reduce_op_t<vertex_t, weight_t>{},
       thrust::make_tuple(vertex_t{-1}, weight_t{0}),
+      detail::reduce_op_t<vertex_t, weight_t>{},
       cugraph::get_dataframe_buffer_begin(output_buffer));
 
     thrust::transform(handle_.get_thrust_policy(),

@@ -781,7 +781,7 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
       execution_policy, buffer_key_output_first, buffer_key_output_first + num_buffer_elements);
     num_reduced_buffer_elements =
       static_cast<size_t>(thrust::distance(buffer_key_output_first, it));
-  } else if constexpr (std::is_same<ReduceOp, reduce_op::any<typename ReduceOp::type>>::value) {
+  } else if constexpr (std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::type>>) {
     auto it = thrust::unique_by_key(execution_policy,
                                     buffer_key_output_first,
                                     buffer_key_output_first + num_buffer_elements,
@@ -946,7 +946,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
- * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
+ * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex property variables.
  * @tparam VertexOp Type of the binary vertex operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -970,9 +970,17 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns a
- * value to be reduced the @p reduce_op.
- * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
- * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
+ * value to be reduced using the @p reduce_op.
+ * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
+ * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. Recommended to
+ * use the pre-defined reduction operators whenever possible as the current (and future)
+ * implementations of graph primitives may check whether @p ReduceOp is known type (or has known
+ * member variables) to take a more optimized code path. For example, some primitive implementations
+ * check whether @p ReduceOp has the compatible_raft_comms_op member variable and use
+ * raft::comms::reduce() (which calls NCCL reduce()) for reduction. Otherwise, reduction may be
+ * performed using a less efficient gather based approach (we may implement tree-based reduction in
+ * the future but this may be still less efficient than NCCL reduce()).
+ * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
@@ -1331,7 +1339,7 @@ void update_v_frontier_from_outgoing_e(
       reduce_op);
   }
 
-  // 3. update vertex properties and frontier
+  // 3. update vertex property values and frontier
 
   if (num_buffer_elements > 0) {
     assert(frontier.num_buckets() <= std::numeric_limits<uint8_t>::max());

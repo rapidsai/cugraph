@@ -52,12 +52,12 @@ struct count_if_call_v_op_t {
  * thrust::count_if().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
+ * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
  * @tparam VertexOp Type of the unary predicate operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
+ * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
  * @param v_op Binary operator takes vertex ID and *(@p vertex_value_input_first + i) (where i is
