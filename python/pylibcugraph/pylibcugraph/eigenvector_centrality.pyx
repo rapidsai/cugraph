@@ -41,7 +41,7 @@ from pylibcugraph._cugraph_c.centrality_algorithms cimport (
     cugraph_centrality_result_free,
 )
 from pylibcugraph.resource_handle cimport (
-    EXPERIMENTAL__ResourceHandle,
+    ResourceHandle,
 )
 from pylibcugraph.graphs cimport (
     _GPUGraph,
@@ -54,7 +54,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__eigenvector_centrality(EXPERIMENTAL__ResourceHandle resource_handle,
+def EXPERIMENTAL__eigenvector_centrality(ResourceHandle resource_handle,
                                   _GPUGraph graph,
                                   double epsilon,
                                   size_t max_iterations,
