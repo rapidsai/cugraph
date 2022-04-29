@@ -16,7 +16,6 @@ import doctest
 import inspect
 import io
 import os
-import pathlib
 
 import numpy as np
 import pandas as pd
@@ -27,12 +26,11 @@ import cugraph
 import pylibcugraph
 import cudf
 from numba import cuda
+from cugraph.tests import utils
 
 
 modules_to_skip = ["dask", "proto", "raft"]
-# FIXME: utils.RAPIDS_DATASET_ROOT_DIR_PATH does not work as intended when
-# running doctest on these docstrings
-datasets = pathlib.Path(cugraph.__path__[0]).parent.parent.parent / "datasets"
+datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 def _is_public_name(name):
@@ -108,6 +106,8 @@ def _fetch_doctests():
 
 
 class TestDoctests:
+    abs_datasets_path = datasets.absolute()
+
     @pytest.fixture(autouse=True)
     def chdir_to_tmp_path(cls, tmp_path):
         original_directory = os.getcwd()
@@ -128,7 +128,8 @@ class TestDoctests:
         optionflags = doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
         runner = doctest.DocTestRunner(optionflags=optionflags)
         np.random.seed(6)
-        globs = dict(cudf=cudf, np=np, cugraph=cugraph, datasets_path=datasets,
+        globs = dict(cudf=cudf, np=np, cugraph=cugraph,
+                     datasets_path=self.abs_datasets_path,
                      scipy=scipy, pd=pd)
         docstring.globs = globs
 
