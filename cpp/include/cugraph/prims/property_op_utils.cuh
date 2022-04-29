@@ -117,7 +117,7 @@ struct evaluate_edge_op {
   __device__ std::enable_if_t<
     detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, SV, DV>>::valid,
     typename std::invoke_result<E, K, V, W, SV, DV>::type>
-  compute(K s, V d, W w, SV sv, DV dv, E e)
+  compute(K s, V d, W w, SV sv, DV dv, E e) const
   {
     return e(s, d, w, sv, dv);
   }
@@ -131,7 +131,7 @@ struct evaluate_edge_op {
   __device__
     std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, SV, DV>>::valid,
                      typename std::invoke_result<E, K, V, SV, DV>::type>
-    compute(K s, V d, W w, SV sv, DV dv, E e)
+    compute(K s, V d, W w, SV sv, DV dv, E e) const
   {
     return e(s, d, sv, dv);
   }
@@ -160,7 +160,7 @@ struct cast_edge_op_bool_to_integer {
             typename E  = EdgeOp>
   __device__ std::
     enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, SV, DV>>::valid, T>
-    operator()(K s, V d, W w, SV sv, DV dv)
+    operator()(K s, V d, W w, SV sv, DV dv) const
   {
     return e_op(s, d, w, sv, dv) ? T{1} : T{0};
   }
@@ -173,7 +173,7 @@ struct cast_edge_op_bool_to_integer {
   __device__
     std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, SV, DV>>::valid,
                      T>
-    operator()(K s, V d, SV sv, DV dv)
+    operator()(K s, V d, SV sv, DV dv) const
   {
     return e_op(s, d, sv, dv) ? T{1} : T{0};
   }
@@ -191,14 +191,14 @@ struct property_op<thrust::tuple<Args...>, Op>
 
  private:
   template <typename T, std::size_t... Is>
-  __host__ __device__ constexpr auto binary_op_impl(T& t1, T& t2, std::index_sequence<Is...>)
+  __host__ __device__ constexpr auto binary_op_impl(T& t1, T& t2, std::index_sequence<Is...>) const
   {
     return thrust::make_tuple((Op<typename thrust::tuple_element<Is, Type>::type>()(
       thrust::get<Is>(t1), thrust::get<Is>(t2)))...);
   }
 
  public:
-  __host__ __device__ constexpr auto operator()(const Type& t1, const Type& t2)
+  __host__ __device__ constexpr auto operator()(const Type& t1, const Type& t2) const
   {
     return binary_op_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
   }

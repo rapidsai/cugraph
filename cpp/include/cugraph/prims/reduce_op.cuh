@@ -97,7 +97,8 @@ struct has_compatible_raft_comms_op : std::false_type {
 };
 
 template <typename ReduceOp>
-struct has_compatible_raft_comms_op<ReduceOp, decltype(ReduceOp::compatible_raft_comms_op)>
+struct has_compatible_raft_comms_op<ReduceOp,
+                                    std::remove_cv_t<decltype(ReduceOp::compatible_raft_comms_op)>>
   : std::true_type {
 };
 

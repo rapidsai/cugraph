@@ -100,7 +100,8 @@ T reduce_v(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         vertex_value_input_first,
         vertex_value_input_first + graph_view.local_vertex_partition_range_size(),
-        ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? id : init);
+        ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? id : init,
+        reduce_op);
       if constexpr (GraphViewType::is_multi_gpu) {
         ret = host_scalar_allreduce(handle.get_comms(), ret, raft_comms_op, handle.get_stream());
       }
