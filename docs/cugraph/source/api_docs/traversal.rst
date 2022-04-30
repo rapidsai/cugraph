@@ -19,7 +19,6 @@ Breadth-first-search (MG)
    :toctree: api/
 
    cugraph.dask.traversal.bfs.bfs
-   cugraph.dask.traversal.bfs.call_bfs
 
 Single-source-shortest-path
 ---------------------------
@@ -36,5 +35,4 @@ Single-source-shortest-path (MG)
 .. autosummary::
    :toctree: api/
 
-   cugraph.dask.traversal.sssp.call_sssp
    cugraph.dask.traversal.sssp.sssp
