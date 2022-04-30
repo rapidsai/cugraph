@@ -43,8 +43,8 @@
 #include <thread>
 
 namespace cugraph {
-
 namespace detail {
+namespace original {
 
 template <typename T>
 using device_vec_t = rmm::device_uvector<T>;
@@ -778,5 +778,6 @@ struct horizontal_traversal_t {
   size_t max_depth_;
 };
 
+}  // namespace original
 }  // namespace detail
 }  // namespace cugraph

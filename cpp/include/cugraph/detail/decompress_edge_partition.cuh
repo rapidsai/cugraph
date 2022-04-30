@@ -188,6 +188,7 @@ __global__ void partially_decompress_to_edgelist_high_degree(
   vertex_t input_major_count,
   vertex_t* output_majors,
   vertex_t* output_minors,
+  thrust::optional<weight_t*> output_weights,
   thrust::optional<thrust::tuple<prop_t const*, prop_t*>> property,
   thrust::optional<thrust::tuple<edge_t const*, edge_t*>> global_edge_index)
 {
@@ -204,6 +205,9 @@ __global__ void partially_decompress_to_edgelist_high_degree(
     for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
       output_majors[major_offset + i] = major;
       output_minors[major_offset + i] = indices[i];
+
+      if (output_weights)
+        (*output_weights)[major_offset+i] = (*weights)[i];
     }
     if (property) {
       auto input_property     = thrust::get<0>(*property)[idx];
@@ -231,6 +235,7 @@ __global__ void partially_decompress_to_edgelist_mid_degree(
   vertex_t input_major_count,
   vertex_t* output_majors,
   vertex_t* output_minors,
+  thrust::optional<weight_t*> output_weights,
   thrust::optional<thrust::tuple<prop_t const*, prop_t*>> property,
   thrust::optional<thrust::tuple<edge_t const*, edge_t*>> global_edge_index)
 {
@@ -242,11 +247,19 @@ __global__ void partially_decompress_to_edgelist_mid_degree(
     auto major                  = input_majors[idx];
     auto major_partition_offset = static_cast<size_t>(major - edge_partition.major_range_first());
     vertex_t const* indices{nullptr};
+    thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{};
+
+    thrust::tie(indices, weights, local_degree) =
+      edge_partition.local_edges(major_partition_offset);
+
     auto major_offset = input_major_start_offsets[idx];
     for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
       output_majors[major_offset + i] = major;
       output_minors[major_offset + i] = indices[i];
+
+      if (output_weights)
+        (*output_weights)[major_offset+i] = (*weights)[i];
     }
     if (property) {
       auto input_property     = thrust::get<0>(*property)[idx];
@@ -275,6 +288,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
   std::vector<vertex_t> const& segment_offsets,
   vertex_t* majors,
   vertex_t* minors,
+  thrust::optional<weight_t*> weights,
   thrust::optional<thrust::tuple<prop_t const*, prop_t*>> property,
   thrust::optional<thrust::tuple<edge_t const*, edge_t*>> global_edge_index)
 {
@@ -297,6 +311,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
       segment_offsets[1],
       majors,
       minors,
+      weights,
       property ? thrust::make_optional(thrust::make_tuple(
                    thrust::get<0>(*property) + segment_offsets[0], thrust::get<1>(*property)))
                : thrust::nullopt,
@@ -317,6 +332,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
       segment_offsets[2] - segment_offsets[1],
       majors,
       minors,
+      weights,
       property ? thrust::make_optional(thrust::make_tuple(
                    thrust::get<0>(*property) + segment_offsets[1], thrust::get<1>(*property)))
                : thrust::nullopt,
@@ -333,6 +349,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
          input_major_start_offsets + segment_offsets[2] - segment_offsets[0],
        majors,
        minors,
+       output_weights = weights,
        property = property
                     ? thrust::make_optional(thrust::make_tuple(
                         thrust::get<0>(*property) + segment_offsets[2], thrust::get<1>(*property)))
@@ -350,6 +367,9 @@ void partially_decompress_edge_partition_to_fill_edgelist(
         thrust::fill(
           thrust::seq, majors + major_offset, majors + major_offset + local_degree, major);
         thrust::copy(thrust::seq, indices, indices + local_degree, minors + major_offset);
+        if (weights)
+          thrust::copy(thrust::seq, *weights, *weights + local_degree, *output_weights + major_offset);
+
         if (property) {
           auto major_input_property  = thrust::get<0>(*property)[idx];
           auto minor_output_property = thrust::get<1>(*property);
@@ -379,6 +399,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
          input_major_start_offsets + segment_offsets[3] - segment_offsets[0],
        majors,
        minors,
+       output_weights = weights,
        property = property
                     ? thrust::make_optional(thrust::make_tuple(
                         thrust::get<0>(*property) + segment_offsets[3], thrust::get<1>(*property)))
@@ -395,6 +416,8 @@ void partially_decompress_edge_partition_to_fill_edgelist(
           thrust::fill(
             thrust::seq, majors + major_offset, majors + major_offset + local_degree, major);
           thrust::copy(thrust::seq, indices, indices + local_degree, minors + major_offset);
+          if (output_weights)
+            thrust::copy(thrust::seq, *weights, *weights + local_degree, *output_weights + major_offset);
           if (property) {
             auto major_input_property  = thrust::get<0>(*property)[idx];
             auto minor_output_property = thrust::get<1>(*property);

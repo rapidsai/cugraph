@@ -1502,6 +1502,7 @@ void core_number(raft::handle_t const& handle,
 
 /**
  * @brief Multi-GPU Uniform Neighborhood Sampling.
+ * @deprecated will be removed later in this release (22.06)
  *
  * @tparam graph_view_t Type of graph view.
  * @tparam gpu_t Type of rank (GPU) indices;
@@ -1533,6 +1534,31 @@ uniform_nbr_sample(raft::handle_t const& handle,
                    gpu_t const* ptr_d_ranks,
                    size_t num_starting_vertices,
                    std::vector<int> const& h_fan_out,
+                   bool with_replacement = true);
+
+/**
+ * @brief Multi-GPU Uniform Neighborhood Sampling.
+ *
+ * @tparam graph_view_t Type of graph view.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param d_starting_vertices Device span of starting vertex IDs for the NBR Sampling.
+ * @param h_fan_out Host span defining branching out (fan-out) degree per source vertex for each
+ * level
+ * @param with_replacement boolean flag specifying if random sampling is done with replacement
+ * (true); or, without replacement (false); default = true;
+ * @return tuple of tuple of device vectors and counts:
+ * ((vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index), rx_counts)
+ */
+template <typename graph_view_t>
+std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
+           rmm::device_uvector<typename graph_view_t::vertex_type>,
+           rmm::device_uvector<typename graph_view_t::weight_type>>
+uniform_nbr_sample(raft::handle_t const& handle,
+                   graph_view_t const& graph_view,
+                   raft::device_span<typename graph_view_t::vertex_type> d_starting_vertices,
+                   raft::host_span<const int> h_fan_out,
                    bool with_replacement = true);
 
 /*

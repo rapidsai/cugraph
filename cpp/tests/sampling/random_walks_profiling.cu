@@ -55,7 +55,7 @@ void fill_start(raft::handle_t const& handle,
                     [num_vertices] __device__(auto indx) { return indx % num_vertices; });
 }
 
-namespace impl_details = cugraph::detail;
+namespace impl_details = cugraph::detail::original;
 
 enum class traversal_id_t : int { HORIZONTAL = 0, VERTICAL };
 
@@ -101,7 +101,7 @@ void output_random_walks_time(graph_vt const& graph_view,
       hr_timer.start(label);
       cudaProfilerStart();
 
-      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+      auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
                                                        decltype(selector),
                                                        impl_details::horizontal_traversal_t>(
         handle,  // prevent clang-format to separate function name from its namespace
@@ -119,7 +119,7 @@ void output_random_walks_time(graph_vt const& graph_view,
       hr_timer.start(label);
       cudaProfilerStart();
 
-      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+      auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
                                                        decltype(selector),
                                                        impl_details::horizontal_traversal_t>(
         handle,  // prevent clang-format to separate function name from its namespace
@@ -139,7 +139,7 @@ void output_random_walks_time(graph_vt const& graph_view,
       hr_timer.start(label);
       cudaProfilerStart();
 
-      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+      auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
                                                        decltype(selector),
                                                        impl_details::horizontal_traversal_t>(
         handle,  // prevent clang-format to separate function name from its namespace
@@ -159,7 +159,7 @@ void output_random_walks_time(graph_vt const& graph_view,
       hr_timer.start(label);
       cudaProfilerStart();
 
-      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+      auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
                                                        decltype(selector),
                                                        impl_details::horizontal_traversal_t>(
         handle,  // prevent clang-format to separate function name from its namespace
@@ -178,7 +178,7 @@ void output_random_walks_time(graph_vt const& graph_view,
       hr_timer.start(label);
       cudaProfilerStart();
 
-      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+      auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
                                                        decltype(selector),
                                                        impl_details::vertical_traversal_t>(
         handle,  // prevent clang-format to separate function name from its namespace
@@ -195,7 +195,7 @@ void output_random_walks_time(graph_vt const& graph_view,
       hr_timer.start(label);
       cudaProfilerStart();
 
-      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+      auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
                                                        decltype(selector),
                                                        impl_details::vertical_traversal_t>(
         handle,  // prevent clang-format to separate function name from its namespace
@@ -214,7 +214,7 @@ void output_random_walks_time(graph_vt const& graph_view,
       hr_timer.start(label);
       cudaProfilerStart();
 
-      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+      auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
                                                        decltype(selector),
                                                        impl_details::vertical_traversal_t>(
         handle,  // prevent clang-format to separate function name from its namespace
@@ -234,7 +234,7 @@ void output_random_walks_time(graph_vt const& graph_view,
       hr_timer.start(label);
       cudaProfilerStart();
 
-      auto ret_tuple = impl_details::random_walks_impl<graph_vt,
+      auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
                                                        decltype(selector),
                                                        impl_details::vertical_traversal_t>(
         handle,  // prevent clang-format to separate function name from its namespace
