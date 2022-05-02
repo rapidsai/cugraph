@@ -10,7 +10,6 @@ Methods
 .. autosummary::
    :toctree: api/
 
-<<<<<<< HEAD
    cugraph.comms.comms.initialize
    cugraph.comms.comms.destroy
    cugraph.comms.comms.is_initialized
@@ -21,9 +20,5 @@ Methods
    cugraph.comms.comms.get_default_handle
    cugraph.comms.comms.get_handle
    cugraph.comms.comms.get_worker_id
-=======
-   cugraph.dask.comms.comms.initialize
-   cugraph.dask.comms.comms.destroy
->>>>>>> branch-22.06-mg-dependencies
    cugraph.dask.common.read_utils.get_chunksize
 
