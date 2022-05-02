@@ -314,24 +314,24 @@ class Tests_MG_ReduceV
         switch (reduction_type) {
           case reduction_type_t::PLUS:
             expected_result = reduce_v(handle,
-                                               sg_graph_view,
-                                               sg_property_iter,
-                                               property_initial_value,
-                                               cugraph::reduce_op::plus<property_t>{});
+                                       sg_graph_view,
+                                       sg_property_iter,
+                                       property_initial_value,
+                                       cugraph::reduce_op::plus<property_t>{});
             break;
           case reduction_type_t::MINIMUM:
             expected_result = reduce_v(handle,
-                                               sg_graph_view,
-                                               sg_property_iter,
-                                               property_initial_value,
-                                               cugraph::reduce_op::minimum<property_t>{});
+                                       sg_graph_view,
+                                       sg_property_iter,
+                                       property_initial_value,
+                                       cugraph::reduce_op::minimum<property_t>{});
             break;
           case reduction_type_t::MAXIMUM:
             expected_result = reduce_v(handle,
-                                               sg_graph_view,
-                                               sg_property_iter,
-                                               property_initial_value,
-                                               cugraph::reduce_op::maximum<property_t>{});
+                                       sg_graph_view,
+                                       sg_property_iter,
+                                       property_initial_value,
+                                       cugraph::reduce_op::maximum<property_t>{});
             break;
           default: FAIL() << "should not be reached.";
         }
