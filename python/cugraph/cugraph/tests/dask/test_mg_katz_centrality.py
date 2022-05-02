@@ -67,9 +67,14 @@ def test_dask_katz_centrality(dask_client, directed):
     import networkx as nx
     from cugraph.tests import utils
     NM = utils.read_csv_for_nx(input_data_path)
-    Gnx = nx.from_pandas_edgelist(
-        NM, create_using=nx.Graph(directed=directed), source="0", target="1"
-    )
+    if directed:
+        Gnx = nx.from_pandas_edgelist(
+            NM, create_using=nx.DiGraph(), source="0", target="1"
+        )
+    else:
+        Gnx = nx.from_pandas_edgelist(
+            NM, create_using=nx.Graph(), source="0", target="1"
+        )
     nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
     import pandas as pd
     pdf = pd.DataFrame(nk.items(), columns=['vertex', 'katz_centrality'])
