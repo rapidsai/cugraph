@@ -423,12 +423,12 @@ struct gatherv_indices_t {
 // second element of a pair, and call this function once per each group).
 template <typename GraphViewType, typename VertexPairIterator>
 std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<typename GraphViewType::vertex_type>>
-neighbor_intersection(raft::handle_t const& handle,
-                      GraphViewType const& graph_view,
-                      VertexPairIterator vertex_pair_first,
-                      VertexPairIterator vertex_pair_last,
-                      std::array<bool, 2> intersect_dst_nbr,
-                      bool do_expensive_check = false)
+nbr_intersection(raft::handle_t const& handle,
+                 GraphViewType const& graph_view,
+                 VertexPairIterator vertex_pair_first,
+                 VertexPairIterator vertex_pair_last,
+                 std::array<bool, 2> intersect_dst_nbr,
+                 bool do_expensive_check = false)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
