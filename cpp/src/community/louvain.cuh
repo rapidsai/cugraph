@@ -77,7 +77,7 @@ template <typename vertex_t, typename weight_t>
 struct reduce_op_t {
   using type                          = thrust::tuple<vertex_t, weight_t>;
   static constexpr bool pure_function = true;  // this can be called from any process
-  inline static T const identity_element =
+  inline static type const identity_element =
     thrust::make_tuple(std::numeric_limits<weight_t>::lowest(), invalid_vertex_id<vertex_t>::value);
 
   __device__ auto operator()(thrust::tuple<vertex_t, weight_t> p0,
