@@ -118,6 +118,21 @@ def initialize(comms=None,
         default) represents a partitioning resulting in prows*pcols
         partitions. A non-1 value currently results in a partitioning of
         p*pcols partitions, where p is the number of GPUs.
+
+    Examples
+    --------
+    >>> from dask.distributed import Client
+    >>> from dask_cuda import LocalCUDACluster
+    >>> import cugraph.comms as Comms
+    >>> cluster = LocalCUDACluster()
+    >>> client = Client(cluster)
+    >>> Comms.initialize(p2p=True)
+    >>> # DO WORK HERE
+    >>> # All done, clean up
+    >>> Comms.destroy()
+    >>> client.close()
+    >>> cluster.close()
+
     """
 
     global __instance
@@ -210,11 +225,17 @@ def get_default_handle():
 # Functions to be called from within workers
 
 def get_handle(sID):
+    """
+    Returns the handle from within the worker using the sessionstate.
+    """
     sessionstate = get_raft_comm_state(sID)
     return sessionstate['handle']
 
 
 def get_worker_id(sID):
+    """
+    Returns the worker's sessionId from within the worker.
+    """
     sessionstate = get_raft_comm_state(sID)
     return sessionstate['wid']
 

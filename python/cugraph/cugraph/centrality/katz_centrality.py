@@ -23,7 +23,7 @@ import cudf
 
 
 def katz_centrality(
-    G, alpha=None, beta=1.0, max_iter=1000, tol=1.0e-6,
+    G, alpha=None, beta=None, max_iter=100, tol=1.0e-6,
     nstart=None, normalized=True
 ):
     """
@@ -66,18 +66,18 @@ def katz_centrality(
             guarantee that it will never exceed alpha_max thus in turn
             fulfilling the requirement for convergence.
 
-    beta : float, optional (default=1.0)
+    beta : float, optional (default=None)
         Weight scalar added to each vertex's new Katz Centrality score in every
-        iteration
+        iteration. If beta is not specified then it is set as 1.0.
 
-    max_iter : int, optional (default=1000)
+    max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.
         If this value is lower or equal to 0 cuGraph will use the default
-        value, which is 1000.
+        value, which is 100.
 
-    tol : float, optional (default=1e-6)
+    tol : float, optional (default=1.0e-6)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -119,12 +119,15 @@ def katz_centrality(
     if (alpha is not None) and (alpha <= 0.0):
         raise ValueError(f"'alpha' must be a positive float or None, "
                          f"got: {alpha}")
-    if (not isinstance(beta, float)) or (beta <= 0.0):
-        raise ValueError(f"'beta' must be a positive float, got: {beta}")
+    if beta is None:
+        beta = 1.0
+    elif (not isinstance(beta, float)) or (beta <= 0.0):
+        raise ValueError(f"'beta' must be a positive float or None, "
+                         f"got: {beta}")
     if (not isinstance(max_iter, int)):
         raise ValueError(f"'max_iter' must be an integer, got: {max_iter}")
     elif max_iter <= 0:
-        max_iter = 1000
+        max_iter = 100
     if (not isinstance(tol, float)) or (tol <= 0.0):
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
 
