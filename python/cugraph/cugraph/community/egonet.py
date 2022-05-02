@@ -163,7 +163,8 @@ def batched_ego_graphs(
     ...                   header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
-    >>> b_ego_graph = cugraph.batched_ego_graphs(G, seeds=[1,5], radius=2)
+    >>> b_ego_graph, offsets = cugraph.batched_ego_graphs(G, seeds=[1,5],
+    ...                                                   radius=2)
 
     """
 
