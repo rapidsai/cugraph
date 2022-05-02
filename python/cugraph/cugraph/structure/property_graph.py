@@ -333,6 +333,7 @@ class EXPERIMENTAL__PropertyGraph:
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
 
+
     def add_edge_data(self,
                       dataframe,
                       vertex_col_names,
@@ -413,10 +414,9 @@ class EXPERIMENTAL__PropertyGraph:
                                 self.type_col_name]
         if self.__edge_prop_dataframe is None:
             if type(dataframe) == dask_cudf.DataFrame:
+                temp_dataframe = pd.DataFrame(columns=default_edge_columns)
                 from dask.dataframe import from_pandas
-                dataframe_to_add = dataframe.compute()
-                self.__edge_prop_dataframe = from_pandas(dataframe_to_add, chunksize=10303)
-                breakpoint()
+                self.__edge_prop_dataframe = from_pandas(temp_dataframe, chunksize=10303)
             else:
                 self.__edge_prop_dataframe = \
                     self.__dataframe_type(columns=default_edge_columns)
@@ -424,6 +424,7 @@ class EXPERIMENTAL__PropertyGraph:
             # column in the incoming dataframe, since the initial merge may not
             # result in the same dtype. (see
             # https://github.com/rapidsai/cudf/issues/9981)
+            breakpoint()
             self.__update_dataframe_dtypes(
                 self.__edge_prop_dataframe,
                 {self.src_col_name: dataframe[vertex_col_names[0]].dtype,
@@ -907,6 +908,7 @@ class EXPERIMENTAL__PropertyGraph:
         integer dtypes, needed to accommodate NA values in columns.
         """
         for (col, dtype) in column_dtype_dict.items():
+            breakpoint()
             # If the DataFrame is Pandas and the dtype is an integer type,
             # ensure a nullable integer array is used by specifying the correct
             # dtype. The alias for these dtypes is simply a capitalized string
@@ -915,7 +917,6 @@ class EXPERIMENTAL__PropertyGraph:
             dtype_str = str(dtype)
             if dtype_str in ["int32", "int64"]:
                 dtype_str = dtype_str.title()
-#            breakpoint()
             if str(df[col].dtype) != dtype_str:
                 # Assigning to df[col] produces a (false?) warning with Pandas,
                 # but assigning to df.loc[:,col] does not update the df in
