@@ -77,9 +77,9 @@ def test_eigenvector_centrality(graph_file):
     assert topKNX.equals(topKCU)
 
 
-# def test_katz_centrality_nx(graph_file):
+# def test_eigenvector_centrality_nx(graph_file):
 
-# def test_katz_centrality_multi_column(graph_file):
+# def test_eigenvector_centrality_multi_column(graph_file):
 
 @pytest.mark.parametrize("graph_file", [TOY_DATASET])
 def test_eigenvector_centrality_toy(graph_file):

@@ -14,10 +14,10 @@
 import pytest
 import cupy as cp
 import numpy as np
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       SGGraph,
-                                       eigenvector_centrality)
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph)
+from pylibcugraph.experimental import eigenvector_centrality
 import pathlib
 import pylibcugraph
 
@@ -69,9 +69,9 @@ def _generic_eigenvector_test(src_arr,
         vertex_id = vertices[idx]
         expected_result = result_arr[vertex_id]
         actual_result = centralities[idx]
-        if pytest.approx(expected_result, 1e-4) != actual_result:
-            raise ValueError(f"Vertex {idx} has centrality {actual_result}"
-                             f", should have been {expected_result}")
+        assert pytest.approx(expected_result, 1e-4) != actual_result, \
+            f"Vertex {idx} has centrality {actual_result}, should have" \
+            f" been {expected_result}"
 
 
 def test_eigenvector():

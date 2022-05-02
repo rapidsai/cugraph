@@ -11,19 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       SGGraph,
-                                       eigenvector_centrality as pylib_eigen
-                                       )
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph)
+from pylibcugraph.experimental import eigenvector_centrality as pylib_eigen
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
 import cudf
+import cupy
 
 
 def eigenvector_centrality(
-    G, max_iter=1000, tol=1.0e-6, nstart=None, normalized=True
+    G, max_iter=100, tol=1.0e-6, nstart=None, normalized=True
 ):
     """
     Compute the eigenvector centrality for a graph G.
@@ -32,7 +32,7 @@ def eigenvector_centrality(
     ----------
     G : cuGraph.Graph or networkx.Graph
 
-    max_iter : int, optional (default=1000)
+    max_iter : int, optional (default=100)
 
     tol : float, optional (default=1e-6)
 
@@ -41,10 +41,9 @@ def eigenvector_centrality(
     normalized : bool, optional (default=True)
 
     """
-    if (not isinstance(max_iter, int)):
-        raise ValueError(f"'max_iter' must be an integer, got: {max_iter}")
-    elif max_iter <= 0:
-        max_iter = 1000
+    if (not isinstance(max_iter, int)) or max_iter <= 0:
+        raise ValueError(f"'max_iter' must be a positive integer"
+                         f", got: {max_iter}")
     if (not isinstance(tol, float)) or (tol <= 0.0):
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
 
@@ -57,7 +56,7 @@ def eigenvector_centrality(
     else:
         # FIXME: If weights column is not imported, a weights column of 1s
         # with type hardcoded to float32 is passed into wrapper
-        weights = cudf.Series((srcs + 1) / (srcs + 1), dtype="float32")
+        weights = cudf.Series(cupy.ones(srcs.size, dtype="float32"))
 
     if nstart is not None:
         if G.renumbered is True:

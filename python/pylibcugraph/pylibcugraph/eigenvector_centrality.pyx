@@ -55,10 +55,10 @@ from pylibcugraph.utils cimport (
 
 
 def EXPERIMENTAL__eigenvector_centrality(ResourceHandle resource_handle,
-                                  _GPUGraph graph,
-                                  double epsilon,
-                                  size_t max_iterations,
-                                  bool_t do_expensive_check):
+                                         _GPUGraph graph,
+                                         double epsilon,
+                                         size_t max_iterations,
+                                         bool_t do_expensive_check):
     """
     Does eigenvector centrality.
 
