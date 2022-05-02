@@ -23,6 +23,27 @@
 namespace cugraph {
 namespace reduce_op {
 
+// Guidance on writing a custom reduction operator.
+// 1. A custom reduction operator MUST be side-effect free. We use thrust::reduce internally to
+// implement reductions in multiple primitives. The current (version 1.16)  implementation of thrust
+// reduction call rounds up the number of invocations based on the CUDA block size and discards the
+// values outside the valid range.
+// 2. If the return value of the reduction operator is solely determined by input argument values,
+// define the pure function static member variable (i.e. "static constexpr pure_function = true;").
+// This may enable better performance in multi-GPU as this flag indicates that the reduction
+// operator can be executed in any GPU (this sometimes enable hierarchical reduction reducing
+// communication volume & peak memory usage).
+// 3. For simple reduction operations with a matching raft::comms::op_t value, specify the
+// compatible_raft_comms_op static member variable (e.g. static constexpr raft::comms::op_t
+// compatible_raft_comms_op). This often enables direct use of highly optimized NCCL reduce
+// functions instead of relying on a less efficient gather based reduction mechanism (we may
+// implement a basic tree-based reduction mechanism in the future to improve the efficiency but this
+// is still expected to be slower than NCCL reduction).
+// 4. Defining the identity_element static member variable (e.g. inline static T const
+// identity_element = T{}) potentially improves performance as well by avoiding special treatments
+// for tricky corner cases.
+// 5. See the pre-defined reduction operators below as examples.
+
 // in case there is no payload to reduce
 struct null {
   using type = void;
@@ -57,7 +78,10 @@ struct minimum {
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MIN;
   inline static T const identity_element                      = min_identity_element<T>();
 
-  __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs < rhs ? lhs : rhs; }
+  __host__ __device__ T operator()(T const& lhs, T const& rhs) const
+  {
+    return lhs < rhs ? lhs : rhs;
+  }
 };
 
 // Binary reduction operator selecting the maximum element of the two input arguments (using
@@ -74,7 +98,10 @@ struct maximum {
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MAX;
   inline static T const identity_element                      = max_identity_element<T>();
 
-  __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs < rhs ? rhs : lhs; }
+  __host__ __device__ T operator()(T const& lhs, T const& rhs) const
+  {
+    return lhs < rhs ? rhs : lhs;
+  }
 };
 
 // Binary reduction operator summing the two input arguments, T should be arithmetic types or thrust

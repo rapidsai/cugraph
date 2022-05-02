@@ -972,14 +972,11 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * weight), property values for the source, and property values for the destination and returns a
  * value to be reduced using the @p reduce_op.
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
- * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. Recommended to
- * use the pre-defined reduction operators whenever possible as the current (and future)
- * implementations of graph primitives may check whether @p ReduceOp is known type (or has known
- * member variables) to take a more optimized code path. For example, some primitive implementations
- * check whether @p ReduceOp has the compatible_raft_comms_op member variable and use
- * raft::comms::reduce() (which calls NCCL reduce()) for reduction. Otherwise, reduction may be
- * performed using a less efficient gather based approach (we may implement tree-based reduction in
- * the future but this may be still less efficient than NCCL reduce()).
+ * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
+ * recommended to use the pre-defined reduction operators whenever possible as the current (and
+ * future) implementations of graph primitives may check whether @p ReduceOp is known type (or has
+ * known member variables) to take a more optimized code path. See the documentation in the
+ * reduce_op.cuh file for instructions on writing custom reduction operators.
  * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().

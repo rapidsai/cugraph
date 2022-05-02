@@ -65,14 +65,11 @@ struct transform_reduce_call_v_op_t {
  * reduced.
  * @param init Initial value to be reduced with the transform-reduced input vertex property values.
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
- * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. Recommended to
- * use the pre-defined reduction operators whenever possible as the current (and future)
- * implementations of graph primitives may check whether @p ReduceOp is known type (or has known
- * member variables) to take a more optimized code path. For example, some primitive implementations
- * check whether @p ReduceOp has the compatible_raft_comms_op member variable and use
- * raft::comms::reduce() (which calls NCCL reduce()) for reduction. Otherwise, reduction may be
- * performed using a less efficient gather based approach (we may implement tree-based reduction in
- * the future but this may be still less efficient than NCCL reduce()).
+ * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
+ * recommended to use the pre-defined reduction operators whenever possible as the current (and
+ * future) implementations of graph primitives may check whether @p ReduceOp is known type (or has
+ * known member variables) to take a more optimized code path. See the documentation in the
+ * reduce_op.cuh file for instructions on writing custom reduction operators.
  * @return T Transformed and reduced input vertex property values.
  */
 template <typename GraphViewType,
@@ -149,7 +146,6 @@ T transform_reduce_v(raft::handle_t const& handle,
  * @param v_op Binary operator takes vertex ID and *(@p vertex_value_input_first + i) (where i is
  * [0, @p graph_view.local_vertex_partition_range_size())) and returns a transformed value to be
  * reduced.
- * @param init Initial value to be added to the transform-reduced input vertex property values.
  * @return Transformed and reduced input vertex property values.
  */
 template <typename GraphViewType, typename VertexValueInputIterator, typename VertexOp>
