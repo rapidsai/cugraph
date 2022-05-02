@@ -190,7 +190,7 @@ def test_dask_pagerank(dask_client, directed):
 )
 @pytest.mark.parametrize("renumber", [False])
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_directed_graph_renumber_false(renumber, dask_client, directed):
+def test_graph_renumber_false(renumber, dask_client, directed):
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate.csv").as_posix()
     chunksize = dcg.get_chunksize(input_data_path)
@@ -213,7 +213,7 @@ def test_directed_graph_renumber_false(renumber, dask_client, directed):
 )
 @pytest.mark.parametrize("renumber", [False])
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_multi_directed_graph_renumber_false(renumber, dask_client, directed):
+def test_multi_graph_renumber_false(renumber, dask_client, directed):
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate_multi_edge.csv").as_posix()
     chunksize = dcg.get_chunksize(input_data_path)

@@ -123,9 +123,6 @@ def test_mg_louvain_with_edgevals(daskGraphFromDataset):
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 def test_mg_udlouvain_with_edgevals(uddaskGraphFromDataset):
-    # FIXME: uddaskGraphFromDataset returns an undirected Graph, which Louvain
-    #  is currently accepting. In the future, an MNMG symmeterize will
-    # need to be called to create a Graph for Louvain.
     parts, mod = dcg.louvain(uddaskGraphFromDataset)
 
     # FIXME: either call Nx with the same dataset and compare results, or
