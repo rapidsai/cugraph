@@ -24,7 +24,7 @@ from pylibcugraph.experimental import (MGGraph,
                                        uniform_neighborhood_sampling,
                                        )
 from cugraph.dask.common.input_utils import get_distributed_data
-from cugraph.comms import comms as Comms
+from cugraph.dask.comms import comms as Comms
 
 
 def call_nbr_sampling(sID,

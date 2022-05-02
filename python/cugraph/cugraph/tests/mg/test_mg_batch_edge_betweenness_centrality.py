@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,20 +17,20 @@ import pytest
 import numpy as np
 
 from cugraph.dask.common.mg_utils import is_single_gpu
+
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 # Get parameters from standard betwenness_centrality_test
-from cugraph.tests.test_betweenness_centrality import (
+from cugraph.tests.test_edge_betweenness_centrality import (
     DIRECTED_GRAPH_OPTIONS,
-    ENDPOINTS_OPTIONS,
     NORMALIZED_OPTIONS,
     DEFAULT_EPSILON,
     SUBSET_SIZE_OPTIONS,
     SUBSET_SEED_OPTIONS,
 )
 
-from cugraph.tests.test_betweenness_centrality import (
-    calc_betweenness_centrality,
+from cugraph.tests.test_edge_betweenness_centrality import (
+    calc_edge_betweenness_centrality,
     compare_scores,
 )
 
@@ -38,9 +38,9 @@ from cugraph.tests.test_betweenness_centrality import (
 # Parameters
 # =============================================================================
 DATASETS = [(RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()]
-# FIXME: The "preset_gpu_count" from 21.08 and below are currently not
-# supported and have been removed
 
+# FIXME: The "preset_gpu_count" from 21.08 and below are not supported and have
+# been removed
 RESULT_DTYPE_OPTIONS = [np.float64]
 
 
@@ -60,27 +60,24 @@ def setup_function():
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
-@pytest.mark.parametrize("endpoints", ENDPOINTS_OPTIONS)
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
-def test_mg_betweenness_centrality(
+def test_mg_edge_betweenness_centrality(
     graph_file,
     directed,
     subset_size,
     normalized,
     weight,
-    endpoints,
     subset_seed,
     result_dtype,
-    dask_client,
+    dask_client
 ):
-    sorted_df = calc_betweenness_centrality(
+    sorted_df = calc_edge_betweenness_centrality(
         graph_file,
         directed=directed,
         normalized=normalized,
         k=subset_size,
         weight=weight,
-        endpoints=endpoints,
         seed=subset_seed,
         result_dtype=result_dtype,
         multi_gpu_batch=True,

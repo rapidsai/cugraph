@@ -17,7 +17,7 @@ from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
 from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import dask_cudf
 from dask.dataframe.shuffle import rearrange_by_column
 
