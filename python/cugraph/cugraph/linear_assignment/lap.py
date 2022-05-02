@@ -69,7 +69,6 @@ def hungarian(G, workers, epsilon=None):
     >>> cost, df = cugraph.hungarian(G, workers)
 
     """
-    # FIXME: Create bipartite.csv and uncomment out the above example
 
     if G.renumbered:
         if isinstance(workers, cudf.DataFrame):
