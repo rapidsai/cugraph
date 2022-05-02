@@ -93,38 +93,76 @@ T reduce_v(raft::handle_t const& handle,
       ret       = host_scalar_bcast(handle.get_comms(), ret, root, handle.get_stream());
     }
   } else {
-    if constexpr (reduce_op::has_compatible_raft_comms_op_v<ReduceOp>) {
-      auto raft_comms_op = ReduceOp::compatible_raft_comms_op;
-      auto id            = identity_element<T>(raft_comms_op);
-      ret                = thrust::reduce(
-        handle.get_thrust_policy(),
-        vertex_value_input_first,
-        vertex_value_input_first + graph_view.local_vertex_partition_range_size(),
-        ((GraphViewType::is_multi_gpu) && (handle.get_comms().get_rank() != 0)) ? id : init,
-        reduce_op);
-      if constexpr (GraphViewType::is_multi_gpu) {
-        ret = host_scalar_allreduce(handle.get_comms(), ret, raft_comms_op, handle.get_stream());
+    std::optional<T> local_result{std::nullopt};
+    std::optional<T> local_init{std::nullopt};
+
+    auto local_reduction_size = graph_view.local_vertex_partition_range_size();
+    if constexpr (GraphViewType::is_multi_gpu) {
+      if (handle.get_comms().get_rank() == int{0}) {
+        local_init = init;
+      } else {
+        if constexpr (reduce_op::has_identity_element_v<ReduceOp>) {
+          local_init = ReduceOp::identity_element;
+        } else if (local_reduction_size > vertex_t{0}) {  // use the last element as local_init
+          rmm::device_scalar<T> tmp(handle.get_stream());
+          thrust::copy(handle.get_thrust_policy(),
+                       vertex_value_input_first +
+                         (graph_view.local_vertex_partition_range_size() - vertex_t{1}),
+                       vertex_value_input_first + graph_view.local_vertex_partition_range_size(),
+                       tmp.data());
+          local_init = tmp.value(handle.get_stream());
+          --local_reduction_size;
+        } else {
+          // this GPU has no value for global reduction
+        }
       }
     } else {
-      ret =
-        thrust::reduce(handle.get_thrust_policy(),
-                       vertex_value_input_first,
-                       vertex_value_input_first + graph_view.local_vertex_partition_range_size());
-      if constexpr (GraphViewType::is_multi_gpu) {
-        auto rets = host_scalar_gather(handle.get_comms(), ret, int{0}, handle.get_stream());
+      local_init = init;
+    }
+
+    if (local_init) {
+      local_result = thrust::reduce(handle.get_thrust_policy(),
+                                    vertex_value_input_first,
+                                    vertex_value_input_first + local_reduction_size,
+                                    *local_init,
+                                    reduce_op);
+    }
+
+    if constexpr (GraphViewType::is_multi_gpu) {
+      if constexpr (reduce_op::has_identity_element_v<ReduceOp>) {
+        if constexpr (reduce_op::has_compatible_raft_comms_op_v<ReduceOp>) {
+          ret = host_scalar_allreduce(handle.get_comms(),
+                                      *local_result,
+                                      ReduceOp::compatible_raft_comms_op,
+                                      handle.get_stream());
+        } else {
+          auto rets =
+            host_scalar_gather(handle.get_comms(), *local_result, int{0}, handle.get_stream());
+          if (handle.get_comms().get_rank() == int{0}) {
+            ret = std::reduce(rets.begin(), rets.end(), ReduceOp::identity_element, reduce_op);
+          }
+          ret = host_scalar_bcast(handle.get_comms(), ret, int{0}, handle.get_stream());
+        }
+      } else {  // no guarantee that every GPU has valid local_result
+        auto rets = host_scalar_gather(
+          handle.get_comms(), local_result ? *local_result : T{}, int{0}, handle.get_stream());
         if (handle.get_comms().get_rank() == int{0}) {
-          auto vertex_partition_range_offsets = graph_view.vertex_partition_range_offsets();
           std::vector<T> valid_rets{};
           valid_rets.reserve(rets.size());
+          auto vertex_partition_range_offsets = graph_view.vertex_partition_range_offsets();
           for (size_t i = 0; i < rets.size(); ++i) {
-            if (vertex_partition_range_offsets[i + 1] - vertex_partition_range_offsets[i] > 0) {
+            if (vertex_partition_range_offsets[i + size_t{1}] - vertex_partition_range_offsets[i] >
+                vertex_t{0}) {
               valid_rets.push_back(rets[i]);
             }
           }
-          ret = std::reduce(valid_rets.begin(), valid_rets.end(), init, reduce_op);
-          ret = host_scalar_bcast(handle.get_comms(), ret, int{0}, handle.get_stream());
+          ret = std::reduce(
+            valid_rets.begin(), valid_rets.end() - size_t{1}, valid_rets.back(), reduce_op);
         }
+        ret = host_scalar_bcast(handle.get_comms(), ret, int{0}, handle.get_stream());
       }
+    } else {
+      ret = *local_result;
     }
   }
 

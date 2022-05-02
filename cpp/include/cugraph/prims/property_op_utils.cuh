@@ -205,23 +205,27 @@ struct property_op<thrust::tuple<Args...>, Op>
 };
 
 template <typename T>
-T identity_element(raft::comms::op_t op)
+constexpr std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value, T> min_identity_element()
 {
-  switch (op) {
-    case raft::comms::op_t::SUM: {
-      return T{0};
-    } break;
-    case raft::comms::op_t::MIN: {
-      return std::numeric_limits<T>::max();
-    } break;
-    case raft::comms::op_t::MAX: {
-      return std::numeric_limits<T>::lowest();
-    } break;
-    default: {
-      CUGRAPH_FAIL("Unhandled raft::comms::op_t");
-      return T{0};
-    }
-  };
+  return thrust_tuple_of_arithmetic_numeric_limits_lowest<T>();
+}
+
+template <typename T>
+constexpr std::enable_if_t<std::is_arithmetic<T>::value, T> min_identity_element()
+{
+  return std::numeric_limits<T>::lowest();
+}
+
+template <typename T>
+constexpr std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value, T> max_identity_element()
+{
+  return thrust_tuple_of_arithmetic_numeric_limits_max<T>();
+}
+
+template <typename T>
+constexpr std::enable_if_t<std::is_arithmetic<T>::value, T> max_identity_element()
+{
+  return std::numeric_limits<T>::max();
 }
 
 template <typename Iterator, typename T>

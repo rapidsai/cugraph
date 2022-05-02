@@ -105,6 +105,22 @@ struct atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, I, I> {
   __device__ constexpr void compute(Iterator iter, TupleType const& value) const {}
 };
 
+template <typename TupleType, std::size_t... Is>
+constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_lowest(TupleType t,
+                                                                     std::index_sequence<Is...>)
+{
+  return thrust::make_tuple(
+    std::numeric_limits<typename thrust::tuple_element<Is, TupleType>::type>::lowest()...);
+}
+
+template <typename TupleType, std::size_t... Is>
+constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_max(TupleType t,
+                                                                  std::index_sequence<Is...>)
+{
+  return thrust::make_tuple(
+    std::numeric_limits<typename thrust::tuple_element<Is, TupleType>::type>::max()...);
+}
+
 }  // namespace detail
 
 template <typename T>
@@ -222,5 +238,19 @@ struct atomic_accumulate_thrust_tuple {
       .compute(iter, value);
   }
 };
+
+template <typename TupleType>
+constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_lowest()
+{
+  return detail::thrust_tuple_of_arithmetic_numeric_limits_lowest(
+    TupleType{}, std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
+}
+
+template <typename TupleType>
+constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_max()
+{
+  return detail::thrust_tuple_of_arithmetic_numeric_limits_max(
+    TupleType{}, std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
+}
 
 }  // namespace cugraph

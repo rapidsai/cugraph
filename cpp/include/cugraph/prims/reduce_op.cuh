@@ -55,8 +55,9 @@ struct minimum {
   // argument values in addition.
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MIN;
+  inline static T const identity_element                      = min_identity_element<T>();
 
-  __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs < rhs; }
+  __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs < rhs ? lhs : rhs; }
 };
 
 // Binary reduction operator selecting the maximum element of the two input arguments (using
@@ -71,8 +72,9 @@ struct maximum {
   // argument values in addition.
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MAX;
+  inline static T const identity_element                      = max_identity_element<T>();
 
-  __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return !(lhs < rhs); }
+  __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs < rhs ? rhs : lhs; }
 };
 
 // Binary reduction operator summing the two input arguments, T should be arithmetic types or thrust
@@ -87,6 +89,7 @@ struct plus {
   // argument values in addition.
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::SUM;
+  inline static T const identity_element                      = T{};
   property_op<T, thrust::plus> op{};
 
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return op(lhs, rhs); }
@@ -105,6 +108,18 @@ struct has_compatible_raft_comms_op<ReduceOp,
 template <typename ReduceOp>
 inline constexpr bool has_compatible_raft_comms_op_v =
   has_compatible_raft_comms_op<ReduceOp>::value;
+
+template <typename ReduceOp, typename = typename ReduceOp::type>
+struct has_identity_element : std::false_type {
+};
+
+template <typename ReduceOp>
+struct has_identity_element<ReduceOp, std::remove_cv_t<decltype(ReduceOp::identity_element)>>
+  : std::true_type {
+};
+
+template <typename ReduceOp>
+inline constexpr bool has_identity_element_v = has_identity_element<ReduceOp>::value;
 
 }  // namespace reduce_op
 }  // namespace cugraph
