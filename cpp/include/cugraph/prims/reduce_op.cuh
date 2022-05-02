@@ -24,25 +24,26 @@ namespace cugraph {
 namespace reduce_op {
 
 // Guidance on writing a custom reduction operator.
-// 1. A custom reduction operator MUST be side-effect free. We use thrust::reduce internally to
+// 1. It is advised to add a "using type = type_of_the_reduced_values" statement.
+// 2. A custom reduction operator MUST be side-effect free. We use thrust::reduce internally to
 // implement reductions in multiple primitives. The current (version 1.16)  implementation of thrust
 // reduce rounds up the number of invocations based on the CUDA block size and discards the values
 // outside the valid range.
-// 2. If the return value of the reduction operator is solely determined by input argument values,
+// 3. If the return value of the reduction operator is solely determined by input argument values,
 // define the pure function static member variable (i.e. "static constexpr pure_function = true;").
 // This may enable better performance in multi-GPU as this flag indicates that the reduction
 // operator can be executed in any GPU (this sometimes enable hierarchical reduction reducing
 // communication volume & peak memory usage).
-// 3. For simple reduction operations with a matching raft::comms::op_t value, specify the
+// 4. For simple reduction operations with a matching raft::comms::op_t value, specify the
 // compatible_raft_comms_op static member variable (e.g. "static constexpr raft::comms::op_t
 // compatible_raft_comms_op = raft::comms::op_t::MIN"). This often enables direct use of highly
 // optimized the NCCL reduce functions instead of relying on a less efficient gather based reduction
 // mechanism (we may implement a basic tree-based reduction mechanism in the future to improve the
 // efficiency but this is still expected to be slower than the NCCL reduction).
-// 4. Defining the identity_element static member variable (e.g. "inline static T const
+// 5. Defining the identity_element static member variable (e.g. "inline static T const
 // identity_element = T{}") potentially improves performance as well by avoiding special treatments
 // for tricky corner cases.
-// 5. See the pre-defined reduction operators below as examples.
+// 6. See the pre-defined reduction operators below as examples.
 
 // in case there is no payload to reduce
 struct null {
