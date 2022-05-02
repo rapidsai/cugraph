@@ -22,7 +22,7 @@ except ModuleNotFoundError as err:
         raftComms = MissingUCXPy()
         get_raft_comm_state = MissingUCXPy()
     else:
-        raise ModuleNotFoundError
+        raise
 from raft.common.handle import Handle
 from cugraph.dask.comms.comms_wrapper import init_subcomms as c_init_subcomms
 from dask.distributed import default_client
@@ -123,7 +123,7 @@ def initialize(comms=None,
     --------
     >>> from dask.distributed import Client
     >>> from dask_cuda import LocalCUDACluster
-    >>> import cugraph.comms as Comms
+    >>> import cugraph.dask.comms as Comms
     >>> cluster = LocalCUDACluster()
     >>> client = Client(cluster)
     >>> Comms.initialize(p2p=True)

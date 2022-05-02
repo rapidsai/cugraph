@@ -27,7 +27,7 @@ except ModuleNotFoundError as err:
     if err.name == "ucp":
         default_client = MissingUCXPy()
     else:
-        raise ModuleNotFoundError
+        raise
 # FIXME: cugraph/__init__.py also imports the comms module, but
 # depending on the import environment, cugraph/comms/__init__.py
 # may be imported instead. The following imports the comms.py
