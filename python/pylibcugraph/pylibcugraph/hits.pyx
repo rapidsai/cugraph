@@ -42,7 +42,7 @@ from pylibcugraph._cugraph_c.centrality_algorithms cimport (
     cugraph_hits_result_free,
 )
 from pylibcugraph.resource_handle cimport (
-    EXPERIMENTAL__ResourceHandle,
+    ResourceHandle,
 )
 from pylibcugraph.graphs cimport (
     _GPUGraph,
@@ -55,14 +55,14 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
-                       _GPUGraph graph,
-                       double tol,
-                       size_t max_iter,
-                       initial_hubs_guess_vertices,
-                       initial_hubs_guess_values,
-                       bool_t normalized,
-                       bool_t do_expensive_check):
+def hits(ResourceHandle resource_handle,
+        _GPUGraph graph,
+        double tol,
+        size_t max_iter,
+        initial_hubs_guess_vertices,
+        initial_hubs_guess_values,
+        bool_t normalized,
+        bool_t do_expensive_check):
     """
     Compute HITS hubs and authorities values for each vertex
 

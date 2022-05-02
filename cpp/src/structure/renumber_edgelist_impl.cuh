@@ -696,14 +696,14 @@ renumber_edgelist(
 
   auto vertex_counts = host_scalar_allgather(
     comm, static_cast<vertex_t>(renumber_map_labels.size()), handle.get_stream());
-  std::vector<vertex_t> vertex_partition_offsets(comm_size + 1, 0);
+  std::vector<vertex_t> vertex_partition_range_offsets(comm_size + 1, 0);
   std::partial_sum(
-    vertex_counts.begin(), vertex_counts.end(), vertex_partition_offsets.begin() + 1);
+    vertex_counts.begin(), vertex_counts.end(), vertex_partition_range_offsets.begin() + 1);
 
   partition_t<vertex_t> partition(
-    vertex_partition_offsets, row_comm_size, col_comm_size, row_comm_rank, col_comm_rank);
+    vertex_partition_range_offsets, row_comm_size, col_comm_size, row_comm_rank, col_comm_rank);
 
-  auto number_of_vertices = vertex_partition_offsets.back();
+  auto number_of_vertices = vertex_partition_range_offsets.back();
   auto number_of_edges    = host_scalar_allreduce(
     comm,
     std::accumulate(edgelist_edge_counts.begin(), edgelist_edge_counts.end(), edge_t{0}),

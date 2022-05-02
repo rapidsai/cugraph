@@ -81,8 +81,8 @@ def node2vec(G,
     sizes: int or cudf.Series
         The path size or sizes in case of coalesced paths.
 
-    Example
-    -------
+    Examples
+    --------
     >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()

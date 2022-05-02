@@ -17,9 +17,9 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
@@ -105,7 +105,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   }
   for (size_t iter = 0; iter < max_iterations; ++iter) {
     // Update current destination authorities property
-    copy_v_transform_reduce_in_nbr(
+    per_v_transform_reduce_incoming_e(
       handle,
       graph_view,
       prev_src_hubs.device_view(),
@@ -117,7 +117,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     update_edge_partition_dst_property(handle, graph_view, authorities, curr_dst_auth);
 
     // Update current source hubs property
-    copy_v_transform_reduce_out_nbr(
+    per_v_transform_reduce_outgoing_e(
       handle,
       graph_view,
       dummy_property_t<result_t>{}.device_view(),

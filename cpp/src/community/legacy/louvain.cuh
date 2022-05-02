@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -230,7 +230,7 @@ class Louvain {
     weight_t* d_cluster_weights = cluster_weights_v_.data();
 
     //
-    // MNMG:  copy_v_transform_reduce_out_nbr, then copy
+    // MNMG:  per_v_transform_reduce_outgoing_e, then copy
     //
     thrust::for_each(
       handle_.get_thrust_policy(),
