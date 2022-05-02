@@ -191,7 +191,7 @@ struct reduce_with_init_t {
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
  * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
  * recommended to use the pre-defined reduction operators whenever possible as the current (and
- * future) implementations of graph primitives may check whether @p ReduceOp is known type (or has
+ * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the

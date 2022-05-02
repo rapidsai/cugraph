@@ -49,7 +49,7 @@ namespace cugraph {
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
  * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
  * recommended to use the pre-defined reduction operators whenever possible as the current (and
- * future) implementations of graph primitives may check whether @p ReduceOp is known type (or has
+ * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
  * @return T Reduced input vertex property values.
@@ -90,8 +90,8 @@ T reduce_v(raft::handle_t const& handle,
       ret       = host_scalar_bcast(handle.get_comms(), ret, root, handle.get_stream());
     }
   } else {
-    std::optional<T> local_result{std::nullopt};
     std::optional<T> local_init{std::nullopt};
+    std::optional<T> local_result{std::nullopt};
 
     auto local_reduction_size = graph_view.local_vertex_partition_range_size();
     if constexpr (GraphViewType::is_multi_gpu) {
