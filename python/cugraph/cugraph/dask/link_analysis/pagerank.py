@@ -74,7 +74,7 @@ def pagerank(input_graph,
     input_graph : cugraph.DiGraph
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
-        algorithm). Undirected Graph not currently supported.
+        algorithm).
 
     alpha : float, optional (default=0.85)
         The damping factor alpha represents the probability to follow an

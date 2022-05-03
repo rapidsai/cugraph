@@ -66,10 +66,10 @@ def bfs(input_graph,
 
     Parameters
     ----------
-    input_graph : directed cugraph.Graph
+    input_graph : cugraph.Graph
         cuGraph graph instance, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
-        algorithm). Undirected Graph not currently supported.
+        algorithm).
 
     start : Integer
         Specify starting vertex for breadth-first search; this function
