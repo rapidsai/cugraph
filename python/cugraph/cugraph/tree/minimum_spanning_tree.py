@@ -36,7 +36,7 @@ def _minimum_spanning_tree_subgraph(G):
 def _maximum_spanning_tree_subgraph(G):
     mst_subgraph = Graph()
     if G.is_directed():
-        raise Exception("input graph must be undirected")
+        raise ValueError("input graph must be undirected")
 
     if G.adjlist.weights is not None:
         G.adjlist.weights = G.adjlist.weights.mul(-1)
