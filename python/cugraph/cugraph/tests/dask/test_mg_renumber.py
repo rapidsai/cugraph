@@ -227,6 +227,8 @@ def test_multi_graph_renumber_false(renumber, dask_client, directed):
     )
     dg = cugraph.MultiGraph(directed=directed)
 
+    # ValueError always thrown since renumber must be True with
+    # MNMG algorithms
     with pytest.raises(ValueError):
         dg.from_dask_cudf_edgelist(ddf, "src", "dst", renumber=renumber)
 
