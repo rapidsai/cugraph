@@ -21,7 +21,7 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
 def _minimum_spanning_tree_subgraph(G):
     mst_subgraph = Graph()
     if G.is_directed():
-        raise Exception("input graph must be undirected")
+        raise ValueError("input graph must be undirected")
     mst_df = minimum_spanning_tree_wrapper.minimum_spanning_tree(G)
     if G.renumbered:
         mst_df = G.unrenumber(mst_df, "src")
