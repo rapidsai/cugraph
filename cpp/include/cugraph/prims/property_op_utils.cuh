@@ -271,7 +271,6 @@ __device__
   static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
                 thrust::tuple_size<T>::value);
   atomic_accumulate_thrust_tuple<Iterator, T>()(iter, value);
-  return;
 }
 
 }  // namespace cugraph
