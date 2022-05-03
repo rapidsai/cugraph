@@ -21,12 +21,23 @@ import cugraph
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+
+
+def setup_function():
+    gc.collect()
+
+
+IS_DIRECTED = [True, False]
+
 
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_dask_mg_degree(dask_client):
-    gc.collect()
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+def test_dask_mg_degree(dask_client, directed):
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate-asymmetric.csv").as_posix()
@@ -49,10 +60,10 @@ def test_dask_mg_degree(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    dg = cugraph.Graph(directed=True)
+    dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
-    g = cugraph.Graph(directed=True)
+    g = cugraph.Graph(directed=directed)
     g.from_cudf_edgelist(df, "src", "dst")
 
     merge_df_in = (

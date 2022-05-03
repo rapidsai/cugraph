@@ -22,11 +22,23 @@ from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+
+
+def setup_function():
+    gc.collect()
+
+
+IS_DIRECTED = [True, False]
+
+
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_dask_katz_centrality(dask_client):
-    gc.collect()
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+def test_dask_katz_centrality(dask_client, directed):
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate.csv").as_posix()
@@ -55,9 +67,14 @@ def test_dask_katz_centrality(dask_client):
     import networkx as nx
     from cugraph.tests import utils
     NM = utils.read_csv_for_nx(input_data_path)
-    Gnx = nx.from_pandas_edgelist(
-        NM, create_using=nx.DiGraph(), source="0", target="1"
-    )
+    if directed:
+        Gnx = nx.from_pandas_edgelist(
+            NM, create_using=nx.DiGraph(), source="0", target="1"
+        )
+    else:
+        Gnx = nx.from_pandas_edgelist(
+            NM, create_using=nx.Graph(), source="0", target="1"
+        )
     nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
     import pandas as pd
     pdf = pd.DataFrame(nk.items(), columns=['vertex', 'katz_centrality'])

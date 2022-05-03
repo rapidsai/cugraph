@@ -35,10 +35,14 @@ def setup_function():
     gc.collect()
 
 
+IS_DIRECTED = [True, False]
+
+
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
-def test_from_edgelist(dask_client):
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+def test_from_edgelist(dask_client, directed):
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate.csv").as_posix()
     print(f"dataset={input_data_path}")
@@ -53,9 +57,9 @@ def test_from_edgelist(dask_client):
 
     dg1 = cugraph.from_edgelist(
         ddf, source="src", destination="dst", edge_attr="value",
-        create_using=cugraph.Graph(directed=True))
+        create_using=cugraph.Graph(directed=directed))
 
-    dg2 = cugraph.Graph(directed=True)
+    dg2 = cugraph.Graph(directed=directed)
     dg2.from_dask_cudf_edgelist(
         ddf, source="src", destination="dst", edge_attr="value"
     )
