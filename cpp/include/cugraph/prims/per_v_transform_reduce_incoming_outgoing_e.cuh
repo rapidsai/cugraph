@@ -893,7 +893,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
  * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
  * property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
- * @tparam T Type of the initial value for reduction over the incoming edges.
+ * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -952,7 +952,7 @@ void per_v_transform_reduce_incoming_e(
  * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
  * property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
- * @tparam T Type of the initial value for reduction over the outgoing edges.
+ * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
