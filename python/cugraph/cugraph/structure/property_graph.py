@@ -414,9 +414,11 @@ class EXPERIMENTAL__PropertyGraph:
                                 self.type_col_name]
         if self.__edge_prop_dataframe is None:
             if type(dataframe) == dask_cudf.DataFrame:
+                breakpoint()
                 temp_dataframe = pd.DataFrame(columns=default_edge_columns)
                 from dask.dataframe import from_pandas
                 self.__edge_prop_dataframe = from_pandas(temp_dataframe, chunksize=10303)
+                breakpoint()
             else:
                 self.__edge_prop_dataframe = \
                     self.__dataframe_type(columns=default_edge_columns)
@@ -921,7 +923,7 @@ class EXPERIMENTAL__PropertyGraph:
                 # Assigning to df[col] produces a (false?) warning with Pandas,
                 # but assigning to df.loc[:,col] does not update the df in
                 # cudf, so do one or the other based on type.
-                if type(df) is cudf.DataFrame:
+                if type(df) is not pd.DataFrame:
                     df[col] = df[col].astype(dtype_str)
                 else:
                     df.loc[:, col] = df[col].astype(dtype_str)

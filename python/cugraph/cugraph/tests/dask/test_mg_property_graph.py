@@ -118,7 +118,6 @@ def net_Dask_PropertyGraph(dask_client):
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
     )
-    breakpoint()
     def modify_dataset(df):
         temp_df = cudf.DataFrame()
         temp_df['src'] = df['src']+1000
@@ -139,7 +138,6 @@ def net_Dask_PropertyGraph(dask_client):
     df = modify_dataset(df)
 
     dpG = PropertyGraph()
-    breakpoint()
     dpG.add_edge_data(ddf, ("src", "dst"))
     return dpG
 
