@@ -20,7 +20,7 @@ Example
 
     from dask.distributed import Client, wait
     from dask_cuda import LocalCUDACluster
-    import cugraph.comms as Comms
+    import cugraph.dask.comms as Comms
     import cugraph.dask as dask_cugraph
 
     cluster = LocalCUDACluster()

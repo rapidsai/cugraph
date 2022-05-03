@@ -43,3 +43,9 @@ def get_chunksize(input_path):
         size = [os.path.getsize(_file) for _file in input_files]
         chunksize = max(size)
     return chunksize
+
+
+class MissingUCXPy:
+    def __getattr__(self, *args, **kwargs):
+        raise ModuleNotFoundError("ucx-py could not be imported but is"
+                                  " required for MG operations")

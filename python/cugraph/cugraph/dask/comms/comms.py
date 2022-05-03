@@ -11,10 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from raft.dask.common.comms import Comms as raftComms
-from raft.dask.common.comms import get_raft_comm_state
+# FIXME: these raft imports break the library if ucx-py is
+# not available. They are necessary only when doing MG work.
+from cugraph.dask.common.read_utils import MissingUCXPy
+try:
+    from raft.dask.common.comms import Comms as raftComms
+    from raft.dask.common.comms import get_raft_comm_state
+except ModuleNotFoundError as err:
+    if err.name == "ucp":
+        raftComms = MissingUCXPy()
+        get_raft_comm_state = MissingUCXPy()
+    else:
+        raise
 from raft.common.handle import Handle
-from cugraph.comms.comms_wrapper import init_subcomms as c_init_subcomms
+from cugraph.dask.comms.comms_wrapper import init_subcomms as c_init_subcomms
 from dask.distributed import default_client
 from cugraph.dask.common import read_utils
 import math
@@ -113,7 +123,7 @@ def initialize(comms=None,
     --------
     >>> from dask.distributed import Client
     >>> from dask_cuda import LocalCUDACluster
-    >>> import cugraph.comms as Comms
+    >>> import cugraph.dask.comms as Comms
     >>> cluster = LocalCUDACluster()
     >>> client = Client(cluster)
     >>> Comms.initialize(p2p=True)

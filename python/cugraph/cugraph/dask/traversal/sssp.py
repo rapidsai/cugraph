@@ -19,7 +19,7 @@ from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
 from cugraph.dask.traversal import mg_sssp_wrapper as mg_sssp
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import cudf
 import dask_cudf
 

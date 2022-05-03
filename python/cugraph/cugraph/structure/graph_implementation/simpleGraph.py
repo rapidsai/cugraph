@@ -18,7 +18,7 @@ from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
 import dask_cudf
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import pandas as pd
 import numpy as np
 from cugraph.dask.structure import replication

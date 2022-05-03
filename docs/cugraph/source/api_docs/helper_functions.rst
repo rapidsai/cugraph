@@ -10,15 +10,15 @@ Methods
 .. autosummary::
    :toctree: api/
 
-   cugraph.comms.comms.initialize
-   cugraph.comms.comms.destroy
-   cugraph.comms.comms.is_initialized
-   cugraph.comms.comms.get_comms
-   cugraph.comms.comms.get_workers
-   cugraph.comms.comms.get_session_id
-   cugraph.comms.comms.get_2D_partition
-   cugraph.comms.comms.get_default_handle
-   cugraph.comms.comms.get_handle
-   cugraph.comms.comms.get_worker_id
+   cugraph.dask.comms.comms.initialize
+   cugraph.dask.comms.comms.destroy
+   cugraph.dask.comms.comms.is_initialized
+   cugraph.dask.comms.comms.get_comms
+   cugraph.dask.comms.comms.get_workers
+   cugraph.dask.comms.comms.get_session_id
+   cugraph.dask.comms.comms.get_2D_partition
+   cugraph.dask.comms.comms.get_default_handle
+   cugraph.dask.comms.comms.get_handle
+   cugraph.dask.comms.comms.get_worker_id
    cugraph.dask.common.read_utils.get_chunksize
 
