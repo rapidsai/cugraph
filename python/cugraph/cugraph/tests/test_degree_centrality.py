@@ -19,16 +19,7 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+import networkx as nx
 
 
 # =============================================================================
@@ -56,18 +47,19 @@ def test_degree_centrality_nx(graph_file):
 
     nk = nx.degree_centrality(Gnx)
     ck = cugraph.degree_centrality(G)
-    ck.sort_values("vertex")
 
     # Calculating mismatch
     nk = sorted(nk.items(), key=lambda x: x[0])
-    ck = sorted(ck.items(), key=lambda x: x[0])
+    ck = ck.sort_values("vertex")
+    ck.index = ck["vertex"]
+    ck = ck["degree_centrality"]
     err = 0
 
     assert len(ck) == len(nk)
     for i in range(len(ck)):
         if (
-            abs(ck[i][1] - nk[i][1]) > 0.1
-            and ck[i][0] == nk[i][0]
+            abs(ck[i] - nk[i][1]) > 0.1
+            and ck.index[i] == nk[i][0]
         ):
             err = err + 1
     print("Mismatches:", err)
