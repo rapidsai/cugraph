@@ -19,16 +19,7 @@ import cudf
 import cugraph
 from cugraph.tests import utils
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+import networkx as nx
 
 # This toy graph is used in multiple tests throughout libcugraph_c and pylib.
 TOY_DATASET = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"toy_graph.csv"
@@ -77,9 +68,69 @@ def test_eigenvector_centrality(graph_file):
     assert topKNX.equals(topKCU)
 
 
-# def test_eigenvector_centrality_nx(graph_file):
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_eigenvector_centrality_nx(graph_file):
+    """
+    NM = utils.read_csv_for_nx(graph_file)
 
-# def test_eigenvector_centrality_multi_column(graph_file):
+    Gnx = nx.from_pandas_edgelist(
+        NM, create_using=nx.DiGraph(), source="0", target="1",
+    )
+
+    nk = nx.eigenvector_centrality(Gnx)
+    ck = cugraph.eigenvector_centrality(Gnx)
+
+    # Calculating mismatch
+    nk = sorted(nk.items(), key=lambda x: x[0])
+    ck = sorted(ck.items(), key=lambda x: x[0])
+    err = 0
+    assert len(ck) == len(nk)
+    for i in range(len(ck)):
+        if (
+            abs(ck[i][1] - nk[i][1]) > 0.1
+            and ck[i][0] == nk[i][0]
+        ):
+            err = err + 1
+    print("Mismatches:", err)
+    assert err < (0.1 * len(ck))
+    """
+    assert False
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_eigenvector_centrality_multi_column(graph_file):
+    cu_M = utils.read_csv_file(graph_file)
+    cu_M.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
+    cu_M['src_1'] = cu_M['src_0'] + 1000
+    cu_M['dst_1'] = cu_M['dst_0'] + 1000
+
+    G1 = cugraph.Graph(directed=True)
+    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                          destination=["dst_0", "dst_1"])
+
+    G2 = cugraph.Graph(directed=True)
+    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
+
+    """
+    k_df_exp = cugraph.eigenvector_centrality(G2)
+    k_df_exp = k_df_exp.sort_values("vertex").reset_index(drop=True)
+
+    nstart = cudf.DataFrame()
+    nstart['vertex_0'] = k_df_exp['vertex']
+    nstart['vertex_1'] = nstart['vertex_0'] + 1000
+    nstart['values'] = k_df_exp['eigenvector_centrality']
+
+    k_df_res = cugraph.eigenvector_centrality(G1, nstart=nstart)
+    k_df_res = k_df_res.sort_values("0_vertex").reset_index(drop=True)
+    k_df_res.rename(columns={'0_vertex': 'vertex'}, inplace=True)
+
+    top_res = topKVertices(k_df_res, "eigenvector_centrality", 10)
+    top_exp = topKVertices(k_df_exp, "eigenvector_centrality", 10)
+
+    assert top_res.equals(top_exp)
+    """
+    assert False
+
 
 @pytest.mark.parametrize("graph_file", [TOY_DATASET])
 def test_eigenvector_centrality_toy(graph_file):
