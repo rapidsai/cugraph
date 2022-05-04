@@ -51,8 +51,6 @@ def degree_centrality(G, normalized=True):
     """
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    # FIXME: Resolve renumbering issues that causes nodes to be mismatched
-    # from their actual centrality score
     df = G.degree()
     df.rename(columns={"degree": "degree_centrality"}, inplace=True)
 
