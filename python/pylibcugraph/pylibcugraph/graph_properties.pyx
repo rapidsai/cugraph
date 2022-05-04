@@ -14,7 +14,7 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-cdef class EXPERIMENTAL__GraphProperties:
+cdef class GraphProperties:
     """
     Class wrapper around C cugraph_graph_properties_t struct
     """

@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -153,6 +153,24 @@ def test_jaccard(read_csv, gpubenchmark):
 
     print("Mismatches:  %d" % err)
     assert err == 0
+
+
+def test_directed_graph_check(read_csv):
+    M, _ = read_csv
+
+    cu_M = cudf.DataFrame()
+    cu_M["src_0"] = cudf.Series(M["0"])
+    cu_M["dst_0"] = cudf.Series(M["1"])
+    cu_M["src_1"] = cu_M["src_0"] + 1000
+    cu_M["dst_1"] = cu_M["dst_0"] + 1000
+    G1 = cugraph.Graph(directed=True)
+    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                          destination=["dst_0", "dst_1"])
+
+    vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
+    vertex_pair = vertex_pair[:5]
+    with pytest.raises(ValueError):
+        cugraph.jaccard(G1, vertex_pair)
 
 
 def test_nx_jaccard_time(read_csv, gpubenchmark):

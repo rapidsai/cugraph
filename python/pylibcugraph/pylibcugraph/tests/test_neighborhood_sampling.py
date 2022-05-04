@@ -15,11 +15,11 @@ import pytest
 import cupy as cp
 import numpy as np
 import cudf
-from pylibcugraph.experimental import (MGGraph,
-                                       ResourceHandle,
-                                       GraphProperties,
-                                       uniform_neighborhood_sampling,
-                                       )
+from pylibcugraph import (MGGraph,
+                          ResourceHandle,
+                          GraphProperties,
+                          uniform_neighborhood_sampling,
+                          )
 
 
 # =============================================================================
