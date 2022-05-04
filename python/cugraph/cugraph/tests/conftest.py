@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
 from dask_cuda.initialize import initialize
 
-from cugraph.comms import comms as Comms
+from cugraph.dask.comms import comms as Comms
 from cugraph.dask.common.mg_utils import get_visible_devices
 
 

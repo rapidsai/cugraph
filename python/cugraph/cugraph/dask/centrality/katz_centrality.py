@@ -18,7 +18,7 @@ from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
 from cugraph.dask.centrality import\
     mg_katz_centrality_wrapper as mg_katz_centrality
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import dask_cudf
 
 
@@ -72,7 +72,7 @@ def katz_centrality(input_graph,
     ----------
     input_graph : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph can
-        contain either directed (DiGraph) or undirected edges (Graph).
+        contain either directed or undirected edges.
 
     alpha : float, optional (default=None)
         Attenuation factor. If alpha is not specified then
