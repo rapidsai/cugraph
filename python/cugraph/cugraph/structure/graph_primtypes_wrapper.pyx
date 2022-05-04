@@ -24,7 +24,7 @@ import enum
 from libc.stdint cimport uintptr_t
 
 import dask_cudf as dc
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import DistributedDataHandler
 

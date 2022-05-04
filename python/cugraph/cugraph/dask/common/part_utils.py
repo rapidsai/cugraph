@@ -21,7 +21,7 @@ from dask.array.core import Array as daskArray
 from dask_cudf.core import DataFrame as daskDataFrame
 from dask_cudf.core import Series as daskSeries
 from functools import reduce
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 from dask.delayed import delayed
 import cudf
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,6 +19,9 @@ import pandas as pd
 import cudf
 import cugraph
 from cugraph.tests import utils
+from cugraph.dask.common.mg_utils import (is_single_gpu,
+                                          setup_local_dask_cluster,
+                                          teardown_local_dask_cluster)
 
 
 def test_version():
@@ -147,38 +150,52 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     #
 
 
-@pytest.mark.skip("debugging")
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_symmetrize_unweighted(graph_file):
+@pytest.fixture(scope="module")
+def client_connection():
+    (cluster, client) = setup_local_dask_cluster(p2p=True)
+    yield client
+    teardown_local_dask_cluster(cluster, client)
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_mg_symmetrize(graph_file, client_connection):
     gc.collect()
 
-    cu_M = utils.read_csv_file(graph_file)
+    ddf = utils.read_dask_cudf_csv_file(graph_file)
+    sym_src, sym_dst = cugraph.symmetrize(ddf["src"], ddf["dst"])
 
-    sym_sources, sym_destinations = cugraph.symmetrize(cu_M["0"], cu_M["1"])
+    # convert to regular cudf to facilitate comparison
+    df = ddf.compute()
 
-    #
-    #  Check to see if all pairs in sources/destinations exist in
-    #  both directions
-    #
     compare(
-        cu_M["0"],
-        cu_M["1"],
-        None,
-        sym_sources,
-        sym_destinations,
-        None,
+        df["src"], df["dst"], None, sym_src.compute(), sym_dst.compute(), None
     )
 
 
-@pytest.mark.skip("debugging")
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_symmetrize_weighted(graph_file):
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+def test_mg_symmetrize_df(graph_file, client_connection):
     gc.collect()
 
-    cu_M = utils.read_csv_file(graph_file)
+    pd.set_option('display.max_rows', 500)
 
-    sym_src, sym_dst, sym_w = cugraph.symmetrize(
-        cu_M["0"], cu_M["1"], cu_M["2"]
+    ddf = utils.read_dask_cudf_csv_file(graph_file)
+    sym_ddf = cugraph.symmetrize_ddf(ddf, "src", "dst", "weight")
+
+    # convert to regular cudf to facilitate comparison
+    df = ddf.compute()
+    sym_df = sym_ddf.compute()
+
+    compare(
+        df["src"],
+        df["dst"],
+        df["weight"],
+        sym_df["src"],
+        sym_df["dst"],
+        sym_df["weight"],
     )
-
-    compare(cu_M["0"], cu_M["1"], cu_M["2"], sym_src, sym_dst, sym_w)
