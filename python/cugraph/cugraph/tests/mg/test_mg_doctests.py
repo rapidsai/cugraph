@@ -23,14 +23,18 @@ import scipy
 import pytest
 
 import cugraph
-import pylibcugraph
 import cudf
-from numba import cuda
 from cugraph.tests import utils
 
+from dask.distributed import Client
+from dask_cuda import LocalCUDACluster
+import cugraph.dask.comms.comms as Comms
 
-modules_to_skip = ["dask", "proto", "raft"]
 datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
+
+cluster = LocalCUDACluster()
+client = Client(cluster)
+Comms.initialize(p2p=True)
 
 
 def _is_public_name(name):
@@ -45,17 +49,10 @@ def _module_from_library(member, libname):
     return libname in member.__module__
 
 
-def _file_from_library(member, libname):
-    return libname in member.__file__
-
-
-def _find_modules_in_obj(finder, obj, obj_name, criteria=None):
-    for name, member in inspect.getmembers(obj):
-        if criteria is not None and not criteria(name):
-            continue
-        if inspect.ismodule(member) and (member not in modules_to_skip):
-            yield from _find_doctests_in_obj(finder, member, obj_name,
-                                             _is_public_name)
+def _find_doctests_in_docstring(finder, member):
+    for docstring in finder.find(member):
+        if docstring.examples:
+            yield docstring
 
 
 def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
@@ -68,6 +65,10 @@ def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
     obj : module or class
         The object to search for docstring examples.
 
+    obj_name : string
+        Used for ensuring a module is part of the object.
+        To be passed into _module_from_library.
+
     criteria : callable, optional
 
     Yields
@@ -75,14 +76,12 @@ def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
     doctest.DocTest
         The next doctest found in the object.
     """
-    for name, member in inspect.getmembers(obj):
+    for name, member in inspect.getmembers(obj, inspect.isfunction):
         if criteria is not None and not criteria(name):
             continue
-
         if inspect.ismodule(member):
-            if _file_from_library(member, obj_name) and \
-               _is_python_module(member):
-                _find_doctests_in_obj(finder, member, obj_name, criteria)
+            yield from _find_doctests_in_obj(finder, member, obj_name,
+                                             criteria)
         if inspect.isfunction(member):
             yield from _find_doctests_in_docstring(finder, member)
         if inspect.isclass(member):
@@ -90,19 +89,10 @@ def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
                 yield from _find_doctests_in_docstring(finder, member)
 
 
-def _find_doctests_in_docstring(finder, member):
-    for docstring in finder.find(member):
-        if docstring.examples:
-            if 'dask' not in str(docstring):
-                yield docstring
-
-
 def _fetch_doctests():
     finder = doctest.DocTestFinder()
-    yield from _find_modules_in_obj(finder, cugraph, 'cugraph',
-                                    _is_public_name)
-    yield from _find_modules_in_obj(finder, pylibcugraph, 'pylibcugraph',
-                                    _is_public_name)
+    yield from _find_doctests_in_obj(finder, cugraph.dask, 'dask',
+                                     _is_public_name)
 
 
 class TestDoctests:
@@ -118,7 +108,7 @@ class TestDoctests:
             os.chdir(original_directory)
 
     @pytest.mark.parametrize(
-        "docstring", _fetch_doctests(), ids=lambda docstring: docstring.name
+        "docstring", _fetch_doctests(), ids=lambda docstring: docstring.name,
     )
     def test_docstring(self, docstring):
         # We ignore differences in whitespace in the doctest output, and enable
@@ -133,13 +123,6 @@ class TestDoctests:
                      scipy=scipy, pd=pd)
         docstring.globs = globs
 
-        # FIXME: A 11.4 bug causes ktruss to crash in that
-        # environment. Skip docstring test if the cuda version is either
-        # 11.2 or 11.4. See ktruss_subgraph.py
-        if docstring.name == 'ktruss_subgraph':
-            if cuda.runtime.get_version() == (11, 4):
-                return
-
         # Capture stdout and include failing outputs in the traceback.
         doctest_stdout = io.StringIO()
         with contextlib.redirect_stdout(doctest_stdout):
@@ -149,3 +132,9 @@ class TestDoctests:
             f"{results.failed} of {results.attempted} doctests failed for "
             f"{docstring.name}:\n{doctest_stdout.getvalue()}"
         )
+
+    def close_comms():
+        Comms.destroy()
+        client.close()
+        if cluster:
+            cluster.close()

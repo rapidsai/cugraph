@@ -19,7 +19,7 @@ from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
 from cugraph.dask.traversal import mg_sssp_wrapper as mg_sssp
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import cudf
 import dask_cudf
 
@@ -63,10 +63,9 @@ def sssp(input_graph, source):
 
     Parameters
     ----------
-    input_graph : directed cugraph.Graph
+    input_graph : cugraph.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe.
-        Undirected Graph not currently supported.
 
     source : Integer
         Specify source vertex
@@ -84,16 +83,22 @@ def sssp(input_graph, source):
 
     Examples
     --------
-    >>> # import cugraph.dask as dcg
-    >>> #... Init a DASK Cluster
-    >>> #   see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
-    >>> # chunksize = dcg.get_chunksize(input_data_path)
-    >>> # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize...)
-    >>> # dg = cugraph.Graph(directed=True)
-    >>> # dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
-    >>> # df = dcg.sssp(dg, 0)
+    >>> import cugraph.dask as dcg
+    >>> import dask_cudf
+    >>> # ... Init a DASK Cluster
+    >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
+    >>> chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
+    >>> ddf = dask_cudf.read_csv(datasets_path / "karate.csv",
+    ...                          chunksize=chunksize, delimiter=" ",
+    ...                          names=["src", "dst", "value"],
+    ...                          dtype=["int32", "int32", "float32"])
+    >>> dg = cugraph.Graph(directed=True)
+    >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
+    ...                            edge_attr='value')
+    >>> df = dcg.sssp(dg, 0)
+
     """
-    # FIXME: Uncomment out the above (broken) example
 
     client = default_client()
 

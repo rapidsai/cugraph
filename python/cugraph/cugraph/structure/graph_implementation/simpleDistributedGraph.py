@@ -65,12 +65,6 @@ class simpleDistributedGraphImpl:
     ):
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
-        
-        # FIXME There is already a PR removing the code below but it is not merged yet ***************
-        """
-        if self.properties.directed is False:
-            raise TypeError("Undirected distributed graph not supported")
-        """
 
         s_col = source
         d_col = destination

@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
 import cugraph.dask as dcg
 import gc
 # import pytest
@@ -20,12 +21,23 @@ import cudf
 # from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+
+
+def setup_function():
+    gc.collect()
+
+
+IS_DIRECTED = [True, False]
+
 
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
-def test_dask_wcc(dask_client):
-    gc.collect()
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+def test_dask_wcc(dask_client, directed):
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "netscience.csv").as_posix()
@@ -47,10 +59,10 @@ def test_dask_wcc(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    g = cugraph.Graph(directed=True)
+    g = cugraph.Graph(directed=directed)
     g.from_cudf_edgelist(df, "src", "dst", renumber=True)
 
-    dg = cugraph.Graph(directed=True)
+    dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
     expected_dist = cugraph.weakly_connected_components(g)

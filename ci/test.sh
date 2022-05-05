@@ -91,7 +91,8 @@ echo "Ran Python pytest for pylibcugraph : return code was: $?, test script exit
 
 echo "Python pytest for cuGraph (single-GPU only)..."
 cd ${CUGRAPH_ROOT}/python/cugraph/cugraph
-pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --ignore=tests/dask --benchmark-disable
+# rmat is not tested because of MG testing
+pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term -k "not mg and not rmat" --benchmark-disable
 echo "Ran Python pytest for cugraph : return code was: $?, test script exit code is now: $EXITCODE"
 
 echo "Python benchmarks for cuGraph (running as tests)..."

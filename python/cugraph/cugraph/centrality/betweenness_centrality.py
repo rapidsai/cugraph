@@ -81,7 +81,7 @@ def betweenness_centrality(
         If true, include the endpoints in the shortest path counts.
         (Not Supported)
 
-    seed : optional
+    seed : optional (default=None)
         if k is specified and k is an integer, use seed to initialize the
         random number generator.
         Using None as seed relies on random.seed() behavior: using current

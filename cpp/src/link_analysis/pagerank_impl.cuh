@@ -17,10 +17,10 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/count_if_e.cuh>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
@@ -243,7 +243,7 @@ void pagerank(
                                 static_cast<result_t>(num_vertices)
                             : result_t{0.0};
 
-    copy_v_transform_reduce_in_nbr(
+    per_v_transform_reduce_incoming_e(
       handle,
       pull_graph_view,
       edge_partition_src_pageranks.device_view(),

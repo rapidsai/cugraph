@@ -75,6 +75,26 @@ Conversion from Other Formats
    cugraph.to_pandas_adjacency
    cugraph.to_pandas_edgelist
 
+NumberMap
+-----------------------------
+.. autosummary::
+   :toctree: api/
+
+   cugraph.structure.NumberMap
+   cugraph.structure.NumberMap.MultiGPU
+   cugraph.structure.NumberMap.SingleGPU
+   cugraph.structure.NumberMap.from_internal_vertex_id
+   cugraph.structure.NumberMap.to_internal_vertex_id
+   cugraph.structure.NumberMap.add_internal_vertex_id
+   cugraph.structure.NumberMap.compute_vals
+   cugraph.structure.NumberMap.compute_vals_types
+   cugraph.structure.NumberMap.generate_unused_column_name
+   cugraph.structure.NumberMap.renumber
+   cugraph.structure.NumberMap.renumber_and_segment
+   cugraph.structure.NumberMap.set_renumbered_col_names
+   cugraph.structure.NumberMap.unrenumber
+   cugraph.structure.NumberMap.vertex_column_size
+
 Other
 -----------------------------
 .. autosummary::
@@ -82,4 +102,3 @@ Other
 
    cugraph.hypergraph
    cugraph.structure.shuffle
-   cugraph.structure.NumberMap

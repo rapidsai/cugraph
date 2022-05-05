@@ -22,7 +22,7 @@ from pylibcugraph._cugraph_c.resource_handle cimport (
 from pylibcugraph cimport resource_handle as c_resource_handle
 
 
-cdef class EXPERIMENTAL__ResourceHandle:
+cdef class ResourceHandle:
     """
     RAII-stye resource handle class to manage individual create/free calls and
     the corresponding pointer to a cugraph_resource_handle_t

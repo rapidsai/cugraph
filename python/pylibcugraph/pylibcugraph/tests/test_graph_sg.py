@@ -24,7 +24,7 @@ import pytest
 # Tests
 # =============================================================================
 def test_graph_properties():
-    from pylibcugraph.experimental import GraphProperties
+    from pylibcugraph import GraphProperties
 
     gp = GraphProperties()
     assert gp.is_symmetric is False

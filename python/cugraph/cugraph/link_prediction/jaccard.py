@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import cudf
-from cugraph.structure.graph_classes import Graph
 from cugraph.link_prediction import jaccard_wrapper
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_edge_score_to_dictionary,
@@ -108,9 +107,8 @@ def jaccard(input_graph, vertex_pair=None):
     >>> df = cugraph.jaccard(G)
 
     """
-    if type(input_graph) is not Graph:
-        raise TypeError("input graph must a Graph")
-
+    if input_graph.is_directed():
+        raise ValueError("Input must be an undirected Graph.")
     if type(vertex_pair) == cudf.DataFrame:
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
     elif vertex_pair is not None:
