@@ -28,7 +28,7 @@ from cugraph.tests import utils
 
 from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
-import cugraph.comms as Comms
+import cugraph.dask.comms.comms as Comms
 
 datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
 

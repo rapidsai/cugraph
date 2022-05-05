@@ -17,7 +17,7 @@ from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
 from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import dask_cudf
 from dask.dataframe.shuffle import rearrange_by_column
 
@@ -74,7 +74,7 @@ def pagerank(input_graph,
     input_graph : cugraph.DiGraph
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
-        algorithm). Undirected Graph not currently supported.
+        algorithm).
 
     alpha : float, optional (default=0.85)
         The damping factor alpha represents the probability to follow an

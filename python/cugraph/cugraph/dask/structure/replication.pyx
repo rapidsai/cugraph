@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,7 +25,7 @@ import cudf
 import dask.distributed as dd
 from cugraph.dask.common.input_utils import get_mg_batch_data
 import dask_cudf
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import cugraph.dask.common.mg_utils as mg_utils
 import numpy as np
 
