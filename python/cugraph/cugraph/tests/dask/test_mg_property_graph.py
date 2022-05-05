@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
 import gc
 import cugraph.dask as dcg
 import dask_cudf
@@ -100,13 +99,13 @@ def net_PropertyGraph(request):
     return pG
 
 @pytest.fixture(scope="module", params=df_types_fixture_params)
-def net_Dask_PropertyGraph(dask_client):
+def net_MGPropertyGraph(dask_client):
     """
     Fixture which returns an instance of a PropertyGraph with vertex and edge
     data added from the netscience.csv dataset, parameterized for different
     DataFrame types.
     """
-    from cugraph.experimental import PropertyGraph
+    from cugraph.experimental import MGPropertyGraph
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "netscience.csv").as_posix()
     print(f"dataset={input_data_path}")
@@ -137,32 +136,32 @@ def net_Dask_PropertyGraph(dask_client):
 
     df = modify_dataset(df)
 
-    dpG = PropertyGraph()
+    dpG = MGPropertyGraph()
     dpG.add_edge_data(ddf, ("src", "dst"))
     return dpG
 
 
-def test_select_vertices_from_previous_selection(net_Dask_PropertyGraph):
+def test_select_vertices_from_previous_selection(net_MGPropertyGraph):
     """
     Ensures that the intersection of vertices of multiple types (only vertices
     that are both type A and type B) can be selected.
     """
-    from cugraph.experimental import PropertyGraph
+    from cugraph.dask.structure import PropertyGraph
 
 
-def test_extract_subgraph(net_Dask_PropertyGraph):
+def test_extract_subgraph(net_MGPropertyGraph):
     """
     Valid query that only matches a single vertex.
     """
-    pG = net_Dask_PropertyGraph
+    pG = net_MGPropertyGraph
     print(pG.num_vertices)
 
 
-def test_extract_subgraph_no_query(net_Dask_PropertyGraph, net_PropertyGraph):
+def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
     """
     Call extract with no args, should result in the entire property graph.
     """
-    dpG = net_Dask_PropertyGraph
+    dpG = net_MGPropertyGraph
     pG = net_PropertyGraph
     print(pG.num_vertices)
     assert pG.num_edges == dpG.num_edges
