@@ -516,9 +516,9 @@ class NumberMap:
             # The renumber_type 'experimental' only runs the C++
             # renumbering
             renumber_type = 'experimental'
-        
+
         if legacy_renum_only and renumber_type == 'experimental':
-            # The original dataframe will be returned. 
+            # The original dataframe will be returned.
             renumber_type = 'skip_renumbering'
 
         renumber_map = NumberMap()
@@ -568,9 +568,9 @@ class NumberMap:
         else:
             df = df.rename(
                 columns={src_col_names[0]:
-                        renumber_map.renumbered_src_col_name,
-                        dst_col_names[0]:
-                        renumber_map.renumbered_dst_col_name}
+                         renumber_map.renumbered_src_col_name,
+                         dst_col_names[0]:
+                         renumber_map.renumbered_dst_col_name}
             )
         num_edges = len(df)
 
@@ -585,15 +585,16 @@ class NumberMap:
                 client = default_client()
                 data = get_distributed_data(df)
                 result = [(client.submit(call_renumber,
-                                        Comms.get_session_id(),
-                                        wf[1],
-                                        renumber_map.renumbered_src_col_name,
-                                        renumber_map.renumbered_dst_col_name,
-                                        num_edges,
-                                        is_mnmg,
-                                        store_transposed,
-                                        workers=[wf[0]]), wf[0])
-                        for idx, wf in enumerate(data.worker_to_parts.items())]
+                                         Comms.get_session_id(),
+                                         wf[1],
+                                         renumber_map.renumbered_src_col_name,
+                                         renumber_map.renumbered_dst_col_name,
+                                         num_edges,
+                                         is_mnmg,
+                                         store_transposed,
+                                         workers=[wf[0]]), wf[0])
+                          for idx, wf in enumerate(
+                              data.worker_to_parts.items())]
                 wait(result)
 
                 def get_renumber_map(id_type, data):
@@ -613,15 +614,15 @@ class NumberMap:
 
                 renumbering_map = dask_cudf.from_delayed(
                                     [client.submit(get_renumber_map,
-                                                    id_type,
-                                                    data,
-                                                    workers=[wf])
+                                                   id_type,
+                                                   data,
+                                                   workers=[wf])
                                         for (data, wf) in result])
 
                 list_of_segment_offsets = client.gather(
                                             [client.submit(get_segment_offsets,
-                                                            data,
-                                                            workers=[wf])
+                                                           data,
+                                                           workers=[wf])
                                                 for (data, wf) in result])
                 aggregate_segment_offsets = []
                 for segment_offsets in list_of_segment_offsets:
@@ -629,9 +630,9 @@ class NumberMap:
 
                 renumbered_df = dask_cudf.from_delayed(
                                 [client.submit(get_renumbered_df,
-                                                id_type,
-                                                data,
-                                                workers=[wf])
+                                               id_type,
+                                               data,
+                                               workers=[wf])
                                     for (data, wf) in result])
                 if renumber_type == 'legacy':
                     renumber_map.implementation.ddf = indirection_map.merge(
@@ -645,10 +646,10 @@ class NumberMap:
                         columns={'original_ids': '0', 'new_ids': 'global_id'})
                 renumber_map.implementation.numbered = True
                 return renumbered_df, renumber_map, aggregate_segment_offsets
-            
+
             else:
-                #  There is no aggregate_segment_offsets since the C++ renumbering
-                # is skipped
+                # There is no aggregate_segment_offsets since the
+                # C++ renumbering is skipped
                 return df, renumber_map, None
 
         else:

@@ -129,7 +129,8 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
     # Initialize dask client
     client = default_client()
     # FIXME: 'legacy_renum_only' will not trigger the C++ renumbering
-    input_graph.compute_renumber_edge_list(transposed=False, legacy_renum_only=True)
+    input_graph.compute_renumber_edge_list(
+        transposed=False, legacy_renum_only=True)
 
     start_list, info_list = start_info_list
 
@@ -155,7 +156,8 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
     # start_list uses "external" vertex IDs, but if the graph has been
     # renumbered, the start vertex IDs must also be renumbered.
     if input_graph.renumbered:
-        start_list = input_graph.lookup_internal_vertex_id(start_list).compute()
+        start_list = input_graph.lookup_internal_vertex_id(
+            start_list).compute()
     do_expensive_check = True
 
     result = [client.submit(call_nbr_sampling,

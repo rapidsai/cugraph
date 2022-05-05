@@ -107,7 +107,6 @@ class simpleDistributedGraphImpl:
         self.source_columns = source
         self.destination_columns = destination
 
-
     @property
     def renumbered(self):
         # This property is now used to determine if a dataframe was renumbered
@@ -116,11 +115,9 @@ class simpleDistributedGraphImpl:
         renumbered_vertex_col_names = ["renumbered_src", "renumbered_dst"]
         if self.edgelist.edgelist_df is not None and not (
             set(renumbered_vertex_col_names).issubset(
-            set(self.edgelist.edgelist_df.columns))):
+                set(self.edgelist.edgelist_df.columns))):
             return False
         return True
-
-
 
     def view_edge_list(self):
         """
@@ -458,7 +455,9 @@ class simpleDistributedGraphImpl:
         ddf = self.edgelist.edgelist_df
         return ddf[ddf["src"] == n]["dst"].reset_index(drop=True)
 
-    def compute_renumber_edge_list(self, transposed=False, legacy_renum_only=False):
+    def compute_renumber_edge_list(self,
+                                   transposed=False,
+                                   legacy_renum_only=False):
         """
         Compute a renumbered edge list
         This function works in the MNMG pipeline and will transform
@@ -480,7 +479,7 @@ class simpleDistributedGraphImpl:
             If True, renumber with the intent to make a CSC-like
             structure.  If False, renumber with the intent to make
             a CSR-like structure.  Defaults to False.
-        """    
+        """
         if not self.properties.renumbered:
             self.edgelist = self.EdgeList(self.input_df)
             self.renumber_map = None
@@ -495,12 +494,12 @@ class simpleDistributedGraphImpl:
                 del self.edgelist
 
             renumbered_ddf, number_map, aggregate_segment_offsets = \
-                NumberMap.renumber_and_segment(self.input_df,
-                                               self.source_columns,
-                                               self.destination_columns,
-                                               store_transposed=transposed,
-                                               legacy_renum_only=legacy_renum_only)
-
+                NumberMap.renumber_and_segment(
+                    self.input_df,
+                    self.source_columns,
+                    self.destination_columns,
+                    store_transposed=transposed,
+                    legacy_renum_only=legacy_renum_only)
 
             self.edgelist = self.EdgeList(renumbered_ddf)
             self.renumber_map = number_map

@@ -155,7 +155,8 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     client = default_client()
 
     # FIXME: 'legacy_renum_only' will not trigger the C++ renumbering
-    input_graph.compute_renumber_edge_list(transposed=False, legacy_renum_only=True)
+    input_graph.compute_renumber_edge_list(
+        transposed=False, legacy_renum_only=True)
     ddf = input_graph.edgelist.edgelist_df
 
     graph_properties = GraphProperties(
