@@ -130,7 +130,8 @@ class BenchmarkRun:
         self.results.append(result)
 
         #algos with transposed=True : PageRank, Katz
-        #algos with transposed=False: BFS, SSSP, Louvain
+        #algos with transposed=False: BFS, SSSP, Louvain, HITS, Neighborhood_sampling
+        #algos supporting the legacy_renum_only: HITS, Neighborhood_sampling
         for i in range(len(self.algos)):
             if self.algos[i][0].name in ["pagerank", "katz"]: #set transpose=True when renumbering
                 if self.algos[i][0].name == "katz" and self.construct_graph.name == "from_dask_cudf_edgelist":
@@ -146,6 +147,9 @@ class BenchmarkRun:
                     self.algos[i][1]["alpha"] = katz_alpha
                 if hasattr(G, "compute_renumber_edge_list"):
                     G.compute_renumber_edge_list(transposed=True)
+            elif self.algos[i][0].name in ["neighborhood_sampling", "hits"]:
+                if hasattr(G, "compute_renumber_edge_list"):
+                    G.compute_renumber_edge_list(transposed=False, legacy_renum_only=True)
             else: #set transpose=False when renumbering
                 self.__log("running compute_renumber_edge_list...", end="")
                 if hasattr(G, "compute_renumber_edge_list"):
