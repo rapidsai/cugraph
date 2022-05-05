@@ -49,6 +49,7 @@ except ImportError:
 def daskGraphFromDataset(request, dask_client):
     """
     Returns a new dask dataframe created from the dataset file param.
+    This creates un undirected Graph.
     """
     # Since parameterized fixtures do not assign param names to param values,
     # manually call the helper to do so.
@@ -69,16 +70,60 @@ def daskGraphFromDataset(request, dask_client):
     return dg
 
 
+@pytest.fixture(scope="module",
+                params=utils.DATASETS_UNDIRECTED,
+                ids=[f"dataset={d.as_posix()}"
+                     for d in utils.DATASETS_UNDIRECTED])
+def uddaskGraphFromDataset(request, dask_client):
+    """
+    Returns a new dask dataframe created from the dataset file param.
+    This creates un undirected Graph.
+    """
+    # Since parameterized fixtures do not assign param names to param
+    # values, manually call the helper to do so.
+    setFixtureParamNames(request, ["dataset"])
+    dataset = request.param
+
+    chunksize = dcg.get_chunksize(dataset)
+    ddf = dask_cudf.read_csv(
+        dataset,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    dg = cugraph.Graph(directed=False)
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    return dg
+
+
 ###############################################################################
 # Tests
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 def test_mg_louvain_with_edgevals(daskGraphFromDataset):
-    # FIXME: daskGraphFromDataset returns a DiGraph, which Louvain is currently
-    # accepting. In the future, an MNMG symmeterize will need to be called to
-    # create a Graph for Louvain.
+    # FIXME: daskGraphFromDataset returns a Directed graph, which Louvain is
+    # currently accepting. In the future, an MNMG symmeterize will need to
+    # be called to create a Graph for Louvain.
     parts, mod = dcg.louvain(daskGraphFromDataset)
+
+    # FIXME: either call Nx with the same dataset and compare results, or
+    # hardcode golden results to compare to.
+    print()
+    print(parts.compute())
+    print(mod)
+    print()
+
+
+###############################################################################
+# Tests
+# @pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+# )
+def test_mg_udlouvain_with_edgevals(uddaskGraphFromDataset):
+    parts, mod = dcg.louvain(uddaskGraphFromDataset)
 
     # FIXME: either call Nx with the same dataset and compare results, or
     # hardcode golden results to compare to.

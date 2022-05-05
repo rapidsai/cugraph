@@ -19,7 +19,7 @@ from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
 from cugraph.dask.traversal import mg_bfs_wrapper as mg_bfs
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import cudf
 import dask_cudf
 
@@ -66,10 +66,10 @@ def bfs(input_graph,
 
     Parameters
     ----------
-    input_graph : directed cugraph.Graph
+    input_graph : cugraph.Graph
         cuGraph graph instance, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
-        algorithm). Undirected Graph not currently supported.
+        algorithm).
 
     start : Integer
         Specify starting vertex for breadth-first search; this function

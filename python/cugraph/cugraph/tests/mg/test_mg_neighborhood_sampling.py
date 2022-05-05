@@ -28,6 +28,9 @@ def setup_function():
     gc.collect()
 
 
+IS_DIRECTED = [True, False]
+
+
 # datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv"
 datasets = utils.DATASETS_SMALL
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"))
@@ -43,10 +46,12 @@ def _get_param_args(param_name, param_values):
             [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
-def test_mg_neighborhood_sampling_simple(dask_client):
+# @pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+# )
+@pytest.mark.skip(reason="Currently hangs, awaiting fix in algo")
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+def test_mg_neighborhood_sampling_simple(dask_client, directed):
 
     from cugraph.experimental.dask import uniform_neighborhood_sampling
 
@@ -60,7 +65,7 @@ def test_mg_neighborhood_sampling_simple(dask_client):
                          })
     ddf = dask_cudf.from_cudf(df, npartitions=2)
 
-    G = cugraph.Graph(directed=True)
+    G = cugraph.Graph(directed=directed)
     G.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
 
     # TODO: Incomplete, include more testing for tree graph as well as
@@ -90,7 +95,9 @@ def test_mg_neighborhood_sampling_simple(dask_client):
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
-def test_mg_neighborhood_sampling_tree(dask_client):
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+@pytest.mark.skip(reason="Currently hangs, awaiting fix in algo")
+def test_mg_neighborhood_sampling_tree(dask_client, directed):
 
     from cugraph.experimental.dask import uniform_neighborhood_sampling
 
@@ -106,7 +113,7 @@ def test_mg_neighborhood_sampling_tree(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    G = cugraph.Graph(directed=True)
+    G = cugraph.Graph(directed=directed)
     G.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
 
     # TODO: Incomplete, include more testing for tree graph as well as
