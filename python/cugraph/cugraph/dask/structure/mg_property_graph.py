@@ -268,7 +268,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         default_vertex_columns = [self.vertex_col_name, self.type_col_name]
         if self.__vertex_prop_dataframe is None:
             self.__vertex_prop_dataframe = \
-                dask.DataFram(columns=default_vertex_columns)
+                dask_cudf.DataFrame(columns=default_vertex_columns)
             # Initialize the new columns to the same dtype as the appropriate
             # column in the incoming dataframe, since the initial merge may not
             # result in the same dtype. (see
@@ -493,7 +493,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             selected_col = selected_col.reindex(range(num_rows), copy=False)
             selected_col.fillna(False, inplace=True)
 
-        return EXPERIMENTAL__PropertySelection(
+        return EXPERIMENTAL__MGPropertySelection(
             vertex_selection_series=selected_col)
 
     def select_edges(self, expr):
@@ -569,7 +569,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         >>>
         """
         if (selection is not None) and \
-           not isinstance(selection, EXPERIMENTAL__PropertySelection):
+           not isinstance(selection, EXPERIMENTAL__MGPropertySelection):
             raise TypeError("selection must be an instance of "
                             f"PropertySelection, got {type(selection)}")
 
@@ -770,14 +770,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         # FIXME: also add vertex_data
 
         return G
-    @classmethod
-    def modify_data(df):
-        temp_df = cudf.DataFrame()
-        temp_df['src'] = df['src']+1000
-        temp_df['dst'] = df['dst']+1000
-        temp_df['value'] = df['value']
-        return cudf.concat([df, temp_df])
-
 
     @classmethod
     def has_duplicate_edges(cls, df):
