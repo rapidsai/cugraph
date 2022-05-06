@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
 import cugraph.dask as dcg
 import gc
 # import pytest
@@ -20,12 +21,23 @@ import cudf
 # from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+
+
+def setup_function():
+    gc.collect()
+
+
+IS_DIRECTED = [True, False]
+
 
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
-def test_dask_pagerank(dask_client):
-    gc.collect()
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+def test_dask_pagerank(dask_client, directed):
 
     # Initialize and run pagerank on two distributed graphs
     # with same communicator
@@ -48,7 +60,7 @@ def test_dask_pagerank(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    dg1 = cugraph.Graph(directed=True)
+    dg1 = cugraph.Graph(directed=directed)
     dg1.from_dask_cudf_edgelist(ddf1, "src", "dst")
 
     result_pr1 = dcg.pagerank(dg1).compute()
@@ -61,7 +73,7 @@ def test_dask_pagerank(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    dg2 = cugraph.Graph(directed=True)
+    dg2 = cugraph.Graph(directed=directed)
     dg2.from_dask_cudf_edgelist(ddf2, "src", "dst")
 
     result_pr2 = dcg.pagerank(dg2).compute()
@@ -74,7 +86,7 @@ def test_dask_pagerank(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    g1 = cugraph.Graph(directed=True)
+    g1 = cugraph.Graph(directed=directed)
     g1.from_cudf_edgelist(df1, "src", "dst")
     expected_pr1 = cugraph.pagerank(g1)
 
@@ -85,7 +97,7 @@ def test_dask_pagerank(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    g2 = cugraph.Graph(directed=True)
+    g2 = cugraph.Graph(directed=directed)
     g2.from_cudf_edgelist(df2, "src", "dst")
     expected_pr2 = cugraph.pagerank(g2)
 
