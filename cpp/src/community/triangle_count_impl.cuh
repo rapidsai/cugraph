@@ -122,17 +122,17 @@ struct vertex_offset_from_vertex_t {
 }  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void triangle_counts(raft::handle_t const& handle,
-                     graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-                     std::optional<raft::device_span<vertex_t const>> vertices,
-                     raft::device_span<edge_t> counts,
-                     bool do_expensive_check)
+void triangle_count(raft::handle_t const& handle,
+                    graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                    std::optional<raft::device_span<vertex_t const>> vertices,
+                    raft::device_span<edge_t> counts,
+                    bool do_expensive_check)
 {
   // 1. Check input arguments.
 
   CUGRAPH_EXPECTS(
     graph_view.is_symmetric(),
-    "Invalid input arguments: triangle_counts currently supports undirected graphs only.");
+    "Invalid input arguments: triangle_count currently supports undirected graphs only.");
   if (vertices) {
     CUGRAPH_EXPECTS(counts.size() == (*vertices).size(),
                     "Invalid arguments: counts.size() does not coincide with (*vertices).size().");
