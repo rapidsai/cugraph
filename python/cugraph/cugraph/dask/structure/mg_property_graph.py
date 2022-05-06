@@ -283,7 +283,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         # NOTE: This copies the incoming DataFrame in order to add the new
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
-        breakpoint()
         if type(dataframe) == dask_cudf.DataFrame:
             tmp_df = dataframe.copy()
         else:
