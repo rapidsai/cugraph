@@ -20,8 +20,8 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
 
 def _minimum_spanning_tree_subgraph(G):
     mst_subgraph = Graph()
-    if type(G) is not Graph:
-        raise Exception("input graph must be undirected")
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
     mst_df = minimum_spanning_tree_wrapper.minimum_spanning_tree(G)
     if G.renumbered:
         mst_df = G.unrenumber(mst_df, "src")
@@ -35,8 +35,11 @@ def _minimum_spanning_tree_subgraph(G):
 
 def _maximum_spanning_tree_subgraph(G):
     mst_subgraph = Graph()
-    if type(G) is not Graph:
-        raise Exception("input graph must be undirected")
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
+
+    if not G.adjlist:
+        G.view_adj_list()
 
     if G.adjlist.weights is not None:
         G.adjlist.weights = G.adjlist.weights.mul(-1)
@@ -89,15 +92,13 @@ def minimum_spanning_tree(
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets_path / 'netscience.csv', delimiter='\t',
+    >>> M = cudf.read_csv(datasets_path / 'netscience.csv', delimiter=' ',
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
-    >>> # cugraph.minimum_spanning_tree(G)
+    >>> G_mst = cugraph.minimum_spanning_tree(G)
 
     """
-    # FIXME: Uncomment out the above example
-
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if isNx is True:
@@ -112,7 +113,7 @@ def maximum_spanning_tree(
 ):
     """
     Returns a maximum spanning tree (MST) or forest (MSF) on an undirected
-    graph
+    graph. Also computes the adjacency list if G does not have one.
 
     Parameters
     ----------
@@ -138,15 +139,13 @@ def maximum_spanning_tree(
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets_path / 'netscience.csv', delimiter='\t',
+    >>> M = cudf.read_csv(datasets_path / 'netscience.csv', delimiter=' ',
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
-    >>> # cugraph.maximum_spanning_tree(G)
+    >>> G_mst = cugraph.maximum_spanning_tree(G)
 
     """
-    # FIXME: Uncomment out the above (broken) example
-
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if isNx is True:
