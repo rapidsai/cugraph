@@ -33,7 +33,7 @@ def symmetrize_df(df, src_name, dst_name,
     data.
     If (u,v,data1) and (v,u,data2) exist in the input data where data1
     != data2 then this code will arbitrarily pick the smaller data
-    element to keep, if this is not desired then the caller should
+    element to keep, if this is not desired then the caller
     should correct the data prior to calling symmetrize.
 
     Parameters
@@ -43,11 +43,11 @@ def symmetrize_df(df, src_name, dst_name,
         ids, destination ids and any properties associated with the
         edges.
 
-    src_name : string
-        Name of the column in the data frame containing the source ids
+    src_name : list
+        Name(s) of the column(s) in the data frame containing the source ids
 
-    dst_name : string
-        Name of the column in the data frame containing the destination ids
+    dst_name : list
+        Name(s) of the column(s) in the data frame containing the destination ids
 
     weight_name : string, optional (default=None)
         Name of the column in the data frame containing the weight ids
@@ -66,7 +66,7 @@ def symmetrize_df(df, src_name, dst_name,
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sym_df = symmetrize_df(M, '0', '1')
+    >>> sym_df = symmetrize_df(M, ['0'], ['1'])
 
     """
 
@@ -106,7 +106,7 @@ def symmetrize_ddf(ddf, src_name, dst_name,
 
     If (u,v,data1) and (v,u,data2) exist in the input data where data1
     != data2 then this code will arbitrarily pick the smaller data
-    element to keep, if this is not desired then the caller should
+    element to keep, if this is not desired then the caller
     should correct the data prior to calling symmetrize.
 
     Parameters
@@ -116,11 +116,11 @@ def symmetrize_ddf(ddf, src_name, dst_name,
         ids, destination ids and any properties associated with the
         edges.
 
-    src_name : string
-        Name of the column in the data frame containing the source ids
+    src_name : list
+        Name(s) of the column(s) in the data frame containing the source ids
 
-    dst_name : string
-        Name of the column in the data frame containing the destination ids
+    dst_name : list
+        Name(s) of the column(s) in the data frame containing the destination ids
 
     weight_name : string, optional (default=None)
         Name of the column in the data frame containing the weight ids
@@ -144,7 +144,7 @@ def symmetrize_ddf(ddf, src_name, dst_name,
     >>> #                          delimiter=' ',
     >>> #                          names=['src', 'dst', 'weight'],
     >>> #                          dtype=['int32', 'int32', 'float32'])
-    >>> # sym_ddf = symmetrize_ddf(ddf, "src", "dst", "weight")
+    >>> # sym_ddf = symmetrize_ddf(ddf, ["src"], ["dst"], "weight")
 
     """
     # FIXME: Uncomment out the above (broken) example
@@ -180,7 +180,6 @@ def symmetrize_ddf(ddf, src_name, dst_name,
 # to support multi columns
 def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
                multi=False, symmetrize=True):
-    # FIXME: update docstring
     """
     Take a dataframe of source destination pairs along with associated
     values stored in a single GPU or distributed
@@ -188,8 +187,8 @@ def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
     all edges exist in both directions.
 
     Return from this call will be a COO stored as two/three cudf/dask_cudf
-    Dataframe -the symmetrized source column and the symmetrized dest
-    column, along with an optional cudf DataFrame/dask_cudf containing the
+    Series/Dataframe -the symmetrized source column and the symmetrized dest
+    column, along with an optional cudf/dask_cudf DataFrame containing the
     associated values (only if the values are passed in).
 
     Parameters
@@ -197,10 +196,10 @@ def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
     input_df : cudf.DataFrame or dask_cudf.DataFrame
         The edgelist as a cudf.DataFrame or dask_cudf.DataFrame
 
-    source_col_name : str
+    source_col_name : str or list
         source column name.
 
-    dest_col_name : str
+    dest_col_name : str or list
         destination column name.
 
     value_col_name : str or None
