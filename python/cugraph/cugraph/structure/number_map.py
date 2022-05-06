@@ -135,6 +135,7 @@ class NumberMap:
             return ret
 
         def indirection_map(self, df, src_col_names, dst_col_names):
+            # src_col_names and dst_col_names are lists
             tmp_df = cudf.DataFrame()
 
             tmp = (
@@ -155,11 +156,13 @@ class NumberMap:
                     .count()
                     .reset_index()
                 )
-                for newname, oldname in zip(self.col_names, dst_col_names):
-                    tmp_df[newname] = tmp[newname].append(tmp_dst[oldname])
+                # Need to have the same column names before both df can be
+                # concat
+                tmp_dst.columns = tmp.columns
+                tmp_df = cudf.concat([tmp, tmp_dst])
             else:
-                for newname in self.col_names:
-                    tmp_df[newname] = tmp[newname]
+                newname = self.col_names
+                tmp_df = tmp[newname]
 
             tmp_df = tmp_df.groupby(self.col_names).count().reset_index()
             tmp_df["id"] = tmp_df.index.astype(self.id_type)
@@ -266,16 +269,12 @@ class NumberMap:
                     .count()
                     .reset_index()
                 )
-                for i, (newname, oldname) in enumerate(zip(self.col_names,
-                                                           dst_col_names)):
-                    if i == 0:
-                        tmp_df = tmp[newname].append(tmp_dst[oldname]).\
-                            to_frame(name=newname)
-                    else:
-                        tmp_df[newname] = tmp[newname].append(tmp_dst[oldname])
+                tmp_dst.columns = tmp.columns
+                tmp_df = dask_cudf.concat([tmp, tmp_dst])
+
             else:
-                for newname in self.col_names:
-                    tmp_df[newname] = tmp[newname]
+                newname = self.col_names
+                tmp_df = tmp[newname]
             tmp_ddf = tmp_df.groupby(self.col_names).count().reset_index()
 
             # Set global index

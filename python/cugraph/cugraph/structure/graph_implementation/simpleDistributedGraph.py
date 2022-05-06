@@ -82,6 +82,7 @@ class simpleDistributedGraphImpl:
                 "and destination parameters"
             )
         ddf_columns = s_col + d_col
+
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
@@ -92,25 +93,31 @@ class simpleDistributedGraphImpl:
             self.properties.weighted = True
             input_ddf = input_ddf.rename(columns={edge_attr: 'value'})
             source_col, dest_col, value_col = symmetrize(
-                input_ddf, source, destination, 'value', 
+                input_ddf, source, destination, 'value',
                 multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed)
         else:
             input_ddf = input_ddf[ddf_columns]
             source_col, dest_col = symmetrize(
-                input_ddf, source, destination, multi=self.properties.multi_edge,
+                input_ddf, source, destination,
+                multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed)
 
-        # Create a dask_cudf dataframe from the cudf series obtained
-        # from symmetrization
-        input_ddf = source_col.to_frame()
-        input_ddf = input_ddf.rename(columns={source_col.name: "src"})
-        input_ddf["dst"] = dest_col
+        if isinstance(source_col, dask_cudf.Series):
+            # Create a dask_cudf dataframe from the cudf series obtained
+            # from symmetrization
+            input_ddf = source_col.to_frame()
+            input_ddf = input_ddf.rename(columns={source_col.name: source})
+            input_ddf[destination] = dest_col
+        else:
+            # Multi column dask_cudf dataframe
+            input_ddf = dask_cudf.concat([source_col, dest_col], axis=1)
 
         if edge_attr is not None:
-            input_ddf["value"] = value_col
+            input_ddf['value'] = value_col
 
         self.input_df = input_ddf
+
         #
         # Keep all of the original parameters so we can lazily
         # evaluate this function
