@@ -70,7 +70,6 @@ def symmetrize_df(df, src_name, dst_name,
     >>> sym_df = symmetrize_df(M, ['0'], ['1'])
 
     """
-
     if symmetrize:
         if weight_name:
             df2 = df[[*dst_name, *src_name, weight_name]]
@@ -86,7 +85,6 @@ def symmetrize_df(df, src_name, dst_name,
     else:
         vertex_col_name = src_name + dst_name
         result = result.groupby(by=[*vertex_col_name], as_index=False).min()
-
         return result
 
 
