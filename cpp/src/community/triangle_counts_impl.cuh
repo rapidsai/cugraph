@@ -18,6 +18,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/prims/extract_if_e.cuh>
+#include <cugraph/prims/per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
@@ -76,6 +77,48 @@ struct low_to_high_degree_t {
   }
 };
 
+template <typename vertex_t, typename edge_t>
+struct intersection_op_t {
+  __device__ bool operator()(vertex_t src,
+                             vertex_t dst,
+                             thrust::nullopt_t,
+                             thrust::nullopt_t,
+                             raft::device_span<vertex_t const> intersection) const
+  {
+    return thrust::make_tuple(static_cast<edge_t>(intersection.size()),
+                              static_cast<edge_t>(intersection.size()),
+                              edge_t{1});
+  }
+};
+
+template <typename vertex_t, typename edge_t>
+struct vertex_to_count_t {
+  raft::device_span<vertex_t const> sorted_local_vertices{};
+  raft::device_span<edge_t const> local_counts{};
+
+  __device__ void operator()(vertex_t v) const
+  {
+    auto it = thrust::lower_bound(
+      thrust::seq, sorted_local_vertices.begin(), sorted_local_vertices.end(), v);
+    if ((it != sorted_local_vertices.end()) && (*it == v)) {
+      return *(local_counts.begin() + thrust::distance(sorted_local_vertices.begin(), it));
+    } else {
+      return edge_t{0};
+    }
+  }
+};
+
+// FIXME: better move this elsewhere for reuse
+template <typename vertex_t>
+struct vertex_offset_from_vertex_t {
+  vertex_t local_vertex_partition_range_first{};
+
+  __device__ vertex_t operator()(vertex_t v) const
+  {
+    return v - local_vertex_partition_range_first;
+  }
+};
+
 }  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -85,8 +128,6 @@ void triangle_counts(raft::handle_t const& handle,
                      raft::device_span<edge_t> counts,
                      bool do_expensive_check)
 {
-  CUGRAPH_FAIL("unimplemented.");
-
   // 1. Check input arguments.
 
   CUGRAPH_EXPECTS(
@@ -96,8 +137,9 @@ void triangle_counts(raft::handle_t const& handle,
     CUGRAPH_EXPECTS(counts.size() == (*vertices).size(),
                     "Invalid arguments: counts.size() does not coincide with (*vertices).size().");
   } else {
-    CUGRAPH_EXPECTS(counts.size() == (*vertices).size(),
-                    "Invalid arguments: counts.size() does not coincide with (*vertices).size().");
+    CUGRAPH_EXPECTS(
+      counts.size() == graph_view.local_vertex_partition_range_size(),
+      "Invalid arguments: counts.size() does not coincide with the number of local vertices.");
   }
 
   if (do_expensive_check) {
@@ -119,6 +161,9 @@ void triangle_counts(raft::handle_t const& handle,
                       "Invalid input arguments: invalid vertex IDs in *vertices.");
     }
   }
+
+  // FIXME: if vertices.has_value(), we may better work with the subgraph including only the
+  // neighbors within two-hop.
 
   // 2. Exclude self-loops (FIXME: better mask-out once we add masking support).
 
@@ -268,28 +313,94 @@ void triangle_counts(raft::handle_t const& handle,
 
   // 5. neighbor intersection
 
-#if 0
+  rmm::device_uvector<edge_t> cur_graph_counts(size_t{0}, handle.get_stream());
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
+    cur_graph_counts.resize(cur_graph_view.local_vertex_partition_range_size(),
+                            handle.get_stream());
 
-    for_each_nbr_intersection_of_e_endpoints(hanlde, cur_graph_view, dummy_property_t<vertex_t>{}.device_view(),  dummy_property_t<vertex_t>{}.device_view(), []__device__(vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, raft::device_span<vertex_t> intersections) {
-  [src] += intersections.size();
-  [dst] += intersections.size();
-  copy_intersections_to_consec.
-});  // for triangle counting, clustering coefficient, K-truss... if just counting the total number of triangles per graph, transform_reduce_nbr_intersection_of_e_endpoints could be more efficient.
-   // for_each_nbr_intersection_of_v_pairs() for Jaccard & Overlap coefficients, and Node2Vec
-
-  segmented_copy?
-  // delayed copy works only if memory assigned for intersection segments are still valid... This may not be a case here.
-  // Add for_each_triangle_of_e_endpoints?  ambiguous for asymmetric graphs.
+    per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
+      handle,
+      cur_graph_view,
+      dummy_property_t<vertex_t>{}.device_view(),
+      dummy_property_t<vertex_t>{}.device_view(),
+      intersection_op_t<vertex_t, edge_t>{},
+      edge_t{0},
+      cur_graph_counts.begin());
   }
 
-  // 6. Update triangle counts from neighbor intersections.
+  // 6. update counts
 
-  // 7. If vertices.has_value(), gather triangle counts (FIXME: This is inefficient if
-  // (*vertices).size() is small, we may better extract a subgraph including only the edges between
-  // *vertices and (*vertices)'s one-hop neighbors and count triangles using the subgraph).
-#endif
+  {
+    thrust::fill(handle.get_thrust_policy(), counts.begin(), counts.end(), edge_t{0});
+    auto local_vertices = std::move(*renumber_map);
+    auto local_counts   = std::move(cur_graph_counts);
+
+    if constexpr (multi_gpu) {
+      // FIXME: better refactor this shuffle for reuse
+      auto& comm = handle.get_comms();
+
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          local_vertices.begin(),
+                          local_vertices.end(),
+                          cur_graph_counts.begin());
+      auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+      rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
+        h_vertex_partition_range_lasts.size(), handle.get_stream());
+      raft::update_device(d_vertex_partition_range_lasts.data(),
+                          h_vertex_partition_range_lasts.data(),
+                          h_vertex_partition_range_lasts.size(),
+                          handle.get_stream());
+      rmm::device_uvector<size_t> d_lasts(d_vertex_partition_range_lasts.size(),
+                                          handle.get_stream());
+      thrust::lower_bound(handle.get_thrust_policy(),
+                          local_vertices.begin(),
+                          local_vertices.end(),
+                          d_vertex_partition_range_lasts.begin(),
+                          d_vertex_partition_range_lasts.end(),
+                          d_lasts.begin());
+      std::vector<size_t> h_lasts(d_lasts.size());
+      raft::update_host(h_lasts.data(), d_lasts.data(), d_lasts.size(), handle.get_stream());
+      handle.sync_stream();
+
+      std::vector<size_t> tx_counts(h_lasts.size());
+      std::adjacent_difference(h_lasts.begin(), h_lasts.end(), tx_counts.begin());
+
+      rmm::device_uvector<vertex_t> rx_local_vertices(size_t{0}, handle.get_stream());
+      rmm::device_uvector<edge_t> rx_local_counts(size_t{0}, handle.get_stream());
+      std::tie(rx_local_vertices, std::ignore) =
+        shuffle_values(comm, local_vertices.begin(), tx_counts, handle.get_stream());
+      std::tie(rx_local_counts, std::ignore) =
+        shuffle_values(comm, local_counts.begin(), tx_counts, handle.get_stream());
+
+      local_vertices = std::move(rx_local_vertices);
+      local_counts   = std::move(rx_local_counts);
+    }
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        local_vertices.begin(),
+                        local_vertices.end(),
+                        local_counts.begin());
+
+    if (vertices) {
+      thrust::transform(
+        handle.get_thrust_policy(),
+        vertices.begin(),
+        vertices.end(),
+        counts.begin(),
+        vertex_to_count_t{
+          raft::device_span<vertex_t const>(local_vertices.begin(), local_vertices.end()),
+          raft::device_span<edge_t const>(local_counts.begin(), local_counts.end())});
+    } else {
+      thrust::scatter(
+        handle.get_thrust_policy(),
+        local_counts.begin(),
+        local_counts.end(),
+        thrust::make_transform_iterator(
+          local_vertices.begin(),
+          vertex_offset_from_vertex_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
+        counts.begin());
+    }
+  }
 
   return;
 }
