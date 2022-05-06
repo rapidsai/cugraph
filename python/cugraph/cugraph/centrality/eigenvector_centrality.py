@@ -28,17 +28,58 @@ def eigenvector_centrality(
     """
     Compute the eigenvector centrality for a graph G.
 
+    Eigenvector centrality computes the centrality for a node based on the
+    centrality of its neighbors. The eigenvector centrality for node i is the
+    i-th element of the vector x defined by the eigenvector equation.
+
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
+        cuGraph graph descriptor with connectivity information. The graph can
+        contain either directed or undirected edges.
 
     max_iter : int, optional (default=100)
+        The maximum number of iterations before an answer is returned. This can
+        be used to limit the execution time and do an early exit before the
+        solver reaches the convergence tolerance.
 
     tol : float, optional (default=1e-6)
+        Set the tolerance the approximation, this parameter should be a small
+        magnitude value.
+        The lower the tolerance the better the approximation. If this value is
+        0.0f, cuGraph will use the default value which is 1.0e-6.
+        Setting too small a tolerance can lead to non-convergence due to
+        numerical roundoff. Usually values between 1e-2 and 1e-6 are
+        acceptable.
 
     nstart : cudf.Dataframe, optional (default=None)
+        GPU Dataframe containing the initial guess for eigenvector centrality.
 
-    normalized : bool, optional (default=True)
+        nstart['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        nstart['values'] : cudf.Series
+            Contains the eigenvector centrality values of vertices
+
+    normalized : bool, optional, default=True
+        If True normalize the resulting eigenvector centrality values
+
+    Returns
+    -------
+    df : cudf.DataFrame or Dictionary if using NetworkX
+        GPU data frame containing two cudf.Series of size V: the vertex
+        identifiers and the corresponding eigenvector centrality values.
+        df['vertex'] : cudf.Series
+            Contains the vertex identifiers
+        df['eigenvector_centrality'] : cudf.Series
+            Contains the eigenvector centrality of vertices
+
+    Examples
+    --------
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                     dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> # ec = cugraph.eigenvector_centrality(G)
 
     """
     if (not isinstance(max_iter, int)) or max_iter <= 0:

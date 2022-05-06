@@ -60,17 +60,22 @@ def EXPERIMENTAL__eigenvector_centrality(ResourceHandle resource_handle,
                                          size_t max_iterations,
                                          bool_t do_expensive_check):
     """
-    Does eigenvector centrality.
+    Compute the Eigenvector centrality for the nodes of the graph.
 
     Parameters
     ----------
     resource_handle : ResourceHandle
+        Handle to the underlying device resources needed for referencing data
+        and running algorithms.
 
     graph : SGGraph
+        The input graph.
 
     epsilon : double
+        Error tolerance to check convergence
 
     max_iterations: size_t
+        Maximum number of Eignevector Centrality iterations
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments if True.
