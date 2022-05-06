@@ -47,7 +47,8 @@ def symmetrize_df(df, src_name, dst_name,
         Name(s) of the column(s) in the data frame containing the source ids
 
     dst_name : list
-        Name(s) of the column(s) in the data frame containing the destination ids
+        Name(s) of the column(s) in the data frame containing
+        the destination ids
 
     weight_name : string, optional (default=None)
         Name of the column in the data frame containing the weight ids
@@ -120,7 +121,8 @@ def symmetrize_ddf(ddf, src_name, dst_name,
         Name(s) of the column(s) in the data frame containing the source ids
 
     dst_name : list
-        Name(s) of the column(s) in the data frame containing the destination ids
+        Name(s) of the column(s) in the data frame containing
+        the destination ids
 
     weight_name : string, optional (default=None)
         Name of the column in the data frame containing the weight ids
