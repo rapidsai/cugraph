@@ -20,6 +20,7 @@
 
 #include <raft/comms/comms.hpp>
 #include <raft/device_atomics.cuh>
+#include <raft/span.hpp>
 
 #include <cub/cub.cuh>
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
@@ -92,6 +93,80 @@ struct edge_op_result_type<
   using type = typename std::invoke_result<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t>::type;
 };
 
+template <typename InvokeResultIntersectionOp, typename Enable = void>
+struct is_valid_intersection_op {
+  static constexpr bool value = false;
+};
+
+template <typename InvokeResultIntersectionOp>
+struct is_valid_intersection_op<
+  InvokeResultIntersectionOp,
+  typename std::conditional_t<false, typename InvokeResultIntersectionOp::type, void>> {
+  static constexpr bool valid = true;
+};
+
+template <typename vertex_t,
+          typename weight_t,
+          typename src_value_t,
+          typename dst_value_t,
+          typename IntersectionOp,
+          typename Enable = void>
+struct intersection_op_result_type;
+
+template <typename vertex_t,
+          typename weight_t,
+          typename src_value_t,
+          typename dst_value_t,
+          typename IntersectionOp>
+struct intersection_op_result_type<
+  vertex_t,
+  weight_t,
+  src_value_t,
+  dst_value_t,
+  IntersectionOp,
+  std::enable_if_t<
+    is_valid_edge_op<typename std::invoke_result<IntersectionOp,
+                                                 vertex_t,
+                                                 vertex_t,
+                                                 weight_t,
+                                                 src_value_t,
+                                                 dst_value_t,
+                                                 raft::device_span<vertex_t const>>>::valid>> {
+  using type = typename std::invoke_result<IntersectionOp,
+                                           vertex_t,
+                                           vertex_t,
+                                           weight_t,
+                                           src_value_t,
+                                           dst_value_t,
+                                           raft::device_span<vertex_t const>>::type;
+};
+
+template <typename vertex_t,
+          typename weight_t,
+          typename src_value_t,
+          typename dst_value_t,
+          typename IntersectionOp>
+struct intersection_op_result_type<
+  vertex_t,
+  weight_t,
+  src_value_t,
+  dst_value_t,
+  IntersectionOp,
+  std::enable_if_t<
+    is_valid_edge_op<typename std::invoke_result<IntersectionOp,
+                                                 vertex_t,
+                                                 vertex_t,
+                                                 src_value_t,
+                                                 dst_value_t,
+                                                 raft::device_span<vertex_t const>>>::valid>> {
+  using type = typename std::invoke_result<IntersectionOp,
+                                           vertex_t,
+                                           vertex_t,
+                                           src_value_t,
+                                           dst_value_t,
+                                           raft::device_span<vertex_t const>>::type;
+};
+
 }  // namespace detail
 
 template <typename GraphViewType,
@@ -134,6 +209,48 @@ struct evaluate_edge_op {
     compute(K s, V d, W w, SV sv, DV dv, E e)
   {
     return e(s, d, sv, dv);
+  }
+};
+
+template <typename GraphViewType,
+          typename src_value_t,
+          typename dst_value_t,
+          typename IntersectionOp>
+struct evaluate_intersection_op {
+  using vertex_type = typename GraphViewType::vertex_type;
+  using weight_type = typename GraphViewType::weight_type;
+  using result_type = typename detail::intersection_op_result_type<vertex_type,
+                                                                   weight_type,
+                                                                   src_value_t,
+                                                                   dst_value_t,
+                                                                   IntersectionOp>::type;
+
+  template <typename V  = vertex_type,
+            typename W  = weight_type,
+            typename SV = src_value_t,
+            typename DV = dst_value_t,
+            typename I  = IntersectionOp>
+  __device__ std::enable_if_t<
+    detail::is_valid_intersection_op<
+      typename std::invoke_result<I, V, V, W, SV, DV, raft::device_span<V const>>>::valid,
+    typename std::invoke_result<I, V, V, W, SV, DV, raft::device_span<V const>>::type>
+  compute(V s, V d, W w, SV sv, DV dv, raft::device_span<V const> intersection, I i)
+  {
+    return i(s, d, w, sv, dv, intersection);
+  }
+
+  template <typename V  = vertex_type,
+            typename W  = weight_type,
+            typename SV = src_value_t,
+            typename DV = dst_value_t,
+            typename I  = IntersectionOp>
+  __device__ std::enable_if_t<
+    detail::is_valid_intersection_op<
+      typename std::invoke_result<I, V, V, SV, DV, raft::device_span<V const>>>::valid,
+    typename std::invoke_result<I, V, V, SV, DV, raft::device_span<V const>>::type>
+  compute(V s, V d, W w, SV sv, DV dv, raft::device_span<V const> intersection, I i)
+  {
+    return i(s, d, sv, dv, intersection);
   }
 };
 
