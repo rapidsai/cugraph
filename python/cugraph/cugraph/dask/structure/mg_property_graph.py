@@ -113,6 +113,10 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__edge_prop_eval_dict = {}
 
 
+        self.__dataframe_type = dask_cudf.DataFrame
+        self.__series_type = dask_cudf.Series
+
+
         # The dtypes for each column in each DataFrame.  This is required since
         # merge operations can often change the dtypes to accommodate NaN
         # values (eg. int64 to float64, since NaN is a float).
@@ -194,10 +198,10 @@ class EXPERIMENTAL__MGPropertyGraph:
         """
         vert_sers = self.__get_all_vertices_series()
         if vert_sers:
-            if self.__series_type is cudf.Series:
-                return self.__series_type(cudf.concat(vert_sers).unique())
+            if self.__series_type is dask_cudf.Series:
+                return self.__series_type(dask_cudf.concat(vert_sers).unique())
             else:
-                return self.__series_type(pd.concat(vert_sers).unique())
+                raise TypeError("dataframe must be a CUDF Dask dataframe.")
         return self.__series_type()
 
     def vertices_ids(self):
@@ -283,10 +287,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         # NOTE: This copies the incoming DataFrame in order to add the new
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
-        if type(dataframe) == dask_cudf.DataFrame:
-            tmp_df = dataframe.copy()
-        else:
-            tmp_df = dataframe.copy(deep=True)
+        tmp_df = dataframe.copy()
         tmp_df[self.vertex_col_name] = tmp_df[vertex_col_name]
         # FIXME: handle case of a type_name column already being in tmp_df
         tmp_df[self.type_col_name] = type_name
@@ -373,11 +374,6 @@ class EXPERIMENTAL__MGPropertyGraph:
                                  "found in dataframe: "
                                  f"{list(invalid_columns)}")
 
-        # Save the DataFrame and Series types for future instantiations
-        if type(dataframe) is not dask_cudf.DataFrame:
-            raise TypeError(f"dataframe is type {type(dataframe)} but "
-                                "the PropertyGraph only allows a Dask dataframe")
-
         # Clear the cached value for num_vertices since more could be added in
         # this method.
         self.__num_vertices = None
@@ -387,14 +383,14 @@ class EXPERIMENTAL__MGPropertyGraph:
                                 self.edge_id_col_name,
                                 self.type_col_name]
         if self.__edge_prop_dataframe is None:
-            temp_dataframe = pd.DataFrame({self.src_col_name: pd.Series([], 
-                                           dtype=dataframe[vertex_col_names[0]].dtype),
-                                           self.dst_col_name: pd.Series([],
-                                           dtype=dataframe[vertex_col_names[1]].dtype),
-		                                   self.edge_id_col_name: pd.Series([], dtype='Int64'),
-                                           self.type_col_name: pd.Series([], dtype='str')})
-            from dask.dataframe import from_pandas
-            self.__edge_prop_dataframe = from_pandas(temp_dataframe, npartitions=self.__num_workers)
+            temp_dataframe = cudf.DataFrame(columns=default_edge_columns)
+            self.__update_dataframe_dtypes(
+                temp_dataframe,
+                {self.src_col_name: dataframe[vertex_col_names[0]].dtype,
+                 self.dst_col_name: dataframe[vertex_col_names[1]].dtype,
+                 self.edge_id_col_name: "Int64"})
+            self.__edge_prop_dataframe = dask_cudf.from_cudf(temp_dataframe,
+                      npartitions=self.__num_workers)
         # NOTE: This copies the incoming DataFrame in order to add the new
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
@@ -418,7 +414,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         # Save the original dtypes for each new column so they can be restored
         # prior to constructing subgraphs (since column dtypes may get altered
         # during merge to accommodate NaN values).
-        breakpoint()
         new_col_info = self.__get_new_column_dtypes(
             tmp_df, self.__edge_prop_dataframe)
         self.__edge_prop_dtypes.update(new_col_info)
@@ -804,14 +799,15 @@ class EXPERIMENTAL__MGPropertyGraph:
         incremented by 1 for each edge.
         """
         prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
-        nans = self.__edge_prop_dataframe[self.edge_id_col_name].isna()
-
+#        nans = self.__edge_prop_dataframe[self.edge_id_col_name].isna()
+        nans = self.__edge_prop_dataframe[self.edge_id_col_name].isna().compute()
         if nans.any():
             indices = nans.index[nans]
             num_indices = len(indices)
             starting_eid = prev_eid + 1
-            new_eids = self.__series_type(
-                range(starting_eid, starting_eid + num_indices))
+            breakpoint()
+            cudf_series = cudf.Series(range(starting_eid, starting_eid + num_indices))
+            new_eids = dask_cudf.from_cudf(cudf_series, self.__num_workers)
 
             self.__edge_prop_dataframe[self.edge_id_col_name]\
                 .iloc[indices] = new_eids
@@ -862,7 +858,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         integer dtypes, needed to accommodate NA values in columns.
         """
         for (col, dtype) in column_dtype_dict.items():
-            breakpoint()
             # If the DataFrame is Pandas and the dtype is an integer type,
             # ensure a nullable integer array is used by specifying the correct
             # dtype. The alias for these dtypes is simply a capitalized string
