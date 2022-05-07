@@ -195,7 +195,7 @@ def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
 
     Return from this call will be a COO stored as two/three cudf/dask_cudf
     Series/Dataframe -the symmetrized source column and the symmetrized dest
-    column, along with an optional cudf/dask_cudf Series DataFrame containing
+    column, along with an optional cudf/dask_cudf Series/DataFrame containing
     the associated values (only if the values are passed in).
 
     Parameters
