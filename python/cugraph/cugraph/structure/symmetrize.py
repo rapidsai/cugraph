@@ -19,7 +19,6 @@ from cugraph.dask.comms import comms as Comms
 
 def symmetrize_df(df, src_name, dst_name,
                   weight_name=None, multi=False, symmetrize=True):
-    # FIXME: update do
     """
     Take a COO stored in a DataFrame, along with the column names of
     the source and destination columns and create a new data frame
@@ -43,10 +42,10 @@ def symmetrize_df(df, src_name, dst_name,
         ids, destination ids and any properties associated with the
         edges.
 
-    src_name : list
+    src_name : str or list
         Name(s) of the column(s) in the data frame containing the source ids
 
-    dst_name : list
+    dst_name : str or list
         Name(s) of the column(s) in the data frame containing
         the destination ids
 
@@ -67,9 +66,14 @@ def symmetrize_df(df, src_name, dst_name,
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sym_df = symmetrize_df(M, ['0'], ['1'])
+    >>> sym_df = symmetrize_df(M, '0', '1')
 
     """
+    if not isinstance(src_name, list):
+        src_name = [src_name]
+    if not isinstance(dst_name, list):
+        dst_name = [dst_name]
+
     if symmetrize:
         if weight_name:
             df2 = df[[*dst_name, *src_name, weight_name]]
@@ -115,10 +119,10 @@ def symmetrize_ddf(ddf, src_name, dst_name,
         ids, destination ids and any properties associated with the
         edges.
 
-    src_name : list
+    src_name : str or list
         Name(s) of the column(s) in the data frame containing the source ids
 
-    dst_name : list
+    dst_name : str or list
         Name(s) of the column(s) in the data frame containing
         the destination ids
 
@@ -144,10 +148,15 @@ def symmetrize_ddf(ddf, src_name, dst_name,
     >>> #                          delimiter=' ',
     >>> #                          names=['src', 'dst', 'weight'],
     >>> #                          dtype=['int32', 'int32', 'float32'])
-    >>> # sym_ddf = symmetrize_ddf(ddf, ["src"], ["dst"], "weight")
+    >>> # sym_ddf = symmetrize_ddf(ddf, "src", "dst", "weight")
 
     """
     # FIXME: Uncomment out the above (broken) example
+
+    if not isinstance(src_name, list):
+        src_name = [src_name]
+    if not isinstance(dst_name, list):
+        dst_name = [dst_name]
 
     worker_list = Comms.get_workers()
     num_partitions = len(worker_list)
@@ -176,8 +185,6 @@ def symmetrize_ddf(ddf, src_name, dst_name,
         return result
 
 
-# FIXME: This function requires the dataframe to be renumbered in order to
-# to support multi columns
 def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
                multi=False, symmetrize=True):
     """
@@ -188,8 +195,8 @@ def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
 
     Return from this call will be a COO stored as two/three cudf/dask_cudf
     Series/Dataframe -the symmetrized source column and the symmetrized dest
-    column, along with an optional cudf/dask_cudf DataFrame containing the
-    associated values (only if the values are passed in).
+    column, along with an optional cudf/dask_cudf Series DataFrame containing
+    the associated values (only if the values are passed in).
 
     Parameters
     ----------
@@ -227,22 +234,16 @@ def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
     >>> src, dst, val = symmetrize(df, 'sources', 'destinations', 'values')
 
     """
-    s_col_name = source_col_name
-    d_col_name = dest_col_name
-    if not isinstance(source_col_name, list):
-        s_col_name = [source_col_name]
-    if not isinstance(dest_col_name, list):
-        d_col_name = [dest_col_name]
 
     csg.null_check(input_df[source_col_name])
     csg.null_check(input_df[dest_col_name])
 
     if isinstance(input_df, dask_cudf.DataFrame):
-        output_df = symmetrize_ddf(input_df, s_col_name, d_col_name,
+        output_df = symmetrize_ddf(input_df, source_col_name, dest_col_name,
                                    value_col_name, multi, symmetrize,
                                    )
     else:
-        output_df = symmetrize_df(input_df, s_col_name, d_col_name,
+        output_df = symmetrize_df(input_df, source_col_name, dest_col_name,
                                   value_col_name, multi, symmetrize,
                                   )
     if value_col_name is not None:
