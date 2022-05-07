@@ -94,3 +94,44 @@ def test_dask_katz_centrality(dask_client, directed):
         if diff > tol * 1.1:
             err = err + 1
     assert err == 0
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+def test_dask_katz_centrality_multi_column(dask_client, directed):
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
+    print(f"dataset={input_data_path}")
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    dg = cugraph.Graph(directed=True)
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+
+    largest_out_degree = dg.out_degree().compute().\
+        nlargest(n=1, columns="degree")
+    largest_out_degree = largest_out_degree["degree"].iloc[0]
+    katz_alpha = 1 / (largest_out_degree + 1)
+
+    #dg.view_edge_list.compute()
+
+    mg_res = dcg.katz_centrality(dg, alpha=katz_alpha, tol=1e-6)
+    mg_res = mg_res.compute()
+
+    #estimate = dask_cudf.from_cudf(cudf.DataFrame(), npartitions=2)
+    estimate = mg_res.copy()
+    estimate.rename(columns={"vertex": "vertex", "katz_centrality": "values"})
+    estimate["values"] = 0.5
+
+    mg_final_res = dcg.katz_centrality(dg, alpha=katz_alpha, nstart=estimate,
+                                       tol=1e-6)
+    mg_final_res = mg_final_res.compute()
