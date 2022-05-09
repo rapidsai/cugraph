@@ -90,7 +90,7 @@ def test_node2vec_invalid(
     max_depth = 1
     p = 1
     q = 1
-    invalid_max_depths = [-1, "1", 4.5]
+    invalid_max_depths = [None, -1, "1", 4.5]
     invalid_pqs = [None, -1, "1"]
     invalid_start_vertices = [1.0, "1", 2147483648]
 

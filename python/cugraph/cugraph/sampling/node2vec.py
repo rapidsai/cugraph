@@ -23,7 +23,7 @@ import cudf
 
 def node2vec(G,
              start_vertices,
-             max_depth=None,
+             max_depth=1,
              compress_result=True,
              p=1.0,
              q=1.0):
@@ -49,7 +49,7 @@ def node2vec(G,
         the random walks. In case of multi-column vertices it should be
         a cudf.DataFrame. Only supports int32 currently.
 
-    max_depth: int
+    max_depth: int, optional (default=1)
         The maximum depth of the random walks. If not specified, the maximum
         depth is set to 1.
 
@@ -93,9 +93,7 @@ def node2vec(G,
     ...                                               True, 0.8, 0.5)
 
     """
-    if (max_depth is None):
-        max_depth = 1
-    elif (not isinstance(max_depth, int)) or (max_depth < 1):
+    if (not isinstance(max_depth, int)) or (max_depth < 1):
         raise ValueError(f"'max_depth' must be a positive integer, "
                          f"got: {max_depth}")
     if (not isinstance(compress_result, bool)):
