@@ -360,10 +360,13 @@ rmm::device_uvector<vertex_t> random_vertex_ids(raft::handle_t const& handle,
                                                 vertex_t begin,
                                                 vertex_t end,
                                                 vertex_t count,
+                                                uint64_t seed,
                                                 int repetitions_per_vertex = 0)
 {
+#if 0
   auto& comm                  = handle.get_comms();
   auto const comm_rank        = comm.get_rank();
+#endif
   vertex_t number_of_vertices = end - begin;
 
   rmm::device_uvector<vertex_t> vertices(
@@ -374,7 +377,7 @@ rmm::device_uvector<vertex_t> random_vertex_ids(raft::handle_t const& handle,
     vertices.end(),
     [begin, number_of_vertices] __device__(auto v) { return begin + (v % number_of_vertices); });
   thrust::default_random_engine g;
-  g.seed(comm_rank);
+  g.seed(seed);
   thrust::shuffle(handle.get_thrust_policy(), vertices.begin(), vertices.end(), g);
   vertices.resize(count, handle.get_stream());
   return vertices;

@@ -35,7 +35,6 @@
 #include <vector>
 
 namespace cugraph {
-
 namespace detail {
 
 template <typename graph_view_t>
@@ -50,7 +49,8 @@ uniform_nbr_sample_impl(
   rmm::device_uvector<typename graph_view_t::edge_type> const& global_out_degrees,
   rmm::device_uvector<typename graph_view_t::edge_type> const& global_degree_offsets,
   rmm::device_uvector<typename graph_view_t::edge_type> const& global_adjacency_list_offsets,
-  bool with_replacement)
+  bool with_replacement,
+  uint64_t seed)
 {
   using vertex_t = typename graph_view_t::vertex_type;
   using edge_t   = typename graph_view_t::edge_type;
@@ -58,92 +58,101 @@ uniform_nbr_sample_impl(
 
   namespace cugraph_ops = cugraph::ops::gnn::graph;
 
+  CUGRAPH_EXPECTS(h_fan_out.size() > 0,
+                  "Invalid input argument: number of levels must be non-zero.");
+
+  rmm::device_uvector<vertex_t> d_result_src(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_result_dst(0, handle.get_stream());
+  auto d_result_indices =
+    thrust::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
+
+  size_t level{0};
+  size_t num_rows{1};
+
   if constexpr (graph_view_t::is_multi_gpu) {
-    CUGRAPH_EXPECTS(h_fan_out.size() > 0,
-                    "Invalid input argument: number of levels must be non-zero.");
+    auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    seed += row_comm.get_rank();
+    num_rows = row_comm.get_size();
+  }
 
-    rmm::device_uvector<vertex_t> d_result_src(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> d_result_dst(0, handle.get_stream());
-    auto d_result_indices =
-      thrust::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
-
-    auto&& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto&& row_rank = row_comm.get_rank();
-
-    auto const self_rank = handle.get_comms().get_rank();
-
-    size_t level{0l};
-    for (auto&& k_level : h_fan_out) {
-      // prep step for extracting out-degs(sources):
-      //
+  for (auto&& k_level : h_fan_out) {
+    // prep step for extracting out-degs(sources):
+    //
+    if constexpr (graph_view_t::is_multi_gpu) {
       d_in = gather_active_majors(handle, std::move(d_in));
-
-      rmm::device_uvector<vertex_t> d_out_src(0, handle.get_stream());
-      rmm::device_uvector<vertex_t> d_out_dst(0, handle.get_stream());
-      auto d_out_indices =
-        thrust::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
-
-      if (k_level != 0) {
-        // extract out-degs(sources):
-        //
-        auto&& d_out_degs =
-          get_active_major_global_degrees(handle, graph_view, d_in, global_out_degrees);
-
-        // segmented-random-generation of indices:
-        //
-        rmm::device_uvector<edge_t> d_rnd_indices(d_in.size() * k_level, handle.get_stream());
-
-        cugraph_ops::Rng rng(row_rank + level);
-        cugraph_ops::get_sampling_index(d_rnd_indices.data(),
-                                        rng,
-                                        d_out_degs.data(),
-                                        static_cast<edge_t>(d_out_degs.size()),
-                                        static_cast<int32_t>(k_level),
-                                        with_replacement,
-                                        handle.get_stream());
-
-        std::tie(d_out_src, d_out_dst, d_out_indices) =
-          gather_local_edges(handle,
-                             graph_view,
-                             d_in,
-                             std::move(d_rnd_indices),
-                             static_cast<edge_t>(k_level),
-                             global_degree_offsets,
-                             global_adjacency_list_offsets);
-      } else {
-        std::tie(d_out_src, d_out_dst, d_out_indices) =
-          gather_one_hop_edgelist(handle, graph_view, d_in, global_adjacency_list_offsets);
-      }
-
-      // resize accumulators:
-      //
-      auto old_sz = d_result_dst.size();
-      auto add_sz = d_out_dst.size();
-      auto new_sz = old_sz + add_sz;
-
-      d_result_src.resize(new_sz, handle.get_stream());
-      d_result_dst.resize(new_sz, handle.get_stream());
-      d_result_indices->resize(new_sz, handle.get_stream());
-
-      raft::copy(
-        d_result_src.begin() + old_sz, d_out_src.begin(), d_out_src.size(), handle.get_stream());
-      raft::copy(
-        d_result_dst.begin() + old_sz, d_out_dst.begin(), d_out_dst.size(), handle.get_stream());
-      raft::copy(d_result_indices->begin() + old_sz,
-                 d_out_indices->begin(),
-                 d_out_indices->size(),
-                 handle.get_stream());
-
-      d_in = shuffle_vertices_by_gpu_id(handle, std::move(d_out_dst));
-
-      ++level;
     }
 
-    return std::make_tuple(
-      std::move(d_result_src), std::move(d_result_dst), std::move(*d_result_indices));
-  } else {
-    CUGRAPH_FAIL("Neighborhood sampling functionality is supported only for the multi-gpu case.");
+    rmm::device_uvector<vertex_t> d_out_src(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_out_dst(0, handle.get_stream());
+    auto d_out_indices =
+      thrust::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
+
+    if (k_level != 0) {
+      // extract out-degs(sources):
+      //
+      auto&& d_out_degs =
+        get_active_major_global_degrees(handle, graph_view, d_in, global_out_degrees);
+
+      // segmented-random-generation of indices:
+      //
+      rmm::device_uvector<edge_t> d_rnd_indices(d_in.size() * k_level, handle.get_stream());
+
+      cugraph_ops::Rng rng(seed);
+      seed += d_rnd_indices.size() * num_rows;
+
+      cugraph_ops::get_sampling_index(d_rnd_indices.data(),
+                                      rng,
+                                      d_out_degs.data(),
+                                      static_cast<edge_t>(d_out_degs.size()),
+                                      static_cast<int32_t>(k_level),
+                                      with_replacement,
+                                      handle.get_stream());
+
+      // FIXME:  Need an SG version of gather_local_edges
+      std::tie(d_out_src, d_out_dst, d_out_indices) =
+        gather_local_edges(handle,
+                           graph_view,
+                           d_in,
+                           std::move(d_rnd_indices),
+                           static_cast<edge_t>(k_level),
+                           global_degree_offsets,
+                           global_adjacency_list_offsets);
+    } else {
+      // FIXME:  Need an SG version of gather_one_hop_edgelist
+      std::tie(d_out_src, d_out_dst, d_out_indices) =
+        gather_one_hop_edgelist(handle, graph_view, d_in);
+    }
+
+    // resize accumulators:
+    //
+    auto old_sz = d_result_dst.size();
+    auto add_sz = d_out_dst.size();
+    auto new_sz = old_sz + add_sz;
+
+    d_result_src.resize(new_sz, handle.get_stream());
+    d_result_dst.resize(new_sz, handle.get_stream());
+    d_result_indices->resize(new_sz, handle.get_stream());
+
+    raft::copy(
+      d_result_src.begin() + old_sz, d_out_src.begin(), d_out_src.size(), handle.get_stream());
+    raft::copy(
+      d_result_dst.begin() + old_sz, d_out_dst.begin(), d_out_dst.size(), handle.get_stream());
+    raft::copy(d_result_indices->begin() + old_sz,
+               d_out_indices->begin(),
+               d_out_indices->size(),
+               handle.get_stream());
+
+    if constexpr (graph_view_t::is_multi_gpu) {
+      d_in = shuffle_vertices_by_gpu_id(handle, std::move(d_out_dst));
+    } else {
+      d_in = std::move(d_out_dst);
+    }
+
+    ++level;
   }
+
+  return std::make_tuple(
+    std::move(d_result_src), std::move(d_result_dst), std::move(*d_result_indices));
 }
 }  // namespace detail
 
@@ -155,39 +164,40 @@ uniform_nbr_sample(raft::handle_t const& handle,
                    graph_view_t const& graph_view,
                    raft::device_span<typename graph_view_t::vertex_type> d_starting_vertices,
                    raft::host_span<const int> h_fan_out,
-                   bool with_replacement)
+                   bool with_replacement,
+                   uint64_t seed)
 {
+  using vertex_t = typename graph_view_t::vertex_type;
+
+  rmm::device_uvector<vertex_t> d_start_vs(d_starting_vertices.size(), handle.get_stream());
+  raft::copy(
+    d_start_vs.data(), d_starting_vertices.data(), d_starting_vertices.size(), handle.get_stream());
+
   if constexpr (graph_view_t::is_multi_gpu) {
-    using vertex_t = typename graph_view_t::vertex_type;
-
-    size_t const self_rank = handle.get_comms().get_rank();
-
-    rmm::device_uvector<vertex_t> d_start_vs(d_starting_vertices.size(), handle.get_stream());
-    raft::copy(d_start_vs.data(),
-               d_starting_vertices.data(),
-               d_starting_vertices.size(),
-               handle.get_stream());
-
     d_start_vs = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(d_start_vs));
+  }
 
-    // preamble step for out-degree info:
-    //
-    auto&& [global_degree_offsets, global_out_degrees] =
-      detail::get_global_degree_information(handle, graph_view);
-    auto&& global_adjacency_list_offsets = detail::get_global_adjacency_offset(
-      handle, graph_view, global_degree_offsets, global_out_degrees);
+  // preamble step for out-degree info:
+  //
+  auto&& [global_degree_offsets, global_out_degrees] =
+    detail::get_global_degree_information(handle, graph_view);
+  auto&& global_adjacency_list_offsets = detail::get_global_adjacency_offset(
+    handle, graph_view, global_degree_offsets, global_out_degrees);
 
-    return detail::uniform_nbr_sample_impl(handle,
-                                           graph_view,
-                                           d_start_vs,
-                                           h_fan_out,
-                                           global_out_degrees,
-                                           global_degree_offsets,
-                                           global_adjacency_list_offsets,
-                                           with_replacement);
+  return detail::uniform_nbr_sample_impl(handle,
+                                         graph_view,
+                                         d_start_vs,
+                                         h_fan_out,
+                                         global_out_degrees,
+                                         global_degree_offsets,
+                                         global_adjacency_list_offsets,
+                                         with_replacement,
+                                         seed);
+#if 0
   } else {
     CUGRAPH_FAIL("SG not implemented");
   }
+#endif
 }
 
 }  // namespace cugraph

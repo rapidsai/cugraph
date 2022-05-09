@@ -189,6 +189,7 @@ add_library(cugraph
     src/sampling/random_walks.cu
     src/sampling/detail/gather_utils_impl.cu
     src/sampling/detail/sampling_utils_mg.cu
+    src/sampling/detail/sampling_utils_sg.cu
     src/sampling/nbr_sampling_mg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp

@@ -1559,7 +1559,8 @@ uniform_nbr_sample(raft::handle_t const& handle,
                    graph_view_t const& graph_view,
                    raft::device_span<typename graph_view_t::vertex_type> d_starting_vertices,
                    raft::host_span<const int> h_fan_out,
-                   bool with_replacement = true);
+                   bool with_replacement = true,
+                   uint64_t seed = 0);
 
 /*
  * @brief Compute triangle counts.

@@ -17,7 +17,6 @@
 #include <sampling/detail/sampling_utils_impl.cuh>
 
 namespace cugraph {
-
 namespace detail {
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
@@ -250,49 +249,42 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     thrust::optional<rmm::device_uvector<float>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
-                        rmm::device_uvector<int32_t> const& active_majors,
-                        rmm::device_uvector<int32_t> const& global_adjacency_list_offsets);
+                        rmm::device_uvector<int32_t> const& active_majors);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     thrust::optional<rmm::device_uvector<float>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
-                        rmm::device_uvector<int32_t> const& active_majors,
-                        rmm::device_uvector<int64_t> const& global_adjacency_list_offsets);
+                        rmm::device_uvector<int32_t> const& active_majors);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     thrust::optional<rmm::device_uvector<float>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
-                        rmm::device_uvector<int64_t> const& active_majors,
-                        rmm::device_uvector<int64_t> const& global_adjacency_list_offsets);
+                        rmm::device_uvector<int64_t> const& active_majors);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     thrust::optional<rmm::device_uvector<double>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
-                        rmm::device_uvector<int32_t> const& active_majors,
-                        rmm::device_uvector<int32_t> const& global_adjacency_list_offsets);
+                        rmm::device_uvector<int32_t> const& active_majors);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     thrust::optional<rmm::device_uvector<double>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
-                        rmm::device_uvector<int32_t> const& active_majors,
-                        rmm::device_uvector<int64_t> const& global_adjacency_list_offsets);
+                        rmm::device_uvector<int32_t> const& active_majors);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     thrust::optional<rmm::device_uvector<double>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
-                        rmm::device_uvector<int64_t> const& active_majors,
-                        rmm::device_uvector<int64_t> const& global_adjacency_list_offsets);
+                        rmm::device_uvector<int64_t> const& active_majors);
 
 }  // namespace detail
-
 }  // namespace cugraph
