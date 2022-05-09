@@ -19,6 +19,7 @@ import dask_cudf
 # from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.tests import utils
 
+
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
@@ -26,6 +27,9 @@ from cugraph.tests import utils
 
 def setup_function():
     gc.collect()
+
+
+IS_DIRECTED = [True, False]
 
 
 # =============================================================================
@@ -38,6 +42,7 @@ datasets = utils.DATASETS_UNDIRECTED + \
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
                                                ([50], "max_iter"),
                                                ([1.0e-6], "tol"),
+                                               (IS_DIRECTED, "directed")
                                                )
 
 
@@ -47,7 +52,10 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip(("graph_file", "max_iter", "tol"), request.param))
+    parameters = dict(zip(("graph_file",
+                           "max_iter",
+                           "tol",
+                           "directed"), request.param))
 
     return parameters
 
@@ -60,9 +68,9 @@ def input_expected_output(input_combo):
     """
 
     input_data_path = input_combo["graph_file"]
-
+    directed = input_combo["directed"]
     G = utils.generate_cugraph_graph_from_file(
-        input_data_path)
+        input_data_path, directed=directed)
     sg_cugraph_hits = cugraph.hits(
                             G,
                             input_combo["max_iter"],
@@ -83,7 +91,7 @@ def input_expected_output(input_combo):
         dtype=["int32", "int32", "float32"],
     )
 
-    dg = cugraph.Graph(directed=True)
+    dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(
         ddf, source='src', destination='dst', edge_attr='value', renumber=True)
 
