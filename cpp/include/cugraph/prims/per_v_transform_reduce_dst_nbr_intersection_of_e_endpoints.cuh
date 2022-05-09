@@ -41,7 +41,7 @@ template <typename GraphViewType,
           typename VertexPairIterator>
 struct call_intersection_op_t {
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                               typename GraphViewType::vertex_type,
+                               typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu>
     edge_partition{};
@@ -52,7 +52,7 @@ struct call_intersection_op_t {
   typename GraphViewType::vertex_type const* nbr_indices{nullptr};
   VertexPairIterator major_minor_pair_first{};
 
-  __device__ bool operator()(size_t i) const
+  __device__ auto operator()(size_t i) const
   {
     auto pair         = *(major_minor_pair_first + i);
     auto major        = thrust::get<0>(pair);
@@ -168,7 +168,7 @@ struct accumulate_vertex_property_t {
  * values.
  * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
  * property values.
- * @tparam IntersectionOp Type of the quinary (or senary) per intersection operator.
+ * @tparam IntersectionOp Type of the quinary per intersection operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -184,11 +184,11 @@ struct accumulate_vertex_property_t {
  * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
  * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
  * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
- * @param intersection_op quinary (or senary) operator takes edge source, edge destination,
- * (optional edge weight), property values for the source, property values for the destination, and
- * a list of vertices in the intersection of edge source & destination vertices' destination
- * neighbors and returns a thrust::tuple of three values: one value per source vertex, one value for
- * destination vertex, and one value for every vertex in the intersection.
+ * @param intersection_op quinary operator takes edge source, edge destination, property values for
+ * the source, property values for the destination, and a list of vertices in the intersection of
+ * edge source & destination vertices' destination neighbors and returns a thrust::tuple of three
+ * values: one value per source vertex, one value for destination vertex, and one value for every
+ * vertex in the intersection.
  * @param init Initial value to be added to the reduced @p intersection_op return values for each
  * vertex.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
@@ -234,7 +234,7 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
 
     auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
     raft::update_device(
-      d_vertex_partition_range_lasts_in_edge_partition_minor_range.data(),
+      (*d_vertex_partition_range_lasts_in_edge_partition_minor_range).data(),
       h_vertex_partition_range_lasts.data() + row_comm_size * col_comm_rank,
       h_vertex_partition_range_lasts.size() + row_comm_size * (col_comm_rank + int{1}),
       handle.get_stream());
@@ -248,7 +248,10 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
     rmm::device_uvector<vertex_t> minors(majors.size(), handle.get_stream());
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
-    detail::decompress_edge_partition_to_edgelist(
+    detail::decompress_edge_partition_to_edgelist<vertex_t,
+                                                  edge_t,
+                                                  weight_t,
+                                                  GraphViewType::is_multi_gpu>(
       handle, edge_partition, majors.data(), minors.data(), std::nullopt, segment_offsets);
 
     auto vertex_pair_first =
@@ -306,8 +309,8 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
         GraphViewType::is_storage_transposed ? std::move(majors) : std::move(minors),
         std::move(dst_value_buffer));
 
-      endpoint_vertices(reduced_src_vertices.size() + reduced_dst_vertices.size(),
-                        handle.get_stream());
+      endpoint_vertices.resize(reduced_src_vertices.size() + reduced_dst_vertices.size(),
+                               handle.get_stream());
       resize_dataframe_buffer(endpoint_value_buffer, endpoint_vertices.size(), handle.get_stream());
 
       thrust::merge_by_key(handle.get_thrust_policy(),
@@ -327,9 +330,11 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
       thrust::make_counting_iterator(majors.size()),
-      detail::segmented_fill_t{intersection_offsets.data(),
-                               get_dataframe_buffer_begin(intersection_value_buffer),
-                               get_dataframe_buffer_begin(tmp_intersection_value_buffer)});
+      detail::segmented_fill_t<vertex_t,
+                               decltype(get_dataframe_buffer_begin(intersection_value_buffer))>{
+        intersection_offsets.data(),
+        get_dataframe_buffer_begin(intersection_value_buffer),
+        get_dataframe_buffer_begin(tmp_intersection_value_buffer)});
     resize_dataframe_buffer(intersection_value_buffer, size_t{0}, handle.get_stream());
     shrink_to_fit_dataframe_buffer(intersection_value_buffer, handle.get_stream());
 
