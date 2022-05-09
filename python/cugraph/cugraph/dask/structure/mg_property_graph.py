@@ -16,7 +16,6 @@ import cudf
 import cugraph
 import dask_cudf
 import cugraph.dask as dcg
-import pandas as pd
 
 
 class EXPERIMENTAL__MGPropertySelection:
@@ -805,13 +804,11 @@ class EXPERIMENTAL__MGPropertyGraph:
             indices = nans.index[nans]
             num_indices = len(indices)
             starting_eid = prev_eid + 1
-            breakpoint()
+            temp_df = self.__edge_prop_dataframe
             cudf_series = cudf.Series(range(starting_eid, starting_eid + num_indices))
-            new_eids = dask_cudf.from_cudf(cudf_series, self.__num_workers)
-
+            dask_series = dask_cudf.from_cudf(cudf_series,self.__num_workers)
             self.__edge_prop_dataframe[self.edge_id_col_name]\
-                .iloc[indices] = new_eids
-
+                .iloc[indices] = dask_series
             self.__last_edge_id = starting_eid + num_indices - 1
 
     def __get_all_vertices_series(self):

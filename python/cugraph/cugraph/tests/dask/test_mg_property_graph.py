@@ -117,6 +117,10 @@ def net_MGPropertyGraph(dask_client):
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
     )
+
+    breakpoint()
+
+
     def modify_dataset(df):
         temp_df = cudf.DataFrame()
         temp_df['src'] = df['src']+1000
@@ -126,15 +130,6 @@ def net_MGPropertyGraph(dask_client):
 
     meta = ddf._meta
     ddf = ddf.map_partitions(modify_dataset, meta=meta)
-
-    df = cudf.read_csv(
-        input_data_path,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    df = modify_dataset(df)
 
     dpG = MGPropertyGraph()
     dpG.add_edge_data(ddf, ("src", "dst"))
