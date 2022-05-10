@@ -18,6 +18,7 @@ import pytest
 import cudf
 import cugraph
 from cugraph.tests import utils
+from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -32,8 +33,15 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-def cugraph_call(M, edgevals=False):
-    G = cugraph.Graph()
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
+def cugraph_call(M, edgevals=False, directed=False):
+    G = cugraph.Graph(directed=directed)
     cu_M = cudf.DataFrame()
     cu_M["src"] = cudf.Series(M["0"])
     cu_M["dst"] = cudf.Series(M["1"])
@@ -69,7 +77,6 @@ def networkx_call(M):
 # @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_triangles(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     cu_count = cugraph_call(M)
@@ -79,7 +86,6 @@ def test_triangles(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_triangles_edge_vals(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     cu_count = cugraph_call(M, edgevals=True)
@@ -89,7 +95,6 @@ def test_triangles_edge_vals(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_triangles_nx(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     G = nx.from_pandas_edgelist(
@@ -103,3 +108,11 @@ def test_triangles_nx(graph_file):
         nx_count += dic[i]
 
     assert cu_count == nx_count
+
+
+def test_triangles_directed_graph():
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate-asymmetric.csv").as_posix()
+    M = utils.read_csv_for_nx(input_data_path)
+    with pytest.raises(Exception):
+        cugraph_call(M, edgevals=True, directed=True)

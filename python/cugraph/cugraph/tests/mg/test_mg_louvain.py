@@ -17,6 +17,7 @@ import cugraph.dask as dcg
 import cugraph
 import dask_cudf
 from cugraph.tests import utils
+from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 # from cugraph.dask.common.mg_utils import is_single_gpu
 
 try:
@@ -37,19 +38,25 @@ except ImportError:
         pass
 
 
+# =============================================================================
+# Parameters
+# =============================================================================
+DATASETS_ASYMMETRIC = [RAPIDS_DATASET_ROOT_DIR_PATH/"karate-asymmetric.csv"]
+
+
 ###############################################################################
 # Fixtures
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 @pytest.fixture(scope="module",
-                params=utils.DATASETS_UNDIRECTED,
+                params=DATASETS_ASYMMETRIC,
                 ids=[f"dataset={d.as_posix()}"
-                     for d in utils.DATASETS_UNDIRECTED])
+                     for d in DATASETS_ASYMMETRIC])
 def daskGraphFromDataset(request, dask_client):
     """
     Returns a new dask dataframe created from the dataset file param.
-    This creates un undirected Graph.
+    This creates a directed Graph.
     """
     # Since parameterized fixtures do not assign param names to param values,
     # manually call the helper to do so.
@@ -77,7 +84,7 @@ def daskGraphFromDataset(request, dask_client):
 def uddaskGraphFromDataset(request, dask_client):
     """
     Returns a new dask dataframe created from the dataset file param.
-    This creates un undirected Graph.
+    This creates an undirected Graph.
     """
     # Since parameterized fixtures do not assign param names to param
     # values, manually call the helper to do so.
@@ -103,18 +110,11 @@ def uddaskGraphFromDataset(request, dask_client):
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
-def test_mg_louvain_with_edgevals(daskGraphFromDataset):
-    # FIXME: daskGraphFromDataset returns a Directed graph, which Louvain is
-    # currently accepting. In the future, an MNMG symmeterize will need to
-    # be called to create a Graph for Louvain.
-    parts, mod = dcg.louvain(daskGraphFromDataset)
-
-    # FIXME: either call Nx with the same dataset and compare results, or
-    # hardcode golden results to compare to.
-    print()
-    print(parts.compute())
-    print(mod)
-    print()
+def test_mg_louvain_with_edgevals_directed_graph(daskGraphFromDataset):
+    # Directed graphs are not supported by Louvain and an exception should be
+    # raised
+    with pytest.raises(Exception):
+        parts, mod = dcg.louvain(daskGraphFromDataset)
 
 
 ###############################################################################
@@ -122,7 +122,7 @@ def test_mg_louvain_with_edgevals(daskGraphFromDataset):
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
-def test_mg_udlouvain_with_edgevals(uddaskGraphFromDataset):
+def test_mg_louvain_with_edgevals_undirected_graph(uddaskGraphFromDataset):
     parts, mod = dcg.louvain(uddaskGraphFromDataset)
 
     # FIXME: either call Nx with the same dataset and compare results, or

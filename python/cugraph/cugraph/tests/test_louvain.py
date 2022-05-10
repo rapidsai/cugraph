@@ -18,6 +18,7 @@ import pytest
 
 import cugraph
 from cugraph.tests import utils
+from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -41,9 +42,16 @@ except ModuleNotFoundError:
 print("Networkx version : {} ".format(nx.__version__))
 
 
-def cugraph_call(cu_M, edgevals=False):
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
-    G = cugraph.Graph()
+
+def cugraph_call(cu_M, edgevals=False, directed=False):
+
+    G = cugraph.Graph(directed=directed)
     if edgevals:
         G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
     else:
@@ -75,7 +83,6 @@ def networkx_call(M):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_louvain_with_edgevals(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -103,7 +110,6 @@ def test_louvain_with_edgevals(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_louvain(graph_file):
-    gc.collect()
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
@@ -127,3 +133,13 @@ def test_louvain(graph_file):
     assert len(cu_parts) == len(nx_parts)
     assert cu_mod > (0.82 * nx_mod)
     assert abs(cu_mod - cu_mod_nx) < 0.0001
+
+
+def test_louvain_directed_graph():
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate-asymmetric.csv").as_posix()
+
+    cu_M = utils.read_csv_file(input_data_path)
+
+    with pytest.raises(Exception):
+        cu_parts, cu_mod = cugraph_call(cu_M, directed=True)

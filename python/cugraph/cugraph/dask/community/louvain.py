@@ -69,6 +69,8 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
         and weights. The adjacency list will be computed if not already
         present.
 
+        The current implementation only supports undirected graphs.
+
     max_iter : integer, optional (default=100)
         This controls the maximum number of levels/iterations of the Louvain
         algorithm. When specified the algorithm will terminate after no more
@@ -114,11 +116,8 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
     >>> parts, modularity_score = dcg.louvain(dg)
 
     """
-    # FIXME: dask methods to populate graphs from edgelists are only present on
-    # DiGraph classes. Disable the Graph check for now and assume inputs are
-    # symmetric DiGraphs.
-    # if type(graph) is not Graph:
-    #     raise Exception("input graph must be undirected")
+    if input_graph.is_directed():
+        raise Exception("input graph must be undirected")
     client = default_client()
     # Calling renumbering results in data that is sorted by degree
     input_graph.compute_renumber_edge_list(transposed=False)

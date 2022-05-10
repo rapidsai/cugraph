@@ -134,6 +134,7 @@ def ktruss_subgraph(G, k, use_weights=True):
         cuGraph graph descriptor with connectivity information. k-Trusses are
         defined for only undirected graphs as they are defined for
         undirected triangle in a graph.
+        The current implementation only supports undirected graphs.
 
     k : int
         The desired k to be used for extracting the k-truss subgraph.
@@ -159,7 +160,7 @@ def ktruss_subgraph(G, k, use_weights=True):
     _ensure_compatible_cuda_version()
 
     KTrussSubgraph = Graph()
-    if type(G) is not Graph:
+    if G.is_directed():
         raise Exception("input graph must be undirected")
 
     subgraph_df = ktruss_subgraph_wrapper.ktruss_subgraph(G, k, use_weights)
