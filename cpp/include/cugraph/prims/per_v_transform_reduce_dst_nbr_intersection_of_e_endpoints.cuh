@@ -209,7 +209,8 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   IntersectionOp intersection_op,
   T init,
-  VertexValueOutputIterator vertex_value_output_first)
+  VertexValueOutputIterator vertex_value_output_first,
+  bool do_expensive_check = false)
 {
   static_assert(
     std::is_same_v<typename thrust::iterator_traits<VertexValueOutputIterator>::value_type, T>);
@@ -217,6 +218,10 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
+
+  if (do_expensive_check) {
+    // currently, nothing to do.
+  }
 
   thrust::fill(handle.get_thrust_policy(),
                vertex_value_output_first,
@@ -270,7 +275,8 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
                                graph_view,
                                vertex_pair_first,
                                vertex_pair_first + majors.size(),
-                               std::array<bool, 2>{true, true});
+                               std::array<bool, 2>{true, true},
+                               do_expensive_check);
 
     auto src_value_buffer = allocate_dataframe_buffer<T>(majors.size(), handle.get_stream());
     auto dst_value_buffer = allocate_dataframe_buffer<T>(majors.size(), handle.get_stream());
@@ -329,7 +335,7 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
     thrust::for_each(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(majors.size()),
+      thrust::make_counting_iterator(size_dataframe_buffer(intersection_value_buffer)),
       detail::segmented_fill_t<vertex_t,
                                decltype(get_dataframe_buffer_begin(intersection_value_buffer))>{
         intersection_offsets.data(),

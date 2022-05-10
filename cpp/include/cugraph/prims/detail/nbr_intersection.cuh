@@ -41,7 +41,7 @@ namespace detail {
 // check vertices in the pair are valid and first element of the pair is within the local vertex
 // partition range
 template <typename vertex_t>
-struct is_valid_input_vertex_pair_t {
+struct is_invalid_input_vertex_pair_t {
   vertex_t num_vertices{};
   raft::device_span<vertex_t const> edge_partition_major_range_firsts{};
   raft::device_span<vertex_t const> edge_partition_major_range_lasts{};
@@ -53,17 +53,17 @@ struct is_valid_input_vertex_pair_t {
     auto major = thrust::get<0>(pair);
     auto minor = thrust::get<1>(pair);
     if (!is_valid_vertex(num_vertices, major) || !is_valid_vertex(num_vertices, minor)) {
-      return false;
+      return true;
     }
     auto it = thrust::upper_bound(thrust::seq,
                                   edge_partition_major_range_lasts.begin(),
                                   edge_partition_major_range_lasts.end(),
                                   major);
-    if (it == edge_partition_major_range_lasts.end()) { return false; }
+    if (it == edge_partition_major_range_lasts.end()) { return true; }
     auto edge_partition_idx =
       static_cast<size_t>(thrust::distance(edge_partition_major_range_lasts.begin(), it));
-    if (major < edge_partition_major_range_firsts[edge_partition_idx]) { return false; }
-    return (minor >= edge_partition_minor_range_first) && (minor < edge_partition_minor_range_last);
+    if (major < edge_partition_major_range_firsts[edge_partition_idx]) { return true; }
+    return (minor < edge_partition_minor_range_first) || (minor >= edge_partition_minor_range_last);
   }
 };
 
@@ -528,10 +528,10 @@ nbr_intersection(raft::handle_t const& handle,
         edge_partition_minor_range_last  = graph_view.local_edge_partition_dst_range_last();
       }
     } else {
-      h_edge_partition_major_range_firsts.push_back(vertex_t{0});
-      h_edge_partition_major_range_lasts.push_back(graph_view.number_of_vertices());
-      edge_partition_minor_range_first = vertex_t{0};
-      edge_partition_minor_range_last  = graph_view.number_of_vertices();
+      h_edge_partition_major_range_firsts[0] = vertex_t{0};
+      h_edge_partition_major_range_lasts[0]  = graph_view.number_of_vertices();
+      edge_partition_minor_range_first       = vertex_t{0};
+      edge_partition_minor_range_last        = graph_view.number_of_vertices();
     }
     rmm::device_uvector<vertex_t> d_edge_partition_major_range_firsts(
       h_edge_partition_major_range_firsts.size(), handle.get_stream());
@@ -550,7 +550,7 @@ nbr_intersection(raft::handle_t const& handle,
       handle.get_thrust_policy(),
       vertex_pair_first,
       vertex_pair_last,
-      is_valid_input_vertex_pair_t<vertex_t>{
+      is_invalid_input_vertex_pair_t<vertex_t>{
         graph_view.number_of_vertices(),
         raft::device_span<vertex_t const>(d_edge_partition_major_range_firsts.begin(),
                                           d_edge_partition_major_range_firsts.end()),

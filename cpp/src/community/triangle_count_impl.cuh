@@ -31,15 +31,15 @@ namespace cugraph {
 namespace {
 
 template <typename vertex_t>
-struct valid_and_in_local_vertex_partition_range_t {
+struct invalid_or_outside_local_vertex_partition_range_t {
   vertex_t num_vertices{};
   vertex_t local_vertex_partition_range_first{};
   vertex_t local_vertex_partition_range_last{};
 
   __device__ bool operator()(vertex_t v) const
   {
-    return is_valid_vertex(num_vertices, v) && (v >= local_vertex_partition_range_first) ||
-           (v < local_vertex_partition_range_last);
+    return !is_valid_vertex(num_vertices, v) || (v < local_vertex_partition_range_first) ||
+           (v >= local_vertex_partition_range_last);
   }
 };
 
@@ -52,13 +52,19 @@ struct is_not_self_loop_t {
 };
 
 template <typename edge_t>
-struct is_two_t {
-  __device__ uint8_t operator()(edge_t core_number) const { return core_number == edge_t{2} ? uint8_t{1} : uint8_t{0}; }
+struct is_two_or_greater_t {
+  __device__ uint8_t operator()(edge_t core_number) const
+  {
+    return core_number >= edge_t{2} ? uint8_t{1} : uint8_t{0};
+  }
 };
 
 template <typename vertex_t>
 struct in_two_core_t {
-  __device__ bool operator()(vertex_t, vertex_t, uint8_t src_in_two_core, uint8_t dst_in_two_core) const
+  __device__ bool operator()(vertex_t,
+                             vertex_t,
+                             uint8_t src_in_two_core,
+                             uint8_t dst_in_two_core) const
   {
     return (src_in_two_core == uint8_t{1}) && (dst_in_two_core == uint8_t{1});
   }
@@ -136,6 +142,9 @@ void triangle_count(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(
     graph_view.is_symmetric(),
     "Invalid input arguments: triangle_count currently supports undirected graphs only.");
+  CUGRAPH_EXPECTS(
+    !graph_view.is_multigraph(),
+    "Invalid input arguments: triangle_count currently does not support multi-graphs.");
   if (vertices) {
     CUGRAPH_EXPECTS(counts.size() == (*vertices).size(),
                     "Invalid arguments: counts.size() does not coincide with (*vertices).size().");
@@ -147,13 +156,14 @@ void triangle_count(raft::handle_t const& handle,
 
   if (do_expensive_check) {
     if (vertices) {
-      auto num_invalids = thrust::count_if(handle.get_thrust_policy(),
-                                           (*vertices).begin(),
-                                           (*vertices).end(),
-                                           valid_and_in_local_vertex_partition_range_t<vertex_t>{
-                                             graph_view.number_of_vertices(),
-                                             graph_view.local_vertex_partition_range_first(),
-                                             graph_view.local_vertex_partition_range_last()});
+      auto num_invalids =
+        thrust::count_if(handle.get_thrust_policy(),
+                         (*vertices).begin(),
+                         (*vertices).end(),
+                         invalid_or_outside_local_vertex_partition_range_t<vertex_t>{
+                           graph_view.number_of_vertices(),
+                           graph_view.local_vertex_partition_range_first(),
+                           graph_view.local_vertex_partition_range_last()});
 
       if constexpr (multi_gpu) {
         auto& comm = handle.get_comms();
@@ -199,7 +209,7 @@ void triangle_count(raft::handle_t const& handle,
         cugraph::graph_properties_t{true, graph_view.is_multigraph()},
         true);
 
-    *modified_graph_view = (*modified_graph).view();
+    modified_graph_view = (*modified_graph).view();
   }
 
   // 3. Find 2-core and exclude edges that do not belong to 2-core (FIXME: better mask-out once we
@@ -217,12 +227,12 @@ void triangle_count(raft::handle_t const& handle,
     core_number(
       handle, cur_graph_view, core_numbers.data(), k_core_degree_type_t::OUT, size_t{2}, size_t{2});
 
-    edge_partition_src_property_t<decltype(cur_graph_view), uint8_t> edge_partition_src_in_two_cores(
-      handle, cur_graph_view);
-    edge_partition_dst_property_t<decltype(cur_graph_view), uint8_t> edge_partition_dst_in_two_cores(
-      handle, cur_graph_view);
+    edge_partition_src_property_t<decltype(cur_graph_view), uint8_t>
+      edge_partition_src_in_two_cores(handle, cur_graph_view);
+    edge_partition_dst_property_t<decltype(cur_graph_view), uint8_t>
+      edge_partition_dst_in_two_cores(handle, cur_graph_view);
     auto in_two_core_first =
-      thrust::make_transform_iterator(core_numbers.begin(), is_two_t<edge_t>{});
+      thrust::make_transform_iterator(core_numbers.begin(), is_two_or_greater_t<edge_t>{});
     rmm::device_uvector<uint8_t> in_two_core_flags(core_numbers.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
                  in_two_core_first,
@@ -256,7 +266,7 @@ void triangle_count(raft::handle_t const& handle,
         cugraph::graph_properties_t{true, graph_view.is_multigraph()},
         true);
 
-    *modified_graph_view = (*modified_graph).view();
+    modified_graph_view = (*modified_graph).view();
 
     if (renumber_map) {  // collapse renumber_map
       unrenumber_int_vertices<vertex_t, multi_gpu>(handle,
@@ -308,10 +318,10 @@ void triangle_count(raft::handle_t const& handle,
         std::move(srcs),
         std::move(dsts),
         std::nullopt,
-        cugraph::graph_properties_t{false /* now asymmetric */, graph_view.is_multigraph()},
+        cugraph::graph_properties_t{false /* now asymmetric */, cur_graph_view.is_multigraph()},
         true);
 
-    *modified_graph_view = (*modified_graph).view();
+    modified_graph_view = (*modified_graph).view();
 
     if (renumber_map) {  // collapse renumber_map
       unrenumber_int_vertices<vertex_t, multi_gpu>(handle,
@@ -338,7 +348,8 @@ void triangle_count(raft::handle_t const& handle,
       dummy_property_t<vertex_t>{}.device_view(),
       intersection_op_t<vertex_t, edge_t>{},
       edge_t{0},
-      cur_graph_counts.begin());
+      cur_graph_counts.begin(),
+      do_expensive_check);
   }
 
   // 6. update counts

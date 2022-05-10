@@ -51,36 +51,39 @@ void triangle_count_reference(edge_t const* offsets,
 
   for (vertex_t i = 0; i < num_vertices; ++i) {
     for (edge_t j = offsets[i]; j < offsets[i + 1]; ++j) {
-      auto src         = i;
-      auto dst         = indices[j];
-      auto src_degree  = offsets[src + 1] - offsets[src];
-      auto src_indices = indices + offsets[src];
-      auto dst_degree  = offsets[dst + 1] - offsets[dst];
-      auto dst_indices = indices + offsets[dst];
-      std::vector<vertex_t> intersection_vertices(std::min(src_degree, dst_degree));
-      auto it = std::set_intersection(src_indices,
-                                      src_indices + src_degree,
-                                      dst_indices,
-                                      dst_indices + dst_degree,
-                                      intersection_vertices.begin());
-      intersection_vertices.resize(std::distance(intersection_vertices.begin(), it));
-      intersection_vertices.resize(std::distance(
-        intersection_vertices.begin(),
-        std::remove_if(
-          intersection_vertices.begin(), intersection_vertices.end(), [src, dst](auto v) {
-            return (v == src) || (v == dst);
-          })));  // exclude self loops
-      triangle_counts[src] += static_cast<edge_t>(intersection_vertices.size());
-      triangle_counts[dst] += static_cast<edge_t>(intersection_vertices.size());
-      std::for_each(intersection_vertices.begin(),
-                    intersection_vertices.end(),
-                    [triangle_counts](auto v) { ++triangle_counts[v]; });
+      auto src = i;
+      auto dst = indices[j];
+      if (src != dst) {  // exclude self loops
+        auto src_degree  = offsets[src + 1] - offsets[src];
+        auto src_indices = indices + offsets[src];
+        auto dst_degree  = offsets[dst + 1] - offsets[dst];
+        auto dst_indices = indices + offsets[dst];
+        std::vector<vertex_t> intersection_vertices(std::min(src_degree, dst_degree));
+        auto it = std::set_intersection(src_indices,
+                                        src_indices + src_degree,
+                                        dst_indices,
+                                        dst_indices + dst_degree,
+                                        intersection_vertices.begin());
+        intersection_vertices.resize(std::distance(intersection_vertices.begin(), it));
+        intersection_vertices.resize(std::distance(
+          intersection_vertices.begin(),
+          std::remove_if(
+            intersection_vertices.begin(), intersection_vertices.end(), [src, dst](auto v) {
+              return (v == src) || (v == dst);
+            })));  // exclude self loops
+        triangle_counts[src] += static_cast<edge_t>(intersection_vertices.size());
+        triangle_counts[dst] += static_cast<edge_t>(intersection_vertices.size());
+        std::for_each(intersection_vertices.begin(),
+                      intersection_vertices.end(),
+                      [triangle_counts](auto v) { ++triangle_counts[v]; });
+      }
     }
   }
 
   std::transform(triangle_counts, triangle_counts + num_vertices, triangle_counts, [](auto count) {
-    return count / 3;
-  });  // every triangle gets counted 3 times
+    return count / 6;
+  });  // every triangle gets counted 6 times (once per triangle edge and each undirected edge is
+       // two directed edges)
 
   return;
 }
@@ -121,7 +124,7 @@ class Tests_TriangleCount
 
     auto [graph, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, false, renumber);
+        handle, input_usecase, false, renumber, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -187,7 +190,7 @@ class Tests_TriangleCount
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, input_usecase, false, false);
+            handle, input_usecase, false, false, false, true);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
