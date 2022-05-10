@@ -109,7 +109,8 @@ def katz_centrality(input_graph,
         acceptable.
 
     nstart : dask_cudf.Dataframe, optional (default=None)
-        GPU Dataframe containing the initial guess for katz centrality
+        GPU Dataframe containing the initial guess for katz centrality.
+        Not supported.
 
         nstart['vertex'] : dask_cudf.Series
             Contains the vertex identifiers
