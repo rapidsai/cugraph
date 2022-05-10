@@ -16,8 +16,10 @@
 #pragma once
 
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_tuple_utils.cuh>
 
 #include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
@@ -64,22 +66,6 @@ struct is_invalid_input_vertex_pair_t {
       static_cast<size_t>(thrust::distance(edge_partition_major_range_lasts.begin(), it));
     if (major < edge_partition_major_range_firsts[edge_partition_idx]) { return true; }
     return (minor < edge_partition_minor_range_first) || (minor >= edge_partition_minor_range_last);
-  }
-};
-
-template <typename vertex_t>
-struct first_element_of_pair_t {
-  __device__ vertex_t operator()(thrust::tuple<vertex_t, vertex_t> pair) const
-  {
-    return thrust::get<0>(pair);
-  }
-};
-
-template <typename vertex_t>
-struct second_element_of_pair_t {
-  __device__ vertex_t operator()(thrust::tuple<vertex_t, vertex_t> pair) const
-  {
-    return thrust::get<1>(pair);
   }
 };
 
@@ -430,12 +416,6 @@ struct strided_accumulate_t {
   }
 };
 
-struct multiplier_t {
-  size_t multiplier{};
-
-  __device__ size_t operator()(size_t i) const { return i * multiplier; }
-};
-
 template <typename vertex_t>
 struct gatherv_indices_t {
   size_t output_size{};
@@ -601,8 +581,8 @@ nbr_intersection(raft::handle_t const& handle,
 
       rmm::device_uvector<vertex_t> unique_majors(input_size, handle.get_stream());
       {
-        auto second_element_first =
-          thrust::make_transform_iterator(vertex_pair_first, second_element_of_pair_t<vertex_t>{});
+        auto second_element_first = thrust::make_transform_iterator(
+          vertex_pair_first, thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, size_t{1}>{});
         thrust::copy(handle.get_thrust_policy(),
                      second_element_first,
                      second_element_first + input_size,
@@ -757,9 +737,11 @@ nbr_intersection(raft::handle_t const& handle,
         rmm::device_uvector<size_t> local_offsets_for_rx_majors(
           local_degrees_for_rx_majors.size() + 1, handle.get_stream());
         local_offsets_for_rx_majors.set_element_to_zero_async(size_t{0}, handle.get_stream());
+        auto degree_first = thrust::make_transform_iterator(local_degrees_for_rx_majors.begin(),
+                                                            detail::typecast_t<edge_t, size_t>{});
         thrust::inclusive_scan(handle.get_thrust_policy(),
-                               local_degrees_for_rx_majors.begin(),
-                               local_degrees_for_rx_majors.end(),
+                               degree_first,
+                               degree_first + local_degrees_for_rx_majors.size(),
                                local_offsets_for_rx_majors.begin() + 1);
 
         local_nbrs_for_rx_majors.resize(
@@ -823,9 +805,11 @@ nbr_intersection(raft::handle_t const& handle,
         major_nbr_offsets = rmm::device_uvector<size_t>(local_degrees_for_unique_majors.size() + 1,
                                                         handle.get_stream());
         (*major_nbr_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
+        auto degree_first = thrust::make_transform_iterator(local_degrees_for_unique_majors.begin(),
+                                                            detail::typecast_t<edge_t, size_t>{});
         thrust::inclusive_scan(handle.get_thrust_policy(),
-                               local_degrees_for_unique_majors.begin(),
-                               local_degrees_for_unique_majors.end(),
+                               degree_first,
+                               degree_first + local_degrees_for_unique_majors.size(),
                                (*major_nbr_offsets).begin() + 1);
       }
 
@@ -893,8 +877,8 @@ nbr_intersection(raft::handle_t const& handle,
                           handle.get_stream());
 
       rmm::device_uvector<size_t> d_lasts(col_comm_size, handle.get_stream());
-      auto first_element_first =
-        thrust::make_transform_iterator(vertex_pair_first, first_element_of_pair_t<vertex_t>{});
+      auto first_element_first = thrust::make_transform_iterator(
+        vertex_pair_first, thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, size_t{0}>{});
       thrust::lower_bound(handle.get_thrust_policy(),
                           first_element_first,
                           first_element_first + input_size,
@@ -1073,21 +1057,26 @@ nbr_intersection(raft::handle_t const& handle,
         combined_nbr_intersection_offsets.resize(rx_v_pair_counts[col_comm_rank] + 1,
                                                  handle.get_stream());
         combined_nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
+        auto combined_size_first = thrust::make_transform_iterator(
+          combined_nbr_intersection_sizes.begin(), detail::typecast_t<edge_t, size_t>{});
         thrust::inclusive_scan(handle.get_thrust_policy(),
-                               combined_nbr_intersection_sizes.begin(),
-                               combined_nbr_intersection_sizes.end(),
+                               combined_size_first,
+                               combined_size_first + combined_nbr_intersection_sizes.size(),
                                combined_nbr_intersection_offsets.begin() + 1);
 
         gathered_nbr_intersection_offsets.resize(gathered_nbr_intersection_sizes.size() + 1,
                                                  handle.get_stream());
         gathered_nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
+        auto gathered_size_first = thrust::make_transform_iterator(
+          gathered_nbr_intersection_sizes.begin(), detail::typecast_t<edge_t, size_t>{});
         thrust::inclusive_scan(handle.get_thrust_policy(),
-                               gathered_nbr_intersection_sizes.begin(),
-                               gathered_nbr_intersection_sizes.end(),
+                               gathered_size_first,
+                               gathered_size_first + gathered_nbr_intersection_sizes.size(),
                                gathered_nbr_intersection_offsets.begin() + 1);
 
         auto map_first = thrust::make_transform_iterator(
-          thrust::make_counting_iterator(size_t{1}), multiplier_t{rx_v_pair_counts[col_comm_rank]});
+          thrust::make_counting_iterator(size_t{1}),
+          detail::multiplier_t<size_t>{rx_v_pair_counts[col_comm_rank]});
         rmm::device_uvector<size_t> d_lasts(col_comm_size, handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        map_first,
@@ -1176,9 +1165,11 @@ nbr_intersection(raft::handle_t const& handle,
     }
     nbr_intersection_offsets.resize(nbr_intersection_sizes.size() + size_t{1}, handle.get_stream());
     nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
+    auto size_first = thrust::make_transform_iterator(nbr_intersection_sizes.begin(),
+                                                      detail::typecast_t<edge_t, size_t>{});
     thrust::inclusive_scan(handle.get_thrust_policy(),
-                           nbr_intersection_sizes.begin(),
-                           nbr_intersection_sizes.end(),
+                           size_first,
+                           size_first + nbr_intersection_sizes.size(),
                            nbr_intersection_offsets.begin() + 1);
   } else {
     auto edge_partition =
@@ -1201,9 +1192,11 @@ nbr_intersection(raft::handle_t const& handle,
 
     nbr_intersection_offsets.resize(nbr_intersection_sizes.size() + 1, handle.get_stream());
     nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
+    auto size_first = thrust::make_transform_iterator(nbr_intersection_sizes.begin(),
+                                                      detail::typecast_t<edge_t, size_t>{});
     thrust::inclusive_scan(handle.get_thrust_policy(),
-                           nbr_intersection_sizes.begin(),
-                           nbr_intersection_sizes.end(),
+                           size_first,
+                           size_first + nbr_intersection_sizes.size(),
                            nbr_intersection_offsets.begin() + 1);
 
     nbr_intersection_indices.resize(nbr_intersection_offsets.back_element(handle.get_stream()),
@@ -1236,6 +1229,32 @@ nbr_intersection(raft::handle_t const& handle,
       CUGRAPH_FAIL("unimplemented.");
     }
 
+#if 1  // FIXME: work-around for the 32 bit integer overflow issue in thrust::remove,
+       // thrust::remove_if, and thrust::copy_if (https://github.com/NVIDIA/thrust/issues/1302)
+    rmm::device_uvector<vertex_t> tmp_indices(
+      thrust::count_if(handle.get_thrust_policy(),
+                       nbr_intersection_indices.begin(),
+                       nbr_intersection_indices.end(),
+                       detail::not_equal_t<vertex_t>{invalid_vertex_id<vertex_t>::value}),
+      handle.get_stream());
+    size_t num_copied{0};
+    size_t num_scanned{0};
+    while (num_scanned < nbr_intersection_indices.size()) {
+      size_t this_scan_size = std::min(
+        size_t{1} << 30,
+        static_cast<size_t>(thrust::distance(nbr_intersection_indices.begin() + num_scanned,
+                                             nbr_intersection_indices.end())));
+      num_copied += static_cast<size_t>(thrust::distance(
+        tmp_indices.begin() + num_copied,
+        thrust::copy_if(handle.get_thrust_policy(),
+                        nbr_intersection_indices.begin() + num_scanned,
+                        nbr_intersection_indices.begin() + num_scanned + this_scan_size,
+                        tmp_indices.begin() + num_copied,
+                        detail::not_equal_t<vertex_t>{invalid_vertex_id<vertex_t>::value})));
+      num_scanned += this_scan_size;
+    }
+    nbr_intersection_indices = std::move(tmp_indices);
+#else
     nbr_intersection_indices.resize(
       thrust::distance(nbr_intersection_indices.begin(),
                        thrust::remove(handle.get_thrust_policy(),
@@ -1243,10 +1262,11 @@ nbr_intersection(raft::handle_t const& handle,
                                       nbr_intersection_indices.end(),
                                       invalid_vertex_id<vertex_t>::value)),
       handle.get_stream());
+#endif
 
     thrust::inclusive_scan(handle.get_thrust_policy(),
-                           nbr_intersection_sizes.begin(),
-                           nbr_intersection_sizes.end(),
+                           size_first,
+                           size_first + nbr_intersection_sizes.size(),
                            nbr_intersection_offsets.begin() + 1);
   }
 
