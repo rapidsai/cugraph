@@ -217,8 +217,7 @@ add_library(cugraph
     src/structure/relabel_sg.cu
     src/structure/relabel_mg.cu
     src/structure/induced_subgraph_sg.cu
-    ## FIXME: Not currently supported
-    ##src/structure/induced_subgraph_mg.cu
+    src/structure/induced_subgraph_mg.cu
     src/traversal/extract_bfs_paths_sg.cu
     src/traversal/extract_bfs_paths_mg.cu
     src/traversal/bfs_sg.cu

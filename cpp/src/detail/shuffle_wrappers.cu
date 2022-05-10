@@ -198,23 +198,55 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
                            rmm::device_uvector<int64_t>&& d_edgelist_minors,
                            std::optional<rmm::device_uvector<double>>&& d_edgelist_weights);
 
+template <typename vertex_t, typename func_t>
+rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id_impl(
+  raft::handle_t const& handle, rmm::device_uvector<vertex_t>&& d_vertices, func_t func)
+{
+  rmm::device_uvector<vertex_t> d_rx_vertices(0, handle.get_stream());
+  std::tie(d_rx_vertices, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(
+    handle.get_comms(),
+    d_vertices.begin(),
+    d_vertices.end(),
+    [key_func = func] __device__(auto val) { return key_func(val); },
+    handle.get_stream());
+
+  return d_rx_vertices;
+}
+
 template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(raft::handle_t const& handle,
                                                          rmm::device_uvector<vertex_t>&& d_vertices)
 {
-  auto& comm           = handle.get_comms();
-  auto const comm_size = comm.get_size();
+  auto const comm_size = handle.get_comms().get_size();
 
-  rmm::device_uvector<vertex_t> d_rx_vertices(0, handle.get_stream());
-  std::tie(d_rx_vertices, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(
-    comm,  // handle.get_comms(),
-    d_vertices.begin(),
-    d_vertices.end(),
-    [key_func = cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(
-      auto val) { return key_func(val); },
-    handle.get_stream());
+  return shuffle_vertices_by_gpu_id_impl(
+    handle,
+    std::move(d_vertices),
+    cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size});
+}
 
-  return d_rx_vertices;
+template <typename vertex_t>
+rmm::device_uvector<vertex_t> shuffle_int_vertices_by_gpu_id(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& d_vertices,
+  std::vector<vertex_t> const& vertex_partition_range_lasts)
+{
+  rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
+                                                               handle.get_stream());
+  raft::update_device(d_vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.size(),
+                      handle.get_stream());
+
+  auto return_value = shuffle_vertices_by_gpu_id_impl(
+    handle,
+    std::move(d_vertices),
+    cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+      d_vertex_partition_range_lasts.data(), d_vertex_partition_range_lasts.size()});
+
+  handle.sync_stream();
+
+  return return_value;
 }
 
 template rmm::device_uvector<int32_t> shuffle_vertices_by_gpu_id(
@@ -222,6 +254,16 @@ template rmm::device_uvector<int32_t> shuffle_vertices_by_gpu_id(
 
 template rmm::device_uvector<int64_t> shuffle_vertices_by_gpu_id(
   raft::handle_t const& handle, rmm::device_uvector<int64_t>&& d_vertices);
+
+template rmm::device_uvector<int32_t> shuffle_int_vertices_by_gpu_id(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& d_vertices,
+  std::vector<int32_t> const& vertex_partition_range_lasts);
+
+template rmm::device_uvector<int64_t> shuffle_int_vertices_by_gpu_id(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_vertices,
+  std::vector<int64_t> const& vertex_partition_range_lasts);
 
 template <typename vertex_t, typename weight_t>
 rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(

@@ -95,8 +95,9 @@ uniform_nbr_sample_impl(
         get_active_major_global_degrees(handle, graph_view, d_in, global_out_degrees);
 
       // eliminate 0 degree vertices
-      std::tie(d_in, d_out_degs) = cugraph::detail::filter_degree_0_vertices(handle, std::move(d_in), std::move(d_out_degs));
-      
+      std::tie(d_in, d_out_degs) =
+        cugraph::detail::filter_degree_0_vertices(handle, std::move(d_in), std::move(d_out_degs));
+
       // segmented-random-generation of indices:
       //
       rmm::device_uvector<edge_t> d_rnd_indices(d_in.size() * k_level, handle.get_stream());
@@ -147,7 +148,8 @@ uniform_nbr_sample_impl(
                handle.get_stream());
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      d_in = shuffle_vertices_by_gpu_id(handle, std::move(d_out_dst));
+      d_in = shuffle_int_vertices_by_gpu_id(
+        handle, std::move(d_out_dst), graph_view.vertex_partition_range_lasts());
     } else {
       d_in = std::move(d_out_dst);
     }
@@ -178,7 +180,8 @@ uniform_nbr_sample(raft::handle_t const& handle,
     d_start_vs.data(), d_starting_vertices.data(), d_starting_vertices.size(), handle.get_stream());
 
   if constexpr (graph_view_t::is_multi_gpu) {
-    d_start_vs = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(d_start_vs));
+    d_start_vs = cugraph::detail::shuffle_int_vertices_by_gpu_id(
+      handle, std::move(d_start_vs), graph_view.vertex_partition_range_lasts());
   }
 
   // preamble step for out-degree info:
@@ -197,11 +200,6 @@ uniform_nbr_sample(raft::handle_t const& handle,
                                          global_adjacency_list_offsets,
                                          with_replacement,
                                          seed);
-#if 0
-  } else {
-    CUGRAPH_FAIL("SG not implemented");
-  }
-#endif
 }
 
 }  // namespace cugraph

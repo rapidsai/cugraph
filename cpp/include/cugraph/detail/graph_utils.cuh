@@ -25,6 +25,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
+#include <thrust/binary_search.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
@@ -44,6 +45,22 @@ struct compute_gpu_id_from_vertex_t {
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     return hash_func(v) % comm_size;
+  }
+};
+
+template <typename vertex_t>
+struct compute_gpu_id_from_int_vertex_t {
+  vertex_t const* vertex_partition_range_lasts;
+  size_t num_vertex_partitions;
+
+  __device__ int operator()(vertex_t v) const
+  {
+    return static_cast<int>(
+      thrust::distance(vertex_partition_range_lasts,
+                       thrust::upper_bound(thrust::seq,
+                                           vertex_partition_range_lasts,
+                                           vertex_partition_range_lasts + num_vertex_partitions,
+                                           v)));
   }
 };
 
