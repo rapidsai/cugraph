@@ -223,4 +223,9 @@ struct atomic_accumulate_thrust_tuple {
   }
 };
 
+template <typename TupleType, size_t I>
+struct thrust_tuple_get {
+  __device__ auto operator()(TupleType tup) const { return thrust::get<I>(tup); }
+};
+
 }  // namespace cugraph
