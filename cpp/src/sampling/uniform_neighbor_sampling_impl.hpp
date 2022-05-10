@@ -19,6 +19,7 @@
 #include <sampling/detail/graph_functions.hpp>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 
@@ -93,6 +94,9 @@ uniform_nbr_sample_impl(
       auto&& d_out_degs =
         get_active_major_global_degrees(handle, graph_view, d_in, global_out_degrees);
 
+      // eliminate 0 degree vertices
+      std::tie(d_in, d_out_degs) = cugraph::detail::filter_degree_0_vertices(handle, std::move(d_in), std::move(d_out_degs));
+      
       // segmented-random-generation of indices:
       //
       rmm::device_uvector<edge_t> d_rnd_indices(d_in.size() * k_level, handle.get_stream());

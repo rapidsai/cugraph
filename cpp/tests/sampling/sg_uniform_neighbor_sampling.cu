@@ -45,8 +45,6 @@ class Tests_Uniform_Neighbor_Sampling
       hr_clock.start();
     }
 
-    std::cout << "calling construct_graph" << std::endl;
-
     auto [graph, renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, true, true);
@@ -65,8 +63,6 @@ class Tests_Uniform_Neighbor_Sampling
 
     // Generate random vertex ids in the range of current gpu
 
-    std::cout << "get random sources" << std::endl;
-
     // Generate random sources to gather on
     auto random_sources =
       cugraph::test::random_vertex_ids(handle,
@@ -78,8 +74,6 @@ class Tests_Uniform_Neighbor_Sampling
 
     std::vector<int> h_fan_out{indices_per_source};  // depth = 1
 
-    std::cout << "run algorithm" << std::endl;
-
     auto&& [d_src_out, d_dst_out, d_indices] = cugraph::uniform_nbr_sample(
       handle,
       graph_view,
@@ -87,53 +81,40 @@ class Tests_Uniform_Neighbor_Sampling
       raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
       prims_usecase.flag_replacement);
 
-    std::cout << "check correctness" << std::endl;
-
     if (prims_usecase.check_correctness) {
-      // FIXME:
-      //   Need an SG test.  How about:
-      //     I) Validate the extracted paths make sense:
-      //       1) Extract an SG directed graph from this set of edges
-      //       2) For each seed run an SG BFS against this graph
-      //       3) For each of the BFS runs, combine the results so that we
-      //          mark the smallest shortest path for each vertex (the
-      //          smallest distances value if the predecessor is not invalid)
-      //       4) Validate that all vertices have a distance < the maximum
-      //          number of hops
-      //     II) Validate the extracted edges come from the graph
-      //       1) Induce a subgraph using the sampled vertices
-      //       2) Generate a COO from the subgraph view
-      //       3) Consolidate the COO on rank 0
-      //       4) Sort the COO by (src, dst)
-      //       5) For each (src, dst) pair in the result, search in the
-      //          sorted COO to make sure that it exists.  If any don't exist
-      //          fail the test
-      //
+      //  First validate that the extracted edges are actually a subset of the
+      //  edges in the input graph
+      rmm::device_uvector<vertex_t> d_vertices(2 * d_src_out.size(), handle.get_stream());
+      raft::copy(d_vertices.data(), d_src_out.data(), d_src_out.size(), handle.get_stream());
+      raft::copy(d_vertices.data() + d_src_out.size(),
+                 d_dst_out.data(),
+                 d_dst_out.size(),
+                 handle.get_stream());
+      thrust::sort(handle.get_thrust_policy(), d_vertices.begin(), d_vertices.end());
+      auto vertices_end =
+        thrust::unique(handle.get_thrust_policy(), d_vertices.begin(), d_vertices.end());
+      d_vertices.resize(thrust::distance(d_vertices.begin(), vertices_end), handle.get_stream());
 
-      // TODO:  Also should add a check that all edges are in the original graph...
-      //        uniform_neighbor_sample could return random edges and I think that would pass
-      //        this check.
+      rmm::device_uvector<size_t> d_subgraph_offsets(2, handle.get_stream());
+      std::vector<size_t> h_subgraph_offsets({0, d_vertices.size()});
 
-#if 0
-      if (handle.get_comms().get_rank() == int{0}) {
-        std::cout << "results:" << std::endl;
-        raft::print_device_vector(
-          "  d_start_src", d_start_src.data(), d_start_src.size(), std::cout);
-        raft::print_device_vector(
-          "  d_aggregate_src", d_aggregate_src.data(), d_aggregate_src.size(), std::cout);
-        raft::print_device_vector(
-          "  d_aggregate_dst", d_aggregate_dst.data(), d_aggregate_dst.size(), std::cout);
-      }
-#endif
+      raft::update_device(d_subgraph_offsets.data(),
+                          h_subgraph_offsets.data(),
+                          h_subgraph_offsets.size(),
+                          handle.get_stream());
 
-#if 0
-      if (handle.get_comms().get_rank() == int{0}) {
-        bool passed = cugraph::test::check_forest_trees_by_rank(
-          h_start_in, h_ranks_in, h_src_out, h_dst_out, h_ranks_out);
+      auto [d_src_in, d_dst_in, d_indices_in, d_ignore] = extract_induced_subgraphs(
+        handle, graph_view, d_subgraph_offsets.data(), d_vertices.data(), 1, true);
 
-        ASSERT_TRUE(passed);
-      }
-#endif
+      cugraph::test::validate_extracted_graph_is_subgraph(
+        handle, d_src_in, d_dst_in, *d_indices_in, d_src_out, d_dst_out, d_indices);
+
+      cugraph::test::validate_sampling_depth(handle,
+                                             std::move(d_src_out),
+                                             std::move(d_dst_out),
+                                             std::move(d_indices),
+                                             std::move(random_sources),
+                                             h_fan_out.size());
     }
   }
 };

@@ -20,8 +20,9 @@ namespace cugraph {
 namespace detail {
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-get_global_degree_information(raft::handle_t const& handle,
-                              graph_view_t<int32_t, int32_t, float, false, false> const& graph_view);
+get_global_degree_information(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view);
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 get_global_degree_information(
@@ -29,8 +30,9 @@ get_global_degree_information(
   graph_view_t<int32_t, int32_t, double, false, false> const& graph_view);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-get_global_degree_information(raft::handle_t const& handle,
-                              graph_view_t<int32_t, int64_t, float, false, false> const& graph_view);
+get_global_degree_information(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 get_global_degree_information(
@@ -38,8 +40,9 @@ get_global_degree_information(
   graph_view_t<int32_t, int64_t, double, false, false> const& graph_view);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-get_global_degree_information(raft::handle_t const& handle,
-                              graph_view_t<int64_t, int64_t, float, false, false> const& graph_view);
+get_global_degree_information(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 get_global_degree_information(
@@ -117,7 +120,6 @@ template rmm::device_uvector<int64_t> get_active_major_global_degrees(
   graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
   const rmm::device_uvector<int64_t>& active_majors,
   const rmm::device_uvector<int64_t>& global_out_degrees);
-
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,

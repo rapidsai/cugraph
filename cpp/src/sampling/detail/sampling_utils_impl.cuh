@@ -580,10 +580,14 @@ gather_local_edges(
         // read location of global_degree_offset needs to take into account the
         // partition offsets because it is a concatenation of all the offsets
         // across all partitions
-        auto location           = location_in_segment + vertex_count_offsets[partition_id];
-        auto g_dst_index        = edge_index_first[index];
-        minors[index]           = adjacency_list[g_dst_index];
-        edge_index_first[index] = g_dst_index;
+        auto location    = location_in_segment + vertex_count_offsets[partition_id];
+        auto g_dst_index = edge_index_first[index];
+        if (g_dst_index >= 0) {
+          minors[index]    = adjacency_list[g_dst_index];
+          edge_index_first[index] = g_dst_index;
+        } else {
+          minors[index] = invalid_vertex_id;
+        }
       });
   }
 
