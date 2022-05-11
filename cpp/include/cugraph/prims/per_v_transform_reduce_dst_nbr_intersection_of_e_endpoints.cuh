@@ -281,16 +281,20 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
         handle.get_comms(), max_chunk_size, raft::comms::op_t::MAX, handle.get_stream());
     }
 
-    auto d_chunk_sizes = groupby_and_count(vertex_pair_first,
-                                           vertex_pair_first + majors.size(),
-                                           detail::compute_chunk_id_t<vertex_t>{max_num_chunks},
-                                           static_cast<int>(max_num_chunks),
-                                           std::numeric_limits<size_t>::max(),
-                                           handle.get_stream());
-    std::vector<size_t> h_chunk_sizes(d_chunk_sizes.size());
-    raft::update_host(
-      h_chunk_sizes.data(), d_chunk_sizes.data(), d_chunk_sizes.size(), handle.get_stream());
-    handle.sync_stream();
+    std::vector<size_t> h_chunk_sizes(max_num_chunks);
+    if (h_chunk_sizes.size() > size_t{1}) {
+      auto d_chunk_sizes = groupby_and_count(vertex_pair_first,
+                                             vertex_pair_first + majors.size(),
+                                             detail::compute_chunk_id_t<vertex_t>{max_num_chunks},
+                                             static_cast<int>(max_num_chunks),
+                                             std::numeric_limits<size_t>::max(),
+                                             handle.get_stream());
+      raft::update_host(
+        h_chunk_sizes.data(), d_chunk_sizes.data(), d_chunk_sizes.size(), handle.get_stream());
+      handle.sync_stream();
+    } else {
+      h_chunk_sizes[0] = majors.size();
+    }
 
     auto chunk_vertex_pair_first = vertex_pair_first;
     for (size_t j = 0; j < h_chunk_sizes.size(); ++j) {
