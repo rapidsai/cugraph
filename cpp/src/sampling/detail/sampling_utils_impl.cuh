@@ -38,7 +38,6 @@
 #include <vector>
 
 namespace cugraph {
-
 namespace detail {
 
 template <typename GraphViewType>
@@ -583,7 +582,7 @@ gather_local_edges(
         auto location    = location_in_segment + vertex_count_offsets[partition_id];
         auto g_dst_index = edge_index_first[index];
         if (g_dst_index >= 0) {
-          minors[index]    = adjacency_list[g_dst_index];
+          minors[index]           = adjacency_list[g_dst_index];
           edge_index_first[index] = g_dst_index;
         } else {
           minors[index] = invalid_vertex_id;
@@ -750,11 +749,16 @@ gather_one_hop_edgelist(
   GraphViewType const& graph_view,
   const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors)
 {
-  if constexpr (GraphViewType::is_multi_gpu == true) {
-    using vertex_t = typename GraphViewType::vertex_type;
-    using edge_t   = typename GraphViewType::edge_type;
-    using weight_t = typename GraphViewType::weight_type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = typename GraphViewType::weight_type;
 
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+
+  auto weights = thrust::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream());
+
+  if constexpr (GraphViewType::is_multi_gpu == true) {
     std::vector<std::vector<vertex_t>> active_majors_segments;
     vertex_t max_active_major_count{0};
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
@@ -780,11 +784,10 @@ gather_one_hop_edgelist(
                                                           handle.get_stream());
     auto edge_count =
       edgelist_count(handle, graph_view, active_majors.begin(), active_majors.end());
-    rmm::device_uvector<vertex_t> majors(edge_count, handle.get_stream());
-    rmm::device_uvector<vertex_t> minors(edge_count, handle.get_stream());
 
-    auto weights =
-      thrust::make_optional<rmm::device_uvector<weight_t>>(edge_count, handle.get_stream());
+    majors.resize(edge_count, handle.get_stream());
+    minors.resize(edge_count, handle.get_stream());
+    if (weights) weights->resize(edge_count, handle.get_stream());
 
     edge_t output_offset = 0;
     vertex_t vertex_offset{0};
@@ -822,13 +825,8 @@ gather_one_hop_edgelist(
       vertex_offset += partition.major_range_size();
     }
 
-    return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
   } else {
     // Assumes active_majors is sorted
-    using vertex_t = typename GraphViewType::vertex_type;
-    using edge_t   = typename GraphViewType::edge_type;
-    using weight_t = typename GraphViewType::weight_type;
-
     auto partition =
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(0));
@@ -858,11 +856,9 @@ gather_one_hop_edgelist(
                       1,
                       handle.get_stream());
 
-    rmm::device_uvector<vertex_t> majors(edge_count, handle.get_stream());
-    rmm::device_uvector<vertex_t> minors(edge_count, handle.get_stream());
-
-    auto weights =
-      thrust::make_optional<rmm::device_uvector<weight_t>>(edge_count, handle.get_stream());
+    majors.resize(edge_count, handle.get_stream());
+    minors.resize(edge_count, handle.get_stream());
+    if (weights) weights->resize(edge_count, handle.get_stream());
 
     auto majors_segments = graph_view.local_edge_partition_segment_offsets(0);
 
@@ -881,11 +877,10 @@ gather_one_hop_edgelist(
       weights ? thrust::make_optional(weights->data()) : thrust::nullopt,
       thrust::nullopt,
       thrust::nullopt);
-
-    return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
   }
+
+  return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
 }
 
 }  // namespace detail
-
 }  // namespace cugraph
