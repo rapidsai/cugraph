@@ -60,6 +60,7 @@ from cugraph.centrality import (
     betweenness_centrality,
     edge_betweenness_centrality,
     katz_centrality,
+    degree_centrality,
 )
 
 from cugraph.cores import core_number, k_core
@@ -105,7 +106,7 @@ from cugraph.proto.structure import find_bicliques
 from cugraph.linear_assignment import hungarian, dense_hungarian
 from cugraph.layout import force_atlas2
 from raft import raft_include_test
-from cugraph.comms import comms
+from cugraph.dask.comms import comms
 
 from cugraph.sampling import random_walks, rw_path, node2vec
 

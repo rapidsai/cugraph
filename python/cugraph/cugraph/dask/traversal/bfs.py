@@ -19,7 +19,7 @@ from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
 from cugraph.dask.traversal import mg_bfs_wrapper as mg_bfs
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import cudf
 import dask_cudf
 
@@ -66,10 +66,10 @@ def bfs(input_graph,
 
     Parameters
     ----------
-    input_graph : directed cugraph.Graph
+    input_graph : cugraph.Graph
         cuGraph graph instance, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
-        algorithm). Undirected Graph not currently supported.
+        algorithm).
 
     start : Integer
         Specify starting vertex for breadth-first search; this function
@@ -94,19 +94,22 @@ def bfs(input_graph,
 
     Examples
     --------
-    >>> # import cugraph.dask as dcg
+    >>> import cugraph.dask as dcg
+    >>> import dask_cudf
     >>> # ... Init a DASK Cluster
     >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
-    >>> # chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
-    >>> # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize)
-    >>> # dg = cugraph.Graph(directed=True)
-    >>> # dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
-    >>> #                            edge_attr='value')
-    >>> # df = dcg.bfs(dg, 0)
+    >>> chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
+    >>> ddf = dask_cudf.read_csv(datasets_path / "karate.csv",
+    ...                          chunksize=chunksize, delimiter=" ",
+    ...                          names=["src", "dst", "value"],
+    ...                          dtype=["int32", "int32", "float32"])
+    >>> dg = cugraph.Graph(directed=True)
+    >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
+    ...                            edge_attr='value')
+    >>> df = dcg.bfs(dg, 0)
 
     """
-    # FIXME: Uncomment out the above (broken) example
 
     client = default_client()
 

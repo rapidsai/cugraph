@@ -18,7 +18,7 @@
 
 
 from raft.common.handle cimport *
-from cugraph.comms.comms cimport init_subcomms as c_init_subcomms
+from cugraph.dask.comms.comms cimport init_subcomms as c_init_subcomms
 
 
 def init_subcomms(handle, row_comm_size):
