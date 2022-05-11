@@ -382,9 +382,9 @@ uniform_nbr_sample_impl(
         //
         device_vec_t<edge_t> d_rnd_indices(d_new_in.size() * k_level, handle.get_stream());
 
-        cugraph_ops::Rng rng(row_rank + level);
+        raft::random::RngState rng_state(row_rank + level);
         cugraph_ops::get_sampling_index(detail::original::raw_ptr(d_rnd_indices),
-                                        rng,
+                                        rng_state,
                                         detail::original::raw_const_ptr(d_out_degs),
                                         static_cast<edge_t>(d_out_degs.size()),
                                         static_cast<int32_t>(k_level),

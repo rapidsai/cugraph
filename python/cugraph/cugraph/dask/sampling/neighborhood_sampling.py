@@ -24,7 +24,7 @@ from pylibcugraph.experimental import (MGGraph,
                                        uniform_neighborhood_sampling,
                                        )
 from cugraph.dask.common.input_utils import get_distributed_data
-from cugraph.comms import comms as Comms
+from cugraph.dask.comms import comms as Comms
 
 
 def call_nbr_sampling(sID,
@@ -95,16 +95,16 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
 
     Parameters
     ----------
-    input_graph : cugraph.DiGraph
+    input_graph : cugraph.Graph
         cuGraph graph, which contains connectivity information as dask cudf
         edge list dataframe
 
-    start_info_list : tuple of list or cudf.Series
+    start_info_list : tuple of list or cudf.Series (int32)
         Tuple of a list of starting vertices for sampling, along with a
         corresponding list of label for reorganizing results after sending
         the input to different callers.
 
-    fanout_vals : list
+    fanout_vals : list (int32)
         List of branching out (fan-out) degrees per starting vertex for each
         hop level.
 
@@ -135,8 +135,14 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
 
     if isinstance(start_list, list):
         start_list = cudf.Series(start_list)
+        if start_list.dtype != 'int32':
+            raise ValueError(f"'start_list' must have int32 values, "
+                             f"got: {start_list.dtype}")
     if isinstance(info_list, list):
         info_list = cudf.Series(info_list)
+        if info_list.dtype != 'int32':
+            raise ValueError(f"'info_list' must have int32 values, "
+                             f"got: {info_list.dtype}")
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
     if isinstance(fanout_vals, list):

@@ -75,6 +75,11 @@ struct key_aggregated_edge_op_t {
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename weight_t>
 struct reduce_op_t {
+  using type                          = thrust::tuple<vertex_t, weight_t>;
+  static constexpr bool pure_function = true;  // this can be called from any process
+  inline static type const identity_element =
+    thrust::make_tuple(std::numeric_limits<weight_t>::lowest(), invalid_vertex_id<vertex_t>::value);
+
   __device__ auto operator()(thrust::tuple<vertex_t, weight_t> p0,
                              thrust::tuple<vertex_t, weight_t> p1) const
   {
@@ -521,8 +526,8 @@ class Louvain {
       cluster_keys_v_.end(),
       cluster_weights_v_.begin(),
       detail::key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
-      detail::reduce_op_t<vertex_t, weight_t>{},
       thrust::make_tuple(vertex_t{-1}, weight_t{0}),
+      detail::reduce_op_t<vertex_t, weight_t>{},
       cugraph::get_dataframe_buffer_begin(output_buffer));
 
     thrust::transform(handle_.get_thrust_policy(),

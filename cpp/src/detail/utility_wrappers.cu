@@ -31,8 +31,9 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                          value_t max_value,
                          uint64_t seed)
 {
-  raft::random::Rng rng(seed);
-  rng.uniform<value_t, size_t>(d_value, size, min_value, max_value, stream_view.value());
+  raft::random::RngState rng_state(seed, raft::random::GeneratorType::GenPhilox);
+  raft::random::uniform<value_t, size_t>(
+    rng_state, d_value, size, min_value, max_value, stream_view.value());
 }
 
 template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,

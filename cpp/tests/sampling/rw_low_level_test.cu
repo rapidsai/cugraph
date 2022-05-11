@@ -28,7 +28,6 @@
 #include <sampling/random_walks.cuh>
 
 #include <raft/handle.hpp>
-#include <raft/random/rng.cuh>
 
 #include "random_walks_utils.cuh"
 

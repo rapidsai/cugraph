@@ -187,7 +187,7 @@ void sssp(raft::handle_t const& handle,
                         new_distance, src)}
                     : thrust::nullopt;
       },
-      reduce_op::min<thrust::tuple<weight_t, vertex_t>>(),
+      reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>(),
       distances,
       thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
       [near_far_threshold] __device__(auto v, auto v_val, auto pushed_val) {
