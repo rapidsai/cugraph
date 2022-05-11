@@ -387,6 +387,11 @@ class graph_view_t<vertex_t,
 
   bool is_weighted() const { return edge_partition_weights_.has_value(); }
 
+  std::vector<vertex_t> vertex_partition_range_offsets() const
+  {
+    return partition_.vertex_partition_range_offsets();
+  }
+
   std::vector<vertex_t> vertex_partition_range_lasts() const
   {
     return partition_.vertex_partition_range_lasts();
@@ -687,6 +692,12 @@ class graph_view_t<vertex_t,
                graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta);
 
   bool is_weighted() const { return weights_.has_value(); }
+
+  std::vector<vertex_t> vertex_partition_range_offsets() const
+  {
+    return std::vector<vertex_t>{local_vertex_partition_range_first(),
+                                 local_vertex_partition_range_last()};
+  }
 
   std::vector<vertex_t> vertex_partition_range_lasts() const
   {
