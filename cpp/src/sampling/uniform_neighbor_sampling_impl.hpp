@@ -101,7 +101,7 @@ uniform_nbr_sample_impl(
       // segmented-random-generation of indices:
       rmm::device_uvector<edge_t> d_rnd_indices(d_in.size() * k_level, handle.get_stream());
 
-      raft::random::RngState rng_state(row_rank + level);
+      raft::random::RngState rng_state(seed);
       seed += d_rnd_indices.size() * num_rows;
 
       cugraph_ops::get_sampling_index(d_rnd_indices.data(),
