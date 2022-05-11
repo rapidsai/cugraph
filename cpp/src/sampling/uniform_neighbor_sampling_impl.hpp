@@ -78,8 +78,9 @@ uniform_nbr_sample_impl(
 
   for (auto&& k_level : h_fan_out) {
     // prep step for extracting out-degs(sources):
-    //
     if constexpr (graph_view_t::is_multi_gpu) {
+      d_in = shuffle_int_vertices_by_gpu_id(
+        handle, std::move(d_in), graph_view.vertex_partition_range_lasts());
       d_in = gather_active_majors(handle, std::move(d_in));
     }
 
@@ -90,7 +91,6 @@ uniform_nbr_sample_impl(
 
     if (k_level != 0) {
       // extract out-degs(sources):
-      //
       auto&& d_out_degs =
         get_active_major_global_degrees(handle, graph_view, d_in, global_out_degrees);
 
@@ -99,7 +99,6 @@ uniform_nbr_sample_impl(
         cugraph::detail::filter_degree_0_vertices(handle, std::move(d_in), std::move(d_out_degs));
 
       // segmented-random-generation of indices:
-      //
       rmm::device_uvector<edge_t> d_rnd_indices(d_in.size() * k_level, handle.get_stream());
 
       cugraph_ops::Rng rng(seed);
@@ -113,7 +112,6 @@ uniform_nbr_sample_impl(
                                       with_replacement,
                                       handle.get_stream());
 
-      // FIXME:  Need an SG version of gather_local_edges
       std::tie(d_out_src, d_out_dst, d_out_indices) =
         gather_local_edges(handle,
                            graph_view,
@@ -123,13 +121,11 @@ uniform_nbr_sample_impl(
                            global_degree_offsets,
                            global_adjacency_list_offsets);
     } else {
-      // FIXME:  Need an SG version of gather_one_hop_edgelist
       std::tie(d_out_src, d_out_dst, d_out_indices) =
         gather_one_hop_edgelist(handle, graph_view, d_in);
     }
 
     // resize accumulators:
-    //
     auto old_sz = d_result_dst.size();
     auto add_sz = d_out_dst.size();
     auto new_sz = old_sz + add_sz;
@@ -147,12 +143,7 @@ uniform_nbr_sample_impl(
                d_out_indices->size(),
                handle.get_stream());
 
-    if constexpr (graph_view_t::is_multi_gpu) {
-      d_in = shuffle_int_vertices_by_gpu_id(
-        handle, std::move(d_out_dst), graph_view.vertex_partition_range_lasts());
-    } else {
-      d_in = std::move(d_out_dst);
-    }
+    d_in = std::move(d_out_dst);
 
     ++level;
   }
@@ -178,11 +169,6 @@ uniform_nbr_sample(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> d_start_vs(d_starting_vertices.size(), handle.get_stream());
   raft::copy(
     d_start_vs.data(), d_starting_vertices.data(), d_starting_vertices.size(), handle.get_stream());
-
-  if constexpr (graph_view_t::is_multi_gpu) {
-    d_start_vs = cugraph::detail::shuffle_int_vertices_by_gpu_id(
-      handle, std::move(d_start_vs), graph_view.vertex_partition_range_lasts());
-  }
 
   // preamble step for out-degree info:
   //

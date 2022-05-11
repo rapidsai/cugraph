@@ -84,8 +84,6 @@ class Tests_MG_Nbr_Sampling
     constexpr vertex_t source_sample_count    = 3;
 
     // Generate random vertex ids in the range of current gpu
-
-    // Generate random sources to gather on
     auto random_sources = random_vertex_ids(handle,
                                             mg_graph_view.local_vertex_partition_range_first(),
                                             mg_graph_view.local_vertex_partition_range_last(),
