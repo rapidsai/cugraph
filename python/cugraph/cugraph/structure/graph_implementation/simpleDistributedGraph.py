@@ -477,6 +477,11 @@ class simpleDistributedGraphImpl:
             If True, renumber with the intent to make a CSC-like
             structure.  If False, renumber with the intent to make
             a CSR-like structure.  Defaults to False.
+        
+        legacy_renum_only : (optional) bool
+            if True, The C++ renumbering will not be triggered.
+            This parameter is added for new algos following the
+            C/Pylibcugraph path
         """
         if not self.properties.renumbered:
             self.edgelist = self.EdgeList(self.input_df)
