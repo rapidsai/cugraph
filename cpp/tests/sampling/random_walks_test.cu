@@ -188,8 +188,8 @@ class Tests_RandomWalks
         impl_details::uniform_selector_t<graph_vt, real_t> selector{handle, graph_view, real_t{0}};
 
         auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
-                                                         decltype(selector),
-                                                         impl_details::vertical_traversal_t>(
+                                                            decltype(selector),
+                                                            impl_details::vertical_traversal_t>(
           handle,  // required to prevent clang-format to separate functin name from its namespace
           graph_view,
           d_start_view,
@@ -212,8 +212,8 @@ class Tests_RandomWalks
         impl_details::biased_selector_t<graph_vt, real_t> selector{handle, graph_view, real_t{0}};
 
         auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
-                                                         decltype(selector),
-                                                         impl_details::vertical_traversal_t>(
+                                                            decltype(selector),
+                                                            impl_details::vertical_traversal_t>(
           handle,  // required to prevent clang-format to separate functin name from its namespace
           graph_view,
           d_start_view,
@@ -237,8 +237,8 @@ class Tests_RandomWalks
           handle, graph_view, real_t{0}, p, q, num_paths};
 
         auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
-                                                         decltype(selector),
-                                                         impl_details::vertical_traversal_t>(
+                                                            decltype(selector),
+                                                            impl_details::vertical_traversal_t>(
           handle,  // required to prevent clang-format to separate functin name from its namespace
           graph_view,
           d_start_view,

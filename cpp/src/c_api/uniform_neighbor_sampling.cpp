@@ -234,7 +234,8 @@ struct experimental_uniform_neighbor_sampling_functor : public cugraph::c_api::a
         false);
 
       auto&& [srcs, dsts, weights] = cugraph::uniform_nbr_sample(
-        handle_, graph_view,
+        handle_,
+        graph_view,
         raft::device_span<vertex_t>(start.data(), start.size()),
         raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
         with_replacement_);

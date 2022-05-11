@@ -132,23 +132,20 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
   return std::make_tuple(std::move(d_vertices), std::move(d_out_degs));
 }
 
-template
-std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> filter_degree_0_vertices(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& d_vertices,
-  rmm::device_uvector<int32_t>&& d_out_degs);
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+filter_degree_0_vertices(raft::handle_t const& handle,
+                         rmm::device_uvector<int32_t>&& d_vertices,
+                         rmm::device_uvector<int32_t>&& d_out_degs);
 
-template
-std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int64_t>> filter_degree_0_vertices(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& d_vertices,
-  rmm::device_uvector<int64_t>&& d_out_degs);
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int64_t>>
+filter_degree_0_vertices(raft::handle_t const& handle,
+                         rmm::device_uvector<int32_t>&& d_vertices,
+                         rmm::device_uvector<int64_t>&& d_out_degs);
 
-template
-std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>> filter_degree_0_vertices(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& d_vertices,
-  rmm::device_uvector<int64_t>&& d_out_degs);
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
+filter_degree_0_vertices(raft::handle_t const& handle,
+                         rmm::device_uvector<int64_t>&& d_vertices,
+                         rmm::device_uvector<int64_t>&& d_out_degs);
 
 }  // namespace detail
 }  // namespace cugraph

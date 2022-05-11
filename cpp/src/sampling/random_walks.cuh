@@ -82,7 +82,10 @@ struct rrandom_gen_t {
                 index_t num_paths,
                 original::device_vec_t<real_t>& d_random,  // scratch-pad, non-coalesced
                 seed_t seed = seed_t{})
-    : handle_(handle), seed_(seed), num_paths_(num_paths), d_ptr_random_(original::raw_ptr(d_random))
+    : handle_(handle),
+      seed_(seed),
+      num_paths_(num_paths),
+      d_ptr_random_(original::raw_ptr(d_random))
   {
     auto rnd_sz = d_random.size();
 
@@ -199,7 +202,8 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
     original::device_vec_t<vertex_t> const& d_coalesced_src_v,  // in: coalesced vector of vertices
     original::device_vec_t<vertex_t> const&
       d_v_col_indx,  // in: column indices, given by stepper's random engine
-    original::device_vec_t<vertex_t>& d_v_next_vertices,  // out: set of destination vertices, for next step
+    original::device_vec_t<vertex_t>&
+      d_v_next_vertices,  // out: set of destination vertices, for next step
     original::device_vec_t<weight_t>&
       d_v_next_weights)  // out: set of weights between src and destination vertices, for next step
     const
@@ -233,11 +237,12 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
   // Version with selector (sampling strategy):
   //
   template <typename selector_t, typename real_t>
-  void operator()(selector_t const& selector,
-                  original::device_vec_t<real_t> const& d_rnd_val,  // in: random values, one per path
-                  original::device_vec_t<vertex_t>& d_coalesced_v,  // out: set of coalesced vertices
-                  original::device_vec_t<weight_t>& d_coalesced_w,  // out: set of coalesced weights
-                  real_t tag)  // otherwise. ambiguity with the other operator()
+  void operator()(
+    selector_t const& selector,
+    original::device_vec_t<real_t> const& d_rnd_val,  // in: random values, one per path
+    original::device_vec_t<vertex_t>& d_coalesced_v,  // out: set of coalesced vertices
+    original::device_vec_t<weight_t>& d_coalesced_w,  // out: set of coalesced weights
+    real_t tag)  // otherwise. ambiguity with the other operator()
   {
     thrust::for_each(handle_.get_thrust_policy(),
                      thrust::make_counting_iterator<index_t>(0),
@@ -366,8 +371,8 @@ struct random_walker_t {
   //   d_paths_v_set[i*max_depth] = d_src_init_v[i];
   //
   void start(original::device_const_vector_view<vertex_t, index_t>& d_src_init_v,  // in: start set
-             original::device_vec_t<vertex_t>& d_paths_v_set,                      // out: coalesced v
-             original::device_vec_t<index_t>& d_sizes) const  // out: init sizes to {1,...}
+             original::device_vec_t<vertex_t>& d_paths_v_set,  // out: coalesced v
+             original::device_vec_t<index_t>& d_sizes) const   // out: init sizes to {1,...}
   {
     // intialize path sizes to 1, as they contain at least one vertex each:
     // the initial set: d_src_init_v;
@@ -400,8 +405,8 @@ struct random_walker_t {
              original::device_vec_t<vertex_t>& d_paths_v_set,  // out: coalesced v
              original::device_vec_t<index_t>& d_sizes) const   // out: init sizes to {1,...}
   {
-    original::device_const_vector_view<vertex_t, index_t> d_start_cview{d_start.data(),
-                                                              static_cast<index_t>(d_start.size())};
+    original::device_const_vector_view<vertex_t, index_t> d_start_cview{
+      d_start.data(), static_cast<index_t>(d_start.size())};
 
     start(d_start_cview, d_paths_v_set, d_sizes);
   }
@@ -423,7 +428,8 @@ struct random_walker_t {
     original::device_vec_t<index_t>& d_paths_sz,      // crt paths sizes
     original::device_vec_t<edge_t>& d_crt_out_degs,   // crt out-degs for current set of vertices
     original::device_vec_t<real_t>& d_random,         // crt set of random real values
-    original::device_vec_t<vertex_t>& d_col_indx)  // crt col col indices to be used for retrieving next step
+    original::device_vec_t<vertex_t>&
+      d_col_indx)  // crt col col indices to be used for retrieving next step
     const
   {
     // generate random destination indices:
@@ -433,8 +439,12 @@ struct random_walker_t {
     // dst extraction from dst indices:
     // (d_crt_out_degs to be maintained internally by col_extractor)
     //
-    col_indx_extract_t<graph_t> col_extractor(
-      handle_, graph, original::raw_ptr(d_crt_out_degs), original::raw_ptr(d_paths_sz), num_paths_, max_depth_);
+    col_indx_extract_t<graph_t> col_extractor(handle_,
+                                              graph,
+                                              original::raw_ptr(d_crt_out_degs),
+                                              original::raw_ptr(d_paths_sz),
+                                              num_paths_,
+                                              max_depth_);
 
     // The following steps update the next entry in each path,
     // except the paths that reached sinks;
@@ -522,8 +532,8 @@ struct random_walker_t {
   void gather_from_coalesced(
     original::device_vec_t<vertex_t> const& d_coalesced,  // |gather map| = stride*nelems
     original::device_vec_t<src_vec_t> const& d_src,       // |gather input| = nelems
-    original::device_vec_t<index_t> const& d_sizes,       // |paths sizes| = nelems, elems in [1, stride]
-    original::device_vec_t<src_vec_t>& d_result,          // |output| = nelems
+    original::device_vec_t<index_t> const& d_sizes,  // |paths sizes| = nelems, elems in [1, stride]
+    original::device_vec_t<src_vec_t>& d_result,     // |output| = nelems
     index_t stride,        // stride = coalesce block size (typically max_depth)
     index_t nelems) const  // nelems = number of elements to gather (typically num_paths_)
   {
@@ -562,10 +572,11 @@ struct random_walker_t {
   //
   template <typename src_vec_t>
   void scatter_to_coalesced(
-    original::device_vec_t<src_vec_t> const& d_src,        // |scatter input| = nelems
-    original::device_vec_t<src_vec_t>& d_coalesced,        // |scatter input| = stride*nelems
-    original::device_vec_t<edge_t> const& d_crt_out_degs,  // |current set of vertex out degrees| = nelems,
-                                                 // to be used as stencil (don't scatter if 0)
+    original::device_vec_t<src_vec_t> const& d_src,  // |scatter input| = nelems
+    original::device_vec_t<src_vec_t>& d_coalesced,  // |scatter input| = stride*nelems
+    original::device_vec_t<edge_t> const&
+      d_crt_out_degs,  // |current set of vertex out degrees| = nelems,
+                       // to be used as stencil (don't scatter if 0)
     original::device_vec_t<index_t> const&
       d_sizes,  // paths sizes used to provide delta in coalesced paths;
                 // pre-condition: assumed as updated to reflect new vertex additions;
@@ -703,25 +714,27 @@ struct random_walker_t {
  * sizes. Note: if the graph is un-weighted the edge (weight) paths consists of `weight_t{1}`
  * entries;
  */
-template <typename graph_t,
-          typename selector_t,
-          typename traversal_t = original::horizontal_traversal_t,
-          typename random_engine_t =
-            rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
-          typename seeding_policy_t = original::clock_seeding_t<typename random_engine_t::seed_type>,
-          typename index_t          = typename graph_t::edge_type>
+template <
+  typename graph_t,
+  typename selector_t,
+  typename traversal_t = original::horizontal_traversal_t,
+  typename random_engine_t =
+    rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
+  typename seeding_policy_t = original::clock_seeding_t<typename random_engine_t::seed_type>,
+  typename index_t          = typename graph_t::edge_type>
 std::enable_if_t<graph_t::is_multi_gpu == false,
                  std::tuple<original::device_vec_t<typename graph_t::vertex_type>,
                             original::device_vec_t<typename graph_t::weight_type>,
                             original::device_vec_t<index_t>,
                             typename random_engine_t::seed_type>>
-random_walks_impl(raft::handle_t const& handle,
-                  graph_t const& graph,
-                  original::device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
-                  index_t max_depth,
-                  selector_t const& selector,
-                  bool use_padding        = false,
-                  seeding_policy_t seeder = original::clock_seeding_t<typename random_engine_t::seed_type>{})
+random_walks_impl(
+  raft::handle_t const& handle,
+  graph_t const& graph,
+  original::device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
+  index_t max_depth,
+  selector_t const& selector,
+  bool use_padding        = false,
+  seeding_policy_t seeder = original::clock_seeding_t<typename random_engine_t::seed_type>{})
 {
   using vertex_t = typename graph_t::vertex_type;
   using edge_t   = typename graph_t::edge_type;
@@ -751,9 +764,10 @@ random_walks_impl(raft::handle_t const& handle,
 
   // pre-allocate num_paths * max_depth;
   //
-  original::device_vec_t<vertex_t> d_coalesced_v(num_paths * max_depth, stream);  // coalesced vertex set
+  original::device_vec_t<vertex_t> d_coalesced_v(num_paths * max_depth,
+                                                 stream);  // coalesced vertex set
   original::device_vec_t<weight_t> d_coalesced_w(num_paths * (max_depth - 1),
-                                       stream);         // coalesced weight set
+                                                 stream);         // coalesced weight set
   original::device_vec_t<index_t> d_paths_sz(num_paths, stream);  // paths sizes
 
   // traversal policy:
@@ -811,9 +825,9 @@ random_walks_impl(raft::handle_t const& handle,
     return std::make_tuple(
       std::move(d_coalesced_v),
       std::move(d_coalesced_w),
-      original::device_vec_t<index_t>(0, stream),  // purposely empty size array for the padded case, to avoid
-                                         // unnecessary allocations
-      seed0);                            // also return seed for repro
+      original::device_vec_t<index_t>(0, stream),  // purposely empty size array for the padded
+                                                   // case, to avoid unnecessary allocations
+      seed0);  // also return seed for repro
   }
 }
 
@@ -850,25 +864,27 @@ random_walks_impl(raft::handle_t const& handle,
  * sizes. Note: if the graph is un-weighted the edge (weight) paths consists of `weight_t{1}`
  * entries;
  */
-template <typename graph_t,
-          typename selector_t,
-          typename traversal_t = original::horizontal_traversal_t,
-          typename random_engine_t =
-            rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
-          typename seeding_policy_t = original::clock_seeding_t<typename random_engine_t::seed_type>,
-          typename index_t          = typename graph_t::edge_type>
+template <
+  typename graph_t,
+  typename selector_t,
+  typename traversal_t = original::horizontal_traversal_t,
+  typename random_engine_t =
+    rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
+  typename seeding_policy_t = original::clock_seeding_t<typename random_engine_t::seed_type>,
+  typename index_t          = typename graph_t::edge_type>
 std::enable_if_t<graph_t::is_multi_gpu == true,
                  std::tuple<original::device_vec_t<typename graph_t::vertex_type>,
                             original::device_vec_t<typename graph_t::weight_type>,
                             original::device_vec_t<index_t>,
                             typename random_engine_t::seed_type>>
-random_walks_impl(raft::handle_t const& handle,
-                  graph_t const& graph,
-                  original::device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
-                  index_t max_depth,
-                  selector_t const& selector,
-                  bool use_padding        = false,
-                  seeding_policy_t seeder = original::clock_seeding_t<typename random_engine_t::seed_type>{})
+random_walks_impl(
+  raft::handle_t const& handle,
+  graph_t const& graph,
+  original::device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
+  index_t max_depth,
+  selector_t const& selector,
+  bool use_padding        = false,
+  seeding_policy_t seeder = original::clock_seeding_t<typename random_engine_t::seed_type>{})
 {
   CUGRAPH_FAIL("Not implemented yet.");
 }
@@ -883,9 +899,11 @@ struct coo_convertor_t {
   {
   }
 
-  std::tuple<original::device_vec_t<vertex_t>, original::device_vec_t<vertex_t>, original::device_vec_t<index_t>> operator()(
-    original::device_const_vector_view<vertex_t>& d_coalesced_v,
-    original::device_const_vector_view<index_t>& d_sizes) const
+  std::tuple<original::device_vec_t<vertex_t>,
+             original::device_vec_t<vertex_t>,
+             original::device_vec_t<index_t>>
+  operator()(original::device_const_vector_view<vertex_t>& d_coalesced_v,
+             original::device_const_vector_view<index_t>& d_sizes) const
   {
     CUGRAPH_EXPECTS(static_cast<index_t>(d_sizes.size()) == num_paths_, "Invalid size vector.");
 
@@ -945,8 +963,10 @@ struct coo_convertor_t {
       handle_.get_thrust_policy(), d_sizes.begin(), d_sizes.end(), d_scan.begin());
 
     index_t total_sz{0};
-    RAFT_CUDA_TRY(cudaMemcpy(
-      &total_sz, original::raw_ptr(d_scan) + num_paths_ - 1, sizeof(index_t), cudaMemcpyDeviceToHost));
+    RAFT_CUDA_TRY(cudaMemcpy(&total_sz,
+                             original::raw_ptr(d_scan) + num_paths_ - 1,
+                             sizeof(index_t),
+                             cudaMemcpyDeviceToHost));
 
     original::device_vec_t<int> d_stencil(total_sz, handle_.get_stream());
 
@@ -1112,8 +1132,8 @@ random_walks(raft::handle_t const& handle,
     if (selector_type == static_cast<int>(sampling_strategy_t::BIASED)) {
       detail::original::biased_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
 
-      auto quad_tuple =
-        detail::random_walks_impl<graph_t, decltype(selector), detail::original::vertical_traversal_t>(
+      auto quad_tuple = detail::
+        random_walks_impl<graph_t, decltype(selector), detail::original::vertical_traversal_t>(
           handle, graph, d_v_start, max_depth, selector, use_padding);
       // ignore last element of the quad, seed,
       // since it's meant for testing / debugging, only:
@@ -1135,8 +1155,8 @@ random_walks(raft::handle_t const& handle,
       detail::original::node2vec_selector_t<graph_t, real_t> selector{
         handle, graph, real_t{0}, p, q, alpha_num_paths};
 
-      auto quad_tuple =
-        detail::random_walks_impl<graph_t, decltype(selector), detail::original::vertical_traversal_t>(
+      auto quad_tuple = detail::
+        random_walks_impl<graph_t, decltype(selector), detail::original::vertical_traversal_t>(
           handle, graph, d_v_start, max_depth, selector, use_padding);
       // ignore last element of the quad, seed,
       // since it's meant for testing / debugging, only:
@@ -1147,8 +1167,8 @@ random_walks(raft::handle_t const& handle,
     } else {
       detail::original::uniform_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
 
-      auto quad_tuple =
-        detail::random_walks_impl<graph_t, decltype(selector), detail::original::vertical_traversal_t>(
+      auto quad_tuple = detail::
+        random_walks_impl<graph_t, decltype(selector), detail::original::vertical_traversal_t>(
           handle, graph, d_v_start, max_depth, selector, use_padding);
       // ignore last element of the quad, seed,
       // since it's meant for testing / debugging, only:
@@ -1235,8 +1255,8 @@ std::
   detail::original::device_const_vector_view<vertex_t> d_v_view(
     static_cast<vertex_t const*>(d_coalesced_v.data()), coalesced_sz_v);
 
-  detail::original::device_const_vector_view<index_t> d_sz_view(static_cast<index_t const*>(d_sizes.data()),
-                                                      num_paths);
+  detail::original::device_const_vector_view<index_t> d_sz_view(
+    static_cast<index_t const*>(d_sizes.data()), num_paths);
 
   return to_coo(d_v_view, d_sz_view);
 }
