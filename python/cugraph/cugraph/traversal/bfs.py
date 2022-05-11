@@ -35,6 +35,8 @@ def _ensure_args(G, start, i_start, directed):
     if (start is None) and (i_start is None):
         raise TypeError("must specify 'start' or 'i_start', but not both")
 
+    start = start if start is not None else i_start
+
     G_type = type(G)
     # Check for Graph-type inputs
     if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
@@ -42,7 +44,12 @@ def _ensure_args(G, start, i_start, directed):
             raise TypeError("'directed' cannot be specified for a "
                             "Graph-type input")
 
-    start = start if start is not None else i_start
+        # ensure start vertex is valid
+        if is_nx_graph_type(G_type) and start not in G:
+            raise ValueError(f"Vertex {start} is not valid for the Graph")
+        elif not G.has_node(start):
+            raise ValueError(f"Vertex {start} is not valid for the Graph")
+
     if directed is None:
         directed = True
 

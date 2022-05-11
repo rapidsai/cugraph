@@ -54,6 +54,12 @@ def _ensure_args(G, source, method, directed,
             raise TypeError(exc_value % "unweighted")
         if overwrite is not None:
             raise TypeError(exc_value % "overwrite")
+        
+        # Ensure source vertex is valid
+        if is_nx_graph_type(G_type) and source not in G:
+            raise ValueError(f"Vertex {source} is not valid for the Graph")
+        elif not G.has_node(source):
+            raise ValueError(f"Vertex {source} is not valid for the Graph")
 
         directed = False
 
