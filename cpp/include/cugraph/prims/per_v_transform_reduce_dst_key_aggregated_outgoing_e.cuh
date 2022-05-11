@@ -144,7 +144,7 @@ struct reduce_with_init_t {
 
 /**
  * @brief Iterate over every vertex's destination key-aggregated outgoing edges to update vertex
- * properties.
+ * property values.
  *
  * This function is inspired by thrust::transfrom_reduce().
  * Unlike per_v_transform_reduce_outgoing_e, this function first aggregates outgoing edges by
@@ -187,8 +187,13 @@ struct reduce_with_init_t {
  * edge_partition_src_value_input_first + i), and value for the key stored in the input (key, value)
  * pairs provided by @p map_unique_key_first, @p map_unique_key_last, and @p map_value_first
  * (aggregated over the entire set of processes in multi-GPU).
- * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
- * @param init Initial value to be added to the reduced @p reduce_op return values for each vertex.
+ * @param init Initial value to be reduced with the reduced value for each vertex.
+ * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
+ * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
+ * recommended to use the pre-defined reduction operators whenever possible as the current (and
+ * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
+ * known member variables) to take a more optimized code path. See the documentation in the
+ * reduce_op.cuh file for instructions on writing custom reduction operators.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
  * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
@@ -212,8 +217,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   VertexIterator map_unique_key_last,
   ValueIterator map_value_first,
   KeyAggregatedEdgeOp key_aggregated_e_op,
-  ReduceOp reduce_op,
   T init,
+  ReduceOp reduce_op,
   VertexValueOutputIterator vertex_value_output_first)
 {
   static_assert(!GraphViewType::is_storage_transposed,
