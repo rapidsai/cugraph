@@ -827,7 +827,7 @@ random_walks_impl(
       std::move(d_coalesced_w),
       original::device_vec_t<index_t>(0, stream),  // purposely empty size array for the padded
                                                    // case, to avoid unnecessary allocations
-      seed0);  // also return seed for repro
+      seed0);                                      // also return seed for repro
   }
 }
 
