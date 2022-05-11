@@ -34,6 +34,16 @@ namespace cugraph {
 
 namespace detail {
 
+template <typename vertex_t>
+struct compute_chunk_id_t {
+  size_t num_chunks{};
+
+  __device__ int operator()(thrust::tuple<vertex_t, vertex_t> tup) const
+  {
+    return static_cast<int>(thrust::get<1>(tup) % num_chunks);
+  }
+};
+
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
@@ -261,178 +271,216 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
 
     auto vertex_pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
-    thrust::sort(
-      handle.get_thrust_policy(),
-      vertex_pair_first,
-      vertex_pair_first +
-        majors.size());  // detail::nbr_intersection() requires the input vertex pairs to be sorted.
 
-    // FIXME: we can call detail::nbr_intersection in multiple chunks (by regrouping the vertex
-    // pairs by applying the % num_chunks to the second element of each pair) to further limit the
-    // peak memory usage.
-    auto [intersection_offsets, intersection_indices] =
-      detail::nbr_intersection(handle,
-                               graph_view,
-                               vertex_pair_first,
-                               vertex_pair_first + majors.size(),
-                               std::array<bool, 2>{true, true},
-                               do_expensive_check);
-
-    auto src_value_buffer = allocate_dataframe_buffer<T>(majors.size(), handle.get_stream());
-    auto dst_value_buffer = allocate_dataframe_buffer<T>(majors.size(), handle.get_stream());
-    auto intersection_value_buffer =
-      allocate_dataframe_buffer<T>(majors.size(), handle.get_stream());
-
-    auto triplet_first = thrust::make_zip_iterator(
-      thrust::make_tuple(get_dataframe_buffer_begin(src_value_buffer),
-                         get_dataframe_buffer_begin(dst_value_buffer),
-                         get_dataframe_buffer_begin(intersection_value_buffer)));
-    thrust::tabulate(
-      handle.get_thrust_policy(),
-      triplet_first,
-      triplet_first + majors.size(),
-      detail::call_intersection_op_t<GraphViewType,
-                                     EdgePartitionSrcValueInputWrapper,
-                                     EdgePartitionDstValueInputWrapper,
-                                     IntersectionOp,
-                                     decltype(vertex_pair_first)>{edge_partition,
-                                                                  edge_partition_src_value_input,
-                                                                  edge_partition_dst_value_input,
-                                                                  intersection_op,
-                                                                  intersection_offsets.data(),
-                                                                  intersection_indices.data(),
-                                                                  vertex_pair_first});
-
-    rmm::device_uvector<vertex_t> endpoint_vertices(size_t{0}, handle.get_stream());
-    auto endpoint_value_buffer = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
-    {
-      auto [reduced_src_vertices, reduced_src_value_buffer] = detail::sort_and_reduce_by_vertices(
-        handle,
-        GraphViewType::is_storage_transposed ? std::move(minors) : std::move(majors),
-        std::move(src_value_buffer));
-      auto [reduced_dst_vertices, reduced_dst_value_buffer] = detail::sort_and_reduce_by_vertices(
-        handle,
-        GraphViewType::is_storage_transposed ? std::move(majors) : std::move(minors),
-        std::move(dst_value_buffer));
-
-      endpoint_vertices.resize(reduced_src_vertices.size() + reduced_dst_vertices.size(),
-                               handle.get_stream());
-      resize_dataframe_buffer(endpoint_value_buffer, endpoint_vertices.size(), handle.get_stream());
-
-      thrust::merge_by_key(handle.get_thrust_policy(),
-                           reduced_src_vertices.begin(),
-                           reduced_src_vertices.end(),
-                           reduced_dst_vertices.begin(),
-                           reduced_dst_vertices.end(),
-                           get_dataframe_buffer_begin(reduced_src_value_buffer),
-                           get_dataframe_buffer_begin(reduced_dst_value_buffer),
-                           endpoint_vertices.begin(),
-                           get_dataframe_buffer_begin(endpoint_value_buffer));
-    }
-
-    auto tmp_intersection_value_buffer =
-      allocate_dataframe_buffer<T>(intersection_indices.size(), handle.get_stream());
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(size_dataframe_buffer(intersection_value_buffer)),
-      detail::segmented_fill_t<vertex_t,
-                               decltype(get_dataframe_buffer_begin(intersection_value_buffer))>{
-        intersection_offsets.data(),
-        get_dataframe_buffer_begin(intersection_value_buffer),
-        get_dataframe_buffer_begin(tmp_intersection_value_buffer)});
-    resize_dataframe_buffer(intersection_value_buffer, size_t{0}, handle.get_stream());
-    shrink_to_fit_dataframe_buffer(intersection_value_buffer, handle.get_stream());
-
-    auto [reduced_intersection_indices, reduced_intersection_value_buffer] =
-      detail::sort_and_reduce_by_vertices(
-        handle, std::move(intersection_indices), std::move(tmp_intersection_value_buffer));
-
-    rmm::device_uvector<vertex_t> merged_vertices(
-      endpoint_vertices.size() + reduced_intersection_indices.size(), handle.get_stream());
-    auto merged_value_buffer =
-      allocate_dataframe_buffer<T>(merged_vertices.size(), handle.get_stream());
-    thrust::merge_by_key(handle.get_thrust_policy(),
-                         endpoint_vertices.begin(),
-                         endpoint_vertices.end(),
-                         reduced_intersection_indices.begin(),
-                         reduced_intersection_indices.end(),
-                         get_dataframe_buffer_begin(endpoint_value_buffer),
-                         get_dataframe_buffer_begin(reduced_intersection_value_buffer),
-                         merged_vertices.begin(),
-                         get_dataframe_buffer_begin(merged_value_buffer));
-
-    endpoint_vertices.resize(size_t{0}, handle.get_stream());
-    endpoint_vertices.shrink_to_fit(handle.get_stream());
-    resize_dataframe_buffer(endpoint_value_buffer, size_t{0}, handle.get_stream());
-    shrink_to_fit_dataframe_buffer(endpoint_value_buffer, handle.get_stream());
-    reduced_intersection_indices.resize(size_t{0}, handle.get_stream());
-    reduced_intersection_indices.shrink_to_fit(handle.get_stream());
-    resize_dataframe_buffer(reduced_intersection_value_buffer, size_t{0}, handle.get_stream());
-    shrink_to_fit_dataframe_buffer(reduced_intersection_value_buffer, handle.get_stream());
-
-    auto num_uniques =
-      thrust::count_if(handle.get_thrust_policy(),
-                       thrust::make_counting_iterator(size_t{0}),
-                       thrust::make_counting_iterator(merged_vertices.size()),
-                       detail::is_first_in_run_t<vertex_t>{merged_vertices.data()});
-    rmm::device_uvector<vertex_t> reduced_vertices(num_uniques, handle.get_stream());
-    auto reduced_value_buffer = allocate_dataframe_buffer<T>(num_uniques, handle.get_stream());
-    thrust::reduce_by_key(handle.get_thrust_policy(),
-                          merged_vertices.begin(),
-                          merged_vertices.end(),
-                          get_dataframe_buffer_begin(merged_value_buffer),
-                          reduced_vertices.begin(),
-                          get_dataframe_buffer_begin(reduced_value_buffer));
-    merged_vertices.resize(size_t{0}, handle.get_stream());
-    merged_vertices.shrink_to_fit(handle.get_stream());
-    resize_dataframe_buffer(merged_value_buffer, size_t{0}, handle.get_stream());
-    shrink_to_fit_dataframe_buffer(merged_value_buffer, handle.get_stream());
-
+    // to limit memory footprint ((1 << 10) is a tuning parameter)
+    auto max_chunk_size =
+      static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 15);
+    auto max_num_chunks = (majors.size() + max_chunk_size - 1) / max_chunk_size;
     if constexpr (GraphViewType::is_multi_gpu) {
-      // FIXME: better refactor this shuffle code for reuse
-      auto& comm = handle.get_comms();
-
-      auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
-      rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-        h_vertex_partition_range_lasts.size(), handle.get_stream());
-      raft::update_device(d_vertex_partition_range_lasts.data(),
-                          h_vertex_partition_range_lasts.data(),
-                          h_vertex_partition_range_lasts.size(),
-                          handle.get_stream());
-      rmm::device_uvector<size_t> d_lasts(d_vertex_partition_range_lasts.size(),
-                                          handle.get_stream());
-      thrust::lower_bound(handle.get_thrust_policy(),
-                          reduced_vertices.begin(),
-                          reduced_vertices.end(),
-                          d_vertex_partition_range_lasts.begin(),
-                          d_vertex_partition_range_lasts.end(),
-                          d_lasts.begin());
-      std::vector<size_t> h_lasts(d_lasts.size());
-      raft::update_host(h_lasts.data(), d_lasts.data(), d_lasts.size(), handle.get_stream());
-      handle.sync_stream();
-
-      std::vector<size_t> tx_counts(h_lasts.size());
-      std::adjacent_difference(h_lasts.begin(), h_lasts.end(), tx_counts.begin());
-
-      rmm::device_uvector<vertex_t> rx_reduced_vertices(size_t{0}, handle.get_stream());
-      auto rx_reduced_value_buffer = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
-      std::tie(rx_reduced_vertices, std::ignore) =
-        shuffle_values(comm, reduced_vertices.begin(), tx_counts, handle.get_stream());
-      std::tie(rx_reduced_value_buffer, std::ignore) = shuffle_values(
-        comm, get_dataframe_buffer_begin(reduced_value_buffer), tx_counts, handle.get_stream());
-
-      reduced_vertices     = std::move(rx_reduced_vertices);
-      reduced_value_buffer = std::move(rx_reduced_value_buffer);
+      max_chunk_size = host_scalar_allreduce(
+        handle.get_comms(), max_chunk_size, raft::comms::op_t::MAX, handle.get_stream());
     }
 
-    auto vertex_value_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      reduced_vertices.begin(), get_dataframe_buffer_begin(reduced_value_buffer)));
-    thrust::for_each(handle.get_thrust_policy(),
-                     vertex_value_pair_first,
-                     vertex_value_pair_first + reduced_vertices.size(),
-                     detail::accumulate_vertex_property_t<vertex_t, VertexValueOutputIterator>{
-                       graph_view.local_vertex_partition_range_first(), vertex_value_output_first});
+    auto d_chunk_sizes = groupby_and_count(vertex_pair_first,
+                                           vertex_pair_first + majors.size(),
+                                           detail::compute_chunk_id_t<vertex_t>{max_num_chunks},
+                                           static_cast<int>(max_num_chunks),
+                                           std::numeric_limits<size_t>::max(),
+                                           handle.get_stream());
+    std::vector<size_t> h_chunk_sizes(d_chunk_sizes.size());
+    raft::update_host(
+      h_chunk_sizes.data(), d_chunk_sizes.data(), d_chunk_sizes.size(), handle.get_stream());
+    handle.sync_stream();
+
+    auto chunk_vertex_pair_first = vertex_pair_first;
+    for (size_t j = 0; j < h_chunk_sizes.size(); ++j) {
+      auto this_chunk_size = h_chunk_sizes[j];
+
+      thrust::sort(
+        handle.get_thrust_policy(),
+        chunk_vertex_pair_first,
+        chunk_vertex_pair_first + this_chunk_size);  // detail::nbr_intersection() requires the
+                                                     // input vertex pairs to be sorted.
+
+      // FIXME: we can call detail::nbr_intersection in multiple chunks (by regrouping the vertex
+      // pairs by applying the % num_chunks to the second element of each pair) to further limit the
+      // peak memory usage.
+      auto [intersection_offsets, intersection_indices] =
+        detail::nbr_intersection(handle,
+                                 graph_view,
+                                 chunk_vertex_pair_first,
+                                 chunk_vertex_pair_first + this_chunk_size,
+                                 std::array<bool, 2>{true, true},
+                                 do_expensive_check);
+
+      auto src_value_buffer = allocate_dataframe_buffer<T>(this_chunk_size, handle.get_stream());
+      auto dst_value_buffer = allocate_dataframe_buffer<T>(this_chunk_size, handle.get_stream());
+      auto intersection_value_buffer =
+        allocate_dataframe_buffer<T>(this_chunk_size, handle.get_stream());
+
+      auto triplet_first = thrust::make_zip_iterator(
+        thrust::make_tuple(get_dataframe_buffer_begin(src_value_buffer),
+                           get_dataframe_buffer_begin(dst_value_buffer),
+                           get_dataframe_buffer_begin(intersection_value_buffer)));
+      thrust::tabulate(handle.get_thrust_policy(),
+                       triplet_first,
+                       triplet_first + this_chunk_size,
+                       detail::call_intersection_op_t<GraphViewType,
+                                                      EdgePartitionSrcValueInputWrapper,
+                                                      EdgePartitionDstValueInputWrapper,
+                                                      IntersectionOp,
+                                                      decltype(chunk_vertex_pair_first)>{
+                         edge_partition,
+                         edge_partition_src_value_input,
+                         edge_partition_dst_value_input,
+                         intersection_op,
+                         intersection_offsets.data(),
+                         intersection_indices.data(),
+                         chunk_vertex_pair_first});
+
+      rmm::device_uvector<vertex_t> endpoint_vertices(size_t{0}, handle.get_stream());
+      auto endpoint_value_buffer = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
+      {
+        rmm::device_uvector<vertex_t> chunk_majors(this_chunk_size, handle.get_stream());
+        rmm::device_uvector<vertex_t> chunk_minors(this_chunk_size, handle.get_stream());
+        thrust::copy(handle.get_thrust_policy(),
+                     chunk_vertex_pair_first,
+                     chunk_vertex_pair_first + this_chunk_size,
+                     thrust::make_zip_iterator(
+                       thrust::make_tuple(chunk_majors.begin(), chunk_minors.begin())));
+
+        auto [reduced_src_vertices, reduced_src_value_buffer] = detail::sort_and_reduce_by_vertices(
+          handle,
+          GraphViewType::is_storage_transposed ? std::move(chunk_minors) : std::move(chunk_majors),
+          std::move(src_value_buffer));
+        auto [reduced_dst_vertices, reduced_dst_value_buffer] = detail::sort_and_reduce_by_vertices(
+          handle,
+          GraphViewType::is_storage_transposed ? std::move(chunk_majors) : std::move(chunk_minors),
+          std::move(dst_value_buffer));
+
+        endpoint_vertices.resize(reduced_src_vertices.size() + reduced_dst_vertices.size(),
+                                 handle.get_stream());
+        resize_dataframe_buffer(
+          endpoint_value_buffer, endpoint_vertices.size(), handle.get_stream());
+
+        thrust::merge_by_key(handle.get_thrust_policy(),
+                             reduced_src_vertices.begin(),
+                             reduced_src_vertices.end(),
+                             reduced_dst_vertices.begin(),
+                             reduced_dst_vertices.end(),
+                             get_dataframe_buffer_begin(reduced_src_value_buffer),
+                             get_dataframe_buffer_begin(reduced_dst_value_buffer),
+                             endpoint_vertices.begin(),
+                             get_dataframe_buffer_begin(endpoint_value_buffer));
+      }
+
+      auto tmp_intersection_value_buffer =
+        allocate_dataframe_buffer<T>(intersection_indices.size(), handle.get_stream());
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(size_t{0}),
+        thrust::make_counting_iterator(size_dataframe_buffer(intersection_value_buffer)),
+        detail::segmented_fill_t<vertex_t,
+                                 decltype(get_dataframe_buffer_begin(intersection_value_buffer))>{
+          intersection_offsets.data(),
+          get_dataframe_buffer_begin(intersection_value_buffer),
+          get_dataframe_buffer_begin(tmp_intersection_value_buffer)});
+      resize_dataframe_buffer(intersection_value_buffer, size_t{0}, handle.get_stream());
+      shrink_to_fit_dataframe_buffer(intersection_value_buffer, handle.get_stream());
+
+      auto [reduced_intersection_indices, reduced_intersection_value_buffer] =
+        detail::sort_and_reduce_by_vertices(
+          handle, std::move(intersection_indices), std::move(tmp_intersection_value_buffer));
+
+      rmm::device_uvector<vertex_t> merged_vertices(
+        endpoint_vertices.size() + reduced_intersection_indices.size(), handle.get_stream());
+      auto merged_value_buffer =
+        allocate_dataframe_buffer<T>(merged_vertices.size(), handle.get_stream());
+      thrust::merge_by_key(handle.get_thrust_policy(),
+                           endpoint_vertices.begin(),
+                           endpoint_vertices.end(),
+                           reduced_intersection_indices.begin(),
+                           reduced_intersection_indices.end(),
+                           get_dataframe_buffer_begin(endpoint_value_buffer),
+                           get_dataframe_buffer_begin(reduced_intersection_value_buffer),
+                           merged_vertices.begin(),
+                           get_dataframe_buffer_begin(merged_value_buffer));
+
+      endpoint_vertices.resize(size_t{0}, handle.get_stream());
+      endpoint_vertices.shrink_to_fit(handle.get_stream());
+      resize_dataframe_buffer(endpoint_value_buffer, size_t{0}, handle.get_stream());
+      shrink_to_fit_dataframe_buffer(endpoint_value_buffer, handle.get_stream());
+      reduced_intersection_indices.resize(size_t{0}, handle.get_stream());
+      reduced_intersection_indices.shrink_to_fit(handle.get_stream());
+      resize_dataframe_buffer(reduced_intersection_value_buffer, size_t{0}, handle.get_stream());
+      shrink_to_fit_dataframe_buffer(reduced_intersection_value_buffer, handle.get_stream());
+
+      auto num_uniques =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(merged_vertices.size()),
+                         detail::is_first_in_run_t<vertex_t>{merged_vertices.data()});
+      rmm::device_uvector<vertex_t> reduced_vertices(num_uniques, handle.get_stream());
+      auto reduced_value_buffer = allocate_dataframe_buffer<T>(num_uniques, handle.get_stream());
+      thrust::reduce_by_key(handle.get_thrust_policy(),
+                            merged_vertices.begin(),
+                            merged_vertices.end(),
+                            get_dataframe_buffer_begin(merged_value_buffer),
+                            reduced_vertices.begin(),
+                            get_dataframe_buffer_begin(reduced_value_buffer));
+      merged_vertices.resize(size_t{0}, handle.get_stream());
+      merged_vertices.shrink_to_fit(handle.get_stream());
+      resize_dataframe_buffer(merged_value_buffer, size_t{0}, handle.get_stream());
+      shrink_to_fit_dataframe_buffer(merged_value_buffer, handle.get_stream());
+
+      if constexpr (GraphViewType::is_multi_gpu) {
+        // FIXME: better refactor this shuffle code for reuse
+        auto& comm = handle.get_comms();
+
+        auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+        rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
+          h_vertex_partition_range_lasts.size(), handle.get_stream());
+        raft::update_device(d_vertex_partition_range_lasts.data(),
+                            h_vertex_partition_range_lasts.data(),
+                            h_vertex_partition_range_lasts.size(),
+                            handle.get_stream());
+        rmm::device_uvector<size_t> d_lasts(d_vertex_partition_range_lasts.size(),
+                                            handle.get_stream());
+        thrust::lower_bound(handle.get_thrust_policy(),
+                            reduced_vertices.begin(),
+                            reduced_vertices.end(),
+                            d_vertex_partition_range_lasts.begin(),
+                            d_vertex_partition_range_lasts.end(),
+                            d_lasts.begin());
+        std::vector<size_t> h_lasts(d_lasts.size());
+        raft::update_host(h_lasts.data(), d_lasts.data(), d_lasts.size(), handle.get_stream());
+        handle.sync_stream();
+
+        std::vector<size_t> tx_counts(h_lasts.size());
+        std::adjacent_difference(h_lasts.begin(), h_lasts.end(), tx_counts.begin());
+
+        rmm::device_uvector<vertex_t> rx_reduced_vertices(size_t{0}, handle.get_stream());
+        auto rx_reduced_value_buffer = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
+        std::tie(rx_reduced_vertices, std::ignore) =
+          shuffle_values(comm, reduced_vertices.begin(), tx_counts, handle.get_stream());
+        std::tie(rx_reduced_value_buffer, std::ignore) = shuffle_values(
+          comm, get_dataframe_buffer_begin(reduced_value_buffer), tx_counts, handle.get_stream());
+
+        reduced_vertices     = std::move(rx_reduced_vertices);
+        reduced_value_buffer = std::move(rx_reduced_value_buffer);
+      }
+
+      auto vertex_value_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+        reduced_vertices.begin(), get_dataframe_buffer_begin(reduced_value_buffer)));
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        vertex_value_pair_first,
+        vertex_value_pair_first + reduced_vertices.size(),
+        detail::accumulate_vertex_property_t<vertex_t, VertexValueOutputIterator>{
+          graph_view.local_vertex_partition_range_first(), vertex_value_output_first});
+
+      chunk_vertex_pair_first += this_chunk_size;
+    }
   }
 }
 

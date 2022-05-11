@@ -450,11 +450,17 @@ struct gatherv_indices_t {
 // be within the valid edge partition major range assigned to this process and the second element
 // should be within the valid edge partition minor range assigned to this process.
 // [vertex_pair_first, vertex_pair_last) should be sorted using the first element of each pair as
-// the primary key and the second element of each pair as the secondary key. Calling this function
-// in multiple groups can reduce the peak memory usage when the caller wants to compute neighbor
-// intersections for a large number of vertex pairs. Specifically, one may group the vertex pairs by
-// "second element of each vertex pair" % "number of groups", and cal this function once per group
-// (this limits the number of unique second element vertex IDs).
+// the primary key and the second element of each pair as the secondary key.
+// Calling this function in multiple groups can reduce the peak memory usage when the caller wants
+// to compute neighbor intersections for a large number of vertex pairs. This is especially true if
+// one can limit the number of unique vertices (aggregated over column communicator in multi-GPU) to
+// build neighbor list; we need to bulid neighbor lists for the first element of every input vertex
+// pair if intersect_dst_nbr[0] == GraphViewType::is_storage_transposed and build neighbor lists for
+// the second element of every input vertex pair if single-GPU and intersect_dst_nbr[0] ==
+// GraphViewType::is_storage_transposed or multi-GPU. For load balancing,
+// thrust::distance(vertex_pair_first, vertex_pair_last) should be comparable across the global
+// communicator. If we need to build the neighbor lists, grouping based applying "vertex ID % number
+// of groups"  is recommended for load-balancing.
 template <typename GraphViewType, typename VertexPairIterator>
 std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<typename GraphViewType::vertex_type>>
 nbr_intersection(raft::handle_t const& handle,
