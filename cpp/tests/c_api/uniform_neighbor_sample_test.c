@@ -73,12 +73,6 @@ int generic_experimental_uniform_neighbor_sample_test(vertex_t* h_src,
   ret_code = cugraph_experimental_uniform_neighbor_sample(
     handle, graph, d_start_view, h_fan_out_view, with_replacement, FALSE, &result, &ret_error);
 
-  TEST_ASSERT(test_ret_value,
-              ret_code != CUGRAPH_SUCCESS,
-              "cugraph_experimental_uniform_neighbor_sample expected to fail in SG test");
-
-#if 0
-  // FIXME:  cugraph_uniform_neighbor_sample does not support SG
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
 
@@ -124,16 +118,9 @@ int generic_experimental_uniform_neighbor_sample_test(vertex_t* h_src,
     TEST_ASSERT(test_ret_value,
                 M[h_srcs[i]][h_dsts[i]] > 0.0,
                 "uniform_neighbor_sample got edge that doesn't exist");
-
-    bool_t found = FALSE;
-    for (int j = 0; j < num_starts; ++j)
-      found = found || (h_labels[i] == h_start_label[j]);
-
-    TEST_ASSERT(test_ret_value, found, "invalid label");
   }
 
   cugraph_type_erased_host_array_view_free(h_fan_out_view);
-#endif
 
   return test_ret_value;
 }
