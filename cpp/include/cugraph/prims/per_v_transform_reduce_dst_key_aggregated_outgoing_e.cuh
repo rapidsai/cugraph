@@ -60,7 +60,7 @@ struct rebase_offset_t {
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename weight_t>
 struct triplet_to_col_rank_t {
-  compute_gpu_id_from_vertex_t<vertex_t> key_func{};
+  compute_gpu_id_from_ext_vertex_t<vertex_t> key_func{};
   int row_comm_size{};
   __device__ int operator()(
     thrust::tuple<vertex_t, vertex_t, weight_t> val /* major, minor key, weight */) const
@@ -175,7 +175,7 @@ struct reduce_with_init_t {
  * cugraph::edge_partition_dst_property_t::device_view(). Use update_edge_partition_dst_property to
  * fill the wrapper.
  * @param map_unique_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
- * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_vertex_t` is used
+ * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_ext_vertex_t` is used
  * to map keys to processes). (Key, value) pairs may be provided by
  * transform_reduce_by_src_key_e() or transform_reduce_by_dst_key_e().
  * @param map_unique_key_last Iterator pointing to the last (exclusive) key in (key, value) pairs
@@ -431,7 +431,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         triplet_first,
         triplet_first + tmp_majors.size(),
         detail::triplet_to_col_rank_t<vertex_t, weight_t>{
-          detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}, row_comm_size},
+          detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}, row_comm_size},
         col_comm_size,
         mem_frugal_threshold,
         handle.get_stream());
@@ -552,11 +552,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         collect_values_for_unique_keys<vertex_t,
                                        value_t,
                                        decltype(stream_adapter),
-                                       cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>>(
+                                       cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>>(
           comm,
           kv_map,
           std::move(unique_minor_keys),
-          cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
+          cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size},
           handle.get_stream());
 
       multi_gpu_kv_map_ptr.reset();

@@ -214,15 +214,15 @@ rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id_impl(
 }
 
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(raft::handle_t const& handle,
-                                                         rmm::device_uvector<vertex_t>&& d_vertices)
+rmm::device_uvector<vertex_t> shuffle_ext_vertices_by_gpu_id(
+  raft::handle_t const& handle, rmm::device_uvector<vertex_t>&& d_vertices)
 {
   auto const comm_size = handle.get_comms().get_size();
 
   return shuffle_vertices_by_gpu_id_impl(
     handle,
     std::move(d_vertices),
-    cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size});
+    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size});
 }
 
 template <typename vertex_t>
@@ -242,17 +242,17 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_by_gpu_id(
     handle,
     std::move(d_vertices),
     cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-      d_vertex_partition_range_lasts.data(), d_vertex_partition_range_lasts.size()});
+      {d_vertex_partition_range_lasts.data(), d_vertex_partition_range_lasts.size()}});
 
   handle.sync_stream();
 
   return return_value;
 }
 
-template rmm::device_uvector<int32_t> shuffle_vertices_by_gpu_id(
+template rmm::device_uvector<int32_t> shuffle_ext_vertices_by_gpu_id(
   raft::handle_t const& handle, rmm::device_uvector<int32_t>&& d_vertices);
 
-template rmm::device_uvector<int64_t> shuffle_vertices_by_gpu_id(
+template rmm::device_uvector<int64_t> shuffle_ext_vertices_by_gpu_id(
   raft::handle_t const& handle, rmm::device_uvector<int64_t>&& d_vertices);
 
 template rmm::device_uvector<int32_t> shuffle_int_vertices_by_gpu_id(
@@ -304,7 +304,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
          cugraph::detail::compute_partition_id_from_edge_t<vertex_t>{
            comm_size, row_comm_size, col_comm_size},
        gpu_id_key_func =
-         cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(auto pair) {
+         cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(auto pair) {
         auto local_partition_id =
           partition_id_key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
           comm_size;  // global partition id to local partition id
@@ -400,7 +400,7 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
       d_vertices.begin(),
       d_vertices.end(),
       d_values.begin(),
-      cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
+      cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size},
       handle.get_stream());
   }
 

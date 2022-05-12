@@ -68,12 +68,12 @@ uniform_nbr_sample_impl(
     thrust::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
 
   size_t level{0};
-  size_t num_rows{1};
+  size_t row_comm_size{1};
 
   if constexpr (graph_view_t::is_multi_gpu) {
     auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
     seed += row_comm.get_rank();
-    num_rows = row_comm.get_size();
+    row_comm_size = row_comm.get_size();
   }
 
   for (auto&& k_level : h_fan_out) {
@@ -81,7 +81,7 @@ uniform_nbr_sample_impl(
     if constexpr (graph_view_t::is_multi_gpu) {
       d_in = shuffle_int_vertices_by_gpu_id(
         handle, std::move(d_in), graph_view.vertex_partition_range_lasts());
-      d_in = gather_active_majors(handle, std::move(d_in));
+      d_in = allgather_active_majors(handle, std::move(d_in));
     }
 
     rmm::device_uvector<vertex_t> d_out_src(0, handle.get_stream());
@@ -102,7 +102,7 @@ uniform_nbr_sample_impl(
       rmm::device_uvector<edge_t> d_rnd_indices(d_in.size() * k_level, handle.get_stream());
 
       raft::random::RngState rng_state(seed);
-      seed += d_rnd_indices.size() * num_rows;
+      seed += d_rnd_indices.size() * row_comm_size;
 
       cugraph_ops::get_sampling_index(d_rnd_indices.data(),
                                       rng_state,
@@ -159,16 +159,16 @@ std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
            rmm::device_uvector<typename graph_view_t::weight_type>>
 uniform_nbr_sample(raft::handle_t const& handle,
                    graph_view_t const& graph_view,
-                   raft::device_span<typename graph_view_t::vertex_type> d_starting_vertices,
-                   raft::host_span<const int> h_fan_out,
+                   raft::device_span<typename graph_view_t::vertex_type> starting_vertices,
+                   raft::host_span<const int> fan_out,
                    bool with_replacement,
                    uint64_t seed)
 {
   using vertex_t = typename graph_view_t::vertex_type;
 
-  rmm::device_uvector<vertex_t> d_start_vs(d_starting_vertices.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> d_start_vs(starting_vertices.size(), handle.get_stream());
   raft::copy(
-    d_start_vs.data(), d_starting_vertices.data(), d_starting_vertices.size(), handle.get_stream());
+    d_start_vs.data(), starting_vertices.data(), starting_vertices.size(), handle.get_stream());
 
   // preamble step for out-degree info:
   //
@@ -180,7 +180,7 @@ uniform_nbr_sample(raft::handle_t const& handle,
   return detail::uniform_nbr_sample_impl(handle,
                                          graph_view,
                                          d_start_vs,
-                                         h_fan_out,
+                                         fan_out,
                                          global_out_degrees,
                                          global_degree_offsets,
                                          global_adjacency_list_offsets,

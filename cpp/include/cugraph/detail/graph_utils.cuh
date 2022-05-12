@@ -21,6 +21,8 @@
 #include <cugraph/utilities/device_comm.cuh>
 
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
@@ -38,7 +40,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t>
-struct compute_gpu_id_from_vertex_t {
+struct compute_gpu_id_from_ext_vertex_t {
   int comm_size{0};
 
   __device__ int operator()(vertex_t v) const
@@ -50,16 +52,15 @@ struct compute_gpu_id_from_vertex_t {
 
 template <typename vertex_t>
 struct compute_gpu_id_from_int_vertex_t {
-  vertex_t const* vertex_partition_range_lasts;
-  size_t num_vertex_partitions;
+  raft::device_span<vertex_t> vertex_partition_range_lasts_span;
 
   __device__ int operator()(vertex_t v) const
   {
     return static_cast<int>(
-      thrust::distance(vertex_partition_range_lasts,
+      thrust::distance(vertex_partition_range_lasts_span.begin(),
                        thrust::upper_bound(thrust::seq,
-                                           vertex_partition_range_lasts,
-                                           vertex_partition_range_lasts + num_vertex_partitions,
+                                           vertex_partition_range_lasts_span.begin(),
+                                           vertex_partition_range_lasts_span.end(),
                                            v)));
   }
 };

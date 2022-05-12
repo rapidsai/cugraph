@@ -21,6 +21,10 @@
 namespace cugraph {
 namespace detail {
 
+// FIXME: Several of the functions in this file assume that store_transposed=false,
+//    in implementation, naming and documentation.  We should review these and
+//    consider updating things to support an arbitrary value for store_transposed
+
 /**
  * @brief Compute local out degrees of the majors belonging to the adjacency matrices
  * stored on each gpu
@@ -91,8 +95,8 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_global_adjacency_offs
  * in the column communicator
  */
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> gather_active_majors(raft::handle_t const& handle,
-                                                   rmm::device_uvector<vertex_t>&& d_in);
+rmm::device_uvector<vertex_t> allgather_active_majors(raft::handle_t const& handle,
+                                                      rmm::device_uvector<vertex_t>&& d_in);
 
 /**
  * @brief Return global out degrees of active majors

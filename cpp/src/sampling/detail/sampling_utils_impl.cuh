@@ -44,6 +44,9 @@ template <typename GraphViewType>
 rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degrees(
   raft::handle_t const& handle, GraphViewType const& graph_view)
 {
+  // FIXME: This should be moved into the graph_view, perhaps
+  //   graph_view.compute_major_degrees should call this and then
+  //   do the reduction across the column communicators.
   static_assert(GraphViewType::is_storage_transposed == false);
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -248,7 +251,7 @@ get_global_degree_information(raft::handle_t const& handle, GraphViewType const&
 }
 
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> gather_active_majors(raft::handle_t const& handle,
+rmm::device_uvector<vertex_t> allgather_active_majors(raft::handle_t const& handle,
                                                    rmm::device_uvector<vertex_t>&& d_in)
 {
   auto const& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
@@ -594,6 +597,9 @@ gather_local_edges(
     auto input_iter = thrust::make_zip_iterator(
       thrust::make_tuple(majors.begin(), minors.begin(), weights->begin()));
 
+    // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
+    // Seems unlikely here (the goal of sampling is to extract small graphs)
+    // so not going to work around this for now.
     auto compacted_length = thrust::distance(
       input_iter,
       thrust::remove_if(
@@ -611,6 +617,9 @@ gather_local_edges(
 
     auto compacted_length = thrust::distance(
       input_iter,
+      // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
+      // Seems unlikely here (the goal of sampling is to extract small graphs)
+      // so not going to work around this for now.
       thrust::remove_if(
         handle.get_thrust_policy(),
         input_iter,

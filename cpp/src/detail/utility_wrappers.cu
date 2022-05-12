@@ -118,12 +118,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
 {
   auto zip_iter =
     thrust::make_zip_iterator(thrust::make_tuple(d_vertices.begin(), d_out_degs.begin()));
+  // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
+  // Seems unlikely here so not going to work around this for now.
   auto zip_iter_end =
-    thrust::copy_if(handle.get_thrust_policy(),
-                    zip_iter,
-                    zip_iter + d_vertices.size(),
-                    zip_iter,
-                    [] __device__(auto pair) { return thrust::get<1>(pair) > 0; });
+    thrust::remove_if(handle.get_thrust_policy(),
+                      zip_iter,
+                      zip_iter + d_vertices.size(),
+                      zip_iter,
+                      [] __device__(auto pair) { return thrust::get<1>(pair) == 0; });
 
   auto new_size = thrust::distance(zip_iter, zip_iter_end);
   d_vertices.resize(new_size, handle.get_stream());

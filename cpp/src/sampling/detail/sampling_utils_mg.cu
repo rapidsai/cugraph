@@ -82,11 +82,11 @@ template rmm::device_uvector<int64_t> get_global_adjacency_offset(
   rmm::device_uvector<int64_t> const& global_degree_offsets,
   rmm::device_uvector<int64_t> const& global_out_degrees);
 
-template rmm::device_uvector<int32_t> gather_active_majors(raft::handle_t const& handle,
-                                                           rmm::device_uvector<int32_t>&& d_in);
+template rmm::device_uvector<int32_t> allgather_active_majors(raft::handle_t const& handle,
+                                                              rmm::device_uvector<int32_t>&& d_in);
 
-template rmm::device_uvector<int64_t> gather_active_majors(raft::handle_t const& handle,
-                                                           rmm::device_uvector<int64_t>&& d_in);
+template rmm::device_uvector<int64_t> allgather_active_majors(raft::handle_t const& handle,
+                                                              rmm::device_uvector<int64_t>&& d_in);
 
 template rmm::device_uvector<int32_t> get_active_major_global_degrees(
   raft::handle_t const& handle,

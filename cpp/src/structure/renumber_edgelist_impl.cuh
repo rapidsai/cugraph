@@ -191,7 +191,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
 
     if constexpr (multi_gpu) {
       sorted_local_vertices =
-        cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(sorted_local_vertices));
+        cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle, std::move(sorted_local_vertices));
       thrust::sort(
         handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
       sorted_local_vertices.resize(thrust::distance(sorted_local_vertices.begin(),
@@ -511,7 +511,7 @@ void expensive_check_edgelist(
                col_comm_rank,
                j,
                gpu_id_key_func =
-                 detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(auto minor) {
+                 detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(auto minor) {
                 return gpu_id_key_func(minor) != col_comm_rank * row_comm_size + j;
               }) == 0,
             "Invalid input argument: if edgelist_intra_partition_segment_offsets.has_value() is "
@@ -532,7 +532,7 @@ void expensive_check_edgelist(
           (*sorted_local_vertices).end(),
           [comm_rank,
            key_func =
-             detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
+             detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
             return key_func(val) != comm_rank;
           }) == 0,
         "Invalid input argument: local_vertices should be pre-shuffled.");
