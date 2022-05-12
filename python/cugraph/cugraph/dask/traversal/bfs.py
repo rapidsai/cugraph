@@ -139,6 +139,9 @@ def bfs(input_graph,
             tmp_df = cudf.DataFrame()
             tmp_df["0"] = cudf.Series(start)
             tmp_col_names = ["0"]
+        
+        original_start_len = len(tmp_df)
+
         tmp_ddf = tmp_df[tmp_col_names].rename(
             columns=dict(zip(tmp_col_names, col_names)))
         for name in col_names:
@@ -152,6 +155,15 @@ def bfs(input_graph,
                  for idx, wf in enumerate(renumber_data.worker_to_parts.items()
                                           )
                  ]
+        
+        def count_src(df):
+            return len(df)
+
+        count_src_results = client.map(count_src, start)
+        cg = client.gather(count_src_results)
+        if sum(cg) < original_start_len:
+            raise ValueError('At least one start vertex provided was invalid')
+        
     else:
         # If the input graph was created with renumbering disabled (Graph(...,
         # renumber=False), the above compute_renumber_edge_list() call will not

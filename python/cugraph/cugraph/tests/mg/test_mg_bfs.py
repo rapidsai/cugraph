@@ -96,6 +96,12 @@ def test_dask_bfs(dask_client, directed):
             err = err + 1
     assert err == 0
 
+# @pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+# )
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+def test_dask_bfs_invalid_start(dask_client, directed):
+    return True
 
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
