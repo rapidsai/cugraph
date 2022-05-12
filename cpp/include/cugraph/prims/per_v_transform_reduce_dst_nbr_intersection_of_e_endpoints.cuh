@@ -247,6 +247,8 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
     auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     auto const col_comm_rank = col_comm.get_rank();
 
+    d_vertex_partition_range_lasts_in_edge_partition_minor_range =
+      rmm::device_uvector<vertex_t>(row_comm_size, handle.get_stream());
     auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
     raft::update_device(
       (*d_vertex_partition_range_lasts_in_edge_partition_minor_range).data(),
@@ -306,9 +308,6 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
         chunk_vertex_pair_first + this_chunk_size);  // detail::nbr_intersection() requires the
                                                      // input vertex pairs to be sorted.
 
-      // FIXME: we can call detail::nbr_intersection in multiple chunks (by regrouping the vertex
-      // pairs by applying the % num_chunks to the second element of each pair) to further limit the
-      // peak memory usage.
       auto [intersection_offsets, intersection_indices] =
         detail::nbr_intersection(handle,
                                  graph_view,

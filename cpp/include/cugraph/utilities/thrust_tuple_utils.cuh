@@ -255,7 +255,10 @@ constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_max()
 
 template <typename TupleType, size_t I>
 struct thrust_tuple_get {
-  __device__ auto operator()(TupleType tup) const { return thrust::get<I>(tup); }
+  __device__ typename thrust::tuple_element<I, TupleType>::type operator()(TupleType tup) const
+  {
+    return thrust::get<I>(tup);
+  }
 };
 
 }  // namespace cugraph
