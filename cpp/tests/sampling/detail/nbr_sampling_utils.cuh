@@ -23,14 +23,11 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-//#include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <cuco/detail/hash_functions.cuh>
 
-#include <raft/comms/comms.hpp>
-#include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
 
 #include <rmm/device_scalar.hpp>

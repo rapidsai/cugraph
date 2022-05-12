@@ -17,6 +17,9 @@
 #include "nbr_sampling_utils.cuh"
 #include <sampling/nbr_sampling_impl.cuh>
 
+#include <raft/comms/comms.hpp>
+#include <raft/comms/mpi_comms.hpp>
+
 #include <gtest/gtest.h>
 
 struct Prims_Usecase {

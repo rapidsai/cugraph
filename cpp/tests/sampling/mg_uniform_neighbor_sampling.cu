@@ -15,6 +15,8 @@
  */
 
 #include "detail/nbr_sampling_utils.cuh"
+#include <raft/comms/comms.hpp>
+#include <raft/comms/mpi_comms.hpp>
 
 #include <gtest/gtest.h>
 
