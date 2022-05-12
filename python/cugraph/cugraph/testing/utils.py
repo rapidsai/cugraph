@@ -374,7 +374,7 @@ def random_edgelist(
 
     Examples
     --------
-    >>> from cugraph.tests import utils
+    >>> from cugraph.testing import utils
     >>> # genrates 20 df with 100M edges each and write to disk
     >>> for x in range(20):
     >>>    df = utils.random_edgelist(e=100000000, ef=64,

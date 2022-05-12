@@ -27,6 +27,7 @@
 #include <cugraph-ops/graph/sampling.hpp>
 
 #include <raft/handle.hpp>
+#include <raft/random/rng_state.hpp>
 #include <raft/span.hpp>
 
 namespace cugraph {
@@ -1389,7 +1390,7 @@ random_walks(raft::handle_t const& handle,
  * single-gpu).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param rng The Rng (stateful) instance holding pseudo-random number generator state.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
  * @param graph Graph (view )object to sub-sample.
  * @param ptr_d_start Device pointer to set of starting vertex indices for the sub-sampling.
  * @param num_start_vertices = number(vertices) to use for sub-sampling.
@@ -1404,7 +1405,7 @@ template <typename graph_t>
 std::tuple<rmm::device_uvector<typename graph_t::edge_type>,
            rmm::device_uvector<typename graph_t::vertex_type>>
 sample_neighbors_adjacency_list(raft::handle_t const& handle,
-                                ops::gnn::graph::Rng& rng,
+                                raft::random::RngState& rng_state,
                                 graph_t const& graph,
                                 typename graph_t::vertex_type const* ptr_d_start,
                                 size_t num_start_vertices,
@@ -1420,7 +1421,7 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
  * single-gpu).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param rng The Rng (stateful) instance holding pseudo-random number generator state.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
  * @param graph Graph (view )object to sub-sample.
  * @param ptr_d_start Device pointer to set of starting vertex indices for the sub-sampling.
  * @param num_start_vertices = number(vertices) to use for sub-sampling.
@@ -1435,7 +1436,7 @@ template <typename graph_t>
 std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
            rmm::device_uvector<typename graph_t::vertex_type>>
 sample_neighbors_edgelist(raft::handle_t const& handle,
-                          ops::gnn::graph::Rng& rng,
+                          raft::random::RngState& rng_state,
                           graph_t const& graph,
                           typename graph_t::vertex_type const* ptr_d_start,
                           size_t num_start_vertices,

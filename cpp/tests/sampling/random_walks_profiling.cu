@@ -22,7 +22,6 @@
 #include <sampling/random_walks.cuh>
 
 #include <raft/handle.hpp>
-#include <raft/random/rng.cuh>
 
 #include <rmm/exec_policy.hpp>
 

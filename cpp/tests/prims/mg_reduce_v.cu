@@ -86,6 +86,7 @@ struct generate_impl {
   {
     return thrust::make_tuple(static_cast<Args>(init)...);
   }
+
   template <typename label_t>
   static std::tuple<rmm::device_uvector<Args>...> property(rmm::device_uvector<label_t>& labels,
                                                            int hash_bin_count,
@@ -100,6 +101,7 @@ struct generate_impl {
                       property_transform<label_t, Args...>(hash_bin_count));
     return data;
   }
+
   template <typename label_t>
   static std::tuple<rmm::device_uvector<Args>...> property(thrust::counting_iterator<label_t> begin,
                                                            thrust::counting_iterator<label_t> end,
@@ -166,6 +168,7 @@ template <typename T>
 struct generate : public generate_impl<T> {
   static T initial_value(int init) { return static_cast<T>(init); }
 };
+
 template <typename... Args>
 struct generate<std::tuple<Args...>> : public generate_impl<Args...> {
 };
@@ -243,19 +246,43 @@ class Tests_MG_ReduceV
       generate<result_t>::property((*d_mg_renumber_map_labels), hash_bin_count, handle);
     auto property_iter = get_property_iterator(property_data);
 
-    raft::comms::op_t ops[] = {
-      raft::comms::op_t::SUM, raft::comms::op_t::MIN, raft::comms::op_t::MAX};
+    enum class reduction_type_t { PLUS, MINIMUM, MAXIMUM };
+    reduction_type_t reduction_types[] = {
+      reduction_type_t::PLUS, reduction_type_t::MINIMUM, reduction_type_t::MAXIMUM};
 
-    std::unordered_map<raft::comms::op_t, property_t> results;
+    std::unordered_map<reduction_type_t, property_t> results;
 
-    for (auto op : ops) {
+    for (auto reduction_type : reduction_types) {
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
         handle.get_comms().barrier();
         hr_clock.start();
       }
 
-      results[op] = reduce_v(handle, mg_graph_view, property_iter, property_initial_value, op);
+      switch (reduction_type) {
+        case reduction_type_t::PLUS:
+          results[reduction_type] = reduce_v(handle,
+                                             mg_graph_view,
+                                             property_iter,
+                                             property_initial_value,
+                                             cugraph::reduce_op::plus<property_t>{});
+          break;
+        case reduction_type_t::MINIMUM:
+          results[reduction_type] = reduce_v(handle,
+                                             mg_graph_view,
+                                             property_iter,
+                                             property_initial_value,
+                                             cugraph::reduce_op::minimum<property_t>{});
+          break;
+        case reduction_type_t::MAXIMUM:
+          results[reduction_type] = reduce_v(handle,
+                                             mg_graph_view,
+                                             property_iter,
+                                             property_initial_value,
+                                             cugraph::reduce_op::maximum<property_t>{});
+          break;
+        default: FAIL() << "should not be reached.";
+      }
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -282,18 +309,34 @@ class Tests_MG_ReduceV
         handle);
       auto sg_property_iter = get_property_iterator(sg_property_data);
 
-      for (auto op : ops) {
-        auto expected_result = cugraph::op_dispatch<property_t>(
-          op, [&handle, &sg_graph_view, sg_property_iter, property_initial_value](auto op) {
-            return thrust::reduce(
-              handle.get_thrust_policy(),
-              sg_property_iter,
-              sg_property_iter + sg_graph_view.local_vertex_partition_range_size(),
-              property_initial_value,
-              op);
-          });
+      for (auto reduction_type : reduction_types) {
+        property_t expected_result{};
+        switch (reduction_type) {
+          case reduction_type_t::PLUS:
+            expected_result = reduce_v(handle,
+                                       sg_graph_view,
+                                       sg_property_iter,
+                                       property_initial_value,
+                                       cugraph::reduce_op::plus<property_t>{});
+            break;
+          case reduction_type_t::MINIMUM:
+            expected_result = reduce_v(handle,
+                                       sg_graph_view,
+                                       sg_property_iter,
+                                       property_initial_value,
+                                       cugraph::reduce_op::minimum<property_t>{});
+            break;
+          case reduction_type_t::MAXIMUM:
+            expected_result = reduce_v(handle,
+                                       sg_graph_view,
+                                       sg_property_iter,
+                                       property_initial_value,
+                                       cugraph::reduce_op::maximum<property_t>{});
+            break;
+          default: FAIL() << "should not be reached.";
+        }
         result_compare<property_t> compare{};
-        ASSERT_TRUE(compare(expected_result, results[op]));
+        ASSERT_TRUE(compare(expected_result, results[reduction_type]));
       }
     }
   }

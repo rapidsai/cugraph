@@ -16,6 +16,7 @@ from .graph_implementation import (simpleGraphImpl,
                                    simpleDistributedGraphImpl,
                                    npartiteGraphImpl)
 import cudf
+import dask_cudf
 import warnings
 
 from cugraph.utilities.utils import import_optional
@@ -24,9 +25,15 @@ pd = import_optional("pandas")
 
 
 # TODO: Move to utilities
-def null_check(col):
-    if col.null_count != 0:
-        raise ValueError("Series contains NULL values")
+def null_check(input_data):
+    # input_data can be cudf.Series, cudf.DataFrame, dask_cudf.Series
+    # and dask_cudf.DataFrame
+    has_null = input_data.isna().values.any()
+    if isinstance(input_data, (dask_cudf.Series, dask_cudf.DataFrame)):
+        has_null = has_null.compute()
+
+    if has_null:
+        raise ValueError("Series/DataFrame contains NULL values")
 
 
 class Graph:
