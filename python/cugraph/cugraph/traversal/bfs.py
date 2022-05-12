@@ -53,12 +53,12 @@ def _ensure_args(G, start, i_start, directed):
         else:
             if not isinstance(start, cudf.DataFrame) \
                 and not isinstance(start, dask_cudf.DataFrame):
-                start = cudf.DataFrame({'starts': cudf.Series(start)})
+                    start = cudf.DataFrame({'starts': cudf.Series(start)})
 
             if G.is_renumbered():
                 validlen = len(
                     G.renumber_map.to_internal_vertex_id(
-                        start, 
+                        start,
                         start.columns
                     ).dropna()
                 )
@@ -67,12 +67,14 @@ def _ensure_args(G, start, i_start, directed):
             else:
                 el = G.edgelist.edgelist_df[["src", "dst"]]
                 col = start.columns[0]
-                null_l = el.merge(start[col].rename('src'), on='src', how='right') \
-                    .dst.isnull() \
-                    .sum()
-                null_r = el.merge(start[col].rename('dst'), on='dst', how='right') \
-                    .src.isnull() \
-                    .sum()
+                null_l = \
+                    el.merge(start[col].rename('src'), on='src', how='right') \
+                        .dst.isnull() \
+                        .sum()
+                null_r = \
+                    el.merge(start[col].rename('dst'), on='dst', how='right') \
+                        .src.isnull() \
+                        .sum()
                 if null_l + null_r > 0:
                     raise invalid_vertex_err
 

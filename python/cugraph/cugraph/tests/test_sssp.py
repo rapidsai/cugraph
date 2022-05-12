@@ -233,23 +233,23 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
 
 
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
-def test_sssp_invalid_start(gpubenchmark, dataset_source_nxresults, 
+def test_sssp_invalid_start(gpubenchmark, dataset_source_nxresults,
                             cugraph_input_type):
     (graph_file, source, nx_paths, Gnx) = dataset_source_nxresults
     el = cudf.read_csv(
-        graph_file, 
-        sep=' ', 
-        dtype=['int32','int32','float32'], 
-        names=['src','tar','w']
+        graph_file,
+        sep=' ',
+        dtype=['int32', 'int32', 'float32'],
+        names=['src', 'tar', 'w']
     ).dropna()
     newval = max(el.src.max(), el.tar.max()) + 1
     el.src = el.src.replace(source, newval)
     el.tar = el.tar.replace(source, newval)
     G = cugraph.from_cudf_edgelist(
-        el, 
-        source='src', 
-        destination='tar', 
-        edge_attr='w', 
+        el,
+        source='src',
+        destination='tar',
+        edge_attr='w',
         renumber=True
     )
 

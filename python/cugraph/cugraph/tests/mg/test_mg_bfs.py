@@ -123,8 +123,9 @@ def test_dask_bfs_invalid_start(dask_client, directed):
     G = cugraph.Graph(directed=directed)
     G.from_dask_cudf_edgelist(el, 'src', 'dst')
 
-    with pytest.raises(ValueError): 
+    with pytest.raises(ValueError):
         dcg.bfs(G, source_vertex).compute()
+
 
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"

@@ -409,10 +409,10 @@ def test_bfs_nonnative_inputs(gpubenchmark,
 
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
 def test_bfs_invalid_start(gpubenchmark,
-                            dataset_nxresults_startvertex_spc,
-                            cugraph_input_type):
+                           dataset_nxresults_startvertex_spc,
+                           cugraph_input_type):
     (dataset, directed, nx_values, start_vertex, depth_limit) = \
-            dataset_nxresults_startvertex_spc
+        dataset_nxresults_startvertex_spc
 
     # renumber the dataset so that start vertex is no longer a valid vertex
     el = cudf.read_csv(
