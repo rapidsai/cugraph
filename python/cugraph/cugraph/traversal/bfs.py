@@ -11,7 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf, dask_cudf
+import cudf
+import dask_cudf
 
 from cugraph.traversal import bfs_wrapper
 from cugraph.structure.graph_classes import Graph, DiGraph
@@ -45,24 +46,35 @@ def _ensure_args(G, start, i_start, directed):
                             "Graph-type input")
 
         # ensure start vertex is valid
+        invalid_vertex_err = ValueError('A provided vertex was not valid')
         if is_nx_graph_type(G_type):
             if start not in G:
-                raise ValueError(f"Vertex {start} is not valid for the Graph")
+                raise invalid_vertex_err
         else:
-            if not isinstance(start, cudf.DataFrame) and not isinstance(start, dask_cudf.DataFrame):
-                start = cudf.DataFrame({'starts':cudf.Series(start)})
-            
+            if not isinstance(start, cudf.DataFrame) \
+                and not isinstance(start, dask_cudf.DataFrame):
+                start = cudf.DataFrame({'starts': cudf.Series(start)})
+
             if G.is_renumbered():
-                if len(G.renumber_map.to_internal_vertex_id(start, start.columns).dropna()) < len(start):
-                    raise ValueError(f"Vertex {start} is not valid for the Graph")
+                validlen = len(
+                    G.renumber_map.to_internal_vertex_id(
+                        start, 
+                        start.columns
+                    ).dropna()
+                )
+                if validlen < len(start):
+                    raise invalid_vertex_err
             else:
                 el = G.edgelist.edgelist_df[["src", "dst"]]
                 col = start.columns[0]
-                null_l = el.merge(start[col].rename('src'), on='src', how='right').dst.isnull().sum()
-                null_r = el.merge(start[col].rename('dst'), on='dst', how='right').src.isnull().sum()
+                null_l = el.merge(start[col].rename('src'), on='src', how='right') \
+                    .dst.isnull() \
+                    .sum()
+                null_r = el.merge(start[col].rename('dst'), on='dst', how='right') \
+                    .src.isnull() \
+                    .sum()
                 if null_l + null_r > 0:
-                    raise ValueError(f"Vertex {start} is not valid for the Graph")
-                
+                    raise invalid_vertex_err
 
     if directed is None:
         directed = True
@@ -191,7 +203,8 @@ def bfs(G,
     # The BFS C++ extension assumes the start vertex is a cudf.Series object,
     # and operates on internal vertex IDs if renumbered.
     if G.renumbered is True:
-        if isinstance(start, cudf.DataFrame) or isinstance(start, dask_cudf.DataFrame):
+        if isinstance(start, cudf.DataFrame) \
+            or isinstance(start, dask_cudf.DataFrame):
             start = G.lookup_internal_vertex_id(start, start.columns)
         else:
             start = G.lookup_internal_vertex_id(cudf.Series(start))

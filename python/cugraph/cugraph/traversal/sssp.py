@@ -56,10 +56,13 @@ def _ensure_args(G, source, method, directed,
             raise TypeError(exc_value % "overwrite")
 
         # Ensure source vertex is valid
+        invalid_vertex_err = ValueError(
+            f"Vertex {source} is not valid for the NetworkX Graph"
+        )
         if is_nx_graph_type(G_type) and source not in G:
-            raise ValueError(f"Vertex {source} is not valid for the NetworkX Graph")
+            raise invalid_vertex_err
         elif indices is None and not G.has_node(source):
-            raise ValueError(f"Vertex {source} is not valid for the cuGraph Graph")
+            raise invalid_vertex_err
 
         directed = False
 
