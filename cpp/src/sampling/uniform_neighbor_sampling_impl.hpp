@@ -160,12 +160,13 @@ template <typename vertex_t,
           bool multi_gpu>
 std::
   tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  uniform_nbr_sample(raft::handle_t const& handle,
-                     graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-                     raft::device_span<vertex_t> starting_vertices,
-                     raft::host_span<const int> fan_out,
-                     bool with_replacement,
-                     uint64_t seed)
+  uniform_nbr_sample(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+    raft::device_span<vertex_t> starting_vertices,
+    raft::host_span<const int> fan_out,
+    bool with_replacement,
+    uint64_t seed)
 {
   rmm::device_uvector<vertex_t> d_start_vs(starting_vertices.size(), handle.get_stream());
   raft::copy(
