@@ -1540,7 +1540,10 @@ uniform_nbr_sample(raft::handle_t const& handle,
 /**
  * @brief Uniform Neighborhood Sampling.
  *
- * @tparam graph_view_t Type of graph view.
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph View object to generate NBR Sampling on.
@@ -1552,16 +1555,20 @@ uniform_nbr_sample(raft::handle_t const& handle,
  * @param seed A seed to initialize the random number generator
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex, weight_t wgt)
  */
-template <typename graph_view_t>
-std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
-           rmm::device_uvector<typename graph_view_t::vertex_type>,
-           rmm::device_uvector<typename graph_view_t::weight_type>>
-uniform_nbr_sample(raft::handle_t const& handle,
-                   graph_view_t const& graph_view,
-                   raft::device_span<typename graph_view_t::vertex_type> starting_vertices,
-                   raft::host_span<const int> fan_out,
-                   bool with_replacement = true,
-                   uint64_t seed         = 0);
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+  uniform_nbr_sample(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+    raft::device_span<vertex_t> starting_vertices,
+    raft::host_span<const int> fan_out,
+    bool with_replacement = true,
+    uint64_t seed         = 0);
 
 /*
  * @brief Compute triangle counts.
