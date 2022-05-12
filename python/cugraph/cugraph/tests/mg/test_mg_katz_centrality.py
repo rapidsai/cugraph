@@ -19,7 +19,7 @@ import cugraph
 import dask_cudf
 import cudf
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 # =============================================================================
@@ -65,7 +65,7 @@ def test_dask_katz_centrality(dask_client, directed):
     mg_res = mg_res.compute()
 
     import networkx as nx
-    from cugraph.tests import utils
+    from cugraph.testing import utils
     NM = utils.read_csv_for_nx(input_data_path)
     if directed:
         Gnx = nx.from_pandas_edgelist(
