@@ -303,8 +303,8 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
        partition_id_key_func =
          cugraph::detail::compute_partition_id_from_edge_t<vertex_t>{
            comm_size, row_comm_size, col_comm_size},
-       gpu_id_key_func =
-         cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(auto pair) {
+       gpu_id_key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+         comm_size}] __device__(auto pair) {
         auto local_partition_id =
           partition_id_key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
           comm_size;  // global partition id to local partition id

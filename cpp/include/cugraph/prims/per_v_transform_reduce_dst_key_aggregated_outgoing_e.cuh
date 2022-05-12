@@ -175,8 +175,8 @@ struct reduce_with_init_t {
  * cugraph::edge_partition_dst_property_t::device_view(). Use update_edge_partition_dst_property to
  * fill the wrapper.
  * @param map_unique_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
- * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_ext_vertex_t` is used
- * to map keys to processes). (Key, value) pairs may be provided by
+ * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_ext_vertex_t` is
+ * used to map keys to processes). (Key, value) pairs may be provided by
  * transform_reduce_by_src_key_e() or transform_reduce_by_dst_key_e().
  * @param map_unique_key_last Iterator pointing to the last (exclusive) key in (key, value) pairs
  * (assigned to this process in multi-GPU).

@@ -511,7 +511,8 @@ void expensive_check_edgelist(
                col_comm_rank,
                j,
                gpu_id_key_func =
-                 detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(auto minor) {
+                 detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                   comm_size}] __device__(auto minor) {
                 return gpu_id_key_func(minor) != col_comm_rank * row_comm_size + j;
               }) == 0,
             "Invalid input argument: if edgelist_intra_partition_segment_offsets.has_value() is "

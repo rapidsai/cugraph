@@ -252,7 +252,7 @@ get_global_degree_information(raft::handle_t const& handle, GraphViewType const&
 
 template <typename vertex_t>
 rmm::device_uvector<vertex_t> allgather_active_majors(raft::handle_t const& handle,
-                                                   rmm::device_uvector<vertex_t>&& d_in)
+                                                      rmm::device_uvector<vertex_t>&& d_in)
 {
   auto const& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   size_t source_count  = d_in.size();
