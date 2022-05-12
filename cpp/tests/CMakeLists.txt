@@ -575,6 +575,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_CORE_NUMBER_TEST cores/mg_core_number_test.cpp)
 
         ###########################################################################################
+        # - MG TRIANGLE COUNT tests ---------------------------------------------------------------
+        ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
+
+        ###########################################################################################
         # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
 
