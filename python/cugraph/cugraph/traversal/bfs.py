@@ -70,21 +70,21 @@ def _ensure_args(G, start, i_start, directed):
                 el = G.edgelist.edgelist_df[["src", "dst"]]
                 col = start.columns[0]
                 null_l = el \
-                        .merge(
-                            start[col].rename('src'),
-                            on='src',
-                            how='right'
-                        ) \
-                        .dst.isnull() \
-                        .sum()
+                    .merge(
+                        start[col].rename('src'),
+                        on='src',
+                        how='right'
+                    ) \
+                    .dst.isnull() \
+                    .sum()
                 null_r = el \
-                        .merge(
-                            start[col].rename('dst'),
-                            on='dst',
-                            how='right'
-                        ) \
-                        .src.isnull() \
-                        .sum()
+                    .merge(
+                        start[col].rename('dst'),
+                        on='dst',
+                        how='right'
+                    ) \
+                    .src.isnull() \
+                    .sum()
                 if null_l + null_r > 0:
                     raise invalid_vertex_err
 
