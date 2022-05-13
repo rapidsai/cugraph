@@ -597,6 +597,9 @@ gather_local_edges(
     auto input_iter = thrust::make_zip_iterator(
       thrust::make_tuple(majors.begin(), minors.begin(), weights->begin()));
 
+    CUGRAPH_EXPECTS(minors.size() < std::numeric_limits<int32_t>::max(),
+                    "remove_if will fail, minors.size() is too large");
+
     // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
     // Seems unlikely here (the goal of sampling is to extract small graphs)
     // so not going to work around this for now.
@@ -614,6 +617,9 @@ gather_local_edges(
     weights->resize(compacted_length, handle.get_stream());
   } else {
     auto input_iter = thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
+
+    CUGRAPH_EXPECTS(minors.size() < std::numeric_limits<int32_t>::max(),
+                    "remove_if will fail, minors.size() is too large");
 
     auto compacted_length = thrust::distance(
       input_iter,
