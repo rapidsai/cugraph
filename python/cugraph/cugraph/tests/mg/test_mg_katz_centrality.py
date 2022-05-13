@@ -31,7 +31,8 @@ def setup_function():
     gc.collect()
 
 
-IS_DIRECTED = [True, False]
+IS_DIRECTED = [True]
+#IS_DIRECTED = [True, False]
 
 
 @pytest.mark.skipif(
@@ -124,16 +125,15 @@ def test_dask_katz_centrality_multi_column(dask_client, directed):
 
     #dg.view_edge_list.compute()
 
-    mg_res = dcg.katz_centrality(dg, alpha=katz_alpha, max_iter=20, tol=1e-6)
+    mg_res = dcg.katz_centrality(dg, alpha=katz_alpha, max_iter=50, tol=1e-6)
     #breakpoint()
     mg_res = mg_res.compute()
 
     #estimate = dask_cudf.from_cudf(cudf.DataFrame(), npartitions=2)
     estimate = mg_res.copy()
-    estimate.rename(columns={"vertex": "vertex", "katz_centrality": "values"})
+    estimate = estimate.rename(columns={"vertex": "vertex", "katz_centrality": "values"})
     # estimate["values"] = 0.5
-
-    mg_final_res = dcg.katz_centrality(dg, alpha=katz_alpha, nstart=estimate,
-                                       max_iter=10, tol=1e-6)
+    mg_final_res = dcg.katz_centrality2(dg, alpha=katz_alpha, nstart=estimate,
+                                       max_iter=50, tol=1e-6)
     mg_final_res = mg_final_res.compute()
     breakpoint()

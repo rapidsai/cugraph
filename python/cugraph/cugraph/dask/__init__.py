@@ -18,4 +18,5 @@ from .traversal.sssp import sssp
 from .common.read_utils import get_chunksize
 from .community.louvain import louvain
 from .centrality.katz_centrality import katz_centrality
+from .centrality.katz_centrality2 import katz_centrality2
 from .components.connectivity import weakly_connected_components
