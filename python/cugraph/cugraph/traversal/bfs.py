@@ -216,13 +216,13 @@ def bfs(G,
     # The BFS C++ extension assumes the start vertex is a cudf.Series object,
     # and operates on internal vertex IDs if renumbered.
     is_dataframe = isinstance(start, cudf.DataFrame) or \
-                   isinstance(start, dask_cudf.DataFrame)
+        isinstance(start, dask_cudf.DataFrame)
     if G.renumbered is True:
         if is_dataframe:
             start = G.lookup_internal_vertex_id(start, start.columns)
         else:
             start = G.lookup_internal_vertex_id(cudf.Series(start))
-    
+
     else:
         if is_dataframe:
             start = start[start.columns[0]]
