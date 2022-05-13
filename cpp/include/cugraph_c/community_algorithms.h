@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,11 +46,11 @@ typedef struct {
  * @return error code
  */
 cugraph_error_code_t cugraph_triangle_count(const cugraph_resource_handle_t* handle,
-                                             cugraph_graph_t* graph,
-                                             const cugraph_type_erased_device_array_view_t* start,
-                                             bool_t do_expensive_check,
-                                             cugraph_triangle_count_result_t** result,
-                                             cugraph_error_t** error);
+                                            cugraph_graph_t* graph,
+                                            const cugraph_type_erased_device_array_view_t* start,
+                                            bool_t do_expensive_check,
+                                            cugraph_triangle_count_result_t** result,
+                                            cugraph_error_t** error);
 
 /**
  * @brief     Get triangle counting vertices
