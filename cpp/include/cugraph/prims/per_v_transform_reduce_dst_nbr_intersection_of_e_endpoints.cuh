@@ -469,8 +469,8 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
         std::tie(rx_reduced_value_buffer, std::ignore) = shuffle_values(
           comm, get_dataframe_buffer_begin(reduced_value_buffer), tx_counts, handle.get_stream());
 
-        reduced_vertices     = std::move(rx_reduced_vertices);
-        reduced_value_buffer = std::move(rx_reduced_value_buffer);
+        std::tie(reduced_vertices, reduced_value_buffer) = detail::sort_and_reduce_by_vertices(
+          handle, std::move(rx_reduced_vertices), std::move(rx_reduced_value_buffer));
       }
 
       auto vertex_value_pair_first = thrust::make_zip_iterator(thrust::make_tuple(

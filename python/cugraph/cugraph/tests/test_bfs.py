@@ -18,7 +18,7 @@ import numpy as np
 import cudf
 import pytest
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
 import random
 
 import pandas as pd

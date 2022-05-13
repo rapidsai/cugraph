@@ -19,7 +19,7 @@ import networkx as nx
 import pandas as pd
 import cudf
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 
 def cugraph_call(G, partitions):

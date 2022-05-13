@@ -19,7 +19,7 @@ from cudf.testing import assert_series_equal
 
 import cugraph
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function

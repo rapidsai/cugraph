@@ -67,7 +67,7 @@ struct minimum {
   using type                          = T;
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MIN;
-  inline static T const identity_element                      = min_identity_element<T>();
+  inline static T const identity_element                      = max_identity_element<T>();
 
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const
   {
@@ -82,7 +82,7 @@ struct maximum {
   using type                          = T;
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MAX;
-  inline static T const identity_element                      = max_identity_element<T>();
+  inline static T const identity_element                      = min_identity_element<T>();
 
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const
   {

@@ -1026,16 +1026,33 @@ nbr_intersection(raft::handle_t const& handle,
                                rx_v_pair_nbr_intersection_offsets.begin() + 1);
 
         std::vector<size_t> h_rx_v_pair_lasts(rx_v_pair_counts.size());
-        std::inclusive_scan(rx_v_pair_counts.begin(), rx_v_pair_counts.end(), h_rx_v_pair_lasts.begin());
-        rmm::device_uvector<size_t> d_rx_v_pair_lasts(h_rx_v_pair_lasts.size(), handle.get_stream());
-        raft::update_device(d_rx_v_pair_lasts.data(), h_rx_v_pair_lasts.data(), h_rx_v_pair_lasts.size(), handle.get_stream());
-        rmm::device_uvector<size_t> d_rx_v_pair_nbr_intersection_index_tx_lasts(d_rx_v_pair_lasts.size(), handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(), d_rx_v_pair_lasts.begin(), d_rx_v_pair_lasts.end(), rx_v_pair_nbr_intersection_offsets.begin(), d_rx_v_pair_nbr_intersection_index_tx_lasts.begin());
-        std::vector<size_t> h_rx_v_pair_nbr_intersection_index_tx_lasts(d_rx_v_pair_nbr_intersection_index_tx_lasts.size());
-        raft::update_host(h_rx_v_pair_nbr_intersection_index_tx_lasts.data(), d_rx_v_pair_nbr_intersection_index_tx_lasts.data(), d_rx_v_pair_nbr_intersection_index_tx_lasts.size(), handle.get_stream());
+        std::inclusive_scan(
+          rx_v_pair_counts.begin(), rx_v_pair_counts.end(), h_rx_v_pair_lasts.begin());
+        rmm::device_uvector<size_t> d_rx_v_pair_lasts(h_rx_v_pair_lasts.size(),
+                                                      handle.get_stream());
+        raft::update_device(d_rx_v_pair_lasts.data(),
+                            h_rx_v_pair_lasts.data(),
+                            h_rx_v_pair_lasts.size(),
+                            handle.get_stream());
+        rmm::device_uvector<size_t> d_rx_v_pair_nbr_intersection_index_tx_lasts(
+          d_rx_v_pair_lasts.size(), handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       d_rx_v_pair_lasts.begin(),
+                       d_rx_v_pair_lasts.end(),
+                       rx_v_pair_nbr_intersection_offsets.begin(),
+                       d_rx_v_pair_nbr_intersection_index_tx_lasts.begin());
+        std::vector<size_t> h_rx_v_pair_nbr_intersection_index_tx_lasts(
+          d_rx_v_pair_nbr_intersection_index_tx_lasts.size());
+        raft::update_host(h_rx_v_pair_nbr_intersection_index_tx_lasts.data(),
+                          d_rx_v_pair_nbr_intersection_index_tx_lasts.data(),
+                          d_rx_v_pair_nbr_intersection_index_tx_lasts.size(),
+                          handle.get_stream());
         handle.sync_stream();
-        rx_v_pair_nbr_intersection_index_tx_counts.resize(h_rx_v_pair_nbr_intersection_index_tx_lasts.size());
-        std::adjacent_difference(h_rx_v_pair_nbr_intersection_index_tx_lasts.begin(), h_rx_v_pair_nbr_intersection_index_tx_lasts.end(), rx_v_pair_nbr_intersection_index_tx_counts.begin());
+        rx_v_pair_nbr_intersection_index_tx_counts.resize(
+          h_rx_v_pair_nbr_intersection_index_tx_lasts.size());
+        std::adjacent_difference(h_rx_v_pair_nbr_intersection_index_tx_lasts.begin(),
+                                 h_rx_v_pair_nbr_intersection_index_tx_lasts.end(),
+                                 rx_v_pair_nbr_intersection_index_tx_counts.begin());
       }
 
       // 4.2. All-to-all intersection outputs
@@ -1153,7 +1170,7 @@ nbr_intersection(raft::handle_t const& handle,
 
         thrust::for_each(handle.get_thrust_policy(),
                          thrust::make_counting_iterator(size_t{0}),
-                         thrust::make_counting_iterator(aggregate_rx_v_pair_size),
+                         thrust::make_counting_iterator(rx_v_pair_counts[col_comm_rank]),
                          gatherv_indices_t<vertex_t>{rx_v_pair_counts[col_comm_rank],
                                                      col_comm_size,
                                                      gathered_nbr_intersection_offsets.data(),
