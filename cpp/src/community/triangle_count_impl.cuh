@@ -215,6 +215,7 @@ void triangle_count(raft::handle_t const& handle,
   // 3. Find 2-core and exclude edges that do not belong to 2-core (FIXME: better mask-out once we
   // add masking support).
 
+
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
     auto vertex_partition_range_lasts =
@@ -366,7 +367,7 @@ void triangle_count(raft::handle_t const& handle,
       thrust::sort_by_key(handle.get_thrust_policy(),
                           local_vertices.begin(),
                           local_vertices.end(),
-                          cur_graph_counts.begin());
+                          local_counts.begin());
       auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
       rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
         h_vertex_partition_range_lasts.size(), handle.get_stream());

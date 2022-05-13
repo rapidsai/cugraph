@@ -279,8 +279,8 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
       static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 15);
     auto max_num_chunks = (majors.size() + max_chunk_size - 1) / max_chunk_size;
     if constexpr (GraphViewType::is_multi_gpu) {
-      max_chunk_size = host_scalar_allreduce(
-        handle.get_comms(), max_chunk_size, raft::comms::op_t::MAX, handle.get_stream());
+      max_num_chunks = host_scalar_allreduce(
+        handle.get_comms(), max_num_chunks, raft::comms::op_t::MAX, handle.get_stream());
     }
 
     std::vector<size_t> h_chunk_sizes(max_num_chunks);
@@ -294,7 +294,7 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
       raft::update_host(
         h_chunk_sizes.data(), d_chunk_sizes.data(), d_chunk_sizes.size(), handle.get_stream());
       handle.sync_stream();
-    } else {
+    } else if (h_chunk_sizes.size() == size_t{1}) {
       h_chunk_sizes[0] = majors.size();
     }
 
