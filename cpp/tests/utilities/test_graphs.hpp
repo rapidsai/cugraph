@@ -343,7 +343,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     }
 
     if constexpr (multi_gpu) {
-      vertex_v = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(vertex_v));
+      vertex_v = cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle, std::move(vertex_v));
     }
 
     return std::make_tuple(

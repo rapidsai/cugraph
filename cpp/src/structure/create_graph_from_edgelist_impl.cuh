@@ -95,7 +95,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
         (*vertices).end(),
         [comm_rank,
          key_func =
-           detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
+           detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
           return key_func(val) != comm_rank;
         }) == 0,
       "Invalid input argument: vertices should be pre-shuffled.");

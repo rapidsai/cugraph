@@ -17,7 +17,6 @@
 #pragma once
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
-#include <cugraph/detail/graph_functions.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_comm.cuh>
@@ -40,12 +39,14 @@
 
 namespace cugraph {
 namespace detail {
-namespace original {
 
 template <typename GraphViewType>
 rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degrees(
   raft::handle_t const& handle, GraphViewType const& graph_view)
 {
+  // FIXME: This should be moved into the graph_view, perhaps
+  //   graph_view.compute_major_degrees should call this and then
+  //   do the reduction across the column communicators.
   static_assert(GraphViewType::is_storage_transposed == false);
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -129,57 +130,63 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_global_adjacency_offs
   const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets,
   const rmm::device_uvector<typename GraphViewType::edge_type>& global_out_degrees)
 {
-  static_assert(GraphViewType::is_multi_gpu == true);
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
-  // auto const& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-
-  auto& comm           = handle.get_comms();
-  auto const comm_size = comm.get_size();
-  auto const comm_rank = comm.get_rank();
-  auto& col_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_size  = col_comm.get_size();
-  auto& row_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_rank  = row_comm.get_rank();
-  auto const row_size  = row_comm.get_size();
 
   rmm::device_uvector<edge_t> global_adjacency_list_offsets(global_degree_offsets.size(),
                                                             handle.get_stream());
 
-  edge_t edge_count_in_all_previous_partitions{0};
-  vertex_t vertex_offset{0};
-  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-    auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.local_edge_partition_view(i));
-    auto edge_counts =
-      cugraph::host_scalar_allgather(comm, edge_partition.number_of_edges(), handle.get_stream());
-    edge_t partial_edge_count{0};
-    for (int r = 0; r < row_rank; ++r) {
-      for (int c = 0; c < col_size; ++c) {
-        partial_edge_count += edge_counts[r + c * row_size];
+  if constexpr (GraphViewType::is_multi_gpu) {
+    auto& comm           = handle.get_comms();
+    auto const comm_size = comm.get_size();
+    auto const comm_rank = comm.get_rank();
+    auto& col_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto const col_size  = col_comm.get_size();
+    auto& row_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    auto const row_rank  = row_comm.get_rank();
+    auto const row_size  = row_comm.get_size();
+
+    edge_t edge_count_in_all_previous_partitions{0};
+    vertex_t vertex_offset{0};
+    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+      auto edge_partition =
+        edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+          graph_view.local_edge_partition_view(i));
+      auto edge_counts =
+        cugraph::host_scalar_allgather(comm, edge_partition.number_of_edges(), handle.get_stream());
+      edge_t partial_edge_count{0};
+      for (int r = 0; r < row_rank; ++r) {
+        for (int c = 0; c < col_size; ++c) {
+          partial_edge_count += edge_counts[r + c * row_size];
+        }
       }
+      thrust::exclusive_scan(
+        handle.get_thrust_policy(),
+        global_out_degrees.cbegin() + vertex_offset,
+        global_out_degrees.cbegin() + vertex_offset + edge_partition.major_range_size(),
+        global_adjacency_list_offsets.begin() + vertex_offset);
+
+      thrust::transform(
+        handle.get_thrust_policy(),
+        global_adjacency_list_offsets.cbegin() + vertex_offset,
+        global_adjacency_list_offsets.cbegin() + vertex_offset + edge_partition.major_range_size(),
+        global_degree_offsets.cbegin() + vertex_offset,
+        global_adjacency_list_offsets.begin() + vertex_offset,
+        [offset = edge_count_in_all_previous_partitions + partial_edge_count] __device__(
+          auto val0, auto val1) { return val0 + val1 + offset; });
+
+      edge_count_in_all_previous_partitions +=
+        std::accumulate(edge_counts.begin(), edge_counts.end(), edge_t{0});
+      vertex_offset += edge_partition.major_range_size();
     }
-    thrust::exclusive_scan(
-      handle.get_thrust_policy(),
-      global_out_degrees.cbegin() + vertex_offset,
-      global_out_degrees.cbegin() + vertex_offset + edge_partition.major_range_size(),
-      global_adjacency_list_offsets.begin() + vertex_offset);
-
-    thrust::transform(
-      handle.get_thrust_policy(),
-      global_adjacency_list_offsets.cbegin() + vertex_offset,
-      global_adjacency_list_offsets.cbegin() + vertex_offset + edge_partition.major_range_size(),
-      global_degree_offsets.cbegin() + vertex_offset,
-      global_adjacency_list_offsets.begin() + vertex_offset,
-      [offset = edge_count_in_all_previous_partitions + partial_edge_count] __device__(
-        auto val0, auto val1) { return val0 + val1 + offset; });
-
-    edge_count_in_all_previous_partitions +=
-      std::accumulate(edge_counts.begin(), edge_counts.end(), edge_t{0});
-    vertex_offset += edge_partition.major_range_size();
+  } else {
+    thrust::fill(handle.get_thrust_policy(),
+                 global_adjacency_list_offsets.begin(),
+                 global_adjacency_list_offsets.end(),
+                 edge_t{0});
   }
+
   return global_adjacency_list_offsets;
 }
 
@@ -188,72 +195,67 @@ std::tuple<rmm::device_uvector<typename GraphViewType::edge_type>,
            rmm::device_uvector<typename GraphViewType::edge_type>>
 get_global_degree_information(raft::handle_t const& handle, GraphViewType const& graph_view)
 {
-  static_assert(GraphViewType::is_multi_gpu == true);
   using edge_t       = typename GraphViewType::edge_type;
   auto local_degrees = compute_local_major_degrees(handle, graph_view);
 
-  auto& col_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_size = col_comm.get_size();
-  auto const col_rank = col_comm.get_rank();
-  auto& row_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_size = row_comm.get_size();
+  if constexpr (GraphViewType::is_multi_gpu) {
+    auto& col_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto const col_size = col_comm.get_size();
+    auto const col_rank = col_comm.get_rank();
+    auto& row_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    auto const row_size = row_comm.get_size();
 
-  auto& comm           = handle.get_comms();
-  auto const comm_size = comm.get_size();
-  auto const comm_rank = comm.get_rank();
+    auto& comm           = handle.get_comms();
+    auto const comm_size = comm.get_size();
+    auto const comm_rank = comm.get_rank();
 
-  rmm::device_uvector<edge_t> temp_input(local_degrees.size(), handle.get_stream());
-  raft::update_device(
-    temp_input.data(), local_degrees.data(), local_degrees.size(), handle.get_stream());
+    rmm::device_uvector<edge_t> temp_input(local_degrees.size(), handle.get_stream());
+    raft::update_device(
+      temp_input.data(), local_degrees.data(), local_degrees.size(), handle.get_stream());
 
-  rmm::device_uvector<edge_t> recv_data(local_degrees.size(), handle.get_stream());
-  if (col_rank == 0) {
-    thrust::fill(handle.get_thrust_policy(), recv_data.begin(), recv_data.end(), edge_t{0});
-  }
-  for (int i = 0; i < col_size - 1; ++i) {
-    if (col_rank == i) {
-      comm.device_send(
-        temp_input.begin(), temp_input.size(), comm_rank + row_size, handle.get_stream());
+    rmm::device_uvector<edge_t> recv_data(local_degrees.size(), handle.get_stream());
+    if (col_rank == 0) {
+      thrust::fill(handle.get_thrust_policy(), recv_data.begin(), recv_data.end(), edge_t{0});
     }
-    if (col_rank == i + 1) {
-      comm.device_recv(
-        recv_data.begin(), recv_data.size(), comm_rank - row_size, handle.get_stream());
-      thrust::transform(handle.get_thrust_policy(),
-                        temp_input.begin(),
-                        temp_input.end(),
-                        recv_data.begin(),
-                        temp_input.begin(),
-                        thrust::plus<edge_t>());
+    for (int i = 0; i < col_size - 1; ++i) {
+      if (col_rank == i) {
+        comm.device_send(
+          temp_input.begin(), temp_input.size(), comm_rank + row_size, handle.get_stream());
+      }
+      if (col_rank == i + 1) {
+        comm.device_recv(
+          recv_data.begin(), recv_data.size(), comm_rank - row_size, handle.get_stream());
+        thrust::transform(handle.get_thrust_policy(),
+                          temp_input.begin(),
+                          temp_input.end(),
+                          recv_data.begin(),
+                          temp_input.begin(),
+                          thrust::plus<edge_t>());
+      }
+      col_comm.barrier();
     }
-    col_comm.barrier();
-  }
-  // Get global degrees
-  device_bcast(col_comm,
-               temp_input.begin(),
-               temp_input.begin(),
-               temp_input.size(),
-               col_size - 1,
-               handle.get_stream());
+    // Get global degrees
+    device_bcast(col_comm,
+                 temp_input.begin(),
+                 temp_input.begin(),
+                 temp_input.size(),
+                 col_size - 1,
+                 handle.get_stream());
 
-  return std::make_tuple(std::move(recv_data), std::move(temp_input));
+    return std::make_tuple(std::move(recv_data), std::move(temp_input));
+  } else {
+    rmm::device_uvector<edge_t> temp(local_degrees.size(), handle.get_stream());
+    thrust::fill_n(handle.get_thrust_policy(), temp.begin(), local_degrees.size(), edge_t{0});
+    return std::make_tuple(std::move(temp), std::move(local_degrees));
+  }
 }
 
-template <typename GraphViewType, typename VertexIterator, typename GPUIdIterator>
-std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<typename std::iterator_traits<GPUIdIterator>::value_type>>
-gather_active_majors(raft::handle_t const& handle,
-                     GraphViewType const& graph_view,
-                     VertexIterator vertex_input_first,
-                     VertexIterator vertex_input_last,
-                     GPUIdIterator gpu_id_first)
+template <typename vertex_t>
+rmm::device_uvector<vertex_t> allgather_active_majors(raft::handle_t const& handle,
+                                                      rmm::device_uvector<vertex_t>&& d_in)
 {
-  static_assert(GraphViewType::is_multi_gpu == true);
-  static_assert(GraphViewType::is_storage_transposed == false);
-  using gpu_t    = typename std::iterator_traits<GPUIdIterator>::value_type;
-  using vertex_t = typename GraphViewType::vertex_type;
-
   auto const& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  size_t source_count  = thrust::distance(vertex_input_first, vertex_input_last);
+  size_t source_count  = d_in.size();
   auto external_source_counts =
     cugraph::host_scalar_allgather(col_comm, source_count, handle.get_stream());
   auto total_external_source_count =
@@ -263,26 +265,18 @@ gather_active_majors(raft::handle_t const& handle,
     external_source_counts.begin(), external_source_counts.end(), displacements.begin(), size_t{0});
 
   rmm::device_uvector<vertex_t> active_majors(total_external_source_count, handle.get_stream());
-  rmm::device_uvector<gpu_t> active_major_gpu_ids(total_external_source_count, handle.get_stream());
+
   // Get the sources other gpus on the same row are working on
   // FIXME : replace with device_bcast for better scaling
   device_allgatherv(col_comm,
-                    vertex_input_first,
+                    d_in.data(),
                     active_majors.data(),
                     external_source_counts,
                     displacements,
                     handle.get_stream());
-  device_allgatherv(col_comm,
-                    gpu_id_first,
-                    active_major_gpu_ids.data(),
-                    external_source_counts,
-                    displacements,
-                    handle.get_stream());
-  thrust::sort_by_key(handle.get_thrust_policy(),
-                      active_majors.begin(),
-                      active_majors.end(),
-                      active_major_gpu_ids.begin());
-  return std::make_tuple(std::move(active_majors), std::move(active_major_gpu_ids));
+  thrust::sort(handle.get_thrust_policy(), active_majors.begin(), active_majors.end());
+
+  return active_majors;
 }
 
 template <typename GraphViewType>
@@ -437,117 +431,213 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
                          std::move(vc_offsets));
 }
 
-template <typename GraphViewType, typename gpu_t>
+template <typename GraphViewType>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<gpu_t>,
-           rmm::device_uvector<typename GraphViewType::edge_type>>
+           thrust::optional<rmm::device_uvector<typename GraphViewType::weight_type>>>
 gather_local_edges(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
-  const rmm::device_uvector<gpu_t>& active_major_gpu_ids,
   rmm::device_uvector<typename GraphViewType::edge_type>&& minor_map,
   typename GraphViewType::edge_type indices_per_major,
   const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets,
   const rmm::device_uvector<typename GraphViewType::edge_type>& global_adjacency_list_offsets)
 {
-  static_assert(GraphViewType::is_multi_gpu == true);
   using vertex_t  = typename GraphViewType::vertex_type;
   using edge_t    = typename GraphViewType::edge_type;
+  using weight_t  = typename GraphViewType::weight_type;
   auto edge_count = active_majors.size() * indices_per_major;
+
   rmm::device_uvector<vertex_t> majors(edge_count, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(edge_count, handle.get_stream());
-  rmm::device_uvector<gpu_t> minor_gpu_ids(edge_count, handle.get_stream());
+  thrust::optional<rmm::device_uvector<weight_t>> weights =
+    graph_view.is_weighted()
+      ? thrust::make_optional(rmm::device_uvector<weight_t>(edge_count, handle.get_stream()))
+      : thrust::nullopt;
+
+  // FIXME:  This should be the global constant
   vertex_t invalid_vertex_id = graph_view.number_of_vertices();
 
   auto [partitions, id_begin, id_end, hypersparse_begin, vertex_count_offsets] =
     partition_information(handle, graph_view);
 
-  thrust::for_each(
-    handle.get_thrust_policy(),
-    thrust::make_counting_iterator<size_t>(0),
-    thrust::make_counting_iterator<size_t>(edge_count),
-    [edge_index_first      = minor_map.begin(),
-     active_majors         = active_majors.data(),
-     active_major_gpu_ids  = active_major_gpu_ids.data(),
-     id_begin              = id_begin.data(),
-     id_end                = id_end.data(),
-     id_seg_count          = id_begin.size(),
-     vertex_count_offsets  = vertex_count_offsets.data(),
-     glbl_degree_offsets   = global_degree_offsets.data(),
-     glbl_adj_list_offsets = global_adjacency_list_offsets.data(),
-     majors                = majors.data(),
-     minors                = minors.data(),
-     dst_gpu_ids           = minor_gpu_ids.data(),
-     partitions            = partitions.data(),
-     hypersparse_begin     = hypersparse_begin.data(),
-     invalid_vertex_id,
-     indices_per_major] __device__(auto index) {
-      // major which this edge index refers to
-      auto loc           = index / indices_per_major;
-      auto major         = active_majors[loc];
-      majors[index]      = major;
-      dst_gpu_ids[index] = active_major_gpu_ids[loc];
+  if constexpr (GraphViewType::is_multi_gpu) {
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator<size_t>(0),
+      thrust::make_counting_iterator<size_t>(edge_count),
+      [edge_index_first      = minor_map.begin(),
+       active_majors         = active_majors.data(),
+       id_begin              = id_begin.data(),
+       id_end                = id_end.data(),
+       id_seg_count          = id_begin.size(),
+       vertex_count_offsets  = vertex_count_offsets.data(),
+       glbl_degree_offsets   = global_degree_offsets.data(),
+       glbl_adj_list_offsets = global_adjacency_list_offsets.data(),
+       majors                = majors.data(),
+       minors                = minors.data(),
+       partitions            = partitions.data(),
+       hypersparse_begin     = hypersparse_begin.data(),
+       invalid_vertex_id,
+       indices_per_major] __device__(auto index) {
+        // major which this edge index refers to
+        auto loc      = index / indices_per_major;
+        auto major    = active_majors[loc];
+        majors[index] = major;
 
-      // Find which partition id did the major belong to
-      auto partition_id = thrust::distance(
-        id_end, thrust::upper_bound(thrust::seq, id_end, id_end + id_seg_count, major));
-      // starting position of the segment within global_degree_offset
-      // where the information for partition (partition_id) starts
-      //  vertex_count_offsets[partition_id]
-      // The relative location of offset information for vertex id v within
-      // the segment
-      //  v - seg[partition_id]
-      vertex_t location_in_segment;
-      if (major < hypersparse_begin[partition_id]) {
-        location_in_segment = major - id_begin[partition_id];
-      } else {
-        auto row_hypersparse_idx =
-          partitions[partition_id].major_hypersparse_idx_from_major_nocheck(major);
-        if (row_hypersparse_idx) {
-          location_in_segment = *(row_hypersparse_idx)-id_begin[partition_id];
+        // Find which partition id did the major belong to
+        auto partition_id = thrust::distance(
+          id_end, thrust::upper_bound(thrust::seq, id_end, id_end + id_seg_count, major));
+        // starting position of the segment within global_degree_offset
+        // where the information for partition (partition_id) starts
+        //  vertex_count_offsets[partition_id]
+        // The relative location of offset information for vertex id v within
+        // the segment
+        //  v - seg[partition_id]
+        vertex_t location_in_segment;
+        if (major < hypersparse_begin[partition_id]) {
+          location_in_segment = major - id_begin[partition_id];
+        } else {
+          auto row_hypersparse_idx =
+            partitions[partition_id].major_hypersparse_idx_from_major_nocheck(major);
+          if (row_hypersparse_idx) {
+            location_in_segment = *(row_hypersparse_idx)-id_begin[partition_id];
+          } else {
+            minors[index] = invalid_vertex_id;
+            return;
+          }
+        }
+
+        // csr offset value for vertex v that belongs to partition (partition_id)
+        auto offset_ptr                = partitions[partition_id].offsets();
+        auto sparse_offset             = offset_ptr[location_in_segment];
+        auto local_out_degree          = offset_ptr[location_in_segment + 1] - sparse_offset;
+        vertex_t const* adjacency_list = partitions[partition_id].indices() + sparse_offset;
+        // read location of global_degree_offset needs to take into account the
+        // partition offsets because it is a concatenation of all the offsets
+        // across all partitions
+        auto location        = location_in_segment + vertex_count_offsets[partition_id];
+        auto g_degree_offset = glbl_degree_offsets[location];
+        auto g_dst_index     = edge_index_first[index];
+        if ((g_dst_index >= g_degree_offset) &&
+            (g_dst_index < g_degree_offset + local_out_degree)) {
+          minors[index]           = adjacency_list[g_dst_index - g_degree_offset];
+          edge_index_first[index] = g_dst_index - g_degree_offset + glbl_adj_list_offsets[location];
         } else {
           minors[index] = invalid_vertex_id;
-          return;
         }
-      }
-
-      // csr offset value for vertex v that belongs to partition (partition_id)
-      auto offset_ptr                = partitions[partition_id].offsets();
-      auto sparse_offset             = offset_ptr[location_in_segment];
-      auto local_out_degree          = offset_ptr[location_in_segment + 1] - sparse_offset;
-      vertex_t const* adjacency_list = partitions[partition_id].indices() + sparse_offset;
-      // read location of global_degree_offset needs to take into account the
-      // partition offsets because it is a concatenation of all the offsets
-      // across all partitions
-      auto location        = location_in_segment + vertex_count_offsets[partition_id];
-      auto g_degree_offset = glbl_degree_offsets[location];
-      auto g_dst_index     = edge_index_first[index];
-      if ((g_dst_index >= g_degree_offset) && (g_dst_index < g_degree_offset + local_out_degree)) {
-        minors[index]           = adjacency_list[g_dst_index - g_degree_offset];
-        edge_index_first[index] = g_dst_index - g_degree_offset + glbl_adj_list_offsets[location];
-      } else {
-        minors[index] = invalid_vertex_id;
-      }
-    });
-  auto input_iter = thrust::make_zip_iterator(
-    thrust::make_tuple(majors.begin(), minors.begin(), minor_gpu_ids.begin(), minor_map.begin()));
-
-  auto compacted_length = thrust::distance(
-    input_iter,
-    thrust::remove_if(
+      });
+  } else {
+    thrust::for_each(
       handle.get_thrust_policy(),
+      thrust::make_counting_iterator<size_t>(0),
+      thrust::make_counting_iterator<size_t>(edge_count),
+      [edge_index_first     = minor_map.begin(),
+       active_majors        = active_majors.data(),
+       id_begin             = id_begin.data(),
+       id_end               = id_end.data(),
+       id_seg_count         = id_begin.size(),
+       vertex_count_offsets = vertex_count_offsets.data(),
+       glbl_degree_offsets  = global_degree_offsets.data(),
+       majors               = majors.data(),
+       minors               = minors.data(),
+       partitions           = partitions.data(),
+       hypersparse_begin    = hypersparse_begin.data(),
+       invalid_vertex_id,
+       indices_per_major] __device__(auto index) {
+        // major which this edge index refers to
+        auto loc      = index / indices_per_major;
+        auto major    = active_majors[loc];
+        majors[index] = major;
+
+        // Find which partition id did the major belong to
+        auto partition_id = thrust::distance(
+          id_end, thrust::upper_bound(thrust::seq, id_end, id_end + id_seg_count, major));
+        // starting position of the segment within global_degree_offset
+        // where the information for partition (partition_id) starts
+        //  vertex_count_offsets[partition_id]
+        // The relative location of offset information for vertex id v within
+        // the segment
+        //  v - seg[partition_id]
+        vertex_t location_in_segment;
+        if (major < hypersparse_begin[partition_id]) {
+          location_in_segment = major - id_begin[partition_id];
+        } else {
+          auto row_hypersparse_idx =
+            partitions[partition_id].major_hypersparse_idx_from_major_nocheck(major);
+          if (row_hypersparse_idx) {
+            location_in_segment = *(row_hypersparse_idx)-id_begin[partition_id];
+          } else {
+            minors[index] = invalid_vertex_id;
+            return;
+          }
+        }
+
+        // csr offset value for vertex v that belongs to partition (partition_id)
+        auto offset_ptr                = partitions[partition_id].offsets();
+        auto sparse_offset             = offset_ptr[location_in_segment];
+        auto local_out_degree          = offset_ptr[location_in_segment + 1] - sparse_offset;
+        vertex_t const* adjacency_list = partitions[partition_id].indices() + sparse_offset;
+        // read location of global_degree_offset needs to take into account the
+        // partition offsets because it is a concatenation of all the offsets
+        // across all partitions
+        auto location    = location_in_segment + vertex_count_offsets[partition_id];
+        auto g_dst_index = edge_index_first[index];
+        if (g_dst_index >= 0) {
+          minors[index]           = adjacency_list[g_dst_index];
+          edge_index_first[index] = g_dst_index;
+        } else {
+          minors[index] = invalid_vertex_id;
+        }
+      });
+  }
+
+  if (weights) {
+    auto input_iter = thrust::make_zip_iterator(
+      thrust::make_tuple(majors.begin(), minors.begin(), weights->begin()));
+
+    CUGRAPH_EXPECTS(minors.size() < std::numeric_limits<int32_t>::max(),
+                    "remove_if will fail, minors.size() is too large");
+
+    // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
+    // Seems unlikely here (the goal of sampling is to extract small graphs)
+    // so not going to work around this for now.
+    auto compacted_length = thrust::distance(
       input_iter,
-      input_iter + minors.size(),
-      minors.begin(),
-      [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
-  majors.resize(compacted_length, handle.get_stream());
-  minors.resize(compacted_length, handle.get_stream());
-  minor_gpu_ids.resize(compacted_length, handle.get_stream());
-  minor_map.resize(compacted_length, handle.get_stream());
-  return std::make_tuple(
-    std::move(majors), std::move(minors), std::move(minor_gpu_ids), std::move(minor_map));
+      thrust::remove_if(
+        handle.get_thrust_policy(),
+        input_iter,
+        input_iter + minors.size(),
+        minors.begin(),
+        [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
+
+    majors.resize(compacted_length, handle.get_stream());
+    minors.resize(compacted_length, handle.get_stream());
+    weights->resize(compacted_length, handle.get_stream());
+  } else {
+    auto input_iter = thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
+
+    CUGRAPH_EXPECTS(minors.size() < std::numeric_limits<int32_t>::max(),
+                    "remove_if will fail, minors.size() is too large");
+
+    auto compacted_length = thrust::distance(
+      input_iter,
+      // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
+      // Seems unlikely here (the goal of sampling is to extract small graphs)
+      // so not going to work around this for now.
+      thrust::remove_if(
+        handle.get_thrust_policy(),
+        input_iter,
+        input_iter + minors.size(),
+        minors.begin(),
+        [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
+
+    majors.resize(compacted_length, handle.get_stream());
+    minors.resize(compacted_length, handle.get_stream());
+  }
+
+  return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
 }
 
 template <typename GraphViewType, typename VertexIterator>
@@ -665,101 +755,147 @@ void local_major_degree(
   }
 }
 
-template <typename GraphViewType, typename prop_t>
+template <typename GraphViewType>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<prop_t>,
-           rmm::device_uvector<typename GraphViewType::edge_type>>
+           thrust::optional<rmm::device_uvector<typename GraphViewType::weight_type>>>
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
-  const rmm::device_uvector<prop_t>& active_major_property,
-  const rmm::device_uvector<typename GraphViewType::edge_type>& global_adjacency_list_offsets)
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors)
 {
-  // Assumes active_majors is sorted
-
-  static_assert(GraphViewType::is_multi_gpu == true);
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  std::vector<std::vector<vertex_t>> active_majors_segments;
-  vertex_t max_active_major_count{0};
-  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+
+  auto weights = thrust::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream());
+
+  if constexpr (GraphViewType::is_multi_gpu == true) {
+    std::vector<std::vector<vertex_t>> active_majors_segments;
+    vertex_t max_active_major_count{0};
+    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+      auto partition =
+        edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+          graph_view.local_edge_partition_view(i));
+      // Identify segments of active_majors
+      active_majors_segments.emplace_back(
+        get_active_major_segments(handle,
+                                  partition.major_range_first(),
+                                  partition.major_range_last(),
+                                  *(graph_view.local_edge_partition_segment_offsets(i)),
+                                  active_majors));
+      auto& majors_segments = active_majors_segments.back();
+      // Count of active majors belonging to this partition
+      max_active_major_count =
+        std::max(max_active_major_count, majors_segments.back() - majors_segments.front());
+    }
+
+    auto& comm           = handle.get_comms();
+    auto const comm_rank = comm.get_rank();
+    rmm::device_uvector<edge_t> active_majors_out_offsets(1 + max_active_major_count,
+                                                          handle.get_stream());
+    auto edge_count =
+      edgelist_count(handle, graph_view, active_majors.begin(), active_majors.end());
+
+    majors.resize(edge_count, handle.get_stream());
+    minors.resize(edge_count, handle.get_stream());
+    if (weights) weights->resize(edge_count, handle.get_stream());
+
+    edge_t output_offset = 0;
+    vertex_t vertex_offset{0};
+    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+      auto partition =
+        edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+          graph_view.local_edge_partition_view(i));
+      auto& majors_segments = active_majors_segments[i];
+      // Calculate local degree offsets
+      auto active_major_count = majors_segments.back() - majors_segments.front();
+      active_majors_out_offsets.set_element_to_zero_async(0, handle.get_stream());
+      local_major_degree(handle,
+                         partition,
+                         active_majors,
+                         majors_segments,
+                         *(graph_view.local_edge_partition_segment_offsets(i)),
+                         1 + active_majors_out_offsets.data());
+      thrust::inclusive_scan(handle.get_thrust_policy(),
+                             active_majors_out_offsets.begin() + 1,
+                             active_majors_out_offsets.begin() + 1 + active_major_count,
+                             active_majors_out_offsets.begin() + 1);
+      active_majors_out_offsets.resize(1 + active_major_count, handle.get_stream());
+      partially_decompress_edge_partition_to_fill_edgelist<vertex_t, edge_t, weight_t, int, true>(
+        handle,
+        partition,
+        active_majors.cbegin(),
+        active_majors_out_offsets.cbegin(),
+        majors_segments,
+        output_offset + majors.data(),
+        output_offset + minors.data(),
+        weights ? thrust::make_optional(output_offset + weights->data()) : thrust::nullopt,
+        thrust::nullopt,
+        thrust::nullopt);
+      output_offset += active_majors_out_offsets.back_element(handle.get_stream());
+      vertex_offset += partition.major_range_size();
+    }
+
+  } else {
+    // Assumes active_majors is sorted
     auto partition =
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.local_edge_partition_view(i));
-    // Identify segments of active_majors
-    active_majors_segments.emplace_back(
-      get_active_major_segments(handle,
-                                partition.major_range_first(),
-                                partition.major_range_last(),
-                                *(graph_view.local_edge_partition_segment_offsets(i)),
-                                active_majors));
-    auto& majors_segments = active_majors_segments.back();
-    // Count of active majors belonging to this partition
-    max_active_major_count =
-      std::max(max_active_major_count, majors_segments.back() - majors_segments.front());
-  }
+        graph_view.local_edge_partition_view(0));
 
-  auto& comm           = handle.get_comms();
-  auto const comm_rank = comm.get_rank();
-  rmm::device_uvector<edge_t> active_majors_out_offsets(1 + max_active_major_count,
-                                                        handle.get_stream());
-  auto edge_count = edgelist_count(handle, graph_view, active_majors.begin(), active_majors.end());
-  rmm::device_uvector<vertex_t> majors(edge_count, handle.get_stream());
-  rmm::device_uvector<vertex_t> minors(edge_count, handle.get_stream());
-  rmm::device_uvector<prop_t> minor_prop_ids(edge_count, handle.get_stream());
-  rmm::device_uvector<edge_t> minor_map(edge_count, handle.get_stream());
+    // FIXME:  This should probably be in the graph view as:
+    //    rmm::device_uvector<edge_t> compute_major_degrees(handle, graph_view, vertex_list)
+    //
+    rmm::device_uvector<edge_t> active_majors_out_offsets(1 + active_majors.size(),
+                                                          handle.get_stream());
+    thrust::fill_n(handle.get_thrust_policy(), active_majors_out_offsets.begin(), 1, edge_t{0});
 
-  edge_t output_offset = 0;
-  vertex_t vertex_offset{0};
-  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-    auto partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.local_edge_partition_view(i));
-    auto& majors_segments = active_majors_segments[i];
-    // Calculate local degree offsets
-    auto active_major_count = majors_segments.back() - majors_segments.front();
-    active_majors_out_offsets.set_element_to_zero_async(0, handle.get_stream());
-    local_major_degree(handle,
-                       partition,
-                       active_majors,
-                       majors_segments,
-                       *(graph_view.local_edge_partition_segment_offsets(i)),
-                       1 + active_majors_out_offsets.data());
+    thrust::transform(
+      handle.get_thrust_policy(),
+      active_majors.begin(),
+      active_majors.end(),
+      active_majors_out_offsets.begin() + 1,
+      [offsets = partition.offsets()] __device__(auto v) { return offsets[v + 1] - offsets[v]; });
+
     thrust::inclusive_scan(handle.get_thrust_policy(),
-                           active_majors_out_offsets.begin() + 1,
-                           active_majors_out_offsets.begin() + 1 + active_major_count,
-                           active_majors_out_offsets.begin() + 1);
-    active_majors_out_offsets.resize(1 + active_major_count, handle.get_stream());
+                           active_majors_out_offsets.begin(),
+                           active_majors_out_offsets.end(),
+                           active_majors_out_offsets.begin());
+
+    edge_t edge_count;
+    raft::update_host(&edge_count,
+                      active_majors_out_offsets.begin() + active_majors.size(),
+                      1,
+                      handle.get_stream());
+
+    majors.resize(edge_count, handle.get_stream());
+    minors.resize(edge_count, handle.get_stream());
+    if (weights) weights->resize(edge_count, handle.get_stream());
+
+    auto majors_segments = graph_view.local_edge_partition_segment_offsets(0);
+
     partially_decompress_edge_partition_to_fill_edgelist<vertex_t,
                                                          edge_t,
                                                          weight_t,
-                                                         prop_t,
+                                                         int,
                                                          GraphViewType::is_multi_gpu>(
       handle,
       partition,
       active_majors.cbegin(),
       active_majors_out_offsets.cbegin(),
-      majors_segments,
-      output_offset + majors.data(),
-      output_offset + minors.data(),
+      *majors_segments,
+      majors.data(),
+      minors.data(),
+      weights ? thrust::make_optional(weights->data()) : thrust::nullopt,
       thrust::nullopt,
-      thrust::make_optional(
-        thrust::make_tuple(active_major_property.cbegin(), output_offset + minor_prop_ids.data())),
-      thrust::make_optional(
-        thrust::make_tuple(global_adjacency_list_offsets.cbegin() + vertex_offset,
-                           output_offset + minor_map.begin())));
-    output_offset += active_majors_out_offsets.back_element(handle.get_stream());
-    vertex_offset += partition.major_range_size();
+      thrust::nullopt);
   }
 
-  return std::make_tuple(
-    std::move(majors), std::move(minors), std::move(minor_prop_ids), std::move(minor_map));
+  return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
 }
 
-}  // namespace original
 }  // namespace detail
 }  // namespace cugraph

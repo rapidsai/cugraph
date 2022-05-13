@@ -462,6 +462,10 @@ ConfigureTest(RANDOM_WALKS_SEG_SORT_TEST sampling/rw_biased_seg_sort.cu)
 ###################################################################################################
 ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
 
+###########################################################################################
+# - MG NBR SAMPLING tests -----------------------------------------------------------------
+ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
+        
 ###################################################################################################
 # FIXME: since this is technically not a test, consider refactoring the the
 # ConfigureTest function to share common code with a new ConfigureBenchmark
@@ -623,6 +627,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG NBR SAMPLING tests -----------------------------------------------------------------
         ConfigureTestMG(MG_NBR_SAMPLING_TEST sampling/detail/mg_nbr_sampling.cu)
+
+        ###########################################################################################
+        # - MG NBR SAMPLING tests -----------------------------------------------------------------
+        ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
         
         ###########################################################################################
         # - MG C API tests ------------------------------------------------------------------------
