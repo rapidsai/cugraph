@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import pytest
+import re
 
 import cugraph
 import pylibcugraph
@@ -32,6 +33,7 @@ from cugraph.tests import utils
 modules_to_skip = ["dask", "proto", "raft"]
 datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
 
+cuda_version_string = ".".join([str(n) for n in cuda.runtime.get_version()])
 
 def _is_public_name(name):
     return not name.startswith("_")
@@ -105,6 +107,16 @@ def _fetch_doctests():
                                     _is_public_name)
 
 
+def skip_docstring(docstring):
+    # Depending on different builds or architectures, some examples will not work.
+    # This 
+    first_line = docstring.examples[0].source
+    #breakpoint()
+    if re.search("does not run on CUDA", first_line) and cuda_version_string in first_line:
+        return True
+    return False
+
+
 class TestDoctests:
     abs_datasets_path = datasets.absolute()
 
@@ -125,6 +137,10 @@ class TestDoctests:
         # the use of an ellipsis "..." to match any string in the doctest
         # output. An ellipsis is useful for, e.g., memory addresses or
         # imprecise floating point values.
+        if skip_docstring(docstring):
+            print("Skipped!")
+            return
+        
         optionflags = doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
         runner = doctest.DocTestRunner(optionflags=optionflags)
         np.random.seed(6)
@@ -132,13 +148,6 @@ class TestDoctests:
                      datasets_path=self.abs_datasets_path,
                      scipy=scipy, pd=pd)
         docstring.globs = globs
-
-        # FIXME: A 11.4 bug causes ktruss to crash in that
-        # environment. Skip docstring test if the cuda version is either
-        # 11.2 or 11.4. See ktruss_subgraph.py
-        if docstring.name == 'ktruss_subgraph':
-            if cuda.runtime.get_version() == (11, 4):
-                return
 
         # Capture stdout and include failing outputs in the traceback.
         doctest_stdout = io.StringIO()

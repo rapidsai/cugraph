@@ -13,3 +13,4 @@
 
 from cugraph.link_analysis.pagerank import pagerank
 from cugraph.link_analysis.hits import hits
+from cugraph.link_analysis.hits2 import hits2

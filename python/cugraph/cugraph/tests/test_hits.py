@@ -93,7 +93,7 @@ def test_nx_hits(benchmark, input_combo):
 def test_hits(benchmark, input_expected_output):
     G = utils.generate_cugraph_graph_from_file(
         input_expected_output["graph_file"])
-    cugraph_hits = benchmark(cugraph.hits,
+    cugraph_hits = benchmark(cugraph.hits2,
                              G,
                              input_expected_output["max_iter"],
                              input_expected_output["tol"])
@@ -107,7 +107,7 @@ def test_hits(benchmark, input_expected_output):
     cugraph_hits["nx_hubs"] = cudf.Series.from_pandas(pdf[0])
     pdf = pd.DataFrame.from_dict(nx_authorities, orient="index").sort_index()
     cugraph_hits["nx_authorities"] = cudf.Series.from_pandas(pdf[0])
-
+    #breakpoint()
     hubs_diffs1 = cugraph_hits.query('hubs - nx_hubs > 0.00001')
     hubs_diffs2 = cugraph_hits.query('hubs - nx_hubs < -0.00001')
     authorities_diffs1 = cugraph_hits.query(

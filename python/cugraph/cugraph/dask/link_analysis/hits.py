@@ -20,11 +20,11 @@ import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       MGGraph,
-                                       hits as pylibcugraph_hits
-                                       )
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          MGGraph,
+                          hits as pylibcugraph_hits
+                          )
 
 
 def call_hits(sID,
