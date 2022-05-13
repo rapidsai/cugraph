@@ -37,7 +37,8 @@ typedef struct {
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
  *                           needs to be transposed
- * @param [in]  start        Device array of vertices we want to count triangles for
+ * @param [in]  start        Device array of vertices we want to count triangles for.  If NULL
+ *                           the entire set of vertices in the graph is processed
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
  * @param [in]  result       Output from the triangle_count call
