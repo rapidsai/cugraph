@@ -1547,8 +1547,8 @@ uniform_nbr_sample(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph View object to generate NBR Sampling on.
- * @param d_starting_vertices Device span of starting vertex IDs for the NBR Sampling.
- * @param h_fan_out Host span defining branching out (fan-out) degree per source vertex for each
+ * @param starting_vertices Device span of starting vertex IDs for the NBR Sampling.
+ * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;

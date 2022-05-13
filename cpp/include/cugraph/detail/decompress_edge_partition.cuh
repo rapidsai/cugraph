@@ -362,6 +362,9 @@ void partially_decompress_edge_partition_to_fill_edgelist(
         edge_t local_degree{};
         thrust::tie(indices, weights, local_degree) =
           edge_partition.local_edges(major_partition_offset);
+
+        // FIXME: This can lead to thread divergence if local_degree varies significantly
+        //        within threads in this warp
         thrust::fill(
           thrust::seq, majors + major_offset, majors + major_offset + local_degree, major);
         thrust::copy(thrust::seq, indices, indices + local_degree, minors + major_offset);
