@@ -51,9 +51,11 @@ def _ensure_args(G, start, i_start, directed):
             if start not in G:
                 raise invalid_vertex_err
         else:
-            if not isinstance(start, cudf.DataFrame) \
-                and not isinstance(start, dask_cudf.DataFrame):
-                    start = cudf.DataFrame({'starts': cudf.Series(start)})
+            if not isinstance(start, cudf.DataFrame):
+                if not isinstance(start, dask_cudf.DataFrame):
+                    start = cudf.DataFrame(
+                        {'starts': cudf.Series(start)}
+                    )
 
             if G.is_renumbered():
                 validlen = len(
@@ -67,12 +69,20 @@ def _ensure_args(G, start, i_start, directed):
             else:
                 el = G.edgelist.edgelist_df[["src", "dst"]]
                 col = start.columns[0]
-                null_l = \
-                    el.merge(start[col].rename('src'), on='src', how='right') \
+                null_l = el \
+                        .merge(
+                            start[col].rename('src'),
+                            on='src',
+                            how='right'
+                        ) \
                         .dst.isnull() \
                         .sum()
-                null_r = \
-                    el.merge(start[col].rename('dst'), on='dst', how='right') \
+                null_r = el \
+                        .merge(
+                            start[col].rename('dst'),
+                            on='dst',
+                            how='right'
+                        ) \
                         .src.isnull() \
                         .sum()
                 if null_l + null_r > 0:
@@ -200,13 +210,15 @@ def bfs(G,
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight",
-        matrix_graph_type=Graph(directed=directed))
+        matrix_graph_type=Graph(directed=directed)
+    )
 
     # The BFS C++ extension assumes the start vertex is a cudf.Series object,
     # and operates on internal vertex IDs if renumbered.
     if G.renumbered is True:
-        if isinstance(start, cudf.DataFrame) \
-            or isinstance(start, dask_cudf.DataFrame):
+        is_dataframe = isinstance(start, cudf.DataFrame) or \
+                       isinstance(start, dask_cudf.DataFrame)
+        if is_dataframe:
             start = G.lookup_internal_vertex_id(start, start.columns)
         else:
             start = G.lookup_internal_vertex_id(cudf.Series(start))
