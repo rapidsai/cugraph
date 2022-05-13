@@ -48,12 +48,12 @@ def call_katz_centrality(sID,
     srcs = data[0][src_col_name]
     dsts = data[0][dst_col_name]
     weights = srcs * 0.0
-    print("WEIGHTS!")
-    print(weights)
+    # print("WEIGHTS!")
+    # print(weights)
     if "value" in data[0].columns:
-        print("weights isnt none")
+        #print("weights isnt none")
         weights = data[0]['value']
-        print(weights)
+        #print(weights)
 
     mg = MGGraph(h,
                  graph_properties,
@@ -63,9 +63,9 @@ def call_katz_centrality(sID,
                  store_transposed,
                  num_edges,
                  do_expensive_check)
-    print("Created MGGRaph!")
-    print("NStart, alpha, beta, max_iter")
-    print(nstart)
+    # print("Created MGGRaph!")
+    # print("NStart, alpha, beta, max_iter")
+    # print(nstart)
     
     result = pylibcugraph_katz(h,
                                mg,
@@ -75,7 +75,7 @@ def call_katz_centrality(sID,
                                tol,
                                max_iter,
                                do_expensive_check)
-    print("Result returned from callkatz!")
+    #print("Result returned from callkatz!")
     return result
 
 
@@ -90,7 +90,7 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-#def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
+# def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
 def katz_centrality2(
     input_graph, alpha=None, beta=1.0, max_iter=100, tol=1.0e-6,
     nstart=None, normalized=True
@@ -99,16 +99,16 @@ def katz_centrality2(
 
     # FIXME Still compute renumbering at this layer in case str
     # vertex ID are passed
-    #input_graph.compute_renumber_edge_list(transposed=False)
-    #ddf = input_graph.edgelist.edgelist_df
+    # input_graph.compute_renumber_edge_list(transposed=False)
+    # ddf = input_graph.edgelist.edgelist_df
 
     graph_properties = GraphProperties(
         is_multigraph=False)
 
     store_transposed = False
     do_expensive_check = False
-    #initial_hubs_guess_vertices = None
-    #initial_hubs_guess_values = None
+    # initial_hubs_guess_vertices = None
+    # initial_hubs_guess_values = None
 
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
@@ -124,7 +124,7 @@ def katz_centrality2(
     data = get_distributed_data(ddf)
 
     input_graph.compute_renumber_edge_list(transposed=True)
-    #ddf = input_graph.edgelist.edgelist_df
+    # ddf = input_graph.edgelist.edgelist_df
     vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
     num_verts = vertex_partition_offsets.iloc[-1]
 

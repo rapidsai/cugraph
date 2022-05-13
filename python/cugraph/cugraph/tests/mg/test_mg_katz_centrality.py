@@ -132,8 +132,8 @@ def test_dask_katz_centrality_multi_column(dask_client, directed):
     #estimate = dask_cudf.from_cudf(cudf.DataFrame(), npartitions=2)
     estimate = mg_res.copy()
     estimate = estimate.rename(columns={"vertex": "vertex", "katz_centrality": "values"})
-    # estimate["values"] = 0.5
+    estimate["values"] = 0.5
     mg_final_res = dcg.katz_centrality2(dg, alpha=katz_alpha, nstart=estimate,
                                        max_iter=50, tol=1e-6)
     mg_final_res = mg_final_res.compute()
-    breakpoint()
+    print(mg_final_res)
