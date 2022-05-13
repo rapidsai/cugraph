@@ -513,7 +513,7 @@ per_src_dst_key_transform_reduce_e(
           tmp_keys.begin(),
           tmp_keys.end(),
           get_dataframe_buffer_begin(tmp_value_buffer),
-          [key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}] __device__(
+          [key_func = detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(
             auto val) { return key_func(val); },
           handle.get_stream());
 

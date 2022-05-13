@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-#include "nbr_sampling_utils.cuh"
-#include <sampling/nbr_sampling_impl.cuh>
-
+#include "detail/nbr_sampling_utils.cuh"
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 
@@ -42,7 +40,6 @@ class Tests_MG_Nbr_Sampling
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     using namespace cugraph::test;
-    using gpu_t = int;
 
     // 1. initialize handle
 
@@ -89,116 +86,76 @@ class Tests_MG_Nbr_Sampling
     constexpr vertex_t source_sample_count    = 3;
 
     // Generate random vertex ids in the range of current gpu
-
-    // Generate random sources to gather on
     auto random_sources = random_vertex_ids(handle,
                                             mg_graph_view.local_vertex_partition_range_first(),
                                             mg_graph_view.local_vertex_partition_range_last(),
                                             source_sample_count,
-                                            repetitions_per_vertex);
-    rmm::device_uvector<gpu_t> random_source_gpu_ids(random_sources.size(), handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(),
-                 random_source_gpu_ids.begin(),
-                 random_source_gpu_ids.end(),
-                 comm_rank);
+                                            repetitions_per_vertex,
+                                            comm_rank);
 
     std::vector<int> h_fan_out{indices_per_source};  // depth = 1
 
-    auto begin_in_pairs = thrust::make_zip_iterator(
-      thrust::make_tuple(random_sources.begin(), random_source_gpu_ids.begin()));
-    auto end_in_pairs = thrust::make_zip_iterator(
-      thrust::make_tuple(random_sources.end(), random_source_gpu_ids.end()));
-
-    // gather input:
-    //
-    auto&& [tuple_vertex_ranks, counts] = cugraph::detail::original::shuffle_to_gpus(
-      handle, mg_graph_view, begin_in_pairs, end_in_pairs, gpu_t{});
-
-    auto&& [tuple_quad, v_sizes] = cugraph::uniform_nbr_sample(handle,
-                                                               mg_graph_view,
-                                                               random_sources.begin(),
-                                                               random_source_gpu_ids.begin(),
-                                                               random_sources.size(),
-                                                               h_fan_out,
-                                                               prims_usecase.flag_replacement);
-
-    auto&& d_src_out = std::get<0>(tuple_quad);
-    auto&& d_dst_out = std::get<1>(tuple_quad);
-    auto&& d_gpu_ids = std::get<2>(tuple_quad);
+    auto&& [d_src_out, d_dst_out, d_indices] = cugraph::uniform_nbr_sample(
+      handle,
+      mg_graph_view,
+      raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
+      raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
+      prims_usecase.flag_replacement);
 
     if (prims_usecase.check_correctness) {
-      auto self_rank = handle.get_comms().get_rank();
+      // Consolidate results on GPU 0
+      auto d_mg_start_src =
+        cugraph::test::device_gatherv(handle, random_sources.data(), random_sources.size());
+      auto d_mg_aggregate_src =
+        cugraph::test::device_gatherv(handle, d_src_out.data(), d_src_out.size());
+      auto d_mg_aggregate_dst =
+        cugraph::test::device_gatherv(handle, d_dst_out.data(), d_dst_out.size());
+      auto d_mg_aggregate_indices =
+        cugraph::test::device_gatherv(handle, d_indices.data(), d_indices.size());
 
-      // bring inputs and outputs on one rank
-      // and check if test passed:
-      //
-      if (self_rank == gpu_t{0}) {
-        auto num_ranks = v_sizes.size();
-        ASSERT_TRUE(counts.size() == num_ranks);  // == #ranks
+#if 0
+      // FIXME:  extract_induced_subgraphs not currently support MG, so we'll skip this validation
+      //         step
 
-        // CAVEAT: in size << out_size;
-        //
-        auto total_in_sizes  = std::accumulate(counts.begin(), counts.end(), 0);
-        auto total_out_sizes = std::accumulate(v_sizes.begin(), v_sizes.end(), 0);
+      //  First validate that the extracted edges are actually a subset of the
+      //  edges in the input graph
+      rmm::device_uvector<vertex_t> d_vertices(2 * d_mg_aggregate_src.size(), handle.get_stream());
+      raft::copy(d_vertices.data(), d_mg_aggregate_src.data(), d_mg_aggregate_src.size(), handle.get_stream());
+      raft::copy(d_vertices.data() + d_mg_aggregate_src.size(),
+                 d_mg_aggregate_dst.data(),
+                 d_mg_aggregate_dst.size(),
+                 handle.get_stream());
+      thrust::sort(handle.get_thrust_policy(), d_vertices.begin(), d_vertices.end());
+      auto vertices_end =
+        thrust::unique(handle.get_thrust_policy(), d_vertices.begin(), d_vertices.end());
+      d_vertices.resize(thrust::distance(d_vertices.begin(), vertices_end), handle.get_stream());
 
-        // merge inputs / outputs to be checked on host:
-        //
-        std::vector<vertex_t> h_start_in{};
-        h_start_in.reserve(total_in_sizes);
+      d_vertices = cugraph::detail::shuffle_int_vertices_by_gpu_id(handle, std::move(d_vertices), mg_graph_view.vertex_partition_range_lasts());
 
-        std::vector<gpu_t> h_ranks_in{};
-        h_ranks_in.reserve(total_in_sizes);
+      thrust::sort(handle.get_thrust_policy(), d_vertices.begin(), d_vertices.end());
 
-        std::vector<vertex_t> h_src_out{};
-        h_src_out.reserve(total_out_sizes);
+      rmm::device_uvector<size_t> d_subgraph_offsets(2, handle.get_stream());
+      std::vector<size_t> h_subgraph_offsets({0, d_vertices.size()});
 
-        std::vector<vertex_t> h_dst_out{};
-        h_dst_out.reserve(total_out_sizes);
+      raft::update_device(d_subgraph_offsets.data(),
+                          h_subgraph_offsets.data(),
+                          h_subgraph_offsets.size(),
+                          handle.get_stream());
 
-        std::vector<gpu_t> h_ranks_out{};
-        h_ranks_out.reserve(total_out_sizes);
+      auto [d_src_in, d_dst_in, d_indices_in, d_ignore] = extract_induced_subgraphs(
+        handle, mg_graph_view, d_subgraph_offsets.data(), d_vertices.data(), 1, true);
 
-        auto filler = [&handle](auto const& coalesced_in,
-                                auto& accumulator,
-                                auto& v_per_rank,
-                                auto count,
-                                auto offset) {
-          auto start_offset_in = coalesced_in.cbegin() + offset;
+      cugraph::test::validate_extracted_graph_is_subgraph(
+        handle, d_src_in, d_dst_in, *d_indices_in, d_src_out, d_dst_out, d_indices);
+#endif
 
-          raft::update_host(
-            v_per_rank.data(), start_offset_in, static_cast<size_t>(count), handle.get_stream());
-
-          accumulator.insert(accumulator.begin() + offset, v_per_rank.begin(), v_per_rank.end());
-        };
-
-        size_t in_offset  = 0;
-        size_t out_offset = 0;
-        for (size_t index_rank = 0; index_rank < num_ranks; ++index_rank) {
-          auto in_sz = counts[index_rank];
-          std::vector<vertex_t> per_rank_start_in(in_sz);
-          std::vector<gpu_t> per_rank_in(in_sz);
-
-          filler(std::get<0>(tuple_vertex_ranks), h_start_in, per_rank_start_in, in_sz, in_offset);
-
-          filler(std::get<1>(tuple_vertex_ranks), h_ranks_in, per_rank_in, in_sz, in_offset);
-
-          auto out_sz = v_sizes[index_rank];
-          std::vector<vertex_t> per_rank_src_out(out_sz);
-          std::vector<vertex_t> per_rank_dst_out(out_sz);
-          std::vector<gpu_t> per_rank_out(out_sz);
-
-          filler(d_src_out, h_src_out, per_rank_src_out, out_sz, out_offset);
-          filler(d_dst_out, h_dst_out, per_rank_dst_out, out_sz, out_offset);
-          filler(d_gpu_ids, h_ranks_out, per_rank_out, out_sz, out_offset);
-
-          in_offset += in_sz;
-          out_offset += out_sz;
-        }
-
-        bool passed = cugraph::test::check_forest_trees_by_rank(
-          h_start_in, h_ranks_in, h_src_out, h_dst_out, h_ranks_out);
-
-        ASSERT_TRUE(passed);
+      if (d_mg_aggregate_src.size() > 0) {
+        cugraph::test::validate_sampling_depth(handle,
+                                               std::move(d_mg_aggregate_src),
+                                               std::move(d_mg_aggregate_dst),
+                                               std::move(d_mg_aggregate_indices),
+                                               std::move(d_mg_start_src),
+                                               h_fan_out.size());
       }
     }
   }
