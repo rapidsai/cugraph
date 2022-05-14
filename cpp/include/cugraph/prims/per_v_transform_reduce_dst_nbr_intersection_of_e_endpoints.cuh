@@ -274,7 +274,9 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
     auto vertex_pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
 
-    // to limit memory footprint ((1 << 10) is a tuning parameter)
+    // FIXME: Peak memory requirement is also dependent on the average minimum degree of the input
+    // vertex pairs. We may need a more sophisticated mechanism to set max_chunk_size considering
+    // vertex degrees. to limit memory footprint ((1 << 10) is a tuning parameter)
     auto max_chunk_size =
       static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 15);
     auto max_num_chunks = (majors.size() + max_chunk_size - 1) / max_chunk_size;
