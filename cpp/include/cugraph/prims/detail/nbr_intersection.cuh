@@ -160,7 +160,7 @@ struct update_rx_major_local_nbrs_t {
   size_t const* rx_reordered_group_lasts{nullptr};
   size_t const* rx_group_firsts{nullptr};
   vertex_t const* rx_majors{nullptr};
-  size_t const* local_offsets_for_rx_majors{nullptr};
+  size_t const* local_nbr_offsets_for_rx_majors{nullptr};
 
   vertex_t* local_nbrs_for_rx_majors{nullptr};
 
@@ -194,20 +194,20 @@ struct update_rx_major_local_nbrs_t {
                  indices,
                  indices + local_degree,
                  local_nbrs_for_rx_majors +
-                   local_offsets_for_rx_majors[rx_group_firsts[row_comm_rank * col_comm_size +
-                                                               local_partition_idx] +
-                                               offset_in_local_edge_partition]);
+                   local_nbr_offsets_for_rx_majors[rx_group_firsts[row_comm_rank * col_comm_size +
+                                                                   local_partition_idx] +
+                                                   offset_in_local_edge_partition]);
   }
 };
 
-struct gather_and_difference_t {
+struct compute_local_nbr_count_per_rank_t {
   size_t const* rx_offsets{nullptr};
-  size_t const* local_offsets_for_rx_majors{nullptr};
+  size_t const* local_nbr_offsets_for_rx_majors{nullptr};
 
   __device__ size_t operator()(size_t i) const
   {
-    return *(local_offsets_for_rx_majors + *(rx_offsets + (i + 1))) -
-           *(local_offsets_for_rx_majors + *(rx_offsets + i));
+    return *(local_nbr_offsets_for_rx_majors + *(rx_offsets + (i + 1))) -
+           *(local_nbr_offsets_for_rx_majors + *(rx_offsets + i));
   }
 };
 
@@ -459,8 +459,8 @@ struct gatherv_indices_t {
 // the second element of every input vertex pair if single-GPU and intersect_dst_nbr[0] ==
 // GraphViewType::is_storage_transposed or multi-GPU. For load balancing,
 // thrust::distance(vertex_pair_first, vertex_pair_last) should be comparable across the global
-// communicator. If we need to build the neighbor lists, grouping based applying "vertex ID % number
-// of groups"  is recommended for load-balancing.
+// communicator. If we need to build the neighbor lists, grouping based on applying "vertex ID %
+// number of groups"  is recommended for load-balancing.
 template <typename GraphViewType, typename VertexPairIterator>
 std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<typename GraphViewType::vertex_type>>
 nbr_intersection(raft::handle_t const& handle,
@@ -740,18 +740,18 @@ nbr_intersection(raft::handle_t const& handle,
               local_degrees_for_rx_majors.data()});
         }
 
-        rmm::device_uvector<size_t> local_offsets_for_rx_majors(
+        rmm::device_uvector<size_t> local_nbr_offsets_for_rx_majors(
           local_degrees_for_rx_majors.size() + 1, handle.get_stream());
-        local_offsets_for_rx_majors.set_element_to_zero_async(size_t{0}, handle.get_stream());
+        local_nbr_offsets_for_rx_majors.set_element_to_zero_async(size_t{0}, handle.get_stream());
         auto degree_first = thrust::make_transform_iterator(local_degrees_for_rx_majors.begin(),
                                                             detail::typecast_t<edge_t, size_t>{});
         thrust::inclusive_scan(handle.get_thrust_policy(),
                                degree_first,
                                degree_first + local_degrees_for_rx_majors.size(),
-                               local_offsets_for_rx_majors.begin() + 1);
+                               local_nbr_offsets_for_rx_majors.begin() + 1);
 
         local_nbrs_for_rx_majors.resize(
-          local_offsets_for_rx_majors.back_element(handle.get_stream()), handle.get_stream());
+          local_nbr_offsets_for_rx_majors.back_element(handle.get_stream()), handle.get_stream());
         for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
           auto edge_partition =
             edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
@@ -778,7 +778,7 @@ nbr_intersection(raft::handle_t const& handle,
               d_rx_reordered_group_lasts.data() + i * row_comm_size,
               rx_group_firsts.data(),
               rx_majors.data(),
-              local_offsets_for_rx_majors.data(),
+              local_nbr_offsets_for_rx_majors.data(),
               local_nbrs_for_rx_majors.data()});
         }
 
@@ -789,11 +789,11 @@ nbr_intersection(raft::handle_t const& handle,
         raft::update_device(
           d_rx_offsets.data(), h_rx_offsets.data(), h_rx_offsets.size(), handle.get_stream());
         rmm::device_uvector<size_t> d_local_nbr_counts(rx_major_counts.size(), handle.get_stream());
-        thrust::tabulate(
-          handle.get_thrust_policy(),
-          d_local_nbr_counts.begin(),
-          d_local_nbr_counts.end(),
-          gather_and_difference_t{d_rx_offsets.data(), local_offsets_for_rx_majors.data()});
+        thrust::tabulate(handle.get_thrust_policy(),
+                         d_local_nbr_counts.begin(),
+                         d_local_nbr_counts.end(),
+                         compute_local_nbr_count_per_rank_t{
+                           d_rx_offsets.data(), local_nbr_offsets_for_rx_majors.data()});
         local_nbr_counts.resize(d_local_nbr_counts.size());
         raft::update_host(local_nbr_counts.data(),
                           d_local_nbr_counts.data(),
