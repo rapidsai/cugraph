@@ -161,7 +161,7 @@ def ktruss_subgraph(G, k, use_weights=True):
 
     KTrussSubgraph = Graph()
     if G.is_directed():
-        raise Exception("input graph must be undirected")
+        raise ValueError("input graph must be undirected")
 
     subgraph_df = ktruss_subgraph_wrapper.ktruss_subgraph(G, k, use_weights)
     if G.renumbered:

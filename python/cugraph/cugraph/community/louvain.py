@@ -78,7 +78,7 @@ def louvain(G, max_iter=100, resolution=1.):
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if G.is_directed():
-        raise Exception("input graph must be undirected")
+        raise ValueError("input graph must be undirected")
 
     parts, modularity_score = louvain_wrapper.louvain(
         G, max_iter, resolution

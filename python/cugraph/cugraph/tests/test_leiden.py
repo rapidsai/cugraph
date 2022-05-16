@@ -113,5 +113,5 @@ def test_leiden_directed_graph():
     else:
         G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         parts, mod = cugraph_leiden(G)

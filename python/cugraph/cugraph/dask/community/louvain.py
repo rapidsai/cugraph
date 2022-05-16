@@ -117,7 +117,7 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
 
     """
     if input_graph.is_directed():
-        raise Exception("input graph must be undirected")
+        raise ValueError("input graph must be undirected")
     client = default_client()
     # Calling renumbering results in data that is sorted by degree
     input_graph.compute_renumber_edge_list(transposed=False)

@@ -151,5 +151,5 @@ def test_ktruss_subgraph_directed_Graph():
     else:
         G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         cugraph.k_truss(G, k)

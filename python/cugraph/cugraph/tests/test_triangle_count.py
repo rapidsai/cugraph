@@ -113,5 +113,5 @@ def test_triangles_directed_graph():
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate-asymmetric.csv").as_posix()
     M = utils.read_csv_for_nx(input_data_path)
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         cugraph_call(M, edgevals=True, directed=True)

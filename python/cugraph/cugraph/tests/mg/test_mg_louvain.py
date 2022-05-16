@@ -111,9 +111,9 @@ def uddaskGraphFromDataset(request, dask_client):
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 def test_mg_louvain_with_edgevals_directed_graph(daskGraphFromDataset):
-    # Directed graphs are not supported by Louvain and an exception should be
+    # Directed graphs are not supported by Louvain and a ValueError should be
     # raised
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         parts, mod = dcg.louvain(daskGraphFromDataset)
 
 

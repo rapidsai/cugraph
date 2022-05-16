@@ -51,7 +51,7 @@ def triangles(G):
     G, _ = ensure_cugraph_obj_for_nx(G)
 
     if G.is_directed():
-        raise Exception("input graph must be undirected")
+        raise ValueError("input graph must be undirected")
 
     result = triangle_count_wrapper.triangles(G)
 
