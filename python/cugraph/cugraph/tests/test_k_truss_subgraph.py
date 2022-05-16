@@ -20,7 +20,6 @@ from cugraph.testing import utils
 
 import numpy as np
 from numba import cuda
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -141,7 +140,7 @@ def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
                     reason="skipping on unsupported CUDA "
                     f"{__unsupported_cuda_version} environment.")
 def test_ktruss_subgraph_directed_Graph():
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate-asymmetric.csv").as_posix()
     k = 5
     edgevals = True
