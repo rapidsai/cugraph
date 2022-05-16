@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from gaas_client import defaults
 from gaas_client.gaas_thrift import create_server
 from gaas_server.gaas_handler import GaasHandler
+
 
 def main():
     # FIXME: add CLI options to set non-default host and port values, and

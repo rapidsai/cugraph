@@ -36,15 +36,13 @@ class GaasHandler:
     ############################################################################
     # Environment management
 
-    # FIXME: do we need environment mgmt functions?  This could be things
-    # related to querying the state of the dask cluster,
-    # starting/stopping/restarting, etc.
-
-    def load_graph_creation_extensions(self, extension_dir_name):
-        extension_dir = Path(extension_dir_name)
+    def load_graph_creation_extensions(self, extension_dir_path):
+        extension_dir = Path(extension_dir_path)
 
         if (not extension_dir.exists()) or (not extension_dir.is_dir()):
             raise NotADirectoryError(extension_dir)
+
+        num_files_read = 0
 
         for ext_file in extension_dir.glob("*_extension.py"):
             module_name = ext_file.stem
@@ -52,14 +50,25 @@ class GaasHandler:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             self.__graph_creation_extensions[module_name] = module
+            num_files_read += 1
+
+        return num_files_read
+
+    def unload_graph_creation_extensions(self):
+        """
+        Removes all graph creation extensions.
+        """
+        self.__graph_creation_extensions.clear()
 
     def call_graph_creation_extension(self, func_name,
-                                      *func_args, **func_kwargs):
+                                      func_args_repr, func_kwargs_repr):
         if not(func_name.startswith("__")):
             for module in self.__graph_creation_extensions.values():
                 # Ignore private functions
                 func = getattr(module, func_name, None)
                 if func is not None:
+                    func_args = eval(func_args_repr)
+                    func_kwargs = eval(func_kwargs_repr)
                     graph_obj = func(*func_args, **func_kwargs)
                     return self.__add_graph(graph_obj)
 

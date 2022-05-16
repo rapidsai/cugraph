@@ -84,6 +84,16 @@ service GaasService {
                        5:bool allow_multi_edges,
                        6:i32 graph_id
                        ) throws (1:GaasError e),
+
+  i32 load_graph_creation_extensions(1:string extension_dir_path
+                                     ) throws (1:GaasError e),
+
+  void unload_graph_creation_extensions(),
+
+  i32 call_graph_creation_extension(1:string func_name,
+                                    2:string func_args_repr,
+                                    3:string func_kwargs_repr
+                                    ) throws (1:GaasError e),
 }
 """
 
