@@ -383,8 +383,8 @@ __global__ void trasnform_reduce_e_high_degree(
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns a
  * value to be reduced.
- * @param init Initial value to be added to the transform-reduced input vertex properties.
- * @return T Reduction of the @p edge_op outputs.
+ * @param init Initial value to be added to the reduced @p edge_op outputs.
+ * @return T Transform-reduced @p edge_op outputs.
  */
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
@@ -518,6 +518,56 @@ T transform_reduce_e(raft::handle_t const& handle,
   }
 
   return result;
+}
+
+/**
+ * @brief Iterate over the entire set of edges and reduce @p edge_op outputs.
+ *
+ * This function is inspired by thrust::transform_reduce().
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
+ * values.
+ * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
+ * property values.
+ * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
+ * property values (for the edge sources assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
+ * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
+ * values). Use update_edge_partition_src_property to fill the wrapper.
+ * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
+ * property values (for the edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
+ * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
+ * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
+ * weight), property values for the source, and property values for the destination and returns a
+ * value to be reduced.
+ * @return Transform-reduced @p edge_op outputs.
+ */
+template <typename GraphViewType,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename EdgeOp>
+auto transform_reduce_e(raft::handle_t const& handle,
+                        GraphViewType const& graph_view,
+                        EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+                        EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+                        EdgeOp e_op)
+{
+  using vertex_t    = typename GraphViewType::vertex_type;
+  using weight_t    = typename GraphViewType::weight_type;
+  using src_value_t = typename EdgePartitionSrcValueInputWrapper::value_type;
+  using dst_value_t = typename EdgePartitionDstValueInputWrapper::value_type;
+  using T           = typename detail::
+    edge_op_result_type<vertex_t, vertex_t, weight_t, src_value_t, dst_value_t, EdgeOp>::type;
+
+  return transform_reduce_e(
+    handle, graph_view, edge_partition_src_value_input, edge_partition_dst_value_input, e_op, T{});
 }
 
 }  // namespace cugraph

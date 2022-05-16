@@ -17,8 +17,7 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.tests import utils
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.testing import utils
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -111,7 +110,7 @@ def test_triangles_nx(graph_file):
 
 
 def test_triangles_directed_graph():
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate-asymmetric.csv").as_posix()
     M = utils.read_csv_for_nx(input_data_path)
     with pytest.raises(Exception):

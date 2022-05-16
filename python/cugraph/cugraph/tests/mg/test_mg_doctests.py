@@ -24,7 +24,7 @@ import pytest
 
 import cugraph
 import cudf
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 from dask.distributed import Client
 from dask_cuda import LocalCUDACluster

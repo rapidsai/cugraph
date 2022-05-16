@@ -18,7 +18,7 @@ import cugraph
 import dask_cudf
 import cudf
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 
 # =============================================================================
@@ -80,7 +80,7 @@ def test_mg_neighborhood_sampling_simple(dask_client, directed):
                                                with_replacement)
     result_nbr = result_nbr.compute()
 
-    # Since the validity of results have (probably) been tested at botht he C++
+    # Since the validity of results have (probably) been tested at both the C++
     # and C layers, simply test that the python interface and conversions were
     # done correctly.
     assert result_nbr['sources'].dtype == "int32"
@@ -128,7 +128,7 @@ def test_mg_neighborhood_sampling_tree(dask_client, directed):
                                                with_replacement)
     result_nbr = result_nbr.compute()
 
-    # Since the validity of results have (probably) been tested at botht he C++
+    # Since the validity of results have (probably) been tested at both the C++
     # and C layers, simply test that the python interface and conversions were
     # done correctly.
     assert result_nbr['sources'].dtype == "int32"

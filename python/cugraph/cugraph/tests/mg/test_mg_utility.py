@@ -20,12 +20,12 @@ import pytest
 from cugraph.dask.common.part_utils import concat_within_workers
 from cugraph.dask.common.read_utils import get_n_workers
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 import os
 import time
 import numpy as np
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 
 # =============================================================================

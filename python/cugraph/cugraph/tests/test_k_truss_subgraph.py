@@ -16,7 +16,7 @@ import gc
 import pytest
 
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 import numpy as np
 from numba import cuda

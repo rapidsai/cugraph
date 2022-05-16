@@ -14,7 +14,7 @@
 import pytest
 
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
 from cugraph.experimental import PropertyGraph
 import numpy as np
 import cudf

@@ -18,7 +18,7 @@
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
 import pytest
-from cugraph.tests import utils
+from cugraph.testing import utils
 import numpy as np
 import gc
 import importlib

@@ -16,8 +16,7 @@ import pytest
 import cugraph.dask as dcg
 import cugraph
 import dask_cudf
-from cugraph.tests import utils
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.testing import utils
 # from cugraph.dask.common.mg_utils import is_single_gpu
 
 try:
@@ -41,7 +40,8 @@ except ImportError:
 # =============================================================================
 # Parameters
 # =============================================================================
-DATASETS_ASYMMETRIC = [RAPIDS_DATASET_ROOT_DIR_PATH/"karate-asymmetric.csv"]
+DATASETS_ASYMMETRIC = [
+    utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate-asymmetric.csv"]
 
 
 ###############################################################################

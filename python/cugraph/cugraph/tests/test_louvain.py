@@ -17,8 +17,7 @@ import time
 import pytest
 
 import cugraph
-from cugraph.tests import utils
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.testing import utils
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -136,7 +135,7 @@ def test_louvain(graph_file):
 
 
 def test_louvain_directed_graph():
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate-asymmetric.csv").as_posix()
 
     cu_M = utils.read_csv_file(input_data_path)

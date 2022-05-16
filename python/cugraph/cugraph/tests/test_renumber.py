@@ -21,7 +21,7 @@ import cudf
 from cudf.testing import assert_series_equal
 
 from cugraph.structure.number_map import NumberMap
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 
 def test_renumber_ips():
