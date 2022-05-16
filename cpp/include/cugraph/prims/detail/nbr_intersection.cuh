@@ -118,7 +118,7 @@ struct update_rx_major_local_degree_t {
 
   edge_t* local_degrees_for_rx_majors{nullptr};
 
-  __device__ edge_t operator()(size_t idx) const
+  __device__ void operator()(size_t idx) const
   {
     auto it = thrust::upper_bound(
       thrust::seq, rx_reordered_group_lasts, rx_reordered_group_lasts + row_comm_size, idx);
@@ -129,7 +129,7 @@ struct update_rx_major_local_degree_t {
     auto major = rx_majors[rx_group_firsts[row_comm_rank * col_comm_size + local_partition_idx] +
                            offset_in_local_edge_partition];
     edge_t local_degree{};
-    if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
+    if (multi_gpu && (major_hypersparse_first && (major >= *major_hypersparse_first))) {
       auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
       local_degree               = major_hypersparse_idx
                                      ? edge_partition.local_degree(
@@ -164,7 +164,7 @@ struct update_rx_major_local_nbrs_t {
 
   vertex_t* local_nbrs_for_rx_majors{nullptr};
 
-  __device__ edge_t operator()(size_t idx) const
+  __device__ void operator()(size_t idx) const
   {
     auto it = thrust::upper_bound(
       thrust::seq, rx_reordered_group_lasts, rx_reordered_group_lasts + row_comm_size, idx);
@@ -177,7 +177,7 @@ struct update_rx_major_local_nbrs_t {
     vertex_t const* indices{nullptr};
     [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{0};
-    if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
+    if (multi_gpu && (major_hypersparse_first && (major >= *major_hypersparse_first))) {
       auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
       if (major_hypersparse_idx) {
         thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(
@@ -236,10 +236,11 @@ struct pick_min_degree_t {
         if (major_hypersparse_first && (major0 >= *major_hypersparse_first)) {
           auto major_hypersparse_idx =
             edge_partition.major_hypersparse_idx_from_major_nocheck(major0);
-          assert(major_hyperhypersparse_idx);
-          local_degree0 = edge_partition.local_degree(
-            (*major_hypersparse_first - edge_partition.major_range_first()) +
-            *major_hypersparse_idx);
+          local_degree0 = major_hypersparse_idx
+                            ? edge_partition.local_degree(
+                                (*major_hypersparse_first - edge_partition.major_range_first()) +
+                                *major_hypersparse_idx)
+                            : edge_t{0};
         } else {
           local_degree0 =
             edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major0));
@@ -264,10 +265,11 @@ struct pick_min_degree_t {
         if (major_hypersparse_first && (major1 >= *major_hypersparse_first)) {
           auto major_hypersparse_idx =
             edge_partition.major_hypersparse_idx_from_major_nocheck(major1);
-          assert(major_hyperhypersparse_idx);
-          local_degree1 = edge_partition.local_degree(
-            (*major_hypersparse_first - edge_partition.major_range_first()) +
-            *major_hypersparse_idx);
+          local_degree1 = major_hypersparse_idx
+                            ? edge_partition.local_degree(
+                                (*major_hypersparse_first - edge_partition.major_range_first()) +
+                                *major_hypersparse_idx)
+                            : edge_t{0};
         } else {
           local_degree1 =
             edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major1));
@@ -327,10 +329,11 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
         if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
           auto major_hypersparse_idx =
             edge_partition.major_hypersparse_idx_from_major_nocheck(major);
-          assert(major_hyperhypersparse_idx);
-          thrust::tie(indices0, weights0, local_degree0) = edge_partition.local_edges(
-            (*major_hypersparse_first - edge_partition.major_range_first()) +
-            *major_hypersparse_idx);
+          if (major_hypersparse_idx) {
+            thrust::tie(indices0, weights0, local_degree0) = edge_partition.local_edges(
+              (*major_hypersparse_first - edge_partition.major_range_first()) +
+              *major_hypersparse_idx);
+          }
         } else {
           thrust::tie(indices0, weights0, local_degree0) =
             edge_partition.local_edges(edge_partition.major_offset_from_major_nocheck(major));
@@ -359,10 +362,11 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
         if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
           auto major_hypersparse_idx =
             edge_partition.major_hypersparse_idx_from_major_nocheck(major);
-          assert(major_hyperhypersparse_idx);
-          thrust::tie(indices1, weights1, local_degree1) = edge_partition.local_edges(
-            (*major_hypersparse_first - edge_partition.major_range_first()) +
-            *major_hypersparse_idx);
+          if (major_hypersparse_idx) {
+            thrust::tie(indices1, weights1, local_degree1) = edge_partition.local_edges(
+              (*major_hypersparse_first - edge_partition.major_range_first()) +
+              *major_hypersparse_idx);
+          }
         } else {
           thrust::tie(indices1, weights1, local_degree1) =
             edge_partition.local_edges(edge_partition.major_offset_from_major_nocheck(major));
