@@ -393,10 +393,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         # NOTE: This copies the incoming DataFrame in order to add the new
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
-        if type(dataframe) == dask_cudf.DataFrame:
-            tmp_df = dataframe.copy()
-        else:
-            tmp_df = dataframe.copy(deep=True)
+        tmp_df = dataframe.copy()
+       
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
         # FIXME: handle case of a type_name column already being in tmp_df
@@ -804,12 +802,14 @@ class EXPERIMENTAL__MGPropertyGraph:
             indices = nans.index[nans]
             num_indices = len(indices)
             starting_eid = prev_eid + 1
+            self.__edge_prop_dataframe.reindex()
             temp_df = self.__edge_prop_dataframe
             cudf_series = cudf.Series(range(starting_eid, starting_eid + num_indices))
             dask_series = dask_cudf.from_cudf(cudf_series,self.__num_workers)
             self.__edge_prop_dataframe[self.edge_id_col_name]\
                 .iloc[indices] = dask_series
             self.__last_edge_id = starting_eid + num_indices - 1
+
 
     def __get_all_vertices_series(self):
         """

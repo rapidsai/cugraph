@@ -118,8 +118,6 @@ def net_MGPropertyGraph(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-    breakpoint()
-
 
     def modify_dataset(df):
         temp_df = cudf.DataFrame()
