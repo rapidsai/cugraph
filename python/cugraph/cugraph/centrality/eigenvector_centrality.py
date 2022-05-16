@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,37 +13,24 @@
 
 from pylibcugraph import (ResourceHandle,
                           GraphProperties,
-                          SGGraph,
-                          )
-from pylibcugraph.experimental import katz_centrality as pylibcugraph_katz
+                          SGGraph)
+from pylibcugraph.experimental import eigenvector_centrality as pylib_eigen
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
 import cudf
+import cupy
 
 
-def katz_centrality(
-    G, alpha=None, beta=None, max_iter=100, tol=1.0e-6,
-    nstart=None, normalized=True
+def eigenvector_centrality(
+    G, max_iter=100, tol=1.0e-6, nstart=None, normalized=True
 ):
     """
-    Compute the Katz centrality for the nodes of the graph G. This
-    implementation is based on a relaxed version of Katz defined by Foster
-    with a reduced computational complexity of O(n+m)
+    Compute the eigenvector centrality for a graph G.
 
-    On a directed graph, cuGraph computes the out-edge Katz centrality score.
-    This is opposite of NetworkX which compute the in-edge Katz centrality
-    score by default.  You can flip the NetworkX edges, using G.reverse,
-    so that the results match cuGraph.
-
-    References
-    ----------
-    Foster, K.C., Muth, S.Q., Potterat, J.J. et al.
-    Computational & Mathematical Organization Theory (2001) 7: 275.
-    https://doi.org/10.1023/A:1013470632383
-
-    Katz, L. (1953). A new status index derived from sociometric analysis.
-    Psychometrika, 18(1), 39-43.
+    Eigenvector centrality computes the centrality for a node based on the
+    centrality of its neighbors. The eigenvector centrality for node i is the
+    i-th element of the vector x defined by the eigenvector equation.
 
     Parameters
     ----------
@@ -51,31 +38,12 @@ def katz_centrality(
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges.
 
-    alpha : float, optional (default=None)
-        Attenuation factor defaulted to None. If alpha is not specified then
-        it is internally calculated as 1/(degree_max) where degree_max is the
-        maximum out degree.
-
-        NOTE:
-            The maximum acceptable value of alpha for convergence
-            alpha_max = 1/(lambda_max) where lambda_max is the largest
-            eigenvalue of the graph.
-            Since lambda_max is always lesser than or equal to degree_max for a
-            graph, alpha_max will always be greater than or equal to
-            (1/degree_max). Therefore, setting alpha to (1/degree_max) will
-            guarantee that it will never exceed alpha_max thus in turn
-            fulfilling the requirement for convergence.
-
-    beta : float, optional (default=None)
-        Weight scalar added to each vertex's new Katz Centrality score in every
-        iteration. If beta is not specified then it is set as 1.0.
-
     max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.
 
-    tol : float, optional (default=1.0e-6)
+    tol : float, optional (default=1e-6)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -85,25 +53,25 @@ def katz_centrality(
         acceptable.
 
     nstart : cudf.Dataframe, optional (default=None)
-        GPU Dataframe containing the initial guess for katz centrality.
+        GPU Dataframe containing the initial guess for eigenvector centrality.
 
         nstart['vertex'] : cudf.Series
             Contains the vertex identifiers
         nstart['values'] : cudf.Series
-            Contains the katz centrality values of vertices
+            Contains the eigenvector centrality values of vertices
 
     normalized : bool, optional, default=True
-        If True normalize the resulting katz centrality values
+        If True normalize the resulting eigenvector centrality values
 
     Returns
     -------
     df : cudf.DataFrame or Dictionary if using NetworkX
         GPU data frame containing two cudf.Series of size V: the vertex
-        identifiers and the corresponding katz centrality values.
+        identifiers and the corresponding eigenvector centrality values.
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
-        df['katz_centrality'] : cudf.Series
-            Contains the katz centrality of vertices
+        df['eigenvector_centrality'] : cudf.Series
+            Contains the eigenvector centrality of vertices
 
     Examples
     --------
@@ -111,18 +79,10 @@ def katz_centrality(
     ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> kc = cugraph.katz_centrality(G)
+    >>> # ec = cugraph.eigenvector_centrality(G)
 
     """
-    if (alpha is not None) and (alpha <= 0.0):
-        raise ValueError(f"'alpha' must be a positive float or None, "
-                         f"got: {alpha}")
-    if beta is None:
-        beta = 1.0
-    elif (not isinstance(beta, float)) or (beta <= 0.0):
-        raise ValueError(f"'beta' must be a positive float or None, "
-                         f"got: {beta}")
-    if (not isinstance(max_iter, int)) or (max_iter <= 0):
+    if (not isinstance(max_iter, int)) or max_iter <= 0:
         raise ValueError(f"'max_iter' must be a positive integer"
                          f", got: {max_iter}")
     if (not isinstance(tol, float)) or (tol <= 0.0):
@@ -137,12 +97,7 @@ def katz_centrality(
     else:
         # FIXME: If weights column is not imported, a weights column of 1s
         # with type hardcoded to float32 is passed into wrapper
-        weights = cudf.Series((srcs + 1) / (srcs + 1), dtype="float32")
-
-    if alpha is None:
-        largest_out_degree = G.degrees().nlargest(n=1, columns="out_degree")
-        largest_out_degree = largest_out_degree["out_degree"].iloc[0]
-        alpha = 1 / (largest_out_degree + 1)
+        weights = cudf.Series(cupy.ones(srcs.size, dtype="float32"))
 
     if nstart is not None:
         if G.renumbered is True:
@@ -162,22 +117,23 @@ def katz_centrality(
     sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
                  store_transposed, renumber, do_expensive_check)
 
-    vertices, values = pylibcugraph_katz(resource_handle, sg, nstart, alpha,
-                                         beta, tol, max_iter,
-                                         do_expensive_check)
+    # vertices, values = pylibcugraph_eigenvector(resource_handle, sg, nstart,
+    vertices, values = pylib_eigen(resource_handle, sg, nstart,
+                                   tol, max_iter,
+                                   do_expensive_check)
 
     vertices = cudf.Series(vertices)
     values = cudf.Series(values)
 
     df = cudf.DataFrame()
     df["vertex"] = vertices
-    df["katz_centrality"] = values
+    df["eigenvector_centrality"] = values
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
     if isNx is True:
-        dict = df_score_to_dictionary(df, "katz_centrality")
+        dict = df_score_to_dictionary(df, "eigenvector_centrality")
         return dict
     else:
         return df
