@@ -27,6 +27,13 @@ Katz Centrality (MG)
 
    cugraph.dask.centrality.katz_centrality.katz_centrality
 
+Degree Centrality
+---------------
+.. autosummary::
+   :toctree: api/
+
+   cugraph.degree_centrality
+
 Eigenvector Centrality
 ----------------------
 .. autosummary::

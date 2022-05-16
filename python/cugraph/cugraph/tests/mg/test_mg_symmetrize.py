@@ -18,7 +18,7 @@ import pytest
 import pandas as pd
 import cudf
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
 from cugraph.dask.common.mg_utils import (is_single_gpu,
                                           setup_local_dask_cluster,
                                           teardown_local_dask_cluster)

@@ -60,6 +60,7 @@ from cugraph.centrality import (
     betweenness_centrality,
     edge_betweenness_centrality,
     katz_centrality,
+    degree_centrality,
     eigenvector_centrality,
 )
 

@@ -49,7 +49,7 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
                            std::optional<rmm::device_uvector<weight_t>>&& d_edgelist_weights);
 
 /**
- * @brief Shuffle vertices using the vertex key function which returns the target GPU ID.
+ * @brief Shuffle vertices using the external vertex key function which returns the target GPU ID.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  *
@@ -59,8 +59,25 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
  * @return device vector of shuffled vertices
  */
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_vertices_by_gpu_id(
+rmm::device_uvector<vertex_t> shuffle_ext_vertices_by_gpu_id(
   raft::handle_t const& handle, rmm::device_uvector<vertex_t>&& d_vertices);
+
+/**
+ * @brief Shuffle vertices using the internal vertex key function which returns the target GPU ID.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ *
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * @param[in] d_vertices Vertex IDs to shuffle
+ * @param[in] vertex_partition_range_lasts From graph view, vector of last vertex id for each gpu
+ *
+ * @return device vector of shuffled vertices
+ */
+template <typename vertex_t>
+rmm::device_uvector<vertex_t> shuffle_int_vertices_by_gpu_id(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& d_vertices,
+  std::vector<vertex_t> const& vertex_partition_range_lasts);
 
 /**
  * @brief Groupby and count edgelist using the key function which returns the target local partition
