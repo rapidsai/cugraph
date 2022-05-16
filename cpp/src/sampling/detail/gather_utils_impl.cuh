@@ -39,8 +39,8 @@
 #include <vector>
 
 namespace cugraph {
-
 namespace detail {
+namespace original {
 
 template <typename GraphViewType>
 rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degrees(
@@ -734,7 +734,11 @@ gather_one_hop_edgelist(
                            active_majors_out_offsets.begin() + 1 + active_major_count,
                            active_majors_out_offsets.begin() + 1);
     active_majors_out_offsets.resize(1 + active_major_count, handle.get_stream());
-    partially_decompress_edge_partition_to_fill_edgelist(
+    partially_decompress_edge_partition_to_fill_edgelist<vertex_t,
+                                                         edge_t,
+                                                         weight_t,
+                                                         prop_t,
+                                                         GraphViewType::is_multi_gpu>(
       handle,
       partition,
       active_majors.cbegin(),
@@ -742,6 +746,7 @@ gather_one_hop_edgelist(
       majors_segments,
       output_offset + majors.data(),
       output_offset + minors.data(),
+      thrust::nullopt,
       thrust::make_optional(
         thrust::make_tuple(active_major_property.cbegin(), output_offset + minor_prop_ids.data())),
       thrust::make_optional(
@@ -755,6 +760,6 @@ gather_one_hop_edgelist(
     std::move(majors), std::move(minors), std::move(minor_prop_ids), std::move(minor_map));
 }
 
+}  // namespace original
 }  // namespace detail
-
 }  // namespace cugraph

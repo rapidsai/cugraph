@@ -17,8 +17,8 @@
 #include <sampling/detail/gather_utils_impl.cuh>
 
 namespace cugraph {
-
 namespace detail {
+namespace original {
 
 template rmm::device_uvector<int32_t> compute_local_major_degrees(
   raft::handle_t const& handle,
@@ -377,6 +377,6 @@ gather_one_hop_edgelist(raft::handle_t const& handle,
                         const rmm::device_uvector<int32_t>& active_major_gpu_ids,
                         const rmm::device_uvector<int64_t>& global_adjacency_list_offsets);
 
+}  // namespace original
 }  // namespace detail
-
 }  // namespace cugraph

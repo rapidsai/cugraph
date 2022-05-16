@@ -188,7 +188,11 @@ add_library(cugraph
     src/sampling/neighborhood.cu
     src/sampling/random_walks.cu
     src/sampling/detail/gather_utils_impl.cu
+    src/sampling/detail/sampling_utils_mg.cu
+    src/sampling/detail/sampling_utils_sg.cu
     src/sampling/nbr_sampling_mg.cu
+    src/sampling/uniform_neighbor_sampling_mg.cpp
+    src/sampling/uniform_neighbor_sampling_sg.cpp
     src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
@@ -213,8 +217,7 @@ add_library(cugraph
     src/structure/relabel_sg.cu
     src/structure/relabel_mg.cu
     src/structure/induced_subgraph_sg.cu
-    ## FIXME: Not currently supported
-    ##src/structure/induced_subgraph_mg.cu
+    src/structure/induced_subgraph_mg.cu
     src/traversal/extract_bfs_paths_sg.cu
     src/traversal/extract_bfs_paths_mg.cu
     src/traversal/bfs_sg.cu

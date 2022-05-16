@@ -75,6 +75,11 @@ struct key_aggregated_edge_op_t {
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename weight_t>
 struct reduce_op_t {
+  using type                          = thrust::tuple<vertex_t, weight_t>;
+  static constexpr bool pure_function = true;  // this can be called from any process
+  inline static type const identity_element =
+    thrust::make_tuple(std::numeric_limits<weight_t>::lowest(), invalid_vertex_id<vertex_t>::value);
+
   __device__ auto operator()(thrust::tuple<vertex_t, weight_t> p0,
                              thrust::tuple<vertex_t, weight_t> p1) const
   {
@@ -313,7 +318,7 @@ class Louvain {
           pair_first,
           pair_first + current_graph_view_.local_vertex_partition_range_size(),
           [key_func =
-             cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{
+             cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
                comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
           handle_.get_stream());
 
@@ -430,7 +435,7 @@ class Louvain {
     rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle_.get_stream());
     edge_partition_src_property_t<graph_view_t, weight_t> src_cluster_weights(handle_);
     if constexpr (graph_view_t::is_multi_gpu) {
-      cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t> vertex_to_gpu_id_op{
+      cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
         handle_.get_comms().get_size()};
 
       vertex_cluster_weights_v = cugraph::collect_values_for_keys(handle_.get_comms(),
@@ -521,8 +526,8 @@ class Louvain {
       cluster_keys_v_.end(),
       cluster_weights_v_.begin(),
       detail::key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
-      detail::reduce_op_t<vertex_t, weight_t>{},
       thrust::make_tuple(vertex_t{-1}, weight_t{0}),
+      detail::reduce_op_t<vertex_t, weight_t>{},
       cugraph::get_dataframe_buffer_begin(output_buffer));
 
     thrust::transform(handle_.get_thrust_policy(),

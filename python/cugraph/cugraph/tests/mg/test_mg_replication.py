@@ -20,7 +20,7 @@ from cudf.testing import assert_series_equal, assert_frame_equal
 import cugraph
 import cugraph.dask.structure.replication as replication
 from cugraph.dask.common.mg_utils import is_single_gpu
-import cugraph.tests.utils as utils
+import cugraph.testing.utils as utils
 
 DATASETS_OPTIONS = utils.DATASETS_SMALL
 DIRECTED_GRAPH_OPTIONS = [False, True]

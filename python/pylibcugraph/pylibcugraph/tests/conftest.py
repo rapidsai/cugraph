@@ -17,7 +17,7 @@ import numpy as np
 
 import pytest
 
-from . import utils
+from pylibcugraph.testing import utils
 
 
 # =============================================================================

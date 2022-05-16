@@ -11,26 +11,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .components._connectivity import (
+from pylibcugraph.components._connectivity import (
     strongly_connected_components,
     weakly_connected_components,
 )
 
-from . import experimental
+from pylibcugraph import experimental
 
-from .graphs import (
+from pylibcugraph.graphs import (
     SGGraph,
     MGGraph
 )
 
-from .resource_handle import ResourceHandle
+from pylibcugraph.resource_handle import ResourceHandle
 
-from .graph_properties import GraphProperties
+from pylibcugraph.graph_properties import GraphProperties
 
-from .pagerank import pagerank
+from pylibcugraph.pagerank import pagerank
 
-from .sssp import sssp
+from pylibcugraph.sssp import sssp
 
-from .hits import hits
+from pylibcugraph.hits import hits
 
-from .node2vec import node2vec
+from pylibcugraph.node2vec import node2vec

@@ -468,7 +468,7 @@ coarsen_graph(
       thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
-  unique_labels = cugraph::detail::shuffle_vertices_by_gpu_id(handle, std::move(unique_labels));
+  unique_labels = cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle, std::move(unique_labels));
 
   thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
