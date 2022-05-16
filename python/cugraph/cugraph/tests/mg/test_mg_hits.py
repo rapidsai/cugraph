@@ -17,7 +17,7 @@ import pytest
 import cugraph
 import dask_cudf
 # from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 
 # =============================================================================

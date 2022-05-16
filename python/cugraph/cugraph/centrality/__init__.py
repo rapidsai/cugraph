@@ -16,3 +16,4 @@ from cugraph.centrality.betweenness_centrality import (
     betweenness_centrality,
     edge_betweenness_centrality,
 )
+from cugraph.centrality.degree_centrality import degree_centrality

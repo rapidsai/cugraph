@@ -26,7 +26,7 @@ import cugraph
 import pylibcugraph
 import cudf
 from numba import cuda
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 
 modules_to_skip = ["dask", "proto", "raft"]

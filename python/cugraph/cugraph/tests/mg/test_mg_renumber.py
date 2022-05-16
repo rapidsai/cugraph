@@ -25,10 +25,10 @@ from cudf.testing import assert_series_equal
 
 import cugraph.dask as dcg
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
 from cugraph.structure.number_map import NumberMap
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
 # =============================================================================

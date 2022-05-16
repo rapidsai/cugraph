@@ -37,8 +37,8 @@
 #include <vector>
 
 namespace cugraph {
-
 namespace detail {
+namespace original {
 
 /**
  * @brief Compute local out degrees of the majors belonging to the adjacency matrices
@@ -238,6 +238,6 @@ gather_one_hop_edgelist(
   const rmm::device_uvector<prop_t>& active_major_property,
   const rmm::device_uvector<typename GraphViewType::edge_type>& global_adjacency_list_offsets);
 
+}  // namespace original
 }  // namespace detail
-
 }  // namespace cugraph

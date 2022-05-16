@@ -60,7 +60,7 @@ struct rebase_offset_t {
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename weight_t>
 struct triplet_to_col_rank_t {
-  compute_gpu_id_from_vertex_t<vertex_t> key_func{};
+  compute_gpu_id_from_ext_vertex_t<vertex_t> key_func{};
   int row_comm_size{};
   __device__ int operator()(
     thrust::tuple<vertex_t, vertex_t, weight_t> val /* major, minor key, weight */) const
@@ -144,7 +144,7 @@ struct reduce_with_init_t {
 
 /**
  * @brief Iterate over every vertex's destination key-aggregated outgoing edges to update vertex
- * properties.
+ * property values.
  *
  * This function is inspired by thrust::transfrom_reduce().
  * Unlike per_v_transform_reduce_outgoing_e, this function first aggregates outgoing edges by
@@ -175,8 +175,8 @@ struct reduce_with_init_t {
  * cugraph::edge_partition_dst_property_t::device_view(). Use update_edge_partition_dst_property to
  * fill the wrapper.
  * @param map_unique_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
- * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_vertex_t` is used
- * to map keys to processes). (Key, value) pairs may be provided by
+ * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_ext_vertex_t` is
+ * used to map keys to processes). (Key, value) pairs may be provided by
  * transform_reduce_by_src_key_e() or transform_reduce_by_dst_key_e().
  * @param map_unique_key_last Iterator pointing to the last (exclusive) key in (key, value) pairs
  * (assigned to this process in multi-GPU).
@@ -187,8 +187,13 @@ struct reduce_with_init_t {
  * edge_partition_src_value_input_first + i), and value for the key stored in the input (key, value)
  * pairs provided by @p map_unique_key_first, @p map_unique_key_last, and @p map_value_first
  * (aggregated over the entire set of processes in multi-GPU).
- * @param reduce_op Binary operator takes two input arguments and reduce the two variables to one.
- * @param init Initial value to be added to the reduced @p reduce_op return values for each vertex.
+ * @param init Initial value to be reduced with the reduced value for each vertex.
+ * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
+ * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
+ * recommended to use the pre-defined reduction operators whenever possible as the current (and
+ * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
+ * known member variables) to take a more optimized code path. See the documentation in the
+ * reduce_op.cuh file for instructions on writing custom reduction operators.
  * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
  * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
@@ -212,8 +217,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   VertexIterator map_unique_key_last,
   ValueIterator map_value_first,
   KeyAggregatedEdgeOp key_aggregated_e_op,
-  ReduceOp reduce_op,
   T init,
+  ReduceOp reduce_op,
   VertexValueOutputIterator vertex_value_output_first)
 {
   static_assert(!GraphViewType::is_storage_transposed,
@@ -426,7 +431,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         triplet_first,
         triplet_first + tmp_majors.size(),
         detail::triplet_to_col_rank_t<vertex_t, weight_t>{
-          detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size}, row_comm_size},
+          detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}, row_comm_size},
         col_comm_size,
         mem_frugal_threshold,
         handle.get_stream());
@@ -547,11 +552,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         collect_values_for_unique_keys<vertex_t,
                                        value_t,
                                        decltype(stream_adapter),
-                                       cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>>(
+                                       cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>>(
           comm,
           kv_map,
           std::move(unique_minor_keys),
-          cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
+          cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size},
           handle.get_stream());
 
       multi_gpu_kv_map_ptr.reset();
