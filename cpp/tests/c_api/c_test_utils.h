@@ -28,6 +28,12 @@
     }                                                                      \
   }
 
+#define TEST_ALWAYS_ASSERT(STATEMENT, MESSAGE)                \
+  {                                                           \
+    int tmp = !(STATEMENT);                                   \
+    if (tmp) { printf("ASSERTION FAILED: %s\n", (MESSAGE)); } \
+  }
+
 #ifdef __cplusplus
 extern "C" {
 #endif
