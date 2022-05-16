@@ -51,9 +51,9 @@ def call_katz_centrality(sID,
     # print("WEIGHTS!")
     # print(weights)
     if "value" in data[0].columns:
-        #print("weights isnt none")
+        # print("weights isnt none")
         weights = data[0]['value']
-        #print(weights)
+        # print(weights)
 
     mg = MGGraph(h,
                  graph_properties,
@@ -66,7 +66,7 @@ def call_katz_centrality(sID,
     # print("Created MGGRaph!")
     # print("NStart, alpha, beta, max_iter")
     # print(nstart)
-    
+
     result = pylibcugraph_katz(h,
                                mg,
                                nstart["values"],
@@ -75,7 +75,7 @@ def call_katz_centrality(sID,
                                tol,
                                max_iter,
                                do_expensive_check)
-    #print("Result returned from callkatz!")
+    # print("Result returned from callkatz!")
     return result
 
 
@@ -90,7 +90,6 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-# def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
 def katz_centrality2(
     input_graph, alpha=None, beta=1.0, max_iter=100, tol=1.0e-6,
     nstart=None, normalized=True
@@ -150,25 +149,25 @@ def katz_centrality2(
                    for idx, wf in enumerate(data.worker_to_parts.items())]
     """
     cupy_result = [client.submit(call_katz_centrality,
-                                Comms.get_session_id(),
-                                wf[1],
-                                graph_properties,
-                                store_transposed,
-                                do_expensive_check,
-                                src_col_name,
-                                dst_col_name,
-                                num_verts,
-                                num_edges,
-                                vertex_partition_offsets,
-                                input_graph.aggregate_segment_offsets,
-                                alpha,
-                                beta,
-                                max_iter,
-                                tol,
-                                nstart,
-                                normalized,
-                                workers=[wf[0]])
-                for idx, wf in enumerate(data.worker_to_parts.items())]
+                                 Comms.get_session_id(),
+                                 wf[1],
+                                 graph_properties,
+                                 store_transposed,
+                                 do_expensive_check,
+                                 src_col_name,
+                                 dst_col_name,
+                                 num_verts,
+                                 num_edges,
+                                 vertex_partition_offsets,
+                                 input_graph.aggregate_segment_offsets,
+                                 alpha,
+                                 beta,
+                                 max_iter,
+                                 tol,
+                                 nstart,
+                                 normalized,
+                                 workers=[wf[0]])
+                   for idx, wf in enumerate(data.worker_to_parts.items())]
 
     wait(cupy_result)
 
