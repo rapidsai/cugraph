@@ -215,7 +215,6 @@ void triangle_count(raft::handle_t const& handle,
   // 3. Find 2-core and exclude edges that do not belong to 2-core (FIXME: better mask-out once we
   // add masking support).
 
-
   {
     auto cur_graph_view = modified_graph_view ? *modified_graph_view : graph_view;
     auto vertex_partition_range_lasts =
